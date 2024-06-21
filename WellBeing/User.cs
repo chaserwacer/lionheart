@@ -5,7 +5,7 @@ public class User
     private int Age { get; set;}
     private float Weight { get; set;}
     private Guid UserID { get; init;}
-    private List<WellnessState> WellBeingStates {get; set;}
+    private List<WellnessState> WellnessStates {get; set;}
 
 
     // SummaryGenerator (would draw conclusions about recent training and how an athlete is doing)
@@ -15,15 +15,15 @@ public class User
         this.Age = age;
         this.Weight = weight;
         this.UserID = new Guid();
-        this.WellBeingStates = [];
+        this.WellnessStates = [];
     }
 
-    public void AddWellBeingState(WellnessState state){
+    public void AddWellnessState(WellnessState state){
         // ToDo: Check if need to make sure there isnt dupulicate for given day??
-        WellBeingStates.Add(state);
+        WellnessStates.Add(state);
     }
 
-    public WellnessState GetWellBeingState
+    //public WellnessState GetWellnessState()
 
 
 
