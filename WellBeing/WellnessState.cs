@@ -18,55 +18,64 @@ public class WellnessState{
     public int MoodScore { get; set; }
     public int EnergyScore {get; set; }
     public string WrittenDescription {get; set; }
-
-    public WellnessState(Guid userId, int motivationScore, int fatigueScore, int moodScore, int energyScore, string writtenDescription){
-        this.StateID = new Guid();
-        this.UserID = userId;
+    public WellnessState(){
+        this.StateID = Guid.NewGuid();
         this.Date = DateOnly.FromDateTime(DateTime.Now);
+        this.WrittenDescription = string.Empty;
+    }
+
+    public WellnessState(Guid userId, int motivationScore, int fatigueScore, int moodScore, int energyScore, string writtenDescription)
+        :this()
+    {
+        this.UserID = userId;
         this.MotivationScore = motivationScore;
         this.FatigueScore = fatigueScore;  
         this.MoodScore = moodScore; 
         this.EnergyScore = energyScore;
         this.WrittenDescription = writtenDescription;
+        // this.StateID = Guid.NewGuid();
+        // this.Date = DateOnly.FromDateTime(DateTime.Now);
     }
 
-    public WellnessState(int number){
-        this.MotivationScore = number;
-        this.FatigueScore = number;  
-        this.MoodScore = number; 
-        this.EnergyScore = number;
-        this.WrittenDescription = "";
-    }
+    // public WellnessState(int number){
+    //     this.StateID = Guid.NewGuid();
+    //     this.Date = DateOnly.FromDateTime(DateTime.Now);
+    //     this.MotivationScore = number;
+    //     this.FatigueScore = number;
+    //     this.MoodScore = number;
+    //     this.EnergyScore = number;
+    //     this.WrittenDescription = string.Empty;
+    // }
 }// end WellBeingState
 
 
 
-public class WellBeingCatalog{
-    // State and Const
-    private Dictionary<DateOnly, WellnessState> Catalog;
+// public class WellBeingCatalog{
+//     // State and Const
+//     private Dictionary<DateOnly, WellnessState> Catalog;
 
-    public WellBeingCatalog(){
-        this.Catalog = new Dictionary<DateOnly,WellnessState>();
-    }
+//     public WellBeingCatalog(){
+//         this.Catalog = new Dictionary<DateOnly,WellnessState>();
+//     }
 
-    // Methods
-    public void AddWellBeingState(WellnessState state){
-        // TODO: WOuld just passsing the new date work to basically replace the previous values?
-        this.Catalog[DateOnly.FromDateTime(DateTime.Now)] = state;
-    }
+//     // Methods
+//     public void AddWellBeingState(WellnessState state){
+//         // TODO: WOuld just passsing the new date work to basically replace the previous values?
+//         this.Catalog[DateOnly.FromDateTime(DateTime.Now)] = state;
+//     }
 
-    public WellnessState? GetWellBeingState(DateOnly date){
-        this.Catalog.TryGetValue(date, out WellnessState? state);
-        //if (state is null){return new WellBeingState(-1);}
-        if (state is null){return null;}
-        return state;
-    }
+//     public WellnessState? GetWellBeingState(DateOnly date){
+//         this.Catalog.TryGetValue(date, out WellnessState? state);
+//         //if (state is null){return new WellBeingState(-1);}
+//         if (state is null){return null;}
+//         return state;
+//     }
 
-    public WellnessState GetTodaysState(){
-        this.Catalog.TryGetValue(DateOnly.FromDateTime(DateTime.Now), out WellnessState? state);
-        if (state is null){return new WellnessState(0);}
-        return state;
-    }
+//     public WellnessState GetTodaysState(){
+//         this.Catalog.TryGetValue(DateOnly.FromDateTime(DateTime.Now), out WellnessState? state);
+//         if (state is null){return new WellnessState(0);}
+//         return state;
+//     }
 
     /// <summary>
     /// Method to calculate avg WellBeing #'s from past X days
@@ -93,7 +102,7 @@ public class WellBeingCatalog{
 
     //     return new WellnessState(motivationScore, fatigueScore, moodScore, energyScore, "");
     // }
-}// end WellBeingCatalog
+//}// end WellBeingCatalog
 
 
 

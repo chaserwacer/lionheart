@@ -1,30 +1,30 @@
-using System;
-using System.Linq;
+using lionheart.WellBeing;
+using lionheart.Data;
+using lionheart.Services;
+using Microsoft.EntityFrameworkCore;
 
-using var db = new BloggingContext();
+var builder = WebApplication.CreateBuilder(args);
 
-// Note: This sample requires the database to be created before running.
-Console.WriteLine($"Database path: {db.DbPath}.");
+// Add services to the container.
+builder.Services.AddDbContext<UserContext>(options =>
+    options.UseSqlite("Data Source=./Data/lionheart.db"));
 
-// Create
-Console.WriteLine("Inserting a new blog");
-db.Add(new Blog { Url = "http://blogs.msdn.com/adonet" });
-db.SaveChanges();
+builder.Services.AddTransient<IUserService, UserService>();
 
-// Read
-Console.WriteLine("Querying for a blog");
-var blog = db.Blogs
-    .OrderBy(b => b.BlogId)
-    .First();
+builder.Services.AddControllers();
 
-// Update
-Console.WriteLine("Updating the blog and adding a post");
-blog.Url = "https://devblogs.microsoft.com/dotnet";
-blog.Posts.Add(
-    new Post { Title = "Hello World", Content = "I wrote an app using EF Core!" });
-db.SaveChanges();
+var app = builder.Build();
 
-// Delete
-Console.WriteLine("Delete the blog");
-db.Remove(blog);
-db.SaveChanges();
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+
+app.UseHttpsRedirection();
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
