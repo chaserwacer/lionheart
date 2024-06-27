@@ -2,28 +2,22 @@ namespace lionheart.WellBeing;
 public class User
 {
     public Guid UserID { get; init;}
+    public string UserName { get; set;}
     public string Name { get; set;}
+    public string Password { get; set;}
     public int Age { get; set;}
     public float Weight { get; set;}
     
     public List<WellnessState> WellnessStates {get; set;}
 
-
-    // SummaryGenerator (would draw conclusions about recent training and how an athlete is doing)
-
-
-
-    public User(string name, int age, float weight){
+    public User(string userName, string name, string password, int age, float weight){
+        this.UserName = userName;
         this.Name = name;
+        this.Password = password;
         this.Age = age;
         this.Weight = weight;
         this.UserID = Guid.NewGuid();
         this.WellnessStates = [];
     }
-
-    // public void AddWellnessState(WellnessState state){
-    //     // ToDo: Check if need to make sure there isnt dupulicate for given day??
-    //     WellnessStates.Add(state);
-    // }
 
 }

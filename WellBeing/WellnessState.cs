@@ -18,34 +18,20 @@ public class WellnessState{
     public int MoodScore { get; set; }
     public int EnergyScore {get; set; }
     public string WrittenDescription {get; set; }
-    public WellnessState(){
-        this.StateID = Guid.NewGuid();
-        this.Date = DateOnly.FromDateTime(DateTime.Now);
-        this.WrittenDescription = string.Empty;
-    }
 
-    public WellnessState(Guid userId, int motivationScore, int fatigueScore, int moodScore, int energyScore, string writtenDescription)
-        :this()
+
+    public WellnessState(Guid userID, int motivationScore, int fatigueScore, int moodScore, int energyScore, string writtenDescription)
     {
-        this.UserID = userId;
+        this.UserID = userID;
         this.MotivationScore = motivationScore;
         this.FatigueScore = fatigueScore;  
         this.MoodScore = moodScore; 
         this.EnergyScore = energyScore;
         this.WrittenDescription = writtenDescription;
-        // this.StateID = Guid.NewGuid();
-        // this.Date = DateOnly.FromDateTime(DateTime.Now);
+        this.StateID = Guid.NewGuid();
+        this.Date = DateOnly.FromDateTime(DateTime.Now);
     }
 
-    // public WellnessState(int number){
-    //     this.StateID = Guid.NewGuid();
-    //     this.Date = DateOnly.FromDateTime(DateTime.Now);
-    //     this.MotivationScore = number;
-    //     this.FatigueScore = number;
-    //     this.MoodScore = number;
-    //     this.EnergyScore = number;
-    //     this.WrittenDescription = string.Empty;
-    // }
 }// end WellBeingState
 
 
