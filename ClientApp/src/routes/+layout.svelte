@@ -54,10 +54,10 @@
           <div class="hidden sm:ml-6 sm:block">
             <div class="flex space-x-4 ">
               <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->
-              <a href="#" class="text-white hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Landing</a>
-              <a href="#" class="text-white hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Catalog</a>
-              <a href="#" class="text-white hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Logbook</a>
-              <a href="#" class="text-white hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Calendar</a>
+              <a href="./page.svelte" class="text-white hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Landing</a>
+              <a href="./page.svelte" class="text-white hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Catalog</a>
+              <a href="./page.svelte" class="text-white hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Logbook</a>
+              <a href="./page.svelte" class="text-white hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Calendar</a>
             </div>
           </div>
         </div>
@@ -84,10 +84,10 @@
     <div class="sm:hidden" id="mobile-menu">
       <div class="space-y-1 px-2 pb-3 pt-2">
         <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->
-        <a href="#" class="text-gray-300 hover:bg-primary hover:text-white block rounded-md px-3 py-2 text-base font-medium">Landing</a>
-        <a href="#" class="text-gray-300 hover:bg-primary hover:text-white block rounded-md px-3 py-2 text-base font-medium">Catalog</a>
-        <a href="#" class="text-gray-300 hover:bg-primary hover:text-white block rounded-md px-3 py-2 text-base font-medium">Logbook</a>
-        <a href="#" class="text-gray-300 hover:bg-primary hover:text-white block rounded-md px-3 py-2 text-base font-medium">Calendar</a>
+        <a href="./page.svelte" class="text-gray-300 hover:bg-primary hover:text-white block rounded-md px-3 py-2 text-base font-medium">Landing</a>
+        <a href="./page.svelte" class="text-gray-300 hover:bg-primary hover:text-white block rounded-md px-3 py-2 text-base font-medium">Catalog</a>
+        <a href="./page.svelte" class="text-gray-300 hover:bg-primary hover:text-white block rounded-md px-3 py-2 text-base font-medium">Logbook</a>
+        <a href="./page.svelte" class="text-gray-300 hover:bg-primary hover:text-white block rounded-md px-3 py-2 text-base font-medium">Calendar</a>
       </div>
     </div>
   </nav>

@@ -11,8 +11,8 @@ using lionheart.Data;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(UserContext))]
-    [Migration("20240627172830_user")]
-    partial class user
+    [Migration("20240628165317_UserInitial")]
+    partial class UserInitial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

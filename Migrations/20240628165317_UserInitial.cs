@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace lionheart.Migrations
 {
     /// <inheritdoc />
-    public partial class user : Migration
+    public partial class UserInitial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

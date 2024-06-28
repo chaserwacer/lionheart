@@ -25,6 +25,15 @@ namespace lionheart.Controllers
             return CreatedAtAction(nameof(GetUser), new { userId = createdUser.UserID }, createdUser);
         }
 
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] UserLoginDto loginDto)
+        {
+            var user = await _userService.LoginAsync(loginDto.Username, loginDto.Password);
+            if (user == null)
+                return Unauthorized();
+            return Ok(user);
+        }
+
         [HttpGet("{userId}")]
         public async Task<IActionResult> GetUser(Guid userId)
         {
@@ -61,6 +70,18 @@ namespace lionheart.Controllers
             }
         }
 
+        [HttpGet]
+        [Route("/api/[controller]/[action]")]
+        public string GetMessage()
+        {
+            return "hiii";
+        }
+
         
     }
+}
+
+public class UserLoginDto{
+    public required string Username { get; set;}
+    public required string Password { get; set;}
 }
