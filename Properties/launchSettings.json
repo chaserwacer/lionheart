@@ -11,7 +11,7 @@
     "lionheart": {
       "commandName": "Project",
       "launchBrowser": true,
-      "applicationUrl": "https://localhost:7025;",
+      "applicationUrl": "http://localhost:7025;",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": "Microsoft.AspNetCore.SpaProxy"

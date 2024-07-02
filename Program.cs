@@ -12,7 +12,8 @@ builder.Services.AddDbContext<UserContext>(options =>
 builder.Services.AddTransient<IUserService, UserService>();
 
 builder.Services.AddControllers();
-
+builder.Logging.AddConsole(); // Configure logging to console
+builder.Logging.AddDebug(); 
 
 var app = builder.Build();
 

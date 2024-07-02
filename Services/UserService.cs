@@ -46,19 +46,21 @@ namespace lionheart.Services
             }
         }
 
-        public async Task<WellnessState?> GetTodaysStateAsync(Guid userId){
+        public async Task<WellnessState?> GetTodaysStateAsync(Guid userId)
+        {
             var user = await _context.Users.FindAsync(userId);
             if (user != null)
             {
                 var now = DateTime.UtcNow.Date;
                 var lastWeek = now.AddDays(-7);
                 List<WellnessState> states = await _context.WellnessStates.Where(ws => ws.UserID == user.UserID && ws.Date.CompareTo(lastWeek) >= 0 && ws.Date.CompareTo(now) <= 0).ToListAsync();
-                
+
                 int motivationScore = 0;
                 int fatigueScore = 0;
                 int moodScore = 0;
                 int energyScore = 0;
-                foreach(var state in states){
+                foreach (var state in states)
+                {
                     fatigueScore += state.FatigueScore;
                     moodScore += state.MoodScore;
                     energyScore += state.EnergyScore;
@@ -74,7 +76,8 @@ namespace lionheart.Services
             }
         }
 
-        public async Task<WellnessState?> GetWeeklyWellnessAverage(Guid userId){
+        public async Task<WellnessState?> GetWeeklyWellnessAverage(Guid userId)
+        {
             var user = await _context.Users.FindAsync(userId);
             if (user != null)
             {
@@ -89,39 +92,22 @@ namespace lionheart.Services
 
         public async Task<User> CreateUserAsync(User user)
         {
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return user;
+            var existingUser = await _context.Users.FindAsync(user.UserID);
+            if (existingUser == null)
+            {
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+                return user;
+            }
+            return existingUser;
         }
+
 
         public async Task<User?> GetUserAsync(Guid userId)
         {
             return await _context.Users.FindAsync(userId);
         }
 
-        public async Task<Boolean> checkUsernameExistsAsync(string username)
-        {
-            // Check if the username already exists
-            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == username);
-            if (existingUser != null)
-            {
-                return false;
-            }
-            else{
-                return true;
-            }
 
-        }
-
-        public async Task<User> LoginAsync(string username, string password)
-        {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserName == username && u.Password == password);
-            if (user == null)
-            {
-                throw new InvalidOperationException("Invalid credentials");
-            }
-
-            return user;
-        }
     }
 }

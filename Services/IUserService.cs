@@ -11,7 +11,6 @@ namespace lionheart.Services
         Task<List<WellnessState>> GetWellnessStatesAsync(Guid userId);
         Task<User> CreateUserAsync(User user);
         Task<User?> GetUserAsync(Guid userId);
-        Task<Boolean> checkUsernameExistsAsync(string username);
-        Task<User> LoginAsync(string username, string password);
+
     }
 }
