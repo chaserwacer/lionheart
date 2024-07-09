@@ -48,26 +48,11 @@ namespace lionheart.Services
 
         public async Task<WellnessState?> GetTodaysStateAsync(Guid userId)
         {
+            
             var user = await _context.Users.FindAsync(userId);
             if (user != null)
             {
-                var now = DateTime.UtcNow.Date;
-                var lastWeek = now.AddDays(-7);
-                List<WellnessState> states = await _context.WellnessStates.Where(ws => ws.UserID == user.UserID && ws.Date.CompareTo(lastWeek) >= 0 && ws.Date.CompareTo(now) <= 0).ToListAsync();
-
-                int motivationScore = 0;
-                int fatigueScore = 0;
-                int moodScore = 0;
-                int energyScore = 0;
-                foreach (var state in states)
-                {
-                    fatigueScore += state.FatigueScore;
-                    moodScore += state.MoodScore;
-                    energyScore += state.EnergyScore;
-                    motivationScore += state.MotivationScore;
-                }
-                return new WellnessState(userId, motivationScore, fatigueScore, moodScore, energyScore, "");
-                // TODO: Would this persist to the database????
+                return await _context.WellnessStates.Where(ws => ws.UserID == userId && ws.Date.Equals(DateTime.Now)).FirstOrDefaultAsync();
             }
             else
             {
@@ -81,7 +66,23 @@ namespace lionheart.Services
             var user = await _context.Users.FindAsync(userId);
             if (user != null)
             {
-                return await _context.WellnessStates.Where(ws => ws.UserID == userId && ws.Date.Equals(DateTime.Now)).FirstOrDefaultAsync();
+                var now = DateTime.UtcNow.Date;
+                var lastWeek = now.AddDays(-7);
+                List<WellnessState> states = await _context.WellnessStates.Where(ws => ws.UserID == user.UserID && ws.Date.CompareTo(lastWeek) >= 0 && ws.Date.CompareTo(now) <= 0).ToListAsync();
+
+                int motivationScore = 0;
+                int stressScore = 0;
+                int moodScore = 0;
+                int energyScore = 0;
+                foreach (var state in states)
+                {
+                    stressScore += state.StressScore;
+                    moodScore += state.MoodScore;
+                    energyScore += state.EnergyScore;
+                    motivationScore += state.MotivationScore;
+                }
+                return new WellnessState(userId, motivationScore, stressScore, moodScore, energyScore, "");
+                // TODO: Would this persist to the database????
             }
             else
             {

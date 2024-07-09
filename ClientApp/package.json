@@ -13,10 +13,11 @@
 		"test:unit": "vitest"
 	},
 	"devDependencies": {
+		"@azure/msal-node": "^2.10.0",
 		"@playwright/test": "^1.28.1",
 		"@sveltejs/adapter-auto": "^3.0.0",
-		"@sveltejs/kit": "^2.0.0",
-		"@sveltejs/vite-plugin-svelte": "^3.0.0",
+		"@sveltejs/kit": "^2.5.18",
+		"@sveltejs/vite-plugin-svelte": "^3.1.1",
 		"autoprefixer": "^10.4.19",
 		"daisyui": "^4.12.2",
 		"postcss": "^8.4.38",

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace lionheart.Migrations
 {
     /// <inheritdoc />
-    public partial class UserInitial : Migration
+    public partial class UsersInitial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,9 +16,7 @@ namespace lionheart.Migrations
                 columns: table => new
                 {
                     UserID = table.Column<Guid>(type: "TEXT", nullable: false),
-                    UserName = table.Column<string>(type: "TEXT", nullable: false),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
-                    Password = table.Column<string>(type: "TEXT", nullable: false),
                     Age = table.Column<int>(type: "INTEGER", nullable: false),
                     Weight = table.Column<float>(type: "REAL", nullable: false)
                 },

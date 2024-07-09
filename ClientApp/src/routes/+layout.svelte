@@ -47,15 +47,15 @@
         </div>
         <div class="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
           <div class="flex flex-shrink-0 items-center">
-            <img class="h-10 w-auto mr-2" src="/src/assets/logo.png" alt="Lion Logo">
+            <img class="h-10 w-auto mr-2" src="/src/assets/logo.png" alt="Lion Logo">       
             <a href="/" class="title text-2xl tracking-widest text-bold ">LIONHEART</a>
             
           </div>
           <div class="hidden sm:ml-6 sm:block">
             <div class="flex space-x-4 ">
               <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->
-              <a href="./page.svelte" class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Landing</a>
-              <a href="./page.svelte" class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Catalog</a>
+              <a href="./page.svelte" class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Homebase</a>
+              <a href="./page.svelte" class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Wellness Tracker</a>
               <a href="./page.svelte" class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Logbook</a>
               <a href="./page.svelte" class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium">Calendar</a>
             </div>
@@ -95,7 +95,7 @@
 
 
 
-    <a href="/logout">Logout</a>
+    
 
 
 

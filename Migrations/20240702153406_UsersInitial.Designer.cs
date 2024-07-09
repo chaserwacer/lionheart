@@ -11,8 +11,8 @@ using lionheart.Data;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(UserContext))]
-    [Migration("20240628165317_UserInitial")]
-    partial class UserInitial
+    [Migration("20240702153406_UsersInitial")]
+    partial class UsersInitial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -30,14 +30,6 @@ namespace lionheart.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Password")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserName")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

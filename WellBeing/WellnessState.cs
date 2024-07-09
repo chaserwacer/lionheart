@@ -14,17 +14,17 @@ public class WellnessState{
     public Guid UserID {get; init;}
     public DateOnly Date {get; init;}
     public int MotivationScore { get; set; }
-    public int FatigueScore { get; set; }
+    public int StressScore { get; set; }
     public int MoodScore { get; set; }
     public int EnergyScore {get; set; }
     public string WrittenDescription {get; set; }
 
 
-    public WellnessState(Guid userID, int motivationScore, int fatigueScore, int moodScore, int energyScore, string writtenDescription)
+    public WellnessState(Guid userID, int motivationScore, int stressScore, int moodScore, int energyScore, string writtenDescription)
     {
         this.UserID = userID;
         this.MotivationScore = motivationScore;
-        this.FatigueScore = fatigueScore;  
+        this.StressScore = stressScore;  
         this.MoodScore = moodScore; 
         this.EnergyScore = energyScore;
         this.WrittenDescription = writtenDescription;

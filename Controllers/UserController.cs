@@ -20,48 +20,51 @@ namespace lionheart.Controllers
             _userService = userService;
             _logger = logger;
         }
-
-        [HttpGet("{userId}")]
-        public async Task<IActionResult> GetUser(Guid userId)
+        [HttpGet]
+        [Route("/api/[controller]/[action]")]
+        public async Task<IActionResult> TestUser()
         {
-            var user = await _userService.GetUserAsync(userId);
-            if (user == null)
-            {
-                return NotFound();
-            }
+            return Ok(this.User.Identity!.Name);
+            // var user = await _userService.GetUserAsync(userId);
+            // if (user == null)
+            // {
+            //     return NotFound();
+            // }
 
-            return Ok(user.UserID);
+            // return Ok(user.UserID);
         }
 
-        [HttpGet("details/{userId}")]
-        public async Task<IActionResult> GetUserDetails(Guid userId)
-        {
-            var user = await _userService.GetUserAsync(userId);
-            if (user == null)
-            {
-                return NotFound();
-            }
 
-            var userDetails = new
-            {
-                user.Age,
-                user.Weight
-            };
 
-            return Ok(userDetails);
-        }
+        // [HttpGet("details/{userId}")]
+        // public async Task<IActionResult> GetUserDetails(Guid userId)
+        // {
+        //     var user = await _userService.GetUserAsync(userId);
+        //     if (user == null)
+        //     {
+        //         return NotFound();
+        //     }
 
-        [HttpPost("signin")]
-        public async Task<IActionResult> SignIn([FromBody] UserDto userDto)
-        {
-            var user = await _userService.GetUserAsync(userDto.UserID);
-            if (user == null)
-            {
-                user = await _userService.CreateUserAsync(new User(userDto.UserID, userDto.Name, age: 0, weight: 0));
-            }
+        //     var userDetails = new
+        //     {
+        //         user.Age,
+        //         user.Weight
+        //     };
 
-            return Ok(user.UserID);
-        }
+        //     return Ok(userDetails);
+        // }
+
+        // [HttpPost("signin")]
+        // public async Task<IActionResult> SignIn([FromBody] UserDto userDto)
+        // {
+        //     var user = await _userService.GetUserAsync(userDto.UserID);
+        //     if (user == null)
+        //     {
+        //         user = await _userService.CreateUserAsync(new User(userDto.UserID, userDto.Name, age: 0, weight: 0));
+        //     }
+
+        //     return Ok(user.UserID);
+        // }
 
 
 
@@ -92,33 +95,33 @@ namespace lionheart.Controllers
         //     return Ok(user);
         // }
 
-        [HttpPost("{userId}/wellness")]
-        public async Task<IActionResult> AddWellnessState(Guid userId, [FromBody] WellnessState wellnessState)
-        {
-            try
-            {
-                await _userService.AddWellnessStateAsync(userId, wellnessState);
-                return NoContent();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return NotFound(ex.Message);
-            }
-        }
+        // [HttpPost("{userId}/wellness")]
+        // public async Task<IActionResult> AddWellnessState(Guid userId, [FromBody] WellnessState wellnessState)
+        // {
+        //     try
+        //     {
+        //         await _userService.AddWellnessStateAsync(userId, wellnessState);
+        //         return NoContent();
+        //     }
+        //     catch (InvalidOperationException ex)
+        //     {
+        //         return NotFound(ex.Message);
+        //     }
+        // }
 
-        [HttpGet("{userId}/wellness")]
-        public async Task<IActionResult> GetWellnessStates(Guid userId)
-        {
-            try
-            {
-                var wellnessStates = await _userService.GetWellnessStatesAsync(userId);
-                return Ok(wellnessStates);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return NotFound(ex.Message);
-            }
-        }
+        // [HttpGet("{userId}/wellness")]
+        // public async Task<IActionResult> GetWellnessStates(Guid userId)
+        // {
+        //     try
+        //     {
+        //         var wellnessStates = await _userService.GetWellnessStatesAsync(userId);
+        //         return Ok(wellnessStates);
+        //     }
+        //     catch (InvalidOperationException ex)
+        //     {
+        //         return NotFound(ex.Message);
+        //     }
+        // }
 
         [HttpGet]
         [Route("/api/[controller]/[action]")]
@@ -131,7 +134,8 @@ namespace lionheart.Controllers
     }
 }
 
-public class UserDto{
+public class UserDto
+{
     public required Guid UserID { get; set; }
     public required string Name { get; set; }
 }
