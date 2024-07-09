@@ -1,5 +1,5 @@
 namespace lionheart.WellBeing;
-public class User
+public class LionheartUser
 {
     public Guid UserID { get; init;}
     public string Name { get; set;}
@@ -8,7 +8,7 @@ public class User
     
     public List<WellnessState> WellnessStates {get; set;}
 
-    public User(Guid userID,string name, int age, float weight){
+    public LionheartUser(Guid userID,string name, int age, float weight){
         this.UserID = userID;
         this.Name = name;
         this.Age = age;

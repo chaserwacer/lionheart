@@ -10,7 +10,7 @@ using lionheart.Data;
 
 namespace lionheart.Migrations
 {
-    [DbContext(typeof(UserContext))]
+    [DbContext(typeof(ModelContext))]
     [Migration("20240702153406_UsersInitial")]
     partial class UsersInitial
     {

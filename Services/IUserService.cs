@@ -9,8 +9,8 @@ namespace lionheart.Services
     {
         Task AddWellnessStateAsync(Guid userId, WellnessState wellnessState);
         Task<List<WellnessState>> GetWellnessStatesAsync(Guid userId);
-        Task<User> CreateUserAsync(User user);
-        Task<User?> GetUserAsync(Guid userId);
+        // Task<User> CreateUserAsync(User user);
+        // Task<User?> GetUserAsync(Guid userId);
 
     }
 }
