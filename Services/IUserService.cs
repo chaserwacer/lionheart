@@ -1,3 +1,4 @@
+using lionheart.Controllers;
 using lionheart.WellBeing;
 using System;
 using System.Collections.Generic;
@@ -9,8 +10,8 @@ namespace lionheart.Services
     {
         Task AddWellnessStateAsync(Guid userId, WellnessState wellnessState);
         Task<List<WellnessState>> GetWellnessStatesAsync(Guid userId);
-        // Task<User> CreateUserAsync(User user);
-        // Task<User?> GetUserAsync(Guid userId);
+        Task<(Boolean, string)> HasCreatedProfileAsync(string? userID);
+        Task<LionheartUser> CreateProfileAsync(CreateProfileRequest req, string userID);
 
     }
 }

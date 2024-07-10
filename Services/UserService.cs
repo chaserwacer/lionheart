@@ -1,5 +1,7 @@
+using lionheart.Controllers;
 using lionheart.Data;
 using lionheart.WellBeing;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -48,7 +50,7 @@ namespace lionheart.Services
 
         public async Task<WellnessState?> GetTodaysStateAsync(Guid userId)
         {
-            
+
             var user = await _context.Users.FindAsync(userId);
             if (user != null)
             {
@@ -108,14 +110,42 @@ namespace lionheart.Services
         // {
         //     return await _context.Users.FindAsync(userId);
         // }
-        public async Task<LionheartUser> CreateProfile(CreateProfileRequest req, string userID){
-            // Lookup identity user from model context
 
-            // lookup lionheart user that has the userID
-                // if dont have lionheartuser, create new lHuser and set identity user to iDUser I got above, and copying all the req properties 
+        /// <summary>
+        /// Attempt to create a lionheart user for an exisiting identity user
+        /// </summary>
+        /// <param name="req">Obj holding values to store in lionheart user</param>
+        /// <param name="userID">Identity users key/email</param>
+        /// <returns></returns>
+        public async Task<LionheartUser> CreateProfileAsync(CreateProfileRequest req, string userID)
+        {
+            if (HasCreatedProfileAsync(userID).Result.Item1) { throw new InvalidOperationException("Attempted to create lionheart user for identity user, LHU already exists"); }
+            var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID);
+            if (identityUser is null) { throw new NullReferenceException("Could not locate this IdentityUser in database"); }
+            var identityUserID = identityUser.Id;
+            if (identityUserID == null) { throw new NullReferenceException("Identity User ID was null"); }
+            var privateKey = Guid.Parse(identityUserID);
+            if (identityUser is null) { throw new NullReferenceException("Identity User was null"); }
 
+            var lionheartUser = new LionheartUser(privateKey, identityUser, req.DisplayName, req.Age, req.Weight);
+            _context.Add(lionheartUser);
+            await _context.SaveChangesAsync();
+            return lionheartUser;
+        }
 
-            // if does exist throw exeption
+        /// <summary>
+        /// Determines whether a person with a userID has created a lionheart profile.
+        /// </summary>
+        /// <param name="userID">Identity User username</param>
+        /// <returns>tuple containing boolean indicating method result and users display name</returns>
+        public async Task<(Boolean, string)> HasCreatedProfileAsync(string? userID)
+        {
+            if (userID == null) { return (false, string.Empty); }
+            var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID); // was originally u.email but i beleive this is better
+            var privateKey = identityUser?.Id;
+            var lionheartUser = await _context.LionheartUsers.FindAsync(privateKey);
+            if (lionheartUser is not null){ return (true, lionheartUser.Name);}
+            else { return (false, userID); }
         }
 
     }

@@ -3,6 +3,8 @@ using lionheart.WellBeing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
 using System.Security.Claims;
@@ -29,22 +31,39 @@ namespace lionheart.Controllers
 
 
         [HttpGet("/api/[controller]/[action]")]
-        public string? GetName()
+        public string? GetUsername()
         {
-            return this.User.Identity?.Name ?? "Not Authorized";
-            //User.Identity.
-            //User identity name os the key
-            //System.Security.Claims.ClaimsPrincipal currentUser = this.User;
-            //var ID = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            // var name = User.FindFirstValue(ClaimTypes.Name);
-            // return name is null ? Ok("null") : (IActionResult)Ok(name);
+            // ATP this is the users email
+            return User.Identity?.Name ?? "Not Authorized";
         }
 
+        /// <summary>
+        /// Attempt to create Lionheart Profile for identity user. This method is run assuming that an Identity User exists
+        /// </summary>
+        /// <param name="req">Obj holding data to be stored in Lionheart User</param>
+        /// <returns>Boot user with display name and success of profile creation</returns>
         [HttpPost("[action]")]
-        public async Task<LionheartUserDto> CreateProfile(CreateProfileRequest req){
-            var lionheartUser = _userService.CreateProfile(req.User, User.Identity.Name); // returnn my obj
-            // create dto via getting user and sending back dto logic
-            // static method on dto, take lionheart user and return dto
+        public async Task<BootUserDto> CreateProfileAsync(CreateProfileRequest req){
+            try{
+                if (User.Identity?.Name is null) { throw new NullReferenceException("Error creating Lionheart profile - username/key was null"); }
+                var lionheartUser = await _userService.CreateProfileAsync(req, User.Identity.Name);
+                return new BootUserDto(lionheartUser.Name, true);
+                // Return their identity user name (email), or return their lionheart display name ??
+                //return new BootUserDto(User?.Identity?.Name, true); //
+            }
+            catch{
+                _logger.LogError("Error during creation of Lionheart profile");
+                return new BootUserDto(User?.Identity?.Name, false);
+            }
+        }
+
+
+        [HttpGet("[action]")]
+        public async Task<BootUserDto> GetBootUserDtoAsync(){
+            // Returns a DTO indicating the username for a user and whether or not they have created a lionheart profile
+            string? userName = User?.Identity?.Name ;
+            var hasCreatedProfile = await _userService.HasCreatedProfileAsync(userName);
+            return new BootUserDto(hasCreatedProfile.Item2, hasCreatedProfile.Item1);
         }
 
 
@@ -83,7 +102,8 @@ namespace lionheart.Controllers
         {
             return "hiii";
         }
-
-
     }
+
+    public record BootUserDto(string? Name, Boolean HasCreatedProfile);
+    public record CreateProfileRequest(string DisplayName, int Age, float Weight);
 }
