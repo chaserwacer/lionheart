@@ -3,6 +3,7 @@ using lionheart.Data;
 using lionheart.WellBeing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -127,8 +128,17 @@ namespace lionheart.Services
             var privateKey = Guid.Parse(identityUserID);
             if (identityUser is null) { throw new NullReferenceException("Identity User was null"); }
 
-            var lionheartUser = new LionheartUser(privateKey, identityUser, req.DisplayName, req.Age, req.Weight);
-            _context.Add(lionheartUser);
+            //var lionheartUser = new LionheartUser(privateKey, identityUser, req.DisplayName, req.Age, req.Weight);
+            LionheartUser lionheartUser = new()
+            {
+                UserID = privateKey,
+                IdentityUser = identityUser,
+                Name = req.DisplayName, 
+                Age = req.Age,
+                Weight = req.Weight
+            };
+
+            _context.LionheartUsers.Add(lionheartUser);
             await _context.SaveChangesAsync();
             return lionheartUser;
         }

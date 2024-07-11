@@ -23,6 +23,12 @@ namespace lionheart.Data
             modelBuilder.Entity<LionheartUser>()
                 .HasKey(u => u.UserID);
 
+            ///////
+            // modelBuilder.Entity<LionheartUser>()
+            //     .HasOne<IdentityUser>()
+            //     .WithOne()
+            //     .HasForeignKey<LionheartUser>(u => u.UserID);
+
             modelBuilder.Entity<WellnessState>()
                 .HasKey(w => w.StateID);
 

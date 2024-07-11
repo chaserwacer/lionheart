@@ -14,7 +14,6 @@ using System.Threading.Tasks;
 
 namespace lionheart.Controllers
 {
-    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class UserController : ControllerBase
