@@ -3,7 +3,7 @@
 </script>
 
 <!---------------------------------------------------------------------------->
-<nav class="bg-base-300">
+<nav class="bg-primary-content">
   <div class="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
     <div class="relative flex h-16 items-center justify-between">
       <div class="absolute inset-y-0 left-0 flex items-center sm:hidden">
@@ -56,10 +56,8 @@
           </svg>
         </button>
       </div>
-      <div
-        class="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start"
-      >
-        <div class="flex flex-shrink-0 items-center">
+      <div class="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
+        <div class="flex flex-shrink-0 items-center text-primary">
           <img
             class="h-10 w-auto mr-2"
             src="/src/assets/logo.png"
@@ -74,7 +72,7 @@
             <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->
             <a
               href="./page.svelte"
-              class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium"
+              class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium "
               >Homebase</a
             >
             <a
@@ -95,9 +93,7 @@
           </div>
         </div>
       </div>
-      <div
-        class="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0 flex-none"
-      >
+      <div class="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0 flex-none">
         <!-- Profile dropdown -->
         <div class="relative ml-3">
           <div>
@@ -150,11 +146,13 @@
   </div>
 </nav>
 
+
+
 <slot />
 
 <!-- <footer class="footer footer-center bg-base-300 text-base-content p-4 fixed inset-x-0">
   <aside>
-    
+    <ThemeSwitcher />
   </aside>
 </footer> -->
 

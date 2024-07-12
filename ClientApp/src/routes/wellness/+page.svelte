@@ -53,8 +53,8 @@
   </svelte:head>
   
   {#if Line}
-  <input type="checkbox" value="synthwave" class="toggle theme-controller" />
-    <div class="container mx-auto p-2">
+  <!-- <input type="checkbox" value="synthwave" class="toggle theme-controller" /> -->
+    <div class="container mx-auto ">
       <div class="text-center mb-4">
         <h1 class="text-5xl font-bold">Wellness Tracker</h1>
       </div>

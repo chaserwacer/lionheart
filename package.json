@@ -5,6 +5,7 @@
     "svelte-chartjs": "^3.1.5"
   },
   "devDependencies": {
-    "@azure/msal-node": "^2.10.0"
+    "@azure/msal-node": "^2.10.0",
+    "theme-change": "^2.5.0"
   }
 }

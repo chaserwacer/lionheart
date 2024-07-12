@@ -7,7 +7,7 @@ export const bootUserDto = writable({
 
 export async function fetchBootUserDto() {
     try {
-        const response = await fetch('/api/User/GetBootUserDtoAsync');
+        const response = await self.fetch('/api/User/GetBootUserDtoAsync');
         if (response.ok) {
             const data = await response.json();
             bootUserDto.set(data);

@@ -34,6 +34,10 @@
     }
 </script>
 
+<svelte:head>
+    <title>Autentication</title>
+  </svelte:head>
+
 <div class="flex flex-row items-center justify-center">
     <img class="h-1/4 w-1/4" src="/src/assets/logo.png" alt="Lion Logo"> 
     <!-- <div class="divider divider-horizontal divider-neutral"></div> -->
