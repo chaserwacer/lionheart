@@ -9,18 +9,17 @@
     let displayName = '';
     let age = '';
     let weight = '';
-    let stage = 'register';
 
     async function register() {
         // Perform registration logic here
         // After registration, update the BootUserDto
 
         await fetchBootUserDto(fetch);
-        bootUserDto.subscribe(value => {
-            if (value?.name !== null) {
-                stage = 'createProfile';
-            }
-        });
+        // bootUserDto.subscribe(value => {
+        //     if (value?.name !== null) {
+        //         stage = 'createProfile';
+        //     }
+        // });
     }
 
     async function createProfile() {
@@ -28,20 +27,13 @@
         // After profile creation, update the BootUserDto
 
         await fetchBootUserDto(fetch);
-        bootUserDto.subscribe(value => {
-            if (value?.hasCreatedProfile) {
-                goto('/');
-            }
-        });
+        // bootUserDto.subscribe(value => {
+        //     if (value?.hasCreatedProfile) {
+        //         goto('/');
+        //     }
+        // });
     }
-    let bootUser: { name: string; hasCreatedProfile: boolean; };
 
-bootUserDto.subscribe(value => {
-    bootUser = value;
-    bootUser = bootUser
-    value = value
-    console.log("Auth Page, value is: ", value)
-});
    
 </script>
 
@@ -57,7 +49,7 @@ bootUserDto.subscribe(value => {
 
 <div class="divider divider-neutral"></div>
 
-{#if stage === 'register'}
+{#if $bootUserDto.name === null}
 
 <div class="flex flex-col items-center justify-center ">
     <div>
@@ -87,31 +79,34 @@ bootUserDto.subscribe(value => {
     </div>
 </div>
 <div class="divider divider-neutral"></div>
-{/if}
 
-{#if stage === 'createProfile'}
-<div class="container mx-auto">
-    <h1 class="text-2xl font-bold">Create Profile</h1>
-    <form on:submit|preventDefault={createProfile} class="space-y-4">
-        <div class="form-control">
-            <label for="displayName" class="label">
-                <span class="label-text">Display Name</span>
-            </label>
-            <input type="text" id="displayName" bind:value={displayName} class="input input-bordered" required />
-        </div>
-        <div class="form-control">
-            <label for="age" class="label">
-                <span class="label-text">Age</span>
-            </label>
-            <input type="number" id="age" bind:value={age} class="input input-bordered" required />
-        </div>
-        <div class="form-control">
-            <label for="weight" class="label">
-                <span class="label-text">Weight</span>
-            </label>
-            <input type="number" id="weight" bind:value={weight} class="input input-bordered" required />
-        </div>
-        <button type="submit" class="btn btn-primary">Create Profile</button>
-    </form>
+{:else if !$bootUserDto.hasCreatedProfile}
+<div class="flex flex-col items-center justify-center">
+    <div>
+        <h1 class="text-2xl font-bold">CREATE PROFILE</h1>
+    </div>
+    <div class="w-6/12">
+        <form on:submit|preventDefault={createProfile} class="space-y-4">
+            <div class="form-control">
+                <label for="displayName" class="label">
+                    <span class="label-text">Display Name</span>
+                </label>
+                <input type="text" id="displayName" bind:value={displayName} class="input input-bordered" required />
+            </div>
+            <div class="form-control">
+                <label for="age" class="label">
+                    <span class="label-text">Age</span>
+                </label>
+                <input type="number" id="age" bind:value={age} class="input input-bordered" required />
+            </div>
+            <div class="form-control">
+                <label for="weight" class="label">
+                    <span class="label-text">Weight</span>
+                </label>
+                <input type="number" id="weight" bind:value={weight} class="input input-bordered" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Create Profile</button>
+        </form>
+    </div>
 </div>
 {/if}
