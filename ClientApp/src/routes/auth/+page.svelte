@@ -1,6 +1,8 @@
 <script lang="ts">
     import { bootUserDto, fetchBootUserDto } from '$lib/stores';
     import { goto } from '$app/navigation';
+    import { page } from '$app/stores';
+    import { onMount } from 'svelte';
 
     let email = '';
     let password = '';
@@ -13,9 +15,9 @@
         // Perform registration logic here
         // After registration, update the BootUserDto
 
-        await fetchBootUserDto();
+        await fetchBootUserDto(fetch);
         bootUserDto.subscribe(value => {
-            if (value.Name !== null) {
+            if (value?.name !== null) {
                 stage = 'createProfile';
             }
         });
@@ -25,13 +27,22 @@
         // Perform profile creation logic here
         // After profile creation, update the BootUserDto
 
-        await fetchBootUserDto();
+        await fetchBootUserDto(fetch);
         bootUserDto.subscribe(value => {
-            if (value.HasCreatedProfile) {
+            if (value?.hasCreatedProfile) {
                 goto('/');
             }
         });
     }
+    let bootUser: { name: string; hasCreatedProfile: boolean; };
+
+bootUserDto.subscribe(value => {
+    bootUser = value;
+    bootUser = bootUser
+    value = value
+    console.log("Auth Page, value is: ", value)
+});
+   
 </script>
 
 <svelte:head>
@@ -43,6 +54,7 @@
     <!-- <div class="divider divider-horizontal divider-neutral"></div> -->
     <h1 class="text-6xl font-bold">Welcome to <br> Project Lionheart</h1> 
 </div>
+
 <div class="divider divider-neutral"></div>
 
 {#if stage === 'register'}

@@ -153,9 +153,14 @@ namespace lionheart.Services
             if (userID == null) { return (false, string.Empty); }
             var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID); // was originally u.email but i beleive this is better
             var privateKey = identityUser?.Id;
-            var lionheartUser = await _context.LionheartUsers.FindAsync(privateKey);
-            if (lionheartUser is not null){ return (true, lionheartUser.Name);}
-            else { return (false, userID); }
+            if(privateKey is not null){
+                var guidPrivateKey = Guid.Parse(privateKey);
+                var lionheartUser = await _context.LionheartUsers.FindAsync(guidPrivateKey);
+                if (lionheartUser is not null){ return (true, lionheartUser.Name);}
+                else { return (false, userID); }
+            }
+            return (false, userID);
+            
         }
 
     }

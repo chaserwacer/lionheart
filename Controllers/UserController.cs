@@ -60,7 +60,8 @@ namespace lionheart.Controllers
         [HttpGet("[action]")]
         public async Task<BootUserDto> GetBootUserDtoAsync(){
             // Returns a DTO indicating the username for a user and whether or not they have created a lionheart profile
-            string? userName = User?.Identity?.Name ;
+            string? userName = User?.Identity?.Name;
+            Console.WriteLine("Got here");
             var hasCreatedProfile = await _userService.HasCreatedProfileAsync(userName);
             return new BootUserDto(hasCreatedProfile.Item2, hasCreatedProfile.Item1);
         }

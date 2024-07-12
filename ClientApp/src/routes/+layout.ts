@@ -1,6 +1,6 @@
-import { fetchBootUserDto } from '$lib/stores';
+import { bootUserDto, fetchBootUserDto } from '$lib/stores';
 
-export async function load() {
-    await fetchBootUserDto();
-    // No need to return `bootUser` explicitly, SvelteKit will handle it.
+export async function load({ fetch, params, url}) {
+    await fetchBootUserDto(fetch)
+    
 }
