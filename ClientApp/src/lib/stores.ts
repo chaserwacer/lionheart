@@ -12,7 +12,7 @@ export async function fetchBootUserDto(fetch: { (input: RequestInfo | URL, init?
         if (response.ok) {
             const data = await response.json();
             bootUserDto.set(data);
-            console.log("Fetch Boot in store: data is:", data)
+            // console.log("Fetch Boot in store: data is:", data)
         } else {
             console.error('Failed to fetch BootUserDto');
         }

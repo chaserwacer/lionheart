@@ -1,5 +1,7 @@
 using lionheart.Services;
 using lionheart.WellBeing;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +10,7 @@ using Microsoft.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -20,12 +23,15 @@ namespace lionheart.Controllers
     {
         private readonly IUserService _userService;
         private readonly ILogger<UserController> _logger;
+        private readonly HttpClient _httpClient;
+        
 
 
-        public UserController(IUserService userService, ILogger<UserController> logger)
+        public UserController(IUserService userService, ILogger<UserController> logger, HttpClient httpClient)
         {
             _userService = userService;
             _logger = logger;
+           _httpClient = httpClient;
         }
 
 
@@ -42,15 +48,18 @@ namespace lionheart.Controllers
         /// <param name="req">Obj holding data to be stored in Lionheart User</param>
         /// <returns>Boot user with display name and success of profile creation</returns>
         [HttpPost("[action]")]
-        public async Task<BootUserDto> CreateProfileAsync(CreateProfileRequest req){
-            try{
+        public async Task<BootUserDto> CreateProfileAsync(CreateProfileRequest req)
+        {
+            try
+            {
                 if (User.Identity?.Name is null) { throw new NullReferenceException("Error creating Lionheart profile - username/key was null"); }
                 var lionheartUser = await _userService.CreateProfileAsync(req, User.Identity.Name);
                 return new BootUserDto(lionheartUser.Name, true);
                 // Return their identity user name (email), or return their lionheart display name ??
                 //return new BootUserDto(User?.Identity?.Name, true); //
             }
-            catch{
+            catch
+            {
                 _logger.LogError("Error during creation of Lionheart profile");
                 return new BootUserDto(User?.Identity?.Name, false);
             }
@@ -58,12 +67,35 @@ namespace lionheart.Controllers
 
 
         [HttpGet("[action]")]
-        public async Task<BootUserDto> GetBootUserDtoAsync(){
+        public async Task<BootUserDto> GetBootUserDtoAsync()
+        {
             // Returns a DTO indicating the username for a user and whether or not they have created a lionheart profile
-            string? userName = User?.Identity?.Name;
-            Console.WriteLine("Got here");
-            var hasCreatedProfile = await _userService.HasCreatedProfileAsync(userName);
-            return new BootUserDto(hasCreatedProfile.Item2, hasCreatedProfile.Item1);
+            try
+            {
+                string? userName = User?.Identity?.Name;
+                var hasCreatedProfile = await _userService.HasCreatedProfileAsync(userName);
+                return new BootUserDto(hasCreatedProfile.Item2, hasCreatedProfile.Item1);
+            }
+            catch
+            {
+                throw new Exception("Failed to get BootUserDto");
+            }
+
+        }
+
+        [HttpPost("[action]")]
+        public async Task<IActionResult> LogoutUserAsync()
+        {
+            try
+            {
+                await HttpContext.SignOutAsync("Identity.Application");
+                return Ok();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"{e.Message}", e);
+                return BadRequest();
+            }
         }
 
 
@@ -102,8 +134,14 @@ namespace lionheart.Controllers
         {
             return "hiii";
         }
-    }
 
+        
+    }
+    public record LRModel
+    {
+        public required string Email { get; set; }
+        public required string Password { get; set; }
+    }
     public record BootUserDto(string? Name, Boolean HasCreatedProfile);
     public record CreateProfileRequest(string DisplayName, int Age, float Weight);
 }

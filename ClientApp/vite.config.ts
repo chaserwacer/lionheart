@@ -10,7 +10,9 @@ export default defineConfig({
 			  changeOrigin: true,
 			  ws: true
 			},
-			'/swagger': 'http://localhost:7025'
+			'/swagger': 'http://localhost:7025',
+			'/login': 'http://localhost:7025',
+			'/register': 'http://localhost:7025'
 		}
 	},
 	test: {

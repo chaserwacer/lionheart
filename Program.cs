@@ -25,6 +25,10 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
 
 builder.Services.AddTransient<IUserService, UserService>();
 
+// ????
+builder.Services.AddHttpClient();
+
+
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
