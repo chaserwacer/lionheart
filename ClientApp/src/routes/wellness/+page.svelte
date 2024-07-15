@@ -78,33 +78,50 @@
   <h1 class="text-5xl font-bold">Wellness Tracker</h1>
 </div>
 <div class="divider divider-neutral"></div>
+
 <div class="flex flex-col ml-10 mr-10">
   
   <div class="flex justify-center mb-5 text-center">
     <div class="stat bg-primary text-primary-content">
-      <div class="stat-value hover:underline">Overall Wellness</div>
+      <div class="stat-value ">Overall Wellness</div>
       <div class="stat-value">{overallWellness} / 5</div>
     </div>
   </div>
 
-  <div class="grid grid-cols-2 gap-5 mb-5">
-    <div class="stat bg-accent text-accent-content">
-      <div class="stat-value hover:underline">Energy</div>
+  <div class="stats stats-vertical md:stats-horizontal shadow bg-accent flex-initial mb-5 ">
+    <div class="stat place-items-center">
+      <div class="stat-title">Energy</div>
       <div class="stat-value">{energy} / 5</div>
+      <div class="stat-desc">good</div>
     </div>
-    <div class="stat bg-accent text-accent-content">
-      <div class="stat-value hover:underline">Motivation</div>
+
+    <div class="stat place-items-center">
+      <div class="stat-title">Motivation</div>
       <div class="stat-value">{motivation} / 5</div>
+      <div class="stat-desc">okay</div>
     </div>
-    <div class="stat bg-accent text-accent-content">
-      <div class="stat-value hover:underline">Mood</div>
-      <div class="stat-value">{mood} / 5</div>
-    </div>
-    <div class="stat bg-accent text-accent-content">
-      <div class="stat-value hover:underline">Stress</div>
-      <div class="stat-value">{stress} / 5</div>
-    </div>
+    
+
+    
   </div>
+
+  <div class="stats stats-vertical md:stats-horizontal shadow bg-accent flex-initial mb-5">
+    
+    <div class="stat place-items-center">
+      <div class="stat-title">Mood</div>
+      <div class="stat-value">{mood} / 5</div>
+      <div class="stat-desc">great</div>
+    </div>
+    <div class="stat place-items-center">
+      <div class="stat-title">Stress</div>
+      <div class="stat-value">{stress} / 5</div>
+      <div class="stat-desc">bad</div>
+    </div>
+
+    
+  </div>
+  
+
 
   <div class="flex justify-center">
     <button
