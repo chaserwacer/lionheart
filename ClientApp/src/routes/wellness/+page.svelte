@@ -81,45 +81,66 @@
 
 <div class="flex flex-col ml-10 mr-10">
   
-  <div class="flex justify-center mb-5 text-center">
-    <div class="stat bg-primary text-primary-content">
+  <div class="stats shadow mb-5">
+    <div class="stat bg-primary text-primary-content place-items-center">
       <div class="stat-value ">Overall Wellness</div>
       <div class="stat-value">{overallWellness} / 5</div>
     </div>
   </div>
 
   <div class="stats stats-vertical md:stats-horizontal shadow bg-accent flex-initial mb-5 ">
+    
     <div class="stat place-items-center">
+      <div
+      class="radial-progress"
+      style="--value:80; --size:8rem; --thickness: 2px;"
+      role="progressbar">
       <div class="stat-title">Energy</div>
       <div class="stat-value">{energy} / 5</div>
       <div class="stat-desc">good</div>
     </div>
+      
+    </div>
 
     <div class="stat place-items-center">
+      <div
+      class="radial-progress"
+      style="--value:60; --size:8rem; --thickness: 2px;"
+      role="progressbar">
       <div class="stat-title">Motivation</div>
       <div class="stat-value">{motivation} / 5</div>
       <div class="stat-desc">okay</div>
     </div>
-    
-
-    
-  </div>
-
-  <div class="stats stats-vertical md:stats-horizontal shadow bg-accent flex-initial mb-5">
+      
+    </div>
     
     <div class="stat place-items-center">
+      <div
+      class="radial-progress"
+      style="--value:100; --size:8rem; --thickness: 2px;"
+      role="progressbar">
       <div class="stat-title">Mood</div>
       <div class="stat-value">{mood} / 5</div>
       <div class="stat-desc">great</div>
     </div>
-    <div class="stat place-items-center">
-      <div class="stat-title">Stress</div>
-      <div class="stat-value">{stress} / 5</div>
-      <div class="stat-desc">bad</div>
+      
+    </div>
+      <div class="stat place-items-center">
+        <div
+        class="radial-progress"
+        style="--value:40; --size:8rem; --thickness: 2px;"
+        role="progressbar">
+        <div class="stat-title">Stress</div>
+        <div class="stat-value">{stress} / 5</div>
+        <div class="stat-desc">bad</div>
+      </div>
+      
     </div>
 
     
   </div>
+
+
   
 
 
