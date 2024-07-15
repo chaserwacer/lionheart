@@ -1,9 +1,20 @@
 <script>
+    import { goto } from "$app/navigation";
+    import { fetchBootUserDto, bootUserDto } from "$lib/stores";
+    import { onMount } from "svelte";
   import "tailwindcss/tailwind.css";
+
+  onMount(async () => {
+        await fetchBootUserDto(fetch)
+        //console.log("BootUserDto:  ", $bootUserDto)
+        if ($bootUserDto.name === null || !$bootUserDto.hasCreatedProfile) {
+            goto('/auth');
+        } 
+    });
 </script>
 
 <!---------------------------------------------------------------------------->
-<nav class="bg-primary-content">
+<nav class="bg-primary-content" >
   <div class="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
     <div class="relative flex h-16 items-center justify-between">
       <div class="absolute inset-y-0 left-0 flex items-center sm:hidden">
@@ -147,7 +158,11 @@
 </nav>
 
 
-
+<!-- {#if $bootUserDto.name === null || $bootUserDto.name === ""}
+<auth />
+{:else}
+<slot />
+{/if} -->
 <slot />
 
 <!-- <footer class="footer footer-center bg-base-300 text-base-content p-4 fixed inset-x-0">

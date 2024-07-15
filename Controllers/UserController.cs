@@ -23,7 +23,7 @@ namespace lionheart.Controllers
     {
         private readonly IUserService _userService;
         private readonly ILogger<UserController> _logger;
-        private readonly HttpClient _httpClient;
+
         
 
 
@@ -31,7 +31,6 @@ namespace lionheart.Controllers
         {
             _userService = userService;
             _logger = logger;
-           _httpClient = httpClient;
         }
 
 
@@ -48,20 +47,18 @@ namespace lionheart.Controllers
         /// <param name="req">Obj holding data to be stored in Lionheart User</param>
         /// <returns>Boot user with display name and success of profile creation</returns>
         [HttpPost("[action]")]
-        public async Task<BootUserDto> CreateProfileAsync(CreateProfileRequest req)
+        public async Task<IActionResult> CreateProfileAsync(CreateProfileRequest req)
         {
             try
             {
                 if (User.Identity?.Name is null) { throw new NullReferenceException("Error creating Lionheart profile - username/key was null"); }
                 var lionheartUser = await _userService.CreateProfileAsync(req, User.Identity.Name);
-                return new BootUserDto(lionheartUser.Name, true);
-                // Return their identity user name (email), or return their lionheart display name ??
-                //return new BootUserDto(User?.Identity?.Name, true); //
+                return Ok(lionheartUser);
             }
-            catch
+            catch (Exception)
             {
                 _logger.LogError("Error during creation of Lionheart profile");
-                return new BootUserDto(User?.Identity?.Name, false);
+                throw;
             }
         }
 
@@ -76,9 +73,10 @@ namespace lionheart.Controllers
                 var hasCreatedProfile = await _userService.HasCreatedProfileAsync(userName);
                 return new BootUserDto(hasCreatedProfile.Item2, hasCreatedProfile.Item1);
             }
-            catch
+            catch(Exception)
             {
-                throw new Exception("Failed to get BootUserDto");
+                _logger.LogError("Failed to get BootUserDto");
+                throw;
             }
 
         }
@@ -94,7 +92,7 @@ namespace lionheart.Controllers
             catch (Exception e)
             {
                 _logger.LogError($"{e.Message}", e);
-                return BadRequest();
+                throw;
             }
         }
 

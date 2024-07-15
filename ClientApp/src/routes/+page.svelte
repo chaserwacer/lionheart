@@ -26,4 +26,31 @@
 <div>
     <h1>Welcome to the Home Page</h1>
     <p>Hi {$bootUserDto.name}. Has created profile: {$bootUserDto.hasCreatedProfile}</p>
-</div>
+    <!-- <button class="btn" disabled="">Disabled using attribute</button> -->
+    <div class="stats stats-vertical md:stats-horizontal shadow bg-accent">
+        <div class="stat place-items-center">
+          <div class="stat-title">Energy</div>
+          <div class="stat-value">2 / 5</div>
+          <div class="stat-desc">good</div>
+        </div>
+  
+        <div class="stat place-items-center">
+          <div class="stat-title">Mood</div>
+          <div class="stat-value">3 / 5</div>
+          <div class="stat-desc">great</div>
+        </div>
+  
+        <div class="stat place-items-center">
+          <div class="stat-title">Motivation</div>
+          <div class="stat-value">4 / 5</div>
+          <div class="stat-desc">okay</div>
+        </div>
+  
+        <div class="stat place-items-center">
+          <div class="stat-title">Stress</div>
+          <div class="stat-value">1 / 5</div>
+          <div class="stat-desc">bad</div>
+        </div>
+      </div>
+    </div>
+
