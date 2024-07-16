@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -20,104 +21,6 @@ namespace lionheart.Services
             _context = context;
         }
 
-        public async Task AddWellnessStateAsync(Guid userId, WellnessState wellnessState)
-        {
-            var user = await _context.Users.FindAsync(userId);
-            if (user != null)
-            {
-                _context.WellnessStates.Add(wellnessState);
-                await _context.SaveChangesAsync();
-            }
-            else
-            {
-                // Handle the case where the user is not found
-                throw new InvalidOperationException("User not found.");
-            }
-        }
-
-        public async Task<List<WellnessState>> GetWellnessStatesAsync(Guid userId)
-        {
-            var user = await _context.Users.FindAsync(userId);
-            if (user != null)
-            {
-                return await _context.WellnessStates.Where(ws => ws.UserID == userId).ToListAsync();
-            }
-            else
-            {
-                // Handle the case where the user is not found
-                throw new InvalidOperationException("User not found.");
-            }
-        }
-
-        public async Task<WellnessState?> GetTodaysStateAsync(Guid userId)
-        {
-
-            var user = await _context.Users.FindAsync(userId);
-            if (user != null)
-            {
-                return await _context.WellnessStates.Where(ws => ws.UserID == userId && ws.Date.Equals(DateTime.Now)).FirstOrDefaultAsync();
-            }
-            else
-            {
-                // Handle the case where the user is not found
-                throw new InvalidOperationException("User not found.");
-            }
-        }
-
-        // public async Task<WellnessState?> GetWeeklyWellnessAverage(Guid userId)
-        // {
-        //     var user = await _context.Users.FindAsync(userId);
-        //     if (user != null)
-        //     {
-        //         var now = DateTime.UtcNow.Date;
-        //         var lastWeek = now.AddDays(-7);
-        //         List<WellnessState> states = await _context.WellnessStates.Where(ws => ws.UserID == user.UserID && ws.Date.CompareTo(lastWeek) >= 0 && ws.Date.CompareTo(now) <= 0).ToListAsync();
-
-        //         int motivationScore = 0;
-        //         int stressScore = 0;
-        //         int moodScore = 0;
-        //         int energyScore = 0;
-        //         foreach (var state in states)
-        //         {
-        //             stressScore += state.StressScore;
-        //             moodScore += state.MoodScore;
-        //             energyScore += state.EnergyScore;
-        //             motivationScore += state.MotivationScore;
-        //         }
-        //         return new WellnessState(userId, motivationScore, stressScore, moodScore, energyScore, "");
-        //         // TODO: Would this persist to the database????
-        //     }
-        //     else
-        //     {
-        //         // Handle the case where the user is not found
-        //         throw new InvalidOperationException("User not found.");
-        //     }
-        // }
-
-        // public async Task<User> CreateUserAsync(User user)
-        // {
-        //     var existingUser = await _context.Users.FindAsync(user.UserID);
-        //     if (existingUser == null)
-        //     {
-        //         _context.Users.Add(user);
-        //         await _context.SaveChangesAsync();
-        //         return user;
-        //     }
-        //     return existingUser;
-        // }
-
-
-        // public async Task<User?> GetUserAsync(Guid userId)
-        // {
-        //     return await _context.Users.FindAsync(userId);
-        // }
-
-        /// <summary>
-        /// Attempt to create a lionheart user for an exisiting identity user
-        /// </summary>
-        /// <param name="req">Obj holding values to store in lionheart user</param>
-        /// <param name="userID">Identity users key/email</param>
-        /// <returns></returns>
         public async Task<LionheartUser> CreateProfileAsync(CreateProfileRequest req, string userID)
         {
             if (HasCreatedProfileAsync(userID).Result.Item1) { throw new InvalidOperationException("Attempted to create lionheart user for identity user, LHU already exists"); }
@@ -163,5 +66,67 @@ namespace lionheart.Services
             
         }
 
+        /// <summary>
+        /// Persist wellness state to database associated with the current user FOR TODAY
+        /// </summary>
+        /// <param name="req">Object holding wellness state values</param>
+        /// <param name="userID">Identity User username</param>
+        /// <returns>Created wellness stat</returns>
+        public async Task<WellnessState> AddWellnessStateAsync(CreateWellnessStateRequest req, string userID)
+        {
+            var privateKey = getUserPrivateKey(userID).Result;
+            DateOnly todaysDate = DateOnly.FromDateTime(DateTime.Now);
+            
+            // Check if already exists
+            var existingState = _context.WellnessStates.FirstAsync(w => w.Date == todaysDate && w.UserID == privateKey);
+            if (existingState != null){
+                existingState.Result.EnergyScore = req.Energy;
+                existingState.Result.MoodScore = req.Mood;
+                existingState.Result.StressScore = req.Stress;
+                existingState.Result.MotivationScore = req.Motivation;
+                existingState.Result.OverallScore = (req.Mood + req.Energy + req.Motivation + (5 - req.Stress)) / 4;
+                await _context.SaveChangesAsync();
+                return existingState.Result;
+            }
+            else{
+                WellnessState wellnessState = new WellnessState(privateKey, req.Motivation, req.Stress, req.Mood, req.Energy);
+                _context.WellnessStates.Add(wellnessState);
+                await _context.SaveChangesAsync();
+                return wellnessState;   
+            }
+
+                 
+        }
+
+        /// <summary>
+        /// Get the Wellness State for a given user on date
+        /// </summary>
+        /// <param name="userID"></param>
+        /// <param name="date"></param>
+        /// <returns></returns>
+        public async Task<WellnessState> GetWellnessStateAsync(string userID, DateOnly date)
+        {
+            var privateKey = getUserPrivateKey(userID).Result;
+            return await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == date && w.UserID == privateKey) ?? new WellnessState(privateKey, 0, 0, 0, 0);
+        }
+
+        /// <summary>
+        /// Helper method to get the guid private key for a given user
+        /// </summary>
+        private async Task<Guid> getUserPrivateKey(string userID){
+            var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID);
+            var privateKey = identityUser?.Id;
+            if (privateKey is null){throw new NullReferenceException("User private key was null."); }
+            return Guid.Parse(privateKey);
+        }
+
+        /// <summary>
+        /// Return list of wellness states from the last X days, starting from today
+        /// </summary>
+        public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(string userID, int X){
+            var privateKey = getUserPrivateKey(userID).Result;
+            DateOnly endPeriod = DateOnly.FromDateTime(DateTime.Now).AddDays(-X);
+            return await _context.WellnessStates.Where(w => w.Date >= endPeriod && w.UserID == privateKey).ToListAsync();
+        }
     }
 }

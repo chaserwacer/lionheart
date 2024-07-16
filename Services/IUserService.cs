@@ -8,10 +8,12 @@ namespace lionheart.Services
 {
     public interface IUserService
     {
-        Task AddWellnessStateAsync(Guid userId, WellnessState wellnessState);
-        Task<List<WellnessState>> GetWellnessStatesAsync(Guid userId);
+        Task<WellnessState> AddWellnessStateAsync(CreateWellnessStateRequest req, string userID);
+        //Task<List<WellnessState>> GetWellnessStatesAsync(string userId);
         Task<(Boolean, string)> HasCreatedProfileAsync(string? userID);
         Task<LionheartUser> CreateProfileAsync(CreateProfileRequest req, string userID);
+        Task<WellnessState> GetWellnessStateAsync(string userID, DateOnly date);
+        Task<List<WellnessState>> GetLastXWellnessStatesAsync(string userID, int X);
 
     }
 }

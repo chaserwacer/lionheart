@@ -17,17 +17,17 @@ public class WellnessState{
     public int StressScore { get; set; }
     public int MoodScore { get; set; }
     public int EnergyScore {get; set; }
-    public string WrittenDescription {get; set; }
+    public int OverallScore { get; set; }
 
 
-    public WellnessState(Guid userID, int motivationScore, int stressScore, int moodScore, int energyScore, string writtenDescription)
+    public WellnessState(Guid userID, int motivationScore, int stressScore, int moodScore, int energyScore)
     {
         this.UserID = userID;
         this.MotivationScore = motivationScore;
         this.StressScore = stressScore;  
         this.MoodScore = moodScore; 
         this.EnergyScore = energyScore;
-        this.WrittenDescription = writtenDescription;
+        this.OverallScore = (moodScore + energyScore + motivationScore + (5 - stressScore)) / 4;
         this.StateID = Guid.NewGuid();
         this.Date = DateOnly.FromDateTime(DateTime.Now);
     }

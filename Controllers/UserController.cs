@@ -24,22 +24,12 @@ namespace lionheart.Controllers
         private readonly IUserService _userService;
         private readonly ILogger<UserController> _logger;
 
-        
-
-
         public UserController(IUserService userService, ILogger<UserController> logger, HttpClient httpClient)
         {
             _userService = userService;
             _logger = logger;
         }
 
-
-        [HttpGet("/api/[controller]/[action]")]
-        public string? GetUsername()
-        {
-            // ATP this is the users email
-            return User.Identity?.Name ?? "Not Authorized";
-        }
 
         /// <summary>
         /// Attempt to create Lionheart Profile for identity user. This method is run assuming that an Identity User exists
@@ -73,7 +63,7 @@ namespace lionheart.Controllers
                 var hasCreatedProfile = await _userService.HasCreatedProfileAsync(userName);
                 return new BootUserDto(hasCreatedProfile.Item2, hasCreatedProfile.Item1);
             }
-            catch(Exception)
+            catch (Exception)
             {
                 _logger.LogError("Failed to get BootUserDto");
                 throw;
@@ -97,49 +87,62 @@ namespace lionheart.Controllers
         }
 
 
-
-        // [HttpPost("{userId}/wellness")]
-        // public async Task<IActionResult> AddWellnessState(Guid userId, [FromBody] WellnessState wellnessState)
-        // {
-        //     try
-        //     {
-        //         await _userService.AddWellnessStateAsync(userId, wellnessState);
-        //         return NoContent();
-        //     }
-        //     catch (InvalidOperationException ex)
-        //     {
-        //         return NotFound(ex.Message);
-        //     }
-        // }
-
-        // [HttpGet("{userId}/wellness")]
-        // public async Task<IActionResult> GetWellnessStates(Guid userId)
-        // {
-        //     try
-        //     {
-        //         var wellnessStates = await _userService.GetWellnessStatesAsync(userId);
-        //         return Ok(wellnessStates);
-        //     }
-        //     catch (InvalidOperationException ex)
-        //     {
-        //         return NotFound(ex.Message);
-        //     }
-        // }
-
-        [HttpGet]
-        [Route("/api/[controller]/[action]")]
-        public string GetMessage()
+        [HttpPost("[action]")]
+        public async Task<IActionResult> AddWellnessState(CreateWellnessStateRequest req)
         {
-            return "hiii";
+            try
+            {
+                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                var state = await _userService.AddWellnessStateAsync(req, User.Identity.Name);
+                return Ok(state);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to add Wellness State: {e.Message}", e);
+                throw;
+            }
         }
 
-        
-    }
-    public record LRModel
-    {
-        public required string Email { get; set; }
-        public required string Password { get; set; }
-    }
+        /// <summary>
+        /// Get Wellness State from given date
+        /// </summary>
+        [HttpGet("[action]")]
+        public async Task<WellnessState> GetWellnessStateAsync(DateOnly date)
+        {
+            try
+            {
+                if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness State- username/key was null"); }
+                return await _userService.GetWellnessStateAsync(User.Identity.Name, date);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to get WellnessState: {e.Message}", e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Get Wellness States from the past x-days
+        /// </summary>
+        [HttpGet("[action]")]
+        public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(int xDays)
+        {
+            try
+            {
+                if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness States - username/key was null"); }
+                if (xDays <= 0){throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days");}
+                return await _userService.GetLastXWellnessStatesAsync(User.Identity.Name, xDays); 
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to get WellnessState: {e.Message}", e);
+                throw;
+            }
+        }
+
+
+    }//end userController
     public record BootUserDto(string? Name, Boolean HasCreatedProfile);
     public record CreateProfileRequest(string DisplayName, int Age, float Weight);
+    public record CreateWellnessStateRequest(int Energy, int Motivation, int Mood, int Stress);
 }
