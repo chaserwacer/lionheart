@@ -6,6 +6,7 @@ export const bootUserDto = writable({
 
 });
 
+
 export async function fetchBootUserDto(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
     try {
         const response = await fetch('api/user/GetBootUserDto');
@@ -20,3 +21,22 @@ export async function fetchBootUserDto(fetch: { (input: RequestInfo | URL, init?
         console.error('Error fetching BootUserDto:', error);
     }
 }
+
+export const todaysWellnessState = writable({
+    motivationScore: 0,
+    stressScore: 0,
+    moodScore: 0, 
+    energyScore: 0,
+    overallScore: 0, 
+    date: null
+})
+
+// export function updateWellnessStore(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }){
+//     try{
+//         const response = await fetch('api/user/')
+//     }
+//     catch{
+
+//     }
+// }
+

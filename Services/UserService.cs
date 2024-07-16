@@ -78,8 +78,8 @@ namespace lionheart.Services
             DateOnly todaysDate = DateOnly.FromDateTime(DateTime.Now);
             
             // Check if already exists
-            var existingState = _context.WellnessStates.FirstAsync(w => w.Date == todaysDate && w.UserID == privateKey);
-            if (existingState != null){
+            var existingState = _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == todaysDate && w.UserID == privateKey);
+            if (existingState.Result != null){
                 existingState.Result.EnergyScore = req.Energy;
                 existingState.Result.MoodScore = req.Mood;
                 existingState.Result.StressScore = req.Stress;
