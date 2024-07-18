@@ -2,22 +2,19 @@
   import { onMount } from "svelte";
   import Chart from "chart.js/auto";
   import { writable } from "svelte/store";
+  import {fetchTodaysWellnessState, todaysWellnessState} from '$lib/stores'
 
   /**
    * @type {typeof import("svelte-chartjs").Line}
    */
   let Line;
   let showModal = writable(false);
-  let overallWellness = 3.5;
-  let energyInput = 4;
-  let motivationInput = 3;
-  let moodInput = 5;
-  let stressInput = 2;
+  let energyInput = $todaysWellnessState.energyScore;
+  let motivationInput = $todaysWellnessState.motivationScore;
+  let moodInput = $todaysWellnessState.motivationScore;
+  let stressInput = $todaysWellnessState.stressScore;
 
   const pastWeekData = [3, 4, 4, 5, 3.5, 4.2, 3.8];
-  const pastTwoWeeksData = [
-    3.5, 4.1, 3.8, 4.3, 4, 3.9, 4.5, 3.5, 4, 4.2, 3.7, 4.1, 3.9, 4,
-  ];
 
   const weekData = {
     labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -54,15 +51,15 @@
         },
         body: JSON.stringify({
           energy: energyInput,
-          motivationInput: motivationInput,
+          motivation: motivationInput,
           mood: moodInput,
           stress: stressInput
         }),
       });
 
       if (response.ok) {
-        
-        
+        fetchTodaysWellnessState(fetch);
+        closeModal()
       } else {
         console.error("Failed to track Wellness State:", response.statusText);
       }
@@ -83,67 +80,67 @@
 <div class="divider divider-neutral"></div>
 
 <div class="flex flex-col ml-20 mr-20">
-  <div class="stats shadow mb-5">
-    <div class="stat bg-primary text-primary-content place-items-center">
+  <div class="stats shadow mb-5 ">
+    <div class="stat bg-primary text-primary-content place-items-center {$todaysWellnessState.overallScore === -1 ? 'blur-sm' : ''} ">
       <div class="stat-value">Wellness Score</div>
-      <div class="stat-value">{overallWellness} / 5</div>
+      <div class="stat-value">{$todaysWellnessState.overallScore} / 5</div>
     </div>
   </div>
 
   <div
-    class="stats stats-vertical md:stats-horizontal shadow bg-secondary text-secondary-content flex-initial mb-5"
+    class="stats stats-vertical md:stats-horizontal shadow bg-secondary text-secondary-content flex-initial mb-5 {$todaysWellnessState.overallScore === -1 ? 'blur-sm' : ''}"
   >
     <div class="stat place-items-center">
       <div
         class="radial-progress"
-        style="--value:80; --size:8rem; --thickness: 2px;"
+        style="--value:{$todaysWellnessState.energyScore / 5 * 100}; --size:8rem; --thickness: 2px;"
         role="progressbar"
       >
         <div class="stat-title">Energy</div>
-        <div class="stat-value">{energyInput} / 5</div>
-        <div class="stat-desc">good</div>
+        <div class="stat-value">{$todaysWellnessState.energyScore} / 5</div>
+        <div class="stat-desc">énergie</div>
       </div>
     </div>
 
     <div class="stat place-items-center">
       <div
         class="radial-progress"
-        style="--value:60; --size:8rem; --thickness: 2px;"
+        style="--value:{$todaysWellnessState.motivationScore / 5 * 100}; --size:8rem; --thickness: 2px;"
         role="progressbar"
       >
         <div class="stat-title">Motivation</div>
-        <div class="stat-value">{motivationInput} / 5</div>
-        <div class="stat-desc">okay</div>
+        <div class="stat-value">{$todaysWellnessState.motivationScore} / 5</div>
+        <div class="stat-desc">motif</div>
       </div>
     </div>
 
     <div class="stat place-items-center">
       <div
         class="radial-progress"
-        style="--value:100; --size:8rem; --thickness: 2px;"
+        style="--value:{$todaysWellnessState.moodScore / 5 * 100}; --size:8rem; --thickness: 2px;"
         role="progressbar"
       >
         <div class="stat-title">Mood</div>
-        <div class="stat-value">{moodInput} / 5</div>
-        <div class="stat-desc">great</div>
+        <div class="stat-value">{$todaysWellnessState.moodScore} / 5</div>
+        <div class="stat-desc">humeur</div>
       </div>
     </div>
     <div class="stat place-items-center">
       <div
         class="radial-progress"
-        style="--value:40; --size:8rem; --thickness: 2px;"
+        style="--value:{$todaysWellnessState.stressScore / 5 * 100}; --size:8rem; --thickness: 2px;"
         role="progressbar"
       >
         <div class="stat-title">Stress</div>
-        <div class="stat-value">{stressInput} / 5</div>
-        <div class="stat-desc">bad</div>
+        <div class="stat-value">{$todaysWellnessState.stressScore} / 5</div>
+        <div class="stat-desc">soulignez</div>
       </div>
     </div>
   </div>
 
   <div class="flex justify-center">
     <button class="btn btn-neutral btn-lg" on:click={openModal}
-      >Open Daily Tracker</button
+      >Track Wellness Scores</button
     >
   </div>
 
@@ -156,8 +153,6 @@
           <h2 class="font-bold text-lg">Daily Tracker</h2>
           <p>
             Please fill out these values during the first quarter of your day.
-            Answer with honest values - you will not be able to modify your
-            values today and will only track them once.
           </p>
 
           <form class="space-y-4 mt-4">

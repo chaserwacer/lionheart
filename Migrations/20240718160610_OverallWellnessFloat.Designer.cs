@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using lionheart.Data;
 
@@ -10,9 +11,11 @@ using lionheart.Data;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(ModelContext))]
-    partial class ModelContextModelSnapshot : ModelSnapshot
+    [Migration("20240718160610_OverallWellnessFloat")]
+    partial class OverallWellnessFloat
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.7");
@@ -227,7 +230,7 @@ namespace lionheart.Migrations
                     b.Property<int>("MotivationScore")
                         .HasColumnType("INTEGER");
 
-                    b.Property<double>("OverallScore")
+                    b.Property<float>("OverallScore")
                         .HasColumnType("REAL");
 
                     b.Property<int>("StressScore")

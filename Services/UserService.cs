@@ -84,7 +84,10 @@ namespace lionheart.Services
                 existingState.Result.MoodScore = req.Mood;
                 existingState.Result.StressScore = req.Stress;
                 existingState.Result.MotivationScore = req.Motivation;
-                existingState.Result.OverallScore = (req.Mood + req.Energy + req.Motivation + (5 - req.Stress)) / 4;
+                double total = (double)(req.Mood + req.Energy + req.Motivation + (6 - req.Stress));
+                int decimalPlaces = 2;
+                int numComponents = 4;
+                existingState.Result.OverallScore = Math.Round(total/numComponents, decimalPlaces);
                 await _context.SaveChangesAsync();
                 return existingState.Result;
             }
@@ -107,7 +110,8 @@ namespace lionheart.Services
         public async Task<WellnessState> GetWellnessStateAsync(string userID, DateOnly date)
         {
             var privateKey = getUserPrivateKey(userID).Result;
-            return await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == date && w.UserID == privateKey) ?? new WellnessState(privateKey, 0, 0, 0, 0);
+            return await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == date && w.UserID == privateKey) ?? new WellnessState(privateKey, 1, 1, 1, 1){ OverallScore = -1};   
+           
         }
 
         /// <summary>

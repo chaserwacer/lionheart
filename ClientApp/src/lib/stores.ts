@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 
 export const bootUserDto = writable({
-    name: '', 
+    name: '',
     hasCreatedProfile: false
 
 });
@@ -23,20 +23,34 @@ export async function fetchBootUserDto(fetch: { (input: RequestInfo | URL, init?
 }
 
 export const todaysWellnessState = writable({
-    motivationScore: 0,
-    stressScore: 0,
-    moodScore: 0, 
-    energyScore: 0,
-    overallScore: 0, 
+    motivationScore: 1,
+    stressScore: 1,
+    moodScore: 1,
+    energyScore: 1,
+    overallScore: 1,
     date: null
 })
 
-// export function updateWellnessStore(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }){
-//     try{
-//         const response = await fetch('api/user/')
-//     }
-//     catch{
+export async function fetchTodaysWellnessState(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
+    try {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const currentDate = `${year}-${month}-${day}`;
 
-//     }
-// }
+        const url = 'api/user/getwellnessstate?date=' + currentDate
+        const response = await fetch(url);
+
+        if (response.ok) {
+            const data = await response.json();
+            todaysWellnessState.set(data);
+        } else {
+            console.error('Failed to get todays Wellness State');
+        }
+    }
+    catch {
+        console.error('Error fetching todays wellness state')
+    }
+}
 

@@ -31,6 +31,7 @@
 
             if (response.ok) {
                 await fetchBootUserDto(fetch);
+                login()
             } else {
                 const errorText = await response.text();
                 errorMessage.set(`Failed to register your account: ${errorText}`);
