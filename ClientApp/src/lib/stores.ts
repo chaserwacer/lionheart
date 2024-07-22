@@ -31,6 +31,15 @@ export const todaysWellnessState = writable({
     date: null
 })
 
+export type WellnessState = {
+    motivationScore: number,
+    stressScore: number,
+    moodScore: number,
+    energyScore: number,
+    overallScore: number,
+    date: string
+}
+
 export async function fetchTodaysWellnessState(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
     try {
         const today = new Date();

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 using Microsoft.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
@@ -130,8 +131,25 @@ namespace lionheart.Controllers
             try
             {
                 if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness States - username/key was null"); }
-                if (xDays <= 0){throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days");}
-                return await _userService.GetLastXWellnessStatesAsync(User.Identity.Name, xDays); 
+                if (xDays <= 0) { throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days"); }
+                return await _userService.GetLastXWellnessStatesAsync(User.Identity.Name, xDays);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to get WellnessState: {e.Message}", e);
+                throw;
+            }
+        }
+
+        [HttpGet("[action]")]
+        public async Task<WeeklyScoreDTO> GetLastXWellnessStatesGraphData(int xDays)
+        {
+            try
+            {
+                if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness States - username/key was null"); }
+                if (xDays <= 0) { throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days"); }
+                var tup = await _userService.GetLastXWellnessStatesGraphDataAsync(User.Identity.Name, xDays);
+                return new WeeklyScoreDTO(tup.Item1, tup.Item2);
             }
             catch (Exception e)
             {
@@ -145,4 +163,5 @@ namespace lionheart.Controllers
     public record BootUserDto(string? Name, Boolean HasCreatedProfile);
     public record CreateProfileRequest(string DisplayName, int Age, float Weight);
     public record CreateWellnessStateRequest(int Energy, int Motivation, int Mood, int Stress);
+    public record WeeklyScoreDTO(List<double> Scores, List<string> Dates);
 }

@@ -4,6 +4,7 @@ using lionheart.WellBeing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.OpenApi.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -131,6 +132,17 @@ namespace lionheart.Services
             var privateKey = getUserPrivateKey(userID).Result;
             DateOnly endPeriod = DateOnly.FromDateTime(DateTime.Now).AddDays(-X);
             return await _context.WellnessStates.Where(w => w.Date >= endPeriod && w.UserID == privateKey).ToListAsync();
+        }
+
+        public async Task<(List<double>, List<string>)> GetLastXWellnessStatesGraphDataAsync(string userID, int X){
+            var states = await GetLastXWellnessStatesAsync(userID, X);
+            if (states is not null){
+                var scoreList = states.Select(s => s.OverallScore).ToList();
+                var dateList = states.Select(s => s.Date.DayOfWeek.GetDisplayName() + " (" + s.Date.ToString("MM/dd") + ")" ).ToList();
+                
+                return (scoreList, dateList);
+            }
+            return ([], []);
         }
     }
 }

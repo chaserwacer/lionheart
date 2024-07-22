@@ -1,33 +1,41 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
   import Chart from "chart.js/auto";
   import { writable } from "svelte/store";
   import {fetchTodaysWellnessState, todaysWellnessState} from '$lib/stores'
+  import type { Line } from "svelte-chartjs";
+  
 
   /**
    * @type {typeof import("svelte-chartjs").Line}
    */
-  let Line;
+  let myLine: typeof import("svelte-chartjs").Line;
   let showModal = writable(false);
   let energyInput = $todaysWellnessState.energyScore;
   let motivationInput = $todaysWellnessState.motivationScore;
   let moodInput = $todaysWellnessState.motivationScore;
   let stressInput = $todaysWellnessState.stressScore;
 
-  const pastWeekData = [3, 4, 4, 5, 3.5, 4.2, 3.8];
+  // export let pastWeekScoreList : number[]
+  // export let pastWeekDateList : string[]
+  export let data;
 
-  const weekData = {
-    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+
+  let weekData = {
+    labels: data.post.pastWeekDateList,
     datasets: [
       {
-        label: "Overall Wellness (Past Week)",
-        data: pastWeekData,
+        label: "Last Weeks Wellness Scores",
+        data: data.post.pastWeekScoreList,
         fill: false,
         borderColor: "rgb(75, 192, 192)",
         tension: 0.1,
       },
     ],
+    
   };
+
+ 
 
   function openModal() {
     showModal.set(true);
@@ -39,7 +47,7 @@
 
   onMount(async () => {
     const module = await import("svelte-chartjs");
-    Line = module.Line;
+    myLine = module.Line;
   });
 
   async function trackWellnessState() {
@@ -60,6 +68,7 @@
       if (response.ok) {
         fetchTodaysWellnessState(fetch);
         closeModal()
+        updateLine()
       } else {
         console.error("Failed to track Wellness State:", response.statusText);
       }
@@ -67,6 +76,30 @@
       console.error("Error tracking Wellness State", error);
     }
   }
+
+  async function updateLine(){
+    const response = await fetch('api/user/GetLastXWellnessStatesGraphData?xDays=7');
+    if (!response.ok) {
+        console.error('Failed to get todays Wellness State');
+    }
+    const data = await response.json(); 
+    const { scores, dates } = data;
+
+    weekData = {
+    labels: dates,
+    datasets: [
+      {
+        label: "Last Weeks Wellness Scores",
+        data: scores,
+        fill: false,
+        borderColor: "rgb(75, 192, 192)",
+        tension: 0.1,
+      },
+    ],
+  };
+        
+    }
+  
 </script>
 
 <svelte:head>
@@ -258,18 +291,19 @@
 </div>
 
 <div class="divider divider-neutral text-base-content"></div>
-{#if Line}
+{#if myLine}
   <div class="flex flex-col items-center justify-center">
     <div class="w-10/12 text-center">
       <h2 class="text-2xl font-bold mb-4 hover:underline">
-        Past Week Overview
+        Past Week Wellness Overview
       </h2>
-      <Line data={weekData} />
+      <!-- <Line data={weekData} /> -->
+      <svelte:component this={myLine} data={weekData}  />
     </div>
 
     <div class="w-10/12 text-center">
       <h2 class="text-2xl font-bold mb-4 hover:underline">
-        Past Two Weeks Overview
+        <!-- Past Two Weeks Overview -->
       </h2>
       <!-- <Line data={twoWeeksData} /> -->
     </div>
