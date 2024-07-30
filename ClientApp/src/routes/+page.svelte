@@ -43,7 +43,7 @@
 <div class="divider"></div>
 <div class="flex md:flex-row flex-col">
   <div class="md:w-1/4 w-full">
-    <div class="card bg-primary-content shadow-xl items-center">
+    <div class="card shadow-xl items-center border border-primary">
       <div class="card-body items-center">
         <h2 class="card-title">Today's Date + Wellness State</h2>
         <div class="divider p-0 m-0"></div>
@@ -59,59 +59,59 @@
   </div>
   
   <div
-    class="stats stats-vertical md:stats-horizontal shadow bg-secondary text-secondary-content flex-initial md:w-3/4 w-full {$todaysWellnessState.overallScore ===
+    class="stats stats-vertical md:stats-horizontal shadow bg-primary text-primary-content flex-initial md:w-3/4 w-full {$todaysWellnessState.overallScore ===
     -1
       ? 'blur-sm'
       : ''}"
   >
-    <div class="stat place-items-center">
+    <div class="stat place-items-center ">
       <div
-        class="radial-progress"
+        class="radial-progress text-primary-content "
         style="--value:{($todaysWellnessState.energyScore / 5) *
           100}; --size:8rem; --thickness: 2px;"
         role="progressbar"
       >
-        <div class="stat-title">Energy</div>
-        <div class="stat-value">{$todaysWellnessState.energyScore} / 5</div>
-        <div class="stat-desc">énergie</div>
+        <div class="stat-title text-primary-content">Energy</div>
+        <div class="stat-value text-primary-content">{$todaysWellnessState.energyScore} / 5</div>
+        <div class="stat-desc text-primary-content">énergie</div>
       </div>
     </div>
 
-    <div class="stat place-items-center">
+    <div class="stat place-items-center ">
       <div
-        class="radial-progress"
+        class="radial-progress text-primary-content"
         style="--value:{($todaysWellnessState.motivationScore / 5) *
           100}; --size:8rem; --thickness: 2px;"
         role="progressbar"
       >
-        <div class="stat-title">Motivation</div>
-        <div class="stat-value">{$todaysWellnessState.motivationScore} / 5</div>
-        <div class="stat-desc">motif</div>
+        <div class="stat-title text-primary-content">Motivation</div>
+        <div class="stat-value text-primary-content">{$todaysWellnessState.motivationScore} / 5</div>
+        <div class="stat-desc text-primary-content">motif</div>
       </div>
     </div>
 
     <div class="stat place-items-center">
       <div
-        class="radial-progress"
+        class="radial-progress text-primary-content"
         style="--value:{($todaysWellnessState.moodScore / 5) *
           100}; --size:8rem; --thickness: 2px;"
         role="progressbar"
       >
-        <div class="stat-title">Mood</div>
-        <div class="stat-value">{$todaysWellnessState.moodScore} / 5</div>
-        <div class="stat-desc">humeur</div>
+        <div class="stat-title text-primary-content">Mood</div>
+        <div class="stat-value text-primary-content">{$todaysWellnessState.moodScore} / 5</div>
+        <div class="stat-desc text-primary-content">humeur</div>
       </div>
     </div>
     <div class="stat place-items-center">
       <div
-        class="radial-progress"
+        class="radial-progress text-primary-content"
         style="--value:{($todaysWellnessState.stressScore / 5) *
           100}; --size:8rem; --thickness: 2px;"
         role="progressbar"
       >
-        <div class="stat-title">Stress</div>
-        <div class="stat-value">{$todaysWellnessState.stressScore} / 5</div>
-        <div class="stat-desc">soulignez</div>
+        <div class="stat-title text-primary-content">Stress</div>
+        <div class="stat-value text-primary-content">{$todaysWellnessState.stressScore} / 5</div>
+        <div class="stat-desc text-primary-content">soulignez</div>
       </div>
     </div>
   </div>
