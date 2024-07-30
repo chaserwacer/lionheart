@@ -1,3 +1,4 @@
+using lionheart.ActivityTracking;
 using Microsoft.AspNetCore.Identity;
 namespace lionheart.WellBeing;
 
@@ -10,6 +11,6 @@ public class LionheartUser
     public float Weight { get; set;}
     
     public List<WellnessState> WellnessStates {get; set;} = [];
-
+    public List<Activity> Activities { get; set;} = [];
 
 }

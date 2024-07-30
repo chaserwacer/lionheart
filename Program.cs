@@ -11,11 +11,7 @@ var configuration = builder.Configuration;
 builder.Services.AddDbContext<ModelContext>(options =>
     options.UseSqlite("Data Source=./Data/lionheart.db"));
 
-// services.AddAuthentication().AddMicrosoftAccount(microsoftOptions =>
-//     {
-//         microsoftOptions.ClientId = configuration["Authentication:Microsoft:ClientId"];
-//         microsoftOptions.ClientSecret = configuration["Authentication:Microsoft:ClientSecret"];
-//     });
+
 builder.Services.AddAuthorization();
 services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<IdentityUser>()
@@ -24,8 +20,9 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
 
 
 builder.Services.AddTransient<IUserService, UserService>();
+builder.Services.AddTransient<IActivityService, ActivityService>();
 
-// ????
+
 builder.Services.AddHttpClient();
 
 
@@ -33,7 +30,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Logging.AddConsole(); // Configure logging to console
+builder.Logging.AddConsole(); 
 builder.Logging.AddDebug();
 
 var app = builder.Build();

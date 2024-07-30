@@ -6,6 +6,7 @@
   },
   "devDependencies": {
     "@azure/msal-node": "^2.10.0",
+    "@tailwindcss/typography": "^0.5.13",
     "theme-change": "^2.5.0"
   }
 }
