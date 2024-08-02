@@ -1,33 +1,34 @@
 <script>
     import { onMount } from "svelte";
+    import { fetchTodaysActivities } from "./stores";
 
-    let DateTime = "";
-    let Hours = 0;
-    let Minutes = 0;
-    let CaloriesBurned = 0;
-    let Name = "";
-    let UserSummary = "";
-    let AccumulatedFatigue = 3;
-    let DifficultyRating = 3;
-    let EngagementRating = 3;
-    let ExternalVariablesRating = 3;
+    let dateTime = "";
+    let hours = 0;
+    let minutes = 0;
+    let caloriesBurned = 0;
+    let name = "";
+    let userSummary = "";
+    let accumulatedFatigue = 3;
+    let difficultyRating = 3;
+    let engagementRating = 3;
+    let externalVariablesRating = 3;
 
     let isBiking = false;
     let isRunWalk = false;
     let isLift = false;
     let isNoSpecialType = true;
 
-    let Tonnage = 0;
+    let tonnage = 0;
     let liftType = "";
     let liftFocus = "";
 
-    let Distance = 0.0;
+    let distance = 0.0;
     let elevationGain = 0;
-    let AveragePower = 0;
-    let AverageSpeed = 0;
-    let RideType = "";
+    let averagePower = 0;
+    let averageSpeed = 0;
+    let rideType = "";
 
-    let RunType = "";
+    let runType = "";
     let paceMinutes = 0;
     let paceSeconds = 0;
 
@@ -50,24 +51,171 @@
         showModal = false;
     }
 
-    function submitForm() {
-        const TimeSpan = `${Hours}h ${Minutes}m`;
-        console.log({
-            DateTime,
-            TimeSpan,
-            CaloriesBurned,
-            Name,
-            UserSummary,
-            AccumulatedFatigue,
-            DifficultyRating,
-            EngagementRating,
-            ExternalVariablesRating,
-        });
+    async function trackActivity() {
+        const TimeSpan = hours + ':' + minutes;
+        if (isBiking) {
+            try {
+                const response = await self.fetch(
+                    "/api/activity/addrideactivity",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            dateTime: dateTime,
+                            timeSpan: TimeSpan,
+                            caloriesBurned: caloriesBurned,
+                            name: name,
+                            userSummary: userSummary,
+                            accumulatedFatigue: accumulatedFatigue,
+                            difficultyRating: difficultyRating,
+                            engagementRating: engagementRating,
+                            externalVariablesRating: externalVariablesRating,
+                            distance: distance,
+                            elevationGain: elevationGain,
+                            averagePower: averagePower,
+                            averageSpeed: averageSpeed,
+                            rideType: rideType,
+                        }),
+                    },
+                );
+
+                if (response.ok) {
+                    fetchTodaysActivities(fetch);
+                    closeModal();
+                } else {
+                    console.error(
+                        "Failed to track activity:",
+                        response.statusText,
+                    );
+                }
+            } catch (error) {
+                console.error("Error tracking activity", error);
+            }
+        } else if (isLift) {
+            try {
+                const response = await self.fetch(
+                    "/api/activity/addliftactivity",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            dateTime: dateTime,
+                            timeSpan: TimeSpan,
+                            caloriesBurned: caloriesBurned,
+                            name: name,
+                            userSummary: userSummary,
+                            accumulatedFatigue: accumulatedFatigue,
+                            difficultyRating: difficultyRating,
+                            engagementRating: engagementRating,
+                            externalVariablesRating: externalVariablesRating,
+                            tonnage: tonnage, 
+                            liftType: liftType, 
+                            liftFocus: liftFocus
+                        }),
+                    },
+                );
+
+                if (response.ok) {
+                    fetchTodaysActivities(fetch);
+                    closeModal();
+                } else {
+                    console.error(
+                        "Failed to track activity:",
+                        response.statusText,
+                    );
+                }
+            } catch (error) {
+                console.error("Error tracking activity", error);
+            }
+        } else if (isRunWalk) {
+            let averagePace = paceMinutes + ':' + paceSeconds;
+            try {
+                const response = await self.fetch(
+                    "/api/activity/addrunwalkactivity",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            dateTime: dateTime,
+                            timeSpan: TimeSpan,
+                            caloriesBurned: caloriesBurned,
+                            name: name,
+                            userSummary: userSummary,
+                            accumulatedFatigue: accumulatedFatigue,
+                            difficultyRating: difficultyRating,
+                            engagementRating: engagementRating,
+                            externalVariablesRating: externalVariablesRating,
+                            distance: distance,
+                            elevationGain: elevationGain,
+                            averagePace: averagePace,
+                            mileSplits: [],
+                            runType: runType
+                        }),
+                    },
+                );
+
+                if (response.ok) {
+                    fetchTodaysActivities(fetch);
+                    closeModal();
+                } else {
+                    console.error(
+                        "Failed to track activity:",
+                        response.statusText,
+                    );
+                }
+            } catch (error) {
+                console.error("Error tracking activity", error);
+            }
+        } else {
+            try {
+                const response = await self.fetch(
+                    "/api/activity/addactivity",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            dateTime: dateTime,
+                            timeSpan: TimeSpan,
+                            caloriesBurned: caloriesBurned,
+                            name: name,
+                            userSummary: userSummary,
+                            accumulatedFatigue: accumulatedFatigue,
+                            difficultyRating: difficultyRating,
+                            engagementRating: engagementRating,
+                            externalVariablesRating: externalVariablesRating, 
+                        }),
+                    },
+                );
+
+                if (response.ok) {
+                    fetchTodaysActivities(fetch);
+                    closeModal();
+                } else {
+                    console.error(
+                        "Failed to track activity:",
+                        response.statusText,
+                    );
+                }
+            } catch (error) {
+                console.error("Error tracking activity", error);
+            }
+        }
+
         closeModal();
     }
 </script>
 
-<button class="btn border border-primary" on:click={openModal}>Track Activity</button>
+<button class="btn border border-primary" on:click={openModal}
+    >Track Activity</button
+>
 
 {#if showModal}
     <div class="modal modal-open">
@@ -90,14 +238,14 @@
             </select>
 
             <div class="divider font-bold">Base Data</div>
-            <form on:submit|preventDefault={submitForm}>
+            <form on:submit|preventDefault={trackActivity}>
                 <div class="form-control">
                     <div class="form-control">
                         <label class="label">
                             <span class="label-text">Session Name</span>
                             <input
                                 type="text"
-                                bind:value={Name}
+                                bind:value={name}
                                 class="input input-bordered"
                             />
                         </label>
@@ -106,7 +254,7 @@
                         <span class="label-text">DateTime</span>
                         <input
                             type="datetime-local"
-                            bind:value={DateTime}
+                            bind:value={dateTime}
                             class="input input-bordered"
                         />
                     </label>
@@ -115,12 +263,12 @@
                 <div class="form-control">
                     <div class="label">
                         <span class="label-text">Length (hrs, mins)</span>
-                        
+
                         <div class="flex space-x-2">
                             <input
                                 type="number"
                                 min="0"
-                                bind:value={Hours}
+                                bind:value={hours}
                                 class="input input-bordered w-20 mr-2"
                                 placeholder="Hours"
                             />
@@ -129,11 +277,10 @@
                                 type="number"
                                 min="0"
                                 max="59"
-                                bind:value={Minutes}
+                                bind:value={minutes}
                                 class="input input-bordered w-20"
                                 placeholder="Minutes"
                             />
-                            
                         </div>
                     </div>
                 </div>
@@ -144,7 +291,7 @@
                         <input
                             type="number"
                             min="0"
-                            bind:value={CaloriesBurned}
+                            bind:value={caloriesBurned}
                             class="input input-bordered"
                         />
                     </label>
@@ -153,61 +300,61 @@
                 <div class="divider font-bold">Sport Specific Data</div>
 
                 {#if isBiking}
-                <div class="form-control">
-                    <label class="label label-primary">
-                        <span class="label-text">Distance</span>
-                        <input
-                            type="number"
-                            min="0"
-                            bind:value={Distance}
-                            class="input input-bordered"
-                        />
-                    </label>
-                </div>
-                <div class="form-control">
-                    <label class="label label-primary">
-                        <span class="label-text">Elevation Gain</span>
-                        <input
-                            type="number"
-                            min="0"
-                            bind:value={elevationGain}
-                            class="input input-bordered"
-                        />
-                    </label>
-                </div>
-                <div class="form-control">
-                    <label class="label label-primary">
-                        <span class="label-text">Average Power</span>
-                        <input
-                            type="number"
-                            min="0"
-                            bind:value={AveragePower}
-                            class="input input-bordered"
-                        />
-                    </label>
-                </div>
-                <div class="form-control">
-                    <label class="label label-primary">
-                        <span class="label-text">Average Speed</span>
-                        <input
-                            type="number"
-                            min="0"
-                            bind:value={AverageSpeed}
-                            class="input input-bordered"
-                        />
-                    </label>
-                </div>
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Ride Type</span>
-                        <input
-                            type="text"
-                            maxlength="15"
-                            bind:value={RideType}
-                            class="input input-bordered"
-                        />
-                    </label>
-                </div>
+                    <div class="form-control">
+                        <label class="label label-primary">
+                            <span class="label-text">Distance</span>
+                            <input
+                                type="number"
+                                min="0"
+                                bind:value={distance}
+                                class="input input-bordered"
+                            />
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label class="label label-primary">
+                            <span class="label-text">Elevation Gain</span>
+                            <input
+                                type="number"
+                                min="0"
+                                bind:value={elevationGain}
+                                class="input input-bordered"
+                            />
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label class="label label-primary">
+                            <span class="label-text">Average Power</span>
+                            <input
+                                type="number"
+                                min="0"
+                                bind:value={averagePower}
+                                class="input input-bordered"
+                            />
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label class="label label-primary">
+                            <span class="label-text">Average Speed</span>
+                            <input
+                                type="number"
+                                min="0"
+                                bind:value={averageSpeed}
+                                class="input input-bordered"
+                            />
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Ride Type</span>
+                            <input
+                                type="text"
+                                maxlength="15"
+                                bind:value={rideType}
+                                class="input input-bordered"
+                            />
+                        </label>
+                    </div>
                 {:else if isLift}
                     <div class="form-control">
                         <label class="label label-primary">
@@ -215,7 +362,7 @@
                             <input
                                 type="number"
                                 min="0"
-                                bind:value={Tonnage}
+                                bind:value={tonnage}
                                 class="input input-bordered"
                             />
                         </label>
@@ -231,7 +378,7 @@
                             />
                         </label>
                     </div>
-                    
+
                     <div class="form-control">
                         <label class="label">
                             <span class="label-text">Lift Focus</span>
@@ -243,67 +390,67 @@
                             />
                         </label>
                     </div>
-                    
-
                 {:else if isRunWalk}
-                <div class="form-control">
-                    <label class="label label-primary">
-                        <span class="label-text">Distance</span>
-                        <input
-                            type="number"
-                            min="0"
-                            bind:value={Distance}
-                            class="input input-bordered"
-                        />
-                    </label>
-                </div>
-                <div class="form-control">
-                    <label class="label label-primary">
-                        <span class="label-text">Elevation Gain</span>
-                        <input
-                            type="number"
-                            min="0"
-                            bind:value={elevationGain}
-                            class="input input-bordered"
-                        />
-                    </label>
-                </div>
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Average Pace (min, sec)</span>
-                        <div class="flex space-x-2">
+                    <div class="form-control">
+                        <label class="label label-primary">
+                            <span class="label-text">Distance</span>
                             <input
                                 type="number"
                                 min="0"
-                                max="59"
-                                bind:value={paceMinutes}
-                                class="input input-bordered w-15 mr-2"
-                                placeholder="min"
+                                bind:value={distance}
+                                class="input input-bordered"
                             />
-                            :
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label class="label label-primary">
+                            <span class="label-text">Elevation Gain</span>
                             <input
                                 type="number"
                                 min="0"
-                                max="59"
-                                bind:value={paceSeconds}
-                                class="input input-bordered w-15"
-                                placeholder="sec"
+                                bind:value={elevationGain}
+                                class="input input-bordered"
                             />
-                        </div>
-                    </label>
-                </div>
-             
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Run Type</span>
-                        <input
-                            type="text"
-                            maxlength="15"
-                            bind:value={RunType}
-                            class="input input-bordered"
-                        />
-                    </label>
-                </div>
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text"
+                                >Average Pace (min, sec)</span
+                            >
+                            <div class="flex space-x-2">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    bind:value={paceMinutes}
+                                    class="input input-bordered w-15 mr-2"
+                                    placeholder="min"
+                                />
+                                :
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    bind:value={paceSeconds}
+                                    class="input input-bordered w-15"
+                                    placeholder="sec"
+                                />
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Run Type</span>
+                            <input
+                                type="text"
+                                maxlength="15"
+                                bind:value={runType}
+                                class="input input-bordered"
+                            />
+                        </label>
+                    </div>
                 {/if}
 
                 <div class="divider font-bold mt-8">RPE PLUGIN</div>
@@ -317,7 +464,7 @@
                                 max="5"
                                 class="range mt-2"
                                 step="1"
-                                bind:value={AccumulatedFatigue}
+                                bind:value={accumulatedFatigue}
                             />
                             <div
                                 class="flex w-full justify-between px-2 text-xs"
@@ -342,7 +489,7 @@
                                 max="5"
                                 class="range mt-2"
                                 step="1"
-                                bind:value={DifficultyRating}
+                                bind:value={difficultyRating}
                             />
                             <div
                                 class="flex w-full justify-between px-2 text-xs"
@@ -367,7 +514,7 @@
                                 max="5"
                                 class="range mt-2"
                                 step="1"
-                                bind:value={EngagementRating}
+                                bind:value={engagementRating}
                             />
                             <div
                                 class="flex w-full justify-between px-2 text-xs"
@@ -391,7 +538,7 @@
                             max="5"
                             class="range mt-2"
                             step="1"
-                            bind:value={ExternalVariablesRating}
+                            bind:value={externalVariablesRating}
                         />
                         <div class="flex w-full justify-between px-2 text-xs">
                             <span>bad</span>
@@ -406,7 +553,7 @@
                 <div class="form-control mt-10">
                     <label
                         >Summary / Notes <br /><textarea
-                            bind:value={UserSummary}
+                            bind:value={userSummary}
                             maxlength="200"
                             class="textarea textarea-bordered w-full"
                         ></textarea>

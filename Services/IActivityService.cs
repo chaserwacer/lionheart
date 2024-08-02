@@ -13,16 +13,16 @@ namespace lionheart.Services
         Task<Activity> AddLiftActivityAsync(string userID, CreateLiftRequest activityRequest);
     }
 
-    public record CreateActivityRequest(DateTime DateTime, TimeSpan TimeSpan, int CaloriesBurned, string Name, string UserSummary, int AccumulatedFatigue, int DifficultyRating, int EngagementRating, int ExternalVariablesRating);
-    public record CreateRunWalkRequest(DateTime DateTime, TimeSpan TimeSpan, int CaloriesBurned, string Name, string UserSummary, int AccumulatedFatigue, int DifficultyRating, int EngagementRating, int ExternalVariablesRating,
-        double Distance, int ElevationGain, TimeSpan AveragePace, List<TimeSpan> MileSplits, string RunType) 
+    public record CreateActivityRequest(DateTime DateTime, string TimeSpan, int CaloriesBurned, string Name, string UserSummary, int AccumulatedFatigue, int DifficultyRating, int EngagementRating, int ExternalVariablesRating);
+    public record CreateRunWalkRequest(DateTime DateTime, string TimeSpan, int CaloriesBurned, string Name, string UserSummary, int AccumulatedFatigue, int DifficultyRating, int EngagementRating, int ExternalVariablesRating,
+        double Distance, int ElevationGain, string AveragePace, List<string> MileSplits, string RunType) 
         : CreateActivityRequest(DateTime, TimeSpan, CaloriesBurned, Name, UserSummary, AccumulatedFatigue, DifficultyRating, EngagementRating, ExternalVariablesRating);
     
-    public record CreateRideRequest(DateTime DateTime, TimeSpan TimeSpan, int CaloriesBurned, string Name, string UserSummary, int AccumulatedFatigue, int DifficultyRating, int EngagementRating, int ExternalVariablesRating, 
+    public record CreateRideRequest(DateTime DateTime, string TimeSpan, int CaloriesBurned, string Name, string UserSummary, int AccumulatedFatigue, int DifficultyRating, int EngagementRating, int ExternalVariablesRating, 
         double Distance, int ElevationGain, int AveragePower, double AverageSpeed, string RideType) 
         : CreateActivityRequest(DateTime, TimeSpan, CaloriesBurned, Name, UserSummary, AccumulatedFatigue, DifficultyRating, EngagementRating, ExternalVariablesRating); 
 
-    public record CreateLiftRequest(DateTime DateTime, TimeSpan TimeSpan, int CaloriesBurned, string Name, string UserSummary, int AccumulatedFatigue, int DifficultyRating, int EngagementRating, int ExternalVariablesRating, 
+    public record CreateLiftRequest(DateTime DateTime, string TimeSpan, int CaloriesBurned, string Name, string UserSummary, int AccumulatedFatigue, int DifficultyRating, int EngagementRating, int ExternalVariablesRating, 
         int Tonnage, string LiftType, string LiftFocus) 
         : CreateActivityRequest(DateTime, TimeSpan, CaloriesBurned, Name, UserSummary, AccumulatedFatigue, DifficultyRating, EngagementRating, ExternalVariablesRating); 
 }   

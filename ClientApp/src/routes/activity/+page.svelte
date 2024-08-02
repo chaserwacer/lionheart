@@ -1,6 +1,11 @@
 <script>
     import ActivityTracker from "$lib/ActivityTracker.svelte";
+    import { fetchTodaysActivities } from "$lib/stores";
+    import { onMount } from "svelte";
 
+    onMount(async () => {
+        fetchTodaysActivities(fetch)
+  });
 </script>
 
 <svelte:head>

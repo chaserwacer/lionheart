@@ -45,11 +45,16 @@
       Welcome, {$bootUserDto.name}, to Project Lionheart.
     </h2>
     <p>
-      This page will be your one-stop-shop viewing location for all of your
-      training data. Select a date to view all associated data.
+      This page will be your one-stop-shop viewing location for all of your training data. Select a date to view all associated data.
+      Track activities & your wellness state below |
+      Navigating to the page for a given category will allow you to view data in more depth, as well as view recent trends 
+      and patterns. 
     </p>
-    <div class=""><ActivityTracker/></div>
-    <div class="pt-2"><WellnessTracker/></div>
+    <div class="flex flex-row">
+      <div class=""><ActivityTracker/></div>
+    <div class="pl-2"><WellnessTracker/></div>
+    </div>
+    
   </article>
   <div class="divider divider-horizontal"></div>
   <div class="w-1/2">
