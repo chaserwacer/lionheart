@@ -1,6 +1,6 @@
 <script>
     import { onMount } from "svelte";
-    import { fetchTodaysActivities } from "./stores";
+    import { fetchTodaysActivities } from "./activityStore";
 
     let dateTime = "";
     let hours = 0;
@@ -64,7 +64,7 @@
                         },
                         body: JSON.stringify({
                             dateTime: dateTime,
-                            timeSpan: TimeSpan,
+                            timeInMinutes: TimeSpan,
                             caloriesBurned: caloriesBurned,
                             name: name,
                             userSummary: userSummary,
@@ -104,7 +104,7 @@
                         },
                         body: JSON.stringify({
                             dateTime: dateTime,
-                            timeSpan: TimeSpan,
+                            timeInMinutes: TimeSpan,
                             caloriesBurned: caloriesBurned,
                             name: name,
                             userSummary: userSummary,
@@ -143,7 +143,7 @@
                         },
                         body: JSON.stringify({
                             dateTime: dateTime,
-                            timeSpan: TimeSpan,
+                            timeInMinutes: TimeSpan,
                             caloriesBurned: caloriesBurned,
                             name: name,
                             userSummary: userSummary,
@@ -183,7 +183,7 @@
                         },
                         body: JSON.stringify({
                             dateTime: dateTime,
-                            timeSpan: TimeSpan,
+                            timeInMinutes: TimeSpan,
                             caloriesBurned: caloriesBurned,
                             name: name,
                             userSummary: userSummary,
