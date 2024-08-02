@@ -34,7 +34,56 @@ namespace lionheart.Services
             var privateKey = getUserPrivateKey(userID).Result;
             DateTime startDateTime = start.ToDateTime(new TimeOnly(0, 0)); 
             DateTime endDateTime = end.ToDateTime(new TimeOnly(23, 59, 59));
-            return await _context.Activities.Where(a => a.DateTime >= startDateTime && a.DateTime <= endDateTime && a.UserID == privateKey).ToListAsync();
+            return await _context.Activities.Where(a => a.DateTime >= startDateTime && a.DateTime <= endDateTime && a.UserID == privateKey).Include(a => a.RideDetails).Include(a => a.LiftDetails).Include(a => a.RunWalkDetails).ToListAsync();
+        }
+
+
+        /// <summary>
+        /// Get number of minutes of actvivity in time span from start date to end date.
+        /// </summary>
+        /// <param name="userID">user id</param>
+        /// <param name="start">earlier date</param>
+        /// <param name="end">later date</param>
+        /// <returns>int num minuntes </returns>
+        public async Task<int> GetActivityMinutesAsync(string userID, DateOnly start, DateOnly end){
+            var privateKey = getUserPrivateKey(userID).Result;
+            DateTime startDateTime = start.ToDateTime(new TimeOnly(0, 0)); 
+            DateTime endDateTime = end.ToDateTime(new TimeOnly(23, 59, 59));
+            var activities = await _context.Activities.Where(a => a.DateTime >= startDateTime && a.DateTime <= endDateTime && a.UserID == privateKey).ToListAsync();
+            int minutes = 0;
+            foreach (var activity in activities){
+                minutes += activity.TimeInMinutes;
+            }
+            return minutes;
+                
+        } 
+
+        /// <summary>
+        /// Get ratio of lifts to rides to run/walk during period from start date to end date
+        /// </summary>
+        /// <param name="userID">user id</param>
+        /// <param name="start">earlier date</param>
+        /// <param name="end">later date</param>
+        /// <returns>int num minuntes </returns>
+        public async Task<ActivityTypeRatioDto> GetActivityTypeRatioAsync(string userID, DateOnly start, DateOnly end){
+            var activites = await GetActivitiesAsync(userID, start, end);
+            var numRunWalk = 0;
+            var numRide = 0;
+            var numLift = 0;
+            foreach(var activity in activites){
+                if(activity.RunWalkDetails is not null){
+                    numRunWalk++;
+                }
+                else if(activity.LiftDetails is not null){
+                    numLift++;
+                }
+                else if(activity.RideDetails is not null){
+                    numRide++;
+                }
+            }
+            return new ActivityTypeRatioDto(numLift, numRunWalk, numRide);
+            
+            
         }
 
         public async Task<Activity> AddActivityAsync(string userID, CreateActivityRequest activityRequest){
@@ -43,7 +92,7 @@ namespace lionheart.Services
                 ActivityID = Guid.NewGuid(),
                 UserID = privateKey,
                 DateTime = activityRequest.DateTime,
-                TimeSpan = activityRequest.TimeSpan,
+                TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
                 Name = activityRequest.Name,
                 UserSummary = activityRequest.UserSummary,
@@ -64,15 +113,15 @@ namespace lionheart.Services
                 ActivityID = activityID,
                 Distance = activityRequest.Distance,
                 ElevationGain = activityRequest.ElevationGain,
-                AveragePace = activityRequest.AveragePace,
-                MileSplits = activityRequest.MileSplits,
+                AveragePaceInSeconds = activityRequest.AveragePaceInSeconds,
+                MileSplitsInSeconds = activityRequest.MileSplitsInSeconds,
                 RunType = activityRequest.RunType,
             };
             Activity activity = new(){
                 ActivityID = activityID,
                 UserID = privateKey,
                 DateTime = activityRequest.DateTime,
-                TimeSpan = activityRequest.TimeSpan,
+                TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
                 Name = activityRequest.Name,
                 UserSummary = activityRequest.UserSummary,
@@ -104,7 +153,7 @@ namespace lionheart.Services
                 ActivityID = activityID,
                 UserID = privateKey,
                 DateTime = activityRequest.DateTime,
-                TimeSpan = activityRequest.TimeSpan,
+                TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
                 Name = activityRequest.Name,
                 UserSummary = activityRequest.UserSummary,
@@ -133,7 +182,7 @@ namespace lionheart.Services
                 ActivityID = activityID,
                 UserID = privateKey,
                 DateTime = activityRequest.DateTime,
-                TimeSpan = activityRequest.TimeSpan,
+                TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
                 Name = activityRequest.Name,
                 UserSummary = activityRequest.UserSummary,

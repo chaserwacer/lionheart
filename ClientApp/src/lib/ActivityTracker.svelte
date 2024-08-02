@@ -52,7 +52,7 @@
     }
 
     async function trackActivity() {
-        const TimeSpan = hours + ':' + minutes;
+        const TimeSpan = hours * 60 + minutes;
         if (isBiking) {
             try {
                 const response = await self.fetch(
@@ -132,7 +132,7 @@
                 console.error("Error tracking activity", error);
             }
         } else if (isRunWalk) {
-            let averagePace = paceMinutes + ':' + paceSeconds;
+            let averagePace = paceMinutes * 60 + paceSeconds;
             try {
                 const response = await self.fetch(
                     "/api/activity/addrunwalkactivity",

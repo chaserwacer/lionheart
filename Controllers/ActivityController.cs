@@ -90,5 +90,31 @@ namespace lionheart.Controllers
                 throw;
             }
         }
+
+        [HttpGet("[action]")]
+        public async Task<int> GetActivityMinutes(DateOnly start, DateOnly end){
+            try{
+                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                return await _activityService.GetActivityMinutesAsync(User.Identity.Name, start, end);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to get activity minutes): {e.Message}", e);
+                throw;
+            }
+        }
+
+        [HttpGet("[action]")]
+        public async Task<ActivityTypeRatioDto> GetActivityTypeRatio(DateOnly start, DateOnly end){
+            try{
+                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                return await _activityService.GetActivityTypeRatioAsync(User.Identity.Name, start, end);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to get activity ratio): {e.Message}", e);
+                throw;
+            }
+        }
     }
 }

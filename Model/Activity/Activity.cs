@@ -9,7 +9,7 @@ public class Activity
     public Guid ActivityID { get; init; }
     public Guid UserID { get; init; }
     public DateTime DateTime { get; init; }
-    public string TimeSpan { get; init; } = string.Empty;
+    public int TimeInMinutes { get; init; }
     public int CaloriesBurned { get; set; }
     public string Name { get; init; } = string.Empty;
     public string UserSummary { get; set; } = string.Empty;
@@ -31,8 +31,8 @@ public class RunWalkDetails
     public Guid ActivityID { get; set; }
     public double Distance { get; set; }
     public int ElevationGain { get; set; }
-    public string AveragePace { get; set; } = string.Empty;
-    public List<string> MileSplits { get; set; } = [];
+    public int AveragePaceInSeconds { get; set; }
+    public List<int> MileSplitsInSeconds { get; set; } = [];
     public string RunType { get; set; } = string.Empty;  // Ex: Zone 2 Rail Trail, Exploration Hike, Road Walk
 
 }
