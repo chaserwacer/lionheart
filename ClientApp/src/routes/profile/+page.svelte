@@ -38,15 +38,15 @@
       <button class="btn btn-secondary" data-set-theme="default" data-act-class="btn-active">Default</button>
       <button class="btn btn-secondary" data-set-theme="autumn" data-act-class="btn-active">Autumn</button>
       <button class="btn btn-secondary" data-set-theme="lofi" data-act-class="btn-active">White</button>
-      <button class="btn btn-secondary" data-set-theme="nord" data-act-class="btn-active">Nord</button>
+      <button class="btn btn-secondary" data-set-theme="nord" data-act-class="btn-active">Blue</button>
       <button class="btn btn-secondary" data-set-theme="black" data-act-class="btn-active">Black</button>
       <button class="btn btn-secondary" data-set-theme="retro" data-act-class="btn-active">Retro</button>
-      <button class="btn btn-secondary" data-set-theme="light" data-act-class="btn-active">Light</button>
-      <button class="btn btn-secondary" data-set-theme="dark" data-act-class="btn-active">Dark</button>
+      <!-- <button class="btn btn-secondary" data-set-theme="light" data-act-class="btn-active">Light</button> -->
+      <!-- <button class="btn btn-secondary" data-set-theme="dark" data-act-class="btn-active">Dark</button> -->
       <button class="btn btn-secondary" data-set-theme="valentine" data-act-class="btn-active">Valentine</button>
-      <button class="btn btn-secondary" data-set-theme="aqua" data-act-class="btn-active">Aqua</button>
-      <button class="btn btn-secondary" data-set-theme="forest" data-act-class="btn-active">Forest</button>
-      <button class="btn btn-secondary" data-set-theme="synthwave" data-act-class="btn-active">Synthwave</button>
+      <!-- <button class="btn btn-secondary" data-set-theme="aqua" data-act-class="btn-active">Aqua</button> -->
+      <!-- <button class="btn btn-secondary" data-set-theme="forest" data-act-class="btn-active">Forest</button> -->
+      <!-- <button class="btn btn-secondary" data-set-theme="synthwave" data-act-class="btn-active">Synthwave</button> -->
       
     </div>
     <div class="divider divider-neutral"></div>

@@ -112,7 +112,7 @@ namespace lionheart.Controllers
         {
             try
             {
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness State- username/key was null"); }
+                if (User.Identity?.Name is null) { return new WellnessState(new Guid(), 1, 1, 1, 1){ OverallScore = -1}; }
                 return await _userService.GetWellnessStateAsync(User.Identity.Name, date);
             }
             catch (Exception e)

@@ -1,5 +1,6 @@
 <script>
     import { goto } from "$app/navigation";
+    import ActivityTracker from "$lib/ActivityTracker.svelte";
     import { fetchBootUserDto, bootUserDto } from "$lib/stores";
     import { onMount } from "svelte";
   import "tailwindcss/tailwind.css";
@@ -45,8 +46,10 @@
             <a
               href="/wellness"
               class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium"
-              >Wellness Tracker</a
+              >Wellness </a
             >
+            
+            
             <!-- <a
               href="./page.svelte"
               class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium"
@@ -57,6 +60,7 @@
         </div>
       </div>
       <div class="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0 flex-none">
+        
         <!-- Profile dropdown -->
         <div class="relative ml-3">
           <div>
