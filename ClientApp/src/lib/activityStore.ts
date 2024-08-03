@@ -4,7 +4,7 @@ export type Activity = {
     activityID: '',
     userID: '',
     dateTime: '',
-    timeSpan: '',
+    timeInMinutes: '',
     caloriesBurned: 0,
     name: '',
     userSummary: '',
