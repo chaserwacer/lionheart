@@ -1,6 +1,6 @@
 <script>
     import { onMount } from "svelte";
-    import { fetchTodaysActivities } from "./activityStore";
+    import { fetchLastWeekActivityMinutes, fetchTodaysActivities } from "./activityStore";
 
     let dateTime = "";
     let hours = 0;
@@ -83,6 +83,7 @@
 
                 if (response.ok) {
                     fetchTodaysActivities(fetch);
+                    fetchLastWeekActivityMinutes(fetch)
                     closeModal();
                 } else {
                     console.error(
@@ -121,6 +122,7 @@
 
                 if (response.ok) {
                     fetchTodaysActivities(fetch);
+                    fetchLastWeekActivityMinutes(fetch)
                     closeModal();
                 } else {
                     console.error(
@@ -154,7 +156,7 @@
                             distance: distance,
                             elevationGain: elevationGain,
                             averagePace: averagePace,
-                            mileSplits: [],
+                            mileSplitsInSeconds: [0],
                             runType: runType
                         }),
                     },
@@ -162,6 +164,7 @@
 
                 if (response.ok) {
                     fetchTodaysActivities(fetch);
+                    fetchLastWeekActivityMinutes(fetch)
                     closeModal();
                 } else {
                     console.error(
@@ -197,6 +200,7 @@
 
                 if (response.ok) {
                     fetchTodaysActivities(fetch);
+                    fetchLastWeekActivityMinutes(fetch)
                     closeModal();
                 } else {
                     console.error(

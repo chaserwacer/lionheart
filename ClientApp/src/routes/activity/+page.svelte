@@ -1,21 +1,8 @@
 <script lang="ts">
-    import { fetchLastWeekActivityMinutes, fetchTodaysActivities, todaysActivities } from "$lib/activityStore.ts";
+    import { fetchLastWeekActivityMinutes, fetchTodaysActivities, todaysActivities, lastWeeksActivityMinutes } from "$lib/activityStore.ts";
     import ActivityTracker from "$lib/ActivityTracker.svelte";
     import ActivityViewer from "$lib/ActivityViewer.svelte";
   
-    import { onMount } from "svelte";
-    export let data;
-    let lastWeekActivityMinutes = data.lastWeekActivityMinutes;
-
-    onMount(async () => {
-        fetchTodaysActivities(fetch);
-        //lastWeekActivityMinutes = fetchLastWeekActivityMinutes(fetch)
-    });
-
-    async function updateMinutes(){
-        lastWeekActivityMinutes = await fetchLastWeekActivityMinutes(fetch)
-        console.log('hi')
-    }
 </script>
 
 <svelte:head>
@@ -28,15 +15,22 @@
         <div class="mt-5 w-10"><ActivityTracker/></div>
     </div>
     <div>
-        <p>Last week activity minutes: {lastWeekActivityMinutes} min</p>
+        <p>Last week activity minutes: ${lastWeeksActivityMinutes} min</p>
     </div>
     
 </div>
 
 <div class="divider"></div>
-<div class="flex">
+<div class="flex flex-wrap items-center justify-center">
     
     {#each $todaysActivities as activity }
+    <div class="p-2">
         <ActivityViewer {activity}/>
+    </div>
+        
     {/each}
 </div>
+
+<!-- <footer class="">
+    <div class="mt-5 w-10"><ActivityTracker/></div>
+</footer> -->

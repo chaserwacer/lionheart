@@ -38,6 +38,7 @@ export type Activity = {
 
 
 export const todaysActivities = writable([])
+export let lastWeeksActivityMinutes = 0
 
 export async function fetchTodaysActivities(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
     try {
@@ -80,7 +81,7 @@ export async function fetchLastWeekActivityMinutes(fetch: { (input: RequestInfo 
 
         if (response.ok) {
             const data = await response.json();
-            return data
+            lastWeeksActivityMinutes = data
         } else {
             console.error('Failed to get activity data');
         }
