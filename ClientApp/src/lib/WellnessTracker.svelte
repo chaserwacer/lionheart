@@ -11,6 +11,17 @@
     let moodInput = $todaysWellnessState.motivationScore;
     let stressInput = $todaysWellnessState.stressScore;
 
+    import { createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
+
+  function performUpdates() {
+    // Perform necessary updates here
+
+    // Call the updatePageInfo function in the parent
+    dispatch('update');
+  }
+
     function openModal() {
         showModal.set(true);
     }
@@ -37,6 +48,7 @@
             if (response.ok) {
                 closeModal();
                 fetchTodaysWellnessState(fetch);
+                performUpdates();
             } else {
                 console.error(
                     "Failed to track Wellness State:",

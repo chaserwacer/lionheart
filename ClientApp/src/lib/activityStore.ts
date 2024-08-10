@@ -65,18 +65,16 @@ export async function fetchTodaysActivities(fetch: { (input: RequestInfo | URL, 
 
 export async function fetchLastWeekActivityMinutes(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
     try {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const eday = String(today.getDate()).padStart(2, '0');
-        let sday = String(today.getDate()).padStart(2, '0');
-        if (today.getDay() < 7){
-            sday = '01'
-        }
-        const startDate = `${year}-${month}-${sday}`;
-        const endDate = `${year}-${month}-${eday}`;
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - 7);
 
-        const url = 'api/activity/getactivityminutes?start=' + startDate + '&end=' + endDate;
+        // Convert to strings in the year-month-day format
+        const endString = endDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
+        const startString = startDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+
+        const url = 'api/activity/getactivityminutes?start=' + startString + '&end=' + endString;
         const response = await fetch(url);
 
         if (response.ok) {

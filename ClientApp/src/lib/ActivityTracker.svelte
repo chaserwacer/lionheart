@@ -1,6 +1,9 @@
 <script>
     import { onMount } from "svelte";
-    import { fetchLastWeekActivityMinutes, fetchTodaysActivities } from "./activityStore";
+    import {
+        fetchLastWeekActivityMinutes,
+        fetchTodaysActivities,
+    } from "./activityStore";
 
     let dateTime = "";
     let hours = 0;
@@ -31,6 +34,17 @@
     let runType = "";
     let paceMinutes = 0;
     let paceSeconds = 0;
+
+    import { createEventDispatcher } from "svelte";
+
+    const dispatch = createEventDispatcher();
+
+    function performUpdates() {
+        // Perform necessary updates here
+
+        // Call the updatePageInfo function in the parent
+        dispatch("update");
+    }
 
     // @ts-ignore
     function handleActivityChange(event) {
@@ -83,8 +97,9 @@
 
                 if (response.ok) {
                     fetchTodaysActivities(fetch);
-                    fetchLastWeekActivityMinutes(fetch)
+                    fetchLastWeekActivityMinutes(fetch);
                     closeModal();
+                    performUpdates();
                 } else {
                     console.error(
                         "Failed to track activity:",
@@ -113,16 +128,16 @@
                             difficultyRating: difficultyRating,
                             engagementRating: engagementRating,
                             externalVariablesRating: externalVariablesRating,
-                            tonnage: tonnage, 
-                            liftType: liftType, 
-                            liftFocus: liftFocus
+                            tonnage: tonnage,
+                            liftType: liftType,
+                            liftFocus: liftFocus,
                         }),
                     },
                 );
 
                 if (response.ok) {
                     fetchTodaysActivities(fetch);
-                    fetchLastWeekActivityMinutes(fetch)
+                    fetchLastWeekActivityMinutes(fetch);
                     closeModal();
                 } else {
                     console.error(
@@ -157,14 +172,14 @@
                             elevationGain: elevationGain,
                             averagePace: averagePace,
                             mileSplitsInSeconds: [0],
-                            runType: runType
+                            runType: runType,
                         }),
                     },
                 );
 
                 if (response.ok) {
                     fetchTodaysActivities(fetch);
-                    fetchLastWeekActivityMinutes(fetch)
+                    fetchLastWeekActivityMinutes(fetch);
                     closeModal();
                 } else {
                     console.error(
@@ -177,30 +192,27 @@
             }
         } else {
             try {
-                const response = await self.fetch(
-                    "/api/activity/addactivity",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            dateTime: dateTime,
-                            timeInMinutes: TimeSpan,
-                            caloriesBurned: caloriesBurned,
-                            name: name,
-                            userSummary: userSummary,
-                            accumulatedFatigue: accumulatedFatigue,
-                            difficultyRating: difficultyRating,
-                            engagementRating: engagementRating,
-                            externalVariablesRating: externalVariablesRating, 
-                        }),
+                const response = await self.fetch("/api/activity/addactivity", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
                     },
-                );
+                    body: JSON.stringify({
+                        dateTime: dateTime,
+                        timeInMinutes: TimeSpan,
+                        caloriesBurned: caloriesBurned,
+                        name: name,
+                        userSummary: userSummary,
+                        accumulatedFatigue: accumulatedFatigue,
+                        difficultyRating: difficultyRating,
+                        engagementRating: engagementRating,
+                        externalVariablesRating: externalVariablesRating,
+                    }),
+                });
 
                 if (response.ok) {
                     fetchTodaysActivities(fetch);
-                    fetchLastWeekActivityMinutes(fetch)
+                    fetchLastWeekActivityMinutes(fetch);
                     closeModal();
                 } else {
                     console.error(
@@ -310,6 +322,7 @@
                             <input
                                 type="number"
                                 min="0"
+                                step="0.01"
                                 bind:value={distance}
                                 class="input input-bordered"
                             />
@@ -401,6 +414,7 @@
                             <input
                                 type="number"
                                 min="0"
+                                step="0.01"
                                 bind:value={distance}
                                 class="input input-bordered"
                             />
@@ -446,7 +460,7 @@
 
                     <div class="form-control">
                         <label class="label">
-                            <span class="label-text">Run Type</span>
+                            <span class="label-text">Run/Walk Type</span>
                             <input
                                 type="text"
                                 maxlength="15"
