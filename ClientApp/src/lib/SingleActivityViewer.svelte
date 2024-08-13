@@ -5,14 +5,14 @@
     let date = activity.dateTime.toWellFormed();
 </script>
 
-<div class="card border border-primary">
+<div class="card ">
     <div class="card-body m-2.5 p-2.5">
         <div class="flex flex-row">
             <div class="max-w-50">
                 <h1 class="card-title">{activity.name}</h1>
                 <p>{date}</p>
                 <p>Length: {activity.timeInMinutes} minutes</p>
-                <div class="divider m-0"></div>
+                <div class="divider divider-accent m-0"></div>
                 <!-- <p class="font-bold">Summary</p>
                 {activity.userSummary}
                 <div class="divider m-0"></div> -->
@@ -33,7 +33,7 @@
                 {activity.engagementRating} / 5
             </div>
             <!-- {#if activity.liftDetails != null || activity.runWalkDetails != null || activity.rideDetails != null} -->
-                <div class="divider divider-horizontal"></div>
+                <div class="divider divider-accent divider-horizontal"></div>
             <!-- {/if} -->
 
             <div class="w-60">
@@ -64,7 +64,7 @@
                     {activity.rideDetails.rideType}
                 {:else if activity.runWalkDetails != null}
                     <h1 class="card-title">Run/Walk Specific Details</h1>
-                    <div class="divider m-0"></div>
+                    <div class="divider divider-accent m-0"></div>
                     <p class="font-bold">Distance</p>
                     {activity.runWalkDetails.distance} miles
                     <p class="font-bold">Elevation Gain</p>

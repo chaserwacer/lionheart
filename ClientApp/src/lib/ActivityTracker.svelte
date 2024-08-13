@@ -1,9 +1,9 @@
 <script>
     import { onMount } from "svelte";
     import {
-        fetchLastWeekActivityMinutes,
         fetchTodaysActivities,
     } from "./activityStore";
+      import {pageUpdate} from "$lib/stores"
 
     let dateTime = "";
     let hours = 0;
@@ -96,10 +96,11 @@
                 );
 
                 if (response.ok) {
-                    fetchTodaysActivities(fetch);
-                    fetchLastWeekActivityMinutes(fetch);
+                    $pageUpdate = new Date()
+
                     closeModal();
-                    performUpdates();
+
+                    
                 } else {
                     console.error(
                         "Failed to track activity:",
@@ -136,8 +137,7 @@
                 );
 
                 if (response.ok) {
-                    fetchTodaysActivities(fetch);
-                    fetchLastWeekActivityMinutes(fetch);
+                    $pageUpdate = new Date()
                     closeModal();
                 } else {
                     console.error(
@@ -178,8 +178,7 @@
                 );
 
                 if (response.ok) {
-                    fetchTodaysActivities(fetch);
-                    fetchLastWeekActivityMinutes(fetch);
+                    $pageUpdate = new Date()
                     closeModal();
                 } else {
                     console.error(
@@ -211,8 +210,7 @@
                 });
 
                 if (response.ok) {
-                    fetchTodaysActivities(fetch);
-                    fetchLastWeekActivityMinutes(fetch);
+                    $pageUpdate = new Date()
                     closeModal();
                 } else {
                     console.error(
@@ -224,12 +222,12 @@
                 console.error("Error tracking activity", error);
             }
         }
-
+        $pageUpdate = new Date()
         closeModal();
     }
 </script>
 
-<button class="btn border border-primary" on:click={openModal}
+<button class="btn btn-sm btn-outline btn-primary" on:click={openModal}
     >Track Activity</button
 >
 

@@ -1,12 +1,11 @@
 <script lang="ts">
     import {
-        fetchLastWeekActivityMinutes,
         fetchTodaysActivities,
         todaysActivities,
         lastWeeksActivityMinutes,
     } from "$lib/activityStore.ts";
     import ActivityTracker from "$lib/ActivityTracker.svelte";
-    import ActivityViewer from "$lib/ActivityViewer.svelte";
+    import ActivityViewer from "$lib/SingleActivityViewer.svelte";
     import { onMount } from "svelte";
     import { writable } from "svelte/store";
 
@@ -51,7 +50,7 @@
     function updatePage(){
         fetchTodaysActivities(fetch)
         fetchActivityRatio()
-        fetchLastWeekActivityMinutes(fetch)
+       
     }
 </script>
 

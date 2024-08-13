@@ -6,6 +6,8 @@ export const bootUserDto = writable({
 
 });
 
+export const pageUpdate = writable<Date>()
+
 
 export async function fetchBootUserDto(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
     try {
@@ -62,4 +64,6 @@ export async function fetchTodaysWellnessState(fetch: { (input: RequestInfo | UR
         console.error('Error fetching todays wellness state')
     }
 }
+
+
 

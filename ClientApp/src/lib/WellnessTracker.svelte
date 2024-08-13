@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { fetchTodaysWellnessState, todaysWellnessState } from "$lib/stores";
+    import { fetchTodaysWellnessState, todaysWellnessState, pageUpdate } from "$lib/stores";
     import { writable } from "svelte/store";
     /**
      * @type {typeof import("svelte-chartjs").Line}
@@ -11,16 +11,7 @@
     let moodInput = $todaysWellnessState.motivationScore;
     let stressInput = $todaysWellnessState.stressScore;
 
-    import { createEventDispatcher } from 'svelte';
-
-  const dispatch = createEventDispatcher();
-
-  function performUpdates() {
-    // Perform necessary updates here
-
-    // Call the updatePageInfo function in the parent
-    dispatch('update');
-  }
+    
 
     function openModal() {
         showModal.set(true);
@@ -48,7 +39,7 @@
             if (response.ok) {
                 closeModal();
                 fetchTodaysWellnessState(fetch);
-                performUpdates();
+                $pageUpdate = new Date()
             } else {
                 console.error(
                     "Failed to track Wellness State:",
@@ -61,7 +52,7 @@
     }
 </script>
 
-<button class="btn border border-primary" on:click={openModal}
+<button class="btn btn-sm btn-outline btn-primary" on:click={openModal}
     >Track Wellness</button
 >
 

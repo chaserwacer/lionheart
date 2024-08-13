@@ -63,28 +63,67 @@ export async function fetchTodaysActivities(fetch: { (input: RequestInfo | URL, 
     }
 }
 
-export async function fetchLastWeekActivityMinutes(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
+export async function fetchActivityMinutes(end: string, fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
     try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - 7);
+        const start = new Date(end);
+        start.setDate(start.getDate() - 7)
+        const startString = start.toISOString().slice(0,10);
 
-        // Convert to strings in the year-month-day format
-        const endString = endDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
-        const startString = startDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
-
-
-        const url = 'api/activity/getactivityminutes?start=' + startString + '&end=' + endString;
+        const url = 'api/activity/getactivityminutes?start=' + startString + '&end=' + end;
         const response = await fetch(url);
 
         if (response.ok) {
             const data = await response.json();
-            lastWeeksActivityMinutes = data
+            return data;
         } else {
             console.error('Failed to get activity data');
         }
     }
     catch {
         console.error('Error fetching activity data')
+    }
+}
+
+export async function fetchActivities(start: string, end: string,  fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
+    try {
+        const url =
+            "api/activity/getactivities?start=" +
+            start +
+            "&end=" +
+            end;
+        const response = await fetch(url);
+
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        } else {
+            console.error("Failed to get activities");
+        }
+    } catch {
+        console.error("Error fetching activities");
+    }
+}
+
+export async function fetchActivityRatio(end: string, fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
+    try {
+        const start = new Date(end);;
+        start.setDate(start.getDate() - 28);
+        const startString = start.toISOString().slice(0,10);
+
+        const url =
+            "api/activity/getactivitytyperatio?start=" +
+            startString +
+            "&end=" +
+            end;
+        const response = await fetch(url);
+
+        if (response.ok) {
+            const data = await response.json();
+            return data
+        } else {
+            console.error("Failed to get activity data");
+        }
+    } catch {
+        console.error("Error fetching activity data");
     }
 }
