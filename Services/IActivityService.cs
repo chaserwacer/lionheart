@@ -13,7 +13,7 @@ namespace lionheart.Services
         Task<Activity> AddLiftActivityAsync(string userID, CreateLiftRequest activityRequest);
         Task<int> GetActivityMinutesAsync(string userID, DateOnly start, DateOnly end);
         Task<ActivityTypeRatioDto> GetActivityTypeRatioAsync(string userID, DateOnly start, DateOnly end);
-        Task<WeeklyMuscleSetsDto> GetWeeklyMuscleSetsAsync(string userID, DateOnly start, DateOnly end);
+        Task<MuscleSetsDto> GetMuscleSetsAsync(string userID, DateOnly start, DateOnly end);
     }
 
     public record ActivityTypeRatioDto(int NumberLifts, int NumberRunWalks, int NumberRides);
@@ -30,5 +30,5 @@ namespace lionheart.Services
         int Tonnage, string LiftType, string LiftFocus, int QuadSets, int HamstringSets, int BicepSets, int TricepSets, int ShoulderSets, int BackSets, int ChestSets) 
         : CreateActivityRequest(DateTime, TimeInMinutes, CaloriesBurned, Name, UserSummary, AccumulatedFatigue, DifficultyRating, EngagementRating, ExternalVariablesRating); 
     
-    public record WeeklyMuscleSetsDto(int QuadSets, int HamstringSets, int BicepSets, int TricepSets, int ShoulderSets, int ChestSets, int BackSets);
+    public record MuscleSetsDto(int QuadSets, int HamstringSets, int BicepSets, int TricepSets, int ShoulderSets, int ChestSets, int BackSets);
 }   

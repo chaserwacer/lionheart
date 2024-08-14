@@ -224,7 +224,7 @@ namespace lionheart.Services
             return activity;
         }
 
-        public async Task<WeeklyMuscleSetsDto> GetWeeklyMuscleSetsAsync(string userID, DateOnly start, DateOnly end)
+        public async Task<MuscleSetsDto> GetMuscleSetsAsync(string userID, DateOnly start, DateOnly end)
         {
             var activities = await GetLiftActivitiesAsync(userID, start, end);
             int quadSets = 0, hamstringSets = 0, tricepSets = 0, bicepSets = 0, shoulderSets = 0, chestSets = 0, backSets = 0;
@@ -241,7 +241,7 @@ namespace lionheart.Services
                     backSets += activity.LiftDetails.BackSets;
                 }
             }
-            return new WeeklyMuscleSetsDto(quadSets, hamstringSets, bicepSets, tricepSets, shoulderSets, chestSets, backSets);
+            return new MuscleSetsDto(quadSets, hamstringSets, bicepSets, tricepSets, shoulderSets, chestSets, backSets);
         }
 
         public async Task<List<Activity>> GetLiftActivitiesAsync(string userID, DateOnly start, DateOnly end)

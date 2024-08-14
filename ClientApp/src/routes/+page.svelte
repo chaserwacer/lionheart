@@ -15,11 +15,12 @@
   import ActivityViewer from "$lib/SingleActivityViewer.svelte";
   import Chart from "chart.js/auto";
   import type { Line } from "svelte-chartjs";
-  import type { Activity } from "$lib/activityStore";
+  import type { Activity, MuscleSetsDto } from "$lib/activityStore";
   import {
     fetchActivities,
     fetchActivityMinutes,
     fetchActivityRatio,
+    fetchWeeklyMuscleSetsDto,
   } from "$lib/activityStore.js";
   import SingleActivityViewer from "$lib/SingleActivityViewer.svelte";
 
@@ -43,7 +44,9 @@
 
   async function updateWellnessGraph() {
     const response = await fetch(
-      "api/user/GetLastXWellnessStatesGraphData?date= " + {selectedDate} + "?xDays=7",
+      "api/user/GetLastXWellnessStatesGraphData?date=" +
+        selectedDate +
+        "&xDays=7",
     );
     if (!response.ok) {
       console.error("Failed to get todays Wellness State");
@@ -68,6 +71,15 @@
   export let data;
   let lastUpdatePage = $pageUpdate;
   let selectedDate = new Date().toISOString().slice(0, 10);
+  let weeklyMuscleSets: MuscleSetsDto = {
+    quadSets: 0,
+    hamstringSets: 0,
+    bicepSets: 0,
+    tricepSets: 0,
+    shoulderSets: 0,
+    chestSets: 0,
+    backSets: 0,
+  };
   const wellnessState = writable({
     motivationScore: 0,
     stressScore: 0,
@@ -95,6 +107,7 @@
     activities.set(await fetchActivities(selectedDate, selectedDate, fetch));
     lastWeeksActivityMinutes = await fetchActivityMinutes(selectedDate, fetch);
     activityTypeRatio.set(await fetchActivityRatio(selectedDate, fetch));
+    weeklyMuscleSets = await fetchWeeklyMuscleSetsDto(selectedDate, fetch);
   });
 
   async function fetchWellnessState() {
@@ -122,6 +135,7 @@
     updateWellnessGraph();
     lastWeeksActivityMinutes = await fetchActivityMinutes(selectedDate, fetch);
     activityTypeRatio.set(await fetchActivityRatio(selectedDate, fetch));
+    weeklyMuscleSets = await fetchWeeklyMuscleSetsDto(selectedDate, fetch);
   }
 
   $: {
@@ -143,7 +157,7 @@
         Welcome, {$bootUserDto.name}.
         <span class="md:loading md:loading-infinity md:loading-lg"></span>
       </h3>
-      
+
       <div class="divider-horizontal divider"></div>
       <div class="card items-center p-0 m-0 w-1/2 items-center">
         <div class="card-body items-center p-0 m-0">
@@ -171,9 +185,9 @@
 
 <div class="divider">Wellness</div>
 <div class="flex flex-col md:flex-row">
-  <div class="flex flex-col text-xs md:w-1/2">
+  <div class="flex flex-col text-xs md:w-1/2 ">
     <div
-      class=" m-5 mt-0 stats stats-vertical md:stats-horizontal shadow bg-primary text-primary-content flex-initial {$wellnessState.overallScore ===
+      class=" hover:shadow-xl  m-5 mt-0 stats stats-vertical md:stats-horizontal shadow bg-primary text-primary-content flex-initial {$wellnessState.overallScore ===
       -1
         ? 'blur-sm'
         : ''}"
@@ -248,9 +262,11 @@
     </div>
 
     <article class="prose max-w-none pl-5 pt-5 invisible md:visible">
-      <p>Overlooked, at times, are the things an athlete truly feels. Not just how their muscles are feeling, but the other stuff: 
-        things like mood and stress. By putting an emphasis on these metrics and storing them, we can analyze how they correlate to our
-        performance.
+      <p>
+        Overlooked, at times, are the things an athlete truly feels. Not just
+        how their muscles are feeling, but the other stuff: things like mood and
+        stress. By putting an emphasis on these metrics and storing them, we can
+        analyze how they correlate to our performance.
       </p>
     </article>
   </div>
@@ -270,79 +286,124 @@
 </div>
 
 <div class="divider">Activity</div>
-
 <div class="flex flex-col md:flex-row items-center md:items-start">
-  <div class=" bg-accent text-accent-content m-2 rounded-lg">
-    <h1 class="ml-5 mt-2 text-xl font-bold">Today's Activities</h1>
-    <table class="table">
-      <!-- head -->
-      <thead class="text-accent-content">
-        <tr>
-          <th></th>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Difficulty</th>
-          <th>Length</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- row 1 -->
-        {#each $activities as activity}
+  <div class="flex flex-col md:flex-row items-center md:items-start ">
+    <div class=" bg-accent text-accent-content m-2 rounded-lg hover:shadow-xl">
+      <h1 class="ml-5 mt-2 text-xl font-bold">Today's Activities</h1>
+      <table class="table">
+        <!-- head -->
+        <thead class="text-accent-content">
           <tr>
-            <!-- Start Modal -->
-            <label for="my_modal_7" class="btn btn-xs mt-2 ml-2">view</label>
-            <input type="checkbox" id="my_modal_7" class="modal-toggle" />
-            <div class="modal" role="dialog">
-              <div class="modal-box bg-white text-black">
-                <h1 class="text-xl font-bold">Activity Viewer</h1>
-                <div class="divider divider-accent m-0"></div>
-                <SingleActivityViewer {activity} />
-              </div>
-              <label class="modal-backdrop" for="my_modal_7">Close</label>
-            </div>
-
-            <!-- End Modal -->
-            <td>{activity.name}</td>
-            {#if activity.liftDetails != null}
-              <td>Lift</td>
-            {:else if activity.rideDetails != null}
-              <td>Ride</td>
-            {:else if activity.runWalkDetails != null}
-              <td>Run/Walk</td>
-            {:else}
-              <td>Base Activity</td>
-            {/if}
-            <td>{activity.difficultyRating} / 5</td>
-            <td>{activity.timeInMinutes} min</td>
+            <th></th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Difficulty</th>
+            <th>Length</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody>
+          
+          <!-- row 1 -->
+          {#each $activities as activity}
+            <tr>
+              <!-- Start Modal -->
+              <label for="my_modal_7" class="btn btn-xs mt-2 ml-2">view</label>
+              <input type="checkbox" id="my_modal_7" class="modal-toggle" />
+              <div class="modal" role="dialog">
+                <div class="modal-box bg-white text-black">
+                  <h1 class="text-xl font-bold">Activity Viewer</h1>
+                  <div class="divider divider-accent m-0"></div>
+                  <SingleActivityViewer {activity} />
+                </div>
+                <label class="modal-backdrop" for="my_modal_7">Close</label>
+              </div>
 
-  <div class="flex m-2">
-    <div class="stats shadow bg-accent text-accent-content">
-      <div class="stat">
-        <div class="stat-title text-accent-content">Activity Minutes</div>
-        <div class="stat-value">{lastWeeksActivityMinutes}</div>
-        <div class="stat-desc text-accent-content">In the last 7 days</div>
-      </div>
-      <div class="stat">
-        <div class="stat-title text-accent-content">Activity Ratio</div>
-        <div class="stat-value">
-          {$activityTypeRatio.numberLifts}:{$activityTypeRatio.numberRunWalks}:{$activityTypeRatio.numberRides}
+              <!-- End Modal -->
+              <td>{activity.name}</td>
+              {#if activity.liftDetails != null}
+                <td>Lift</td>
+              {:else if activity.rideDetails != null}
+                <td>Ride</td>
+              {:else if activity.runWalkDetails != null}
+                <td>Run/Walk</td>
+              {:else}
+                <td>Base Activity</td>
+              {/if}
+              <td>{activity.difficultyRating} / 5</td>
+              <td>{activity.timeInMinutes} min</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex m-2">
+      <div class="stats shadow bg-accent text-accent-content hover:shadow-xl">
+        <div class="stat">
+          <div class="stat-title text-accent-content">Activity Minutes</div>
+          <div class="stat-value">{lastWeeksActivityMinutes}</div>
+          <div class="stat-desc text-accent-content">In the last 7 days</div>
         </div>
-        <div class="stat-desc text-accent-content">Lifts : Runs : Rides</div>
-        <div class="stat-desc text-accent-content">In the last 4 weeks</div>
+        <div class="stat">
+          <div class="stat-title text-accent-content">Activity Ratio</div>
+          <div class="stat-value">
+            {$activityTypeRatio.numberLifts}:{$activityTypeRatio.numberRunWalks}:{$activityTypeRatio.numberRides}
+          </div>
+          <div class="stat-desc text-accent-content">Lifts : Runs : Rides</div>
+          <div class="stat-desc text-accent-content">In the last 4 weeks</div>
+        </div>
       </div>
     </div>
+  </div>
+  <div class="divider divider-horizontal"></div>
+    <div class="bg-primary text-primary-content  rounded-lg m-2 hover:shadow-xl">
+      <table class="table table-sm font-bold">
+        <!-- head -->
+        <thead>
+          <tr>
+            <th class="font-bold text-lg text-primary-content shadow"
+              >Muscle Group</th
+            >
+            <th class="font-bold text-lg text-primary-content shadow">Sets in past 7 days</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- quads row -->
+          <tr>
+            <td>Quads</td>
+            <td>{weeklyMuscleSets.quadSets}</td>
+          </tr>
+          <!-- hamstrings row -->
+          <tr>
+            <td>Hamstrings</td>
+            <td>{weeklyMuscleSets.hamstringSets}</td>
+          </tr>
+          <!-- biceps row -->
+          <tr>
+            <td>Biceps</td>
+            <td>{weeklyMuscleSets.bicepSets}</td>
+          </tr>
+          <!-- triceps row -->
+          <tr>
+            <td>Triceps</td>
+            <td>{weeklyMuscleSets.tricepSets}</td>
+          </tr>
+          <!-- shoulders row -->
+          <tr>
+            <td>Shoulders</td>
+            <td>{weeklyMuscleSets.shoulderSets}</td>
+          </tr>
+          <!-- chest row -->
+          <tr>
+            <td>Chest</td>
+            <td>{weeklyMuscleSets.chestSets}</td>
+          </tr>
+          <!-- back row -->
+          <tr>
+            <td>Back</td>
+            <td>{weeklyMuscleSets.backSets}</td>
+          </tr>
+        </tbody>
+      </table>
   </div>
 </div>
-
-<!-- <div class="flex flex-wrap items-center justify-center">
-  {#each $activities as activity}
-    <div class="p-2">
-      <ActivityViewer {activity} />
-    </div>
-  {/each}
-</div> -->

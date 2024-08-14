@@ -1,4 +1,4 @@
-<script lang="ts">
+<!-- <script lang="ts">
     import {
         fetchTodaysActivities,
         todaysActivities,
@@ -98,4 +98,4 @@
 
 <!-- <footer class="">
     <div class="mt-5 w-10"><ActivityTracker/></div>
-</footer> -->
+</footer> --> -->

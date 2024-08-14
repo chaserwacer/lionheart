@@ -8,7 +8,7 @@
 <div class="card ">
     <div class="card-body m-2.5 p-2.5">
         <div class="flex flex-row">
-            <div class="max-w-50">
+            <div class="w-52">
                 <h1 class="card-title">{activity.name}</h1>
                 <p>{date}</p>
                 <p>Length: {activity.timeInMinutes} minutes</p>
@@ -39,16 +39,17 @@
             <div class="w-60">
                 {#if activity.liftDetails != null}
                     <h1 class="card-title">Lift Specific Details</h1>
-                    <div class="divider m-0"></div>
+                    <div class="divider divider-accent m-0"></div>
                     <p class="font-bold">Tonnage / Total Volume</p>
                     {activity.liftDetails.tonnage}
                     <p class="mt-1 font-bold">Lift Focus</p>
                     {activity.liftDetails.liftFocus}
                     <p class="mt-1 font-bold">Lift Type</p>
                     {activity.liftDetails.liftType}
-                    <div class="divider m-0"></div>
+                    <div class="divider divider-accent m-0"></div>
                     <p class="font-bold">Summary</p>
                     {activity.userSummary}
+                    
                 {:else if activity.rideDetails != null}
                     <h1 class="card-title">Ride Specific Details</h1>
                     <div class="divider m-0"></div>
@@ -78,6 +79,33 @@
                     {activity.userSummary}
                 {/if}
             </div>
+            
         </div>
+        {#if activity.liftDetails != null}
+            <div class="divider divider-accent">Set Tracker</div>
+                <div class="flex flex-wrap">
+                    {#if activity.liftDetails.quadSets != 0}
+                    <p class="font-bold">Quads: {activity.liftDetails.quadSets}</p> 
+                    {/if}
+                    {#if activity.liftDetails.hamstringSets != 0}
+                    <p class="font-bold">Hamstrings: {activity.liftDetails.hamstringSets}</p> 
+                    {/if}
+                    {#if activity.liftDetails.chestSets != 0}
+                    <p class="font-bold">Chest: {activity.liftDetails.chestSets}</p> 
+                    {/if}
+                    {#if activity.liftDetails.backSets != 0}
+                    <p class="font-bold">Back: {activity.liftDetails.backSets}</p> 
+                    {/if}
+                    {#if activity.liftDetails.shoulderSets != 0}
+                    <p class="font-bold">Shoulders: {activity.liftDetails.shoulderSets}</p> 
+                    {/if}
+                    {#if activity.liftDetails.tricepSets != 0}
+                    <p class="font-bold">Triceps: {activity.liftDetails.tricepSets}</p> 
+                    {/if}
+                    {#if activity.liftDetails.bicepSets != 0}
+                    <p class="font-bold">Biceps: {activity.liftDetails.bicepSets}</p> 
+                    {/if}
+                </div>
+            {/if}
     </div>
 </div>

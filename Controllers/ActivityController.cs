@@ -21,7 +21,7 @@ namespace lionheart.Controllers
         {
             try
             {
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
                 var activity = await _activityService.AddActivityAsync(User.Identity.Name, activityRequest);
                 return Ok(activity);
             }
@@ -36,7 +36,7 @@ namespace lionheart.Controllers
         {
             try
             {
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
                 var activity = await _activityService.AddRunWalkActivityAsync(User.Identity.Name, activityRequest);
                 return Ok(activity);
             }
@@ -51,7 +51,7 @@ namespace lionheart.Controllers
         {
             try
             {
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
                 var activity = await _activityService.AddRideActivityAsync(User.Identity.Name, activityRequest);
                 return Ok(activity);
             }
@@ -66,7 +66,7 @@ namespace lionheart.Controllers
         {
             try
             {
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
                 var activity = await _activityService.AddLiftActivityAsync(User.Identity.Name, activityRequest);
                 return Ok(activity);
             }
@@ -80,7 +80,7 @@ namespace lionheart.Controllers
         [HttpGet("[action]")]
         public async Task<List<lionheart.ActivityTracking.Activity>> GetActivities(DateOnly start, DateOnly end){
             try{
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
                 var activities = await _activityService.GetActivitiesAsync(User.Identity.Name, start, end);
                 return activities;
             }
@@ -94,7 +94,7 @@ namespace lionheart.Controllers
         [HttpGet("[action]")]
         public async Task<int> GetActivityMinutes(DateOnly start, DateOnly end){
             try{
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
                 return await _activityService.GetActivityMinutesAsync(User.Identity.Name, start, end);
             }
             catch (Exception e)
@@ -107,12 +107,32 @@ namespace lionheart.Controllers
         [HttpGet("[action]")]
         public async Task<ActivityTypeRatioDto> GetActivityTypeRatio(DateOnly start, DateOnly end){
             try{
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
                 return await _activityService.GetActivityTypeRatioAsync(User.Identity.Name, start, end);
             }
             catch (Exception e)
             {
                 _logger.LogError($"Failed to get activity ratio): {e.Message}", e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Get the number of sets per each muscle group over the course of start to end data
+        /// </summary>
+        /// <param name="start"></param>
+        /// <param name="end"></param>
+        /// <returns></returns>
+        /// <exception cref="NullReferenceException"></exception>
+        [HttpGet("[action]")]
+        public async Task<MuscleSetsDto> GetMuscleSets(DateOnly start, DateOnly end){
+            try{
+                if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
+                return await _activityService.GetMuscleSetsAsync(User.Identity.Name, start, end);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to get muscle sets): {e.Message}", e);
                 throw;
             }
         }

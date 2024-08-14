@@ -24,7 +24,14 @@ export type Activity = {
         activityID: '',
         liftFocus: '',
         liftType: '',
-        tonnage: 0
+        tonnage: 0,
+        quadSets: 0,
+        hamstringSets: 0,
+        bicepSets: 0,
+        tricepSets: 0,
+        shoulderSets: 0,
+        chestSets: 0,
+        backSets: 0
     },
     rideDetails: {
         activityID: '',
@@ -67,7 +74,7 @@ export async function fetchActivityMinutes(end: string, fetch: { (input: Request
     try {
         const start = new Date(end);
         start.setDate(start.getDate() - 7)
-        const startString = start.toISOString().slice(0,10);
+        const startString = start.toISOString().slice(0, 10);
 
         const url = 'api/activity/getactivityminutes?start=' + startString + '&end=' + end;
         const response = await fetch(url);
@@ -84,7 +91,7 @@ export async function fetchActivityMinutes(end: string, fetch: { (input: Request
     }
 }
 
-export async function fetchActivities(start: string, end: string,  fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
+export async function fetchActivities(start: string, end: string, fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
     try {
         const url =
             "api/activity/getactivities?start=" +
@@ -108,10 +115,44 @@ export async function fetchActivityRatio(end: string, fetch: { (input: RequestIn
     try {
         const start = new Date(end);;
         start.setDate(start.getDate() - 28);
-        const startString = start.toISOString().slice(0,10);
+        const startString = start.toISOString().slice(0, 10);
 
         const url =
             "api/activity/getactivitytyperatio?start=" +
+            startString +
+            "&end=" +
+            end;
+        const response = await fetch(url);
+
+        if (response.ok) {
+            const data = await response.json();
+            return data
+        } else {
+            console.error("Failed to get activity data");
+        }
+    } catch {
+        console.error("Error fetching activity data");
+    }
+}
+
+export type MuscleSetsDto = {
+    quadSets: 0,
+    hamstringSets: 0,
+    bicepSets: 0,
+    tricepSets: 0,
+    shoulderSets: 0,
+    chestSets: 0,
+    backSets: 0
+}
+
+export async function fetchWeeklyMuscleSetsDto(end: string, fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
+    try {
+        const start = new Date(end);;
+        start.setDate(start.getDate() - 7);
+        const startString = start.toISOString().slice(0, 10);
+
+        const url =
+            "api/activity/getmusclesets?start=" +
             startString +
             "&end=" +
             end;

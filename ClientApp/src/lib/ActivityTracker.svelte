@@ -24,6 +24,13 @@
     let tonnage = 0;
     let liftType = "";
     let liftFocus = "";
+    let quadSets = 0;
+    let hamstringSets = 0;
+    let tricepSets = 0;
+    let bicepSets = 0;
+    let shoulderSets = 0;
+    let chestSets = 0;
+    let backSets = 0;
 
     let distance = 0.0;
     let elevationGain = 0;
@@ -132,6 +139,13 @@
                             tonnage: tonnage,
                             liftType: liftType,
                             liftFocus: liftFocus,
+                            quadSets: quadSets,
+                            hamstringSets: hamstringSets,
+                            bicepSets: bicepSets,
+                            tricepSets: tricepSets,
+                            shoulderSets: shoulderSets,
+                            chestSets: chestSets,
+                            backsets: backSets,
                         }),
                     },
                 );
@@ -387,7 +401,7 @@
                             <span class="label-text">Lift Type</span>
                             <input
                                 type="text"
-                                maxlength="15"
+                                maxlength="20"
                                 bind:value={liftType}
                                 class="input input-bordered"
                             />
@@ -399,12 +413,91 @@
                             <span class="label-text">Lift Focus</span>
                             <input
                                 type="text"
-                                maxlength="15"
+                                maxlength="40"
                                 bind:value={liftFocus}
                                 class="input input-bordered"
                             />
                         </label>
                     </div>
+
+                    <div class="divider ml-10 mr-10">Set Tracker</div>
+                    <div class="form-control">
+                        <div class="flex flex-wrap">
+                            <label class="label label-primary ">
+                                <span class="label-text pr-2">Quads: </span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="20"
+                                    bind:value={quadSets}
+                                    class="input input-bordered w-14 input-sm"
+                                />
+                            </label>
+
+                            <label class="label label-primary label-xs">
+                                <span class="label-text pr-2">Hamstrings: </span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="20"
+                                    bind:value={hamstringSets}
+                                    class="input input-bordered w-14 input-sm"
+                                />
+                            </label>
+                            <label class="label label-primary label-xs">
+                                <span class="label-text pr-2">Chest: </span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="20"
+                                    bind:value={chestSets}
+                                    class="input input-bordered w-14 input-sm"
+                                />
+                            </label>
+                            <label class="label label-primary label-xs">
+                                <span class="label-text pr-2">Back: </span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="20"
+                                    bind:value={backSets}
+                                    class="input input-bordered w-14 input-sm"
+                                />
+                            </label>
+                            <label class="label label-primary label-xs">
+                                <span class="label-text pr-2">Shoulders: </span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="20"
+                                    bind:value={shoulderSets}
+                                    class="input input-bordered w-14 input-sm"
+                                />
+                            </label>
+                            <label class="label label-primary label-xs">
+                                <span class="label-text pr-2">Triceps: </span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="20"
+                                    bind:value={tricepSets}
+                                    class="input input-bordered w-14 input-sm"
+                                />
+                            </label>
+                            <label class="label label-primary label-xs">
+                                <span class="label-text pr-2">Biceps: </span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="20"
+                                    bind:value={bicepSets}
+                                    class="input input-bordered w-14 input-sm"
+                                />
+                            </label>
+                        </div>
+                        
+                    </div>
+                    
                 {:else if isRunWalk}
                     <div class="form-control">
                         <label class="label label-primary">
