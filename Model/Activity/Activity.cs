@@ -42,7 +42,13 @@ public class LiftDetails
     public int Tonnage { get; set; }
     public string LiftType { get; set; } = string.Empty; // Ex: PL, BodyBuilding
     public string LiftFocus { get; set; } = string.Empty; // Ex: Legs, Squat + Bench, Shoulders & Arms
-
+    public int QuadSets { get; set; }
+    public int HamstringSets { get; set; }
+    public int BicepSets { get; set; }
+    public int TricepSets { get; set; }
+    public int ShoulderSets { get; set; }
+    public int ChestSets { get; set; }
+    public int BackSets { get; set; }
 }
 
 public class RideDetails

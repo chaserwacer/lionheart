@@ -21,7 +21,7 @@
     fetchActivityMinutes,
     fetchActivityRatio,
   } from "$lib/activityStore.js";
-    import SingleActivityViewer from "$lib/SingleActivityViewer.svelte";
+  import SingleActivityViewer from "$lib/SingleActivityViewer.svelte";
 
   /**
    * @type {typeof import("svelte-chartjs").Line}
@@ -43,7 +43,7 @@
 
   async function updateWellnessGraph() {
     const response = await fetch(
-      "api/user/GetLastXWellnessStatesGraphData?xDays=7",
+      "api/user/GetLastXWellnessStatesGraphData?date= " + {selectedDate} + "?xDays=7",
     );
     if (!response.ok) {
       console.error("Failed to get todays Wellness State");
@@ -138,14 +138,18 @@
 <div class="flex flex-row">
   <article class="prose max-w-none pl-5 pt-5">
     <h1 class="mb-2">Lionheart Homebase</h1>
-    <div class="flex flex-row">
-      <h3 class="p-0 m-0 w-1/2">
+    <div class="flex flex-col md:flex-row">
+      <h3 class="p-0 m-0 md:w-1/2">
         Welcome, {$bootUserDto.name}.
+        <span class="md:loading md:loading-infinity md:loading-lg"></span>
       </h3>
+      
       <div class="divider-horizontal divider"></div>
       <div class="card items-center p-0 m-0 w-1/2 items-center">
         <div class="card-body items-center p-0 m-0">
-          <h2 class="card-title p-0 m-0 text-accent">Selected Date</h2>
+          <h2 class="card-title p-0 m-0 mt-10 md:mt-0 text-accent">
+            Selected Date
+          </h2>
           <input
             type="date"
             bind:value={selectedDate}
@@ -166,8 +170,8 @@
 </div>
 
 <div class="divider">Wellness</div>
-<div class="flex flex-row">
-  <div class="flex flex-col text-xs w-1/2">
+<div class="flex flex-col md:flex-row">
+  <div class="flex flex-col text-xs md:w-1/2">
     <div
       class=" m-5 mt-0 stats stats-vertical md:stats-horizontal shadow bg-primary text-primary-content flex-initial {$wellnessState.overallScore ===
       -1
@@ -242,10 +246,17 @@
         </div>
       </div>
     </div>
+
+    <article class="prose max-w-none pl-5 pt-5 invisible md:visible">
+      <p>Overlooked, at times, are the things an athlete truly feels. Not just how their muscles are feeling, but the other stuff: 
+        things like mood and stress. By putting an emphasis on these metrics and storing them, we can analyze how they correlate to our
+        performance.
+      </p>
+    </article>
   </div>
   {#if wellnessGraph}
     <div class="divider divider-horizontal"></div>
-    <div class="text-center w-1/3 mx-auto">
+    <div class="text-center md:w-1/3 mx-auto">
       <h2 class="text-2xl font-bold hover:underline">
         Past Week Wellness Overview
       </h2>
@@ -283,7 +294,7 @@
             <input type="checkbox" id="my_modal_7" class="modal-toggle" />
             <div class="modal" role="dialog">
               <div class="modal-box bg-white text-black">
-                <h1 class="text-xl font-bold ">Activity Viewer</h1>
+                <h1 class="text-xl font-bold">Activity Viewer</h1>
                 <div class="divider divider-accent m-0"></div>
                 <SingleActivityViewer {activity} />
               </div>

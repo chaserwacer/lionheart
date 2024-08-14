@@ -126,16 +126,16 @@ namespace lionheart.Services
         }
 
         /// <summary>
-        /// Return list of wellness states from the last X days, starting from today
+        /// Return list of wellness states from the last X days, starting from 'endDate'
         /// </summary>
-        public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(string userID, int X){
+        public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(string userID, DateOnly endDate, int X){
             var privateKey = getUserPrivateKey(userID).Result;
-            DateOnly endPeriod = DateOnly.FromDateTime(DateTime.Now).AddDays(-X);
-            return await _context.WellnessStates.Where(w => w.Date >= endPeriod && w.UserID == privateKey).ToListAsync();
+            DateOnly startDate = endDate.AddDays(-X);
+            return await _context.WellnessStates.Where(w => w.Date >= startDate && w.Date <= endDate && w.UserID == privateKey).ToListAsync();
         }
 
-        public async Task<(List<double>, List<string>)> GetLastXWellnessStatesGraphDataAsync(string userID, int X){
-            var states = await GetLastXWellnessStatesAsync(userID, X);
+        public async Task<(List<double>, List<string>)> GetLastXWellnessStatesGraphDataAsync(string userID, DateOnly date, int X){
+            var states = await GetLastXWellnessStatesAsync(userID, date, X);
             if (states is not null){
                 var scoreList = states.Select(s => s.OverallScore).ToList();
                 var dateList = states.Select(s => s.Date.DayOfWeek.GetDisplayName() + " (" + s.Date.ToString("MM/dd") + ")" ).ToList();

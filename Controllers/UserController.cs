@@ -123,16 +123,16 @@ namespace lionheart.Controllers
         }
 
         /// <summary>
-        /// Get Wellness States from the past x-days
+        /// Get Wellness States from the past x-days coming before 'date'
         /// </summary>
         [HttpGet("[action]")]
-        public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(int xDays)
+        public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(DateOnly date, int xDays)
         {
             try
             {
                 if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness States - username/key was null"); }
                 if (xDays <= 0) { throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days"); }
-                return await _userService.GetLastXWellnessStatesAsync(User.Identity.Name, xDays);
+                return await _userService.GetLastXWellnessStatesAsync(User.Identity.Name, date, xDays);
             }
             catch (Exception e)
             {
@@ -142,13 +142,13 @@ namespace lionheart.Controllers
         }
 
         [HttpGet("[action]")]
-        public async Task<WeeklyScoreDTO> GetLastXWellnessStatesGraphData(int xDays)
+        public async Task<WeeklyScoreDTO> GetLastXWellnessStatesGraphData(DateOnly date, int xDays)
         {
             try
             {
                 if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness States - username/key was null"); }
                 if (xDays <= 0) { throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days"); }
-                var tup = await _userService.GetLastXWellnessStatesGraphDataAsync(User.Identity.Name, xDays);
+                var tup = await _userService.GetLastXWellnessStatesGraphDataAsync(User.Identity.Name, date, xDays);
                 return new WeeklyScoreDTO(tup.Item1, tup.Item2);
             }
             catch (Exception e)
