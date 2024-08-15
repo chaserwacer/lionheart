@@ -1,9 +1,7 @@
 <script>
     import { onMount } from "svelte";
-    import {
-        fetchTodaysActivities,
-    } from "./activityStore";
-      import {pageUpdate} from "$lib/stores"
+    import { fetchTodaysActivities } from "./activityStore";
+    import { pageUpdate } from "$lib/stores";
 
     let dateTime = "";
     let hours = 0;
@@ -42,15 +40,40 @@
     let paceMinutes = 0;
     let paceSeconds = 0;
 
-    import { createEventDispatcher } from "svelte";
 
-    const dispatch = createEventDispatcher();
-
-    function performUpdates() {
-        // Perform necessary updates here
-
-        // Call the updatePageInfo function in the parent
-        dispatch("update");
+    function refreshValues() {
+        dateTime = "";
+        hours = 0;
+        minutes = 0;
+        caloriesBurned = 0;
+        name = "";
+        userSummary = "";
+        accumulatedFatigue = 3;
+        difficultyRating = 3;
+        engagementRating = 3;
+        externalVariablesRating = 3;
+        isBiking = false;
+        isRunWalk = false;
+        isLift = false;
+        isNoSpecialType = true;
+        tonnage = 0;
+        liftType = "";
+        liftFocus = "";
+        quadSets = 0;
+        hamstringSets = 0;
+        tricepSets = 0;
+        bicepSets = 0;
+        shoulderSets = 0;
+        chestSets = 0;
+        backSets = 0;
+        distance = 0.0;
+        elevationGain = 0;
+        averagePower = 0;
+        averageSpeed = 0;
+        rideType = "";
+        runType = "";
+        paceMinutes = 0;
+        paceSeconds = 0;
     }
 
     // @ts-ignore
@@ -69,6 +92,7 @@
     }
 
     function closeModal() {
+        refreshValues();
         showModal = false;
     }
 
@@ -103,11 +127,9 @@
                 );
 
                 if (response.ok) {
-                    $pageUpdate = new Date()
+                    $pageUpdate = new Date();
 
                     closeModal();
-
-                    
                 } else {
                     console.error(
                         "Failed to track activity:",
@@ -151,7 +173,7 @@
                 );
 
                 if (response.ok) {
-                    $pageUpdate = new Date()
+                    $pageUpdate = new Date();
                     closeModal();
                 } else {
                     console.error(
@@ -192,7 +214,7 @@
                 );
 
                 if (response.ok) {
-                    $pageUpdate = new Date()
+                    $pageUpdate = new Date();
                     closeModal();
                 } else {
                     console.error(
@@ -224,7 +246,7 @@
                 });
 
                 if (response.ok) {
-                    $pageUpdate = new Date()
+                    $pageUpdate = new Date();
                     closeModal();
                 } else {
                     console.error(
@@ -236,7 +258,8 @@
                 console.error("Error tracking activity", error);
             }
         }
-        $pageUpdate = new Date()
+        $pageUpdate = new Date();
+        refreshValues();
         closeModal();
     }
 </script>
@@ -423,7 +446,7 @@
                     <div class="divider ml-10 mr-10">Set Tracker</div>
                     <div class="form-control">
                         <div class="flex flex-wrap">
-                            <label class="label label-primary ">
+                            <label class="label label-primary">
                                 <span class="label-text pr-2">Quads: </span>
                                 <input
                                     type="number"
@@ -435,7 +458,9 @@
                             </label>
 
                             <label class="label label-primary label-xs">
-                                <span class="label-text pr-2">Hamstrings: </span>
+                                <span class="label-text pr-2"
+                                    >Hamstrings:
+                                </span>
                                 <input
                                     type="number"
                                     min="0"
@@ -495,9 +520,7 @@
                                 />
                             </label>
                         </div>
-                        
                     </div>
-                    
                 {:else if isRunWalk}
                     <div class="form-control">
                         <label class="label label-primary">
