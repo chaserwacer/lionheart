@@ -1,7 +1,9 @@
 using lionheart.Controllers;
 using lionheart.Data;
 using lionheart.WellBeing;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.OpenApi.Extensions;
@@ -37,7 +39,7 @@ namespace lionheart.Services
             {
                 UserID = privateKey,
                 IdentityUser = identityUser,
-                Name = req.DisplayName, 
+                Name = req.DisplayName,
                 Age = req.Age,
                 Weight = req.Weight
             };
@@ -57,14 +59,15 @@ namespace lionheart.Services
             if (userID == null) { return (false, string.Empty); }
             var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID); // was originally u.email but i beleive this is better
             var privateKey = identityUser?.Id;
-            if(privateKey is not null){
+            if (privateKey is not null)
+            {
                 var guidPrivateKey = Guid.Parse(privateKey);
                 var lionheartUser = await _context.LionheartUsers.FindAsync(guidPrivateKey);
-                if (lionheartUser is not null){ return (true, lionheartUser.Name);}
+                if (lionheartUser is not null) { return (true, lionheartUser.Name); }
                 else { return (false, userID); }
             }
             return (false, userID);
-            
+
         }
 
         /// <summary>
@@ -77,10 +80,11 @@ namespace lionheart.Services
         {
             var privateKey = getUserPrivateKey(userID).Result;
             DateOnly todaysDate = DateOnly.FromDateTime(DateTime.Now);
-            
+
             // Check if already exists
             var existingState = _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == todaysDate && w.UserID == privateKey);
-            if (existingState.Result != null){
+            if (existingState.Result != null)
+            {
                 existingState.Result.EnergyScore = req.Energy;
                 existingState.Result.MoodScore = req.Mood;
                 existingState.Result.StressScore = req.Stress;
@@ -88,18 +92,49 @@ namespace lionheart.Services
                 double total = (double)(req.Mood + req.Energy + req.Motivation + (6 - req.Stress));
                 int decimalPlaces = 2;
                 int numComponents = 4;
-                existingState.Result.OverallScore = Math.Round(total/numComponents, decimalPlaces);
+                existingState.Result.OverallScore = Math.Round(total / numComponents, decimalPlaces);
                 await _context.SaveChangesAsync();
                 return existingState.Result;
             }
-            else{
+            else
+            {
                 WellnessState wellnessState = new WellnessState(privateKey, req.Motivation, req.Stress, req.Mood, req.Energy);
                 _context.WellnessStates.Add(wellnessState);
                 await _context.SaveChangesAsync();
-                return wellnessState;   
+                return wellnessState;
+            }
+        }
+
+        /// <summary>
+        /// Set a personal access token for a given application. Createsa token for a given application if it does not yet exist, 
+        ///     updates it if it already exists.
+        /// </summary>
+        public async Task<bool> SetPersonalApiAccessToken(string userID, string applicationName, string accessToken)
+        {
+            var privateKey = getUserPrivateKey(userID).Result;
+
+            var existingToken = _context.ApiAccessTokens.FirstOrDefault(x => x.UserID == privateKey && x.ApplicationName == applicationName);
+            if (existingToken != null)
+            {
+                existingToken.PersonalAccessToken = accessToken;
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            else
+            {
+                ApiAccessToken apiAccessToken = new()
+                {
+                    ObjectID = Guid.NewGuid(),
+                    UserID = privateKey,
+                    ApplicationName = applicationName,
+                    PersonalAccessToken = accessToken,
+                };
+
+                _context.ApiAccessTokens.Add(apiAccessToken);
+                await _context.SaveChangesAsync();
+                return true;
             }
 
-                 
         }
 
         /// <summary>
@@ -111,38 +146,44 @@ namespace lionheart.Services
         public async Task<WellnessState> GetWellnessStateAsync(string userID, DateOnly date)
         {
             var privateKey = getUserPrivateKey(userID).Result;
-            return await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == date && w.UserID == privateKey) ?? new WellnessState(privateKey, 1, 1, 1, 1){ OverallScore = -1};   
-           
+            return await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == date && w.UserID == privateKey) ?? new WellnessState(privateKey, 1, 1, 1, 1) { OverallScore = -1 };
+
         }
 
         /// <summary>
         /// Helper method to get the guid private key for a given user
         /// </summary>
-        private async Task<Guid> getUserPrivateKey(string userID){
+        private async Task<Guid> getUserPrivateKey(string userID)
+        {
             var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID);
             var privateKey = identityUser?.Id;
-            if (privateKey is null){throw new NullReferenceException("User private key was null."); }
+            if (privateKey is null) { throw new NullReferenceException("User private key was null."); }
             return Guid.Parse(privateKey);
         }
 
         /// <summary>
         /// Return list of wellness states from the last X days, starting from 'endDate'
         /// </summary>
-        public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(string userID, DateOnly endDate, int X){
+        public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(string userID, DateOnly endDate, int X)
+        {
             var privateKey = getUserPrivateKey(userID).Result;
             DateOnly startDate = endDate.AddDays(-X);
             return await _context.WellnessStates.Where(w => w.Date >= startDate && w.Date <= endDate && w.UserID == privateKey).ToListAsync();
         }
 
-        public async Task<(List<double>, List<string>)> GetLastXWellnessStatesGraphDataAsync(string userID, DateOnly date, int X){
+        public async Task<(List<double>, List<string>)> GetLastXWellnessStatesGraphDataAsync(string userID, DateOnly date, int X)
+        {
             var states = await GetLastXWellnessStatesAsync(userID, date, X);
-            if (states is not null){
+            if (states is not null)
+            {
                 var scoreList = states.Select(s => s.OverallScore).ToList();
-                var dateList = states.Select(s => s.Date.DayOfWeek.GetDisplayName() + " (" + s.Date.ToString("MM/dd") + ")" ).ToList();
-                
+                var dateList = states.Select(s => s.Date.DayOfWeek.GetDisplayName() + " (" + s.Date.ToString("MM/dd") + ")").ToList();
+
                 return (scoreList, dateList);
             }
             return ([], []);
         }
+
+
     }
 }

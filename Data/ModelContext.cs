@@ -14,6 +14,7 @@ namespace lionheart.Data
         public DbSet<RunWalkDetails> RunWalkDetails{ get; set; }
         public DbSet<RideDetails> RideDetails { get; set; }
         public DbSet<LiftDetails> LiftDetails { get; set; }
+        public DbSet<ApiAccessToken> ApiAccessTokens { get; set; }
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -62,6 +63,14 @@ namespace lionheart.Data
 
             modelBuilder.Entity<LiftDetails>()
                 .HasKey(d => d.ActivityID);
+
+            // Access Tokens
+            modelBuilder.Entity<ApiAccessToken>()
+                .HasKey(a => a.ObjectID);
+            modelBuilder.Entity<ApiAccessToken>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.ApiAccessToken)
+                .HasForeignKey(a => a.UserID);
         }
     }
 }

@@ -12,5 +12,6 @@ public class LionheartUser
     
     public List<WellnessState> WellnessStates {get; set;} = [];
     public List<Activity> Activities { get; set;} = [];
+    public List<ApiAccessToken> ApiAccessToken { get; set;} = [];
 
 }

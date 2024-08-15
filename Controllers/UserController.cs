@@ -158,6 +158,22 @@ namespace lionheart.Controllers
             }
         }
 
+        [HttpPost("[action]")]
+        public async Task<IActionResult> AddPersonalApiAccessToken(string applicationName, string accessToken)
+        {
+            try
+            {
+                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+                var res = await _userService.SetPersonalApiAccessToken(User.Identity.Name, applicationName, accessToken);
+                return Ok(res);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to add personal api access token: {e.Message}", e);
+                throw;
+            }
+        }
+
 
     }//end userController
     public record BootUserDto(string? Name, Boolean HasCreatedProfile);

@@ -1,5 +1,6 @@
 using lionheart.Controllers;
 using lionheart.WellBeing;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -15,5 +16,6 @@ namespace lionheart.Services
         Task<WellnessState> GetWellnessStateAsync(string userID, DateOnly date);
         Task<List<WellnessState>> GetLastXWellnessStatesAsync(string userID, DateOnly endDate, int X);
         Task<(List<double>, List<string>)> GetLastXWellnessStatesGraphDataAsync(string userID, DateOnly date, int X);
+        Task<bool> SetPersonalApiAccessToken(string userID, string applicationName, string accessToken);
     }
 }
