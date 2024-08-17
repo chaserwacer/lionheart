@@ -3,6 +3,7 @@ using lionheart.WellBeing;
 using lionheart.ActivityTracking;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using lionheart.Model.Oura;
 
 namespace lionheart.Data
 {
@@ -11,10 +12,11 @@ namespace lionheart.Data
         public DbSet<LionheartUser> LionheartUsers { get; set; }
         public DbSet<WellnessState> WellnessStates { get; set; }
         public DbSet<Activity> Activities { get; set; }
-        public DbSet<RunWalkDetails> RunWalkDetails{ get; set; }
+        public DbSet<RunWalkDetails> RunWalkDetails { get; set; }
         public DbSet<RideDetails> RideDetails { get; set; }
         public DbSet<LiftDetails> LiftDetails { get; set; }
         public DbSet<ApiAccessToken> ApiAccessTokens { get; set; }
+        public DbSet<DailyOuraInfo> DailyOuraInfos { get; set; }
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -57,7 +59,7 @@ namespace lionheart.Data
 
             modelBuilder.Entity<RunWalkDetails>()
                 .HasKey(d => d.ActivityID);
-            
+
             modelBuilder.Entity<RideDetails>()
                 .HasKey(d => d.ActivityID);
 
@@ -69,8 +71,26 @@ namespace lionheart.Data
                 .HasKey(a => a.ObjectID);
             modelBuilder.Entity<ApiAccessToken>()
                 .HasOne<LionheartUser>()
-                .WithMany(u => u.ApiAccessToken)
+                .WithMany(u => u.ApiAccessTokens)
                 .HasForeignKey(a => a.UserID);
+
+            // Daily Oura Info
+            modelBuilder.Entity<DailyOuraInfo>()
+                .HasKey(a => a.ObjectID);
+
+            modelBuilder.Entity<DailyOuraInfo>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.DailyOuraInfos)
+                .HasForeignKey(a => a.UserID);
+
+            modelBuilder.Entity<DailyOuraInfo>()
+                .OwnsOne(o => o.ReadinessData);
+            modelBuilder.Entity<DailyOuraInfo>()
+                .OwnsOne(o => o.ResilienceData);
+            modelBuilder.Entity<DailyOuraInfo>()
+                .OwnsOne(o => o.SleepData);
+            modelBuilder.Entity<DailyOuraInfo>()
+                .OwnsOne(o => o.ActivityData);
         }
     }
 }

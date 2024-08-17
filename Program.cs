@@ -21,6 +21,12 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
 
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IActivityService, ActivityService>();
+builder.Services.AddTransient<IOuraService, OuraService>();
+
+builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
+});
 
 
 builder.Services.AddHttpClient();

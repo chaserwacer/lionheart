@@ -1,4 +1,5 @@
 using lionheart.ActivityTracking;
+using lionheart.Model.Oura;
 using Microsoft.AspNetCore.Identity;
 namespace lionheart.WellBeing;
 
@@ -12,6 +13,6 @@ public class LionheartUser
     
     public List<WellnessState> WellnessStates {get; set;} = [];
     public List<Activity> Activities { get; set;} = [];
-    public List<ApiAccessToken> ApiAccessToken { get; set;} = [];
-
+    public List<ApiAccessToken> ApiAccessTokens { get; set;} = [];
+    public List<DailyOuraInfo> DailyOuraInfos { get; set;} = [];
 }
