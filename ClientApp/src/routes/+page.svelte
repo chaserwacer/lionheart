@@ -23,6 +23,7 @@
     fetchWeeklyMuscleSetsDto,
   } from "$lib/activityStore.js";
   import SingleActivityViewer from "$lib/SingleActivityViewer.svelte";
+  import { syncOuraData } from "$lib/ouraStore";
 
   /**
    * @type {typeof import("svelte-chartjs").Line}
@@ -146,24 +147,26 @@
 </script>
 
 <svelte:head>
-  <title>homebase</title>
+  <title>Lionheart</title>
 </svelte:head>
 
 <div class="flex flex-row">
-  <article class="prose max-w-none pl-5 pt-5">
+  <article class="prose max-w-none pl-5 pt-5 text-center">
     <h1 class="mb-2">Lionheart Homebase</h1>
-    <div class="flex flex-col md:flex-row">
-      <h3 class="p-0 m-0 md:w-1/2">
-        Welcome, {$bootUserDto.name}.
-        <span class="md:loading md:loading-infinity md:loading-lg"></span>
-      </h3>
+    <div class="flex flex-col md:flex-row items-center md:items-start">
+
+        <h3 class="p-0 m-0 md:w-1/2">
+          Welcome, {$bootUserDto.name}.
+
+        </h3>
+
+        
+
 
       <div class="divider-horizontal divider"></div>
-      <div class="card items-center p-0 m-0 w-1/2 items-center">
+      <div class="card items-center p-0 m-0 md:w-1/2 items-center">
         <div class="card-body items-center p-0 m-0">
-          <h2 class="card-title p-0 m-0 mt-10 md:mt-0 text-accent">
-            Selected Date
-          </h2>
+          <h2 class="card-title p-0 m-0 md:mt-0 text-accent">Selected Date</h2>
           <input
             type="date"
             bind:value={selectedDate}
@@ -171,8 +174,11 @@
             class="btn btn-accent"
           />
         </div>
+        
       </div>
+      
     </div>
+    
   </article>
 
   <div class="divider divider-horizontal"></div>
@@ -185,9 +191,9 @@
 
 <div class="divider">Wellness</div>
 <div class="flex flex-col md:flex-row">
-  <div class="flex flex-col text-xs md:w-1/2 ">
+  <div class="flex flex-col text-xs md:w-1/2">
     <div
-      class=" hover:shadow-xl  m-5 mt-0 stats stats-vertical md:stats-horizontal shadow bg-primary text-primary-content flex-initial {$wellnessState.overallScore ===
+      class=" hover:shadow-xl m-5 mt-0 stats stats-vertical md:stats-horizontal shadow bg-primary text-primary-content flex-initial {$wellnessState.overallScore ===
       -1
         ? 'blur-sm'
         : ''}"
@@ -287,7 +293,7 @@
 
 <div class="divider">Activity</div>
 <div class="flex flex-col md:flex-row items-center md:items-start">
-  <div class="flex flex-col md:flex-row items-center md:items-start ">
+  <div class="flex flex-col md:flex-row items-center md:items-start">
     <div class=" bg-accent text-accent-content m-2 rounded-lg hover:shadow-xl">
       <h1 class="ml-5 mt-2 text-xl font-bold">Today's Activities</h1>
       <table class="table">
@@ -302,7 +308,6 @@
           </tr>
         </thead>
         <tbody>
-          
           <!-- row 1 -->
           {#each $activities as activity}
             <tr>
@@ -356,54 +361,56 @@
     </div>
   </div>
   <div class="divider divider-horizontal"></div>
-    <div class="bg-primary text-primary-content  rounded-lg m-2 hover:shadow-xl">
-      <table class="table table-sm font-bold">
-        <!-- head -->
-        <thead>
-          <tr>
-            <th class="font-bold text-lg text-primary-content shadow"
-              >Muscle Group</th
-            >
-            <th class="font-bold text-lg text-primary-content shadow">Sets in past 7 days</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- quads row -->
-          <tr>
-            <td>Quads</td>
-            <td>{weeklyMuscleSets.quadSets}</td>
-          </tr>
-          <!-- hamstrings row -->
-          <tr>
-            <td>Hamstrings</td>
-            <td>{weeklyMuscleSets.hamstringSets}</td>
-          </tr>
-          <!-- biceps row -->
-          <tr>
-            <td>Biceps</td>
-            <td>{weeklyMuscleSets.bicepSets}</td>
-          </tr>
-          <!-- triceps row -->
-          <tr>
-            <td>Triceps</td>
-            <td>{weeklyMuscleSets.tricepSets}</td>
-          </tr>
-          <!-- shoulders row -->
-          <tr>
-            <td>Shoulders</td>
-            <td>{weeklyMuscleSets.shoulderSets}</td>
-          </tr>
-          <!-- chest row -->
-          <tr>
-            <td>Chest</td>
-            <td>{weeklyMuscleSets.chestSets}</td>
-          </tr>
-          <!-- back row -->
-          <tr>
-            <td>Back</td>
-            <td>{weeklyMuscleSets.backSets}</td>
-          </tr>
-        </tbody>
-      </table>
+  <div class="bg-primary text-primary-content rounded-lg m-2 hover:shadow-xl">
+    <table class="table table-sm font-bold">
+      <!-- head -->
+      <thead>
+        <tr>
+          <th class="font-bold text-lg text-primary-content shadow"
+            >Muscle Group</th
+          >
+          <th class="font-bold text-lg text-primary-content shadow"
+            >Sets in past 7 days</th
+          >
+        </tr>
+      </thead>
+      <tbody>
+        <!-- quads row -->
+        <tr>
+          <td>Quads</td>
+          <td>{weeklyMuscleSets.quadSets}</td>
+        </tr>
+        <!-- hamstrings row -->
+        <tr>
+          <td>Hamstrings</td>
+          <td>{weeklyMuscleSets.hamstringSets}</td>
+        </tr>
+        <!-- biceps row -->
+        <tr>
+          <td>Biceps</td>
+          <td>{weeklyMuscleSets.bicepSets}</td>
+        </tr>
+        <!-- triceps row -->
+        <tr>
+          <td>Triceps</td>
+          <td>{weeklyMuscleSets.tricepSets}</td>
+        </tr>
+        <!-- shoulders row -->
+        <tr>
+          <td>Shoulders</td>
+          <td>{weeklyMuscleSets.shoulderSets}</td>
+        </tr>
+        <!-- chest row -->
+        <tr>
+          <td>Chest</td>
+          <td>{weeklyMuscleSets.chestSets}</td>
+        </tr>
+        <!-- back row -->
+        <tr>
+          <td>Back</td>
+          <td>{weeklyMuscleSets.backSets}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>

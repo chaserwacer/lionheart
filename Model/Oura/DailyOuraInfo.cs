@@ -43,15 +43,15 @@ public class ActivityData
 }
 public class ResilienceData
 {
-    public int SleepRecovery { get; set; }
-    public int DaytimeRecovery { get; set; }
-    public int Stress { get; set; }
+    public double SleepRecovery { get; set; }
+    public double DaytimeRecovery { get; set; }
+    public double Stress { get; set; }
     public string ResilienceLevel { get; set; } = string.Empty;
 }
 public class ReadinessData
 {
     public int ReadinessScore { get; set; }
-    public int TemperatureDeviation { get; set; }
+    public double TemperatureDeviation { get; set; }
     public int ActivityBalance { get; set; }
     public int BodyTemperature { get; set; }
     public int HrvBalance { get; set; }

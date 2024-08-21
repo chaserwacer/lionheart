@@ -5,6 +5,7 @@ using System.Text.Json;
 using lionheart.Model.Oura.Dto;
 using lionheart.Model.Oura;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace lionheart.Services
 {
@@ -19,6 +20,11 @@ namespace lionheart.Services
         {
             _httpClient = httpClient;
             _context = context;
+        }
+
+        public async Task<DailyOuraInfo?> GetDailyOuraInfoAsync(string userID, DateOnly date){
+            var privateKey = await GetUserPrivateKey(userID);
+            return await _context.DailyOuraInfos.FirstOrDefaultAsync(x => x.UserID == privateKey && x.Date == date);    
         }
 
 
@@ -40,7 +46,9 @@ namespace lionheart.Services
                 o.ObjectID,
                 o.Date,
                 o.SyncDate
-            )).OrderBy(dto => dto.Date).ToListAsync();
+            )).ToListAsync();
+
+            OuraStateInfoObjects = [.. OuraStateInfoObjects.OrderBy(o => o.Date)];
 
             // Determine how far back I need to go to pull oura data
             DateOnly earliestDate = date.AddDays(-daysPrior);
@@ -53,10 +61,10 @@ namespace lionheart.Services
             }
 
             // Call Oura APi's to recieve stuctured data
-            var activityUrl = "/daily_activity?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
-            var resilienceUrl = "/daily_resilience?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
-            var sleepUrl = "/daily_sleep?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");         
-            var readinessUrl = "/daily_readiness?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
+            var activityUrl = "https://api.ouraring.com/v2/usercollection/daily_activity?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
+            var resilienceUrl = "https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
+            var sleepUrl = "https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");         
+            var readinessUrl = "https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
         
             (List<OuraDailyActivityDocument> activityDocuments, string activityJson) = await GetOuraDataFromApiAsync<OuraDailyActivityDocument>(activityUrl, userPersonalToken);
             (List<OuraDailyResilienceDocument> resilienceDocuments, string resilienceJson) = await GetOuraDataFromApiAsync<OuraDailyResilienceDocument>(resilienceUrl, userPersonalToken);
@@ -65,7 +73,7 @@ namespace lionheart.Services
 
             var numberDays = date.DayNumber - earliestDate.DayNumber + 1;
 
-            for(int i = 0; i < numberDays; i++){
+            for(int i = 0; i < numberDays-1; i++){
                 // Build pieces of object
 
                 ActivityData activityData = new(){
@@ -167,7 +175,7 @@ namespace lionheart.Services
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
                 allJson.Append(jsonResponse);
-
+                Console.WriteLine($"Response: {jsonResponse}");
                 var apiResponse = JsonSerializer.Deserialize<OuraApiResponse<T>>(jsonResponse);
 
                 if (apiResponse != null)
@@ -217,7 +225,8 @@ namespace lionheart.Services
     public record DailyOuraInfoDto(Guid ObjectID, DateOnly Date, DateOnly SyncDate);
     public class OuraApiResponse<T>
     {
-        public required List<T> Data { get; set; }
+        [JsonPropertyName("data")]
+        public required List<T> Data { get; set; }= new List<T>();
         public string? NextToken { get; set; }
     }
 }

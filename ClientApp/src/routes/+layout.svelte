@@ -1,9 +1,11 @@
 <script>
   import { goto } from "$app/navigation";
   import ActivityTracker from "$lib/ActivityTracker.svelte";
+    import OuraSync from "$lib/OuraSync.svelte";
   import { fetchBootUserDto, bootUserDto } from "$lib/stores";
   import WellnessTracker from "$lib/WellnessTracker.svelte";
   import { onMount } from "svelte";
+
 
   import "tailwindcss/tailwind.css";
 
@@ -14,9 +16,6 @@
       goto("/auth");
     }
   });
-
-
-
 </script>
 
 <!---------------------------------------------------------------------------->
@@ -57,14 +56,14 @@
               class="text-primary hover:bg-primary hover:text-white rounded-md px-3 py-2 text-sm font-medium "
               >Homebase</a
             > -->
-            <ActivityTracker/>
-            <WellnessTracker/>
+            <ActivityTracker />
+            <WellnessTracker />
+            <OuraSync />
+            
           </div>
         </div>
       </div>
-      <div
-        class="flex justify-end"
-      >
+      <div class="flex justify-end">
         <!-- Profile btn -->
         <div class="pt-2.5 hidden sm:block">
           <div>
@@ -85,14 +84,11 @@
 
   <!-- Mobile menu, show/hide based on menu state. -->
   <div class="sm:hidden text-center">
-    
     <div class="mb-5">
       <ActivityTracker />
       <WellnessTracker />
     </div>
   </div>
-
-  
 </nav>
 
 <slot />

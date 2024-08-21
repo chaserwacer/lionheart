@@ -1,15 +1,32 @@
-namespace lionheart.Model.Oura.Dto;
-public record OuraDailyResilienceDocument
-{
-    public string Id { get; init; } = string.Empty;
-    public DateTime Day { get; init; }
-    public required ResilienceContributorsDto Contributors { get; init; } 
-    public string Level { get; init; } = string.Empty;
-}
+using System;
+using System.Text.Json.Serialization;
 
-public record ResilienceContributorsDto
+namespace lionheart.Model.Oura.Dto
 {
-    public int SleepRecovery { get; init; }
-    public int DaytimeRecovery { get; init; }
-    public int Stress { get; init; }
+    public record OuraDailyResilienceDocument
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; init; } = string.Empty;
+
+        [JsonPropertyName("day")]
+        public DateTime Day { get; init; }
+
+        [JsonPropertyName("contributors")]
+        public required ResilienceContributorsDto Contributors { get; init; }
+
+        [JsonPropertyName("level")]
+        public string Level { get; init; } = string.Empty;
+    }
+
+    public record ResilienceContributorsDto
+    {
+        [JsonPropertyName("sleep_recovery")]
+        public double SleepRecovery { get; init; }
+
+        [JsonPropertyName("daytime_recovery")]
+        public double DaytimeRecovery { get; init; }
+
+        [JsonPropertyName("stress")]
+        public double Stress { get; init; }
+    }
 }
