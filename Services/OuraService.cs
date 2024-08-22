@@ -22,9 +22,26 @@ namespace lionheart.Services
             _context = context;
         }
 
-        public async Task<DailyOuraInfo?> GetDailyOuraInfoAsync(string userID, DateOnly date){
+        public async Task<FrontendDailyOuraInfo?> GetDailyOuraInfoAsync(string userID, DateOnly date)
+        {
             var privateKey = await GetUserPrivateKey(userID);
-            return await _context.DailyOuraInfos.FirstOrDefaultAsync(x => x.UserID == privateKey && x.Date == date);    
+            var dto = await _context.DailyOuraInfos.FirstOrDefaultAsync(x => x.UserID == privateKey && x.Date == date) ?? null;
+            if (dto != null)
+            {
+                return new FrontendDailyOuraInfo()
+                {
+                    ObjectID = dto.ObjectID,
+                    Date = dto.Date,
+                    ResilienceData = dto.ResilienceData,
+                    ReadinessData = dto.ReadinessData,
+                    SleepData = dto.SleepData,
+                    ActivityData = dto.ActivityData,
+                };
+            }
+            else
+            {
+                return null;
+            }
         }
 
 
@@ -40,8 +57,19 @@ namespace lionheart.Services
             var privateKey = await GetUserPrivateKey(userID);
             var userPersonalToken = await GetUserPersonalTokenAsync(privateKey);
 
+    
+            // Delete Section
+            // var objectsToDelete = _context.DailyOuraInfos.ToList();
+            // _context.DailyOuraInfos.RemoveRange(objectsToDelete);
+            // _context.SaveChanges();
+
+
+
+            ///
+
             // Get Dto objects representing the ouraInfos from the past 'daysPrior'
-            var OuraStateInfoObjects = await _context.DailyOuraInfos.Where(o => o.Date >= date.AddDays(-daysPrior) && o.Date <= date && o.UserID == privateKey).
+            var beginningDate = date.AddDays(-daysPrior);
+            var OuraStateInfoObjects = await  _context.DailyOuraInfos.Where(o => o.Date >= beginningDate && o.Date <= date && o.UserID == privateKey).
             Select(o => new DailyOuraInfoDto(
                 o.ObjectID,
                 o.Date,
@@ -51,32 +79,38 @@ namespace lionheart.Services
             OuraStateInfoObjects = [.. OuraStateInfoObjects.OrderBy(o => o.Date)];
 
             // Determine how far back I need to go to pull oura data
-            DateOnly earliestDate = date.AddDays(-daysPrior);
+            DateOnly earliestDateToInclude = date.AddDays(-daysPrior);
             for (int i = 0; i < OuraStateInfoObjects.Count; i++)
             {
-                if (OuraStateInfoObjects[i].SyncDate <= OuraStateInfoObjects[i].Date)
+                if (OuraStateInfoObjects[i].SyncDate >= OuraStateInfoObjects[i].Date)
                 {
-                    earliestDate = OuraStateInfoObjects[i].Date;
+                    earliestDateToInclude = OuraStateInfoObjects[i].Date.AddDays(1);
                 }
             }
 
             // Call Oura APi's to recieve stuctured data
-            var activityUrl = "https://api.ouraring.com/v2/usercollection/daily_activity?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
-            var resilienceUrl = "https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
-            var sleepUrl = "https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");         
-            var readinessUrl = "https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=" + earliestDate.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
-        
+            var activityUrl = "https://api.ouraring.com/v2/usercollection/daily_activity?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
+            var resilienceUrl = "https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
+            var sleepUrl = "https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
+            var readinessUrl = "https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
+
+            if(earliestDateToInclude == DateOnly.FromDateTime(DateTime.Now)){
+                return;
+            }
+
             (List<OuraDailyActivityDocument> activityDocuments, string activityJson) = await GetOuraDataFromApiAsync<OuraDailyActivityDocument>(activityUrl, userPersonalToken);
             (List<OuraDailyResilienceDocument> resilienceDocuments, string resilienceJson) = await GetOuraDataFromApiAsync<OuraDailyResilienceDocument>(resilienceUrl, userPersonalToken);
             (List<OuraDailySleepDocument> sleepDocuments, string sleepJson) = await GetOuraDataFromApiAsync<OuraDailySleepDocument>(sleepUrl, userPersonalToken);
             (List<OuraDailyReadinessDocument> readinessDocuments, string readinessJson) = await GetOuraDataFromApiAsync<OuraDailyReadinessDocument>(readinessUrl, userPersonalToken);
 
-            var numberDays = date.DayNumber - earliestDate.DayNumber + 1;
+            var numberDays = date.DayNumber - earliestDateToInclude.DayNumber + 1;
 
-            for(int i = 0; i < numberDays-1; i++){
+            for (int i = 0; i < numberDays - 1; i++)
+            {
                 // Build pieces of object
 
-                ActivityData activityData = new(){
+                ActivityData activityData = new()
+                {
                     ActivityScore = activityDocuments[i].Score ?? 0,
                     Steps = activityDocuments[i].Steps,
                     ActiveCalories = activityDocuments[i].ActiveCalories,
@@ -90,14 +124,16 @@ namespace lionheart.Services
                     TrainingVolume = activityDocuments[i].Contributors.TrainingVolume ?? 0,
                 };
 
-                ResilienceData resilienceData = new(){
+                ResilienceData resilienceData = new()
+                {
                     SleepRecovery = resilienceDocuments[i].Contributors.SleepRecovery,
                     DaytimeRecovery = resilienceDocuments[i].Contributors.DaytimeRecovery,
                     Stress = resilienceDocuments[i].Contributors.Stress,
                     ResilienceLevel = resilienceDocuments[i].Level,
                 };
 
-                SleepData sleepData = new(){
+                SleepData sleepData = new()
+                {
                     SleepScore = sleepDocuments[i].Score ?? 0,
                     DeepSleep = sleepDocuments[i].Contributors.DeepSleep ?? 0,
                     Efficiency = sleepDocuments[i].Contributors.Efficiency ?? 0,
@@ -108,7 +144,8 @@ namespace lionheart.Services
                     TotalSleep = sleepDocuments[i].Contributors.TotalSleep ?? 0,
                 };
 
-                ReadinessData readinessData = new(){
+                ReadinessData readinessData = new()
+                {
                     ReadinessScore = readinessDocuments[i].Score ?? 0,
                     TemperatureDeviation = readinessDocuments[i].TemperatureDeviation ?? 0,
                     ActivityBalance = readinessDocuments[i].Contributors.ActivityBalance ?? 0,
@@ -138,8 +175,36 @@ namespace lionheart.Services
                     ReadinessJson = readinessJson,
                 };
 
-                _context.DailyOuraInfos.Add(dailyOuraInfo);
-                await _context.SaveChangesAsync();
+                // Add or update database
+                if (OuraStateInfoObjects.Any(o => o.Date == dailyOuraInfo.Date))
+                {
+                    var existingState = await _context.DailyOuraInfos.FirstOrDefaultAsync(w => w.Date == dailyOuraInfo.Date && w.UserID == privateKey);
+                    if (existingState != null)
+                    {
+                        existingState.SyncDate = dailyOuraInfo.SyncDate;
+                        existingState.ActivityData = dailyOuraInfo.ActivityData;
+                        existingState.SleepData = dailyOuraInfo.SleepData;
+                        existingState.ReadinessData = dailyOuraInfo.ReadinessData;
+                        existingState.ResilienceData = dailyOuraInfo.ResilienceData;
+
+                        existingState.ActivityJson = dailyOuraInfo.ActivityJson;
+                        existingState.SleepJson = dailyOuraInfo.SleepJson;
+                        existingState.ReadinessJson = dailyOuraInfo.ReadinessJson;
+                        existingState.ResilienceJson = dailyOuraInfo.ResilienceJson;
+                        await _context.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        _context.DailyOuraInfos.Add(dailyOuraInfo);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                else
+                {
+                    _context.DailyOuraInfos.Add(dailyOuraInfo);
+                    await _context.SaveChangesAsync();
+                }
+
             }
         }
 
@@ -226,7 +291,19 @@ namespace lionheart.Services
     public class OuraApiResponse<T>
     {
         [JsonPropertyName("data")]
-        public required List<T> Data { get; set; }= new List<T>();
+        public required List<T> Data { get; set; } = new List<T>();
         public string? NextToken { get; set; }
+    }
+
+    public class FrontendDailyOuraInfo
+    {
+        public Guid ObjectID { get; init; }
+        public DateOnly Date { get; set; }
+
+        public required ResilienceData ResilienceData { get; set; }
+        public required ActivityData ActivityData { get; set; }
+        public required SleepData SleepData { get; set; }
+        public required ReadinessData ReadinessData { get; set; }
+
     }
 }

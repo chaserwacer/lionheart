@@ -24,12 +24,12 @@
     disabled={isLoading}
 >
     {#if isLoading}
-    <span class="loading loading-spinner loading-xs"></span>
+        Syncing....
     {:else if syncSuccess === true}
         Success!
     {:else if syncSuccess === false}
         Failed
     {:else}
-        Sync Oura
+        Sync Oura Data
     {/if}
 </button>

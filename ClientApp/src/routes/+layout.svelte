@@ -23,7 +23,7 @@
   <div class="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
     <div class="relative flex h-16 items-center">
       <div
-        class="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start"
+        class="flex flex-1 items-center justify-center md:items-stretch md:justify-start"
       >
         <div class="flex flex-shrink-0 items-center text-primary">
           <img
@@ -35,7 +35,7 @@
             >LIONHEART</a
           >
 
-          <div class="pt-2.5 ml-2 sm:hidden">
+          <div class="pt-2.5 ml-2 md:hidden">
             <div>
               <button>
                 <a href="/profile"
@@ -49,7 +49,7 @@
             </div>
           </div>
         </div>
-        <div class="hidden sm:ml-10 sm:block pt-1.5">
+        <div class="hidden md:ml-10 md:block pt-1.5">
           <div class="flex space-x-4">
             <!-- <a
               href="/"
@@ -65,7 +65,7 @@
       </div>
       <div class="flex justify-end">
         <!-- Profile btn -->
-        <div class="pt-2.5 hidden sm:block">
+        <div class="pt-2.5 hidden md:block">
           <div>
             <button>
               <a href="/profile"
@@ -83,10 +83,11 @@
   </div>
 
   <!-- Mobile menu, show/hide based on menu state. -->
-  <div class="sm:hidden text-center">
+  <div class="md:hidden text-center">
     <div class="mb-5">
       <ActivityTracker />
       <WellnessTracker />
+      <OuraSync />
     </div>
   </div>
 </nav>
