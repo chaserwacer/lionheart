@@ -229,7 +229,7 @@
   </div>
 </div>
 
-<div class="divider">Wellness</div>
+<div class="divider">Wellness | Oura Overview</div>
 <div class="flex flex-col md:flex-row">
   <div class="flex flex-col text-xs md:w-1/2">
     <div
@@ -312,24 +312,24 @@
     >
       <div class="stat">
         <div class="stat-value">Oura Scores</div>
-        <div class="stat-desc">{$dailyOuraInfo.date}</div>
+        <div class="stat-desc text-info-content">{$dailyOuraInfo.date}</div>
       </div>
       <div class="stat">
-        <div class="stat-title">Readiness</div>
+        <div class="stat-title text-info-content text-lg">Readiness</div>
 
         <div class="stat-value">
           {$dailyOuraInfo.readinessData.readinessScore}
         </div>
       </div>
       <div class="stat">
-        <div class="stat-title">Sleep</div>
+        <div class="stat-title text-info-content text-lg">Sleep</div>
 
         <div class="stat-value">
           {$dailyOuraInfo.sleepData.sleepScore}
         </div>
       </div>
       <div class="stat">
-        <div class="stat-title">Activity</div>
+        <div class="stat-title text-info-content text-lg">Activity</div>
 
         <div class="stat-value">
           {$dailyOuraInfo.activityData.activityScore}

@@ -155,37 +155,33 @@ namespace lionheart.Services
             (List<OuraDailyReadinessDocument> readinessDocuments, string readinessJson) = await GetOuraDataFromApiAsync<OuraDailyReadinessDocument>(readinessUrl, userPersonalToken);
 
             var numberDays = date.DayNumber - earliestDateToInclude.DayNumber + 1;
-            int activityIndex = 0;
-            int resilienceIndex = 0;
-            int sleepIndex = 0;
-            int readinessIndex = 0;
             ActivityData activityData;
             ResilienceData resilienceData;
             SleepData sleepData;
             ReadinessData readinessData;
             var currentDate = date.AddDays(-numberDays);
 
-            for (int i = 0; i < numberDays - 1; i++) // remove -1 to start syncing data from today
+            for (int i = 0; i < numberDays - 1; i++) 
             {
                 currentDate = currentDate.AddDays(1);
                 // Build pieces of object
-                if (activityDocuments[activityIndex].Day == currentDate)
+                var activityDocument = activityDocuments.FirstOrDefault(d => d.Day == currentDate);
+                if (activityDocument != null)
                 {
                     activityData = new()
                     {
-                        ActivityScore = activityDocuments[activityIndex].Score ?? 0,
-                        Steps = activityDocuments[activityIndex].Steps,
-                        ActiveCalories = activityDocuments[activityIndex].ActiveCalories,
-                        TotalCalories = activityDocuments[activityIndex].TotalCalories,
-                        TargetCalories = activityDocuments[activityIndex].TargetCalories,
-                        MeetDailyTargets = activityDocuments[activityIndex].Contributors.MeetDailyTargets ?? 0,
-                        MoveEveryHour = activityDocuments[activityIndex].Contributors.MoveEveryHour ?? 0,
-                        RecoveryTime = activityDocuments[activityIndex].Contributors.RecoveryTime ?? 0,
-                        StayActive = activityDocuments[activityIndex].Contributors.StayActive ?? 0,
-                        TrainingFrequency = activityDocuments[activityIndex].Contributors.TrainingFrequency ?? 0,
-                        TrainingVolume = activityDocuments[activityIndex].Contributors.TrainingVolume ?? 0,
+                        ActivityScore = activityDocument.Score ?? 0,
+                        Steps = activityDocument.Steps,
+                        ActiveCalories = activityDocument.ActiveCalories,
+                        TotalCalories = activityDocument.TotalCalories,
+                        TargetCalories = activityDocument.TargetCalories,
+                        MeetDailyTargets = activityDocument.Contributors.MeetDailyTargets ?? 0,
+                        MoveEveryHour = activityDocument.Contributors.MoveEveryHour ?? 0,
+                        RecoveryTime = activityDocument.Contributors.RecoveryTime ?? 0,
+                        StayActive = activityDocument.Contributors.StayActive ?? 0,
+                        TrainingFrequency = activityDocument.Contributors.TrainingFrequency ?? 0,
+                        TrainingVolume = activityDocument.Contributors.TrainingVolume ?? 0,
                     };
-                    activityIndex++;
                 }
                 else
                 {
@@ -205,16 +201,17 @@ namespace lionheart.Services
                     };
                 }
 
-                if (resilienceDocuments[resilienceIndex].Day == currentDate)
+                var resilienceDocument = resilienceDocuments.FirstOrDefault(r => r.Day == currentDate);
+
+                if (resilienceDocument != null)
                 {
                     resilienceData = new()
                     {
-                        SleepRecovery = resilienceDocuments[resilienceIndex].Contributors.SleepRecovery,
-                        DaytimeRecovery = resilienceDocuments[resilienceIndex].Contributors.DaytimeRecovery,
-                        Stress = resilienceDocuments[resilienceIndex].Contributors.Stress,
-                        ResilienceLevel = resilienceDocuments[resilienceIndex].Level,
+                        SleepRecovery = resilienceDocument.Contributors.SleepRecovery,
+                        DaytimeRecovery = resilienceDocument.Contributors.DaytimeRecovery,
+                        Stress = resilienceDocument.Contributors.Stress,
+                        ResilienceLevel = resilienceDocument.Level,
                     };
-                    resilienceIndex++;
                 }
                 else
                 {
@@ -227,20 +224,20 @@ namespace lionheart.Services
                     };
                 }
 
-                if (sleepDocuments[sleepIndex].Day == currentDate)
+                var sleepDocument = sleepDocuments.FirstOrDefault(s => s.Day == currentDate);
+                if (sleepDocument != null)
                 {
                     sleepData = new()
                     {
-                        SleepScore = sleepDocuments[sleepIndex].Score ?? 0,
-                        DeepSleep = sleepDocuments[sleepIndex].Contributors.DeepSleep ?? 0,
-                        Efficiency = sleepDocuments[sleepIndex].Contributors.Efficiency ?? 0,
-                        Latency = sleepDocuments[sleepIndex].Contributors.Latency ?? 0,
-                        RemSleep = sleepDocuments[sleepIndex].Contributors.RemSleep ?? 0,
-                        Restfulness = sleepDocuments[sleepIndex].Contributors.Restfulness ?? 0,
-                        Timing = sleepDocuments[sleepIndex].Contributors.Timing ?? 0,
-                        TotalSleep = sleepDocuments[sleepIndex].Contributors.TotalSleep ?? 0,
+                        SleepScore = sleepDocument.Score ?? 0,
+                        DeepSleep = sleepDocument.Contributors.DeepSleep ?? 0,
+                        Efficiency = sleepDocument.Contributors.Efficiency ?? 0,
+                        Latency = sleepDocument.Contributors.Latency ?? 0,
+                        RemSleep = sleepDocument.Contributors.RemSleep ?? 0,
+                        Restfulness = sleepDocument.Contributors.Restfulness ?? 0,
+                        Timing = sleepDocument.Contributors.Timing ?? 0,
+                        TotalSleep = sleepDocument.Contributors.TotalSleep ?? 0,
                     };
-                    sleepIndex++;
                 }
                 else
                 {
@@ -257,22 +254,22 @@ namespace lionheart.Services
                     };
                 }
 
-                if (readinessDocuments[readinessIndex].Day == currentDate)
+                var readinessDocument = readinessDocuments.FirstOrDefault(r => r.Day == currentDate);
+                if (readinessDocument != null)
                 {
                     readinessData = new()
                     {
-                        ReadinessScore = readinessDocuments[readinessIndex].Score ?? 0,
-                        TemperatureDeviation = readinessDocuments[readinessIndex].TemperatureDeviation ?? 0,
-                        ActivityBalance = readinessDocuments[readinessIndex].Contributors.ActivityBalance ?? 0,
-                        BodyTemperature = readinessDocuments[readinessIndex].Contributors.BodyTemperature ?? 0,
-                        HrvBalance = readinessDocuments[readinessIndex].Contributors.HrvBalance ?? 0,
-                        PreviousDayActivity = readinessDocuments[readinessIndex].Contributors.PreviousDayActivity ?? 0,
-                        PreviousNight = readinessDocuments[readinessIndex].Contributors.PreviousNight ?? 0,
-                        RecoveryIndex = readinessDocuments[readinessIndex].Contributors.RecoveryIndex ?? 0,
-                        RestingHeartRate = readinessDocuments[readinessIndex].Contributors.RestingHeartRate ?? 0,
-                        SleepBalance = readinessDocuments[readinessIndex].Contributors.SleepBalance ?? 0,
+                        ReadinessScore = readinessDocument.Score ?? 0,
+                        TemperatureDeviation = readinessDocument.TemperatureDeviation ?? 0,
+                        ActivityBalance = readinessDocument.Contributors.ActivityBalance ?? 0,
+                        BodyTemperature = readinessDocument.Contributors.BodyTemperature ?? 0,
+                        HrvBalance = readinessDocument.Contributors.HrvBalance ?? 0,
+                        PreviousDayActivity = readinessDocument.Contributors.PreviousDayActivity ?? 0,
+                        PreviousNight = readinessDocument.Contributors.PreviousNight ?? 0,
+                        RecoveryIndex = readinessDocument.Contributors.RecoveryIndex ?? 0,
+                        RestingHeartRate = readinessDocument.Contributors.RestingHeartRate ?? 0,
+                        SleepBalance = readinessDocument.Contributors.SleepBalance ?? 0,
                     };
-                    readinessIndex++;
                 }
                 else{
                      readinessData = new()
@@ -296,7 +293,7 @@ namespace lionheart.Services
                 {
                     ObjectID = Guid.NewGuid(),
                     UserID = privateKey,
-                    Date = activityDocuments[i].Day,
+                    Date = currentDate,
                     SyncDate = DateOnly.FromDateTime(DateTime.Now),
                     ActivityData = activityData,
                     ResilienceData = resilienceData,
