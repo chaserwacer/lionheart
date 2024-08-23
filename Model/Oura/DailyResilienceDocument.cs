@@ -9,7 +9,7 @@ namespace lionheart.Model.Oura.Dto
         public string Id { get; init; } = string.Empty;
 
         [JsonPropertyName("day")]
-        public DateTime Day { get; init; }
+        public DateOnly Day { get; init; }
 
         [JsonPropertyName("contributors")]
         public required ResilienceContributorsDto Contributors { get; init; }

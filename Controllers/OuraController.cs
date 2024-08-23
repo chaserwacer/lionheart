@@ -34,7 +34,7 @@ namespace lionheart.Controllers
         }
 
         [HttpGet("[action]")]
-        public async Task<FrontendDailyOuraInfo?> GetDailyOuraInfo(DateOnly date){
+        public async Task<FrontendDailyOuraInfo> GetDailyOuraInfo(DateOnly date){
             try{
                 if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
                 return await _ouraService.GetDailyOuraInfoAsync(User.Identity.Name, date);

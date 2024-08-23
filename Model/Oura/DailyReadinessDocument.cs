@@ -18,7 +18,7 @@ namespace lionheart.Model.Oura.Dto
         public double? TemperatureDeviation { get; init; }
 
         [JsonPropertyName("day")]
-        public DateTime Day { get; init; }
+        public DateOnly Day { get; init; }
     }
 
     public record ReadinessContributorsDto

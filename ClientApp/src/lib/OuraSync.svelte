@@ -1,5 +1,6 @@
 <script lang="ts">
     import { syncOuraData } from "$lib/ouraStore";
+    import { pageUpdate } from "$lib/stores";
     let isLoading = false;
     let syncSuccess: boolean | null = null;
 
@@ -10,6 +11,7 @@
         try {
             const res = await syncOuraData(fetch);
             syncSuccess = res !== undefined && res !== null; // Ensure boolean value
+            $pageUpdate = new Date();
         } catch (error) {
             syncSuccess = false;
         } finally {

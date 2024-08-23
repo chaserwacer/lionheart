@@ -22,7 +22,7 @@ namespace lionheart.Services
             _context = context;
         }
 
-        public async Task<FrontendDailyOuraInfo?> GetDailyOuraInfoAsync(string userID, DateOnly date)
+        public async Task<FrontendDailyOuraInfo> GetDailyOuraInfoAsync(string userID, DateOnly date)
         {
             var privateKey = await GetUserPrivateKey(userID);
             var dto = await _context.DailyOuraInfos.FirstOrDefaultAsync(x => x.UserID == privateKey && x.Date == date) ?? null;
@@ -40,7 +40,57 @@ namespace lionheart.Services
             }
             else
             {
-                return null;
+                return new FrontendDailyOuraInfo()
+                {
+                    ObjectID = new Guid(),
+                    Date = date,
+
+                    ResilienceData = new ResilienceData
+                    {
+                        SleepRecovery = 0.0,
+                        DaytimeRecovery = 0.0,
+                        Stress = 0.0,
+                        ResilienceLevel = ""
+                    },
+                    ActivityData = new ActivityData
+                    {
+                        ActivityScore = 0,
+                        Steps = 0,
+                        ActiveCalories = 0,
+                        TotalCalories = 0,
+                        TargetCalories = 0,
+                        MeetDailyTargets = 0,
+                        MoveEveryHour = 0,
+                        RecoveryTime = 0,
+                        StayActive = 0,
+                        TrainingFrequency = 0,
+                        TrainingVolume = 0
+                    },
+                    SleepData = new SleepData
+                    {
+                        SleepScore = 0,
+                        DeepSleep = 0,
+                        Efficiency = 0,
+                        Latency = 0,
+                        RemSleep = 0,
+                        Restfulness = 0,
+                        Timing = 0,
+                        TotalSleep = 0
+                    },
+                    ReadinessData = new ReadinessData
+                    {
+                        ReadinessScore = 0,
+                        TemperatureDeviation = 0.0,
+                        ActivityBalance = 0,
+                        BodyTemperature = 0,
+                        HrvBalance = 0,
+                        PreviousDayActivity = 0,
+                        PreviousNight = 0,
+                        RecoveryIndex = 0,
+                        RestingHeartRate = 0,
+                        SleepBalance = 0
+                    },
+                };
             }
         }
 
@@ -57,7 +107,7 @@ namespace lionheart.Services
             var privateKey = await GetUserPrivateKey(userID);
             var userPersonalToken = await GetUserPersonalTokenAsync(privateKey);
 
-    
+
             // Delete Section
             // var objectsToDelete = _context.DailyOuraInfos.ToList();
             // _context.DailyOuraInfos.RemoveRange(objectsToDelete);
@@ -65,11 +115,11 @@ namespace lionheart.Services
 
 
 
-            ///
+            
 
             // Get Dto objects representing the ouraInfos from the past 'daysPrior'
             var beginningDate = date.AddDays(-daysPrior);
-            var OuraStateInfoObjects = await  _context.DailyOuraInfos.Where(o => o.Date >= beginningDate && o.Date <= date && o.UserID == privateKey).
+            var OuraStateInfoObjects = await _context.DailyOuraInfos.Where(o => o.Date >= beginningDate && o.Date <= date && o.UserID == privateKey).
             Select(o => new DailyOuraInfoDto(
                 o.ObjectID,
                 o.Date,
@@ -94,7 +144,8 @@ namespace lionheart.Services
             var sleepUrl = "https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
             var readinessUrl = "https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
 
-            if(earliestDateToInclude == DateOnly.FromDateTime(DateTime.Now)){
+            if (earliestDateToInclude == DateOnly.FromDateTime(DateTime.Now))
+            {
                 return;
             }
 
@@ -104,59 +155,141 @@ namespace lionheart.Services
             (List<OuraDailyReadinessDocument> readinessDocuments, string readinessJson) = await GetOuraDataFromApiAsync<OuraDailyReadinessDocument>(readinessUrl, userPersonalToken);
 
             var numberDays = date.DayNumber - earliestDateToInclude.DayNumber + 1;
+            int activityIndex = 0;
+            int resilienceIndex = 0;
+            int sleepIndex = 0;
+            int readinessIndex = 0;
+            ActivityData activityData;
+            ResilienceData resilienceData;
+            SleepData sleepData;
+            ReadinessData readinessData;
+            var currentDate = date.AddDays(-numberDays);
 
-            for (int i = 0; i < numberDays - 1; i++)
+            for (int i = 0; i < numberDays - 1; i++) // remove -1 to start syncing data from today
             {
+                currentDate = currentDate.AddDays(1);
                 // Build pieces of object
-
-                ActivityData activityData = new()
+                if (activityDocuments[activityIndex].Day == currentDate)
                 {
-                    ActivityScore = activityDocuments[i].Score ?? 0,
-                    Steps = activityDocuments[i].Steps,
-                    ActiveCalories = activityDocuments[i].ActiveCalories,
-                    TotalCalories = activityDocuments[i].TotalCalories,
-                    TargetCalories = activityDocuments[i].TargetCalories,
-                    MeetDailyTargets = activityDocuments[i].Contributors.MeetDailyTargets ?? 0,
-                    MoveEveryHour = activityDocuments[i].Contributors.MoveEveryHour ?? 0,
-                    RecoveryTime = activityDocuments[i].Contributors.RecoveryTime ?? 0,
-                    StayActive = activityDocuments[i].Contributors.StayActive ?? 0,
-                    TrainingFrequency = activityDocuments[i].Contributors.TrainingFrequency ?? 0,
-                    TrainingVolume = activityDocuments[i].Contributors.TrainingVolume ?? 0,
-                };
-
-                ResilienceData resilienceData = new()
+                    activityData = new()
+                    {
+                        ActivityScore = activityDocuments[activityIndex].Score ?? 0,
+                        Steps = activityDocuments[activityIndex].Steps,
+                        ActiveCalories = activityDocuments[activityIndex].ActiveCalories,
+                        TotalCalories = activityDocuments[activityIndex].TotalCalories,
+                        TargetCalories = activityDocuments[activityIndex].TargetCalories,
+                        MeetDailyTargets = activityDocuments[activityIndex].Contributors.MeetDailyTargets ?? 0,
+                        MoveEveryHour = activityDocuments[activityIndex].Contributors.MoveEveryHour ?? 0,
+                        RecoveryTime = activityDocuments[activityIndex].Contributors.RecoveryTime ?? 0,
+                        StayActive = activityDocuments[activityIndex].Contributors.StayActive ?? 0,
+                        TrainingFrequency = activityDocuments[activityIndex].Contributors.TrainingFrequency ?? 0,
+                        TrainingVolume = activityDocuments[activityIndex].Contributors.TrainingVolume ?? 0,
+                    };
+                    activityIndex++;
+                }
+                else
                 {
-                    SleepRecovery = resilienceDocuments[i].Contributors.SleepRecovery,
-                    DaytimeRecovery = resilienceDocuments[i].Contributors.DaytimeRecovery,
-                    Stress = resilienceDocuments[i].Contributors.Stress,
-                    ResilienceLevel = resilienceDocuments[i].Level,
-                };
+                    activityData = new()
+                    {
+                        ActivityScore = -1,
+                        Steps = 0,
+                        ActiveCalories = 0,
+                        TotalCalories = 0,
+                        TargetCalories = 0,
+                        MeetDailyTargets = 0,
+                        MoveEveryHour = 0,
+                        RecoveryTime = 0,
+                        StayActive = 0,
+                        TrainingFrequency = 0,
+                        TrainingVolume = 0,
+                    };
+                }
 
-                SleepData sleepData = new()
+                if (resilienceDocuments[resilienceIndex].Day == currentDate)
                 {
-                    SleepScore = sleepDocuments[i].Score ?? 0,
-                    DeepSleep = sleepDocuments[i].Contributors.DeepSleep ?? 0,
-                    Efficiency = sleepDocuments[i].Contributors.Efficiency ?? 0,
-                    Latency = sleepDocuments[i].Contributors.Latency ?? 0,
-                    RemSleep = sleepDocuments[i].Contributors.RemSleep ?? 0,
-                    Restfulness = sleepDocuments[i].Contributors.Restfulness ?? 0,
-                    Timing = sleepDocuments[i].Contributors.Timing ?? 0,
-                    TotalSleep = sleepDocuments[i].Contributors.TotalSleep ?? 0,
-                };
+                    resilienceData = new()
+                    {
+                        SleepRecovery = resilienceDocuments[resilienceIndex].Contributors.SleepRecovery,
+                        DaytimeRecovery = resilienceDocuments[resilienceIndex].Contributors.DaytimeRecovery,
+                        Stress = resilienceDocuments[resilienceIndex].Contributors.Stress,
+                        ResilienceLevel = resilienceDocuments[resilienceIndex].Level,
+                    };
+                    resilienceIndex++;
+                }
+                else
+                {
+                    resilienceData = new()
+                    {
+                        SleepRecovery = -1,
+                        DaytimeRecovery = -1,
+                        Stress = -1,
+                        ResilienceLevel = "unknown",
+                    };
+                }
 
-                ReadinessData readinessData = new()
+                if (sleepDocuments[sleepIndex].Day == currentDate)
                 {
-                    ReadinessScore = readinessDocuments[i].Score ?? 0,
-                    TemperatureDeviation = readinessDocuments[i].TemperatureDeviation ?? 0,
-                    ActivityBalance = readinessDocuments[i].Contributors.ActivityBalance ?? 0,
-                    BodyTemperature = readinessDocuments[i].Contributors.BodyTemperature ?? 0,
-                    HrvBalance = readinessDocuments[i].Contributors.HrvBalance ?? 0,
-                    PreviousDayActivity = readinessDocuments[i].Contributors.PreviousDayActivity ?? 0,
-                    PreviousNight = readinessDocuments[i].Contributors.PreviousNight ?? 0,
-                    RecoveryIndex = readinessDocuments[i].Contributors.RecoveryIndex ?? 0,
-                    RestingHeartRate = readinessDocuments[i].Contributors.RestingHeartRate ?? 0,
-                    SleepBalance = readinessDocuments[i].Contributors.SleepBalance ?? 0,
-                };
+                    sleepData = new()
+                    {
+                        SleepScore = sleepDocuments[sleepIndex].Score ?? 0,
+                        DeepSleep = sleepDocuments[sleepIndex].Contributors.DeepSleep ?? 0,
+                        Efficiency = sleepDocuments[sleepIndex].Contributors.Efficiency ?? 0,
+                        Latency = sleepDocuments[sleepIndex].Contributors.Latency ?? 0,
+                        RemSleep = sleepDocuments[sleepIndex].Contributors.RemSleep ?? 0,
+                        Restfulness = sleepDocuments[sleepIndex].Contributors.Restfulness ?? 0,
+                        Timing = sleepDocuments[sleepIndex].Contributors.Timing ?? 0,
+                        TotalSleep = sleepDocuments[sleepIndex].Contributors.TotalSleep ?? 0,
+                    };
+                    sleepIndex++;
+                }
+                else
+                {
+                    sleepData = new()
+                    {
+                        SleepScore = -1,
+                        DeepSleep = 0,
+                        Efficiency = 0,
+                        Latency = 0,
+                        RemSleep = 0,
+                        Restfulness = 0,
+                        Timing = 0,
+                        TotalSleep = 0,
+                    };
+                }
+
+                if (readinessDocuments[readinessIndex].Day == currentDate)
+                {
+                    readinessData = new()
+                    {
+                        ReadinessScore = readinessDocuments[readinessIndex].Score ?? 0,
+                        TemperatureDeviation = readinessDocuments[readinessIndex].TemperatureDeviation ?? 0,
+                        ActivityBalance = readinessDocuments[readinessIndex].Contributors.ActivityBalance ?? 0,
+                        BodyTemperature = readinessDocuments[readinessIndex].Contributors.BodyTemperature ?? 0,
+                        HrvBalance = readinessDocuments[readinessIndex].Contributors.HrvBalance ?? 0,
+                        PreviousDayActivity = readinessDocuments[readinessIndex].Contributors.PreviousDayActivity ?? 0,
+                        PreviousNight = readinessDocuments[readinessIndex].Contributors.PreviousNight ?? 0,
+                        RecoveryIndex = readinessDocuments[readinessIndex].Contributors.RecoveryIndex ?? 0,
+                        RestingHeartRate = readinessDocuments[readinessIndex].Contributors.RestingHeartRate ?? 0,
+                        SleepBalance = readinessDocuments[readinessIndex].Contributors.SleepBalance ?? 0,
+                    };
+                    readinessIndex++;
+                }
+                else{
+                     readinessData = new()
+                    {
+                        ReadinessScore = -1,
+                        TemperatureDeviation = 0,
+                        ActivityBalance =  0,
+                        BodyTemperature =  0,
+                        HrvBalance =  0,
+                        PreviousDayActivity =  0,
+                        PreviousNight =  0,
+                        RecoveryIndex = 0,
+                        RestingHeartRate =  0,
+                        SleepBalance =  0,
+                    };
+                }
+
 
                 // Build Database Object
                 DailyOuraInfo dailyOuraInfo = new()
@@ -300,10 +433,10 @@ namespace lionheart.Services
         public Guid ObjectID { get; init; }
         public DateOnly Date { get; set; }
 
-        public required ResilienceData ResilienceData { get; set; }
-        public required ActivityData ActivityData { get; set; }
-        public required SleepData SleepData { get; set; }
-        public required ReadinessData ReadinessData { get; set; }
+        public ResilienceData? ResilienceData { get; set; }
+        public ActivityData? ActivityData { get; set; }
+        public SleepData? SleepData { get; set; }
+        public ReadinessData? ReadinessData { get; set; }
 
     }
 }

@@ -23,7 +23,7 @@
     fetchWeeklyMuscleSetsDto,
   } from "$lib/activityStore.js";
   import SingleActivityViewer from "$lib/SingleActivityViewer.svelte";
-  import { syncOuraData } from "$lib/ouraStore";
+  import { syncOuraData, GetDailyOuraInfo } from "$lib/ouraStore";
 
   /**
    * @type {typeof import("svelte-chartjs").Line}
@@ -109,6 +109,7 @@
     lastWeeksActivityMinutes = await fetchActivityMinutes(selectedDate, fetch);
     activityTypeRatio.set(await fetchActivityRatio(selectedDate, fetch));
     weeklyMuscleSets = await fetchWeeklyMuscleSetsDto(selectedDate, fetch);
+    dailyOuraInfo.set(await GetDailyOuraInfo(selectedDate, fetch));
   });
 
   async function fetchWellnessState() {
@@ -127,6 +128,52 @@
       console.error("Error fetching  wellness state");
     }
   }
+
+  const dailyOuraInfo = writable({
+    objectID: "",
+    date: "", // Assuming DateOnly is a string representation
+    resilienceData: {
+      sleepRecovery: 0,
+      daytimeRecovery: 0,
+      stress: 0,
+      resilienceLevel: 0,
+    },
+    activityData: {
+      activityScore: 0,
+      steps: 0,
+      activeCalories: 0,
+      totalCalories: 0,
+      targetCalories: 0,
+      meetDailyTargets: 0,
+      moveEveryHour: 0,
+      recoveryTime: 0,
+      stayActive: 0,
+      trainingFrequency: 0,
+      trainingVolume: 0,
+    },
+    sleepData: {
+      sleepScore: 0,
+      deepSleep: 0,
+      efficiency: 0,
+      latency: 0,
+      remSleep: 0,
+      restfulness: 0,
+      timing: 0,
+      totalSleep: 0,
+    },
+    readinessData: {
+      readinessScore: 0,
+      temperatureDeviation: 0,
+      activityBalance: 0,
+      bodyTemperature: 0,
+      hrvBalance: 0,
+      previousDayActivity: 0,
+      previousNight: 0,
+      recoveryIndex: 0,
+      restingHeartRate: 0,
+      sleepBalance: 0,
+    },
+  });
   const activities = writable<Activity[]>([]);
 
   async function updatePageInfo() {
@@ -137,6 +184,7 @@
     lastWeeksActivityMinutes = await fetchActivityMinutes(selectedDate, fetch);
     activityTypeRatio.set(await fetchActivityRatio(selectedDate, fetch));
     weeklyMuscleSets = await fetchWeeklyMuscleSetsDto(selectedDate, fetch);
+    dailyOuraInfo.set(await GetDailyOuraInfo(selectedDate, fetch));
   }
 
   $: {
@@ -154,14 +202,9 @@
   <article class="prose max-w-none pl-5 pt-5 text-center">
     <h1 class="mb-2">Lionheart Homebase</h1>
     <div class="flex flex-col md:flex-row items-center md:items-start">
-
-        <h3 class="p-0 m-0 md:w-1/2">
-          Welcome, {$bootUserDto.name}.
-
-        </h3>
-
-        
-
+      <h3 class="p-0 m-0 md:w-1/2">
+        Welcome, {$bootUserDto.name}.
+      </h3>
 
       <div class="divider-horizontal divider"></div>
       <div class="card items-center p-0 m-0 md:w-1/2 items-center">
@@ -174,11 +217,8 @@
             class="btn btn-accent"
           />
         </div>
-        
       </div>
-      
     </div>
-    
   </article>
 
   <div class="divider divider-horizontal"></div>
@@ -267,14 +307,35 @@
       </div>
     </div>
 
-    <article class="prose max-w-none pl-5 pt-5 invisible md:visible">
-      <p>
-        Overlooked, at times, are the things an athlete truly feels. Not just
-        how their muscles are feeling, but the other stuff: things like mood and
-        stress. By putting an emphasis on these metrics and storing them, we can
-        analyze how they correlate to our performance.
-      </p>
-    </article>
+    <div
+      class="hover:shadow-xl m-5 mt-0 stats stats-vertical md:stats-horizontal shadow bg-info text-primary-content flex-initial"
+    >
+      <div class="stat">
+        <div class="stat-value">Oura Scores</div>
+        <div class="stat-desc">{$dailyOuraInfo.date}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-title">Readiness</div>
+
+        <div class="stat-value">
+          {$dailyOuraInfo.readinessData.readinessScore}
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-title">Sleep</div>
+
+        <div class="stat-value">
+          {$dailyOuraInfo.sleepData.sleepScore}
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-title">Activity</div>
+
+        <div class="stat-value">
+          {$dailyOuraInfo.activityData.activityScore}
+        </div>
+      </div>
+    </div>
   </div>
   {#if wellnessGraph}
     <div class="divider divider-horizontal"></div>

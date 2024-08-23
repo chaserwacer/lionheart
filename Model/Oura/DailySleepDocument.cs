@@ -12,7 +12,7 @@ namespace lionheart.Model.Oura.Dto
         public required SleepContributorsDto Contributors { get; init; }
 
         [JsonPropertyName("day")]
-        public DateTime Day { get; init; }
+        public DateOnly Day { get; init; }
 
         [JsonPropertyName("score")]
         public int? Score { get; init; }
