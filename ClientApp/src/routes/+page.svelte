@@ -230,10 +230,10 @@
 </div>
 
 <div class="divider">Wellness | Oura Overview</div>
-<div class="flex flex-col md:flex-row">
-  <div class="flex flex-col text-xs md:w-1/2">
+<div class="flex flex-col lg:flex-row">
+  <div class="flex flex-col text-xs lg:w-1/2">
     <div
-      class=" hover:shadow-xl m-5 mt-0 stats stats-vertical md:stats-horizontal shadow bg-primary text-primary-content flex-initial {$wellnessState.overallScore ===
+      class=" hover:shadow-xl m-5 mt-0 stats stats-vertical lg:stats-horizontal shadow bg-accent text-primary-content flex-initial {$wellnessState.overallScore ===
       -1
         ? 'blur-sm'
         : ''}"
@@ -308,28 +308,29 @@
     </div>
 
     <div
-      class="hover:shadow-xl m-5 mt-0 stats stats-vertical md:stats-horizontal shadow bg-info text-primary-content flex-initial"
+      class="hover:shadow-xl m-5 mt-0 stats stats-vertical lg:stats-horizontal shadow bg-accent-content text-accent flex-initial text-center lg:text-start"
     >
       <div class="stat">
-        <div class="stat-value">Oura Scores</div>
-        <div class="stat-desc text-info-content">{$dailyOuraInfo.date}</div>
+        <div class="stat-value"> Oura Scores </div>
+        <div class="stat-desc text-accent">OURA RING</div>
+        <div class="stat-desc text-accent">{$dailyOuraInfo.date}</div>
       </div>
       <div class="stat">
-        <div class="stat-title text-info-content text-lg">Readiness</div>
+        <div class="stat-title text-accent text-lg">Readiness</div>
 
         <div class="stat-value">
           {$dailyOuraInfo.readinessData.readinessScore}
         </div>
       </div>
       <div class="stat">
-        <div class="stat-title text-info-content text-lg">Sleep</div>
+        <div class="stat-title text-lg text-accent">Sleep</div>
 
         <div class="stat-value">
           {$dailyOuraInfo.sleepData.sleepScore}
         </div>
       </div>
       <div class="stat">
-        <div class="stat-title text-info-content text-lg">Activity</div>
+        <div class="stat-title text-lg text-accent">Activity</div>
 
         <div class="stat-value">
           {$dailyOuraInfo.activityData.activityScore}
@@ -339,12 +340,12 @@
   </div>
   {#if wellnessGraph}
     <div class="divider divider-horizontal"></div>
-    <div class="text-center md:w-1/3 mx-auto">
-      <h2 class="text-2xl font-bold hover:underline">
-        Past Week Wellness Overview
-      </h2>
+    <div class="text-center lg:w-1/2 mx-auto w-full">
       <!-- Adjust the size of the graph container here -->
       <div class="w-full">
+        <h2 class="text-2xl font-bold hover:underline text-accent">
+          Past Week Wellness Overview
+        </h2>
         <!-- Example width and height -->
         <svelte:component this={wellnessGraph} data={wellnessGraphData} />
       </div>
@@ -353,13 +354,15 @@
 </div>
 
 <div class="divider">Activity</div>
-<div class="flex flex-col md:flex-row items-center md:items-start">
-  <div class="flex flex-col md:flex-row items-center md:items-start">
-    <div class=" bg-accent text-accent-content m-2 rounded-lg hover:shadow-xl">
-      <h1 class="ml-5 mt-2 text-xl font-bold">Today's Activities</h1>
+<div class="flex flex flex-col lg:flex-row items-center lg:items-start">
+  <div class="flex">
+    <div
+      class=" bg-primary text-primary-content m-2 rounded-lg hover:shadow-xl"
+    >
+      <h1 class="m-2 text-xl font-bold">Today's Activities</h1>
       <table class="table">
         <!-- head -->
-        <thead class="text-accent-content">
+        <thead class="text-primary-content">
           <tr>
             <th></th>
             <th>Name</th>
@@ -404,19 +407,21 @@
     </div>
 
     <div class="flex m-2">
-      <div class="stats shadow bg-accent text-accent-content hover:shadow-xl">
+      <div
+        class="stats shadow bg-primary text-primary-content hover:shadow-xl m-0"
+      >
         <div class="stat">
-          <div class="stat-title text-accent-content">Activity Minutes</div>
+          <div class="stat-title text-primary-content">Activity Minutes</div>
           <div class="stat-value">{lastWeeksActivityMinutes}</div>
-          <div class="stat-desc text-accent-content">In the last 7 days</div>
+          <div class="stat-desc text-primary-content">In the last 7 days</div>
         </div>
         <div class="stat">
-          <div class="stat-title text-accent-content">Activity Ratio</div>
+          <div class="stat-title text-primary-content">Activity Ratio</div>
           <div class="stat-value">
             {$activityTypeRatio.numberLifts}:{$activityTypeRatio.numberRunWalks}:{$activityTypeRatio.numberRides}
           </div>
-          <div class="stat-desc text-accent-content">Lifts : Runs : Rides</div>
-          <div class="stat-desc text-accent-content">In the last 4 weeks</div>
+          <div class="stat-desc text-primary-content">Lifts : Runs : Rides</div>
+          <div class="stat-desc text-primary-content">In the last 4 weeks</div>
         </div>
       </div>
     </div>
@@ -473,5 +478,193 @@
         </tr>
       </tbody>
     </table>
+  </div>
+</div>
+
+<div class="divider">Oura</div>
+<div class="flex flex-wrap items-center md:items-start">
+  <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
+    <span class="indicator-item badge badge-info">oura</span>
+    <div class="card-body">
+      <h2 class="card-title text-5xl">Resilience</h2>
+      <p>Level:</p>
+      <p class=" text-3xl font-bold">
+        {$dailyOuraInfo.resilienceData.resilienceLevel}
+      </p>
+
+      Daytime Recovery:<progress
+        class="progress"
+        value={$dailyOuraInfo.resilienceData.daytimeRecovery}
+        max="100"
+      ></progress>
+      Sleep Recovery:
+      <progress
+        class="progress"
+        value={$dailyOuraInfo.resilienceData.sleepRecovery}
+        max="100"
+      ></progress>
+      Stress:
+      <progress
+        class="progress"
+        value={$dailyOuraInfo.resilienceData.stress}
+        max="100"
+      ></progress>
+    </div>
+  </div>
+  <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
+    <div class="card-body">
+      <span class="indicator-item badge badge-info">oura</span>
+      <h2 class="card-title text-5xl">Activity</h2>
+      <h2 class="text-4xl">{$dailyOuraInfo.activityData.activityScore}</h2>
+      <table class="table">
+        <!-- head -->
+        <thead class="text-primary-content"> </thead>
+        <tbody>
+          <tr>
+            <td>Steps</td>
+            <td>{$dailyOuraInfo.activityData.steps}</td>
+          </tr>
+          <tr>
+            <td>Active Cals</td>
+            <td>{$dailyOuraInfo.activityData.activeCalories} </td>
+          </tr>
+          <tr>
+            <td>Total Calories</td>
+            <td>{$dailyOuraInfo.activityData.totalCalories}</td>
+          </tr>
+        </tbody>
+      </table>
+      Training Frequency:<progress
+        class="progress"
+        value={$dailyOuraInfo.activityData.trainingFrequency}
+        max="100"
+      ></progress>
+      Training Volume:<progress
+        class="progress"
+        value={$dailyOuraInfo.activityData.trainingVolume}
+        max="100"
+      ></progress>
+      Recovery Time:<progress
+        class="progress"
+        value={$dailyOuraInfo.activityData.recoveryTime}
+        max="100"
+      ></progress>
+      Stay Active:<progress
+        class="progress"
+        value={$dailyOuraInfo.activityData.stayActive}
+        max="100"
+      ></progress>
+      Move Every Hour:<progress
+        class="progress"
+        value={$dailyOuraInfo.activityData.moveEveryHour}
+        max="100"
+      ></progress>
+      Meet Daily Targets:<progress
+        class="progress"
+        value={$dailyOuraInfo.activityData.meetDailyTargets}
+        max="100"
+      ></progress>
+    </div>
+  </div>
+
+  <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
+    <div class="card-body">
+      <span class="indicator-item badge badge-info">oura</span>
+      <h2 class="card-title text-5xl">Sleep </h2>
+      <h2 class="text-4xl">{$dailyOuraInfo.sleepData.sleepScore}</h2>
+      Total Sleep:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.totalSleep}
+        max="100"
+      ></progress>
+      Efficiency:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.efficiency}
+        max="100"
+      ></progress>
+      Restfullness:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.restfulness}
+        max="100"
+      ></progress>
+      Timing:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.timing}
+        max="100"
+      ></progress>
+      Latency:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.latency}
+        max="100"
+      ></progress>
+      Rem Sleep:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.remSleep}
+        max="100"
+      ></progress>
+      Deep Sleep:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.deepSleep}
+        max="100"
+      ></progress>
+    </div>
+  </div>
+  <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
+    <div class="card-body">
+      <span class="indicator-item badge badge-info">oura</span>
+      <h2 class="card-title text-5xl">Readiness</h2>
+      <h2 class="text-4xl">{$dailyOuraInfo.readinessData.readinessScore}</h2>
+      <table class="table">
+        <!-- head -->
+        <thead class="text-primary-content"> </thead>
+        <tbody>
+          <tr>
+            <td>Temperature Deviation</td>
+            <td>{$dailyOuraInfo.readinessData.temperatureDeviation}</td>
+          </tr>
+        </tbody>
+      </table>
+      Sleep Balance:<progress
+        class="progress"
+        value={$dailyOuraInfo.readinessData.sleepBalance}
+        max="100"
+      ></progress>
+      Activity Balance:<progress
+        class="progress"
+        value={$dailyOuraInfo.readinessData.activityBalance}
+        max="100"
+      ></progress>
+      Recovery Index:<progress
+        class="progress"
+        value={$dailyOuraInfo.readinessData.recoveryIndex}
+        max="100"
+      ></progress>
+      Body Temperature:<progress
+        class="progress"
+        value={$dailyOuraInfo.readinessData.bodyTemperature}
+        max="100"
+      ></progress>
+      HRV Balance:<progress
+        class="progress"
+        value={$dailyOuraInfo.readinessData.hrvBalance}
+        max="100"
+      ></progress>
+      Previous Night:<progress
+        class="progress"
+        value={$dailyOuraInfo.readinessData.previousNight}
+        max="100"
+      ></progress>
+      Previoys Day Activiy:<progress
+        class="progress"
+        value={$dailyOuraInfo.readinessData.previousDayActivity}
+        max="100"
+      ></progress>
+
+      Resting Heart Rate:<progress
+        class="progress"
+        value={$dailyOuraInfo.readinessData.restingHeartRate}
+        max="100"
+      ></progress>
+    </div>
   </div>
 </div>

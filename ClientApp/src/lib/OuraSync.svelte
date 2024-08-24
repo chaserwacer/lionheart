@@ -21,16 +21,16 @@
 </script>
 
 <button
-    class="btn btn-sm btn-outline btn-primary"
+    class="btn btn-sm btn-outline btn-primary {isLoading ? 'btn-disabled' : ''}"
     on:click={syncOura}
-    disabled={isLoading}
+    
 >
     {#if isLoading}
         Syncing....
     {:else if syncSuccess === true}
-        Success!
+        Oura Sync Success!
     {:else if syncSuccess === false}
-        Failed
+        Oura Sync Failed
     {:else}
         Sync Oura Data
     {/if}

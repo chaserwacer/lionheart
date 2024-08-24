@@ -47,10 +47,10 @@ namespace lionheart.Services
 
                     ResilienceData = new ResilienceData
                     {
-                        SleepRecovery = 0.0,
-                        DaytimeRecovery = 0.0,
-                        Stress = 0.0,
-                        ResilienceLevel = ""
+                        SleepRecovery = 1.0,
+                        DaytimeRecovery = 1.0,
+                        Stress = 1.0,
+                        ResilienceLevel = "unkown"
                     },
                     ActivityData = new ActivityData
                     {
@@ -59,36 +59,36 @@ namespace lionheart.Services
                         ActiveCalories = 0,
                         TotalCalories = 0,
                         TargetCalories = 0,
-                        MeetDailyTargets = 0,
-                        MoveEveryHour = 0,
-                        RecoveryTime = 0,
-                        StayActive = 0,
-                        TrainingFrequency = 0,
-                        TrainingVolume = 0
+                        MeetDailyTargets = 1,
+                        MoveEveryHour = 1,
+                        RecoveryTime = 1,
+                        StayActive = 1,
+                        TrainingFrequency = 1,
+                        TrainingVolume = 1
                     },
                     SleepData = new SleepData
                     {
                         SleepScore = 0,
-                        DeepSleep = 0,
-                        Efficiency = 0,
-                        Latency = 0,
-                        RemSleep = 0,
-                        Restfulness = 0,
-                        Timing = 0,
-                        TotalSleep = 0
+                        DeepSleep = 1,
+                        Efficiency = 1,
+                        Latency = 1,
+                        RemSleep = 1,
+                        Restfulness = 1,
+                        Timing = 1,
+                        TotalSleep = 1
                     },
                     ReadinessData = new ReadinessData
                     {
                         ReadinessScore = 0,
                         TemperatureDeviation = 0.0,
-                        ActivityBalance = 0,
-                        BodyTemperature = 0,
-                        HrvBalance = 0,
-                        PreviousDayActivity = 0,
-                        PreviousNight = 0,
-                        RecoveryIndex = 0,
-                        RestingHeartRate = 0,
-                        SleepBalance = 0
+                        ActivityBalance = 1,
+                        BodyTemperature = 1,
+                        HrvBalance = 1,
+                        PreviousDayActivity = 1,
+                        PreviousNight = 1,
+                        RecoveryIndex = 1,
+                        RestingHeartRate = 1,
+                        SleepBalance = 1
                     },
                 };
             }
