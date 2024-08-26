@@ -112,7 +112,7 @@ namespace lionheart.Controllers
         {
             try
             {
-                if (User.Identity?.Name is null) { return new WellnessState(new Guid(), 1, 1, 1, 1){ OverallScore = -1}; }
+                if (User.Identity?.Name is null) { return new WellnessState(new Guid(), 1, 1, 1, 1, date){ OverallScore = -1}; }
                 return await _userService.GetWellnessStateAsync(User.Identity.Name, date);
             }
             catch (Exception e)
@@ -178,6 +178,6 @@ namespace lionheart.Controllers
     }//end userController
     public record BootUserDto(string? Name, Boolean HasCreatedProfile);
     public record CreateProfileRequest(string DisplayName, int Age, float Weight);
-    public record CreateWellnessStateRequest(int Energy, int Motivation, int Mood, int Stress);
+    public record CreateWellnessStateRequest(string Date, int Energy, int Motivation, int Mood, int Stress);
     public record WeeklyScoreDTO(List<double> Scores, List<string> Dates);
 }

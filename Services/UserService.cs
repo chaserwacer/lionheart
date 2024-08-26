@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.OpenApi.Extensions;
 using System;
@@ -79,10 +80,10 @@ namespace lionheart.Services
         public async Task<WellnessState> AddWellnessStateAsync(CreateWellnessStateRequest req, string userID)
         {
             var privateKey = getUserPrivateKey(userID).Result;
-            DateOnly todaysDate = DateOnly.FromDateTime(DateTime.Now);
+            DateOnly selectedDate = DateOnly.ParseExact(req.Date, "yyyy-MM-dd");
 
             // Check if already exists
-            var existingState = _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == todaysDate && w.UserID == privateKey);
+            var existingState = _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == selectedDate && w.UserID == privateKey);
             if (existingState.Result != null)
             {
                 existingState.Result.EnergyScore = req.Energy;
@@ -98,7 +99,7 @@ namespace lionheart.Services
             }
             else
             {
-                WellnessState wellnessState = new WellnessState(privateKey, req.Motivation, req.Stress, req.Mood, req.Energy);
+                WellnessState wellnessState = new WellnessState(privateKey, req.Motivation, req.Stress, req.Mood, req.Energy, selectedDate);
                 _context.WellnessStates.Add(wellnessState);
                 await _context.SaveChangesAsync();
                 return wellnessState;
@@ -146,7 +147,7 @@ namespace lionheart.Services
         public async Task<WellnessState> GetWellnessStateAsync(string userID, DateOnly date)
         {
             var privateKey = getUserPrivateKey(userID).Result;
-            return await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == date && w.UserID == privateKey) ?? new WellnessState(privateKey, 1, 1, 1, 1) { OverallScore = -1 };
+            return await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == date && w.UserID == privateKey) ?? new WellnessState(privateKey, 1, 1, 1, 1, date) { OverallScore = -1 };
 
         }
 

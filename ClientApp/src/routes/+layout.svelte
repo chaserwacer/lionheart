@@ -5,6 +5,7 @@
   import { fetchBootUserDto, bootUserDto } from "$lib/stores";
   import WellnessTracker from "$lib/WellnessTracker.svelte";
   import { onMount } from "svelte";
+  import {wellnessStateDate} from "$lib/stores"
 
 
   import "tailwindcss/tailwind.css";
@@ -16,6 +17,8 @@
       goto("/auth");
     }
   });
+
+  
 </script>
 
 <!---------------------------------------------------------------------------->
@@ -57,7 +60,7 @@
               >Homebase</a
             > -->
             <ActivityTracker />
-            <WellnessTracker />
+            <WellnessTracker selectedDate={$wellnessStateDate}/>
             <OuraSync />
             
           </div>
@@ -86,7 +89,7 @@
   <div class="md:hidden text-center">
     <div class="mb-5">
       <ActivityTracker />
-      <WellnessTracker />
+      <WellnessTracker selectedDate={$wellnessStateDate}/>
       <OuraSync />
     </div>
   </div>

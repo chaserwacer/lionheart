@@ -20,7 +20,7 @@ public class WellnessState{
     public double OverallScore { get; set; }
 
 
-    public WellnessState(Guid userID, int motivationScore, int stressScore, int moodScore, int energyScore)
+    public WellnessState(Guid userID, int motivationScore, int stressScore, int moodScore, int energyScore, DateOnly date)
     {
         this.UserID = userID;
         this.MotivationScore = motivationScore;
@@ -31,7 +31,7 @@ public class WellnessState{
         int decimalPlaces = 2;
         this.OverallScore = Math.Round(avg, decimalPlaces);
         this.StateID = Guid.NewGuid();
-        this.Date = DateOnly.FromDateTime(DateTime.Now);
+        this.Date = date;
     }
 
 }// end WellBeingState

@@ -1,17 +1,20 @@
 <script lang="ts">
-    import { fetchTodaysWellnessState, todaysWellnessState, pageUpdate } from "$lib/stores";
+    import {
+        fetchTodaysWellnessState,
+        todaysWellnessState,
+        pageUpdate,
+    } from "$lib/stores";
     import { writable } from "svelte/store";
     /**
      * @type {typeof import("svelte-chartjs").Line}
      */
     let myLine: typeof import("svelte-chartjs").Line;
     let showModal = writable(false);
-    let energyInput = $todaysWellnessState.energyScore;
-    let motivationInput = $todaysWellnessState.motivationScore;
-    let moodInput = $todaysWellnessState.motivationScore;
-    let stressInput = $todaysWellnessState.stressScore;
-
-    
+    let energyInput = 1;
+    let motivationInput = 1;
+    let moodInput = 1;
+    let stressInput = 1;
+    export let selectedDate: string;
 
     function openModal() {
         showModal.set(true);
@@ -29,6 +32,7 @@
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
+                    Date: selectedDate,
                     energy: energyInput,
                     motivation: motivationInput,
                     mood: moodInput,
@@ -39,7 +43,11 @@
             if (response.ok) {
                 closeModal();
                 fetchTodaysWellnessState(fetch);
-                $pageUpdate = new Date()
+                $pageUpdate = new Date();
+                energyInput = 1;
+                motivationInput = 1;
+                moodInput = 1;
+                stressInput = 1;
             } else {
                 console.error(
                     "Failed to track Wellness State:",

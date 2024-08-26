@@ -6,6 +6,7 @@
     fetchBootUserDto,
     type WellnessState,
     pageUpdate,
+    wellnessStateDate,
   } from "$lib/stores";
 
   import ActivityTracker from "$lib/ActivityTracker.svelte";
@@ -102,6 +103,7 @@
       goto("/auth");
     }
     await fetchWellnessState();
+    wellnessStateDate.set(selectedDate);
     const module = await import("svelte-chartjs");
     wellnessGraph = module.Line;
     updateWellnessGraph();
@@ -177,7 +179,9 @@
   const activities = writable<Activity[]>([]);
 
   async function updatePageInfo() {
-    console.log("Update page info on data: ", selectedDate);
+    
+    wellnessStateDate.set(selectedDate);
+    console.log("Update page info on data: ", selectedDate, $wellnessStateDate);
     fetchWellnessState();
     activities.set(await fetchActivities(selectedDate, selectedDate, fetch));
     updateWellnessGraph();
@@ -192,6 +196,8 @@
       updatePageInfo();
     }
   }
+
+ 
 </script>
 
 <svelte:head>
