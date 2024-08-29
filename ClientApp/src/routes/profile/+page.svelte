@@ -79,14 +79,19 @@
     <p>
       Lionheart is an application for storing and analyzing all of a users
       training data. Lionheart is to be developed to be able to store anything
-      relevant to training, in the attempt to create an ecosystem that all of
+      relevant to training, in the attempt to create a hub where all of
       your data can live. This will then allow an athlete to analyze trends and
       data while remaining in one place, as opposed to having to navigate from
-      app to app.
+      app to app. <br />
+      Lionheart allows users to track conventionally uncommon 'activities', because 
+      we know that everything you do affects the way you feel. For example, a hard day
+      working in the yard, is trackable with lionheart. And you should want to track that 
+      activity, because its effects are likely more physically and psychologically taxing
+      than some of the regular workouts you might do. 
 
       <br /><br />
       The home page will be your one-stop-shop viewing location for all of your training
-      data. Select a date to view all associated data.
+      data. Select a date at the top to view all associated data.
     </p>
 
     <div class="divider"></div>
