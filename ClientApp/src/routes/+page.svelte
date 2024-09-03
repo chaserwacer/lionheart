@@ -179,7 +179,6 @@
   const activities = writable<Activity[]>([]);
 
   async function updatePageInfo() {
-    
     wellnessStateDate.set(selectedDate);
     console.log("Update page info on data: ", selectedDate, $wellnessStateDate);
     fetchWellnessState();
@@ -196,8 +195,6 @@
       updatePageInfo();
     }
   }
-
- 
 </script>
 
 <svelte:head>
@@ -317,7 +314,7 @@
       class="hover:shadow-xl m-5 mt-0 stats stats-vertical lg:stats-horizontal shadow bg-accent-content text-accent flex-initial text-center lg:text-start"
     >
       <div class="stat">
-        <div class="stat-value"> Oura Scores </div>
+        <div class="stat-value">Oura Scores</div>
         <div class="stat-desc text-accent">OURA RING</div>
         <div class="stat-desc text-accent">{$dailyOuraInfo.date}</div>
       </div>
@@ -360,17 +357,28 @@
 </div>
 
 <div class="divider">Activity</div>
-<div class="flex flex flex-col lg:flex-row items-center  lg:items-start">
+<div class="flex flex flex-col lg:flex-row items-center lg:items-start">
   <div class="flex flex-wrap justify-center">
     <div
       class=" bg-primary text-primary-content m-2 rounded-lg hover:shadow-xl"
     >
-      <h1 class="m-2 text-xl font-bold">Today's Activities</h1>
+      <h1 class="m-2 text-xl font-bold">Today's Activities <label for="my_modal_7" class="btn btn-xs mt-2 ml-2">view</label></h1>
+      
+      <input type="checkbox" id="my_modal_7" class="modal-toggle" />
+      <div class="modal" role="dialog">
+        <div class="modal-box bg-white text-black flex flex-col">
+          {#each $activities as activity}
+            <h1 class="text-2xl font-bold text-center">Activity Viewer</h1>
+            <div class="divider divider-neutral m-0"></div>
+            <SingleActivityViewer {activity} />
+          {/each}
+        </div>
+        <label class="modal-backdrop" for="my_modal_7">Close</label>
+      </div>
       <table class="table">
         <!-- head -->
         <thead class="text-primary-content">
           <tr>
-            <th></th>
             <th>Name</th>
             <th>Type</th>
             <th>Difficulty</th>
@@ -382,16 +390,6 @@
           {#each $activities as activity}
             <tr>
               <!-- Start Modal -->
-              <label for="my_modal_7" class="btn btn-xs mt-2 ml-2">view</label>
-              <input type="checkbox" id="my_modal_7" class="modal-toggle" />
-              <div class="modal" role="dialog">
-                <div class="modal-box bg-white text-black">
-                  <h1 class="text-2xl font-bold">Activity Viewer</h1>
-                  <div class="divider divider-primary m-0"></div>
-                  <SingleActivityViewer {activity} />
-                </div>
-                <label class="modal-backdrop" for="my_modal_7">Close</label>
-              </div>
 
               <!-- End Modal -->
               <td>{activity.name}</td>
@@ -488,7 +486,9 @@
 </div>
 
 <div class="divider">Oura</div>
-<div class="flex flex-wrap items-center justify-center lg:items-start lg:justify-start">
+<div
+  class="flex flex-wrap items-center justify-center lg:items-start lg:justify-start"
+>
   <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
     <span class="indicator-item badge badge-info">oura</span>
     <div class="card-body">
@@ -520,7 +520,7 @@
   <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
     <div class="card-body">
       <span class="indicator-item badge badge-info">oura</span>
-      <h2 class="card-title text-5xl">Sleep </h2>
+      <h2 class="card-title text-5xl">Sleep</h2>
       <h2 class="text-4xl">{$dailyOuraInfo.sleepData.sleepScore}</h2>
       Total Sleep:<progress
         class="progress"
@@ -559,7 +559,7 @@
       ></progress>
     </div>
   </div>
-  
+
   <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
     <div class="card-body">
       <span class="indicator-item badge badge-info">oura</span>
@@ -616,7 +616,6 @@
     </div>
   </div>
 
-  
   <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
     <div class="card-body">
       <span class="indicator-item badge badge-info">oura</span>
