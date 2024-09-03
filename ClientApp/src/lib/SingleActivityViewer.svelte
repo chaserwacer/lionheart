@@ -12,7 +12,7 @@
                 <h1 class="card-title">{activity.name}</h1>
                 <p>{date}</p>
                 <p>Length: {activity.timeInMinutes} minutes</p>
-                <div class="divider divider-accent m-0"></div>
+                <div class="divider divider-primary m-0"></div>
                 <!-- <p class="font-bold">Summary</p>
                 {activity.userSummary}
                 <div class="divider m-0"></div> -->
@@ -33,20 +33,20 @@
                 {activity.engagementRating} / 5
             </div>
             <!-- {#if activity.liftDetails != null || activity.runWalkDetails != null || activity.rideDetails != null} -->
-                <div class="divider divider-accent divider-horizontal"></div>
+                <div class="divider divider-primary divider-horizontal"></div>
             <!-- {/if} -->
 
             <div class="w-60">
                 {#if activity.liftDetails != null}
                     <h1 class="card-title">Lift Specific Details</h1>
-                    <div class="divider divider-accent m-0"></div>
+                    <div class="divider divider-primary m-0"></div>
                     <p class="font-bold">Tonnage / Total Volume</p>
                     {activity.liftDetails.tonnage}
                     <p class="mt-1 font-bold">Lift Focus</p>
                     {activity.liftDetails.liftFocus}
                     <p class="mt-1 font-bold">Lift Type</p>
                     {activity.liftDetails.liftType}
-                    <div class="divider divider-accent m-0"></div>
+                    <div class="divider divider-primary m-0"></div>
                     <p class="font-bold">Summary</p>
                     {activity.userSummary}
                     
@@ -65,7 +65,7 @@
                     {activity.rideDetails.rideType}
                 {:else if activity.runWalkDetails != null}
                     <h1 class="card-title">Run/Walk Specific Details</h1>
-                    <div class="divider divider-accent m-0"></div>
+                    <div class="divider divider-primary m-0"></div>
                     <p class="font-bold">Distance</p>
                     {activity.runWalkDetails.distance} miles
                     <p class="font-bold">Elevation Gain</p>
@@ -82,7 +82,7 @@
             
         </div>
         {#if activity.liftDetails != null}
-            <div class="divider divider-accent">Set Tracker</div>
+            <div class="divider divider-primary">Set Tracker</div>
                 <div class="flex flex-wrap">
                     {#if activity.liftDetails.quadSets != 0}
                     <p class="font-bold">Quads: {activity.liftDetails.quadSets}</p> 

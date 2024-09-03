@@ -360,8 +360,8 @@
 </div>
 
 <div class="divider">Activity</div>
-<div class="flex flex flex-col lg:flex-row items-center lg:items-start">
-  <div class="flex">
+<div class="flex flex flex-col lg:flex-row items-center  lg:items-start">
+  <div class="flex flex-wrap justify-center">
     <div
       class=" bg-primary text-primary-content m-2 rounded-lg hover:shadow-xl"
     >
@@ -386,8 +386,8 @@
               <input type="checkbox" id="my_modal_7" class="modal-toggle" />
               <div class="modal" role="dialog">
                 <div class="modal-box bg-white text-black">
-                  <h1 class="text-xl font-bold">Activity Viewer</h1>
-                  <div class="divider divider-accent m-0"></div>
+                  <h1 class="text-2xl font-bold">Activity Viewer</h1>
+                  <div class="divider divider-primary m-0"></div>
                   <SingleActivityViewer {activity} />
                 </div>
                 <label class="modal-backdrop" for="my_modal_7">Close</label>
@@ -488,7 +488,7 @@
 </div>
 
 <div class="divider">Oura</div>
-<div class="flex flex-wrap items-center md:items-start">
+<div class="flex flex-wrap items-center justify-center lg:items-start lg:justify-start">
   <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
     <span class="indicator-item badge badge-info">oura</span>
     <div class="card-body">
@@ -517,6 +517,49 @@
       ></progress>
     </div>
   </div>
+  <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
+    <div class="card-body">
+      <span class="indicator-item badge badge-info">oura</span>
+      <h2 class="card-title text-5xl">Sleep </h2>
+      <h2 class="text-4xl">{$dailyOuraInfo.sleepData.sleepScore}</h2>
+      Total Sleep:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.totalSleep}
+        max="100"
+      ></progress>
+      Efficiency:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.efficiency}
+        max="100"
+      ></progress>
+      Restfullness:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.restfulness}
+        max="100"
+      ></progress>
+      Timing:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.timing}
+        max="100"
+      ></progress>
+      Latency:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.latency}
+        max="100"
+      ></progress>
+      Rem Sleep:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.remSleep}
+        max="100"
+      ></progress>
+      Deep Sleep:<progress
+        class="progress"
+        value={$dailyOuraInfo.sleepData.deepSleep}
+        max="100"
+      ></progress>
+    </div>
+  </div>
+  
   <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
     <div class="card-body">
       <span class="indicator-item badge badge-info">oura</span>
@@ -573,48 +616,7 @@
     </div>
   </div>
 
-  <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
-    <div class="card-body">
-      <span class="indicator-item badge badge-info">oura</span>
-      <h2 class="card-title text-5xl">Sleep </h2>
-      <h2 class="text-4xl">{$dailyOuraInfo.sleepData.sleepScore}</h2>
-      Total Sleep:<progress
-        class="progress"
-        value={$dailyOuraInfo.sleepData.totalSleep}
-        max="100"
-      ></progress>
-      Efficiency:<progress
-        class="progress"
-        value={$dailyOuraInfo.sleepData.efficiency}
-        max="100"
-      ></progress>
-      Restfullness:<progress
-        class="progress"
-        value={$dailyOuraInfo.sleepData.restfulness}
-        max="100"
-      ></progress>
-      Timing:<progress
-        class="progress"
-        value={$dailyOuraInfo.sleepData.timing}
-        max="100"
-      ></progress>
-      Latency:<progress
-        class="progress"
-        value={$dailyOuraInfo.sleepData.latency}
-        max="100"
-      ></progress>
-      Rem Sleep:<progress
-        class="progress"
-        value={$dailyOuraInfo.sleepData.remSleep}
-        max="100"
-      ></progress>
-      Deep Sleep:<progress
-        class="progress"
-        value={$dailyOuraInfo.sleepData.deepSleep}
-        max="100"
-      ></progress>
-    </div>
-  </div>
+  
   <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
     <div class="card-body">
       <span class="indicator-item badge badge-info">oura</span>

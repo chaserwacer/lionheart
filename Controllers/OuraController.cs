@@ -23,6 +23,7 @@ namespace lionheart.Controllers
             {
                 if (User.Identity?.Name is null) { throw new NullReferenceException("username/key was null"); }
                 var dateNow = DateOnly.FromDateTime(DateTime.Now);
+                dateNow = dateNow.AddDays(1);
                 await _ouraService.SyncOuraAPI(User.Identity.Name, dateNow, 7);
                 return Ok();
             }

@@ -132,7 +132,7 @@ namespace lionheart.Services
             DateOnly earliestDateToInclude = date.AddDays(-daysPrior);
             for (int i = 0; i < OuraStateInfoObjects.Count; i++)
             {
-                if (OuraStateInfoObjects[i].SyncDate >= OuraStateInfoObjects[i].Date)
+                if (OuraStateInfoObjects[i].SyncDate > OuraStateInfoObjects[i].Date)
                 {
                     earliestDateToInclude = OuraStateInfoObjects[i].Date.AddDays(1);
                 }
@@ -144,7 +144,7 @@ namespace lionheart.Services
             var sleepUrl = "https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
             var readinessUrl = "https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
 
-            if (earliestDateToInclude == DateOnly.FromDateTime(DateTime.Now))
+            if (earliestDateToInclude >= date)
             {
                 return;
             }
