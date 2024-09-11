@@ -8,3 +8,6 @@ This project is still being worked on - it is not fully polished or complete.
 
 ## Demo
 Please visit my LinkedIn to see some demo images: www.linkedin.com/in/chase-balmer-031137291
+
+## Database
+I have added my database files to my .gitignore as I do not want to make any future data public. If you are interested in seeing the structure or seeing the data 'in action' please reach out to me. 
