@@ -48,7 +48,7 @@
     const response = await fetch(
       "api/user/GetLastXWellnessStatesGraphData?date=" +
         selectedDate +
-        "&xDays=7",
+        "&xDays=6",
     );
     if (!response.ok) {
       console.error("Failed to get todays Wellness State");
@@ -101,17 +101,21 @@
     await fetchBootUserDto(fetch);
     if ($bootUserDto.name === null || !$bootUserDto.hasCreatedProfile) {
       goto("/auth");
+    } else {
+      await fetchWellnessState();
+      wellnessStateDate.set(selectedDate);
+      const module = await import("svelte-chartjs");
+      wellnessGraph = module.Line;
+      updateWellnessGraph();
+      activities.set(await fetchActivities(selectedDate, selectedDate, fetch));
+      lastWeeksActivityMinutes = await fetchActivityMinutes(
+        selectedDate,
+        fetch,
+      );
+      activityTypeRatio.set(await fetchActivityRatio(selectedDate, fetch));
+      weeklyMuscleSets = await fetchWeeklyMuscleSetsDto(selectedDate, fetch);
+      dailyOuraInfo.set(await GetDailyOuraInfo(selectedDate, fetch));
     }
-    await fetchWellnessState();
-    wellnessStateDate.set(selectedDate);
-    const module = await import("svelte-chartjs");
-    wellnessGraph = module.Line;
-    updateWellnessGraph();
-    activities.set(await fetchActivities(selectedDate, selectedDate, fetch));
-    lastWeeksActivityMinutes = await fetchActivityMinutes(selectedDate, fetch);
-    activityTypeRatio.set(await fetchActivityRatio(selectedDate, fetch));
-    weeklyMuscleSets = await fetchWeeklyMuscleSetsDto(selectedDate, fetch);
-    dailyOuraInfo.set(await GetDailyOuraInfo(selectedDate, fetch));
   });
 
   async function fetchWellnessState() {
@@ -362,14 +366,21 @@
     <div
       class=" bg-primary text-primary-content m-2 rounded-lg hover:shadow-xl"
     >
-      <h1 class="m-2 text-xl font-bold">Today's Activities <label for="my_modal_7" class="btn btn-xs mt-2 ml-2">view</label></h1>
-      
+      <h1 class="m-2 text-xl font-bold">
+        Today's Activities <label
+          for="my_modal_7"
+          class="btn btn-xs mt-2 ml-2 {$activities.length === 0
+            ? 'btn-disabled'
+            : ''}">view</label
+        >
+      </h1>
+
       <input type="checkbox" id="my_modal_7" class="modal-toggle" />
       <div class="modal" role="dialog">
         <div class="modal-box bg-white text-black flex flex-col">
           {#each $activities as activity}
             <h1 class="text-2xl font-bold text-center">Activity Viewer</h1>
-            <div class="divider divider-neutral m-0"></div>
+            <div class="divider divider-primary m-0"></div>
             <SingleActivityViewer {activity} />
           {/each}
         </div>
@@ -382,7 +393,7 @@
             <th>Name</th>
             <th>Type</th>
             <th>Difficulty</th>
-            <th>Length</th>
+            <th>Duration</th>
           </tr>
         </thead>
         <tbody>

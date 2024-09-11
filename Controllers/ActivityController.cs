@@ -4,6 +4,13 @@ using lionheart.Services;
 using Microsoft.AspNetCore.Mvc;
 namespace lionheart.Controllers
 {
+    /// <summary>
+    /// Activity controller contains the endpoints for activitiy related functionality, calling upon ActivityService to handle the business logic. 
+    /// This involves things like adding different types of activities, getting activities, and getting info about activity trends. 
+    /// 
+    /// This controller (as well as the activity service file) still require some more updates and functionality to be implemented. I paused on this 
+    /// implementation to work on some other aspects of the project. 
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class ActivityController : ControllerBase
@@ -16,6 +23,11 @@ namespace lionheart.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Track/Add activity for given user
+        /// </summary>
+        /// <param name="activityRequest">DTO Containing data for activity creation</param>
+        /// <returns></returns>
         [HttpPost("[action]")]
         public async Task<IActionResult> AddActivity(CreateActivityRequest activityRequest)
         {
@@ -31,6 +43,13 @@ namespace lionheart.Controllers
                 throw;
             }
         }
+
+        /// <summary>
+        /// Add a run/walk version of an activity
+        /// </summary>
+        /// <param name="activityRequest">DTO Containing data for activity creation</param>
+        /// <returns></returns>
+        /// <exception cref="NullReferenceException"></exception>
         [HttpPost("[action]")]
         public async Task<IActionResult> AddRunWalkActivity(CreateRunWalkRequest activityRequest)
         {
@@ -46,6 +65,13 @@ namespace lionheart.Controllers
                 throw;
             }
         }
+
+        /// <summary>
+        /// Add a (bike) ride version of an activity
+        /// </summary>
+        /// <param name="activityRequest">DTO Containing data for activity creation</param>
+        /// <returns></returns>
+        /// <exception cref="NullReferenceException"></exception>
         [HttpPost("[action]")]
         public async Task<IActionResult> AddRideActivity(CreateRideRequest activityRequest)
         {
@@ -61,6 +87,13 @@ namespace lionheart.Controllers
                 throw;
             }
         }
+
+        /// <summary>
+        /// Add a lift version of an activity
+        /// </summary>
+        /// <param name="activityRequest">DTO Containing data for activity creation</param>
+        /// <returns></returns>
+        /// <exception cref="NullReferenceException"></exception>
         [HttpPost("[action]")]
         public async Task<IActionResult> AddLiftActivity(CreateLiftRequest activityRequest)
         {
@@ -77,6 +110,13 @@ namespace lionheart.Controllers
             }
         }
 
+        /// <summary>
+        /// Get list of activities from start date to end date
+        /// </summary>
+        /// <param name="start"></param>
+        /// <param name="end"></param>
+        /// <returns></returns>
+        /// <exception cref="NullReferenceException"></exception>
         [HttpGet("[action]")]
         public async Task<List<lionheart.ActivityTracking.Activity>> GetActivities(DateOnly start, DateOnly end){
             try{
@@ -91,6 +131,13 @@ namespace lionheart.Controllers
             }
         }
 
+        /// <summary>
+        /// Get number of minutes of activity from start to end date
+        /// </summary>
+        /// <param name="start"></param>
+        /// <param name="end"></param>
+        /// <returns></returns>
+        /// <exception cref="NullReferenceException"></exception>
         [HttpGet("[action]")]
         public async Task<int> GetActivityMinutes(DateOnly start, DateOnly end){
             try{
@@ -104,6 +151,13 @@ namespace lionheart.Controllers
             }
         }
 
+        /// <summary>
+        /// Get ratio of activity types from start to end date
+        /// </summary>
+        /// <param name="start"></param>
+        /// <param name="end"></param>
+        /// <returns></returns>
+        /// <exception cref="NullReferenceException"></exception>
         [HttpGet("[action]")]
         public async Task<ActivityTypeRatioDto> GetActivityTypeRatio(DateOnly start, DateOnly end){
             try{
@@ -123,7 +177,6 @@ namespace lionheart.Controllers
         /// <param name="start"></param>
         /// <param name="end"></param>
         /// <returns></returns>
-        /// <exception cref="NullReferenceException"></exception>
         [HttpGet("[action]")]
         public async Task<MuscleSetsDto> GetMuscleSets(DateOnly start, DateOnly end){
             try{

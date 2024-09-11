@@ -14,6 +14,9 @@ using System.Threading.Tasks;
 
 namespace lionheart.Services
 {
+    /// <summary>
+    /// Activity Service contains the business logic regarding the handling and storage of activity operations. 
+    /// </summary>
     public class ActivityService : IActivityService
     {
         private readonly ModelContext _context;
@@ -67,7 +70,7 @@ namespace lionheart.Services
         /// <param name="userID">user id</param>
         /// <param name="start">earlier date</param>
         /// <param name="end">later date</param>
-        /// <returns>int num minuntes </returns>
+        /// <returns>DTO object containing the numbers for the ratio</returns>
         public async Task<ActivityTypeRatioDto> GetActivityTypeRatioAsync(string userID, DateOnly start, DateOnly end)
         {
             var activites = await GetActivitiesAsync(userID, start, end);
@@ -94,6 +97,12 @@ namespace lionheart.Services
 
         }
 
+        /// <summary>
+        /// Add/persist a blank activity
+        /// </summary>
+        /// <param name="userID">Identity User username</param>
+        /// <param name="activityRequest">DTO object holding activity data</param>
+        /// <returns>Created Activity</returns>
         public async Task<Activity> AddActivityAsync(string userID, CreateActivityRequest activityRequest)
         {
             var privateKey = getUserPrivateKey(userID).Result;
@@ -116,6 +125,13 @@ namespace lionheart.Services
             await _context.SaveChangesAsync();
             return activity;
         }
+
+        /// <summary>
+        /// Add/persist a run/walk activity
+        /// </summary>
+        /// <param name="userID">Identity User username</param>
+        /// <param name="activityRequest">DTO object holding activity data</param>
+        /// <returns>Created Activity</returns>
         public async Task<Activity> AddRunWalkActivityAsync(string userID, CreateRunWalkRequest activityRequest)
         {
             var privateKey = getUserPrivateKey(userID).Result;
@@ -150,6 +166,13 @@ namespace lionheart.Services
             await _context.SaveChangesAsync();
             return activity;
         }
+
+        /// <summary>
+        /// Add/persist a ride activity 
+        /// </summary>
+        /// <param name="userID">Identity User username</param>
+        /// <param name="activityRequest">DTO object holding activity data</param>
+        /// <returns>Created Activity</returns>
         public async Task<Activity> AddRideActivityAsync(string userID, CreateRideRequest activityRequest)
         {
             var privateKey = getUserPrivateKey(userID).Result;
@@ -185,6 +208,13 @@ namespace lionheart.Services
             await _context.SaveChangesAsync();
             return activity;
         }
+
+        /// <summary>
+        /// Add/persist a lift activity 
+        /// </summary>
+        /// <param name="userID">Identity User username</param>
+        /// <param name="activityRequest">DTO object holding activity data</param>
+        /// <returns>Created Activity</returns>
         public async Task<Activity> AddLiftActivityAsync(string userID, CreateLiftRequest activityRequest)
         {
             var privateKey = getUserPrivateKey(userID).Result;
@@ -224,6 +254,13 @@ namespace lionheart.Services
             return activity;
         }
 
+        /// <summary>
+        ///  Get the number of sets done for each muscle group from all of the lift activities from start to end date
+        /// </summary>
+        /// <param name="userID"></param>
+        /// <param name="start"></param>
+        /// <param name="end"></param>
+        /// <returns></returns>
         public async Task<MuscleSetsDto> GetMuscleSetsAsync(string userID, DateOnly start, DateOnly end)
         {
             var activities = await GetLiftActivitiesAsync(userID, start, end);
@@ -244,6 +281,13 @@ namespace lionheart.Services
             return new MuscleSetsDto(quadSets, hamstringSets, bicepSets, tricepSets, shoulderSets, chestSets, backSets);
         }
 
+        /// <summary>
+        /// Get all of the lift activities from start to end date
+        /// </summary>
+        /// <param name="userID"></param>
+        /// <param name="start"></param>
+        /// <param name="end"></param>
+        /// <returns></returns>
         public async Task<List<Activity>> GetLiftActivitiesAsync(string userID, DateOnly start, DateOnly end)
         {
             var privateKey = getUserPrivateKey(userID).Result;

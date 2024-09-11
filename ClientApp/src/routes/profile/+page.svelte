@@ -78,7 +78,7 @@
     <h4>Welcome, {$bootUserDto.name}, to Project Lionheart.</h4>
     <p>
       Lionheart is an application for storing and analyzing all of a users
-      training data. Lionheart is to be developed to be able to store anything
+      training data. Lionheart is being developed to be able to store anything
       relevant to training, in the attempt to create a hub where all of
       your data can live. This will then allow an athlete to analyze trends and
       data while remaining in one place, as opposed to having to navigate from

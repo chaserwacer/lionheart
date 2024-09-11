@@ -16,6 +16,15 @@ using System.Threading.Tasks;
 
 namespace lionheart.Services
 {
+    /// <summary>
+    /// The UserService class acts on the service layer to handle business logic and interactions with the database, after being called upon via the UserController.
+    /// This class is the most hectic in terms of the different things it 'does'. It handles profile creation, which is a process that meshes with 
+    /// account creation via ASP.Net Identity User services. A user first registers through ASP.Net to create an Identity User (those code methods are outsourced), and then must create their actual 
+    /// user profile/LionheartUser profile (with display name, etc.). A LionheartUser contains that identity user. See model context for more details. 
+    /// This class also handles creating/editing user WellnessStates, as well as adding the personal access token for Oura.  
+    /// 
+    /// TODO: This class is to be taken and manipulated such that it only contains user centered methods, with those other methods moving to their own service class and then their own controller class. 
+    /// </summary>
     public class UserService : IUserService
     {
         private readonly ModelContext _context;
@@ -25,6 +34,14 @@ namespace lionheart.Services
             _context = context;
         }
 
+        /// <summary>
+        /// Create a 'lionheartUser' profile for one who is already registered as an identity user with ASP.Net.
+        /// </summary>
+        /// <param name="req">dto object containing values for use in profile creation</param>
+        /// <param name="userID">Identity User username</param>
+        /// <returns>Lionheart User</returns>
+        /// <exception cref="InvalidOperationException">User Profile already exists</exception>
+        /// <exception cref="NullReferenceException">ASP.Net identity user DNE</exception>
         public async Task<LionheartUser> CreateProfileAsync(CreateProfileRequest req, string userID)
         {
             if (HasCreatedProfileAsync(userID).Result.Item1) { throw new InvalidOperationException("Attempted to create lionheart user for identity user, LHU already exists"); }
@@ -35,7 +52,6 @@ namespace lionheart.Services
             var privateKey = Guid.Parse(identityUserID);
             if (identityUser is null) { throw new NullReferenceException("Identity User was null"); }
 
-            //var lionheartUser = new LionheartUser(privateKey, identityUser, req.DisplayName, req.Age, req.Weight);
             LionheartUser lionheartUser = new()
             {
                 UserID = privateKey,
@@ -51,14 +67,15 @@ namespace lionheart.Services
         }
 
         /// <summary>
-        /// Determines whether a person with a userID has created a lionheart profile.
+        /// Determines whether a person with a userID has created a lionheart profile. 
+        /// Used for checking how far they are in profile creation, i.e. registered with ASP.Net but not yet having created a Lionheart profile. 
         /// </summary>
         /// <param name="userID">Identity User username</param>
-        /// <returns>tuple containing boolean indicating method result and users display name</returns>
+        /// <returns>tuple containing boolean indicating state of profile creation and users display name</returns>
         public async Task<(Boolean, string)> HasCreatedProfileAsync(string? userID)
         {
             if (userID == null) { return (false, string.Empty); }
-            var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID); // was originally u.email but i beleive this is better
+            var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID);
             var privateKey = identityUser?.Id;
             if (privateKey is not null)
             {
@@ -72,11 +89,11 @@ namespace lionheart.Services
         }
 
         /// <summary>
-        /// Persist wellness state to database associated with the current user FOR TODAY
+        /// Persist wellness state to database associated with the current user
         /// </summary>
         /// <param name="req">Object holding wellness state values</param>
         /// <param name="userID">Identity User username</param>
-        /// <returns>Created wellness stat</returns>
+        /// <returns>Created wellness state</returns>
         public async Task<WellnessState> AddWellnessStateAsync(CreateWellnessStateRequest req, string userID)
         {
             var privateKey = getUserPrivateKey(userID).Result;
@@ -107,9 +124,13 @@ namespace lionheart.Services
         }
 
         /// <summary>
-        /// Set a personal access token for a given application. Createsa token for a given application if it does not yet exist, 
-        ///     updates it if it already exists.
+        /// Set a personal access token for a given application. Creates a token for a given application if it does not yet exist, 
+        /// updates it if it already exists.
         /// </summary>
+        /// <param name="userID"></param>
+        /// <param name="applicationName"></param>
+        /// <param name="accessToken"></param>
+        /// <returns></returns>
         public async Task<bool> SetPersonalApiAccessToken(string userID, string applicationName, string accessToken)
         {
             var privateKey = getUserPrivateKey(userID).Result;
@@ -139,21 +160,26 @@ namespace lionheart.Services
         }
 
         /// <summary>
-        /// Get the Wellness State for a given user on date
+        /// Fetch the wellness state for a given user and date. 
         /// </summary>
-        /// <param name="userID"></param>
+        /// <param name="userID">Identity User username</param>
         /// <param name="date"></param>
-        /// <returns></returns>
+        /// <returns>Wellness State</returns>
         public async Task<WellnessState> GetWellnessStateAsync(string userID, DateOnly date)
         {
             var privateKey = getUserPrivateKey(userID).Result;
             return await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == date && w.UserID == privateKey) ?? new WellnessState(privateKey, 1, 1, 1, 1, date) { OverallScore = -1 };
-
         }
 
+       
+
         /// <summary>
-        /// Helper method to get the guid private key for a given user
+        /// Helper method for getting the private key from the database via using the identity user id.
+        /// It is done in this fashion because the identity userID is stored in cookies. 
         /// </summary>
+        /// <param name="userID">Identity User username</param>
+        /// <returns></returns>
+        /// <exception cref="NullReferenceException">User private key was null</exception>
         private async Task<Guid> getUserPrivateKey(string userID)
         {
             var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID);
@@ -163,15 +189,27 @@ namespace lionheart.Services
         }
 
         /// <summary>
-        /// Return list of wellness states from the last X days, starting from 'endDate'
+        /// Return list of wellness states from the last X days, starting from 'endDate', moving backwards.
         /// </summary>
+        /// <param name="userID">Identity User username</param>
+        /// <param name="endDate">last date we want info for</param>
+        /// <param name="X">number days prior to endDate</param>
+        /// <returns></returns>
         public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(string userID, DateOnly endDate, int X)
         {
             var privateKey = getUserPrivateKey(userID).Result;
             DateOnly startDate = endDate.AddDays(-X);
-            return await _context.WellnessStates.Where(w => w.Date >= startDate && w.Date <= endDate && w.UserID == privateKey).ToListAsync();
+            var states = await _context.WellnessStates.Where(w => w.Date >= startDate && w.Date <= endDate && w.UserID == privateKey).ToListAsync();
+            return [.. states.OrderBy(w => w.Date)];
         }
 
+        /// <summary>
+        /// Fetch a tuple containing the list of overall wellness scores and the list of dates for those scores for the last X days. Uses the GetLastXWellnessStatesAsync method.
+        /// </summary>
+        /// <param name="userID">Identity User username</param>
+        /// <param name="date">last date we want info for</param>
+        /// <param name="X">number days prior to date</param>
+        /// <returns></returns>
         public async Task<(List<double>, List<string>)> GetLastXWellnessStatesGraphDataAsync(string userID, DateOnly date, int X)
         {
             var states = await GetLastXWellnessStatesAsync(userID, date, X);

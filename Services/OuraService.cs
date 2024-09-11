@@ -9,6 +9,13 @@ using System.Text.Json.Serialization;
 
 namespace lionheart.Services
 {
+    /// <summary>
+    /// OuraService handles business logic and persistence of daily oura info. Daily Oura Infos are objects containing data from a users 
+    /// Oura Ring, which is obtained via the Our Ring OpenAPI.
+    /// 
+    /// Daily Oura Infos are crafted via combining pieces of four of the different packages that are available via the OpenAPI. This meaning that
+    /// Daily Oura Infos are objects I have structured and created via selecting peices of different things I can acquire from Oura. 
+    /// </summary>
     public class OuraService : IOuraService
     {
         private readonly ModelContext _context;
@@ -22,6 +29,12 @@ namespace lionheart.Services
             _context = context;
         }
 
+        /// <summary>
+        /// Get a Daily Oura Info for a given user for a given date
+        /// </summary>
+        /// <param name="userID"></param>
+        /// <param name="date"></param>
+        /// <returns></returns>
         public async Task<FrontendDailyOuraInfo> GetDailyOuraInfoAsync(string userID, DateOnly date)
         {
             var privateKey = await GetUserPrivateKey(userID);
@@ -96,7 +109,7 @@ namespace lionheart.Services
 
 
         /// <summary>
-        /// This method receives and saves oura ring data from the interval (date-daysPrior) to date,
+        /// This method receives and saves oura ring data from the interval date - daysPrior to date,
         ///  storing or updating an entry in the database. Each day has one and only one DailyOuraInfo object.
         /// </summary>
         /// <param name="userID"></param>
@@ -164,7 +177,7 @@ namespace lionheart.Services
             for (int i = 0; i < numberDays - 1; i++) 
             {
                 currentDate = currentDate.AddDays(1);
-                // Build pieces of object
+                // Build pieces of Daily Oura object via creating its subobjects, who contain pieces of each of the different documents I acquired from Oura.
                 var activityDocument = activityDocuments.FirstOrDefault(d => d.Day == currentDate);
                 if (activityDocument != null)
                 {
