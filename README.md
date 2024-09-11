@@ -11,3 +11,5 @@ Please visit my LinkedIn to see some demo images: www.linkedin.com/in/chase-balm
 
 ## Database
 I have added my database files to my .gitignore as I do not want to make any future data public. If you are interested in seeing the structure or seeing the data 'in action' please reach out to me. 
+
+![Lion Logo](ClientApp/src/assets/logo.png)
