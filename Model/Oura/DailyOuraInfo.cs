@@ -1,4 +1,8 @@
 namespace lionheart.Model.Oura;
+/// <summary>
+/// Class for holding all of the Oura Data (that I choose to store) for a user for a given date. This is made up of several subobjects who
+/// split this data into a format mirroring that of Oura's structure. 
+/// </summary>
 public class DailyOuraInfo
 {
     public Guid ObjectID { get; init; }

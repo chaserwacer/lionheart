@@ -1,7 +1,8 @@
 namespace lionheart.ActivityTracking;
 
 /// <summary>
-/// Class to represent an activity a user completes. 
+/// Class to represent an activity a user completes. An activity may be just a 'regular/base' activity, or may also contain an object indicating its
+///  'special' type, for example, the activity being a run/walk activity
 /// </summary>
 public class Activity
 {

@@ -234,3 +234,4 @@ _Pvt_Extensions
 
 # Data Folder / my database
 Data/
+!Data/ModelContext.cs

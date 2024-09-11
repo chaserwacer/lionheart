@@ -429,8 +429,17 @@ namespace lionheart.Services
             return Guid.Parse(privateKey);
         }
     }
-
+    /// <summary>
+    /// DTO object used for determining when the Oura Data for a given date was synced. Used to determine if a day's info needs to be updated or if it is final.
+    /// </summary>
+    /// <param name="ObjectID"></param>
+    /// <param name="Date"></param>
+    /// <param name="SyncDate"></param>
     public record DailyOuraInfoDto(Guid ObjectID, DateOnly Date, DateOnly SyncDate);
+    /// <summary>
+    /// Object to help handle reception of JSON from Oura Open API
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class OuraApiResponse<T>
     {
         [JsonPropertyName("data")]
@@ -438,6 +447,9 @@ namespace lionheart.Services
         public string? NextToken { get; set; }
     }
 
+    /// <summary>
+    /// Object to hold a Daily Oura Info for the frontend (doesnt contain some of the backend oriented properies)
+    /// </summary>
     public class FrontendDailyOuraInfo
     {
         public Guid ObjectID { get; init; }
