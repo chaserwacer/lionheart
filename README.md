@@ -7,5 +7,5 @@ This project is still being worked on - it is not fully polished or complete.
 ## Database
 I have added my database files to my .gitignore as I do not want to make any future data public. If you are interested in seeing the structure or seeing the data 'in action' please reach out to me. 
 ## Demo
-![Demo Images](ClientApp/static/LionheartAd.pdf)
+![Demo Images](ClientApp/static/LionheartAdGithub.pdf)
 
