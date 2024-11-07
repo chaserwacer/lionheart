@@ -113,41 +113,41 @@ namespace lionheart.Controllers
         /// </summary>
         /// <param name="req">DTO object containing necessary date for wellness state creation</param>
         /// <returns>IActionResult of Wellness State Addition</returns>
-        [HttpPost("[action]")]
-        public async Task<IActionResult> AddWellnessState(CreateWellnessStateRequest req)
-        {
-            try
-            {
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
-                var state = await _userService.AddWellnessStateAsync(req, User.Identity.Name);
-                return Ok(state);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Failed to add Wellness State: {e.Message}", e);
-                throw;
-            }
-        }
+        // [HttpPost("[action]")]
+        // public async Task<IActionResult> AddWellnessState(CreateWellnessStateRequest req)
+        // {
+        //     try
+        //     {
+        //         if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+        //         var state = await _userService.AddWellnessStateAsync(req, User.Identity.Name);
+        //         return Ok(state);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         _logger.LogError($"Failed to add Wellness State: {e.Message}", e);
+        //         throw;
+        //     }
+        // }
 
         /// <summary>
         /// Get wellness state for given date
         /// </summary>
         /// <param name="date"></param>
         /// <returns>wellness state</returns>
-        [HttpGet("[action]")]
-        public async Task<WellnessState> GetWellnessStateAsync(DateOnly date)
-        {
-            try
-            {
-                if (User.Identity?.Name is null) { return new WellnessState(new Guid(), 1, 1, 1, 1, date){ OverallScore = -1}; }
-                return await _userService.GetWellnessStateAsync(User.Identity.Name, date);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Failed to get WellnessState: {e.Message}", e);
-                throw;
-            }
-        }
+        // [HttpGet("[action]")]
+        // public async Task<WellnessState> GetWellnessStateAsync(DateOnly date)
+        // {
+        //     try
+        //     {
+        //         if (User.Identity?.Name is null) { return new WellnessState(new Guid(), 1, 1, 1, 1, date){ OverallScore = -1}; }
+        //         return await _userService.GetWellnessStateAsync(User.Identity.Name, date);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         _logger.LogError($"Failed to get WellnessState: {e.Message}", e);
+        //         throw;
+        //     }
+        // }
 
         /// <summary>
         /// Get Wellness States from the past x-days coming before 'date'
@@ -155,66 +155,66 @@ namespace lionheart.Controllers
         /// <param name="date"></param>
         /// <param name="xDays"></param>
         /// <returns>List<WellnessState></returns>
-        [HttpGet("[action]")]
-        public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(DateOnly date, int xDays)
-        {
-            try
-            {
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness States - username/key was null"); }
-                if (xDays <= 0) { throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days"); }
-                return await _userService.GetLastXWellnessStatesAsync(User.Identity.Name, date, xDays);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Failed to get WellnessStates: {e.Message}", e);
-                throw;
-            }
-        }
+        // [HttpGet("[action]")]
+        // public async Task<List<WellnessState>> GetLastXWellnessStatesAsync(DateOnly date, int xDays)
+        // {
+        //     try
+        //     {
+        //         if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness States - username/key was null"); }
+        //         if (xDays <= 0) { throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days"); }
+        //         return await _userService.GetLastXWellnessStatesAsync(User.Identity.Name, date, xDays);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         _logger.LogError($"Failed to get WellnessStates: {e.Message}", e);
+        //         throw;
+        //     }
+        // }
 
-        /// <summary>
-        /// Get DTO object containing (overall Wellness score, date) for the past xDays before date
-        /// </summary>
-        /// <param name="date"></param>
-        /// <param name="xDays"></param>
-        /// <returns></returns>
-        [HttpGet("[action]")]
-        public async Task<WeeklyScoreDTO> GetLastXWellnessStatesGraphData(DateOnly date, int xDays)
-        {
-            try
-            {
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness States - username/key was null"); }
-                if (xDays <= 0) { throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days"); }
-                var tup = await _userService.GetLastXWellnessStatesGraphDataAsync(User.Identity.Name, date, xDays);
-                return new WeeklyScoreDTO(tup.Item1, tup.Item2);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Failed to get WellnessStates: {e.Message}", e);
-                throw;
-            }
-        }
+        // /// <summary>
+        // /// Get DTO object containing (overall Wellness score, date) for the past xDays before date
+        // /// </summary>
+        // /// <param name="date"></param>
+        // /// <param name="xDays"></param>
+        // /// <returns></returns>
+        // [HttpGet("[action]")]
+        // public async Task<WeeklyScoreDTO> GetLastXWellnessStatesGraphData(DateOnly date, int xDays)
+        // {
+        //     try
+        //     {
+        //         if (User.Identity?.Name is null) { throw new NullReferenceException("Error getting Wellness States - username/key was null"); }
+        //         if (xDays <= 0) { throw new Exception("Call to GetLastXWellnessStatesAsync has invalid number of days"); }
+        //         var tup = await _userService.GetLastXWellnessStatesGraphDataAsync(User.Identity.Name, date, xDays);
+        //         return new WeeklyScoreDTO(tup.Item1, tup.Item2);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         _logger.LogError($"Failed to get WellnessStates: {e.Message}", e);
+        //         throw;
+        //     }
+        // }
 
-        /// <summary>
-        /// Add a personal api access token for a given application
-        /// </summary>
-        /// <param name="applicationName"></param>
-        /// <param name="accessToken"></param>
-        /// <returns>Result of token adding</returns>
-        [HttpPost("[action]")]
-        public async Task<IActionResult> AddPersonalApiAccessToken(string applicationName, string accessToken)
-        {
-            try
-            {
-                if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
-                var res = await _userService.SetPersonalApiAccessToken(User.Identity.Name, applicationName, accessToken);
-                return Ok(res);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Failed to add personal api access token: {e.Message}", e);
-                throw;
-            }
-        }
+        // /// <summary>
+        // /// Add a personal api access token for a given application
+        // /// </summary>
+        // /// <param name="applicationName"></param>
+        // /// <param name="accessToken"></param>
+        // /// <returns>Result of token adding</returns>
+        // [HttpPost("[action]")]
+        // public async Task<IActionResult> AddPersonalApiAccessToken(string applicationName, string accessToken)
+        // {
+        //     try
+        //     {
+        //         if (User.Identity?.Name is null) { throw new NullReferenceException("Error adding Wellness State - username/key was null"); }
+        //         var res = await _userService.SetPersonalApiAccessToken(User.Identity.Name, applicationName, accessToken);
+        //         return Ok(res);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         _logger.LogError($"Failed to add personal api access token: {e.Message}", e);
+        //         throw;
+        //     }
+        // }
 
 
     }//end userController
