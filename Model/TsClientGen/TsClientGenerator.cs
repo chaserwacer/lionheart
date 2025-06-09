@@ -3,7 +3,10 @@ using NSwag;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using NSwag.CodeGeneration.OperationNameGenerators;
-
+/// <summary>
+/// Generates TypeScript client code from an OpenAPI document.
+/// This class provides methods to generate TypeScript client code based on the provided OpenAPI JSON.
+/// </summary>
 public class TsClientGenerator
 {
 
