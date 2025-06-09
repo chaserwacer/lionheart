@@ -1,4 +1,3 @@
-using lionheart.Controllers;
 using lionheart.Data;
 using lionheart.WellBeing;
 using lionheart.ActivityTracking;
@@ -11,6 +10,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using lionheart.Model.DTOs;
+using Ardalis.Result; // Add this if not already present
 
 namespace lionheart.Services
 {
@@ -26,90 +28,37 @@ namespace lionheart.Services
             _context = context;
         }
 
-        /// <summary>
-        /// Get activities from starting date to ending date. This method is run such that start is the earlier date, end is the later date (closer to present).
-        /// </summary>
-        /// <param name="userID">user id</param>
-        /// <param name="start">earlier date</param>
-        /// <param name="end">later date</param>
-        /// <returns>List of activities </returns>
-        public async Task<List<Activity>> GetActivitiesAsync(string userID, DateOnly start, DateOnly end)
+        /// <inheritdoc />
+        public async Task<List<Activity>> GetLiftActivitiesAsync(IdentityUser user, DateRangeRequest dateRange)
         {
-            var privateKey = getUserPrivateKey(userID).Result;
-            DateTime startDateTime = start.ToDateTime(new TimeOnly(0, 0));
-            DateTime endDateTime = end.ToDateTime(new TimeOnly(23, 59, 59));
-            return await _context.Activities.Where(a => a.DateTime >= startDateTime && a.DateTime <= endDateTime && a.UserID == privateKey).Include(a => a.RideDetails).Include(a => a.LiftDetails).Include(a => a.RunWalkDetails).ToListAsync();
+            var userGuid = Guid.Parse(user.Id);
+            DateTime startDateTime = dateRange.StartDate.ToDateTime(TimeOnly.MinValue);
+            DateTime endDateTime = dateRange.EndDate.ToDateTime(TimeOnly.MaxValue);
+            return await _context.Activities.Where(a => a.DateTime >= startDateTime && a.DateTime <= endDateTime && a.UserID == userGuid && a.LiftDetails != null).Include(a => a.LiftDetails).ToListAsync();
         }
 
-
-        /// <summary>
-        /// Get number of minutes of actvivity in time span from start date to end date.
-        /// </summary>
-        /// <param name="userID">user id</param>
-        /// <param name="start">earlier date</param>
-        /// <param name="end">later date</param>
-        /// <returns>int num minuntes </returns>
-        public async Task<int> GetActivityMinutesAsync(string userID, DateOnly start, DateOnly end)
+        public async Task<Result<List<Activity>>> GetActivitiesAsync(IdentityUser user, DateRangeRequest dateRange)
         {
-            var privateKey = getUserPrivateKey(userID).Result;
-            DateTime startDateTime = start.ToDateTime(new TimeOnly(0, 0));
-            DateTime endDateTime = end.ToDateTime(new TimeOnly(23, 59, 59));
-            var activities = await _context.Activities.Where(a => a.DateTime >= startDateTime && a.DateTime <= endDateTime && a.UserID == privateKey).ToListAsync();
-            int minutes = 0;
-            foreach (var activity in activities)
-            {
-                minutes += activity.TimeInMinutes;
-            }
-            return minutes;
+            DateTime startDateTime = dateRange.StartDate.ToDateTime(TimeOnly.MinValue);
+            DateTime endDateTime = dateRange.EndDate.ToDateTime(TimeOnly.MaxValue);
+            var userGuid = Guid.Parse(user.Id);
+            var activities = await _context.Activities
+                .Where(a => a.DateTime >= startDateTime && a.DateTime <= endDateTime && a.UserID == userGuid)
+                .Include(a => a.RideDetails)
+                .Include(a => a.LiftDetails)
+                .Include(a => a.RunWalkDetails)
+                .ToListAsync();
 
+            return Result<List<Activity>>.Success(activities);
         }
 
-        /// <summary>
-        /// Get ratio of lifts to rides to run/walk during period from start date to end date
-        /// </summary>
-        /// <param name="userID">user id</param>
-        /// <param name="start">earlier date</param>
-        /// <param name="end">later date</param>
-        /// <returns>DTO object containing the numbers for the ratio</returns>
-        public async Task<ActivityTypeRatioDto> GetActivityTypeRatioAsync(string userID, DateOnly start, DateOnly end)
+        public async Task<Result<Activity>> AddActivityAsync(IdentityUser user, CreateActivityRequest activityRequest)
         {
-            var activites = await GetActivitiesAsync(userID, start, end);
-            var numRunWalk = 0;
-            var numRide = 0;
-            var numLift = 0;
-            foreach (var activity in activites)
-            {
-                if (activity.RunWalkDetails is not null)
-                {
-                    numRunWalk++;
-                }
-                else if (activity.LiftDetails is not null)
-                {
-                    numLift++;
-                }
-                else if (activity.RideDetails is not null)
-                {
-                    numRide++;
-                }
-            }
-            return new ActivityTypeRatioDto(numLift, numRunWalk, numRide);
-
-
-        }
-
-        /// <summary>
-        /// Add/persist a blank activity
-        /// </summary>
-        /// <param name="userID">Identity User username</param>
-        /// <param name="activityRequest">DTO object holding activity data</param>
-        /// <returns>Created Activity</returns>
-        public async Task<Activity> AddActivityAsync(string userID, CreateActivityRequest activityRequest)
-        {
-            var privateKey = getUserPrivateKey(userID).Result;
+            var userGuid = Guid.Parse(user.Id);
             Activity activity = new()
             {
                 ActivityID = Guid.NewGuid(),
-                UserID = privateKey,
+                UserID = userGuid,
                 DateTime = activityRequest.DateTime,
                 TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
@@ -123,18 +72,12 @@ namespace lionheart.Services
 
             _context.Activities.Add(activity);
             await _context.SaveChangesAsync();
-            return activity;
+            return Result<Activity>.Created(activity);
         }
 
-        /// <summary>
-        /// Add/persist a run/walk activity
-        /// </summary>
-        /// <param name="userID">Identity User username</param>
-        /// <param name="activityRequest">DTO object holding activity data</param>
-        /// <returns>Created Activity</returns>
-        public async Task<Activity> AddRunWalkActivityAsync(string userID, CreateRunWalkRequest activityRequest)
+        public async Task<Result<Activity>> AddRunWalkActivityAsync(IdentityUser user, CreateRunWalkRequest activityRequest)
         {
-            var privateKey = getUserPrivateKey(userID).Result;
+            var userGuid = Guid.Parse(user.Id);
             var activityID = Guid.NewGuid();
             RunWalkDetails runWalkDetails = new()
             {
@@ -148,7 +91,7 @@ namespace lionheart.Services
             Activity activity = new()
             {
                 ActivityID = activityID,
-                UserID = privateKey,
+                UserID = userGuid,
                 DateTime = activityRequest.DateTime,
                 TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
@@ -164,18 +107,12 @@ namespace lionheart.Services
             _context.Activities.Add(activity);
             _context.RunWalkDetails.Add(runWalkDetails);
             await _context.SaveChangesAsync();
-            return activity;
+            return Result<Activity>.Created(activity);
         }
 
-        /// <summary>
-        /// Add/persist a ride activity 
-        /// </summary>
-        /// <param name="userID">Identity User username</param>
-        /// <param name="activityRequest">DTO object holding activity data</param>
-        /// <returns>Created Activity</returns>
-        public async Task<Activity> AddRideActivityAsync(string userID, CreateRideRequest activityRequest)
+        public async Task<Result<Activity>> AddRideActivityAsync(IdentityUser user, CreateRideRequest activityRequest)
         {
-            var privateKey = getUserPrivateKey(userID).Result;
+            var userGuid = Guid.Parse(user.Id);
             var activityID = Guid.NewGuid();
             RideDetails rideDetails = new()
             {
@@ -190,7 +127,7 @@ namespace lionheart.Services
             Activity activity = new()
             {
                 ActivityID = activityID,
-                UserID = privateKey,
+                UserID = userGuid,
                 DateTime = activityRequest.DateTime,
                 TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
@@ -206,18 +143,12 @@ namespace lionheart.Services
             _context.Activities.Add(activity);
             _context.RideDetails.Add(rideDetails);
             await _context.SaveChangesAsync();
-            return activity;
+            return Result<Activity>.Created(activity);
         }
 
-        /// <summary>
-        /// Add/persist a lift activity 
-        /// </summary>
-        /// <param name="userID">Identity User username</param>
-        /// <param name="activityRequest">DTO object holding activity data</param>
-        /// <returns>Created Activity</returns>
-        public async Task<Activity> AddLiftActivityAsync(string userID, CreateLiftRequest activityRequest)
+        public async Task<Result<Activity>> AddLiftActivityAsync(IdentityUser user, CreateLiftRequest activityRequest)
         {
-            var privateKey = getUserPrivateKey(userID).Result;
+            var userGuid = Guid.Parse(user.Id);
             var activityID = Guid.NewGuid();
             LiftDetails liftDetails = new()
             {
@@ -236,7 +167,7 @@ namespace lionheart.Services
             Activity activity = new()
             {
                 ActivityID = activityID,
-                UserID = privateKey,
+                UserID = userGuid,
                 DateTime = activityRequest.DateTime,
                 TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
@@ -251,19 +182,56 @@ namespace lionheart.Services
             _context.Activities.Add(activity);
             _context.LiftDetails.Add(liftDetails);
             await _context.SaveChangesAsync();
-            return activity;
+            return Result<Activity>.Created(activity);
         }
 
-        /// <summary>
-        ///  Get the number of sets done for each muscle group from all of the lift activities from start to end date
-        /// </summary>
-        /// <param name="userID"></param>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        /// <returns></returns>
-        public async Task<MuscleSetsDto> GetMuscleSetsAsync(string userID, DateOnly start, DateOnly end)
+        public async Task<Result<int>> GetActivityMinutesAsync(IdentityUser user, DateRangeRequest dateRange)
         {
-            var activities = await GetLiftActivitiesAsync(userID, start, end);
+            var userGuid = Guid.Parse(user.Id);
+            DateTime startDateTime = dateRange.StartDate.ToDateTime(TimeOnly.MinValue);
+            DateTime endDateTime = dateRange.EndDate.ToDateTime(TimeOnly.MaxValue);
+            var activities = await _context.Activities
+                .Where(a => a.DateTime >= startDateTime && a.DateTime <= endDateTime && a.UserID == userGuid)
+                .ToListAsync();
+            int minutes = 0;
+            foreach (var activity in activities)
+            {
+                minutes += activity.TimeInMinutes;
+            }
+            return Result<int>.Success(minutes);
+        }
+
+        public async Task<Result<ActivityTypeRatioDto>> GetActivityTypeRatioAsync(IdentityUser user, DateRangeRequest dateRange)
+        {
+            var activitiesResult = await GetActivitiesAsync(user, dateRange);
+            if (!activitiesResult.IsSuccess)
+            {
+                return Result<ActivityTypeRatioDto>.Error(activitiesResult.Errors.ToString());
+            }
+            var numRunWalk = 0;
+            var numRide = 0;
+            var numLift = 0;
+            foreach (var activity in activitiesResult.Value)
+            {
+                if (activity.RunWalkDetails is not null)
+                {
+                    numRunWalk++;
+                }
+                else if (activity.LiftDetails is not null)
+                {
+                    numLift++;
+                }
+                else if (activity.RideDetails is not null)
+                {
+                    numRide++;
+                }
+            }
+            return Result<ActivityTypeRatioDto>.Success(new ActivityTypeRatioDto(numLift, numRunWalk, numRide));
+        }
+
+        public async Task<Result<MuscleSetsDto>> GetMuscleSetsAsync(IdentityUser user, DateRangeRequest dateRange)
+        {
+            var activities = await GetLiftActivitiesAsync(user, dateRange);
             int quadSets = 0, hamstringSets = 0, tricepSets = 0, bicepSets = 0, shoulderSets = 0, chestSets = 0, backSets = 0;
             foreach (var activity in activities)
             {
@@ -278,33 +246,7 @@ namespace lionheart.Services
                     backSets += activity.LiftDetails.BackSets;
                 }
             }
-            return new MuscleSetsDto(quadSets, hamstringSets, bicepSets, tricepSets, shoulderSets, chestSets, backSets);
-        }
-
-        /// <summary>
-        /// Get all of the lift activities from start to end date
-        /// </summary>
-        /// <param name="userID"></param>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        /// <returns></returns>
-        public async Task<List<Activity>> GetLiftActivitiesAsync(string userID, DateOnly start, DateOnly end)
-        {
-            var privateKey = getUserPrivateKey(userID).Result;
-            DateTime startDateTime = start.ToDateTime(new TimeOnly(0, 0));
-            DateTime endDateTime = end.ToDateTime(new TimeOnly(23, 59, 59));
-            return await _context.Activities.Where(a => a.DateTime >= startDateTime && a.DateTime <= endDateTime && a.UserID == privateKey && a.LiftDetails != null).Include(a => a.LiftDetails).ToListAsync();
-        }
-
-        /// <summary>
-        /// Helper method to get the guid private key for a given user
-        /// </summary>
-        private async Task<Guid> getUserPrivateKey(string userID)
-        {
-            var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID);
-            var privateKey = identityUser?.Id;
-            if (privateKey is null) { throw new NullReferenceException("User private key was null."); }
-            return Guid.Parse(privateKey);
+            return Result<MuscleSetsDto>.Success(new MuscleSetsDto(quadSets, hamstringSets, bicepSets, tricepSets, shoulderSets, chestSets, backSets));
         }
     }
 

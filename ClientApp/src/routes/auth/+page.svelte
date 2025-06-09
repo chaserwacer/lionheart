@@ -77,7 +77,9 @@
 
     async function createProfile() {
         try {
-            const response = await self.fetch("/api/user/createProfile", {
+            // Old: /api/user/createProfile
+            // New: /api/user/create-profile (POST, body: CreateProfileRequest DTO)
+            const response = await self.fetch("/api/user/create-profile", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

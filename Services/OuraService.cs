@@ -6,6 +6,9 @@ using lionheart.Model.Oura.Dto;
 using lionheart.Model.Oura;
 using System.Text;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Identity;
+using lionheart.Model.DTOs;
+using Ardalis.Result;
 
 namespace lionheart.Services
 {
@@ -29,19 +32,15 @@ namespace lionheart.Services
             _context = context;
         }
 
-        /// <summary>
-        /// Get a Daily Oura Info for a given user for a given date
-        /// </summary>
-        /// <param name="userID"></param>
-        /// <param name="date"></param>
-        /// <returns></returns>
-        public async Task<FrontendDailyOuraInfo> GetDailyOuraInfoAsync(string userID, DateOnly date)
+        public async Task<Result<DailyOuraDataDTO>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date)
         {
-            var privateKey = await GetUserPrivateKey(userID);
-            var dto = await _context.DailyOuraInfos.FirstOrDefaultAsync(x => x.UserID == privateKey && x.Date == date) ?? null;
-            if (dto != null)
+            var userGuid  = Guid.Parse(user.Id);
+            var dto = await _context.DailyOuraInfos.FirstOrDefaultAsync(x => x.UserID == userGuid && x.Date == date) ?? null;
+
+            
+            if (dto is not null)
             {
-                return new FrontendDailyOuraInfo()
+                return Result<DailyOuraDataDTO>.Success(new DailyOuraDataDTO()
                 {
                     ObjectID = dto.ObjectID,
                     Date = dto.Date,
@@ -49,11 +48,11 @@ namespace lionheart.Services
                     ReadinessData = dto.ReadinessData,
                     SleepData = dto.SleepData,
                     ActivityData = dto.ActivityData,
-                };
+                });
             }
             else
             {
-                return new FrontendDailyOuraInfo()
+                return Result<DailyOuraDataDTO>.Success(new DailyOuraDataDTO()
                 {
                     ObjectID = new Guid(),
                     Date = date,
@@ -103,22 +102,14 @@ namespace lionheart.Services
                         RestingHeartRate = 1,
                         SleepBalance = 1
                     },
-                };
+                });
             }
         }
 
-
-        /// <summary>
-        /// This method receives and saves oura ring data from the interval date - daysPrior to date,
-        ///  storing or updating an entry in the database. Each day has one and only one DailyOuraInfo object.
-        /// </summary>
-        /// <param name="userID"></param>
-        /// <param name="date">Given Starting Date</param>
-        /// <param name="daysPrior"># days worth of oura data to pull from (prior to starting date)</param>
-        public async Task SyncOuraAPI(string userID, DateOnly date, int daysPrior)
+        public async Task<Result> SyncOuraAPI(IdentityUser user, DateRangeRequest dateRange)
         {
-            var privateKey = await GetUserPrivateKey(userID);
-            var userPersonalToken = await GetUserPersonalTokenAsync(privateKey);
+            var userGuid = Guid.Parse(user.Id);
+            var userPersonalToken = await GetUserPersonalTokenAsync(userGuid);
 
 
             // Delete Section
@@ -128,11 +119,12 @@ namespace lionheart.Services
 
 
 
-            
+
 
             // Get Dto objects representing the ouraInfos from the past 'daysPrior'
-            var beginningDate = date.AddDays(-daysPrior);
-            var OuraStateInfoObjects = await _context.DailyOuraInfos.Where(o => o.Date >= beginningDate && o.Date <= date && o.UserID == privateKey).
+            var startDate = dateRange.StartDate;
+            var endDate = dateRange.EndDate;
+            var OuraStateInfoObjects = await _context.DailyOuraInfos.Where(o => o.Date >= startDate && o.Date <= endDate && o.UserID == userGuid).
             Select(o => new DailyOuraInfoDto(
                 o.ObjectID,
                 o.Date,
@@ -142,7 +134,7 @@ namespace lionheart.Services
             OuraStateInfoObjects = [.. OuraStateInfoObjects.OrderBy(o => o.Date)];
 
             // Determine how far back I need to go to pull oura data
-            DateOnly earliestDateToInclude = date.AddDays(-daysPrior);
+            DateOnly earliestDateToInclude = startDate;
             for (int i = 0; i < OuraStateInfoObjects.Count; i++)
             {
                 if (OuraStateInfoObjects[i].SyncDate > OuraStateInfoObjects[i].Date)
@@ -152,14 +144,20 @@ namespace lionheart.Services
             }
 
             // Call Oura APi's to recieve stuctured data
-            var activityUrl = "https://api.ouraring.com/v2/usercollection/daily_activity?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
-            var resilienceUrl = "https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
-            var sleepUrl = "https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
-            var readinessUrl = "https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + date.ToString("yyyy-MM-dd");
+            /*
+            KNOWN ISSUE: The activity api doesnt wori the same as the other three. For some reason, you must have the end date be one day after the actual end date you want to include.
+            This appears to be a bug in the Oura API.
+            */
+            var activityUrl = "https://api.ouraring.com/v2/usercollection/daily_activity?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + endDate.AddDays(1).ToString("yyyy-MM-dd");
+            var resilienceUrl = "https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + endDate.ToString("yyyy-MM-dd");
+            var sleepUrl = "https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + endDate.ToString("yyyy-MM-dd");
+            var readinessUrl = "https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + endDate.ToString("yyyy-MM-dd");
 
-            if (earliestDateToInclude >= date)
+
+            //TODO: Update to return an uncessfessful result 
+            if (earliestDateToInclude > endDate)
             {
-                return;
+                return Result.Error("Earliest date to include is after the end date. No data to sync.");
             }
 
             (List<OuraDailyActivityDocument> activityDocuments, string activityJson) = await GetOuraDataFromApiAsync<OuraDailyActivityDocument>(activityUrl, userPersonalToken);
@@ -167,16 +165,17 @@ namespace lionheart.Services
             (List<OuraDailySleepDocument> sleepDocuments, string sleepJson) = await GetOuraDataFromApiAsync<OuraDailySleepDocument>(sleepUrl, userPersonalToken);
             (List<OuraDailyReadinessDocument> readinessDocuments, string readinessJson) = await GetOuraDataFromApiAsync<OuraDailyReadinessDocument>(readinessUrl, userPersonalToken);
 
-            var numberDays = date.DayNumber - earliestDateToInclude.DayNumber + 1;
+            var numberDays = endDate.DayNumber - earliestDateToInclude.DayNumber + 1;
             ActivityData activityData;
             ResilienceData resilienceData;
             SleepData sleepData;
             ReadinessData readinessData;
-            var currentDate = date.AddDays(-numberDays);
+            var currentDate = earliestDateToInclude;
 
-            for (int i = 0; i < numberDays - 1; i++) 
+            while (currentDate <= endDate)
             {
-                currentDate = currentDate.AddDays(1);
+
+                
                 // Build pieces of Daily Oura object via creating its subobjects, who contain pieces of each of the different documents I acquired from Oura.
                 var activityDocument = activityDocuments.FirstOrDefault(d => d.Day == currentDate);
                 if (activityDocument != null)
@@ -284,19 +283,20 @@ namespace lionheart.Services
                         SleepBalance = readinessDocument.Contributors.SleepBalance ?? 0,
                     };
                 }
-                else{
-                     readinessData = new()
+                else
+                {
+                    readinessData = new()
                     {
                         ReadinessScore = -1,
                         TemperatureDeviation = 0,
-                        ActivityBalance =  0,
-                        BodyTemperature =  0,
-                        HrvBalance =  0,
-                        PreviousDayActivity =  0,
-                        PreviousNight =  0,
+                        ActivityBalance = 0,
+                        BodyTemperature = 0,
+                        HrvBalance = 0,
+                        PreviousDayActivity = 0,
+                        PreviousNight = 0,
                         RecoveryIndex = 0,
-                        RestingHeartRate =  0,
-                        SleepBalance =  0,
+                        RestingHeartRate = 0,
+                        SleepBalance = 0,
                     };
                 }
 
@@ -305,7 +305,7 @@ namespace lionheart.Services
                 DailyOuraInfo dailyOuraInfo = new()
                 {
                     ObjectID = Guid.NewGuid(),
-                    UserID = privateKey,
+                    UserID = userGuid,
                     Date = currentDate,
                     SyncDate = DateOnly.FromDateTime(DateTime.Now),
                     ActivityData = activityData,
@@ -321,7 +321,7 @@ namespace lionheart.Services
                 // Add or update database
                 if (OuraStateInfoObjects.Any(o => o.Date == dailyOuraInfo.Date))
                 {
-                    var existingState = await _context.DailyOuraInfos.FirstOrDefaultAsync(w => w.Date == dailyOuraInfo.Date && w.UserID == privateKey);
+                    var existingState = await _context.DailyOuraInfos.FirstOrDefaultAsync(w => w.Date == dailyOuraInfo.Date && w.UserID == userGuid);
                     if (existingState != null)
                     {
                         existingState.SyncDate = dailyOuraInfo.SyncDate;
@@ -340,15 +340,20 @@ namespace lionheart.Services
                     {
                         _context.DailyOuraInfos.Add(dailyOuraInfo);
                         await _context.SaveChangesAsync();
+                      
                     }
+                    // If the while loop is never entered, return false to indicate nothing was synced
+                   
                 }
                 else
                 {
                     _context.DailyOuraInfos.Add(dailyOuraInfo);
                     await _context.SaveChangesAsync();
+                    
                 }
-
+                currentDate = currentDate.AddDays(1);
             }
+            return Result.Success();
         }
 
         /// <summary>
@@ -418,16 +423,6 @@ namespace lionheart.Services
 
         }
 
-        /// <summary>
-        /// Helper method to get the guid private key for a given user
-        /// </summary>
-        private async Task<Guid> GetUserPrivateKey(string userID)
-        {
-            var identityUser = await _context.Users.FirstOrDefaultAsync(u => u.UserName == userID);
-            var privateKey = identityUser?.Id;
-            if (privateKey is null) { throw new NullReferenceException("User private key was null."); }
-            return Guid.Parse(privateKey);
-        }
     }
     /// <summary>
     /// DTO object used for determining when the Oura Data for a given date was synced. Used to determine if a day's info needs to be updated or if it is final.
@@ -450,7 +445,7 @@ namespace lionheart.Services
     /// <summary>
     /// Object to hold a Daily Oura Info for the frontend (doesnt contain some of the backend oriented properies)
     /// </summary>
-    public class FrontendDailyOuraInfo
+    public class DailyOuraDataDTO
     {
         public Guid ObjectID { get; init; }
         public DateOnly Date { get; set; }

@@ -26,7 +26,7 @@
 
     async function trackWellnessState() {
         try {
-            const response = await self.fetch("/api/user/AddWellnessState", {
+            const response = await self.fetch("/api/wellness/add", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

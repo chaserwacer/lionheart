@@ -3,13 +3,18 @@ using lionheart;
 using lionheart.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Scalar.AspNetCore;
+using Microsoft.AspNetCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 var configuration = builder.Configuration;
-
+ 
 builder.Services.AddDbContext<ModelContext>(options =>
     options.UseSqlite("Data Source=./Data/lionheart.db"));
+
+builder.Services.AddOpenApi();
+
 
 
 builder.Services.AddAuthorization();
@@ -22,11 +27,20 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();
+builder.Services.AddTransient<IWellnessService, WellnessService>();
+// builder.Services.AddTransient<IPhi4Service, Phi4Service>();
+// builder.Services.AddTransient<IInsightService, InsightService>();
+
 
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
+
+// builder.Services.AddHttpClient("Phi4Client", client =>
+// {
+//     client.BaseAddress = new Uri("http://localhost:11434/api/generate"); // Default Ollama API URL
+// });
 
 
 builder.Services.AddHttpClient();
@@ -35,25 +49,55 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(); // <-- Add this
+
 builder.Logging.AddConsole(); 
 builder.Logging.AddDebug();
 
 var app = builder.Build();
 
 app.MapIdentityApi<IdentityUser>();
-
-
+app.MapOpenApi();
+app.MapScalarApiReference();
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
-
 }
 app.UseDeveloperExceptionPage();
-app.UseSwagger();
-app.UseSwaggerUI();
+
+app.UseSwagger(); // <-- Add this
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Lionheart API V1");
+    c.RoutePrefix = "swagger";
+});
+
 app.UseRouting();
+
+app.UseExceptionHandler(errorApp =>
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+
+        var exceptionFeature = context.Features.Get<IExceptionHandlerPathFeature>();
+        var exception = exceptionFeature?.Error;
+
+        // Optional: log it
+        // logger.LogError(exception, "Unhandled exception");
+
+        var errorResponse = new
+        {
+            Message = "An internal server error occurred.",
+            TraceId = context.TraceIdentifier // helps with debugging
+        };
+
+        await context.Response.WriteAsJsonAsync(errorResponse);
+    })
+);
+
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -68,5 +112,13 @@ app.MapControllerRoute(
 
 app.MapFallbackToFile("about", "about.html");
 app.MapFallbackToFile("index.html");
+
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+Task.Run(async () =>
+    {
+        Thread.Sleep(2000); // wait for the server to start
+        await new TsClientGenerator().SimpleGenerate("http://localhost:7025/swagger/v1/swagger.json");
+    });
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
 app.Run();

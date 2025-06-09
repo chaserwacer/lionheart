@@ -1,5 +1,7 @@
-using lionheart.Controllers;
+using Ardalis.Result;
+using lionheart.Model.DTOs;
 using lionheart.WellBeing;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -9,13 +11,26 @@ namespace lionheart.Services
 {
     public interface IUserService
     {
-        Task<WellnessState> AddWellnessStateAsync(CreateWellnessStateRequest req, string userID);
-        //Task<List<WellnessState>> GetWellnessStatesAsync(string userId);
-        Task<(Boolean, string)> HasCreatedProfileAsync(string? userID);
-        Task<LionheartUser> CreateProfileAsync(CreateProfileRequest req, string userID);
-        Task<WellnessState> GetWellnessStateAsync(string userID, DateOnly date);
-        Task<List<WellnessState>> GetLastXWellnessStatesAsync(string userID, DateOnly endDate, int X);
-        Task<(List<double>, List<string>)> GetLastXWellnessStatesGraphDataAsync(string userID, DateOnly date, int X);
-        Task<bool> SetPersonalApiAccessToken(string userID, string applicationName, string accessToken);
+        /// <summary>
+        /// Check the status of the user's profile creation.
+        /// </summary>
+        /// <param name="user"></param>
+        /// <returns></returns>
+        Task<Result<BootUserDTO>> HasCreatedProfileAsync(IdentityUser user);
+        /// <summary>
+        /// Create a new profile for the user.
+        /// </summary>
+        /// <param name="user"></param>
+        /// <param name="req"></param>
+        /// <returns></returns>
+        Task<Result<LionheartUser>> CreateProfileAsync(IdentityUser user, CreateProfileRequest req);
+        /// <summary>
+        /// Set a personal access token for a given application. Creates a token for a given application if it does not yet exist, 
+        /// updates it if it already exists.
+        /// </summary>
+        /// <param name="user"></param>
+        /// <param name="req"></param>
+        /// <returns></returns>
+        Task<Result<bool>> SetPersonalApiAccessToken(IdentityUser user, CreatePersonalApiAccessTokenRequest req);
     }
 }

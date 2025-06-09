@@ -3,7 +3,7 @@ import { fetchTodaysWellnessState } from '$lib/stores'
 
 export async function load({ fetch, params, url }) {
     await fetchBootUserDto(fetch)
-    await fetchTodaysWellnessState(fetch)
+    //await fetchTodaysWellnessState(fetch)
     let advice = ''
 
     await fetch('https://api.adviceslip.com/advice')

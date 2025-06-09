@@ -100,8 +100,9 @@
         const TimeSpan = hours * 60 + minutes;
         if (isBiking) {
             try {
+                // New endpoint: /api/activity/add-ride-activity
                 const response = await self.fetch(
-                    "/api/activity/addrideactivity",
+                    "/api/activity/add-ride-activity",
                     {
                         method: "POST",
                         headers: {
@@ -128,7 +129,6 @@
 
                 if (response.ok) {
                     $pageUpdate = new Date();
-
                     closeModal();
                 } else {
                     console.error(
@@ -141,8 +141,9 @@
             }
         } else if (isLift) {
             try {
+                // New endpoint: /api/activity/add-lift-activity
                 const response = await self.fetch(
-                    "/api/activity/addliftactivity",
+                    "/api/activity/add-lift-activity",
                     {
                         method: "POST",
                         headers: {
@@ -167,7 +168,7 @@
                             tricepSets: tricepSets,
                             shoulderSets: shoulderSets,
                             chestSets: chestSets,
-                            backsets: backSets,
+                            backSets: backSets,
                         }),
                     },
                 );
@@ -187,8 +188,9 @@
         } else if (isRunWalk) {
             let averagePace = paceMinutes * 60 + paceSeconds;
             try {
+                // New endpoint: /api/activity/add-runwalk-activity
                 const response = await self.fetch(
-                    "/api/activity/addrunwalkactivity",
+                    "/api/activity/add-runwalk-activity",
                     {
                         method: "POST",
                         headers: {
@@ -206,7 +208,7 @@
                             externalVariablesRating: externalVariablesRating,
                             distance: distance,
                             elevationGain: elevationGain,
-                            averagePace: averagePace,
+                            averagePaceInSeconds: averagePace,
                             mileSplitsInSeconds: [0],
                             runType: runType,
                         }),
@@ -227,7 +229,8 @@
             }
         } else {
             try {
-                const response = await self.fetch("/api/activity/addactivity", {
+                // New endpoint: /api/activity/add-activity
+                const response = await self.fetch("/api/activity/add-activity", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

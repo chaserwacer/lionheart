@@ -13,13 +13,15 @@ export const wellnessStateDate = writable('');
 
 export async function fetchBootUserDto(fetch: { (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (input: RequestInfo | URL, init?: RequestInit): Promise<Response>; (arg0: string): any; }) {
     try {
-        const response = await fetch('api/user/GetBootUserDto');
+        // Old: 'api/user/GetBootUserDto'
+        // New endpoint: 'api/user/has-created-profile'
+        const response = await fetch('/api/user/has-created-profile');
         if (response.ok) {
             const data = await response.json();
             bootUserDto.set(data);
-            // console.log("Fetch Boot in store: data is:", data)
         } else {
-            console.error('Failed to fetch BootUserDto');
+            const errorText = await response.text();
+            console.error(`Failed to fetch BootUserDto: ${response.status} ${response.statusText} - ${errorText}`);
         }
     } catch (error) {
         console.error('Error fetching BootUserDto:', error);
@@ -52,7 +54,9 @@ export async function fetchTodaysWellnessState(fetch: { (input: RequestInfo | UR
         const day = String(today.getDate()).padStart(2, '0');
         const currentDate = `${year}-${month}-${day}`;
 
-        const url = 'api/user/getwellnessstate?date=' + currentDate
+        // Old: 'api/user/getwellnessstate?date=' + currentDate
+        // New endpoint: 'api/wellness/get?date=' + currentDate
+        const url = '/api/wellness/get?date=' + currentDate;
         const response = await fetch(url);
 
         if (response.ok) {

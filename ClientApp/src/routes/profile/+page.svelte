@@ -19,7 +19,7 @@
 
   async function logout() {
     try {
-      const response = await self.fetch("/api/user/logoutuser", {
+      const response = await self.fetch("/api/user/logout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -37,18 +37,20 @@
   }
 
   async function addPersonalApiAccessToken() {
-    console.log("hii");
+    // Old: /api/user/addpersonalapiaccesstoken?applicationName=...&accessToken=...
+    // New endpoint: POST /api/user/set-personal-api-access-token with body { applicationName, accessToken }
     try {
-      let url =
-        "/api/user/addpersonalapiaccesstoken?applicationName=" +
-        applicationName +
-        "&accessToken=" +
-        personalApiAccessToken;
+      const url = "/api/user/set-personal-api-access-token";
+      const body = {
+        applicationName,
+        accessToken: personalApiAccessToken
+      };
       const response = await self.fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify(body)
       });
       if (response.ok) {
         applicationName = "";

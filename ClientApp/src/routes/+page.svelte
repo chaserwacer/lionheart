@@ -44,17 +44,29 @@
     ],
   };
 
+  // --- CHANGED: updateWellnessGraph now uses new endpoint and request query ---
   async function updateWellnessGraph() {
-    const response = await fetch(
-      "api/user/GetLastXWellnessStatesGraphData?date=" +
-        selectedDate +
-        "&xDays=6",
-    );
+    // Old: POST to /api/wellness/get-range with body
+    // New: GET to /api/wellness/get-range?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+    const endDate = selectedDate;
+    const startDateObj = new Date(selectedDate);
+    startDateObj.setDate(startDateObj.getDate() - 6);
+    const startDate = startDateObj.toISOString().slice(0, 10);
+
+    const url = `api/wellness/get-range?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
+
     if (!response.ok) {
-      console.error("Failed to get todays Wellness State");
+      console.error("Failed to get wellness states for graph");
+      return;
     }
     const data = await response.json();
-    const { scores, dates } = data;
+    // Assume data is an array of WellnessState objects with overallScore and date
+    const scores = data.map((ws: { overallScore: any; }) => ws.overallScore);
+    const dates = data.map((ws: { date: any; }) => ws.date);
 
     wellnessGraphData = {
       labels: dates,
@@ -118,9 +130,12 @@
     }
   });
 
+  // --- CHANGED: fetchWellnessState now uses new endpoint URL ---
   async function fetchWellnessState() {
     try {
-      const url = "api/user/getwellnessstate?date=" + selectedDate;
+      // Old: "api/user/getwellnessstate?date=" + selectedDate
+      // New: "api/wellness/get?date=" + selectedDate
+      const url = "api/wellness/get?date=" + selectedDate;
       const response = await fetch(url);
 
       if (response.ok) {
