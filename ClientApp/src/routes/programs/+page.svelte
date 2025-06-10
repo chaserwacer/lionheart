@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fakePrograms } from '$lib/testData/programs';
-  import type { TrainingProgram } from '$lib/testData/programs';
+  import type { Program } from '$lib/types/programs';
 
   function formatDate(dateStr: string) {
     const options = { month: 'short', day: 'numeric' } as const;
@@ -17,14 +17,14 @@
     }
   }
 
-  function getNextWorkoutHighlights(program: TrainingProgram) {
-    const firstSession = program.sessions[0];
+  function getNextWorkoutHighlights(program: Program) {
+    const firstSession = program.trainingSessions[0];
     return firstSession?.movements.slice(0, 3).map(movement => {
       const set = movement.sets[0];
-      const rpeText = set.recommendedRpe ? `RPE ${set.recommendedRpe}` : '';
+      const rpeText = set.recommendedRPE ? `RPE ${set.recommendedRPE}` : '';
       const repText = set.recommendedReps ? `${set.recommendedReps} reps` : '';
-      const weightText = set.recommendedWeight ? `${set.recommendedWeight} lbs` : '';
-      return [movement.name, repText, weightText, rpeText].filter(Boolean).join(' ');
+      const weightText = set.recommendedWeight ? `${set.recommendedWeight} ${set.weightUnit === 'Kilograms' ? 'kg' : 'lbs'}` : '';
+      return [movement.movementBase.name, repText, weightText, rpeText].filter(Boolean).join(' ');
     }) ?? [];
   }
 </script>
@@ -33,16 +33,16 @@
   <h1 class="text-3xl font-bold mb-6">Blake's Program Library</h1>
 
   <div class="grid gap-6 md:grid-cols-2">
-    {#each fakePrograms as program, i (program.name)}
+    {#each fakePrograms as program, i (program.title)}
       <a
-        href={`/programs/${program.name.replace(/\s+/g, '-').toLowerCase()}`}
+        href={`/programs/${program.title.replace(/\s+/g, '-').toLowerCase()}`}
         class="block"
       >
         <div class="bg-zinc-900 rounded-xl p-6 shadow-lg hover:shadow-2xl transition cursor-pointer hover:bg-zinc-800 text-white h-[320px] flex flex-col justify-between">
           <!-- Header -->
           <div class="flex items-center justify-between mb-4">
-            <h2 class="font-bold truncate text-2xl md:text-3xl w-2/3">{program.name}</h2>
-            <span class={`text-xs font-semibold text-black px-3 py-1 rounded ${getTypeColor(program.type)}`}>{program.type}</span>
+            <h2 class="font-bold truncate text-2xl md:text-3xl w-2/3">{program.title}</h2>
+            <span class={`text-xs font-semibold text-black px-3 py-1 rounded ${getTypeColor(program.tags[0] ?? '')}`}>{program.tags[0] ?? 'Unknown'}</span>
           </div>
 
           <!-- Info Row -->
@@ -66,7 +66,7 @@
 
           <!-- Footer: Next Workout Date + Progress -->
           <div>
-            <p class="text-sm text-gray-400 mt-4 mb-2"><span class="font-medium">Next Workout:</span> {formatDate(program.nextWorkoutDate)}</p>
+            <p class="text-sm text-gray-400 mt-4 mb-2"><span class="font-medium">Next Workout:</span> {formatDate(program.nextTrainingSessionDate)}</p>
             <div class="relative w-full bg-zinc-700 h-5 rounded-full">
               <div
                 class="bg-green-500 h-5 rounded-full text-xs text-black font-bold flex items-center justify-center"

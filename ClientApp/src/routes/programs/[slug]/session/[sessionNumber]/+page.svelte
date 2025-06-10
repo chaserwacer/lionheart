@@ -1,15 +1,14 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { fakePrograms } from '$lib/testData/programs';
-  import type { Movement, Session, SetEntry } from '$lib/testData/programs';
+  import type { Movement, TrainingSession, SetEntry } from '$lib/types/programs';
   import { onMount } from 'svelte';
 
   const slug = $page.params.slug;
   const sessionNumber = parseInt($page.params.sessionNumber);
 
-  const program = fakePrograms.find(p => p.name.toLowerCase().replace(/\s+/g, '-') === slug);
-  const session: Session | undefined = program?.sessions
-    ?.find(s => s.sessionNumber === sessionNumber);
+  const program = fakePrograms.find(p => p.title.toLowerCase().replace(/\s+/g, '-') === slug);
+  const session: TrainingSession | undefined = program?.trainingSessions[sessionNumber - 1];
 
   let movements: Movement[] = session?.movements || [];
   let completedIndices = new Set<number>();
@@ -19,18 +18,26 @@
   const allowedSteps = [1, 5, 10, 25];
 
   onMount(() => {
-    movements = movements.map((movement) => ({
-      ...movement,
-      sets: movement.sets.map(set => ({
+  movements = movements.map(movement => ({
+    ...movement,
+    sets: movement.sets.map(set => {
+      const fallbackReps = set.recommendedReps ?? 5;
+      const fallbackWeight = set.recommendedWeight ?? 100;
+      const fallbackRPE = set.recommendedRPE ?? 7;
+
+      return {
         ...set,
-        recommendedRpe: typeof set.recommendedRpe === 'number' ? set.recommendedRpe : 7,
-        actualRpe: typeof set.actualRpe === 'number' ? set.actualRpe : (typeof set.recommendedRpe === 'number' ? set.recommendedRpe : 7),
-        actualReps: typeof set.actualReps === 'number' ? set.actualReps : set.recommendedReps,
-        actualWeight: typeof set.actualWeight === 'number' ? set.actualWeight : set.recommendedWeight,
-      }))
-    }));
-    movements.forEach((_, index) => unitMap[index] = 'lbs');
-  });
+        actualReps: set.actualReps > 0 ? set.actualReps : fallbackReps,
+        actualWeight: set.actualWeight > 0 ? set.actualWeight : fallbackWeight,
+        actualRPE: set.actualRPE > 0 ? set.actualRPE : fallbackRPE,
+      };
+    })
+  }));
+
+  movements.forEach((_, index) => unitMap[index] = 'lbs');
+});
+
+
 
   function getRpeColor(actual: number | undefined, target: number | undefined) {
     if (typeof actual !== 'number' || typeof target !== 'number') return 'bg-zinc-900';
@@ -53,7 +60,7 @@
           ...set,
           actualWeight: set.recommendedWeight,
           actualReps: set.recommendedReps,
-          actualRpe: set.recommendedRpe
+          actualRPE: set.recommendedRPE
         };
       });
       return { ...movement, sets: updatedSets };
@@ -73,7 +80,7 @@
 
 {#if session}
   <div class="p-6 max-w-6xl mx-auto">
-    <h1 class="text-4xl font-bold mb-6">Session {session.sessionNumber} - {program?.name}</h1>
+    <h1 class="text-4xl font-bold mb-6">Session {sessionNumber} - {program?.title}</h1>
 
     <div class="mb-4">
       <label class="text-white text-sm mr-2">Weight step increment:</label>
@@ -85,13 +92,13 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-      {#each movements as movement, mvIndex (movement.name)}
+      {#each movements as movement, mvIndex (movement.movementID)}
         {#if !completedIndices.has(mvIndex)}
           <div class="bg-zinc-800 text-white rounded-xl p-4 shadow-md w-full mx-auto max-w-sm self-start">
             <div class="flex justify-between items-start mb-2">
               <div>
-                <h2 class="text-2xl font-bold">{movement.name}</h2>
-                <p class="text-sm text-gray-400 italic">{movement.type ?? 'Unknown Type'}</p>
+                <h2 class="text-2xl font-bold">{movement.movementBase.name}</h2>
+                <p class="text-sm text-gray-400 italic">{movement.movementModifier?.name ?? 'No Modifier'}</p>
               </div>
               <div class="text-sm text-gray-300 italic w-32 text-right">💡 Lorem ipsum dolor sit amet.</div>
             </div>
@@ -124,8 +131,8 @@
                       <input
                         type="number"
                         step="0.5"
-                        class={`text-white p-1 rounded w-14 text-center ${getRpeColor(set.actualRpe, set.recommendedRpe)}`}
-                        bind:value={set.actualRpe}
+                        class={`text-white p-1 rounded w-14 text-center ${getRpeColor(set.actualRPE, set.recommendedRPE)}`}
+                        bind:value={set.actualRPE}
                         on:input={() => movements = [...movements]}
                       />
                     </div>
@@ -156,10 +163,10 @@
     {#if Array.from(completedIndices).length}
       <h2 class="text-2xl text-white font-semibold mt-10 mb-4">✅ Completed Exercises</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-        {#each movements as movement, mvIndex (movement.name)}
+        {#each movements as movement, mvIndex (movement.movementID)}
           {#if completedIndices.has(mvIndex)}
             <div class="bg-zinc-700 text-white rounded-xl p-4 shadow w-full mx-auto max-w-sm opacity-60">
-              <h3 class="text-xl font-bold">{movement.name}</h3>
+              <h3 class="text-xl font-bold">{movement.movementBase.name}</h3>
               <p class="text-sm italic text-gray-300">Marked complete</p>
               <button on:click={() => toggleComplete(mvIndex)} class="text-xs text-yellow-300 hover:underline mt-2">Undo</button>
             </div>
