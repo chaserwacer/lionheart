@@ -62,7 +62,8 @@
             <ActivityTracker />
             <WellnessTracker selectedDate={$wellnessStateDate}/>
             <OuraSync />
-            
+            <button class="btn btn-sm btn-outline btn-primary" on:click={() => goto('/programs')}>Programs</button>
+
           </div>
         </div>
       </div>
