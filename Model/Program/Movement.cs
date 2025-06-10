@@ -16,8 +16,7 @@ public class Movement
     public Guid TrainingSessionID { get; init; }
     public Guid MovementBaseID { get; init; }
     public MovementBase MovementBase { get; set; } = null!;
-    public Guid? MovementModifierID { get; set; }
-    public MovementModifier? MovementModifier { get; set; }
+    public MovementModifier MovementModifier { get; set; } = null!;
 
     public List<SetEntry> Sets { get; set; } = [];
     public string Notes { get; set; } = string.Empty;
