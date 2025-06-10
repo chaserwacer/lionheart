@@ -20,7 +20,7 @@ public class Program
     public DateOnly StartDate { get; set; }
     public DateOnly NextTrainingSessionDate { get; set; }
     public DateOnly EndDate { get; set; }
-    public List<Block> Blocks { get; set; } = [];
+    public List<TrainingSession> TrainingSessions { get; set; } = [];
     /// <summary>
     /// Hold label tags for the program. [Ex: "Powerlifting", "Hypertrophy", "Endurance"]
     /// In the future, this may need to be beefed up and use some sort of more concrete tagging system.

@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace lionheart.Model.Program;
 
 /// <summary>
-/// Class to represent a training session within a <see cref="Block"/>.
+/// Class to represent a training session within a <see cref="Program"/>.
 /// A training session consists of multiple <see cref="Movement"/>s.
 /// </summary>
 public class TrainingSession
@@ -12,7 +12,7 @@ public class TrainingSession
     [Key]
     public Guid SessionID { get; init; }
 
-    public Guid BlockID { get; init; }
+    public Guid ProgramID { get; init; }
     
     // Will be inside the session DTO for use in the frontend. It can be manually calculated during retreival
     //public int SessionNumber { get; set; }
