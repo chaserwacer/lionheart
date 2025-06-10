@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { fakePrograms } from '$lib/data/programs';
-  import type { Movement, Session, SetEntry } from '$lib/data/programs';
+  import { fakePrograms } from '$lib/testData/programs';
+  import type { Movement, Session, SetEntry } from '$lib/testData/programs';
   import { onMount } from 'svelte';
 
   const slug = $page.params.slug;

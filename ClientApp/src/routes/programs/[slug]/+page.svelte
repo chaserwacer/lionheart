@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { fakePrograms } from '$lib/data/programs';
-  import type { TrainingProgram, Session, Movement } from '$lib/data/programs';
+  import { fakePrograms } from '$lib/testData/programs';
+  import type { TrainingProgram, Session, Movement } from '$lib/testData/programs';
   import { page } from '$app/stores';
 
   const slug = $page.params.slug;

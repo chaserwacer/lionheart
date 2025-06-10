@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { fakePrograms } from '$lib/data/programs';
-  import type { TrainingProgram } from '$lib/data/programs';
+  import { fakePrograms } from '$lib/testData/programs';
+  import type { TrainingProgram } from '$lib/testData/programs';
 
   function formatDate(dateStr: string) {
     const options = { month: 'short', day: 'numeric' } as const;
