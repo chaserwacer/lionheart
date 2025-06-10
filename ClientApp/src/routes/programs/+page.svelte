@@ -18,15 +18,14 @@
   }
 
   function getNextWorkoutHighlights(program: TrainingProgram) {
-    const firstBlock = program.blocks[0];
-    const firstSession = firstBlock.sessions[0];
-    return firstSession.movements.slice(0, 3).map(movement => {
+    const firstSession = program.sessions[0];
+    return firstSession?.movements.slice(0, 3).map(movement => {
       const set = movement.sets[0];
       const rpeText = set.recommendedRpe ? `RPE ${set.recommendedRpe}` : '';
       const repText = set.recommendedReps ? `${set.recommendedReps} reps` : '';
       const weightText = set.recommendedWeight ? `${set.recommendedWeight} lbs` : '';
       return [movement.name, repText, weightText, rpeText].filter(Boolean).join(' ');
-    });
+    }) ?? [];
   }
 </script>
 
@@ -50,8 +49,8 @@
           <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
             <!-- Date Info -->
             <div class="flex-1">
-              <p class="text-base text-gray-300"><span class="font-medium">Start:</span> {formatDate(program.blocks[0].startDate)}</p>
-              <p class="text-base text-gray-300"><span class="font-medium">End:</span> {formatDate(program.blocks[0].endDate)}</p>
+              <p class="text-base text-gray-300"><span class="font-medium">Start:</span> {formatDate(program.startDate)}</p>
+              <p class="text-base text-gray-300"><span class="font-medium">End:</span> {formatDate(program.endDate)}</p>
             </div>
 
             <!-- Workout Highlights -->

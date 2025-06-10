@@ -8,23 +8,35 @@
   const sessionNumber = parseInt($page.params.sessionNumber);
 
   const program = fakePrograms.find(p => p.name.toLowerCase().replace(/\s+/g, '-') === slug);
-  const session: Session | undefined = program?.blocks
-    ?.flatMap(block => block.sessions)
-    .find(s => s.sessionNumber === sessionNumber);
+  const session: Session | undefined = program?.sessions
+    ?.find(s => s.sessionNumber === sessionNumber);
 
   let movements: Movement[] = session?.movements || [];
   let completedIndices = new Set<number>();
   let unitMap: Record<number, 'lbs' | 'kg'> = {};
+  let weightStep: number = 5;
+
+  const allowedSteps = [1, 5, 10, 25];
 
   onMount(() => {
+    movements = movements.map((movement) => ({
+      ...movement,
+      sets: movement.sets.map(set => ({
+        ...set,
+        recommendedRpe: typeof set.recommendedRpe === 'number' ? set.recommendedRpe : 7,
+        actualRpe: typeof set.actualRpe === 'number' ? set.actualRpe : (typeof set.recommendedRpe === 'number' ? set.recommendedRpe : 7),
+        actualReps: typeof set.actualReps === 'number' ? set.actualReps : set.recommendedReps,
+        actualWeight: typeof set.actualWeight === 'number' ? set.actualWeight : set.recommendedWeight,
+      }))
+    }));
     movements.forEach((_, index) => unitMap[index] = 'lbs');
   });
 
   function getRpeColor(actual: number | undefined, target: number | undefined) {
-    if (actual === undefined || target === undefined) return '';
+    if (typeof actual !== 'number' || typeof target !== 'number') return 'bg-zinc-900';
     const diff = actual - target;
-    if (diff >= 1.5) return 'bg-red-600';
-    if (diff <= -1.5) return 'bg-blue-600';
+    if (diff >= 1) return 'bg-red-600';
+    if (diff <= -1) return 'bg-blue-600';
     return 'bg-green-600';
   }
 
@@ -35,10 +47,8 @@
   function resetSet(mvIndex: number, setIndex: number) {
     movements = movements.map((movement, i) => {
       if (i !== mvIndex) return movement;
-
       const updatedSets = movement.sets.map((set, j) => {
         if (j !== setIndex) return set;
-
         return {
           ...set,
           actualWeight: set.recommendedWeight,
@@ -46,7 +56,6 @@
           actualRpe: set.recommendedRpe
         };
       });
-
       return { ...movement, sets: updatedSets };
     });
   }
@@ -60,33 +69,20 @@
     }
     completedIndices = updated;
   }
-
-  function updateReps(e: Event, set: SetEntry) {
-    const input = e.target as HTMLInputElement;
-    set.actualReps = parseInt(input.value);
-  }
-
-  function updateRpe(e: Event, set: SetEntry) {
-    const input = e.target as HTMLInputElement;
-    set.actualRpe = Math.round(parseFloat(input.value) * 2) / 2;
-  }
 </script>
-
-<style>
-  input[type="number"].no-spinner::-webkit-outer-spin-button,
-  input[type="number"].no-spinner::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  input[type="number"].no-spinner {
-    -moz-appearance: textfield;
-  }
-</style>
 
 {#if session}
   <div class="p-6 max-w-6xl mx-auto">
     <h1 class="text-4xl font-bold mb-6">Session {session.sessionNumber} - {program?.name}</h1>
+
+    <div class="mb-4">
+      <label class="text-white text-sm mr-2">Weight step increment:</label>
+      <select bind:value={weightStep} class="p-1 rounded bg-zinc-900 text-white">
+        {#each allowedSteps as step}
+          <option value={step}>{step}</option>
+        {/each}
+      </select>
+    </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
       {#each movements as movement, mvIndex (movement.name)}
@@ -119,33 +115,29 @@
                       <span class="text-gray-300">Reps:</span>
                       <input
                         type="number"
-                        class="no-spinner bg-zinc-900 text-white p-1 rounded w-14 text-center"
-                        value={set.actualReps ?? set.recommendedReps}
-                        on:input={(e) => updateReps(e, set)}
-                      />
+                        class="bg-zinc-900 text-white p-1 rounded w-14 text-center"
+                        step="1"
+                        bind:value={set.actualReps} />
                     </div>
                     <div class="flex flex-col gap-1">
                       <span class="text-gray-300">RPE:</span>
                       <input
                         type="number"
                         step="0.5"
-                        class={`no-spinner bg-zinc-900 text-white p-1 rounded w-14 text-center ${getRpeColor(set.actualRpe, set.recommendedRpe)}`}
-                        value={set.actualRpe ?? set.recommendedRpe}
-                        on:input={(e) => updateRpe(e, set)} />
+                        class={`text-white p-1 rounded w-14 text-center ${getRpeColor(set.actualRpe, set.recommendedRpe)}`}
+                        bind:value={set.actualRpe}
+                        on:input={() => movements = [...movements]}
+                      />
                     </div>
-                    <label class="text-sm flex flex-col items-center">
-                      Weight:
+                    <div class="flex flex-col gap-1 items-center">
+                      <span class="text-gray-300">Weight:</span>
                       <input
-                        type="range"
-                        min={Math.max(0, set.recommendedWeight - 100)}
-                        max={set.recommendedWeight + 100}
+                        type="number"
+                        class="bg-zinc-900 text-white p-1 rounded w-20 text-center"
+                        step={weightStep}
                         bind:value={set.actualWeight} />
-                      <span class="text-xs">
-                        {unitMap[mvIndex] === 'kg'
-                          ? toKg(set.actualWeight ?? set.recommendedWeight)
-                          : (set.actualWeight ?? set.recommendedWeight)} {unitMap[mvIndex]}
-                      </span>
-                    </label>
+                      <span class="text-xs text-gray-400">Recommended: {set.recommendedWeight} {unitMap[mvIndex]}</span>
+                    </div>
                     <button on:click={() => resetSet(mvIndex, setIndex)} class="text-xs text-red-400 hover:underline mt-1">Reset</button>
                   </div>
                 </li>

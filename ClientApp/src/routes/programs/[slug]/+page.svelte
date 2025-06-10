@@ -9,7 +9,7 @@
   );
 
   const sessions: Session[] = program
-    ? program.blocks?.[0]?.sessions ?? []
+    ? program.sessions ?? []
     : [];
 
   const getSessionPreview = (session: Session): string[] => {
