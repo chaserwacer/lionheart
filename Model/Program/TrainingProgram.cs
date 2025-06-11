@@ -2,16 +2,16 @@ using lionheart.WellBeing;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace lionheart.Model.Program;
+namespace lionheart.Model.TrainingProgram;
 
 /// <summary>
 /// Class to represent a training program.
 /// It consists of multiple <see cref="Block"/>s, each containing <see cref="TrainingSession"/>s.
 /// </summary>
-public class Program
+public class TrainingProgram
 {
     [Key]
-    public Guid ProgramID { get; init; }
+    public Guid TrainingProgramID { get; init; }
 
     public Guid UserID { get; init; }
 

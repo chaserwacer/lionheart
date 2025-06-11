@@ -4,6 +4,7 @@ using lionheart.ActivityTracking;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using lionheart.Model.Oura;
+using lionheart.Model.TrainingProgram;
 
 namespace lionheart.Data
 {
@@ -21,6 +22,11 @@ namespace lionheart.Data
         public DbSet<LiftDetails> LiftDetails { get; set; }
         public DbSet<ApiAccessToken> ApiAccessTokens { get; set; }
         public DbSet<DailyOuraInfo> DailyOuraInfos { get; set; }
+        public DbSet<TrainingProgram> TrainingPrograms { get; set; }
+        public DbSet<TrainingSession> TrainingSessions { get; set; }
+        public DbSet<MovementBase> MovementBases { get; set; }
+        public DbSet<Movement> Movements { get; set; }
+        public DbSet<SetEntry> SetEntries { get; set; }
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -65,6 +71,48 @@ namespace lionheart.Data
 
             modelBuilder.Entity<LiftDetails>()
                 .HasKey(d => d.ActivityID);
+
+            // Training Programs
+            modelBuilder.Entity<TrainingProgram>()
+                .HasKey(p => p.TrainingProgramID);
+            modelBuilder.Entity<TrainingProgram>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.TrainingPrograms)
+                .HasForeignKey(p => p.UserID);
+
+            // Training Sessions
+            modelBuilder.Entity<TrainingSession>()
+                .HasKey(s => s.TrainingSessionID);
+            modelBuilder.Entity<TrainingSession>()
+                .HasOne<TrainingProgram>(t => t.TrainingProgram)
+                .WithMany(p => p.TrainingSessions)
+                .HasForeignKey(s => s.TrainingProgramID);
+
+            // Movements + Movement Bases + Movement Modifiers         
+            modelBuilder.Entity<Movement>()
+            .HasKey(m => m.MovementID);
+            modelBuilder.Entity<Movement>()
+                .HasOne<TrainingSession>(t => t.TrainingSession)
+                .WithMany(s => s.Movements)
+                .HasForeignKey(m => m.TrainingSessionID);
+
+            modelBuilder.Entity<MovementBase>()
+                .HasKey(m => m.MovementBaseID);
+            modelBuilder.Entity<Movement>()
+                .OwnsOne(m => m.MovementModifier);
+            modelBuilder.Entity<Movement>()
+                .HasOne<MovementBase>(m => m.MovementBase)
+                .WithMany()
+                .HasForeignKey(m => m.MovementBaseID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Set Entries
+            modelBuilder.Entity<SetEntry>()
+                .HasKey(s => s.SetEntryID);
+            modelBuilder.Entity<SetEntry>()
+                .HasOne<Movement>(m => m.Movement)
+                .WithMany(m => m.Sets)
+                .HasForeignKey(s => s.MovementID);
 
             // Access Tokens
             modelBuilder.Entity<ApiAccessToken>()

@@ -1,22 +1,28 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace lionheart.Model.Program;
+namespace lionheart.Model.TrainingProgram;
 
 /// <summary>
 /// Rerepresents a thing that a user does in a training session.
 /// A <see cref="MovementBase"/> is chosen, and a <see cref="MovementModifier"/> can be applied.
 /// A <see cref="Movement"/> can have multiple <see cref="SetEntry"/>s, which represent the sets performed during the movement.
 /// </summary>
+/// <remarks>
+/// A prexisiting <see cref="MovementBase"/> is referenced, a new entry in the db will not be created.
+/// The <see cref="MovementModifier"/> will be created and will not attempt to reference an existing one.
+/// </remarks>
 public class Movement
 {
     [Key]
     public Guid MovementID { get; init; }
-
-    public Guid TrainingSessionID { get; init; }
-    public Guid MovementBaseID { get; init; }
-    public MovementBase MovementBase { get; set; } = null!;
-    public MovementModifier MovementModifier { get; set; } = null!;
+    [ForeignKey("TrainingSession")]
+    public Guid TrainingSessionID { get; init; } 
+    public TrainingSession TrainingSession { get; set; } = null!;
+    [ForeignKey("MovementBase")]
+    public Guid MovementBaseID { get; set; }
+    public MovementBase MovementBase { get; set; } = new();
+    public MovementModifier MovementModifier { get; set; } = new();
 
     public List<SetEntry> Sets { get; set; } = [];
     public string Notes { get; set; } = string.Empty;
@@ -40,7 +46,6 @@ public class MovementBase
 /// </summary>
 public class MovementModifier
 {
-    public Guid MovementModifierID { get; init; }
     public string Name { get; set; } = string.Empty;
     public string Equipment { get; set; } = string.Empty;
     public int Duration { get; set; }
@@ -53,7 +58,9 @@ public class SetEntry
 {
     [Key]
     public Guid SetEntryID { get; init; }
+    [ForeignKey("Movement")]
     public Guid MovementID { get; init; }
+    public Movement Movement { get; set; } = null!;
     public int RecommendedReps { get; set; }
     public double RecommendedWeight { get; set; }
     public int RecommendedRPE { get; set; }
@@ -64,7 +71,7 @@ public class SetEntry
 }
 
 public enum WeightUnit
-    {
-        Kilograms,
-        Pounds
-    }
+{
+    Kilograms,
+    Pounds
+}
