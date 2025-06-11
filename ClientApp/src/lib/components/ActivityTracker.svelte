@@ -1,7 +1,7 @@
 <script>
     import { onMount } from "svelte";
-    import { fetchTodaysActivities } from "./activityStore";
-    import { pageUpdate } from "$lib/stores";
+    import { fetchTodaysActivities } from "../stores/activityStore";
+    import { pageUpdate } from "$lib/stores/stores";
 
     let dateTime = "";
     let hours = 0;

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Activity } from "./activityStore";
+    import type { Activity } from "../stores/activityStore";
 
     export let activity: Activity;
     let date = activity.dateTime.toWellFormed();

@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { syncOuraData } from "$lib/ouraStore";
-    import { pageUpdate } from "$lib/stores";
+    import { syncOuraData } from "$lib/stores/ouraStore";
+    import { pageUpdate } from "$lib/stores/stores";
     let isLoading = false;
     let syncSuccess: boolean | null = null;
 

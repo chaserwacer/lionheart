@@ -1,6 +1,20 @@
 <script lang="ts">
-  import { fakePrograms } from '$lib/testData/programs';
+  import CreateProgramModal from '$lib/components/CreateProgram.svelte';
+  import { programStorage } from '$lib/stores/programStore';
+  import { onMount } from 'svelte';
   import type { Program } from '$lib/types/programs';
+
+  let showModal = false;
+  let programs: Program[] = [];
+
+  onMount(() => {
+    programs = programStorage.load();
+  });
+
+  function handleProgramCreated() {
+    programs = programStorage.load();
+    showModal = false;
+  }
 
   function formatDate(dateStr: string) {
     const options = { month: 'short', day: 'numeric' } as const;
@@ -33,7 +47,7 @@
   <h1 class="text-3xl font-bold mb-6">Blake's Program Library</h1>
 
   <div class="grid gap-6 md:grid-cols-2">
-    {#each fakePrograms as program, i (program.title)}
+    {#each programs as program (program.programID)}
       <a
         href={`/programs/${program.title.replace(/\s+/g, '-').toLowerCase()}`}
         class="block"
@@ -47,13 +61,11 @@
 
           <!-- Info Row -->
           <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-            <!-- Date Info -->
             <div class="flex-1">
               <p class="text-base text-gray-300"><span class="font-medium">Start:</span> {formatDate(program.startDate)}</p>
               <p class="text-base text-gray-300"><span class="font-medium">End:</span> {formatDate(program.endDate)}</p>
             </div>
 
-            <!-- Workout Highlights -->
             <div class="flex-1">
               <h3 class="text-base text-gray-200 font-semibold mb-1">Next Workout Highlights:</h3>
               <ul class="text-base text-gray-100 space-y-1">
@@ -64,7 +76,7 @@
             </div>
           </div>
 
-          <!-- Footer: Next Workout Date + Progress -->
+          <!-- Footer -->
           <div>
             <p class="text-sm text-gray-400 mt-4 mb-2"><span class="font-medium">Next Workout:</span> {formatDate(program.nextTrainingSessionDate)}</p>
             <div class="relative w-full bg-zinc-700 h-5 rounded-full">
@@ -81,6 +93,22 @@
     {/each}
   </div>
 </div>
+
+<!-- Floating Add Button -->
+<button
+  on:click={() => showModal = true}
+  class="fixed bottom-6 right-6 bg-green-500 hover:bg-green-400 text-black rounded-full w-12 h-12 text-2xl shadow-lg z-40"
+>
+  +
+</button>
+
+<CreateProgramModal
+  show={showModal}
+  on:close={() => showModal = false}
+  on:created={handleProgramCreated}
+/>
+
+
 
 <style>
   a:hover {

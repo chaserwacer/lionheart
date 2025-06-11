@@ -1,11 +1,11 @@
 <script>
   import { goto } from "$app/navigation";
-  import ActivityTracker from "$lib/ActivityTracker.svelte";
-    import OuraSync from "$lib/OuraSync.svelte";
-  import { fetchBootUserDto, bootUserDto } from "$lib/stores";
-  import WellnessTracker from "$lib/WellnessTracker.svelte";
+  import ActivityTracker from "$lib/components/ActivityTracker.svelte";
+    import OuraSync from "$lib/components/OuraSync.svelte";
+  import { fetchBootUserDto, bootUserDto } from "$lib/stores/stores";
+  import WellnessTracker from "$lib/components/WellnessTracker.svelte";
   import { onMount } from "svelte";
-  import {wellnessStateDate} from "$lib/stores"
+  import {wellnessStateDate} from "$lib/stores/stores"
 
 
   import "tailwindcss/tailwind.css";

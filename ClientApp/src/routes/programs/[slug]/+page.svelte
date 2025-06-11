@@ -2,12 +2,15 @@
   import { fakePrograms } from '$lib/testData/programs';
   import type { Program, TrainingSession, Movement } from '$lib/types/programs';
   import { page } from '$app/stores';
+    import { onMount } from 'svelte';
+  import { programStorage } from '$lib/stores/programStore';
+  import { v4 as uuid } from 'uuid';
 
   const slug = $page.params.slug;
-  const program: Program | undefined = fakePrograms.find(
+  let program: Program | undefined = fakePrograms.find(
     p => p.title.toLowerCase().replace(/\s+/g, '-') === slug
   );
-
+  
   const sessions: TrainingSession[] = program
     ? program.trainingSessions ?? []
     : [];
@@ -30,6 +33,36 @@
     ];
     return suggestions[sessionIndex] || [];
   };
+
+  let showModal = false;
+  let newSessionNote = '';
+
+  onMount(() => {
+    const all = programStorage.load();
+    const real = all.find(p => p.title.toLowerCase().replace(/\s+/g, '-') === slug);
+    if (real) {
+      program = real;
+      sessions.length = 0;
+      sessions.push(...real.trainingSessions);
+    }
+  });
+
+  function addSession() {
+    if (!program || !newSessionNote) return;
+
+    const newSession: TrainingSession = {
+      sessionID: uuid(),
+      programID: program.programID,
+      date: new Date().toISOString(),
+      movements: [],
+    };
+
+    program.trainingSessions.push(newSession);
+    programStorage.update(program);
+    sessions.push(newSession);
+    newSessionNote = '';
+    showModal = false;
+  }
 </script>
 
 {#if program}
@@ -72,3 +105,25 @@
     <h1 class="text-3xl font-bold mb-4 text-red-400">Program not found</h1>
   </div>
 {/if}
+{#if showModal}
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md text-black">
+      <h2 class="text-xl font-bold mb-4">Add New Session</h2>
+      <input
+        bind:value={newSessionNote}
+        placeholder="Session notes or label"
+        class="w-full px-3 py-2 border border-gray-300 rounded mb-4"
+      />
+      <div class="flex justify-end space-x-2">
+        <button on:click={() => showModal = false} class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+        <button on:click={addSession} class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Add</button>
+      </div>
+    </div>
+  </div>
+{/if}
+<button
+  on:click={() => showModal = true}
+  class="fixed bottom-6 right-6 bg-green-500 hover:bg-green-400 text-black rounded-full w-12 h-12 text-2xl shadow-lg z-40"
+>
+  +
+</button>

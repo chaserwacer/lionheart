@@ -1,6 +1,6 @@
 <script>
   import { goto } from "$app/navigation";
-  import { bootUserDto } from "$lib/stores";
+  import { bootUserDto } from "$lib/stores/stores";
   import { onMount } from "svelte";
   import { themeChange } from "theme-change";
 

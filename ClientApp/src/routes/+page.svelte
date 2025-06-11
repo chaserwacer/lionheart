@@ -7,24 +7,24 @@
     type WellnessState,
     pageUpdate,
     wellnessStateDate,
-  } from "$lib/stores";
+  } from "$lib/stores/stores.js";
 
-  import ActivityTracker from "$lib/ActivityTracker.svelte";
-  import WellnessTracker from "$lib/WellnessTracker.svelte";
+  import ActivityTracker from "$lib/components/ActivityTracker.svelte";
+  import WellnessTracker from "$lib/components/WellnessTracker.svelte";
   import { writable } from "svelte/store";
   import Layout from "./+layout.svelte";
-  import ActivityViewer from "$lib/SingleActivityViewer.svelte";
+  import ActivityViewer from "$lib/components/SingleActivityViewer.svelte";
   import Chart from "chart.js/auto";
   import type { Line } from "svelte-chartjs";
-  import type { Activity, MuscleSetsDto } from "$lib/activityStore";
+  import type { Activity, MuscleSetsDto } from "$lib/stores/activityStore.js";
   import {
     fetchActivities,
     fetchActivityMinutes,
     fetchActivityRatio,
     fetchWeeklyMuscleSetsDto,
-  } from "$lib/activityStore.js";
-  import SingleActivityViewer from "$lib/SingleActivityViewer.svelte";
-  import { syncOuraData, GetDailyOuraInfo } from "$lib/ouraStore";
+  } from "$lib/stores/activityStore.js";
+  import SingleActivityViewer from "$lib/components/SingleActivityViewer.svelte";
+  import { syncOuraData, GetDailyOuraInfo } from "$lib/stores/ouraStore.js";
 
   /**
    * @type {typeof import("svelte-chartjs").Line}

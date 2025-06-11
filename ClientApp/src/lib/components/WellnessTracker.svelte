@@ -3,7 +3,7 @@
         fetchTodaysWellnessState,
         todaysWellnessState,
         pageUpdate,
-    } from "$lib/stores";
+    } from "$lib/stores/stores";
     import { writable } from "svelte/store";
     /**
      * @type {typeof import("svelte-chartjs").Line}

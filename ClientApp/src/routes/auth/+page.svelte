@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { bootUserDto, fetchBootUserDto } from "$lib/stores";
+    import { bootUserDto, fetchBootUserDto } from "$lib/stores/stores";
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
     import { onMount } from "svelte";
