@@ -74,7 +74,8 @@ public class MovementService : IMovementService
             TrainingSessionID = request.TrainingSessionID,
             MovementBaseID = request.MovementBaseID,
             Notes = request.Notes,
-            MovementModifier = request.MovementModifier
+            MovementModifier = request.MovementModifier,
+            IsCompleted = false
         };
 
         _context.Movements.Add(movement);
@@ -110,6 +111,7 @@ public class MovementService : IMovementService
         movement.MovementBaseID = request.MovementBaseID;
         movement.Notes = request.Notes;
         movement.MovementModifier = request.MovementModifier;
+        movement.IsCompleted = request.IsCompleted;
 
         await _context.SaveChangesAsync();
         return Result<Movement>.Success(movement);

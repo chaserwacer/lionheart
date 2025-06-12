@@ -17,7 +17,7 @@ public class Movement
     [Key]
     public Guid MovementID { get; init; }
     [ForeignKey("TrainingSession")]
-    public Guid TrainingSessionID { get; init; } 
+    public Guid TrainingSessionID { get; init; }
     public TrainingSession TrainingSession { get; set; } = null!;
     [ForeignKey("MovementBase")]
     public Guid MovementBaseID { get; set; }
@@ -26,6 +26,7 @@ public class Movement
 
     public List<SetEntry> Sets { get; set; } = [];
     public string Notes { get; set; } = string.Empty;
+    public bool IsCompleted { get; set; } = false;
     
 }
 

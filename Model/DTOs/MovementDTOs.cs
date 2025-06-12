@@ -33,6 +33,8 @@ public class UpdateMovementRequest
 
     [Required]
     public required Guid TrainingSessionID { get; init; }
+    [Required]
+    public required bool IsCompleted { get; init; }
 
 
 }
