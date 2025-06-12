@@ -47,13 +47,14 @@
       movements.forEach((_, index) => unitMap[index] = 'lbs');
     }
   });
-  function getRpeColor(actual: number | undefined, target: number | undefined) {
+  function getRpeColor(actual: number | undefined, target: number | undefined): string {
     if (typeof actual !== 'number' || typeof target !== 'number') return 'bg-zinc-900';
     const diff = actual - target;
     if (diff >= 1) return 'bg-red-600';
     if (diff <= -1) return 'bg-blue-600';
     return 'bg-green-600';
   }
+
 
   function toKg(lbs: number): number {
     return Math.round(lbs * 0.453592);
@@ -74,6 +75,27 @@
       return { ...movement, sets: updatedSets };
     });
   }
+
+  function updateSet(
+    mvIndex: number,
+    setIndex: number,
+    field: keyof Pick<SetEntry, 'actualReps' | 'actualWeight' | 'actualRPE'>,
+    value: number
+  ): void {
+    if (!program || !session) return;
+
+    const targetSet = movements[mvIndex].sets[setIndex] as SetEntry;
+    targetSet[field] = value;
+
+    session.movements = movements;
+
+    const i = program.trainingSessions.findIndex(s => s.sessionID === sessionID);
+    if (i !== -1) {
+      program.trainingSessions[i] = session;
+      programStorage.update(program);
+    }
+  }
+
 
  function toggleComplete(index: number): void {
     if (!program || !session) return;
@@ -144,28 +166,32 @@
                     <div class="flex flex-col gap-1">
                       <span class="text-gray-300">Reps:</span>
                       <input
-                        type="number"
-                        class="bg-zinc-900 text-white p-1 rounded w-14 text-center"
-                        step="1"
-                        bind:value={set.actualReps} />
+                      type="number"
+                      class="bg-zinc-900 text-white p-1 rounded w-14 text-center"
+                      step="1"
+                      bind:value={set.actualReps}
+                      on:input={() => updateSet(mvIndex, setIndex, 'actualReps', set.actualReps)}
+                    />
                     </div>
                     <div class="flex flex-col gap-1">
-                      <span class="text-gray-300">RPE:</span>
-                      <input
-                        type="number"
-                        step="0.5"
-                        class={`text-white p-1 rounded w-14 text-center ${getRpeColor(set.actualRPE, set.recommendedRPE)}`}
-                        bind:value={set.actualRPE}
-                        on:input={() => movements = [...movements]}
-                      />
-                    </div>
+                        <span class="text-gray-300">RPE:</span>
+                        <input
+                          type="number"
+                          class={`text-white p-1 rounded w-14 text-center ${getRpeColor(set.actualRPE, set.recommendedRPE)}`}
+                          step="1"
+                          bind:value={set.actualRPE}
+                          on:input={() => updateSet(mvIndex, setIndex, 'actualRPE', set.actualRPE)}
+                        />
+                      </div>
                     <div class="flex flex-col gap-1 items-center">
                       <span class="text-gray-300">Weight:</span>
                       <input
                         type="number"
                         class="bg-zinc-900 text-white p-1 rounded w-20 text-center"
                         step={weightStep}
-                        bind:value={set.actualWeight} />
+                        bind:value={set.actualWeight}
+                        on:input={() => updateSet(mvIndex, setIndex, 'actualWeight', set.actualWeight)}
+                      />
                       <span class="text-xs text-gray-400">Recommended: {set.recommendedWeight} {unitMap[mvIndex]}</span>
                     </div>
                     <button on:click={() => resetSet(mvIndex, setIndex)} class="text-xs text-red-400 hover:underline mt-1">Reset</button>
