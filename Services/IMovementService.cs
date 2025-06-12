@@ -15,6 +15,13 @@ public interface IMovementService
     /// <returns>A result containing a list of movements.</returns>
     Task<Result<List<Movement>>> GetMovementsAsync(IdentityUser user, Guid sessionId);
 
+    /// <summary>
+    /// Update the completion status of all movements in a training session.
+    /// </summary>
+    /// <param name="user">The user who owns the session.</param>
+    /// <param name="request">The request containing movement completion updates.</param>
+    /// <returns>A result indicating success or failure.</returns>
+    Task<Result> UpdateMovementsCompletion(IdentityUser user, UpdateMovementsCompletionRequest request);
 
 
     /// <summary>
@@ -53,4 +60,5 @@ public interface IMovementService
     /// <param name="request">The movement base creation request.</param>
     /// <returns>A result containing the created movement base.</returns>
     Task<Result<MovementBase>> CreateMovementBaseAsync(CreateMovementBaseRequest request);
+
 }

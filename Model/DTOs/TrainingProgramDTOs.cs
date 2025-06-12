@@ -72,6 +72,7 @@ public class UpdateTrainingSessionRequest
 public class TrainingSessionDTO
 {
     public Guid TrainingSessionID { get; init; }
+    public Guid TrainingProgramID { get; init; }
     public int SessionNumber { get; set; }
     public DateOnly Date { get; set; }
     public TrainingSessionStatus Status { get; set; } 

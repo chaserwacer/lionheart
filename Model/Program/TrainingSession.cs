@@ -27,7 +27,8 @@ public class TrainingSession
             Date = Date,
             Status = Status,
             Movements = Movements,
-            SessionNumber = sessionNumber
+            SessionNumber = sessionNumber,
+            TrainingProgramID = TrainingProgramID
         };
     }
 }
