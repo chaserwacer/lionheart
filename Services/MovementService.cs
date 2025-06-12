@@ -169,4 +169,30 @@ public class MovementService : IMovementService
         await _context.SaveChangesAsync();
         return Result<MovementBase>.Created(movementBase);
     }
+
+    public async Task<Result> UpdateMovementsCompletion(IdentityUser user, UpdateMovementsCompletionRequest request)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        
+        // Verify user owns the training session
+        var session = await _context.TrainingSessions
+            .Include(ts => ts.TrainingProgram)
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID && 
+                                     ts.TrainingProgram!.UserID == userGuid)
+            .ThenInclude(ts => ts.Movements);
+        
+        if (session is null)
+        {
+            return Result.NotFound("Training session not found or access denied.");
+        }
+
+        // Update completion status for each movement
+        foreach (var movement in session.Movements)
+        {
+            movement.IsCompleted = request.Complete;
+        }
+
+        await _context.SaveChangesAsync();
+        return Result.Success();
+    }
 }

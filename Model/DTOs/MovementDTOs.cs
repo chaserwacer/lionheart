@@ -46,3 +46,12 @@ public class CreateMovementBaseRequest
     [Required]
     public required string Name { get; init; }
 }
+
+public class UpdateMovementsCompletionRequest
+{
+    [Required]
+    public required Guid TrainingSessionID { get; init; }
+
+    [Required]
+    public required bool Complete { get; init; }
+}
