@@ -308,6 +308,140 @@ export class AddWellnessStateEndpointClient {
     }
 }
 
+export class CreateMovementBaseEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    createMovementBase(body: CreateMovementBaseRequest | undefined): Promise<MovementBase> {
+        let url_ = this.baseUrl + "/api/movement/create-movement-base";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreateMovementBase(_response);
+        });
+    }
+
+    protected processCreateMovementBase(response: Response): Promise<MovementBase> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = MovementBase.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ProblemDetails.fromJS(resultData409);
+            return throwException("Conflict", status, _responseText, _headers, result409);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MovementBase>(null as any);
+    }
+}
+
+export class CreateMovementEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    create(body: CreateMovementRequest | undefined): Promise<Movement> {
+        let url_ = this.baseUrl + "/api/movement/create";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate(_response);
+        });
+    }
+
+    protected processCreate(response: Response): Promise<Movement> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = Movement.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Movement>(null as any);
+    }
+}
+
 export class CreateProfileEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -365,6 +499,444 @@ export class CreateProfileEndpointClient {
             });
         }
         return Promise.resolve<LionheartUser>(null as any);
+    }
+}
+
+export class CreateSetEntryEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    create2(body: CreateSetEntryRequest | undefined): Promise<SetEntry> {
+        let url_ = this.baseUrl + "/api/set-entry/create";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate2(_response);
+        });
+    }
+
+    protected processCreate2(response: Response): Promise<SetEntry> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = SetEntry.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SetEntry>(null as any);
+    }
+}
+
+export class CreateTrainingProgramEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    create3(body: CreateTrainingProgramRequest | undefined): Promise<TrainingProgram> {
+        let url_ = this.baseUrl + "/api/training-program/create";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate3(_response);
+        });
+    }
+
+    protected processCreate3(response: Response): Promise<TrainingProgram> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = TrainingProgram.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingProgram>(null as any);
+    }
+}
+
+export class CreateTrainingSessionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    create4(body: CreateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
+        let url_ = this.baseUrl + "/api/training-session/create";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate4(_response);
+        });
+    }
+
+    protected processCreate4(response: Response): Promise<TrainingSessionDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = TrainingSessionDTO.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingSessionDTO>(null as any);
+    }
+}
+
+export class DeleteMovementEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return No Content
+     */
+    delete(movementId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/movement/delete/{movementId}";
+        if (movementId === undefined || movementId === null)
+            throw new Error("The parameter 'movementId' must be defined.");
+        url_ = url_.replace("{movementId}", encodeURIComponent("" + movementId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDelete(_response);
+        });
+    }
+
+    protected processDelete(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class DeleteSetEntryEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return No Content
+     */
+    delete2(setEntryId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/set-entry/delete/{setEntryId}";
+        if (setEntryId === undefined || setEntryId === null)
+            throw new Error("The parameter 'setEntryId' must be defined.");
+        url_ = url_.replace("{setEntryId}", encodeURIComponent("" + setEntryId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDelete2(_response);
+        });
+    }
+
+    protected processDelete2(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class DeleteTrainingProgramEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return No Content
+     */
+    delete3(programId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/training-program/delete/{programId}";
+        if (programId === undefined || programId === null)
+            throw new Error("The parameter 'programId' must be defined.");
+        url_ = url_.replace("{programId}", encodeURIComponent("" + programId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDelete3(_response);
+        });
+    }
+
+    protected processDelete3(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class DeleteTrainingSessionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return No Content
+     */
+    delete4(trainingSessionId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/training-session/delete/{trainingSessionId}";
+        if (trainingSessionId === undefined || trainingSessionId === null)
+            throw new Error("The parameter 'trainingSessionId' must be defined.");
+        url_ = url_.replace("{trainingSessionId}", encodeURIComponent("" + trainingSessionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDelete4(_response);
+        });
+    }
+
+    protected processDelete4(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
     }
 }
 
@@ -640,6 +1212,143 @@ export class GetDailyOuraDataEndpointClient {
     }
 }
 
+export class GetMovementBasesEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    getMovementBases(): Promise<MovementBase[]> {
+        let url_ = this.baseUrl + "/api/movement/get-movement-bases";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetMovementBases(_response);
+        });
+    }
+
+    protected processGetMovementBases(response: Response): Promise<MovementBase[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(MovementBase.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MovementBase[]>(null as any);
+    }
+}
+
+export class GetMovementsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    getAll(trainingSessionID: string, sessionId: string): Promise<Movement[]> {
+        let url_ = this.baseUrl + "/api/movement/get-all/{sessionId}";
+        if (trainingSessionID === undefined || trainingSessionID === null)
+            throw new Error("The parameter 'trainingSessionID' must be defined.");
+        url_ = url_.replace("{trainingSessionID}", encodeURIComponent("" + trainingSessionID));
+        if (sessionId === undefined || sessionId === null)
+            throw new Error("The parameter 'sessionId' must be defined.");
+        url_ = url_.replace("{sessionId}", encodeURIComponent("" + sessionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAll(_response);
+        });
+    }
+
+    protected processGetAll(response: Response): Promise<Movement[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(Movement.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Movement[]>(null as any);
+    }
+}
+
 export class GetMuscleSetsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -703,6 +1412,270 @@ export class GetMuscleSetsEndpointClient {
     }
 }
 
+export class GetTrainingProgramEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(programId: string): Promise<TrainingProgram> {
+        let url_ = this.baseUrl + "/api/training-program/get/{programId}";
+        if (programId === undefined || programId === null)
+            throw new Error("The parameter 'programId' must be defined.");
+        url_ = url_.replace("{programId}", encodeURIComponent("" + programId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<TrainingProgram> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = TrainingProgram.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingProgram>(null as any);
+    }
+}
+
+export class GetTrainingProgramsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    getAll2(): Promise<TrainingProgram[]> {
+        let url_ = this.baseUrl + "/api/training-program/get-all";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAll2(_response);
+        });
+    }
+
+    protected processGetAll2(response: Response): Promise<TrainingProgram[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(TrainingProgram.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingProgram[]>(null as any);
+    }
+}
+
+export class GetTrainingSessionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get2(trainingSessionId: string): Promise<TrainingSessionDTO> {
+        let url_ = this.baseUrl + "/api/training-session/get/{trainingSessionId}";
+        if (trainingSessionId === undefined || trainingSessionId === null)
+            throw new Error("The parameter 'trainingSessionId' must be defined.");
+        url_ = url_.replace("{trainingSessionId}", encodeURIComponent("" + trainingSessionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet2(_response);
+        });
+    }
+
+    protected processGet2(response: Response): Promise<TrainingSessionDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = TrainingSessionDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingSessionDTO>(null as any);
+    }
+}
+
+export class GetTrainingSessionsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    getAll3(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
+        let url_ = this.baseUrl + "/api/training-session/get-all/{trainingProgramId}";
+        if (trainingProgramId === undefined || trainingProgramId === null)
+            throw new Error("The parameter 'trainingProgramId' must be defined.");
+        url_ = url_.replace("{trainingProgramId}", encodeURIComponent("" + trainingProgramId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAll3(_response);
+        });
+    }
+
+    protected processGetAll3(response: Response): Promise<TrainingSessionDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(TrainingSessionDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingSessionDTO[]>(null as any);
+    }
+}
+
 export class GetWellnessStateEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -717,7 +1690,7 @@ export class GetWellnessStateEndpointClient {
      * @param date (optional) 
      * @return OK
      */
-    get(date: Date | undefined): Promise<WellnessState> {
+    get3(date: Date | undefined): Promise<WellnessState> {
         let url_ = this.baseUrl + "/api/wellness/get?";
         if (date === null)
             throw new Error("The parameter 'date' cannot be null.");
@@ -733,11 +1706,11 @@ export class GetWellnessStateEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGet(_response);
+            return this.processGet3(_response);
         });
     }
 
-    protected processGet(response: Response): Promise<WellnessState> {
+    protected processGet3(response: Response): Promise<WellnessState> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1564,6 +2537,274 @@ export class SyncOuraApiEndpointClient {
     }
 }
 
+export class UpdateMovementEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    update(body: UpdateMovementRequest | undefined): Promise<Movement> {
+        let url_ = this.baseUrl + "/api/movement/update";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdate(_response);
+        });
+    }
+
+    protected processUpdate(response: Response): Promise<Movement> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = Movement.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Movement>(null as any);
+    }
+}
+
+export class UpdateSetEntryEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    update2(body: UpdateSetEntryRequest | undefined): Promise<SetEntry> {
+        let url_ = this.baseUrl + "/api/set-entry/update";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdate2(_response);
+        });
+    }
+
+    protected processUpdate2(response: Response): Promise<SetEntry> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = SetEntry.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SetEntry>(null as any);
+    }
+}
+
+export class UpdateTrainingProgramEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    update3(body: UpdateTrainingProgramRequest | undefined): Promise<TrainingProgram> {
+        let url_ = this.baseUrl + "/api/training-program/update";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdate3(_response);
+        });
+    }
+
+    protected processUpdate3(response: Response): Promise<TrainingProgram> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = TrainingProgram.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingProgram>(null as any);
+    }
+}
+
+export class UpdateTrainingSessionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    update4(body: UpdateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
+        let url_ = this.baseUrl + "/api/training-session/update";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdate4(_response);
+        });
+    }
+
+    protected processUpdate4(response: Response): Promise<TrainingSessionDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = TrainingSessionDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingSessionDTO>(null as any);
+    }
+}
+
 export class AccessTokenResponse implements IAccessTokenResponse {
     readonly tokenType?: string | undefined;
     accessToken!: string | undefined;
@@ -2084,6 +3325,93 @@ export interface ICreateLiftRequest {
     chestSets: number;
 }
 
+export class CreateMovementBaseRequest implements ICreateMovementBaseRequest {
+    name!: string;
+
+    constructor(data?: ICreateMovementBaseRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.name = _data["name"];
+        }
+    }
+
+    static fromJS(data: any): CreateMovementBaseRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateMovementBaseRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["name"] = this.name;
+        return data;
+    }
+}
+
+export interface ICreateMovementBaseRequest {
+    name: string;
+}
+
+export class CreateMovementRequest implements ICreateMovementRequest {
+    movementBaseID!: string;
+    movementModifier!: MovementModifier;
+    notes!: string;
+    trainingSessionID!: string;
+
+    constructor(data?: ICreateMovementRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+        if (!data) {
+            this.movementModifier = new MovementModifier();
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementBaseID = _data["movementBaseID"];
+            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : new MovementModifier();
+            this.notes = _data["notes"];
+            this.trainingSessionID = _data["trainingSessionID"];
+        }
+    }
+
+    static fromJS(data: any): CreateMovementRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateMovementRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementBaseID"] = this.movementBaseID;
+        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        data["notes"] = this.notes;
+        data["trainingSessionID"] = this.trainingSessionID;
+        return data;
+    }
+}
+
+export interface ICreateMovementRequest {
+    movementBaseID: string;
+    movementModifier: MovementModifier;
+    notes: string;
+    trainingSessionID: string;
+}
+
 export class CreatePersonalApiAccessTokenRequest implements ICreatePersonalApiAccessTokenRequest {
     applicationName!: string;
     accessToken!: string;
@@ -2353,6 +3681,169 @@ export interface ICreateRunWalkRequest {
     averagePaceInSeconds: number;
     mileSplitsInSeconds: number[];
     runType?: string | undefined;
+}
+
+export class CreateSetEntryRequest implements ICreateSetEntryRequest {
+    recommendedReps!: number;
+    recommendedWeight!: number;
+    recommendedRPE!: number;
+    weightUnit!: WeightUnit;
+    actualReps!: number;
+    actualWeight!: number;
+    actualRPE!: number;
+    movementID!: string;
+
+    constructor(data?: ICreateSetEntryRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.recommendedReps = _data["recommendedReps"];
+            this.recommendedWeight = _data["recommendedWeight"];
+            this.recommendedRPE = _data["recommendedRPE"];
+            this.weightUnit = _data["weightUnit"];
+            this.actualReps = _data["actualReps"];
+            this.actualWeight = _data["actualWeight"];
+            this.actualRPE = _data["actualRPE"];
+            this.movementID = _data["movementID"];
+        }
+    }
+
+    static fromJS(data: any): CreateSetEntryRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateSetEntryRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["recommendedReps"] = this.recommendedReps;
+        data["recommendedWeight"] = this.recommendedWeight;
+        data["recommendedRPE"] = this.recommendedRPE;
+        data["weightUnit"] = this.weightUnit;
+        data["actualReps"] = this.actualReps;
+        data["actualWeight"] = this.actualWeight;
+        data["actualRPE"] = this.actualRPE;
+        data["movementID"] = this.movementID;
+        return data;
+    }
+}
+
+export interface ICreateSetEntryRequest {
+    recommendedReps: number;
+    recommendedWeight: number;
+    recommendedRPE: number;
+    weightUnit: WeightUnit;
+    actualReps: number;
+    actualWeight: number;
+    actualRPE: number;
+    movementID: string;
+}
+
+export class CreateTrainingProgramRequest implements ICreateTrainingProgramRequest {
+    title!: string;
+    startDate!: Date;
+    endDate!: Date;
+    tags!: string[];
+
+    constructor(data?: ICreateTrainingProgramRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+        if (!data) {
+            this.tags = [];
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.title = _data["title"];
+            this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
+            this.endDate = _data["endDate"] ? new Date(_data["endDate"].toString()) : <any>undefined;
+            if (Array.isArray(_data["tags"])) {
+                this.tags = [] as any;
+                for (let item of _data["tags"])
+                    this.tags!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): CreateTrainingProgramRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateTrainingProgramRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["title"] = this.title;
+        data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
+        data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
+        if (Array.isArray(this.tags)) {
+            data["tags"] = [];
+            for (let item of this.tags)
+                data["tags"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface ICreateTrainingProgramRequest {
+    title: string;
+    startDate: Date;
+    endDate: Date;
+    tags: string[];
+}
+
+export class CreateTrainingSessionRequest implements ICreateTrainingSessionRequest {
+    date!: Date;
+    trainingProgramID!: string;
+
+    constructor(data?: ICreateTrainingSessionRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
+            this.trainingProgramID = _data["trainingProgramID"];
+        }
+    }
+
+    static fromJS(data: any): CreateTrainingSessionRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateTrainingSessionRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["date"] = this.date ? formatDate(this.date) : <any>undefined;
+        data["trainingProgramID"] = this.trainingProgramID;
+        return data;
+    }
+}
+
+export interface ICreateTrainingSessionRequest {
+    date: Date;
+    trainingProgramID: string;
 }
 
 export class CreateWellnessStateRequest implements ICreateWellnessStateRequest {
@@ -2967,6 +4458,7 @@ export class LionheartUser implements ILionheartUser {
     activities?: Activity[] | undefined;
     apiAccessTokens?: ApiAccessToken[] | undefined;
     dailyOuraInfos?: DailyOuraInfo[] | undefined;
+    trainingPrograms?: TrainingProgram[] | undefined;
 
     constructor(data?: ILionheartUser) {
         if (data) {
@@ -3003,6 +4495,11 @@ export class LionheartUser implements ILionheartUser {
                 this.dailyOuraInfos = [] as any;
                 for (let item of _data["dailyOuraInfos"])
                     this.dailyOuraInfos!.push(DailyOuraInfo.fromJS(item));
+            }
+            if (Array.isArray(_data["trainingPrograms"])) {
+                this.trainingPrograms = [] as any;
+                for (let item of _data["trainingPrograms"])
+                    this.trainingPrograms!.push(TrainingProgram.fromJS(item));
             }
         }
     }
@@ -3041,6 +4538,11 @@ export class LionheartUser implements ILionheartUser {
             for (let item of this.dailyOuraInfos)
                 data["dailyOuraInfos"].push(item ? item.toJSON() : <any>undefined);
         }
+        if (Array.isArray(this.trainingPrograms)) {
+            data["trainingPrograms"] = [];
+            for (let item of this.trainingPrograms)
+                data["trainingPrograms"].push(item ? item.toJSON() : <any>undefined);
+        }
         return data;
     }
 }
@@ -3055,6 +4557,7 @@ export interface ILionheartUser {
     activities?: Activity[] | undefined;
     apiAccessTokens?: ApiAccessToken[] | undefined;
     dailyOuraInfos?: DailyOuraInfo[] | undefined;
+    trainingPrograms?: TrainingProgram[] | undefined;
 }
 
 export class LoginRequest implements ILoginRequest {
@@ -3103,6 +4606,166 @@ export interface ILoginRequest {
     password: string | undefined;
     twoFactorCode?: string | undefined;
     twoFactorRecoveryCode?: string | undefined;
+}
+
+export class Movement implements IMovement {
+    movementID?: string;
+    trainingSessionID?: string;
+    trainingSession?: TrainingSession;
+    movementBaseID?: string;
+    movementBase?: MovementBase;
+    movementModifier?: MovementModifier;
+    sets?: SetEntry[] | undefined;
+    notes?: string | undefined;
+    isCompleted?: boolean;
+
+    constructor(data?: IMovement) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementID = _data["movementID"];
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.trainingSession = _data["trainingSession"] ? TrainingSession.fromJS(_data["trainingSession"]) : <any>undefined;
+            this.movementBaseID = _data["movementBaseID"];
+            this.movementBase = _data["movementBase"] ? MovementBase.fromJS(_data["movementBase"]) : <any>undefined;
+            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : <any>undefined;
+            if (Array.isArray(_data["sets"])) {
+                this.sets = [] as any;
+                for (let item of _data["sets"])
+                    this.sets!.push(SetEntry.fromJS(item));
+            }
+            this.notes = _data["notes"];
+            this.isCompleted = _data["isCompleted"];
+        }
+    }
+
+    static fromJS(data: any): Movement {
+        data = typeof data === 'object' ? data : {};
+        let result = new Movement();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementID"] = this.movementID;
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["trainingSession"] = this.trainingSession ? this.trainingSession.toJSON() : <any>undefined;
+        data["movementBaseID"] = this.movementBaseID;
+        data["movementBase"] = this.movementBase ? this.movementBase.toJSON() : <any>undefined;
+        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        if (Array.isArray(this.sets)) {
+            data["sets"] = [];
+            for (let item of this.sets)
+                data["sets"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["notes"] = this.notes;
+        data["isCompleted"] = this.isCompleted;
+        return data;
+    }
+}
+
+export interface IMovement {
+    movementID?: string;
+    trainingSessionID?: string;
+    trainingSession?: TrainingSession;
+    movementBaseID?: string;
+    movementBase?: MovementBase;
+    movementModifier?: MovementModifier;
+    sets?: SetEntry[] | undefined;
+    notes?: string | undefined;
+    isCompleted?: boolean;
+}
+
+export class MovementBase implements IMovementBase {
+    movementBaseID?: string;
+    name?: string | undefined;
+
+    constructor(data?: IMovementBase) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementBaseID = _data["movementBaseID"];
+            this.name = _data["name"];
+        }
+    }
+
+    static fromJS(data: any): MovementBase {
+        data = typeof data === 'object' ? data : {};
+        let result = new MovementBase();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementBaseID"] = this.movementBaseID;
+        data["name"] = this.name;
+        return data;
+    }
+}
+
+export interface IMovementBase {
+    movementBaseID?: string;
+    name?: string | undefined;
+}
+
+export class MovementModifier implements IMovementModifier {
+    name?: string | undefined;
+    equipment?: string | undefined;
+    duration?: number;
+
+    constructor(data?: IMovementModifier) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.name = _data["name"];
+            this.equipment = _data["equipment"];
+            this.duration = _data["duration"];
+        }
+    }
+
+    static fromJS(data: any): MovementModifier {
+        data = typeof data === 'object' ? data : {};
+        let result = new MovementModifier();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["name"] = this.name;
+        data["equipment"] = this.equipment;
+        data["duration"] = this.duration;
+        return data;
+    }
+}
+
+export interface IMovementModifier {
+    name?: string | undefined;
+    equipment?: string | undefined;
+    duration?: number;
 }
 
 export class MuscleSetsDto implements IMuscleSetsDto {
@@ -3625,6 +5288,78 @@ export interface IRunWalkDetails {
     runType?: string | undefined;
 }
 
+export class SetEntry implements ISetEntry {
+    setEntryID?: string;
+    movementID?: string;
+    movement?: Movement;
+    recommendedReps?: number;
+    recommendedWeight?: number;
+    recommendedRPE?: number;
+    weightUnit?: WeightUnit;
+    actualReps?: number;
+    actualWeight?: number;
+    actualRPE?: number;
+
+    constructor(data?: ISetEntry) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.setEntryID = _data["setEntryID"];
+            this.movementID = _data["movementID"];
+            this.movement = _data["movement"] ? Movement.fromJS(_data["movement"]) : <any>undefined;
+            this.recommendedReps = _data["recommendedReps"];
+            this.recommendedWeight = _data["recommendedWeight"];
+            this.recommendedRPE = _data["recommendedRPE"];
+            this.weightUnit = _data["weightUnit"];
+            this.actualReps = _data["actualReps"];
+            this.actualWeight = _data["actualWeight"];
+            this.actualRPE = _data["actualRPE"];
+        }
+    }
+
+    static fromJS(data: any): SetEntry {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetEntry();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["setEntryID"] = this.setEntryID;
+        data["movementID"] = this.movementID;
+        data["movement"] = this.movement ? this.movement.toJSON() : <any>undefined;
+        data["recommendedReps"] = this.recommendedReps;
+        data["recommendedWeight"] = this.recommendedWeight;
+        data["recommendedRPE"] = this.recommendedRPE;
+        data["weightUnit"] = this.weightUnit;
+        data["actualReps"] = this.actualReps;
+        data["actualWeight"] = this.actualWeight;
+        data["actualRPE"] = this.actualRPE;
+        return data;
+    }
+}
+
+export interface ISetEntry {
+    setEntryID?: string;
+    movementID?: string;
+    movement?: Movement;
+    recommendedReps?: number;
+    recommendedWeight?: number;
+    recommendedRPE?: number;
+    weightUnit?: WeightUnit;
+    actualReps?: number;
+    actualWeight?: number;
+    actualRPE?: number;
+}
+
 export class SleepData implements ISleepData {
     sleepScore?: number;
     deepSleep?: number;
@@ -3687,6 +5422,217 @@ export interface ISleepData {
     restfulness?: number;
     timing?: number;
     totalSleep?: number;
+}
+
+export class TrainingProgram implements ITrainingProgram {
+    trainingProgramID?: string;
+    userID?: string;
+    title?: string | undefined;
+    startDate?: Date;
+    nextTrainingSessionDate?: Date;
+    endDate?: Date;
+    trainingSessions?: TrainingSession[] | undefined;
+    tags?: string[] | undefined;
+
+    constructor(data?: ITrainingProgram) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingProgramID = _data["trainingProgramID"];
+            this.userID = _data["userID"];
+            this.title = _data["title"];
+            this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
+            this.nextTrainingSessionDate = _data["nextTrainingSessionDate"] ? new Date(_data["nextTrainingSessionDate"].toString()) : <any>undefined;
+            this.endDate = _data["endDate"] ? new Date(_data["endDate"].toString()) : <any>undefined;
+            if (Array.isArray(_data["trainingSessions"])) {
+                this.trainingSessions = [] as any;
+                for (let item of _data["trainingSessions"])
+                    this.trainingSessions!.push(TrainingSession.fromJS(item));
+            }
+            if (Array.isArray(_data["tags"])) {
+                this.tags = [] as any;
+                for (let item of _data["tags"])
+                    this.tags!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): TrainingProgram {
+        data = typeof data === 'object' ? data : {};
+        let result = new TrainingProgram();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingProgramID"] = this.trainingProgramID;
+        data["userID"] = this.userID;
+        data["title"] = this.title;
+        data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
+        data["nextTrainingSessionDate"] = this.nextTrainingSessionDate ? formatDate(this.nextTrainingSessionDate) : <any>undefined;
+        data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
+        if (Array.isArray(this.trainingSessions)) {
+            data["trainingSessions"] = [];
+            for (let item of this.trainingSessions)
+                data["trainingSessions"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.tags)) {
+            data["tags"] = [];
+            for (let item of this.tags)
+                data["tags"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface ITrainingProgram {
+    trainingProgramID?: string;
+    userID?: string;
+    title?: string | undefined;
+    startDate?: Date;
+    nextTrainingSessionDate?: Date;
+    endDate?: Date;
+    trainingSessions?: TrainingSession[] | undefined;
+    tags?: string[] | undefined;
+}
+
+export class TrainingSession implements ITrainingSession {
+    trainingSessionID?: string;
+    trainingProgramID?: string;
+    trainingProgram?: TrainingProgram;
+    date?: Date;
+    status?: TrainingSessionStatus;
+    movements?: Movement[] | undefined;
+
+    constructor(data?: ITrainingSession) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.trainingProgramID = _data["trainingProgramID"];
+            this.trainingProgram = _data["trainingProgram"] ? TrainingProgram.fromJS(_data["trainingProgram"]) : <any>undefined;
+            this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
+            this.status = _data["status"];
+            if (Array.isArray(_data["movements"])) {
+                this.movements = [] as any;
+                for (let item of _data["movements"])
+                    this.movements!.push(Movement.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): TrainingSession {
+        data = typeof data === 'object' ? data : {};
+        let result = new TrainingSession();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["trainingProgramID"] = this.trainingProgramID;
+        data["trainingProgram"] = this.trainingProgram ? this.trainingProgram.toJSON() : <any>undefined;
+        data["date"] = this.date ? formatDate(this.date) : <any>undefined;
+        data["status"] = this.status;
+        if (Array.isArray(this.movements)) {
+            data["movements"] = [];
+            for (let item of this.movements)
+                data["movements"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface ITrainingSession {
+    trainingSessionID?: string;
+    trainingProgramID?: string;
+    trainingProgram?: TrainingProgram;
+    date?: Date;
+    status?: TrainingSessionStatus;
+    movements?: Movement[] | undefined;
+}
+
+export class TrainingSessionDTO implements ITrainingSessionDTO {
+    trainingSessionID?: string;
+    sessionNumber?: number;
+    date?: Date;
+    status?: TrainingSessionStatus;
+    movements?: Movement[] | undefined;
+
+    constructor(data?: ITrainingSessionDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.sessionNumber = _data["sessionNumber"];
+            this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
+            this.status = _data["status"];
+            if (Array.isArray(_data["movements"])) {
+                this.movements = [] as any;
+                for (let item of _data["movements"])
+                    this.movements!.push(Movement.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): TrainingSessionDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new TrainingSessionDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["sessionNumber"] = this.sessionNumber;
+        data["date"] = this.date ? formatDate(this.date) : <any>undefined;
+        data["status"] = this.status;
+        if (Array.isArray(this.movements)) {
+            data["movements"] = [];
+            for (let item of this.movements)
+                data["movements"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface ITrainingSessionDTO {
+    trainingSessionID?: string;
+    sessionNumber?: number;
+    date?: Date;
+    status?: TrainingSessionStatus;
+    movements?: Movement[] | undefined;
+}
+
+export enum TrainingSessionStatus {
+    _0 = 0,
+    _1 = 1,
+    _2 = 2,
+    _3 = 3,
 }
 
 export class TwoFactorRequest implements ITwoFactorRequest {
@@ -3799,6 +5745,249 @@ export interface ITwoFactorResponse {
     recoveryCodes?: string[] | undefined;
     isTwoFactorEnabled: boolean;
     isMachineRemembered: boolean;
+}
+
+export class UpdateMovementRequest implements IUpdateMovementRequest {
+    movementID!: string;
+    movementBaseID!: string;
+    movementModifier!: MovementModifier;
+    notes!: string;
+    trainingSessionID!: string;
+    isCompleted!: boolean;
+
+    constructor(data?: IUpdateMovementRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+        if (!data) {
+            this.movementModifier = new MovementModifier();
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementID = _data["movementID"];
+            this.movementBaseID = _data["movementBaseID"];
+            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : new MovementModifier();
+            this.notes = _data["notes"];
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.isCompleted = _data["isCompleted"];
+        }
+    }
+
+    static fromJS(data: any): UpdateMovementRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateMovementRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementID"] = this.movementID;
+        data["movementBaseID"] = this.movementBaseID;
+        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        data["notes"] = this.notes;
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["isCompleted"] = this.isCompleted;
+        return data;
+    }
+}
+
+export interface IUpdateMovementRequest {
+    movementID: string;
+    movementBaseID: string;
+    movementModifier: MovementModifier;
+    notes: string;
+    trainingSessionID: string;
+    isCompleted: boolean;
+}
+
+export class UpdateSetEntryRequest implements IUpdateSetEntryRequest {
+    setEntryID!: string;
+    recommendedReps!: number;
+    recommendedWeight!: number;
+    recommendedRPE!: number;
+    weightUnit!: WeightUnit;
+    actualReps!: number;
+    actualWeight!: number;
+    actualRPE!: number;
+    movementID!: string;
+
+    constructor(data?: IUpdateSetEntryRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.setEntryID = _data["setEntryID"];
+            this.recommendedReps = _data["recommendedReps"];
+            this.recommendedWeight = _data["recommendedWeight"];
+            this.recommendedRPE = _data["recommendedRPE"];
+            this.weightUnit = _data["weightUnit"];
+            this.actualReps = _data["actualReps"];
+            this.actualWeight = _data["actualWeight"];
+            this.actualRPE = _data["actualRPE"];
+            this.movementID = _data["movementID"];
+        }
+    }
+
+    static fromJS(data: any): UpdateSetEntryRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateSetEntryRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["setEntryID"] = this.setEntryID;
+        data["recommendedReps"] = this.recommendedReps;
+        data["recommendedWeight"] = this.recommendedWeight;
+        data["recommendedRPE"] = this.recommendedRPE;
+        data["weightUnit"] = this.weightUnit;
+        data["actualReps"] = this.actualReps;
+        data["actualWeight"] = this.actualWeight;
+        data["actualRPE"] = this.actualRPE;
+        data["movementID"] = this.movementID;
+        return data;
+    }
+}
+
+export interface IUpdateSetEntryRequest {
+    setEntryID: string;
+    recommendedReps: number;
+    recommendedWeight: number;
+    recommendedRPE: number;
+    weightUnit: WeightUnit;
+    actualReps: number;
+    actualWeight: number;
+    actualRPE: number;
+    movementID: string;
+}
+
+export class UpdateTrainingProgramRequest implements IUpdateTrainingProgramRequest {
+    trainingProgramID!: string;
+    title!: string;
+    startDate!: Date;
+    endDate!: Date;
+    tags!: string[];
+
+    constructor(data?: IUpdateTrainingProgramRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+        if (!data) {
+            this.tags = [];
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingProgramID = _data["trainingProgramID"];
+            this.title = _data["title"];
+            this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
+            this.endDate = _data["endDate"] ? new Date(_data["endDate"].toString()) : <any>undefined;
+            if (Array.isArray(_data["tags"])) {
+                this.tags = [] as any;
+                for (let item of _data["tags"])
+                    this.tags!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): UpdateTrainingProgramRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateTrainingProgramRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingProgramID"] = this.trainingProgramID;
+        data["title"] = this.title;
+        data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
+        data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
+        if (Array.isArray(this.tags)) {
+            data["tags"] = [];
+            for (let item of this.tags)
+                data["tags"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IUpdateTrainingProgramRequest {
+    trainingProgramID: string;
+    title: string;
+    startDate: Date;
+    endDate: Date;
+    tags: string[];
+}
+
+export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionRequest {
+    trainingProgramID!: string;
+    date!: Date;
+    status!: TrainingSessionStatus;
+    trainingSessionID?: string;
+
+    constructor(data?: IUpdateTrainingSessionRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingProgramID = _data["trainingProgramID"];
+            this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
+            this.status = _data["status"];
+            this.trainingSessionID = _data["trainingSessionID"];
+        }
+    }
+
+    static fromJS(data: any): UpdateTrainingSessionRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateTrainingSessionRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingProgramID"] = this.trainingProgramID;
+        data["date"] = this.date ? formatDate(this.date) : <any>undefined;
+        data["status"] = this.status;
+        data["trainingSessionID"] = this.trainingSessionID;
+        return data;
+    }
+}
+
+export interface IUpdateTrainingSessionRequest {
+    trainingProgramID: string;
+    date: Date;
+    status: TrainingSessionStatus;
+    trainingSessionID?: string;
+}
+
+export enum WeightUnit {
+    _0 = 0,
+    _1 = 1,
 }
 
 export class WellnessState implements IWellnessState {
