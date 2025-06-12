@@ -107,7 +107,8 @@
         movementModifier: modifier,
         sets,
         notes: '',
-        completed: false
+        completed: false,
+        removed: false
       };
     });
 

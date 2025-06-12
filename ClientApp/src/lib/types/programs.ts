@@ -35,6 +35,7 @@ export type Movement = {
   sets: SetEntry[];
   notes: string;
   completed: boolean;
+  removed: boolean;
 };
 
 export type SessionStatus = 'Planned' | 'InProgress' | 'Completed' | 'Skipped';

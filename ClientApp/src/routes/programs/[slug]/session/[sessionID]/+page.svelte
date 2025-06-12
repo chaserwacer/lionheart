@@ -30,20 +30,21 @@
 
     if (session) {
       movements = session.movements.map(movement => ({
-        ...movement,
-        completed: movement.completed ?? false,
-        sets: movement.sets.map(set => {
-          const fallbackReps = set.recommendedReps ?? 5;
-          const fallbackWeight = set.recommendedWeight ?? 100;
-          const fallbackRPE = set.recommendedRPE ?? 7;
-          return {
-            ...set,
-            actualReps: set.actualReps > 0 ? set.actualReps : fallbackReps,
-            actualWeight: set.actualWeight > 0 ? set.actualWeight : fallbackWeight,
-            actualRPE: set.actualRPE > 0 ? set.actualRPE : fallbackRPE
-          };
-        })
-      })) as (Movement & { completed?: boolean })[];
+      ...movement,
+      completed: movement.completed ?? false,
+      removed: movement.removed ?? false, // New field
+      sets: movement.sets.map(set => {
+        const fallbackReps = set.recommendedReps ?? 5;
+        const fallbackWeight = set.recommendedWeight ?? 100;
+        const fallbackRPE = set.recommendedRPE ?? 7;
+        return {
+          ...set,
+          actualReps: set.actualReps > 0 ? set.actualReps : fallbackReps,
+          actualWeight: set.actualWeight > 0 ? set.actualWeight : fallbackWeight,
+          actualRPE: set.actualRPE > 0 ? set.actualRPE : fallbackRPE
+        };
+      })
+    })) as (Movement & { completed?: boolean; removed?: boolean })[];
       movements.forEach((_, index) => unitMap[index] = 'lbs');
     }
   });
@@ -118,7 +119,20 @@
       program.trainingSessions[i] = session;
       programStorage.update(program);
     }
+  }
+  function toggleRemove(index: number) {
+  if (!program || !session) return;
+
+  movements[index].removed = !movements[index].removed;
+  session.movements = movements;
+
+  const i = program.trainingSessions.findIndex(s => s.sessionID === session!.sessionID);
+  if (i !== -1) {
+    program.trainingSessions[i] = session;
+    programStorage.update(program);
+  }
 }
+
 
 </script>
 
@@ -126,6 +140,12 @@
 
 {#if session}
   <div class="p-6 max-w-6xl mx-auto">
+    <a
+  href={`/programs/${slug}`}
+  class="inline-flex items-center mb-4 text-sm text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded"
+>
+  ← Back
+</a>
     <h1 class="text-4xl font-bold mb-6">Session {sessionIndex + 1} - {program?.title}</h1>
     <div class="mb-4">
       <label class="text-white text-sm mr-2">Weight step increment:</label>
@@ -138,7 +158,7 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
       {#each movements as movement, mvIndex (movement.movementID)}
-        {#if !movement.completed}
+        {#if !movement.completed && !movement.removed}
           <div class="bg-zinc-800 text-white rounded-xl p-4 shadow-md w-full mx-auto max-w-sm self-start">
             <div class="flex justify-between items-start mb-2">
               <div>
@@ -204,10 +224,21 @@
               <label class="text-xs text-gray-300">Notes:</label>
               <textarea class="w-full mt-1 bg-zinc-900 text-white p-2 rounded text-sm resize-none" rows="2" bind:value={movement.notes}></textarea>
             </div>
+            <div class="flex justify-end mt-2">
+            <button
+              on:click={() => toggleRemove(mvIndex)}
+              class="text-xs text-red-300 hover:underline"
+            >
+              Remove Movement
+            </button>
+          </div>
           </div>
         {/if}
       {/each}
+      
     </div>
+
+    
 
     {#if movements.some(m => m.completed)}
       <h2 class="text-2xl text-white font-semibold mt-10 mb-4">✅ Completed Exercises</h2>
@@ -223,6 +254,26 @@
         {/each}
       </div>
     {/if}
+    {#if movements.some(m => m.removed)}
+  <h2 class="text-2xl text-white font-semibold mt-10 mb-4">🗑️ Removed Movements</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+    {#each movements as movement, mvIndex (movement.movementID)}
+      {#if movement.removed}
+        <div class="bg-zinc-700 text-white rounded-xl p-4 shadow w-full mx-auto max-w-sm opacity-50">
+          <h3 class="text-xl font-bold">{movement.movementBase.name}</h3>
+          <p class="text-sm italic text-gray-300">Marked removed</p>
+          <button
+            on:click={() => toggleRemove(mvIndex)}
+            class="text-xs text-yellow-300 hover:underline mt-2"
+          >
+            Undo Remove
+          </button>
+        </div>
+      {/if}
+    {/each}
+  </div>
+{/if}
+
   </div>
 {:else}
   <div class="p-6 max-w-4xl mx-auto text-red-400">
