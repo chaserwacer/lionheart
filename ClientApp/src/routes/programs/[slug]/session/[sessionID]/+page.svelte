@@ -1,44 +1,52 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { fakePrograms } from '$lib/testData/programs';
-  import type { Movement, TrainingSession, SetEntry } from '$lib/types/programs';
+  import { programStorage } from '$lib/stores/programStore';
+  import { slugify } from '$lib/utils/slugify';
+  import type { Movement, TrainingSession, SetEntry, Program } from '$lib/types/programs';
   import { onMount } from 'svelte';
 
-  const slug = $page.params.slug;
-  const sessionNumber = parseInt($page.params.sessionNumber);
+  let slug = '';
+  let sessionID = '';
+  let program: Program | undefined;
+  let session: TrainingSession | undefined;
+  let sessionIndex = 0;
 
-  const program = fakePrograms.find(p => p.title.toLowerCase().replace(/\s+/g, '-') === slug);
-  const session: TrainingSession | undefined = program?.trainingSessions[sessionNumber - 1];
-
-  let movements: Movement[] = session?.movements || [];
-  let completedIndices = new Set<number>();
   let unitMap: Record<number, 'lbs' | 'kg'> = {};
   let weightStep: number = 5;
-
   const allowedSteps = [1, 5, 10, 25];
+  let movements: (Movement & { completed?: boolean })[] = [];
 
   onMount(() => {
-  movements = movements.map(movement => ({
-    ...movement,
-    sets: movement.sets.map(set => {
-      const fallbackReps = set.recommendedReps ?? 5;
-      const fallbackWeight = set.recommendedWeight ?? 100;
-      const fallbackRPE = set.recommendedRPE ?? 7;
+    slug = $page.params.slug;
+    sessionID = $page.params.sessionID;
 
-      return {
-        ...set,
-        actualReps: set.actualReps > 0 ? set.actualReps : fallbackReps,
-        actualWeight: set.actualWeight > 0 ? set.actualWeight : fallbackWeight,
-        actualRPE: set.actualRPE > 0 ? set.actualRPE : fallbackRPE,
-      };
-    })
-  }));
+    const programs = programStorage.load();
+    program = programs.find(p => slugify(p.title) === slug);
+    session = program?.trainingSessions.find(s => s.sessionID === sessionID);
 
-  movements.forEach((_, index) => unitMap[index] = 'lbs');
-});
+    if (session && program) {
+      sessionIndex = program.trainingSessions.findIndex(s => s.sessionID === sessionID);
+    }
 
-
-
+    if (session) {
+      movements = session.movements.map(movement => ({
+        ...movement,
+        completed: movement.completed ?? false,
+        sets: movement.sets.map(set => {
+          const fallbackReps = set.recommendedReps ?? 5;
+          const fallbackWeight = set.recommendedWeight ?? 100;
+          const fallbackRPE = set.recommendedRPE ?? 7;
+          return {
+            ...set,
+            actualReps: set.actualReps > 0 ? set.actualReps : fallbackReps,
+            actualWeight: set.actualWeight > 0 ? set.actualWeight : fallbackWeight,
+            actualRPE: set.actualRPE > 0 ? set.actualRPE : fallbackRPE
+          };
+        })
+      })) as (Movement & { completed?: boolean })[];
+      movements.forEach((_, index) => unitMap[index] = 'lbs');
+    }
+  });
   function getRpeColor(actual: number | undefined, target: number | undefined) {
     if (typeof actual !== 'number' || typeof target !== 'number') return 'bg-zinc-900';
     const diff = actual - target;
@@ -67,21 +75,36 @@
     });
   }
 
-  function toggleComplete(index: number) {
-    const updated = new Set(completedIndices);
-    if (updated.has(index)) {
-      updated.delete(index);
+ function toggleComplete(index: number): void {
+    if (!program || !session) return;
+    movements[index].completed = !movements[index].completed;
+
+
+    // Update the movements in the real session
+    session.movements = movements;
+
+    if (session.movements.every(m => m.completed)) {
+      session.status = 'Completed';
     } else {
-      updated.add(index);
+      session.status = 'Planned'; // or 'InProgress' if you prefer nuance
     }
-    completedIndices = updated;
-  }
+
+
+    // Replace session in program
+    const i = program.trainingSessions.findIndex(s => s.sessionID === session!.sessionID);
+    if (i !== -1) {
+      program.trainingSessions[i] = session;
+      programStorage.update(program);
+    }
+}
+
 </script>
+
+
 
 {#if session}
   <div class="p-6 max-w-6xl mx-auto">
-    <h1 class="text-4xl font-bold mb-6">Session {sessionNumber} - {program?.title}</h1>
-
+    <h1 class="text-4xl font-bold mb-6">Session {sessionIndex + 1} - {program?.title}</h1>
     <div class="mb-4">
       <label class="text-white text-sm mr-2">Weight step increment:</label>
       <select bind:value={weightStep} class="p-1 rounded bg-zinc-900 text-white">
@@ -93,7 +116,7 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
       {#each movements as movement, mvIndex (movement.movementID)}
-        {#if !completedIndices.has(mvIndex)}
+        {#if !movement.completed}
           <div class="bg-zinc-800 text-white rounded-xl p-4 shadow-md w-full mx-auto max-w-sm self-start">
             <div class="flex justify-between items-start mb-2">
               <div>
@@ -160,11 +183,11 @@
       {/each}
     </div>
 
-    {#if Array.from(completedIndices).length}
+    {#if movements.some(m => m.completed)}
       <h2 class="text-2xl text-white font-semibold mt-10 mb-4">✅ Completed Exercises</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
         {#each movements as movement, mvIndex (movement.movementID)}
-          {#if completedIndices.has(mvIndex)}
+          {#if movement.completed}
             <div class="bg-zinc-700 text-white rounded-xl p-4 shadow w-full mx-auto max-w-sm opacity-60">
               <h3 class="text-xl font-bold">{movement.movementBase.name}</h3>
               <p class="text-sm italic text-gray-300">Marked complete</p>
