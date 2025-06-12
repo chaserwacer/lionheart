@@ -34,13 +34,17 @@ export type Movement = {
   movementModifier?: MovementModifier;
   sets: SetEntry[];
   notes: string;
+  completed: boolean;
 };
+
+export type SessionStatus = 'Planned' | 'InProgress' | 'Completed' | 'Skipped';
 
 export type TrainingSession = {
   sessionID: string;
   programID: string;
   date: string; // ISO string
   movements: Movement[];
+  status: SessionStatus;
 };
 
 export type Program = {
