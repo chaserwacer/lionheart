@@ -1,30 +1,40 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using lionheart.Model.DTOs;
 
-namespace lionheart.Model.Program;
+namespace lionheart.Model.TrainingProgram;
 
 /// <summary>
-/// Class to represent a training session within a <see cref="Program"/>.
+/// Class to represent a training session within a <see cref="TrainingProgram"/>.
 /// A training session consists of multiple <see cref="Movement"/>s.
 /// </summary>
 public class TrainingSession
 {
     [Key]
-    public Guid SessionID { get; init; }
-
-    public Guid ProgramID { get; init; }
-    
-    // Will be inside the session DTO for use in the frontend. It can be manually calculated during retreival
-    //public int SessionNumber { get; set; }
+    public Guid TrainingSessionID { get; init; }
+    [ForeignKey(nameof(TrainingProgram))]
+    public Guid TrainingProgramID { get; init; }
+    public TrainingProgram TrainingProgram { get; init; } = null!;
     public DateOnly Date { get; set; }
-    public enum Status
+    public TrainingSessionStatus Status { get; set; } = TrainingSessionStatus.Planned;
+    public List<Movement> Movements { get; set; } = [];
+
+    public TrainingSessionDTO ToDTO(int sessionNumber)
+    {
+        return new TrainingSessionDTO
+        {
+            TrainingSessionID = TrainingSessionID,
+            Date = Date,
+            Status = Status,
+            Movements = Movements,
+            SessionNumber = sessionNumber
+        };
+    }
+}
+public enum TrainingSessionStatus
     {
         Planned,
         InProgress,
         Completed,
         Skipped,
     }
-    public List<Movement> Movements { get; set; } = [];
-
-
-}

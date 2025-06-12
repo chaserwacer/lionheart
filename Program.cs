@@ -28,6 +28,10 @@ builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();
 builder.Services.AddTransient<IWellnessService, WellnessService>();
+builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
+builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
+builder.Services.AddTransient<IMovementService, MovementService>();
+builder.Services.AddTransient<ISetEntryService, SetEntryService>();
 // builder.Services.AddTransient<IPhi4Service, Phi4Service>();
 // builder.Services.AddTransient<IInsightService, InsightService>();
 
