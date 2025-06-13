@@ -27,6 +27,21 @@ public class Movement
     public List<SetEntry> Sets { get; set; } = [];
     public string Notes { get; set; } = string.Empty;
     public bool IsCompleted { get; set; } = false;
+
+    public MovementDTO ToDTO()
+    {
+        return new MovementDTO
+        {
+            MovementID = MovementID,
+            TrainingSessionID = TrainingSessionID,
+            MovementBaseID = MovementBaseID,
+            MovementBase = MovementBase,
+            MovementModifier = MovementModifier,
+            Sets = Sets,
+            Notes = Notes,
+            IsCompleted = IsCompleted
+        };
+    }
     
 }
 
