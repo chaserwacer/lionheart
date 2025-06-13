@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { addProgram } from '$lib/stores/programStore';
-  import { v4 as uuid } from 'uuid';
+  import { CreateTrainingProgramEndpointClient } from '$lib/api/ApiClient';
+  import { CreateTrainingProgramRequest } from '$lib/api/ApiClient';
 
   export let show: boolean;
   const dispatch = createEventDispatcher();
@@ -20,38 +20,38 @@
     'Swimming'
   ];
 
+  const client = new CreateTrainingProgramEndpointClient('/');
+
   function close() {
     dispatch('close');
   }
 
-  function createProgram() {
+  async function createProgram() {
     if (!title || !startDate || !endDate || !selectedTag) {
       alert('All fields are required.');
       return;
     }
-
-    const newProgram = {
-      programID: uuid(),
-      userID: 'temporary-user-id',
+    const request = CreateTrainingProgramRequest.fromJS({
       title,
-      startDate,
-      endDate,
-      nextTrainingSessionDate: startDate,
-      tags: [selectedTag],
-      trainingSessions: []
-    };
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      tags: [selectedTag]
+    });
 
-    addProgram(newProgram);
+    try {
+      await client.create3(request);
+      // Reset form
+      title = '';
+      startDate = '';
+      endDate = '';
+      selectedTag = 'Powerlifting';
 
-    // Reset form
-    title = '';
-    startDate = '';
-    endDate = '';
-    selectedTag = 'Powerlifting';
-
-    // Trigger parent update and close modal
-    dispatch('created');
-    dispatch('close');
+      dispatch('created');
+      dispatch('close');
+    } catch (error) {
+      console.error('Failed to create program:', error);
+      alert('There was an error creating the program.');
+    }
   }
 </script>
 
