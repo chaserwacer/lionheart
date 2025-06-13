@@ -15,10 +15,8 @@
   let showModal = false;
   let programs: TrainingProgram[] = [];
 
-  const getProgramsClient = new GetTrainingProgramsEndpointClient('/');
-  const deleteProgramClient = new DeleteTrainingProgramEndpointClient('/');
-
   async function loadPrograms() {
+    const getProgramsClient = new GetTrainingProgramsEndpointClient('http://localhost:5174');
     try {
       programs = await getProgramsClient.getAll2();
     } catch (error) {
@@ -37,6 +35,7 @@
     const confirmed = confirm('Are you sure you want to delete this program?');
     if (!confirmed) return;
 
+    const deleteProgramClient = new DeleteTrainingProgramEndpointClient('http://localhost:5174');
     try {
       await deleteProgramClient.delete3(programID);
       programs = programs.filter(p => p.trainingProgramID !== programID);
@@ -55,7 +54,6 @@
     const options = { month: 'short', day: 'numeric' } as const;
     return date.toLocaleDateString(undefined, options);
   }
-
 
   function getTypeColor(type: string) {
     switch (type) {
@@ -88,6 +86,7 @@
     return sessions.length === 0 ? 0 : Math.round((completed / sessions.length) * 100);
   }
 </script>
+
 
 <div class="p-6 max-w-6xl mx-auto">
   <h1 class="text-3xl font-bold mb-6">Blake's Program Library</h1>
@@ -177,10 +176,3 @@
   on:close={() => showModal = false}
   on:created={handleProgramCreated}
 />
-
-<style>
-  a:hover {
-    text-decoration: none;
-  }
-</style>
-
