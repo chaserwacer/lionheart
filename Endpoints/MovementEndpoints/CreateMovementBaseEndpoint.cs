@@ -24,7 +24,7 @@ namespace lionheart.Endpoints.MovementEndpoints
             _userManager = userManager;
         }
 
-        [HttpPost("api/movement/create-movement-base")]
+        [HttpPost("api/movement-base/create")]
         [EndpointDescription("Create a new movement base.")]
         [ProducesResponseType<MovementBase>(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

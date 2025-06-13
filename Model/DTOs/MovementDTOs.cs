@@ -55,3 +55,17 @@ public class UpdateMovementsCompletionRequest
     [Required]
     public required bool Complete { get; init; }
 }
+
+public class MovementDTO
+{
+    public Guid MovementID { get; init; }
+    public Guid TrainingSessionID { get; init; }
+    public Guid MovementBaseID { get; set; }
+    public MovementBase MovementBase { get; set; } = new();
+    public MovementModifier MovementModifier { get; set; } = new();
+
+    public List<SetEntry> Sets { get; set; } = [];
+    public string Notes { get; set; } = string.Empty;
+    public bool IsCompleted { get; set; } = false;
+    
+}

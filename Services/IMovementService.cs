@@ -13,7 +13,7 @@ public interface IMovementService
     /// <param name="user">The user who owns the session.</param>
     /// <param name="sessionId">The session ID to get movements for.</param>
     /// <returns>A result containing a list of movements.</returns>
-    Task<Result<List<Movement>>> GetMovementsAsync(IdentityUser user, Guid sessionId);
+    Task<Result<List<MovementDTO>>> GetMovementsAsync(IdentityUser user, Guid sessionId);
 
     /// <summary>
     /// Update the completion status of all movements in a training session.
@@ -30,7 +30,7 @@ public interface IMovementService
     /// <param name="user">The user to create the movement for.</param>
     /// <param name="request">The movement creation request.</param>
     /// <returns>A result containing the created movement.</returns>
-    Task<Result<Movement>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request);
+    Task<Result<MovementDTO>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request);
 
     /// <summary>
     /// Update an existing movement.
@@ -38,7 +38,7 @@ public interface IMovementService
     /// <param name="user">The user who owns the movement.</param>
     /// <param name="request">The movement update request.</param>
     /// <returns>A result containing the updated movement.</returns>
-    Task<Result<Movement>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request);
+    Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request);
 
     /// <summary>
     /// Delete a movement.

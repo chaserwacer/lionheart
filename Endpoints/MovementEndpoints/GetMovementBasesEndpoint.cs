@@ -23,7 +23,7 @@ namespace lionheart.Endpoints.MovementEndpoints
             _userManager = userManager;
         }
 
-        [HttpGet("api/movement/get-movement-bases")]
+        [HttpGet("api/movement-base/get-all")]
         [EndpointDescription("Get all available movement bases.")]
         [ProducesResponseType<List<MovementBase>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

@@ -20,7 +20,7 @@ public class MovementService : IMovementService
         _context = context;
     }
 
-    public async Task<Result<List<Movement>>> GetMovementsAsync(IdentityUser user, Guid trainingSessionID)
+    public async Task<Result<List<MovementDTO>>> GetMovementsAsync(IdentityUser user, Guid trainingSessionID)
     {
         var userGuid = Guid.Parse(user.Id);
         
@@ -32,7 +32,7 @@ public class MovementService : IMovementService
         
         if (session is null)
         {
-            return Result<List<Movement>>.NotFound("Training session not found or access denied.");
+            return Result<List<MovementDTO>>.NotFound("Training session not found or access denied.");
         }
 
         var movements = await _context.Movements
@@ -41,11 +41,11 @@ public class MovementService : IMovementService
             .Include(m => m.Sets)
             .ToListAsync();
 
-        return Result<List<Movement>>.Success(movements);
+        return Result<List<MovementDTO>>.Success(movements.Select(m => m.ToDTO()).ToList());
     }
 
 
-    public async Task<Result<Movement>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request)
+    public async Task<Result<MovementDTO>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
         
@@ -57,7 +57,7 @@ public class MovementService : IMovementService
         
         if (session is null)
         {
-            return Result<Movement>.NotFound("Training session not found or access denied.");
+            return Result<MovementDTO>.NotFound("Training session not found or access denied.");
         }
 
         // Verify movement base exists
@@ -65,7 +65,7 @@ public class MovementService : IMovementService
         
         if (movementBase is null)
         {
-            return Result<Movement>.NotFound("Movement base not found.");
+            return Result<MovementDTO>.NotFound("Movement base not found.");
         }
 
         var movement = new Movement
@@ -75,15 +75,17 @@ public class MovementService : IMovementService
             MovementBaseID = request.MovementBaseID,
             Notes = request.Notes,
             MovementModifier = request.MovementModifier,
-            IsCompleted = false
+            IsCompleted = false,
+            MovementBase = movementBase,
         };
-
+        var x  = movement.MovementBaseID;
         _context.Movements.Add(movement);
         await _context.SaveChangesAsync();
-        return Result<Movement>.Created(movement);
+    
+        return Result<MovementDTO>.Created(movement.ToDTO());
     }
 
-    public async Task<Result<Movement>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request)
+    public async Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
         var movement = await _context.Movements
@@ -93,11 +95,11 @@ public class MovementService : IMovementService
 
         if (movement == null)
         {
-            return Result<Movement>.NotFound("Movement not found.");
+            return Result<MovementDTO>.NotFound("Movement not found.");
         }
         else if (movement.TrainingSession.TrainingProgram!.UserID != userGuid)
         {
-            return Result<Movement>.Unauthorized("You do not have permission to update this movement.");
+            return Result<MovementDTO>.Unauthorized("You do not have permission to update this movement.");
         }
 
         // Verify movement base exists if being updated
@@ -105,7 +107,7 @@ public class MovementService : IMovementService
         
         if (movementBase == null)
         {
-            return Result<Movement>.NotFound("Movement base not found.");
+            return Result<MovementDTO>.NotFound("Movement base not found.");
         }
 
         movement.MovementBaseID = request.MovementBaseID;
@@ -114,7 +116,7 @@ public class MovementService : IMovementService
         movement.IsCompleted = request.IsCompleted;
 
         await _context.SaveChangesAsync();
-        return Result<Movement>.Success(movement);
+        return Result<MovementDTO>.Success(movement.ToDTO());
     }
 
     public async Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId)

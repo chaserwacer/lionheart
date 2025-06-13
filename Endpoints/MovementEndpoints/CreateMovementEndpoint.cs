@@ -13,7 +13,7 @@ namespace lionheart.Endpoints.MovementEndpoints
     [ValidateModel]
     public class CreateMovementEndpoint : EndpointBaseAsync
         .WithRequest<CreateMovementRequest>
-        .WithActionResult<Movement>
+        .WithActionResult<MovementDTO>
     {
         private readonly IMovementService _movementService;
         private readonly UserManager<IdentityUser> _userManager;
@@ -26,10 +26,10 @@ namespace lionheart.Endpoints.MovementEndpoints
 
         [HttpPost("api/movement/create")]
         [EndpointDescription("Create a new movement within a training session.")]
-        [ProducesResponseType<Movement>(StatusCodes.Status201Created)]
+        [ProducesResponseType<MovementDTO>(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public override async Task<ActionResult<Movement>> HandleAsync([FromBody] CreateMovementRequest request, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<MovementDTO>> HandleAsync([FromBody] CreateMovementRequest request, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
