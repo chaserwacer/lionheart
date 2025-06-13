@@ -5,6 +5,12 @@
   import type { Program } from '$lib/types/programs';
   import { onMount } from 'svelte';
   import CreateProgramModal from '$lib/components/CreateProgram.svelte';
+  import { goto } from '$app/navigation';
+
+function goToProgram(program: Program) {
+  goto(`/programs/${slugify(program.title)}`);
+}
+
 
   let showModal = false;
   let programs: Program[] = [];
@@ -53,6 +59,13 @@
   const completed = program.trainingSessions.filter(s => s.status === 'Completed').length;
   return Math.round((completed / total) * 100);
 }
+function deleteProgram(programID: string) {
+  const confirmed = confirm('Are you sure you want to delete this program?');
+  if (!confirmed) return;
+
+  programs = programs.filter(p => p.programID !== programID);
+  programStorage.save(programs); // or programStorage.overwrite(programs)
+}
 
 
 </script>
@@ -62,52 +75,66 @@
 
   <div class="grid gap-6 md:grid-cols-2">
     {#each programs as program (program.programID)}
-      <a
-        href={`/programs/${slugify(program.title)}`}
-        class="block"
-      >
-        <div class="bg-zinc-900 rounded-xl p-6 shadow-lg hover:shadow-2xl transition cursor-pointer hover:bg-zinc-800 text-white h-[320px] flex flex-col justify-between">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="font-bold truncate text-2xl md:text-3xl w-2/3">{program.title}</h2>
-            <span class={`text-xs font-semibold text-black px-3 py-1 rounded ${getTypeColor(program.tags[0] ?? '')}`}>{program.tags[0] ?? 'Unknown'}</span>
+  <div class="relative group">
+    <div
+      role="link"
+      tabindex="0"
+      class="block cursor-pointer"
+      on:click={() => goToProgram(program)}
+      on:keydown={(e) => e.key === 'Enter' && goToProgram(program)}
+    >
+      <div class="bg-zinc-900 rounded-xl p-6 shadow-lg hover:shadow-2xl transition cursor-pointer hover:bg-zinc-800 text-white h-[320px] flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-bold truncate text-2xl md:text-3xl w-2/3">{program.title}</h2>
+          <div class="flex items-center gap-2">
+            <span class={`text-xs font-semibold text-black px-3 py-1 rounded ${getTypeColor(program.tags[0] ?? '')}`}>
+              {program.tags[0] ?? 'Unknown'}
+            </span>
+            <button
+              on:click|stopPropagation={() => deleteProgram(program.programID)}
+              class="text-red-400 hover:text-red-600 text-xl font-bold"
+              title="Delete program"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+          <div class="flex-1">
+            <p class="text-base text-gray-300"><span class="font-medium">Start:</span> {formatDate(program.startDate)}</p>
+            <p class="text-base text-gray-300"><span class="font-medium">End:</span> {formatDate(program.endDate)}</p>
           </div>
 
-          <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-            <div class="flex-1">
-              <p class="text-base text-gray-300"><span class="font-medium">Start:</span> {formatDate(program.startDate)}</p>
-              <p class="text-base text-gray-300"><span class="font-medium">End:</span> {formatDate(program.endDate)}</p>
-            </div>
-
-            <div class="flex-1">
-              <h3 class="text-base text-gray-200 font-semibold mb-1">Next Workout Highlights:</h3>
-              <ul class="text-base text-gray-100 space-y-1">
-                {#each getNextWorkoutHighlights(program) as line}
-                  <li class="border-l-4 border-zinc-700 pl-3">{line}</li>
-                {/each}
-              </ul>
-            </div>
+          <div class="flex-1">
+            <h3 class="text-base text-gray-200 font-semibold mb-1">Next Workout Highlights:</h3>
+            <ul class="text-base text-gray-100 space-y-1">
+              {#each getNextWorkoutHighlights(program) as line}
+                <li class="border-l-4 border-zinc-700 pl-3">{line}</li>
+              {/each}
+            </ul>
           </div>
+        </div>
 
-
-          <div>
-            <p class="text-sm text-gray-400 mt-4 mb-2">
-              <span class="font-medium">Next Workout:</span> {formatDate(program.nextTrainingSessionDate)}
-            </p>
-            <div class="relative w-full bg-zinc-700 h-5 rounded-full overflow-hidden">
-              <div
-                class={`h-5 rounded-full absolute left-0 top-0 ${getTypeColor(program.tags[0] ?? '')}`}
-                style={`width: ${calculateProgress(program)}%`}
-              ></div>
-              <div
-                class="absolute right-2 top-0 h-5 text-xs text-white font-bold flex items-center"
-              >
-                {calculateProgress(program)}%
-              </div>
+        <div>
+          <p class="text-sm text-gray-400 mt-4 mb-2">
+            <span class="font-medium">Next Workout:</span> {formatDate(program.nextTrainingSessionDate)}
+          </p>
+          <div class="relative w-full bg-zinc-700 h-5 rounded-full overflow-hidden">
+            <div
+              class={`h-5 rounded-full absolute left-0 top-0 ${getTypeColor(program.tags[0] ?? '')}`}
+              style={`width: ${calculateProgress(program)}%`}
+            ></div>
+            <div class="absolute right-2 top-0 h-5 text-xs text-white font-bold flex items-center">
+              {calculateProgress(program)}%
             </div>
           </div>
         </div>
-      </a>
-    {/each}
+      </div>
+    </div>
+  </div>
+{/each}
+
   </div>
 </div>
 

@@ -3,24 +3,22 @@
   import { onMount } from 'svelte';
   import { programStorage } from '$lib/stores/programStore';
   import type { Program, TrainingSession } from '$lib/types/programs';
-  import { v4 as uuid } from 'uuid';
   import CreateSessionModal from '$lib/components/CreateSession.svelte';
   import { slugify } from '$lib/utils/slugify';
 
   const slug = $page.params.slug;
   let program: Program | undefined;
   let sessions: TrainingSession[] = [];
-  let showModal = false;
   let programID = '';
+  let showModal = false;
   let showCompleted = true;
 
   onMount(() => {
     const allPrograms = programStorage.load();
-    const match = allPrograms.find(p => slugify(p.title) === slug);
-    if (match) {
-      program = match;
-      programID = match.programID;
-      sessions = [...match.trainingSessions].sort(
+    program = allPrograms.find(p => slugify(p.title) === slug);
+    if (program) {
+      programID = program.programID;
+      sessions = [...program.trainingSessions].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
     }
@@ -28,10 +26,7 @@
 
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString(undefined, {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
     });
   }
 
@@ -44,11 +39,9 @@
       return [m.movementBase.name, rep, wt, rpe].filter(Boolean).join(' ');
     });
 
-  const getConsiderations = (i: number): string[] => [
-    'Overshot last session',
-    'Recent poor sleep',
-    'Shoulder pain'
-  ].slice(0, (i % 3) + 1);
+  function getConsiderations(i: number): string[] {
+    return ['Overshot last session', 'Recent poor sleep', 'Shoulder pain'].slice(0, (i % 3) + 1);
+  }
 
   function handleSessionCreated(event: CustomEvent<TrainingSession>) {
     if (!program) return;
@@ -59,20 +52,35 @@
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
   }
+
+  function toggleSkipSession(sessionID: string) {
+  if (!program) return;
+  const index = program.trainingSessions.findIndex(s => s.sessionID === sessionID);
+  if (index !== -1) {
+    const current = program.trainingSessions[index];
+    current.status = current.status === 'Skipped' ? 'Planned' : 'Skipped';
+    programStorage.update(program);
+    sessions = [...program.trainingSessions];
+  }
+}
+
 </script>
 
 {#if program}
   <div class="p-6 max-w-6xl mx-auto">
-    <h1 class="text-3xl font-bold mb-4">{program.title}</h1>
-    <p class="text-green-400 font-semibold mb-4">Uncompleted Sessions ↓</p>
+    <a href="/programs" class="inline-flex items-center mb-6 text-sm text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded">
+      ← Back to Library
+    </a>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-      {#each sessions.filter(s => s.status !== 'Completed') as session (session.sessionID)}
-        <a href={`/programs/${slug}/session/${session.sessionID}`} class="block">
-          <div class="bg-zinc-800 rounded-xl p-4 text-white shadow-md hover:shadow-lg hover:bg-zinc-700 transition">
-            <h2 class="text-xl font-semibold mb-2">
-              {formatDate(session.date)}
-            </h2>
+    <h1 class="text-3xl font-bold mb-6">{program.title}</h1>
+
+    <!-- Uncompleted Sessions -->
+    <p class="text-green-400 font-semibold mb-4">Upcoming Sessions</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+      {#each sessions.filter(s => s.status === 'Planned' || !s.status) as session (session.sessionID)}
+        <div class="relative bg-zinc-800 rounded-xl p-4 text-white shadow-md hover:shadow-lg hover:bg-zinc-700 transition">
+          <a href={`/programs/${slug}/session/${session.sessionID}`} class="block space-y-2">
+            <h2 class="text-xl font-semibold">{formatDate(session.date)}</h2>
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <h3 class="font-bold text-sm mb-1">Preview</h3>
@@ -86,20 +94,51 @@
                 <h3 class="font-bold text-sm mb-1">Considerations</h3>
                 <ul class="text-sm space-y-1">
                   {#each getConsiderations(0) as point}
-                    <li>- {point || '__________'}</li>
+                    <li>- {point}</li>
                   {/each}
                 </ul>
               </div>
             </div>
-          </div>
-        </a>
+          </a>
+          <button
+            on:click={() => toggleSkipSession(session.sessionID)}
+            class="absolute top-2 right-2 bg-yellow-400 text-black px-2 py-1 rounded text-xs hover:bg-yellow-300"
+            title="Skip this session"
+          >
+            ⏭ Skip
+          </button>
+        </div>
       {/each}
     </div>
 
+    <!-- Skipped Sessions -->
+    {#if sessions.some(s => s.status === 'Skipped')}
+      <p class="text-yellow-300 font-semibold mb-4 mt-6">⏭️ Skipped Sessions</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-50 mb-10">
+        {#each sessions.filter(s => s.status === 'Skipped') as session (session.sessionID)}
+          <div class="bg-zinc-700 rounded-xl p-4 text-white shadow relative">
+            <h2 class="text-xl font-semibold mb-2">Skipped – {formatDate(session.date)}</h2>
+            <p class="text-sm italic text-gray-300 mb-2">This session was skipped.</p>
+            <button
+              on:click={() => toggleSkipSession(session.sessionID)}
+              class="text-xs text-blue-300 hover:underline"
+            >
+              Undo Skip
+            </button>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+
+    <!-- Completed Sessions -->
     {#if sessions.some(s => s.status === 'Completed')}
       <div class="flex items-center justify-between mb-4 mt-6">
-        <p class="text-yellow-400 font-semibold">✅ Completed Sessions</p>
-        <button on:click={() => showCompleted = !showCompleted} class="text-sm text-gray-300 underline">
+        <p class="text-blue-400 font-semibold">✅ Completed Sessions</p>
+        <button
+          on:click={() => showCompleted = !showCompleted}
+          class="text-sm text-gray-300 underline hover:text-white"
+        >
           {showCompleted ? 'Hide' : 'Show'}
         </button>
       </div>
@@ -108,10 +147,8 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60">
           {#each sessions.filter(s => s.status === 'Completed') as session (session.sessionID)}
             <a href={`/programs/${slug}/session/${session.sessionID}`} class="block">
-              <div class="bg-zinc-700 rounded-xl p-4 text-white shadow hover:shadow-md hover:bg-zinc-600 transition">
-                <h2 class="text-xl font-semibold mb-2">
-                  {formatDate(session.date)}
-                </h2>
+              <div class="bg-zinc-700 rounded-xl p-4 text-white shadow hover:bg-zinc-600 transition">
+                <h2 class="text-xl font-semibold mb-2">{formatDate(session.date)}</h2>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
                     <h3 class="font-bold text-sm mb-1">Preview</h3>
@@ -125,7 +162,7 @@
                     <h3 class="font-bold text-sm mb-1">Considerations</h3>
                     <ul class="text-sm space-y-1">
                       {#each getConsiderations(0) as point}
-                        <li>- {point || '__________'}</li>
+                        <li>- {point}</li>
                       {/each}
                     </ul>
                   </div>
@@ -143,7 +180,7 @@
   </div>
 {/if}
 
-<!-- Floating add session button -->
+<!-- Add Session Floating Button -->
 <button
   on:click={() => showModal = true}
   class="fixed bottom-6 right-6 bg-green-500 hover:bg-green-400 text-black rounded-full w-12 h-12 text-2xl shadow-lg z-40"
