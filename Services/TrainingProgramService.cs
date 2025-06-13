@@ -112,7 +112,7 @@ public class TrainingProgramService : ITrainingProgramService
 
         _context.TrainingPrograms.Remove(trainingProgram);
         await _context.SaveChangesAsync();
-        return Result.Success();
+        return Result.NoContent();
     }
 
 

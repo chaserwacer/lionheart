@@ -156,6 +156,6 @@ public class TrainingSessionService : ITrainingSessionService
 
         _context.TrainingSessions.Remove(session);
         await _context.SaveChangesAsync();
-        return Result.Success();
+        return Result.NoContent();
     }
 }

@@ -4,7 +4,7 @@ using lionheart.Model.TrainingProgram;
 
 namespace lionheart.Model.DTOs;
 
-public class CreateTrainingProgramRequest
+public class CreateTrainingProgramRequest : IValidatableObject
 {
     [Required]
     public required string Title { get; init; }
@@ -17,9 +17,20 @@ public class CreateTrainingProgramRequest
 
     [Required]
     public required List<string> Tags { get; init; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (EndDate < StartDate)
+        {
+            yield return new ValidationResult(
+                "EndDate cannot be before StartDate.",
+                new[] { nameof(EndDate), nameof(StartDate) }
+            );
+        }
+    }
 }
 
-public class UpdateTrainingProgramRequest
+public class UpdateTrainingProgramRequest : IValidatableObject
 {
     [Required]
     public required Guid TrainingProgramID { get; init; }
@@ -34,6 +45,16 @@ public class UpdateTrainingProgramRequest
 
     [Required]
     public required List<string> Tags { get; init; }
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (EndDate < StartDate)
+        {
+            yield return new ValidationResult(
+                "EndDate cannot be before StartDate.",
+                new[] { nameof(EndDate), nameof(StartDate) }
+            );
+        }
+    }
 }
 
 

@@ -10,12 +10,15 @@ var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 var configuration = builder.Configuration;
  
-builder.Services.AddDbContext<ModelContext>(options =>
-    options.UseSqlite("Data Source=./Data/lionheart.db"));
+ 
+// Only register SQLite if not running in Testing environment
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<ModelContext>(options =>
+        options.UseSqlite("Data Source=./Data/lionheart.db"));
+}
 
 builder.Services.AddOpenApi();
-
-
 
 builder.Services.AddAuthorization();
 services.AddAuthorization();
@@ -101,7 +104,6 @@ app.UseExceptionHandler(errorApp =>
     })
 );
 
-
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -117,12 +119,18 @@ app.MapControllerRoute(
 app.MapFallbackToFile("about", "about.html");
 app.MapFallbackToFile("index.html");
 
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-Task.Run(async () =>
-    {
-        Thread.Sleep(2000); // wait for the server to start
-        await new TsClientGenerator().SimpleGenerate("http://localhost:7025/swagger/v1/swagger.json");
-    });
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+// Only run TypeScript generation in non-test environments
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+    Task.Run(async () =>
+        {
+            Thread.Sleep(2000); // wait for the server to start
+            await new TsClientGenerator().SimpleGenerate("http://localhost:7025/swagger/v1/swagger.json");
+        });
+    #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+}
 
 app.Run();
+
+public partial class Program { }

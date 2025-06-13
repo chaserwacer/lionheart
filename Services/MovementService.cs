@@ -136,7 +136,7 @@ public class MovementService : IMovementService
 
         _context.Movements.Remove(movement);
         await _context.SaveChangesAsync();
-        return Result.Success();
+        return Result.NoContent();
     }
 
     public async Task<Result<List<MovementBase>>> GetMovementBasesAsync()
@@ -177,9 +177,9 @@ public class MovementService : IMovementService
         // Verify user owns the training session
         var session = await _context.TrainingSessions
             .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID && 
-                                     ts.TrainingProgram!.UserID == userGuid)
-            .ThenInclude(ts => ts.Movements);
+            .Include(ts => ts.Movements)
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
+                           ts.TrainingProgram!.UserID == userGuid);
         
         if (session is null)
         {
