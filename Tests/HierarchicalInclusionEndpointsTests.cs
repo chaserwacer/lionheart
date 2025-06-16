@@ -11,6 +11,7 @@ using lionheart.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
+using FluentAssertions;
 
 namespace lionheart.Tests.Integration.EndpointsTests;
 
@@ -213,5 +214,15 @@ public class HierarchicalInclusionEndpointsTests : IClassFixture<WebApplicationF
             Assert.Equal(5, setEntry.RecommendedReps);
             Assert.Equal(100, setEntry.RecommendedWeight);
         }
+        var fetchedSessions = await _client.GetAsync($"/api/training-session/get-all/{fetchedProgram.TrainingProgramID}");
+        fetchedSessions.EnsureSuccessStatusCode();
+        var fetchedProgramSessions = await fetchedSessions.Content.ReadFromJsonAsync<List<TrainingSessionDTO>>();
+        if (fetchedProgramSessions == null)
+        {
+            Assert.Fail("Fetched program sessions should not be null");
+        }
+
+        //Assert.Equal(fetchedProgram.TrainingSessions, fetchedProgramSessions);
+        fetchedProgram.TrainingSessions.Should().BeEquivalentTo(fetchedProgramSessions);
     }
 }

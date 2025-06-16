@@ -26,7 +26,10 @@ public class TrainingProgramService : ITrainingProgramService
             .Where(p => p.UserID == userGuid)
             .Include(p => p.TrainingSessions)
             .ThenInclude(ts => ts.Movements)
-            .ThenInclude(m => m.Sets)
+                .ThenInclude(m => m.MovementBase)
+            .Include(p => p.TrainingSessions)
+            .ThenInclude(ts => ts.Movements)
+                .ThenInclude(m => m.Sets)
             .OrderBy(p => p.StartDate)
             .ToListAsync();
 
@@ -40,7 +43,10 @@ public class TrainingProgramService : ITrainingProgramService
             .Where(p => p.TrainingProgramID == TrainingprogramId && p.UserID == userGuid)
             .Include(p => p.TrainingSessions)
             .ThenInclude(ts => ts.Movements)
-            .ThenInclude(m => m.Sets)
+                .ThenInclude(m => m.MovementBase)
+            .Include(p => p.TrainingSessions)
+            .ThenInclude(ts => ts.Movements)
+                .ThenInclude(m => m.Sets)
             .FirstOrDefaultAsync();
 
         if (trainingProgram is null)
