@@ -13,7 +13,7 @@ namespace lionheart.Endpoints.SetEntryEndpoints
     [ValidateModel]
     public class CreateSetEntryEndpoint : EndpointBaseAsync
         .WithRequest<CreateSetEntryRequest>
-        .WithActionResult<SetEntry>
+        .WithActionResult<SetEntryDTO>
     {
         private readonly ISetEntryService _setEntryService;
         private readonly UserManager<IdentityUser> _userManager;
@@ -26,10 +26,10 @@ namespace lionheart.Endpoints.SetEntryEndpoints
 
         [HttpPost("api/set-entry/create")]
         [EndpointDescription("Create a new set entry within a movement.")]
-        [ProducesResponseType<SetEntry>(StatusCodes.Status201Created)]
+        [ProducesResponseType<SetEntryDTO>(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public override async Task<ActionResult<SetEntry>> HandleAsync([FromBody] CreateSetEntryRequest request, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<SetEntryDTO>> HandleAsync([FromBody] CreateSetEntryRequest request, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }

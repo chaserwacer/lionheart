@@ -84,6 +84,22 @@ public class SetEntry
     public int ActualReps { get; set; }
     public double ActualWeight { get; set; }
     public int ActualRPE { get; set; }
+
+    public SetEntryDTO ToDTO()
+    {
+        return new SetEntryDTO
+        {
+            SetEntryID = SetEntryID,
+            MovementID = MovementID,
+            RecommendedReps = RecommendedReps,
+            RecommendedWeight = RecommendedWeight,
+            RecommendedRPE = RecommendedRPE,
+            WeightUnit = WeightUnit,
+            ActualReps = ActualReps,
+            ActualWeight = ActualWeight,
+            ActualRPE = ActualRPE
+        };
+    }
 }
 
 public enum WeightUnit

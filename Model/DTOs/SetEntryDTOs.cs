@@ -61,3 +61,17 @@ public class UpdateSetEntryRequest
     public required Guid MovementID { get; init; }
 
 }
+
+public class SetEntryDTO
+{
+    public Guid SetEntryID { get; init; }
+    public Guid MovementID { get; init; }
+    public int RecommendedReps { get; set; }
+    public double RecommendedWeight { get; set; }
+    public int RecommendedRPE { get; set; }
+    public WeightUnit WeightUnit { get; set; }
+    public int ActualReps { get; set; }
+    public double ActualWeight { get; set; }
+    public int ActualRPE { get; set; }
+
+}
