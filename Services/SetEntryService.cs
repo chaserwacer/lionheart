@@ -21,7 +21,7 @@ public class SetEntryService : ISetEntryService
     }
 
 
-    public async Task<Result<SetEntry>> CreateSetEntryAsync(IdentityUser user, CreateSetEntryRequest request)
+    public async Task<Result<SetEntryDTO>> CreateSetEntryAsync(IdentityUser user, CreateSetEntryRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
         
@@ -34,13 +34,14 @@ public class SetEntryService : ISetEntryService
 
         if (movement == null)
         {
-            return Result<SetEntry>.NotFound("Movement not found or access denied.");
+            return Result<SetEntryDTO>.NotFound("Movement not found or access denied.");
         }
 
         var setEntry = new SetEntry
         {
             SetEntryID = Guid.NewGuid(),
             MovementID = request.MovementID,
+            Movement = movement,
             RecommendedReps = request.RecommendedReps,
             RecommendedWeight = request.RecommendedWeight,
             RecommendedRPE = request.RecommendedRPE,
@@ -52,10 +53,10 @@ public class SetEntryService : ISetEntryService
 
         _context.SetEntries.Add(setEntry);
         await _context.SaveChangesAsync();
-        return Result<SetEntry>.Created(setEntry);
+        return Result<SetEntryDTO>.Created(setEntry.ToDTO());
     }
 
-    public async Task<Result<SetEntry>> UpdateSetEntryAsync(IdentityUser user, UpdateSetEntryRequest request)
+    public async Task<Result<SetEntryDTO>> UpdateSetEntryAsync(IdentityUser user, UpdateSetEntryRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
         var setEntry = await _context.SetEntries
@@ -66,7 +67,7 @@ public class SetEntryService : ISetEntryService
 
         if (setEntry == null || setEntry.Movement.TrainingSession.TrainingProgram!.UserID != userGuid)
         {
-            return Result<SetEntry>.NotFound("Set entry not found or access denied.");
+            return Result<SetEntryDTO>.NotFound("Set entry not found or access denied.");
         }
 
         // Update only provided values
@@ -85,7 +86,7 @@ public class SetEntryService : ISetEntryService
             setEntry.ActualRPE = request.ActualRPE;
 
         await _context.SaveChangesAsync();
-        return Result<SetEntry>.Success(setEntry);
+        return Result<SetEntryDTO>.Success(setEntry.ToDTO());
     }
 
     public async Task<Result> DeleteSetEntryAsync(IdentityUser user, Guid setEntryId)
@@ -104,6 +105,6 @@ public class SetEntryService : ISetEntryService
 
         _context.SetEntries.Remove(setEntry);
         await _context.SaveChangesAsync();
-        return Result.Success();
+        return Result.NoContent();
     }
 }

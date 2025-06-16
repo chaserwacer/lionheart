@@ -13,7 +13,7 @@ public interface ISetEntryService
     /// <param name="user">The user who owns the movement.</param>
     /// <param name="request">The set entry creation request.</param>
     /// <returns>A result containing the created set entry.</returns>
-    Task<Result<SetEntry>> CreateSetEntryAsync(IdentityUser user, CreateSetEntryRequest request);
+    Task<Result<SetEntryDTO>> CreateSetEntryAsync(IdentityUser user, CreateSetEntryRequest request);
 
     /// <summary>
     /// Update a set entry.
@@ -21,7 +21,7 @@ public interface ISetEntryService
     /// <param name="user">The user who owns the set entry.</param>
     /// <param name="request">The set entry update request.</param>
     /// <returns>A result containing the updated set entry.</returns>
-    Task<Result<SetEntry>> UpdateSetEntryAsync(IdentityUser user, UpdateSetEntryRequest request);
+    Task<Result<SetEntryDTO>> UpdateSetEntryAsync(IdentityUser user, UpdateSetEntryRequest request);
 
     /// <summary>
     /// Delete a set entry.
