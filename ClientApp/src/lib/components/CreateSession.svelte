@@ -44,19 +44,22 @@
   }[] = [];
 
   $: filteredOptions = movementSearch.length
-    ? movementOptions.filter(m => m.name?.toLowerCase().includes(movementSearch.toLowerCase()))
-    : movementOptions;
+  ? movementOptions.filter(m => m.name?.toLowerCase().includes(movementSearch.toLowerCase()))
+  : movementOptions;
 
-  const movementBaseClient = new GetMovementBasesEndpointClient('http://localhost:5174');
-  let movementOptions: MovementBase[] = [];
+let movementOptions: MovementBase[] = [];
 
 onMount(async () => {
   try {
-    movementOptions = await movementBaseClient.getMovementBases(); // ✅ Use this
+    const res = await fetch('http://localhost:5174/api/movement-base/get-all', {
+      credentials: 'include'
+    });
+    movementOptions = await res.json();
   } catch (err) {
     console.error('Failed to fetch movement bases:', err);
   }
 });
+
 
   function addMovement(name: string) {
     if (!name) return;
