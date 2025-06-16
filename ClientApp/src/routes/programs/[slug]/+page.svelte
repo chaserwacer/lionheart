@@ -98,14 +98,16 @@
   }
 </script>
 
-
-
-
 {#if program}
   <div class="p-6 max-w-6xl mx-auto">
-    <a href="/programs" class="inline-flex items-center mb-6 text-sm text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded">
-      ← Back to Library
-    </a>
+    <div class="flex justify-between items-center mb-6">
+  <a href="/programs" class="inline-flex items-center text-sm text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded">
+    ← Back to Library
+  </a>
+  <a href="/movementLib" class="inline-flex items-center text-sm text-white bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded">
+    🏋️ View Movement Library
+  </a>
+  </div>
 
     <h1 class="text-3xl font-bold mb-6">{program.title}</h1>
 
