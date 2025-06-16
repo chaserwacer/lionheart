@@ -16,13 +16,38 @@
   let programs: TrainingProgram[] = [];
 
   async function loadPrograms() {
-    const getProgramsClient = new GetTrainingProgramsEndpointClient('http://localhost:5174');
+  try {
+    const res = await fetch('http://localhost:5174/api/training-program/get-all', {
+      credentials: 'include'
+    });
+
+    const rawText = await res.text();
+
+    let parsed: any[];
     try {
-      programs = await getProgramsClient.getAll2();
-    } catch (error) {
-      console.error('Failed to load programs:', error);
+      parsed = JSON.parse(rawText);
+    } catch (err) {
+      console.error('Failed to parse JSON:', err);
+      console.error('Raw backend response (truncated):', rawText.slice(0, 1000));
+      return;
     }
+
+    // Clean up the recursive references if needed
+    const cleaned = parsed.map((program: any) => {
+      if (program.trainingSessions) {
+        program.trainingSessions = program.trainingSessions.map((session: any) => ({
+          ...session,
+          trainingProgram: null
+        }));
+      }
+      return program;
+    });
+
+    programs = cleaned;
+  } catch (error) {
+    console.error('Failed to load programs:', error);
   }
+}
 
   onMount(loadPrograms);
 
