@@ -1,3 +1,4 @@
+using lionheart.Model.DTOs;
 using lionheart.WellBeing;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -26,4 +27,21 @@ public class TrainingProgram
     /// In the future, this may need to be beefed up and use some sort of more concrete tagging system.
     /// </summary>
     public List<string> Tags { get; set; } = [];
+
+    public TrainingProgramDTO ToDTO()
+    {
+        var sessions = TrainingSessions.OrderBy(s => s.Date)
+            .Select((session, index) => session.ToDTO(index + 1))
+            .ToList();
+        return new TrainingProgramDTO
+        {
+            TrainingProgramID = TrainingProgramID,
+            Title = Title,
+            StartDate = StartDate,
+            NextTrainingSessionDate = NextTrainingSessionDate,
+            EndDate = EndDate,
+            TrainingSessions = sessions,
+            Tags = Tags
+        };
+    }
 }

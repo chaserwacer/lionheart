@@ -107,16 +107,13 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
     [Fact]
     public async Task GetTrainingPrograms_WithNoPrograms_ReturnsEmptyList()
     {
-        // Arrange
         _client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Test", _testUserId);
 
-        // Act
         var response = await _client.GetAsync("/api/training-program/get-all");
 
-        // Assert
         response.EnsureSuccessStatusCode();
-        var programs = await response.Content.ReadFromJsonAsync<List<TrainingProgram>>();
+        var programs = await response.Content.ReadFromJsonAsync<List<TrainingProgramDTO>>();
         Assert.NotNull(programs);
         Assert.Empty(programs);
     }
@@ -124,7 +121,6 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
     [Fact]
     public async Task CreateTrainingProgram_WithValidData_ReturnsCreatedProgram()
     {
-        // Arrange
         _client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Test", _testUserId);
 
@@ -136,26 +132,22 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
             Tags = new List<string> { "Strength", "Powerlifting" }
         };
 
-        // Act
         var response = await _client.PostAsJsonAsync("/api/training-program/create", request);
 
-        // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var createdProgram = await response.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await response.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         Assert.NotNull(createdProgram);
         Assert.Equal(request.Title, createdProgram.Title);
         Assert.Equal(request.StartDate, createdProgram.StartDate);
         Assert.Equal(request.EndDate, createdProgram.EndDate);
         Assert.Equal(request.Tags, createdProgram.Tags);
-        Assert.Equal(Guid.Parse(_testUserId), createdProgram.UserID);
         Assert.NotEqual(Guid.Empty, createdProgram.TrainingProgramID);
     }
 
     [Fact]
     public async Task GetTrainingProgram_WithValidId_ReturnsProgram()
     {
-        // Arrange
         _client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Test", _testUserId);
 
@@ -168,14 +160,12 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
         };
 
         var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
-        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
-        // Act
         var response = await _client.GetAsync($"/api/training-program/get/{createdProgram!.TrainingProgramID}");
 
-        // Assert
         response.EnsureSuccessStatusCode();
-        var retrievedProgram = await response.Content.ReadFromJsonAsync<TrainingProgram>();
+        var retrievedProgram = await response.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         Assert.NotNull(retrievedProgram);
         Assert.Equal(createdProgram.TrainingProgramID, retrievedProgram.TrainingProgramID);
@@ -200,7 +190,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
         };
 
         var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
-        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         var updateRequest = new UpdateTrainingProgramRequest
         {
@@ -216,7 +206,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var updatedProgram = await response.Content.ReadFromJsonAsync<TrainingProgram>();
+        var updatedProgram = await response.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         Assert.NotNull(updatedProgram);
         Assert.Equal(updateRequest.TrainingProgramID, updatedProgram.TrainingProgramID);
@@ -243,7 +233,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
 
         var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
 
-        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         // Act
         var response = await _client.DeleteAsync($"/api/training-program/delete/{createdProgram!.TrainingProgramID}");
@@ -304,13 +294,49 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var programs = await response.Content.ReadFromJsonAsync<List<TrainingProgram>>();
+        var programs = await response.Content.ReadFromJsonAsync<List<TrainingProgramDTO>>();
 
         Assert.NotNull(programs);
         Assert.Equal(2, programs.Count);
-        Assert.All(programs, p => Assert.Equal(Guid.Parse(_testUserId), p.UserID));
         Assert.Contains(programs, p => p.Title == "User 1 Program 1");
         Assert.Contains(programs, p => p.Title == "User 1 Program 2");
+    }
+
+    // When fetching a program, check sessions are TrainingSessionDTOs:
+    [Fact]
+    public async Task GetTrainingProgram_IncludesSessionsAsDTOs()
+    {
+        _client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Test", _testUserId);
+
+        var createRequest = new CreateTrainingProgramRequest
+        {
+            Title = "Program With Sessions",
+            StartDate = DateOnly.FromDateTime(DateTime.Now),
+            EndDate = DateOnly.FromDateTime(DateTime.Now.AddDays(30)),
+            Tags = new List<string> { "Test" }
+        };
+
+        var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
+
+        // Add a session
+        var sessionRequest = new CreateTrainingSessionRequest
+        {
+            TrainingProgramID = createdProgram!.TrainingProgramID,
+            Date = DateOnly.FromDateTime(DateTime.Now)
+        };
+        var sessionResponse = await _client.PostAsJsonAsync("/api/training-session/create", sessionRequest);
+        sessionResponse.EnsureSuccessStatusCode();
+
+        // Fetch program and check sessions
+        var getResponse = await _client.GetAsync($"/api/training-program/get/{createdProgram.TrainingProgramID}");
+        getResponse.EnsureSuccessStatusCode();
+        var programWithSessions = await getResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
+        Assert.NotNull(programWithSessions);
+        Assert.NotNull(programWithSessions.TrainingSessions);
+        Assert.Single(programWithSessions.TrainingSessions);
+        Assert.IsType<TrainingSessionDTO>(programWithSessions.TrainingSessions.First());
     }
 
     #endregion
@@ -378,7 +404,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
         };
 
         var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
-        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         var updateRequest = new UpdateTrainingProgramRequest
         {
@@ -475,7 +501,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
         };
 
         var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
-        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         // Act - Try to access as different user
         _client.DefaultRequestHeaders.Authorization =
@@ -503,7 +529,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
         };
 
         var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
-        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         // Act - Try to update as different user
         _client.DefaultRequestHeaders.Authorization =
@@ -540,7 +566,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
         };
 
         var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
-        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         // Act - Try to delete as different user
         _client.DefaultRequestHeaders.Authorization =
@@ -642,7 +668,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var createdProgram = await response.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await response.Content.ReadFromJsonAsync<TrainingProgramDTO>();
         Assert.Equal(request.Title, createdProgram!.Title);
         Assert.Equal(request.Tags, createdProgram.Tags);
     }
@@ -667,7 +693,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var createdProgram = await response.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await response.Content.ReadFromJsonAsync<TrainingProgramDTO>();
         Assert.Empty(createdProgram!.Tags);
     }
 
@@ -687,7 +713,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
         };
 
         var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
-        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         var updateRequest = new UpdateTrainingProgramRequest
         {
@@ -703,13 +729,13 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var updatedProgram = await response.Content.ReadFromJsonAsync<TrainingProgram>();
+        var updatedProgram = await response.Content.ReadFromJsonAsync<TrainingProgramDTO>();
 
         Assert.Equal("Updated Title Only", updatedProgram!.Title);
         Assert.Equal(createdProgram.StartDate, updatedProgram.StartDate);
         Assert.Equal(createdProgram.EndDate, updatedProgram.EndDate);
         Assert.Equal(createdProgram.Tags, updatedProgram.Tags);
-        Assert.Equal(createdProgram.UserID, updatedProgram.UserID); // UserID should never change
+        // Assert.Equal(createdProgram.UserID, updatedProgram.UserID); // UserID should never change
     }
 
     #endregion
@@ -734,19 +760,19 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
 
         var createResponse = await _client.PostAsJsonAsync("/api/training-program/create", createRequest);
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var createdProgram = await createResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
         Assert.NotNull(createdProgram);
 
         // Act & Assert - Get specific
         var getResponse = await _client.GetAsync($"/api/training-program/get/{createdProgram.TrainingProgramID}");
         getResponse.EnsureSuccessStatusCode();
-        var retrievedProgram = await getResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var retrievedProgram = await getResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
         Assert.Equal(createdProgram.TrainingProgramID, retrievedProgram!.TrainingProgramID);
 
         // Act & Assert - Get all (should include our program)
         var getAllResponse = await _client.GetAsync("/api/training-program/get-all");
         getAllResponse.EnsureSuccessStatusCode();
-        var allPrograms = await getAllResponse.Content.ReadFromJsonAsync<List<TrainingProgram>>();
+        var allPrograms = await getAllResponse.Content.ReadFromJsonAsync<List<TrainingProgramDTO>>();
         Assert.Contains(allPrograms!, p => p.TrainingProgramID == createdProgram.TrainingProgramID);
 
         // Act & Assert - Update
@@ -761,7 +787,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
 
         var updateResponse = await _client.PutAsJsonAsync("/api/training-program/update", updateRequest);
         updateResponse.EnsureSuccessStatusCode();
-        var updatedProgram = await updateResponse.Content.ReadFromJsonAsync<TrainingProgram>();
+        var updatedProgram = await updateResponse.Content.ReadFromJsonAsync<TrainingProgramDTO>();
         Assert.Equal("Updated Integration Test Program", updatedProgram!.Title);
 
         // Act & Assert - Delete
@@ -775,7 +801,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
         // Verify not in get-all list
         var getAllAfterDeleteResponse = await _client.GetAsync("/api/training-program/get-all");
         getAllAfterDeleteResponse.EnsureSuccessStatusCode();
-        var allProgramsAfterDelete = await getAllAfterDeleteResponse.Content.ReadFromJsonAsync<List<TrainingProgram>>();
+        var allProgramsAfterDelete = await getAllAfterDeleteResponse.Content.ReadFromJsonAsync<List<TrainingProgramDTO>>();
         Assert.DoesNotContain(allProgramsAfterDelete!, p => p.TrainingProgramID == createdProgram.TrainingProgramID);
     }
 
@@ -807,7 +833,7 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
         Assert.Equal(user2Program.TrainingProgramID, user2Programs[0].TrainingProgramID);
     }
 
-    private async Task<TrainingProgram> CreateProgramForUser(string userId, string title)
+    private async Task<TrainingProgramDTO> CreateProgramForUser(string userId, string title)
     {
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization =
@@ -823,14 +849,14 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
 
         var response = await client.PostAsJsonAsync("/api/training-program/create", request);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<TrainingProgram>())!;
+        return (await response.Content.ReadFromJsonAsync<TrainingProgramDTO>())!;
     }
 
-    private async Task<List<TrainingProgram>> GetUserPrograms()
+    private async Task<List<TrainingProgramDTO>> GetUserPrograms()
     {
         var response = await _client.GetAsync("/api/training-program/get-all");
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<List<TrainingProgram>>())!;
+        return (await response.Content.ReadFromJsonAsync<List<TrainingProgramDTO>>())!;
     }
 
     #endregion

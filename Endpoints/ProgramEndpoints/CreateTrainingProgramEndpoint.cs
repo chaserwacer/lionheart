@@ -13,7 +13,7 @@ namespace lionheart.Endpoints.ProgramEndpoints
     [ValidateModel]
     public class CreateTrainingProgramEndpoint : EndpointBaseAsync
         .WithRequest<CreateTrainingProgramRequest>
-        .WithActionResult<TrainingProgram>
+        .WithActionResult<TrainingProgramDTO>
     {
         private readonly ITrainingProgramService _trainingProgramService;
         private readonly UserManager<IdentityUser> _userManager;
@@ -26,9 +26,9 @@ namespace lionheart.Endpoints.ProgramEndpoints
 
         [HttpPost("api/training-program/create")]
         [EndpointDescription("Create a new training program for the authenticated user.")]
-        [ProducesResponseType<TrainingProgram>(StatusCodes.Status201Created)]
+        [ProducesResponseType<TrainingProgramDTO>(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public override async Task<ActionResult<TrainingProgram>> HandleAsync([FromBody] CreateTrainingProgramRequest request, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<TrainingProgramDTO>> HandleAsync([FromBody] CreateTrainingProgramRequest request, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }

@@ -64,7 +64,7 @@ public class MovementDTO
     public MovementBase MovementBase { get; set; } = new();
     public MovementModifier MovementModifier { get; set; } = new();
 
-    public List<SetEntry> Sets { get; set; } = [];
+    public List<SetEntryDTO> Sets { get; set; } = [];
     public string Notes { get; set; } = string.Empty;
     public bool IsCompleted { get; set; } = false;
     

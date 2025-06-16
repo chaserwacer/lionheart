@@ -111,7 +111,7 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
 
         var response = await _client.PostAsJsonAsync("/api/training-program/create", request);
         response.EnsureSuccessStatusCode();
-        var created = await response.Content.ReadFromJsonAsync<TrainingProgram>();
+        var created = await response.Content.ReadFromJsonAsync<TrainingProgramDTO>();
         return created!.TrainingProgramID;
     }
 

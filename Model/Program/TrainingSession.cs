@@ -26,7 +26,7 @@ public class TrainingSession
             TrainingSessionID = TrainingSessionID,
             Date = Date,
             Status = Status,
-            Movements = Movements,
+            Movements = Movements.Select(m => m.ToDTO()).ToList(),
             SessionNumber = sessionNumber,
             TrainingProgramID = TrainingProgramID
         };

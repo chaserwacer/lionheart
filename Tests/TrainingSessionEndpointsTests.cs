@@ -111,7 +111,7 @@ public class TrainingSessionEndpointsTests : IClassFixture<WebApplicationFactory
 
         var response = await client.PostAsJsonAsync("/api/training-program/create", request);
         response.EnsureSuccessStatusCode();
-        var created = await response.Content.ReadFromJsonAsync<TrainingProgram>();
+        var created = await response.Content.ReadFromJsonAsync<TrainingProgramDTO>();
         return created!.TrainingProgramID;
     }
 

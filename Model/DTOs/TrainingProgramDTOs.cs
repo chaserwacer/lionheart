@@ -29,6 +29,19 @@ public class CreateTrainingProgramRequest : IValidatableObject
         }
     }
 }
+public class TrainingProgramDTO
+{
+    public Guid TrainingProgramID { get; init; }
+
+    public string Title { get; set; } = string.Empty;
+
+    public DateOnly StartDate { get; set; }
+    public DateOnly NextTrainingSessionDate { get; set; }
+    public DateOnly EndDate { get; set; }
+    public List<TrainingSessionDTO> TrainingSessions { get; set; } = [];
+  
+    public List<string> Tags { get; set; } = [];
+}
 
 public class UpdateTrainingProgramRequest : IValidatableObject
 {
@@ -97,5 +110,5 @@ public class TrainingSessionDTO
     public int SessionNumber { get; set; }
     public DateOnly Date { get; set; }
     public TrainingSessionStatus Status { get; set; } 
-    public List<Movement> Movements { get; set; } = [];
+    public List<MovementDTO> Movements { get; set; } = [];
 }

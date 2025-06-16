@@ -12,7 +12,7 @@ public interface ITrainingProgramService
     /// </summary>
     /// <param name="user">The user whose programs to retrieve.</param>
     /// <returns>A result containing a list of programs.</returns>
-    Task<Result<List<TrainingProgram>>> GetTrainingProgramsAsync(IdentityUser user);
+    Task<Result<List<TrainingProgramDTO>>> GetTrainingProgramsAsync(IdentityUser user);
 
     /// <summary>
     /// Get a specific program by ID for a user.
@@ -20,7 +20,7 @@ public interface ITrainingProgramService
     /// <param name="user">The user who owns the program.</param>
     /// <param name="programId">The program ID to retrieve.</param>
     /// <returns>A result containing the program.</returns>
-    Task<Result<TrainingProgram>> GetTrainingProgramAsync(IdentityUser user, Guid programId);
+    Task<Result<TrainingProgramDTO>> GetTrainingProgramAsync(IdentityUser user, Guid programId);
 
     /// <summary>
     /// Create a new training program for a user.
@@ -28,7 +28,7 @@ public interface ITrainingProgramService
     /// <param name="user">The user to create the program for.</param>
     /// <param name="request">The program creation request.</param>
     /// <returns>A result containing the created program.</returns>
-    Task<Result<TrainingProgram>> CreateTrainingProgramAsync(IdentityUser user, CreateTrainingProgramRequest request);
+    Task<Result<TrainingProgramDTO>> CreateTrainingProgramAsync(IdentityUser user, CreateTrainingProgramRequest request);
 
     /// <summary>
     /// Update an existing training program.
@@ -36,7 +36,7 @@ public interface ITrainingProgramService
     /// <param name="user">The user who owns the program.</param>
     /// <param name="request">The program update request.</param>
     /// <returns>A result containing the updated program.</returns>
-    Task<Result<TrainingProgram>> UpdateTrainingProgramAsync(IdentityUser user, UpdateTrainingProgramRequest request);
+    Task<Result<TrainingProgramDTO>> UpdateTrainingProgramAsync(IdentityUser user, UpdateTrainingProgramRequest request);
 
     /// <summary>
     /// Delete a training program.

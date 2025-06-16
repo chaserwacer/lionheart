@@ -19,7 +19,7 @@ public class TrainingProgramService : ITrainingProgramService
         _context = context;
     }
 
-    public async Task<Result<List<TrainingProgram>>> GetTrainingProgramsAsync(IdentityUser user)
+    public async Task<Result<List<TrainingProgramDTO>>> GetTrainingProgramsAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);
         var trainingPrograms = await _context.TrainingPrograms
@@ -30,10 +30,10 @@ public class TrainingProgramService : ITrainingProgramService
             .OrderBy(p => p.StartDate)
             .ToListAsync();
 
-        return Result<List<TrainingProgram>>.Success(trainingPrograms);
+        return Result<List<TrainingProgramDTO>>.Success(trainingPrograms.Select(p => p.ToDTO()).ToList());
     }
 
-    public async Task<Result<TrainingProgram>> GetTrainingProgramAsync(IdentityUser user, Guid TrainingprogramId)
+    public async Task<Result<TrainingProgramDTO>> GetTrainingProgramAsync(IdentityUser user, Guid TrainingprogramId)
     {
         var userGuid = Guid.Parse(user.Id);
         var trainingProgram = await _context.TrainingPrograms
@@ -45,13 +45,13 @@ public class TrainingProgramService : ITrainingProgramService
 
         if (trainingProgram is null)
         {
-            return Result<TrainingProgram>.NotFound("TrainingProgram not found.");
+            return Result<TrainingProgramDTO>.NotFound("TrainingProgram not found.");
         }
 
-        return Result<TrainingProgram>.Success(trainingProgram);
+        return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
     }
 
-    public async Task<Result<TrainingProgram>> CreateTrainingProgramAsync(IdentityUser user, CreateTrainingProgramRequest request)
+    public async Task<Result<TrainingProgramDTO>> CreateTrainingProgramAsync(IdentityUser user, CreateTrainingProgramRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
         var startDate = request.StartDate;
@@ -70,10 +70,10 @@ public class TrainingProgramService : ITrainingProgramService
 
         _context.TrainingPrograms.Add(trainingProgram);
         await _context.SaveChangesAsync();
-        return Result<TrainingProgram>.Created(trainingProgram);
+        return Result<TrainingProgramDTO>.Created(trainingProgram.ToDTO());
     }
 
-    public async Task<Result<TrainingProgram>> UpdateTrainingProgramAsync(IdentityUser user, UpdateTrainingProgramRequest request)
+    public async Task<Result<TrainingProgramDTO>> UpdateTrainingProgramAsync(IdentityUser user, UpdateTrainingProgramRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
         var trainingProgram = await _context.TrainingPrograms
@@ -81,7 +81,7 @@ public class TrainingProgramService : ITrainingProgramService
 
         if (trainingProgram is null)
         {
-            return Result<TrainingProgram>.NotFound("TrainingProgram not found.");
+            return Result<TrainingProgramDTO>.NotFound("TrainingProgram not found.");
         }
 
         trainingProgram.Title = request.Title;
@@ -96,7 +96,7 @@ public class TrainingProgramService : ITrainingProgramService
         
 
         await _context.SaveChangesAsync();
-        return Result<TrainingProgram>.Success(trainingProgram);
+        return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
     }
 
     public async Task<Result> DeleteTrainingProgramAsync(IdentityUser user, Guid TrainingprogramId)

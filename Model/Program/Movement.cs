@@ -37,7 +37,7 @@ public class Movement
             MovementBaseID = MovementBaseID,
             MovementBase = MovementBase,
             MovementModifier = MovementModifier,
-            Sets = Sets,
+            Sets = Sets.Select(set => set.ToDTO()).ToList(),
             Notes = Notes,
             IsCompleted = IsCompleted
         };

@@ -6,13 +6,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
+using lionheart.Model.DTOs;
 
 namespace lionheart.Endpoints.ProgramEndpoints
 {
     [ValidateModel]
     public class GetTrainingProgramEndpoint : EndpointBaseAsync
         .WithRequest<Guid>
-        .WithActionResult<TrainingProgram>
+        .WithActionResult<TrainingProgramDTO>
     {
         private readonly ITrainingProgramService _trainingProgramService;
         private readonly UserManager<IdentityUser> _userManager;
@@ -25,10 +26,10 @@ namespace lionheart.Endpoints.ProgramEndpoints
 
         [HttpGet("api/training-program/get/{programId}")]
         [EndpointDescription("Get a specific training program by ID.")]
-        [ProducesResponseType<TrainingProgram>(StatusCodes.Status200OK)]
+        [ProducesResponseType<TrainingProgramDTO>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public override async Task<ActionResult<TrainingProgram>> HandleAsync([FromRoute] Guid programId, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<TrainingProgramDTO>> HandleAsync([FromRoute] Guid programId, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
