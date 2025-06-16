@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  import { CreateTrainingProgramEndpointClient } from '$lib/api/ApiClient';
-  import { CreateTrainingProgramRequest } from '$lib/api/ApiClient';
+  import { createEventDispatcher, onMount } from 'svelte';
+  import { browser } from '$app/environment';
+  import {
+    CreateTrainingProgramEndpointClient,
+    CreateTrainingProgramRequest
+  } from '$lib/api/ApiClient';
 
   export let show: boolean;
   const dispatch = createEventDispatcher();
@@ -20,7 +23,13 @@
     'Swimming'
   ];
 
-  const client = new CreateTrainingProgramEndpointClient('/');
+  let client: CreateTrainingProgramEndpointClient | null = null;
+
+  onMount(() => {
+    if (browser) {
+      client = new CreateTrainingProgramEndpointClient('http://localhost:5174');
+    }
+  });
 
   function close() {
     dispatch('close');
@@ -31,15 +40,22 @@
       alert('All fields are required.');
       return;
     }
+
+    if (!client) {
+      alert('API client not initialized.');
+      return;
+    }
+
     const request = CreateTrainingProgramRequest.fromJS({
       title,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      startDate: new Date(startDate).toISOString().split('T')[0],
+      endDate: new Date(endDate).toISOString().split('T')[0],
       tags: [selectedTag]
     });
 
     try {
       await client.create3(request);
+
       // Reset form
       title = '';
       startDate = '';
@@ -54,6 +70,7 @@
     }
   }
 </script>
+
 
 {#if show}
   <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
