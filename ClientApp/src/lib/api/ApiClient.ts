@@ -322,8 +322,8 @@ export class CreateMovementBaseEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    createMovementBase(body: CreateMovementBaseRequest | undefined): Promise<MovementBase> {
-        let url_ = this.baseUrl + "/api/movement/create-movement-base";
+    create(body: CreateMovementBaseRequest | undefined): Promise<MovementBase> {
+        let url_ = this.baseUrl + "/api/movement-base/create";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(body);
@@ -338,11 +338,11 @@ export class CreateMovementBaseEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreateMovementBase(_response);
+            return this.processCreate(_response);
         });
     }
 
-    protected processCreateMovementBase(response: Response): Promise<MovementBase> {
+    protected processCreate(response: Response): Promise<MovementBase> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -389,7 +389,7 @@ export class CreateMovementEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create(body: CreateMovementRequest | undefined): Promise<Movement> {
+    create2(body: CreateMovementRequest | undefined): Promise<MovementDTO> {
         let url_ = this.baseUrl + "/api/movement/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -405,18 +405,18 @@ export class CreateMovementEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate(_response);
+            return this.processCreate2(_response);
         });
     }
 
-    protected processCreate(response: Response): Promise<Movement> {
+    protected processCreate2(response: Response): Promise<MovementDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
             return response.text().then((_responseText) => {
             let result201: any = null;
             let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result201 = Movement.fromJS(resultData201);
+            result201 = MovementDTO.fromJS(resultData201);
             return result201;
             });
         } else if (status === 401) {
@@ -438,7 +438,7 @@ export class CreateMovementEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<Movement>(null as any);
+        return Promise.resolve<MovementDTO>(null as any);
     }
 }
 
@@ -516,7 +516,7 @@ export class CreateSetEntryEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create2(body: CreateSetEntryRequest | undefined): Promise<SetEntry> {
+    create3(body: CreateSetEntryRequest | undefined): Promise<SetEntryDTO> {
         let url_ = this.baseUrl + "/api/set-entry/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -532,18 +532,18 @@ export class CreateSetEntryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate2(_response);
+            return this.processCreate3(_response);
         });
     }
 
-    protected processCreate2(response: Response): Promise<SetEntry> {
+    protected processCreate3(response: Response): Promise<SetEntryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
             return response.text().then((_responseText) => {
             let result201: any = null;
             let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result201 = SetEntry.fromJS(resultData201);
+            result201 = SetEntryDTO.fromJS(resultData201);
             return result201;
             });
         } else if (status === 401) {
@@ -565,7 +565,7 @@ export class CreateSetEntryEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<SetEntry>(null as any);
+        return Promise.resolve<SetEntryDTO>(null as any);
     }
 }
 
@@ -583,68 +583,8 @@ export class CreateTrainingProgramEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create3(body: CreateTrainingProgramRequest | undefined): Promise<TrainingProgram> {
+    create4(body: CreateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/create";
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(body);
-
-        let options_: RequestInit = {
-            body: content_,
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "text/plain"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate3(_response);
-        });
-    }
-
-    protected processCreate3(response: Response): Promise<TrainingProgram> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 201) {
-            return response.text().then((_responseText) => {
-            let result201: any = null;
-            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result201 = TrainingProgram.fromJS(resultData201);
-            return result201;
-            });
-        } else if (status === 401) {
-            return response.text().then((_responseText) => {
-            let result401: any = null;
-            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result401 = ProblemDetails.fromJS(resultData401);
-            return throwException("Unauthorized", status, _responseText, _headers, result401);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<TrainingProgram>(null as any);
-    }
-}
-
-export class CreateTrainingSessionEndpointClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * @param body (optional) 
-     * @return Created
-     */
-    create4(body: CreateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
-        let url_ = this.baseUrl + "/api/training-session/create";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(body);
@@ -663,7 +603,67 @@ export class CreateTrainingSessionEndpointClient {
         });
     }
 
-    protected processCreate4(response: Response): Promise<TrainingSessionDTO> {
+    protected processCreate4(response: Response): Promise<TrainingProgramDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = TrainingProgramDTO.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingProgramDTO>(null as any);
+    }
+}
+
+export class CreateTrainingSessionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    create5(body: CreateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
+        let url_ = this.baseUrl + "/api/training-session/create";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate5(_response);
+        });
+    }
+
+    protected processCreate5(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -1225,8 +1225,8 @@ export class GetMovementBasesEndpointClient {
     /**
      * @return OK
      */
-    getMovementBases(): Promise<MovementBase[]> {
-        let url_ = this.baseUrl + "/api/movement/get-movement-bases";
+    getAll(): Promise<MovementBase[]> {
+        let url_ = this.baseUrl + "/api/movement-base/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1237,11 +1237,11 @@ export class GetMovementBasesEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetMovementBases(_response);
+            return this.processGetAll(_response);
         });
     }
 
-    protected processGetMovementBases(response: Response): Promise<MovementBase[]> {
+    protected processGetAll(response: Response): Promise<MovementBase[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1287,14 +1287,11 @@ export class GetMovementsEndpointClient {
     /**
      * @return OK
      */
-    getAll(trainingSessionID: string, sessionId: string): Promise<Movement[]> {
+    getAll2(sessionID: string): Promise<Movement[]> {
         let url_ = this.baseUrl + "/api/movement/get-all/{sessionId}";
-        if (trainingSessionID === undefined || trainingSessionID === null)
-            throw new Error("The parameter 'trainingSessionID' must be defined.");
-        url_ = url_.replace("{trainingSessionID}", encodeURIComponent("" + trainingSessionID));
-        if (sessionId === undefined || sessionId === null)
-            throw new Error("The parameter 'sessionId' must be defined.");
-        url_ = url_.replace("{sessionId}", encodeURIComponent("" + sessionId));
+        if (sessionID === undefined || sessionID === null)
+            throw new Error("The parameter 'sessionID' must be defined.");
+        url_ = url_.replace("{sessionID}", encodeURIComponent("" + sessionID));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1305,11 +1302,11 @@ export class GetMovementsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll(_response);
+            return this.processGetAll2(_response);
         });
     }
 
-    protected processGetAll(response: Response): Promise<Movement[]> {
+    protected processGetAll2(response: Response): Promise<Movement[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1425,7 +1422,7 @@ export class GetTrainingProgramEndpointClient {
     /**
      * @return OK
      */
-    get(programId: string): Promise<TrainingProgram> {
+    get(programId: string): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/get/{programId}";
         if (programId === undefined || programId === null)
             throw new Error("The parameter 'programId' must be defined.");
@@ -1444,14 +1441,14 @@ export class GetTrainingProgramEndpointClient {
         });
     }
 
-    protected processGet(response: Response): Promise<TrainingProgram> {
+    protected processGet(response: Response): Promise<TrainingProgramDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
             return response.text().then((_responseText) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result200 = TrainingProgram.fromJS(resultData200);
+            result200 = TrainingProgramDTO.fromJS(resultData200);
             return result200;
             });
         } else if (status === 401) {
@@ -1473,7 +1470,7 @@ export class GetTrainingProgramEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<TrainingProgram>(null as any);
+        return Promise.resolve<TrainingProgramDTO>(null as any);
     }
 }
 
@@ -1490,7 +1487,7 @@ export class GetTrainingProgramsEndpointClient {
     /**
      * @return OK
      */
-    getAll2(): Promise<TrainingProgram[]> {
+    getAll3(): Promise<TrainingProgramDTO[]> {
         let url_ = this.baseUrl + "/api/training-program/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -1502,11 +1499,11 @@ export class GetTrainingProgramsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll2(_response);
+            return this.processGetAll3(_response);
         });
     }
 
-    protected processGetAll2(response: Response): Promise<TrainingProgram[]> {
+    protected processGetAll3(response: Response): Promise<TrainingProgramDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1516,7 +1513,7 @@ export class GetTrainingProgramsEndpointClient {
             if (Array.isArray(resultData200)) {
                 result200 = [] as any;
                 for (let item of resultData200)
-                    result200!.push(TrainingProgram.fromJS(item));
+                    result200!.push(TrainingProgramDTO.fromJS(item));
             }
             else {
                 result200 = <any>null;
@@ -1535,7 +1532,7 @@ export class GetTrainingProgramsEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<TrainingProgram[]>(null as any);
+        return Promise.resolve<TrainingProgramDTO[]>(null as any);
     }
 }
 
@@ -1617,7 +1614,7 @@ export class GetTrainingSessionsEndpointClient {
     /**
      * @return OK
      */
-    getAll3(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
+    getAll4(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
         let url_ = this.baseUrl + "/api/training-session/get-all/{trainingProgramId}";
         if (trainingProgramId === undefined || trainingProgramId === null)
             throw new Error("The parameter 'trainingProgramId' must be defined.");
@@ -1632,11 +1629,11 @@ export class GetTrainingSessionsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll3(_response);
+            return this.processGetAll4(_response);
         });
     }
 
-    protected processGetAll3(response: Response): Promise<TrainingSessionDTO[]> {
+    protected processGetAll4(response: Response): Promise<TrainingSessionDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2685,7 +2682,7 @@ export class UpdateSetEntryEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    update2(body: UpdateSetEntryRequest | undefined): Promise<SetEntry> {
+    update2(body: UpdateSetEntryRequest | undefined): Promise<SetEntryDTO> {
         let url_ = this.baseUrl + "/api/set-entry/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2705,14 +2702,14 @@ export class UpdateSetEntryEndpointClient {
         });
     }
 
-    protected processUpdate2(response: Response): Promise<SetEntry> {
+    protected processUpdate2(response: Response): Promise<SetEntryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
             return response.text().then((_responseText) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result200 = SetEntry.fromJS(resultData200);
+            result200 = SetEntryDTO.fromJS(resultData200);
             return result200;
             });
         } else if (status === 401) {
@@ -2734,7 +2731,7 @@ export class UpdateSetEntryEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<SetEntry>(null as any);
+        return Promise.resolve<SetEntryDTO>(null as any);
     }
 }
 
@@ -2752,7 +2749,7 @@ export class UpdateTrainingProgramEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    update3(body: UpdateTrainingProgramRequest | undefined): Promise<TrainingProgram> {
+    update3(body: UpdateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2772,14 +2769,14 @@ export class UpdateTrainingProgramEndpointClient {
         });
     }
 
-    protected processUpdate3(response: Response): Promise<TrainingProgram> {
+    protected processUpdate3(response: Response): Promise<TrainingProgramDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
             return response.text().then((_responseText) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result200 = TrainingProgram.fromJS(resultData200);
+            result200 = TrainingProgramDTO.fromJS(resultData200);
             return result200;
             });
         } else if (status === 401) {
@@ -2801,7 +2798,7 @@ export class UpdateTrainingProgramEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<TrainingProgram>(null as any);
+        return Promise.resolve<TrainingProgramDTO>(null as any);
     }
 }
 
@@ -4791,6 +4788,78 @@ export interface IMovementBase {
     name?: string | undefined;
 }
 
+export class MovementDTO implements IMovementDTO {
+    movementID?: string;
+    trainingSessionID?: string;
+    movementBaseID?: string;
+    movementBase?: MovementBase;
+    movementModifier?: MovementModifier;
+    sets?: SetEntryDTO[] | undefined;
+    notes?: string | undefined;
+    isCompleted?: boolean;
+
+    constructor(data?: IMovementDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementID = _data["movementID"];
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.movementBaseID = _data["movementBaseID"];
+            this.movementBase = _data["movementBase"] ? MovementBase.fromJS(_data["movementBase"]) : <any>undefined;
+            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : <any>undefined;
+            if (Array.isArray(_data["sets"])) {
+                this.sets = [] as any;
+                for (let item of _data["sets"])
+                    this.sets!.push(SetEntryDTO.fromJS(item));
+            }
+            this.notes = _data["notes"];
+            this.isCompleted = _data["isCompleted"];
+        }
+    }
+
+    static fromJS(data: any): MovementDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new MovementDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementID"] = this.movementID;
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["movementBaseID"] = this.movementBaseID;
+        data["movementBase"] = this.movementBase ? this.movementBase.toJSON() : <any>undefined;
+        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        if (Array.isArray(this.sets)) {
+            data["sets"] = [];
+            for (let item of this.sets)
+                data["sets"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["notes"] = this.notes;
+        data["isCompleted"] = this.isCompleted;
+        return data;
+    }
+}
+
+export interface IMovementDTO {
+    movementID?: string;
+    trainingSessionID?: string;
+    movementBaseID?: string;
+    movementBase?: MovementBase;
+    movementModifier?: MovementModifier;
+    sets?: SetEntryDTO[] | undefined;
+    notes?: string | undefined;
+    isCompleted?: boolean;
+}
+
 export class MovementModifier implements IMovementModifier {
     name?: string | undefined;
     equipment?: string | undefined;
@@ -5427,6 +5496,74 @@ export interface ISetEntry {
     actualRPE?: number;
 }
 
+export class SetEntryDTO implements ISetEntryDTO {
+    setEntryID?: string;
+    movementID?: string;
+    recommendedReps?: number;
+    recommendedWeight?: number;
+    recommendedRPE?: number;
+    weightUnit?: WeightUnit;
+    actualReps?: number;
+    actualWeight?: number;
+    actualRPE?: number;
+
+    constructor(data?: ISetEntryDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.setEntryID = _data["setEntryID"];
+            this.movementID = _data["movementID"];
+            this.recommendedReps = _data["recommendedReps"];
+            this.recommendedWeight = _data["recommendedWeight"];
+            this.recommendedRPE = _data["recommendedRPE"];
+            this.weightUnit = _data["weightUnit"];
+            this.actualReps = _data["actualReps"];
+            this.actualWeight = _data["actualWeight"];
+            this.actualRPE = _data["actualRPE"];
+        }
+    }
+
+    static fromJS(data: any): SetEntryDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetEntryDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["setEntryID"] = this.setEntryID;
+        data["movementID"] = this.movementID;
+        data["recommendedReps"] = this.recommendedReps;
+        data["recommendedWeight"] = this.recommendedWeight;
+        data["recommendedRPE"] = this.recommendedRPE;
+        data["weightUnit"] = this.weightUnit;
+        data["actualReps"] = this.actualReps;
+        data["actualWeight"] = this.actualWeight;
+        data["actualRPE"] = this.actualRPE;
+        return data;
+    }
+}
+
+export interface ISetEntryDTO {
+    setEntryID?: string;
+    movementID?: string;
+    recommendedReps?: number;
+    recommendedWeight?: number;
+    recommendedRPE?: number;
+    weightUnit?: WeightUnit;
+    actualReps?: number;
+    actualWeight?: number;
+    actualRPE?: number;
+}
+
 export class SleepData implements ISleepData {
     sleepScore?: number;
     deepSleep?: number;
@@ -5571,6 +5708,82 @@ export interface ITrainingProgram {
     tags?: string[] | undefined;
 }
 
+export class TrainingProgramDTO implements ITrainingProgramDTO {
+    trainingProgramID?: string;
+    title?: string | undefined;
+    startDate?: Date;
+    nextTrainingSessionDate?: Date;
+    endDate?: Date;
+    trainingSessions?: TrainingSessionDTO[] | undefined;
+    tags?: string[] | undefined;
+
+    constructor(data?: ITrainingProgramDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingProgramID = _data["trainingProgramID"];
+            this.title = _data["title"];
+            this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
+            this.nextTrainingSessionDate = _data["nextTrainingSessionDate"] ? new Date(_data["nextTrainingSessionDate"].toString()) : <any>undefined;
+            this.endDate = _data["endDate"] ? new Date(_data["endDate"].toString()) : <any>undefined;
+            if (Array.isArray(_data["trainingSessions"])) {
+                this.trainingSessions = [] as any;
+                for (let item of _data["trainingSessions"])
+                    this.trainingSessions!.push(TrainingSessionDTO.fromJS(item));
+            }
+            if (Array.isArray(_data["tags"])) {
+                this.tags = [] as any;
+                for (let item of _data["tags"])
+                    this.tags!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): TrainingProgramDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new TrainingProgramDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingProgramID"] = this.trainingProgramID;
+        data["title"] = this.title;
+        data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
+        data["nextTrainingSessionDate"] = this.nextTrainingSessionDate ? formatDate(this.nextTrainingSessionDate) : <any>undefined;
+        data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
+        if (Array.isArray(this.trainingSessions)) {
+            data["trainingSessions"] = [];
+            for (let item of this.trainingSessions)
+                data["trainingSessions"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.tags)) {
+            data["tags"] = [];
+            for (let item of this.tags)
+                data["tags"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface ITrainingProgramDTO {
+    trainingProgramID?: string;
+    title?: string | undefined;
+    startDate?: Date;
+    nextTrainingSessionDate?: Date;
+    endDate?: Date;
+    trainingSessions?: TrainingSessionDTO[] | undefined;
+    tags?: string[] | undefined;
+}
+
 export class TrainingSession implements ITrainingSession {
     trainingSessionID?: string;
     trainingProgramID?: string;
@@ -5641,7 +5854,7 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
     sessionNumber?: number;
     date?: Date;
     status?: TrainingSessionStatus;
-    movements?: Movement[] | undefined;
+    movements?: MovementDTO[] | undefined;
 
     constructor(data?: ITrainingSessionDTO) {
         if (data) {
@@ -5662,7 +5875,7 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
             if (Array.isArray(_data["movements"])) {
                 this.movements = [] as any;
                 for (let item of _data["movements"])
-                    this.movements!.push(Movement.fromJS(item));
+                    this.movements!.push(MovementDTO.fromJS(item));
             }
         }
     }
@@ -5696,7 +5909,7 @@ export interface ITrainingSessionDTO {
     sessionNumber?: number;
     date?: Date;
     status?: TrainingSessionStatus;
-    movements?: Movement[] | undefined;
+    movements?: MovementDTO[] | undefined;
 }
 
 export enum TrainingSessionStatus {

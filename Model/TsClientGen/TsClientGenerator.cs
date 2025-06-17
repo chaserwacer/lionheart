@@ -25,7 +25,7 @@ public class TsClientGenerator
 
         var generator = new TypeScriptClientGenerator(document, settings);
         var code = generator.GenerateFile();
-        await File.WriteAllTextAsync(SourceGen.GetSourceRoot( "ClientApp", "lib", "api", "ApiClient.ts"), code);
+        await File.WriteAllTextAsync(SourceGen.GetSourceRoot( "ClientApp","src", "lib", "api", "ApiClient.ts"), code);
         return code;
     }
 
