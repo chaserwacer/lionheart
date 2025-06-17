@@ -25,7 +25,7 @@
     const getProgramsClient = new GetTrainingProgramsEndpointClient('http://localhost:5174');
 
     try {
-      const allPrograms = await getProgramsClient.getAll2();
+      const allPrograms = await getProgramsClient.getAll3();
       program = allPrograms.find(p => slugify(p.title ?? '') === slug);
       if (program) {
         programID = program.trainingProgramID!;

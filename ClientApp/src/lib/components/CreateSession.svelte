@@ -27,13 +27,15 @@
   export let existingSessionCount: number = 0;
 
   const modifiers: MovementModifier[] = [
+    MovementModifier.fromJS({ name: 'No Modifier', equipment: 'None', duration: 0 }),
     MovementModifier.fromJS({ name: 'Paused', equipment: 'Barbell', duration: 1 }),
     MovementModifier.fromJS({ name: 'Tempo 3-1-0', equipment: 'Barbell', duration: 1 }),
     MovementModifier.fromJS({ name: 'Dumbbell Variant', equipment: 'Dumbbell', duration: 0 }),
     MovementModifier.fromJS({ name: 'Chains Added', equipment: 'Barbell', duration: 0 })
   ];
 
-  let tempModifierID = '';
+
+  let tempModifierID = 'No Modifier';
   let repSchemeDraft = { sets: 1, reps: 5, rpe: 8 };
   let movements: {
     movementBaseID: string;
@@ -97,58 +99,63 @@
     const sessionRequest = CreateTrainingSessionRequest.fromJS({
       trainingProgramID: programID,
       date: sessionDate
-  });
-
-  const session = await sessionClient.create4(sessionRequest);
-
-  for (const movement of movements) {
-    const modifier = modifiers.find(m => m.name === movement.modifierID);
-    const modifierModel = new MovementModifier({
-      name: modifier?.name ?? '',
-      equipment: modifier?.equipment ?? '',
-      duration: modifier?.duration ?? 0
     });
 
-    const movementReq = CreateMovementRequest.fromJS({
-      movementBaseID: movement.movementBaseID,
-      trainingSessionID: session.trainingSessionID!,
-      notes: '',
-      movementModifier: modifierModel
-    });
+    const session = await sessionClient.create5(sessionRequest);
 
-    const movementResult = await movementClient.create(movementReq);
+    for (const movement of movements) {
 
-    for (const scheme of movement.repSchemes) {
-      for (let i = 0; i < scheme.sets; i++) {
-        const setReq = CreateSetEntryRequest.fromJS({
-          movementID: movementResult.movementID!,
-          recommendedReps: scheme.reps,
-          recommendedWeight: 0,
-          recommendedRPE: scheme.rpe,
-          weightUnit: WeightUnit._1,
-          actualReps: 0,
-          actualWeight: 0,
-          actualRPE: 0
-        });
-        await setClient.create2(setReq);
+
+  const matchedMod = modifiers.find(m => m.name === movement.modifierID);
+  // This will always resolve if "No Modifier" is in the list
+
+  const movementReq = new CreateMovementRequest({
+  movementBaseID: movement.movementBaseID,
+  trainingSessionID: session.trainingSessionID!,
+  notes: '',
+  movementModifier: new MovementModifier({
+    name: matchedMod!.name,
+    equipment: matchedMod!.equipment,
+    duration: matchedMod!.duration
+  })
+});
+
+
+
+  const movementResult = await movementClient.create2(movementReq);
+
+      for (const scheme of movement.repSchemes) {
+        for (let i = 0; i < scheme.sets; i++) {
+          const setReq = CreateSetEntryRequest.fromJS({
+            movementID: movementResult.movementID!,
+            recommendedReps: scheme.reps,
+            recommendedWeight: 0,
+            recommendedRPE: scheme.rpe,
+            weightUnit: WeightUnit._1,
+            actualReps: 0,
+            actualWeight: 0,
+            actualRPE: 0
+          });
+          await setClient.create3(setReq);
+        }
       }
-    }
   }
 
-  const getSessionClient = new GetTrainingSessionEndpointClient('http://localhost:5174');
-  const fullSession = await getSessionClient.get2(session.trainingSessionID!);
+    const getSessionClient = new GetTrainingSessionEndpointClient('http://localhost:5174');
+    const fullSession = await getSessionClient.get2(session.trainingSessionID!);
 
-  dispatch('createdWithSession', {
-    sessionID: session.trainingSessionID!,
-    sessionNumber: existingSessionCount + 1,
-    date: session.date,
-  });
+    dispatch('createdWithSession', {
+      sessionID: session.trainingSessionID!,
+      sessionNumber: existingSessionCount + 1,
+      date: session.date,
+    });
 
-  close();
-}
-function close() {
-  dispatch('close');
-}
+    close();
+  }
+
+  function close() {
+    dispatch('close');
+  }
 
 
 </script>
@@ -170,7 +177,6 @@ function close() {
         </select>
 
         <select bind:value={tempModifierID} class="w-full bg-zinc-800 border border-zinc-600 p-2 rounded text-white">
-          <option value="">No modifier</option>
           {#each modifiers as mod}
             <option value={mod.name}>{mod.name}</option>
           {/each}

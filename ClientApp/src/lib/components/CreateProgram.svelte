@@ -54,7 +54,7 @@
     });
 
     try {
-      await client.create3(request);
+      await client.create4(request);
 
       // Reset form
       title = '';

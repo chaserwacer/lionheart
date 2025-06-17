@@ -18,7 +18,7 @@
   async function loadPrograms() {
     const getProgramsClient = new GetTrainingProgramsEndpointClient('http://localhost:5174');
     try {
-      programs = await getProgramsClient.getAll2();
+      programs = await getProgramsClient.getAll3();
     } catch (error) {
       console.error('Failed to load programs:', error);
     }

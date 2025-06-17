@@ -37,7 +37,7 @@
     const sessionClient = new GetTrainingSessionEndpointClient('http://localhost:5174');
 
     try {
-      const allPrograms = await programsClient.getAll2();
+      const allPrograms = await programsClient.getAll3();
       program = allPrograms.find(p => slugify(p.title ?? '') === slug);
       if (!program) return;
 
