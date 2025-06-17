@@ -163,7 +163,7 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 },
-            Notes = "Good set"
+            Notes = ""
         };
 
         var response = await _client.PostAsJsonAsync("/api/movement/create", request);
@@ -174,7 +174,7 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Equal(sessionId, movement.TrainingSessionID);
         Assert.Equal(movementBaseId, movement.MovementBaseID);
         Assert.Equal("Paused", movement.MovementModifier.Name);
-        Assert.Equal("Good set", movement.Notes);
+        Assert.Equal("", movement.Notes);
         Assert.False(movement.IsCompleted);
     }
 

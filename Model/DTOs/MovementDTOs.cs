@@ -9,7 +9,7 @@ public class CreateMovementRequest
     [Required]
     public required MovementModifier MovementModifier { get; init; }
 
-    [Required]
+    [Required(AllowEmptyStrings = true)]
     public required string Notes { get; init; }
 
     [Required]
