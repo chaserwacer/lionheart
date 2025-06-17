@@ -12,7 +12,8 @@
     CreateTrainingSessionRequest,
     CreateMovementBaseRequest,
     CreateMovementRequest,
-    CreateSetEntryRequest
+    CreateSetEntryRequest,
+    GetTrainingSessionEndpointClient
   } from '$lib/api/ApiClient';
 
   export let show: boolean;
@@ -23,6 +24,7 @@
   let movementOptions: MovementBase[] = [];
   let selectedMovementBaseID: string = '';
   let movementSearch = '';
+  export let existingSessionCount: number = 0;
 
   const modifiers: MovementModifier[] = [
     MovementModifier.fromJS({ name: 'Paused', equipment: 'Barbell', duration: 1 }),
@@ -95,51 +97,60 @@
     const sessionRequest = CreateTrainingSessionRequest.fromJS({
       trainingProgramID: programID,
       date: sessionDate
+  });
+
+  const session = await sessionClient.create4(sessionRequest);
+
+  for (const movement of movements) {
+    const modifier = modifiers.find(m => m.name === movement.modifierID);
+    const modifierModel = new MovementModifier({
+      name: modifier?.name ?? '',
+      equipment: modifier?.equipment ?? '',
+      duration: modifier?.duration ?? 0
     });
 
-    const session = await sessionClient.create4(sessionRequest);
+    const movementReq = CreateMovementRequest.fromJS({
+      movementBaseID: movement.movementBaseID,
+      trainingSessionID: session.trainingSessionID!,
+      notes: '',
+      movementModifier: modifierModel
+    });
 
-    for (const movement of movements) {
-      const modifier = modifiers.find(m => m.name === movement.modifierID);
-      const modifierModel = new MovementModifier({
-        name: modifier?.name ?? '',
-        equipment: modifier?.equipment ?? '',
-        duration: modifier?.duration ?? 0
-      });
+    const movementResult = await movementClient.create(movementReq);
 
-      const movementReq = CreateMovementRequest.fromJS({
-        movementBaseID: movement.movementBaseID,
-        trainingSessionID: session.trainingSessionID!,
-        notes: '',
-        movementModifier: modifierModel
-      });
-
-      const movementResult = await movementClient.create(movementReq);
-
-      for (const scheme of movement.repSchemes) {
-        for (let i = 0; i < scheme.sets; i++) {
-          const setReq = CreateSetEntryRequest.fromJS({
-            movementID: movementResult.movementID!,
-            recommendedReps: scheme.reps,
-            recommendedWeight: 0,
-            recommendedRPE: scheme.rpe,
-            weightUnit: WeightUnit._1,
-            actualReps: 0,
-            actualWeight: 0,
-            actualRPE: 0
-          });
-          await setClient.create2(setReq);
-        }
+    for (const scheme of movement.repSchemes) {
+      for (let i = 0; i < scheme.sets; i++) {
+        const setReq = CreateSetEntryRequest.fromJS({
+          movementID: movementResult.movementID!,
+          recommendedReps: scheme.reps,
+          recommendedWeight: 0,
+          recommendedRPE: scheme.rpe,
+          weightUnit: WeightUnit._1,
+          actualReps: 0,
+          actualWeight: 0,
+          actualRPE: 0
+        });
+        await setClient.create2(setReq);
       }
     }
-
-    dispatch('created');
-    dispatch('close');
   }
 
-  function close() {
-    dispatch('close');
-  }
+  const getSessionClient = new GetTrainingSessionEndpointClient('http://localhost:5174');
+  const fullSession = await getSessionClient.get2(session.trainingSessionID!);
+
+  dispatch('createdWithSession', {
+    sessionID: session.trainingSessionID!,
+    sessionNumber: existingSessionCount + 1,
+    date: session.date,
+  });
+
+  close();
+}
+function close() {
+  dispatch('close');
+}
+
+
 </script>
 
 {#if show}

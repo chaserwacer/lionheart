@@ -10,7 +10,8 @@
     UpdateTrainingSessionRequest,
     TrainingProgram,
     TrainingSessionDTO,
-    TrainingSessionStatus
+    TrainingSessionStatus,
+    DeleteTrainingSessionEndpointClient
   } from '$lib/api/ApiClient';
 
   const slug = $page.params.slug;
@@ -20,7 +21,7 @@
   let showModal = false;
   let showCompleted = true;
 
-  onMount(async () => {
+  async function loadSessions() {
     const getProgramsClient = new GetTrainingProgramsEndpointClient('http://localhost:5174');
 
     try {
@@ -34,7 +35,37 @@
     } catch (error) {
       console.error('Failed to load program', error);
     }
+  }
+
+  onMount(async () => {
+    await loadSessions();
+    assignSessionNumbers();
   });
+
+  function assignSessionNumbers() {
+  sessions = [...sessions]
+    .sort((a, b) => new Date(a.date ?? '').getTime() - new Date(b.date ?? '').getTime())
+    .map((s, i) => {
+      const updated = TrainingSessionDTO.fromJS(s); // preserve DTO methods
+      updated.sessionNumber = i + 1;
+      return updated;
+    });
+}
+
+  
+  async function deleteSession(sessionID: string) {
+    const confirmed = confirm("Are you sure you want to delete this session?");
+    if (!confirmed || !program) return;
+
+    const deleteClient = new DeleteTrainingSessionEndpointClient('http://localhost:5174');
+    try {
+      await deleteClient.delete4(sessionID);
+      sessions = sessions.filter(s => s.trainingSessionID !== sessionID);
+      assignSessionNumbers();
+    } catch {
+      alert("Failed to delete session.");
+    }
+  }
 
   function formatDate(dateInput: Date | string | undefined): string {
     if (!dateInput) return '—';
@@ -74,10 +105,9 @@
       ? TrainingSessionStatus._0
       : TrainingSessionStatus._3;
 
-    const updateSessionClient = new UpdateTrainingSessionEndpointClient('http://localhost:5174');
-
+    const updateClient = new UpdateTrainingSessionEndpointClient('http://localhost:5174');
     try {
-      await updateSessionClient.update4(
+      await updateClient.update4(
         UpdateTrainingSessionRequest.fromJS({
           trainingSessionID: sessionID,
           trainingProgramID: program.trainingProgramID!,
@@ -85,17 +115,20 @@
           status: newStatus
         })
       );
-
       session.status = newStatus;
-      sessions = [...sessions];
-    } catch (err) {
+      assignSessionNumbers();
+    } catch {
       alert('Failed to update session status');
     }
   }
 
-  function handleSessionCreated() {
-    location.reload();
+  async function handleSessionCreated() {
+    await loadSessions();
+    assignSessionNumbers();
+    showModal = false;
   }
+
+
 </script>
 
 {#if program}
@@ -117,7 +150,12 @@
       {#each sessions.filter(s => s.status === TrainingSessionStatus._0 || s.status === undefined) as session (session.trainingSessionID)}
         <div class="relative bg-zinc-800 rounded-xl p-4 text-white shadow-md hover:shadow-lg hover:bg-zinc-700 transition">
           <a href={`/programs/${slug}/session/${session.trainingSessionID}`} class="block space-y-2">
-            <h2 class="text-xl font-semibold">{formatDate(session.date)}</h2>
+            <div class="flex items-center justify-between mb-2">
+              <span class="bg-zinc-700 text-xs px-2 py-1 rounded font-mono text-gray-300">
+                # {session.sessionNumber}
+              </span>
+              <h2 class="text-xl font-semibold">{formatDate(session.date)}</h2>
+            </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <h3 class="font-bold text-sm mb-1">Preview</h3>
@@ -137,13 +175,26 @@
               </div>
             </div>
           </a>
-          <button
-            on:click={() => session.trainingSessionID && toggleSkipSession(session.trainingSessionID)}
-            class="absolute top-2 right-2 bg-yellow-400 text-black px-2 py-1 rounded text-xs hover:bg-yellow-300"
-            title="Skip this session"
-          >
-            ⏭ Skip
-          </button>
+          <!-- Inside each session card -->
+<div class="flex justify-end gap-2 mt-4">
+  <button
+    on:click={() => session.trainingSessionID && toggleSkipSession(session.trainingSessionID)}
+
+    class="text-xs px-3 py-1 rounded font-semibold 
+           transition 
+           {session.status === TrainingSessionStatus._3 
+             ? 'bg-yellow-500 text-black hover:bg-yellow-400' 
+             : 'bg-zinc-700 text-white hover:bg-zinc-600'}">
+    {session.status === TrainingSessionStatus._3 ? 'Undo Skip' : 'Skip'}
+  </button>
+
+  <button
+    on:click={() => session.trainingSessionID && deleteSession(session.trainingSessionID)}
+    class="text-xs px-3 py-1 rounded bg-red-600 text-white hover:bg-red-500 font-semibold">
+    Delete
+  </button>
+</div>
+
         </div>
       {/each}
     </div>
@@ -227,6 +278,15 @@
 <CreateSessionModal
   show={showModal}
   programID={programID}
+  existingSessionCount={sessions.length}
   on:close={() => showModal = false}
-  on:created={handleSessionCreated}
+ on:createdWithSession={() => {
+  showModal = false;
+  setTimeout(() => location.reload(), 50); // short delay to allow modal DOM to detach
+}}
 />
+
+
+
+
+
