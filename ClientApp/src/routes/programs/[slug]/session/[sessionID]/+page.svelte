@@ -44,30 +44,38 @@
       session = await sessionClient.get2(sessionID);
       sessionIndex = program.trainingSessions?.findIndex(s => s.trainingSessionID === sessionID) ?? 0;
 
-      session.movements?.forEach((_, i) => {
-        unitMap[i] = 'lbs';
-      });
+      session.movements?.forEach((movement) => {
+    movement.sets?.forEach(set => {
+      if (set.actualReps === 0) set.actualReps = set.recommendedReps ?? 5;
+      if (set.actualRPE === 0) set.actualRPE = set.recommendedRPE ?? 7;
+    });
+    });
     } catch (err) {
       console.error('Failed to load session data:', err);
     }
   });
 
   function movementToUpdateRequest(movement: Movement) {
-    return {
-      movementID: movement.movementID!,
-      trainingSessionID: movement.trainingSessionID!,
-      movementBaseID: movement.movementBase?.movementBaseID ?? movement.movementBaseID!,
-      movementModifier: movement.movementModifier ?? { name: '', equipment: '', duration: 0 },
-      notes: movement.notes ?? '',
-      isCompleted: movement.isCompleted ?? false
-    };
-  }
+  return {
+    movementID: movement.movementID!,
+    trainingSessionID: movement.trainingSessionID!,
+    movementBaseID: movement.movementBase?.movementBaseID ?? movement.movementBaseID!,
+    movementModifier: {
+      name: movement.movementModifier?.name ?? 'No Modifier',
+      equipment: movement.movementModifier?.equipment ?? 'None',
+      duration: movement.movementModifier?.duration ?? 0
+    },
+    notes: movement.notes ?? '',
+    isCompleted: movement.isCompleted ?? false
+  };
+}
+
 
   function getRpeColor(actual: number | undefined, target: number | undefined): string {
     if (typeof actual !== 'number' || typeof target !== 'number') return 'bg-zinc-900';
     const diff = actual - target;
-    if (diff >= 1) return 'bg-red-600';
-    if (diff <= -1) return 'bg-blue-600';
+    if (diff >= 1) return 'bg-blue-600';
+    if (diff <= -1) return 'bg-red-600';
     return 'bg-green-600';
   }
 
@@ -224,7 +232,7 @@
                         type="number"
                         class="bg-zinc-900 text-white p-1 rounded w-14 text-center"
                         step="1"
-                        bind:value={set.actualReps}
+                        bind:value={set.recommendedReps}
                         on:input={() => updateSetValue(mvIndex, setIndex, 'actualReps', set.actualReps ?? 0)}
                       />
                     </div>
@@ -234,7 +242,7 @@
                         type="number"
                         step="1"
                         class={`text-white p-1 rounded w-14 text-center ${getRpeColor(set.actualRPE, set.recommendedRPE)}`}
-                        bind:value={set.actualRPE}
+                        bind:value={set.recommendedRPE}
                         on:input={() => updateSetValue(mvIndex, setIndex, 'actualRPE', set.actualRPE ?? 0)}
                       />
                     </div>
@@ -248,9 +256,10 @@
                         on:input={() => updateSetValue(mvIndex, setIndex, 'actualWeight', set.actualWeight ?? 0)}
                       />
                       <span class="text-xs text-gray-400">
-                        Recommended: {set.recommendedWeight} {unitMap[mvIndex]}
+                        Target: {set.recommendedWeight}
                       </span>
                     </div>
+
                     <button
                       on:click={() => resetSet(mvIndex, setIndex)}
                       class="text-xs text-red-400 hover:underline mt-1"

@@ -71,7 +71,6 @@
       }
     ];
     selectedMovementBaseID = '';
-    tempModifierID = '';
   }
 
   function addRepScheme(index: number) {
@@ -132,9 +131,9 @@
             recommendedWeight: 0,
             recommendedRPE: scheme.rpe,
             weightUnit: WeightUnit._1,
-            actualReps: 0,
+            actualReps: scheme.reps,
             actualWeight: 0,
-            actualRPE: 0
+            actualRPE: scheme.rpe,
           });
           await setClient.create3(setReq);
         }

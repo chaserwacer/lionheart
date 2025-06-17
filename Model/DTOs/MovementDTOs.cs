@@ -28,7 +28,7 @@ public class UpdateMovementRequest
     [Required]
     public required MovementModifier MovementModifier { get; init; }
 
-    [Required]
+    [Required(AllowEmptyStrings = true)]
     public required string Notes { get; init; }
 
     [Required]
