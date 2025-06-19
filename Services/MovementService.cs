@@ -1,9 +1,11 @@
+using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.DTOs;
 using lionheart.Model.TrainingProgram;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol.Server;
 
 namespace lionheart.Services;
 
@@ -11,6 +13,7 @@ namespace lionheart.Services;
 /// Service for managing movements within training sessions.
 /// Handles business logic and ensures users can only access their own data.
 /// </summary>
+[McpServerToolType]
 public class MovementService : IMovementService
 {
     private readonly ModelContext _context;
@@ -140,7 +143,7 @@ public class MovementService : IMovementService
         await _context.SaveChangesAsync();
         return Result.NoContent();
     }
-
+    [McpServerTool, Description("Gets all movement bases available for creating movements.")]
     public async Task<Result<List<MovementBase>>> GetMovementBasesAsync()
     {
         var movementBases = await _context.MovementBases

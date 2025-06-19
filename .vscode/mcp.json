@@ -1,0 +1,14 @@
+{
+  "inputs": [],
+  "servers": {
+    "LionMCPServer": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "C:\\code\\lionheart\\lionheart.csproj"
+      ]
+    }
+  }
+}

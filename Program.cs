@@ -5,6 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
+using ModelContextProtocol.Server;
+using ModelContextProtocol.Client;
+using ModelContextProtocol.AspNetCore;
+using System.ComponentModel;
+using Microsoft.Extensions.AI;
+
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -26,6 +32,13 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
 
+///////////////////MCP Server Setup////////////////////
+builder.Services
+    .AddMcpServer()
+    .WithHttpTransport()
+    .WithToolsFromAssembly();
+
+/////////////////////////////////////////////////////
 
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IActivityService, ActivityService>();
@@ -35,8 +48,28 @@ builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>()
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<ISetEntryService, SetEntryService>();
-// builder.Services.AddTransient<IPhi4Service, Phi4Service>();
-// builder.Services.AddTransient<IInsightService, InsightService>();
+
+// Register Ollama chat client
+var httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:11434") };
+try
+{
+    var ping = await httpClient.GetAsync("/");
+    if (!ping.IsSuccessStatusCode)
+        throw new Exception("Ollama is not responding.");
+}
+catch
+{
+    throw new InvalidOperationException("Please start Ollama with `ollama serve` or `ollama run phi4-mini`.");
+}
+
+builder.Services.AddChatClient(
+    new ChatClientBuilder(
+        new OllamaChatClient(new Uri("http://localhost:11434"), "phi4-mini")
+    )
+    .UseFunctionInvocation()
+    .Build()
+);
+
 
 
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
@@ -44,10 +77,6 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
 
-// builder.Services.AddHttpClient("Phi4Client", client =>
-// {
-//     client.BaseAddress = new Uri("http://localhost:11434/api/generate"); // Default Ollama API URL
-// });
 
 
 builder.Services.AddHttpClient();
@@ -131,6 +160,24 @@ if (!app.Environment.IsEnvironment("Testing"))
     #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 }
 
+app.MapMcp();
+
 app.Run();
 
 public partial class Program { }
+
+
+/// <summary>
+/// MCP Server Tool for Echoing Messages
+/// </summary>
+[McpServerToolType]
+public static class EchoTool
+{
+    // Expose a tool that echoes the input message back to the client.
+    [McpServerTool, Description("Echoes the message back to the client.")]
+    public static string Echo(string message) => $"Hello from C#: {message}";
+
+    // Expose a tool that returns the input message in reverse.
+    [McpServerTool, Description("Echoes in reverse the message sent by the client.")]
+    public static string ReverseEcho(string message) => new string(message.Reverse().ToArray());
+}

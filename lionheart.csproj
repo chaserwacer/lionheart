@@ -24,6 +24,10 @@
 
   <PackageReference Include="Ardalis.ValidateModel" Version="1.0.0" />
 
+  <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="9.5.0" />
+
+  <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" Version="9.5.0" />
+
   <PackageReference Include="FluentAssertions" Version="8.3.0" />
 
   <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.0-preview.4.*" />
@@ -39,7 +43,21 @@
 
 <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0-preview.4.*" />
 
+<PackageReference Include="Microsoft.Extensions.AI.Ollama" Version="9.6.0-preview.1.25310.2" />
+
+<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.6" />
+
+<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.6" />
+
 <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+
+<PackageReference Include="Microsoft.SemanticKernel" Version="1.57.0" />
+
+<PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.57.0" />
+
+<PackageReference Include="ModelContextProtocol" Version="0.2.0-preview.3" />
+
+<PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.2.0-preview.3" />
 
 <PackageReference Include="NSwag.CodeGeneration.TypeScript" Version="14.4.0" />
 
