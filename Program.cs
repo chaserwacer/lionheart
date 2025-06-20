@@ -10,6 +10,8 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.AspNetCore;
 using System.ComponentModel;
 using Microsoft.Extensions.AI;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -71,7 +73,7 @@ nemotron-mini
 */
 builder.Services.AddChatClient(
     new ChatClientBuilder(
-        new OllamaChatClient(new Uri("http://localhost:11434"), "nemotron-mini")
+        new OllamaChatClient(new Uri("http://localhost:11434"), "phi4-mini")
     )
     .UseFunctionInvocation()
     .Build()

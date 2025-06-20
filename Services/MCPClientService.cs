@@ -23,7 +23,7 @@ namespace lionheart.Services
         public async Task<Result<string>> ChatAsync(IdentityUser user, string userPrompt)
         {
 
-            var chatHistory = GenerateInitialChatHistory(user, userPrompt);
+            var chatHistory = GenerateInitialChatHistory(user, userPrompt, 1);
             var client = await CreateMcpClientAsync();
             var tools = await client.ListToolsAsync();
 
@@ -31,16 +31,18 @@ namespace lionheart.Services
             StringBuilder result = new StringBuilder();
 
 
-            var response = await _chatClient.GetResponseAsync(
-            chatHistory,
-            new ChatOptions
+            await foreach (var update in _chatClient.GetStreamingResponseAsync(
+                chatHistory,
+                new() { Tools = [.. tools], AllowMultipleToolCalls = true }
+            ))
             {
-                Tools = [.. tools]
-            });
+                result.Append(update);
+                updates.Add(update);
+            }
+            chatHistory.AddMessages(updates);
+            return result.ToString();
 
-           return response.Text is not null
-                ? Result<string>.Success(response.Text)
-                : Result<string>.Error("Failed to get a valid response from the chat client.");
+
         }
 
 
@@ -56,38 +58,58 @@ namespace lionheart.Services
             );
         }
 
-        private string GetSystemPrompt(string userID)
+        private string GetSystemPrompt(string userID, int promptNumber)
         {
             var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
-            return $"""
-                You are Lionheart, an intelligent training assistant that helps users manage their athletic performance, training plans, and recovery.
+            switch (promptNumber)
+            {
+                case 0:
+                    return $"""
+                        You are Lionheart, an intelligent training assistant that helps users manage their athletic performance, training plans, and recovery.
 
-                Your job is to help user ID `{userID}`. You must personalize your responses using their stored data and the tools available to you.
+                        Your job is to help user ID `{userID}`.
 
-                Todays date is {today}.
+                        Todays date is {today}.
 
-                You have access to the following:
-                - Tools that allow you to create, modify, and analyze training programs, sessions, recovery history, and wellness data.
-                - Resources that include the user's historical performance, fatigue, sleep, readiness, and injuries.
+                        You have access to the following:
+                        - Tools that allow you to create, modify, and analyze training programs, sessions, recovery history, and wellness data.
+                        - Resources that include the user's historical performance, fatigue, sleep, readiness, and injuries.
 
-                Your responses should:
-                - Be actionable, concise, and context-aware.
-                - Modify or generate training plans based on recovery, soreness, goals, and preferences.
-                - Offer adaptations if the user is tired, injured, or time-constrained.
-                - Never invent data — always use tools or resources when needed.
+                        Your responses should:
+                        - Be actionable, concise, and context-aware.
+                        - Modify or generate training plans based on recovery, soreness, goals, and preferences.
+                        - Offer adaptations if the user is tired, injured, or time-constrained.
+                        - Never invent data — always use tools or resources when needed.
 
-                You can call tools at any time to fetch or modify data.
-                """;
-        }
+                        You can call tools at any time to fetch or modify data.
+                        Never give a repsonse with a tool call, always use the tools to fetch data and then respond with the data.
+                        """;
+                case 1:
+                    return $"""
+                        You are Lionheart, a helpful AI assistant trained to assist athletes with training, recovery, and wellness decisions. You are connected to tools that allow you to access and manage a user’s training programs, wellness data, and session history.
 
-        private List<ChatMessage> GenerateInitialChatHistory(IdentityUser user, string userPrompt)
+                        When a user asks a question or makes a request, determine whether a tool is available to complete the task. If a tool is available, use it by issuing a function call. Do not simulate tool execution or assume results — always use a real tool call.
+
+
+                        The user you are helping is always associated with a unique user ID, which will be provided to you in the conversation. Always include this ID when making function calls.
+
+                        Use today's date (`{today}`) when needed, and do not refer to outdated knowledge cutoffs — your tools have access to live data. Avoid hallucinating or guessing; ask for clarification if needed.
+
+                        If no tool is available to help, respond conversationally. Otherwise, always prefer tool-based solutions to ensure data accuracy and proper system integration.
+                        """;
+                default:
+                    return "No system prompt available.";
+            }
+            }
+        private List<ChatMessage> GenerateInitialChatHistory(IdentityUser user, string userPrompt, int promptNumber = 0)
         {
             return new List<ChatMessage>
             {
-                new ChatMessage(ChatRole.System, GetSystemPrompt(user.Id.ToString())),
+                new ChatMessage(ChatRole.System, GetSystemPrompt(user.Id.ToString(), promptNumber)),
                 new(ChatRole.User, userPrompt)
             };
         }
-
-    }
+    };
 }
+
+ 
