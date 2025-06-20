@@ -92,7 +92,7 @@ namespace lionheart.Services
 
 
                         The user you are helping is always associated with a unique user ID, which will be provided to you in the conversation. Always include this ID when making function calls.
-
+                        Your job is to help user ID `{userID}`.
                         Use today's date (`{today}`) when needed, and do not refer to outdated knowledge cutoffs — your tools have access to live data. Avoid hallucinating or guessing; ask for clarification if needed.
 
                         If no tool is available to help, respond conversationally. Otherwise, always prefer tool-based solutions to ensure data accuracy and proper system integration.
