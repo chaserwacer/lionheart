@@ -48,6 +48,7 @@ builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>()
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<ISetEntryService, SetEntryService>();
+builder.Services.AddTransient<IMCPClientService, MCPClientService>();
 
 // Register Ollama chat client
 var httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:11434") };
@@ -62,9 +63,15 @@ catch
     throw new InvalidOperationException("Please start Ollama with `ollama serve` or `ollama run phi4-mini`.");
 }
 
+/*
+Models:
+phi4-mini
+nemotron-mini
+
+*/
 builder.Services.AddChatClient(
     new ChatClientBuilder(
-        new OllamaChatClient(new Uri("http://localhost:11434"), "phi4-mini")
+        new OllamaChatClient(new Uri("http://localhost:11434"), "nemotron-mini")
     )
     .UseFunctionInvocation()
     .Build()
@@ -165,19 +172,3 @@ app.MapMcp();
 app.Run();
 
 public partial class Program { }
-
-
-/// <summary>
-/// MCP Server Tool for Echoing Messages
-/// </summary>
-[McpServerToolType]
-public static class EchoTool
-{
-    // Expose a tool that echoes the input message back to the client.
-    [McpServerTool, Description("Echoes the message back to the client.")]
-    public static string Echo(string message) => $"Hello from C#: {message}";
-
-    // Expose a tool that returns the input message in reverse.
-    [McpServerTool, Description("Echoes in reverse the message sent by the client.")]
-    public static string ReverseEcho(string message) => new string(message.Reverse().ToArray());
-}
