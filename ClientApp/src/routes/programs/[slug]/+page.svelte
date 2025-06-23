@@ -160,185 +160,171 @@
   }
 }
 </script>
-
 {#if program}
-  <div class="p-6 max-w-6xl mx-auto">
+  <div class="p-6 max-w-6xl mx-auto text-base-content">
     <div class="flex justify-between items-center mb-6">
-  <a href="/programs" class="inline-flex items-center text-sm text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded">
-    ← Program Library
-  </a>
-  <a 
-  href="/movementLib" 
-  class="inline-flex items-center text-sm text-white bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded"
->
-   Movement Library →
-  </a>
-  </div>
-    <h1 class="text-3xl font-bold mb-6">{program.title}</h1>
+      <a href="/programs" class="btn btn-sm btn-primary">
+        ← Program Library
+      </a>
+      <a href="/movementLib" class="btn btn-sm btn-primary">
+        Movement Library →
+      </a>
+    </div>
+
+    <h1 class="text-4xl font-extrabold mb-6">{program.title}</h1>
+
     <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-xl font-bold text-white flex items-center gap-2">
+      <h2 class="text-2xl font-bold flex items-center gap-2">
         Upcoming Sessions
-        <button on:click={() => showUpcoming = !showUpcoming}>
+        <button on:click={() => showUpcoming = !showUpcoming} class="btn btn-xs btn-outline btn-primary">
           {showUpcoming ? '🡫' : '🡪'}
         </button>
       </h2>
     </div>
 
-{#if showUpcoming}
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-    {#each sessions.filter(s => s.status === TrainingSessionStatus._0 || s.status === undefined) as session (session.trainingSessionID)}
-      <div class="relative bg-zinc-800 rounded-xl p-4 text-white shadow-md hover:shadow-lg hover:bg-zinc-700 transition">
-        <!-- Header: Number + Date + Arrows -->
-        <div class="flex items-center justify-between mb-3 border-b border-zinc-600 pb-2">
-          <span class="bg-zinc-700 text-xs px-2 py-1 rounded font-mono text-gray-300">
-            # {session.sessionNumber}
-          </span>
-          <div class="flex items-center gap-2">
-            <button on:click={() => shiftSessionDate(session, -1)} class="text-sm px-2 py-1 bg-zinc-700 hover:bg-zinc-600 rounded">←</button>
-            <h2 class="text-lg font-semibold">{formatDate(session.date)}</h2>
-            <button on:click={() => shiftSessionDate(session, 1)} class="text-sm px-2 py-1 bg-zinc-700 hover:bg-zinc-600 rounded">→</button>
-          </div>
-        </div>
+    {#if showUpcoming}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+        {#each sessions.filter(s => s.status === TrainingSessionStatus._0 || s.status === undefined) as session (session.trainingSessionID)}
+          <div class="bg-base-100 text-base-content border border-base-300 rounded-xl shadow-md hover:shadow-lg transition p-4">
+            <div class="flex items-center justify-between border-b border-base-300 pb-2 mb-3">
+              <span class="bg-primary text-primary-content text-xs px-2 py-1 rounded font-mono">
+                # {session.sessionNumber}
+              </span>
+              <div class="flex items-center gap-2">
+                <button on:click={() => shiftSessionDate(session, -1)} class="btn btn-xs btn-outline btn-primary">←</button>
+                <h2 class="text-sm md:text-base font-semibold">{formatDate(session.date)}</h2>
+                <button on:click={() => shiftSessionDate(session, 1)} class="btn btn-xs btn-outline btn-primary">→</button>
+              </div>
+            </div>
 
-        <!-- Body: Preview + Considerations -->
-        <a href={`/programs/${slug}/session/${session.trainingSessionID}`} class="block space-y-4 mt-3">
-          <div class="bg-zinc-900 p-3 rounded border border-zinc-700">
-            <h3 class="font-bold text-sm mb-1 text-gray-300">Preview</h3>
-            <ul class="text-sm space-y-1">
-              {#each getSessionPreview(session) as item}
-                <li>- {item}</li>
-              {/each}
-            </ul>
-          </div>
-
-          <div class="bg-zinc-900 p-3 rounded border border-zinc-700">
-            <h3 class="font-bold text-sm mb-1 text-gray-300">Considerations</h3>
-            <ul class="text-sm space-y-1">
-              {#each getConsiderations(0) as point}
-                <li>- {point}</li>
-              {/each}
-            </ul>
-          </div>
-        </a>
-
-        <!-- Buttons -->
-        <div class="flex justify-end gap-2 mt-4">
-          <button on:click={() => session.trainingSessionID && toggleSkipSession(session.trainingSessionID)}
-            class="text-xs px-3 py-1 rounded font-semibold 
-              transition 
-              {session.status === TrainingSessionStatus._3 
-                ? 'bg-yellow-500 text-black hover:bg-yellow-400' 
-                : 'bg-zinc-700 text-white hover:bg-zinc-600'}">
-            {session.status === TrainingSessionStatus._3 ? 'Undo Skip' : 'Skip'}
-          </button>
-          <button on:click={() => session.trainingSessionID && deleteSession(session.trainingSessionID)}
-            class="text-xs px-3 py-1 rounded bg-red-600 text-white hover:bg-red-500 font-semibold">
-            Delete
-          </button>
-        </div>
-      </div>
-    {/each}
-  </div>
-{/if}
-
-    <!-- Skipped Sessions -->
-{#if sessions.some(s => s.status === TrainingSessionStatus._3)}
-  <div class="mb-4 flex items-center justify-between mt-6">
-    <h2 class="text-xl font-bold text-white flex items-center gap-2">
-      Skipped Sessions
-      <button on:click={() => showSkipped = !showSkipped}>
-        {showSkipped ? '🡫' : '🡪'}
-      </button>
-    </h2>
-  </div>
-
-  {#if showSkipped}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60 mb-10">
-      {#each sessions.filter(s => s.status === TrainingSessionStatus._3) as session (session.trainingSessionID)}
-        <div class="bg-zinc-700 rounded-xl p-4 text-white shadow relative">
-          <h2 class="text-xl font-semibold mb-2">Skipped – {formatDate(session.date)}</h2>
-          <p class="text-sm italic text-gray-300 mb-2">This session was skipped.</p>
-          <button
-            on:click={() => session.trainingSessionID && toggleSkipSession(session.trainingSessionID)}
-            class="text-xs text-blue-300 hover:underline"
-          >
-            Undo Skip
-          </button>
-        </div>
-      {/each}
-    </div>
-  {/if}
-{/if}
-
-<!-- Completed Sessions -->
-{#if sessions.some(s => s.status === TrainingSessionStatus._2)}
-  <div class="mb-4 flex items-center justify-between mt-6">
-    <h2 class="text-xl font-bold text-white flex items-center gap-2">
-      Completed Sessions
-      <button on:click={() => showCompleted = !showCompleted}>
-        {showCompleted ? '🡫' : '🡪'}
-      </button>
-    </h2>
-  </div>
-
-  {#if showCompleted}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60">
-      {#each sessions.filter(s => s.status === TrainingSessionStatus._2) as session (session.trainingSessionID)}
-        <a href={`/programs/${slug}/session/${session.trainingSessionID}`} class="block">
-          <div class="bg-zinc-700 rounded-xl p-4 text-white shadow hover:bg-zinc-600 transition">
-            <h2 class="text-xl font-semibold mb-2">{formatDate(session.date)}</h2>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <h3 class="font-bold text-sm mb-1">Preview</h3>
+            <a href={`/programs/${slug}/session/${session.trainingSessionID}`} class="space-y-4 mt-3 block">
+              <div class="bg-base-200 p-3 rounded-lg border border-base-300">
+                <h3 class="font-semibold text-sm mb-1 text-base-content/80">Preview</h3>
                 <ul class="text-sm space-y-1">
                   {#each getSessionPreview(session) as item}
                     <li>- {item}</li>
                   {/each}
                 </ul>
               </div>
-              <div>
-                <h3 class="font-bold text-sm mb-1">Considerations</h3>
+
+              <div class="bg-base-200 p-3 rounded-lg border border-base-300">
+                <h3 class="font-semibold text-sm mb-1 text-base-content/80">Considerations</h3>
                 <ul class="text-sm space-y-1">
                   {#each getConsiderations(0) as point}
                     <li>- {point}</li>
                   {/each}
                 </ul>
               </div>
+            </a>
+
+            <div class="flex justify-end gap-2 mt-4">
+              <button on:click={() => session.trainingSessionID && toggleSkipSession(session.trainingSessionID)}
+                class={`btn btn-xs ${session.status === TrainingSessionStatus._3 ? 'btn-warning' : 'btn-outline btn-primary'}`}>
+                {session.status === TrainingSessionStatus._3 ? 'Undo Skip' : 'Skip'}
+              </button>
+              <button on:click={() => session.trainingSessionID && deleteSession(session.trainingSessionID)}
+                class="btn btn-xs btn-error text-white">
+                Delete
+              </button>
             </div>
           </div>
-        </a>
-      {/each}
-    </div>
-  {/if}
-{/if}
+        {/each}
+      </div>
+    {/if}
 
+    {#if sessions.some(s => s.status === TrainingSessionStatus._3)}
+      <div class="mb-4 flex items-center justify-between mt-6">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          Skipped Sessions
+          <button on:click={() => showSkipped = !showSkipped} class="btn btn-xs btn-outline btn-primary">
+            {showSkipped ? '🡫' : '🡪'}
+          </button>
+        </h2>
+      </div>
+
+      {#if showSkipped}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60 mb-10">
+          {#each sessions.filter(s => s.status === TrainingSessionStatus._3) as session (session.trainingSessionID)}
+            <div class="bg-base-100 text-base-content border border-base-300 rounded-xl p-4 shadow">
+              <h2 class="text-lg font-semibold mb-2">Skipped – {formatDate(session.date)}</h2>
+              <p class="text-sm italic text-base-content mb-2">This session was skipped.</p>
+              <button
+                on:click={() => session.trainingSessionID && toggleSkipSession(session.trainingSessionID)}
+                class="text-xs btn btn-link text-primary"
+              >
+                Undo Skip
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    {/if}
+
+    {#if sessions.some(s => s.status === TrainingSessionStatus._2)}
+      <div class="mb-4 flex items-center justify-between mt-6">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          Completed Sessions
+          <button on:click={() => showCompleted = !showCompleted} class="btn btn-xs btn-outline btn-primary">
+            {showCompleted ? '🡫' : '🡪'}
+          </button>
+        </h2>
+      </div>
+
+      {#if showCompleted}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60">
+          {#each sessions.filter(s => s.status === TrainingSessionStatus._2) as session (session.trainingSessionID)}
+            <a href={`/programs/${slug}/session/${session.trainingSessionID}`} class="block">
+              <div class="bg-base-100 text-base-content border border-base-300 rounded-xl p-4 shadow hover:shadow-md transition">
+                <h2 class="text-lg font-semibold mb-2">{formatDate(session.date)}</h2>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 class="font-semibold text-sm mb-1">Preview</h3>
+                    <ul class="text-sm space-y-1">
+                      {#each getSessionPreview(session) as item}
+                        <li>- {item}</li>
+                      {/each}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-sm mb-1">Considerations</h3>
+                    <ul class="text-sm space-y-1">
+                      {#each getConsiderations(0) as point}
+                        <li>- {point}</li>
+                      {/each}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </a>
+          {/each}
+        </div>
+      {/if}
+    {/if}
   </div>
 {:else}
   <div class="p-6 max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-4 text-red-400">Program not found</h1>
+    <h1 class="text-3xl font-bold mb-4 text-error">Program not found</h1>
   </div>
 {/if}
 
-<!-- Add Session Floating Button -->
+<!-- Floating Add Button -->
 <button
   on:click={() => showModal = true}
-  class="fixed bottom-6 right-6 bg-zinc-100 hover:bg-zinc-400 text-black rounded-full w-12 h-12 text-2xl shadow-lg z-40"
+  class="fixed bottom-6 right-6 btn btn-circle btn-primary text-xl shadow-lg z-40"
 >
   +
 </button>
+
 
 <CreateSessionModal
   show={showModal}
   programID={programID}
   existingSessionCount={sessions.length}
   on:close={() => showModal = false}
- on:createdWithSession={() => {
-  showModal = false;
-  setTimeout(() => location.reload(), 50); // short delay to allow modal DOM to detach
-}}
+  on:createdWithSession={() => {
+    showModal = false;
+    setTimeout(() => location.reload(), 50);
+  }}
 />
-
-
-
 
 

@@ -55,18 +55,17 @@
   onMount(loadMovements);
 </script>
 
-<div class="p-6 max-w-4xl mx-auto text-white">
-    <button
-      on:click={() => goto(`/programs/${programSlug}`)}
-      class="mb-6 text-sm bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded"
-    >
-      ← Back to Session
-    </button>
-
-
+<div class="p-6 max-w-4xl mx-auto text-base-content">
+  <button
+    on:click={() => goto(`/programs/${programSlug}`)}
+    class="btn btn-sm btn-outline mb-6"
+  >
+    ← Back to Session
+  </button>
 
   <h1 class="text-3xl font-bold mb-6">Movement Library</h1>
 
+  <!-- Add New Movement -->
   <div class="mb-6">
     <h2 class="text-xl font-semibold mb-2">Add New Movement</h2>
     <div class="flex gap-2">
@@ -74,20 +73,21 @@
         type="text"
         placeholder="Movement name"
         bind:value={newMovementName}
-        class="p-2 bg-zinc-800 border border-zinc-600 rounded w-full"
+        class="input input-bordered w-full"
       />
-      <button on:click={addMovementBase} class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded">Add</button>
+      <button on:click={addMovementBase} class="btn btn-primary">Add</button>
     </div>
     {#if error}
-      <p class="text-red-400 mt-2">{error}</p>
+      <p class="text-error mt-2">{error}</p>
     {/if}
   </div>
 
+  <!-- List of Movements -->
   <div class="mt-6">
     <h2 class="text-xl font-semibold mb-4">Available Movements</h2>
     <ul class="space-y-2">
       {#each movementOptions as m}
-        <li class="bg-zinc-800 border border-zinc-600 p-3 rounded">{m.name}</li>
+        <li class="bg-base-200 border border-base-300 p-3 rounded">{m.name}</li>
       {/each}
     </ul>
   </div>

@@ -9,23 +9,38 @@
     TrainingSessionStatus,
     WeightUnit,
     GetTrainingProgramsEndpointClient,
-    DeleteTrainingProgramEndpointClient
+    DeleteTrainingProgramEndpointClient,
+    HasCreatedProfileEndpointClient
   } from '$lib/api/ApiClient';
 
   let showModal = false;
   let programs: TrainingProgram[] = [];
+  let username = '';
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
-  async function loadPrograms() {
-    const getProgramsClient = new GetTrainingProgramsEndpointClient(baseUrl);
+  onMount(async () => {
+    await loadUser();
+    await loadPrograms();
+  });
+
+  async function loadUser() {
     try {
+      const client = new HasCreatedProfileEndpointClient(baseUrl);
+      const user = await client.hasCreatedProfile();
+      username = user.name ?? 'User';
+    } catch (err) {
+      console.error('Failed to fetch user profile:', err);
+    }
+  }
+
+  async function loadPrograms() {
+    try {
+      const getProgramsClient = new GetTrainingProgramsEndpointClient(baseUrl);
       programs = await getProgramsClient.getAll3();
     } catch (error) {
       console.error('Failed to load programs:', error);
     }
   }
-
-  onMount(loadPrograms);
 
   async function handleProgramCreated() {
     await loadPrograms();
@@ -36,12 +51,13 @@
     const confirmed = confirm('Are you sure you want to delete this program?');
     if (!confirmed) return;
 
-    const deleteProgramClient = new DeleteTrainingProgramEndpointClient(baseUrl);
     try {
+      const deleteProgramClient = new DeleteTrainingProgramEndpointClient(baseUrl);
       await deleteProgramClient.delete3(programID);
       programs = programs.filter(p => p.trainingProgramID !== programID);
     } catch (err) {
       alert('Failed to delete program.');
+      console.error(err);
     }
   }
 
@@ -58,17 +74,17 @@
 
   function getTypeColor(type: string) {
     switch (type) {
-      case "Powerlifting": return "bg-red-500";
-      case "Bodybuilding": return "bg-pink-500";
-      case "General Fitness": return "bg-blue-500";
-      case "Running": return "bg-green-500";
-      case "Biking": return "bg-yellow-400";
-      case "Swimming": return "bg-cyan-500";
-      default: return "bg-gray-500";
+      case "Powerlifting": return "bg-error text-error-content";
+      case "Bodybuilding": return "bg-secondary text-secondary-content";
+      case "General Fitness": return "bg-primary text-primary-content";
+      case "Running": return "bg-success text-success-content";
+      case "Biking": return "bg-warning text-warning-content";
+      case "Swimming": return "bg-info text-info-content";
+      default: return "bg-neutral text-neutral-content";
     }
   }
 
-  function getNextWorkoutHighlights(program: TrainingProgram) {
+  function getNextWorkoutHighlights(program: TrainingProgram): string[] {
     const firstSession = program.trainingSessions?.[0];
     return firstSession?.movements?.slice(0, 3).map(movement => {
       const set = movement.sets?.[0];
@@ -87,10 +103,8 @@
     return sessions.length === 0 ? 0 : Math.round((completed / sessions.length) * 100);
   }
 </script>
-
-
-<div class="p-6 max-w-6xl mx-auto">
-  <h1 class="text-3xl font-bold mb-6">Blake's Program Library</h1>
+<div class="p-6 max-w-6xl mx-auto text-base-content">
+  <h1 class="text-3xl font-bold mb-6">{username}'s Program Library</h1>
 
   <div class="grid gap-6 md:grid-cols-2">
     {#each programs as program (program.trainingProgramID)}
@@ -98,25 +112,24 @@
         <div
           role="link"
           tabindex="0"
-          class="block cursor-pointer"
+          class="card bg-base-100 text-base-content border border-base-300 shadow-md hover:shadow-lg transition cursor-pointer h-[320px]"
           on:click={() => goToProgram(program)}
           on:keydown={(e) => e.key === 'Enter' && goToProgram(program)}
         >
-          <div class="bg-zinc-900 rounded-xl p-6 shadow-lg hover:shadow-2xl transition hover:bg-zinc-800 text-white h-[320px] flex flex-col justify-between">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="font-bold truncate text-2xl md:text-3xl w-2/3">{program.title ?? 'Untitled'}</h2>
+          <div class="card-body flex flex-col justify-between">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="card-title text-2xl md:text-3xl pb-6 truncate w-2/3">
+                {program.title ?? 'Untitled'}
+              </h2>
               <div class="flex items-center gap-2">
-                <span class={`text-xs font-semibold text-black px-3 py-1 rounded ${getTypeColor(program.tags?.[0] ?? '')}`}>
+                <span class={`text-xs font-semibold px-3 py-1 rounded-full ${getTypeColor(program.tags?.[0] ?? '')}`}>
                   {program.tags?.[0] ?? 'Unknown'}
                 </span>
                 <button
                   type="button"
-                  on:click|stopPropagation={() => {
-                    if (program.trainingProgramID) {
-                      deleteProgram(program.trainingProgramID);
-                    }
-                  }}
-                  class="text-red-400 hover:text-red-600 text-xl font-bold"
+                  on:click|stopPropagation={() => program.trainingProgramID && deleteProgram(program.trainingProgramID)}
+                  class="text-error hover:text-error-content text-xl font-bold"
                   title="Delete program"
                 >
                   &times;
@@ -124,39 +137,30 @@
               </div>
             </div>
 
-            <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-              <div class="flex-1">
-                <p class="text-base text-gray-300">
-                  <span class="font-medium">Start:</span> {formatDate(program.startDate)}
-                </p>
-                <p class="text-base text-gray-300">
-                  <span class="font-medium">End:</span> {formatDate(program.endDate)}
-                </p>
+            <!-- Dates and Highlights -->
+            <div class="flex flex-col md:flex-row gap-4 text-sm">
+              <div class="flex-1 space-y-1">
+                <p><span class="font-semibold">Start:</span> {formatDate(program.startDate)}</p>
+                <p><span class="font-semibold">End:</span> {formatDate(program.endDate)}</p>
               </div>
 
               <div class="flex-1">
-                <h3 class="text-base text-gray-200 font-semibold mb-1">Next Workout Highlights:</h3>
-                <ul class="text-base text-gray-100 space-y-1">
+                <h3 class="font-semibold mb-1">Next Workout Highlights:</h3>
+                <ul class="space-y-1">
                   {#each getNextWorkoutHighlights(program) as line}
-                    <li class="border-l-4 border-zinc-700 pl-3">{line}</li>
+                    <li class="border-l-4 pl-3 border-base-300">{line}</li>
                   {/each}
                 </ul>
               </div>
             </div>
 
+            <!-- Progress -->
             <div>
-              <p class="text-sm text-gray-400 mt-4 mb-2">
-                <span class="font-medium">Next Workout:</span> {formatDate(program.nextTrainingSessionDate)}
+              <p class="text-sm mt-3 mb-1 font-semibold">
+                Next Workout: {formatDate(program.nextTrainingSessionDate)}
               </p>
-              <div class="relative w-full bg-zinc-700 h-5 rounded-full overflow-hidden">
-                <div
-                  class={`h-5 rounded-full absolute left-0 top-0 ${getTypeColor(program.tags?.[0] ?? '')}`}
-                  style={`width: ${calculateProgress(program)}%`}
-                ></div>
-                <div class="absolute right-2 top-0 h-5 text-xs text-white font-bold flex items-center">
-                  {calculateProgress(program)}%
-                </div>
-              </div>
+              <progress class="progress w-full progress-primary" value={calculateProgress(program)} max="100"></progress>
+              <p class="text-sm text-right mt-1">{calculateProgress(program)}%</p>
             </div>
           </div>
         </div>
@@ -165,9 +169,10 @@
   </div>
 </div>
 
+<!-- Add Program Floating Button -->
 <button
   on:click={() => showModal = true}
-  class="fixed bottom-6 right-6 bg-green-500 hover:bg-green-400 text-black rounded-full w-12 h-12 text-2xl shadow-lg z-40"
+  class="fixed bottom-6 right-6 btn btn-primary btn-circle text-xl shadow-lg z-40"
 >
   +
 </button>
