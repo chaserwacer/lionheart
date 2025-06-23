@@ -69,3 +69,10 @@ public class MovementDTO
     public bool IsCompleted { get; set; } = false;
     
 }
+
+
+    public class UpdateMovementOrderRequest
+    {
+        public Guid TrainingSessionID { get; set; }
+        public List<Guid> IDs { get; set; } = new List<Guid>();
+    }

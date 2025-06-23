@@ -105,7 +105,7 @@ namespace lionheart.Data
                 .WithMany()
                 .HasForeignKey(m => m.MovementBaseID)
                 .OnDelete(DeleteBehavior.Restrict);
-
+            
             // Set Entries
             modelBuilder.Entity<SetEntry>()
                 .HasKey(s => s.SetEntryID);

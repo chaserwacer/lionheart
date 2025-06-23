@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using lionheart.Data;
 
@@ -10,9 +11,11 @@ using lionheart.Data;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(ModelContext))]
-    partial class ModelContextModelSnapshot : ModelSnapshot
+    [Migration("20250623205508_MovementOrdering")]
+    partial class MovementOrdering
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.6");
@@ -413,8 +416,8 @@ namespace lionheart.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<double>("ActualRPE")
-                        .HasColumnType("REAL");
+                    b.Property<int>("ActualRPE")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("ActualReps")
                         .HasColumnType("INTEGER");
@@ -425,8 +428,8 @@ namespace lionheart.Migrations
                     b.Property<Guid>("MovementID")
                         .HasColumnType("TEXT");
 
-                    b.Property<double>("RecommendedRPE")
-                        .HasColumnType("REAL");
+                    b.Property<int>("RecommendedRPE")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("RecommendedReps")
                         .HasColumnType("INTEGER");

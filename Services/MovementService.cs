@@ -42,6 +42,7 @@ public class MovementService : IMovementService
             .Where(m => m.TrainingSessionID == trainingSessionID)
             .Include(m => m.MovementBase)
             .Include(m => m.Sets)
+            .OrderBy(m => m.Ordering)
             .ToListAsync();
 
         return Result<List<MovementDTO>>.Success(movements.Select(m => m.ToDTO()).ToList());
@@ -71,6 +72,8 @@ public class MovementService : IMovementService
             return Result<MovementDTO>.NotFound("Movement base not found.");
         }
 
+        var orderings = await _context.Movements.Select(m => (int?)m.Ordering).ToListAsync();
+        var maxOrdering = orderings.Count > 0 && orderings.Any(o => o.HasValue) ? orderings.Max() ?? -1 : -1;
         var movement = new Movement
         {
             MovementID = Guid.NewGuid(),
@@ -80,6 +83,7 @@ public class MovementService : IMovementService
             MovementModifier = request.MovementModifier,
             IsCompleted = false,
             MovementBase = movementBase,
+            Ordering = maxOrdering + 1
         };
         var x  = movement.MovementBaseID;
         _context.Movements.Add(movement);
@@ -95,6 +99,8 @@ public class MovementService : IMovementService
             .Include(m => m.TrainingSession)
             .ThenInclude(ts => ts.TrainingProgram)
             .FirstOrDefaultAsync(m => m.MovementID == request.MovementID);
+
+        
 
         if (movement == null)
         {
@@ -195,6 +201,43 @@ public class MovementService : IMovementService
         foreach (var movement in session.Movements)
         {
             movement.IsCompleted = request.Complete;
+        }
+
+        await _context.SaveChangesAsync();
+        return Result.Success();
+    }
+
+    public async Task<Result> UpdateMovementOrder(IdentityUser user, UpdateMovementOrderRequest request)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        // Verify user owns the training session
+        var session = await _context.TrainingSessions
+            .Include(ts => ts.TrainingProgram)
+            .Include(ts => ts.Movements)
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
+                                   ts.TrainingProgram!.UserID == userGuid);
+        if (session is null)
+        {
+            return Result.NotFound("Training session not found or access denied.");
+        }
+
+        // Get all movements for this session
+        var sessionMovementIds = session.Movements.Select(m => m.MovementID).ToHashSet();
+        var requestMovementIds = request.IDs.ToHashSet();
+
+        // Validate that the IDs in the request match exactly with the movements in the session
+        if (!sessionMovementIds.SetEquals(requestMovementIds))
+        {
+            return Result.Invalid(new List<ValidationError> {
+            new ValidationError { ErrorMessage = "Movement IDs don't match exactly with session movements." }
+            });
+        }
+
+        // Update movement order based on the sequence in request.IDs
+        for (int i = 0; i < request.IDs.Count; i++)
+        {
+            var movement = session.Movements.First(m => m.MovementID == request.IDs[i]);
+            movement.Ordering = i;
         }
 
         await _context.SaveChangesAsync();
