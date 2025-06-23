@@ -20,6 +20,7 @@
   let selectedMovementBaseID: string = '';
   let selectedModifierName: string = 'No Modifier';
   let repSchemes = [{ sets: 1, reps: 5, rpe: 8 }];
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
   const modifiers: MovementModifier[] = [
     MovementModifier.fromJS({ name: 'No Modifier', equipment: 'None', duration: 0 }),
@@ -31,7 +32,7 @@
 
   onMount(async () => {
     try {
-      const client = new GetMovementBasesEndpointClient('http://localhost:5174');
+      const client = new GetMovementBasesEndpointClient(baseUrl);
       movementOptions = await client.getAll();
     } catch (err) {
       console.error('Failed to fetch movement bases', err);
@@ -53,8 +54,8 @@
     const modifier = modifiers.find(m => m.name === selectedModifierName);
     if (!movementBase || !modifier) return;
 
-    const movementClient = new CreateMovementEndpointClient('http://localhost:5174');
-    const setClient = new CreateSetEntryEndpointClient('http://localhost:5174');
+    const movementClient = new CreateMovementEndpointClient(baseUrl);
+    const setClient = new CreateSetEntryEndpointClient(baseUrl);
 
     const movement = await movementClient.create2(CreateMovementRequest.fromJS({
       movementBaseID: movementBase.movementBaseID,

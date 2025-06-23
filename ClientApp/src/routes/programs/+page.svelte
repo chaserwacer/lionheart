@@ -14,9 +14,10 @@
 
   let showModal = false;
   let programs: TrainingProgram[] = [];
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
   async function loadPrograms() {
-    const getProgramsClient = new GetTrainingProgramsEndpointClient('http://localhost:5174');
+    const getProgramsClient = new GetTrainingProgramsEndpointClient(baseUrl);
     try {
       programs = await getProgramsClient.getAll3();
     } catch (error) {
@@ -35,7 +36,7 @@
     const confirmed = confirm('Are you sure you want to delete this program?');
     if (!confirmed) return;
 
-    const deleteProgramClient = new DeleteTrainingProgramEndpointClient('http://localhost:5174');
+    const deleteProgramClient = new DeleteTrainingProgramEndpointClient(baseUrl);
     try {
       await deleteProgramClient.delete3(programID);
       programs = programs.filter(p => p.trainingProgramID !== programID);

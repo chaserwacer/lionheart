@@ -13,6 +13,7 @@
   let startDate = '';
   let endDate = '';
   let selectedTag = 'Powerlifting';
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
   const tagOptions = [
     'Powerlifting',
@@ -27,7 +28,7 @@
 
   onMount(() => {
     if (browser) {
-      client = new CreateTrainingProgramEndpointClient('http://localhost:5174');
+      client = new CreateTrainingProgramEndpointClient(baseUrl);
     }
   });
 

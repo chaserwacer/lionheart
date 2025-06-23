@@ -22,10 +22,10 @@
   let showCompleted = true;
   let showUpcoming = true;
   let showSkipped = true;
-
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
   async function loadSessions() {
-    const getProgramsClient = new GetTrainingProgramsEndpointClient('http://localhost:5174');
+    const getProgramsClient = new GetTrainingProgramsEndpointClient(baseUrl);
 
     try {
       const allPrograms = await getProgramsClient.getAll3();
@@ -60,7 +60,7 @@
     const confirmed = confirm("Are you sure you want to delete this session?");
     if (!confirmed || !program) return;
 
-    const deleteClient = new DeleteTrainingSessionEndpointClient('http://localhost:5174');
+    const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
     try {
       await deleteClient.delete4(sessionID);
       sessions = sessions.filter(s => s.trainingSessionID !== sessionID);
@@ -108,7 +108,7 @@
       ? TrainingSessionStatus._0
       : TrainingSessionStatus._3;
 
-    const updateClient = new UpdateTrainingSessionEndpointClient('http://localhost:5174');
+    const updateClient = new UpdateTrainingSessionEndpointClient(baseUrl);
     try {
       await updateClient.update4(
         UpdateTrainingSessionRequest.fromJS({
@@ -141,7 +141,7 @@
   session.date = newDate;
 
   // Save to backend
-  const updateClient = new UpdateTrainingSessionEndpointClient('http://localhost:5174');
+  const updateClient = new UpdateTrainingSessionEndpointClient(baseUrl);
   try {
     await updateClient.update4(UpdateTrainingSessionRequest.fromJS({
       trainingSessionID: session.trainingSessionID!,

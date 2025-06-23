@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { slugify } from '$lib/utils/slugify';
+  import { page } from '$app/stores';
   import {
     MovementBase,
     CreateMovementBaseEndpointClient,
@@ -46,14 +48,20 @@
     console.error(e);
   }
 }
+$: programSlug = $page.params.slug;
 
   onMount(loadMovements);
 </script>
 
 <div class="p-6 max-w-4xl mx-auto text-white">
-  <button on:click={() => goto('/programs')} class="mb-6 text-sm bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded">
-    ← Back to Sessions
-  </button>
+    <button
+      on:click={() => goto(`/programs/${programSlug}`)}
+      class="mb-6 text-sm bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded"
+    >
+      ← Back to Session
+    </button>
+
+
 
   <h1 class="text-3xl font-bold mb-6">Movement Library</h1>
 

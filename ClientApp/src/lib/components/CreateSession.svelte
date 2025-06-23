@@ -25,6 +25,7 @@
   let selectedMovementBaseID: string = '';
   let movementSearch = '';
   export let existingSessionCount: number = 0;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
   const modifiers: MovementModifier[] = [
     MovementModifier.fromJS({ name: 'No Modifier', equipment: 'None', duration: 0 }),
@@ -88,9 +89,9 @@
   }
 
   async function createSession() {
-    const sessionClient = new CreateTrainingSessionEndpointClient('http://localhost:5174');
-    const movementClient = new CreateMovementEndpointClient('http://localhost:5174');
-    const setClient = new CreateSetEntryEndpointClient('http://localhost:5174');
+    const sessionClient = new CreateTrainingSessionEndpointClient(baseUrl);
+    const movementClient = new CreateMovementEndpointClient(baseUrl);
+    const setClient = new CreateSetEntryEndpointClient(baseUrl);
 
     const sessionDate = new Date();
     sessionDate.setDate(sessionDate.getDate() + 2);
@@ -140,7 +141,7 @@
       }
   }
 
-    const getSessionClient = new GetTrainingSessionEndpointClient('http://localhost:5174');
+    const getSessionClient = new GetTrainingSessionEndpointClient(baseUrl);
     const fullSession = await getSessionClient.get2(session.trainingSessionID!);
 
     dispatch('createdWithSession', {
