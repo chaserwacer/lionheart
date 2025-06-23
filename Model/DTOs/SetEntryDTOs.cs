@@ -1,8 +1,8 @@
-
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 using lionheart.Model.TrainingProgram;
 
-public class CreateSetEntryRequest
+public class CreateSetEntryRequest : IValidatableObject
 {
     [Required]
     public required int RecommendedReps { get; init; }
@@ -11,8 +11,8 @@ public class CreateSetEntryRequest
     public required double RecommendedWeight { get; init; }
 
     [Required]
-    [Range(1, 10)]
-    public required int RecommendedRPE { get; init; }
+    [Range(0.5, 10.0)]
+    public required double RecommendedRPE { get; init; }
 
     [Required]
     public required WeightUnit WeightUnit { get; init; }
@@ -24,17 +24,37 @@ public class CreateSetEntryRequest
     public required double ActualWeight { get; init; }
 
     [Required]
-    [Range(1, 10)]
-    public required int ActualRPE { get; init; }
+    [Range(0.5, 10.0)]
+    public required double ActualRPE { get; init; }
+    
     [Required]
     public required Guid MovementID { get; init; }
 
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        // Validate RecommendedRPE has valid increments of 0.5
+        if (Math.Abs(RecommendedRPE * 2 % 1) > 0.001)
+        {
+            yield return new ValidationResult(
+                "RecommendedRPE must be in increments of 0.5",
+                new[] { nameof(RecommendedRPE) });
+        }
+
+        // Validate ActualRPE has valid increments of 0.5
+        if (Math.Abs(ActualRPE * 2 % 1) > 0.001)
+        {
+            yield return new ValidationResult(
+                "ActualRPE must be in increments of 0.5",
+                new[] { nameof(ActualRPE) });
+        }
+    }
 }
 
-public class UpdateSetEntryRequest
+public class UpdateSetEntryRequest : IValidatableObject
 {
     [Required]
     public required Guid SetEntryID { get; init; }
+    
     [Required]
     public required int RecommendedReps { get; init; }
 
@@ -42,8 +62,8 @@ public class UpdateSetEntryRequest
     public required double RecommendedWeight { get; init; }
 
     [Required]
-    [Range(1, 10)]
-    public required int RecommendedRPE { get; init; }
+    [Range(0.5, 10.0)]
+    public required double RecommendedRPE { get; init; }
 
     [Required]
     public required WeightUnit WeightUnit { get; init; }
@@ -55,11 +75,30 @@ public class UpdateSetEntryRequest
     public required double ActualWeight { get; init; }
 
     [Required]
-    [Range(1, 10)]
-    public required int ActualRPE { get; init; }
+    [Range(0.5, 10.0)]
+    public required double ActualRPE { get; init; }
+    
     [Required]
     public required Guid MovementID { get; init; }
 
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        // Validate RecommendedRPE has valid increments of 0.5
+        if (Math.Abs(RecommendedRPE * 2 % 1) > 0.001)
+        {
+            yield return new ValidationResult(
+                "RecommendedRPE must be in increments of 0.5",
+                new[] { nameof(RecommendedRPE) });
+        }
+
+        // Validate ActualRPE has valid increments of 0.5
+        if (Math.Abs(ActualRPE * 2 % 1) > 0.001)
+        {
+            yield return new ValidationResult(
+                "ActualRPE must be in increments of 0.5",
+                new[] { nameof(ActualRPE) });
+        }
+    }
 }
 
 public class SetEntryDTO
@@ -68,10 +107,9 @@ public class SetEntryDTO
     public Guid MovementID { get; init; }
     public int RecommendedReps { get; set; }
     public double RecommendedWeight { get; set; }
-    public int RecommendedRPE { get; set; }
+    public double RecommendedRPE { get; set; }
     public WeightUnit WeightUnit { get; set; }
     public int ActualReps { get; set; }
     public double ActualWeight { get; set; }
-    public int ActualRPE { get; set; }
-
+    public double ActualRPE { get; set; }
 }

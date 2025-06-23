@@ -186,7 +186,7 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             MovementID = movementId,
             RecommendedReps = 5,
             RecommendedWeight = 100,
-            RecommendedRPE = 8,
+            RecommendedRPE = 8.5,
             WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
@@ -229,7 +229,7 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
-            ActualRPE = 8
+            ActualRPE = 8.5
         };
         var createResponse = await _client.PostAsJsonAsync("/api/set-entry/create", createRequest);
         var created = await createResponse.Content.ReadFromJsonAsync<SetEntryDTO>();
@@ -241,11 +241,11 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             MovementID = movementId,
             RecommendedReps = 6,
             RecommendedWeight = 105,
-            RecommendedRPE = 9,
+            RecommendedRPE = 10,
             WeightUnit = WeightUnit.Pounds,
             ActualReps = 6,
             ActualWeight = 105,
-            ActualRPE = 9
+            ActualRPE = 0.5
         };
 
         var response = await _client.PutAsJsonAsync("/api/set-entry/update", updateRequest);
@@ -336,6 +336,40 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         };
 
         var response = await _client.PostAsJsonAsync("/api/set-entry/create", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        request = new CreateSetEntryRequest
+        {
+            MovementID = movementId,
+            RecommendedReps = 5,
+            RecommendedWeight = 100,
+            RecommendedRPE = 0, // Invalid, should be 1-10
+            WeightUnit = WeightUnit.Kilograms,
+            ActualReps = 5,
+            ActualWeight = 100,
+            ActualRPE = 8
+        };
+
+        response = await _client.PostAsJsonAsync("/api/set-entry/create", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        request = new CreateSetEntryRequest
+        {
+            MovementID = movementId,
+            RecommendedReps = 5,
+            RecommendedWeight = 100,
+            RecommendedRPE = 1.7, // Invalid, should be 1-10
+            WeightUnit = WeightUnit.Kilograms,
+            ActualReps = 5,
+            ActualWeight = 100,
+            ActualRPE = 8
+        };
+
+         response = await _client.PostAsJsonAsync("/api/set-entry/create", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

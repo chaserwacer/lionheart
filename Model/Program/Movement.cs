@@ -80,11 +80,11 @@ public class SetEntry
     public Movement Movement { get; set; } = null!;
     public int RecommendedReps { get; set; }
     public double RecommendedWeight { get; set; }
-    public int RecommendedRPE { get; set; }
+    public double RecommendedRPE { get; set; }
     public WeightUnit WeightUnit { get; set; }
     public int ActualReps { get; set; }
     public double ActualWeight { get; set; }
-    public int ActualRPE { get; set; }
+    public double ActualRPE { get; set; }
 
     public SetEntryDTO ToDTO()
     {
