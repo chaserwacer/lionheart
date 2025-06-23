@@ -48,7 +48,7 @@
 
   onMount(async () => {
     try {
-      const res = await fetch('http://localhost:5174/api/movement-base/get-all', {
+      const res = await fetch(`${baseUrl}/api/movement-base/get-all`, {
         credentials: 'include'
       });
       movementOptions = await res.json();
