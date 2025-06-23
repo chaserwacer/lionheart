@@ -5,17 +5,18 @@
   import { page } from '$app/stores';
   import {
     MovementBase,
-    CreateMovementBaseEndpointClient,
-    CreateMovementBaseRequest
   } from '$lib/api/ApiClient';
 
   let movementOptions: MovementBase[] = [];
   let newMovementName = '';
   let error = '';
 
+  // Dynamic base URL based on the environment
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
+
   async function loadMovements() {
     try {
-      const res = await fetch('http://localhost:5174/api/movement-base/get-all', {
+      const res = await fetch(`${baseUrl}/api/movement-base/get-all`, {
         credentials: 'include'
       });
       movementOptions = await res.json();
@@ -25,30 +26,31 @@
   }
 
   async function addMovementBase() {
-  error = '';
-  if (!newMovementName.trim()) return;
+    error = '';
+    if (!newMovementName.trim()) return;
 
-  try {
-    const res = await fetch('http://localhost:5174/api/movement-base/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify({ name: newMovementName })
-    });
+    try {
+      const res = await fetch(`${baseUrl}/api/movement-base/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ name: newMovementName })
+      });
 
-    if (!res.ok) throw new Error('Bad response');
+      if (!res.ok) throw new Error('Bad response');
 
-    newMovementName = '';
-    await loadMovements();
-  } catch (e) {
-    error = 'Failed to add movement base';
-    console.error(e);
+      newMovementName = '';
+      await loadMovements();
+    } catch (e) {
+      error = 'Failed to add movement base';
+      console.error(e);
+    }
   }
-}
-$: programSlug = $page.params.slug;
+
+  $: programSlug = $page.params.slug;
 
   onMount(loadMovements);
 </script>
