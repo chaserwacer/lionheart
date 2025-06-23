@@ -5,16 +5,19 @@
   import CreateProgramModal from '$lib/components/CreateProgram.svelte';
 
   import {
-    TrainingProgram,
+    TrainingProgramDTO,
     TrainingSessionStatus,
     WeightUnit,
     GetTrainingProgramsEndpointClient,
     DeleteTrainingProgramEndpointClient,
-    HasCreatedProfileEndpointClient
+    HasCreatedProfileEndpointClient,
+
+    TrainingProgram
+
   } from '$lib/api/ApiClient';
 
   let showModal = false;
-  let programs: TrainingProgram[] = [];
+  let programs: TrainingProgramDTO[] = [];
   let username = '';
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
@@ -61,7 +64,7 @@
     }
   }
 
-  function goToProgram(program: TrainingProgram) {
+  function goToProgram(program: TrainingProgramDTO) {
     goto(`/programs/${slugify(program.title ?? '')}`);
   }
 
@@ -84,7 +87,7 @@
     }
   }
 
-  function getNextWorkoutHighlights(program: TrainingProgram): string[] {
+  function getNextWorkoutHighlights(program: TrainingProgramDTO): string[] {
     const firstSession = program.trainingSessions?.[0];
     return firstSession?.movements?.slice(0, 3).map(movement => {
       const set = movement.sets?.[0];
@@ -97,7 +100,7 @@
     }) ?? [];
   }
 
-  function calculateProgress(program: TrainingProgram): number {
+  function calculateProgress(program: TrainingProgramDTO): number {
     const sessions = program.trainingSessions ?? [];
     const completed = sessions.filter(s => s.status === TrainingSessionStatus._2).length;
     return sessions.length === 0 ? 0 : Math.round((completed / sessions.length) * 100);

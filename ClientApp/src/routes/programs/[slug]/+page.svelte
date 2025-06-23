@@ -8,14 +8,14 @@
     GetTrainingProgramsEndpointClient,
     UpdateTrainingSessionEndpointClient,
     UpdateTrainingSessionRequest,
-    TrainingProgram,
+    TrainingProgramDTO,
     TrainingSessionDTO,
     TrainingSessionStatus,
     DeleteTrainingSessionEndpointClient
   } from '$lib/api/ApiClient';
 
   const slug = $page.params.slug;
-  let program: TrainingProgram | undefined;
+  let program: TrainingProgramDTO | undefined;
   let sessions: TrainingSessionDTO[] = [];
   let programID = '';
   let showModal = false;

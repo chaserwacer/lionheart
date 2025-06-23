@@ -14,9 +14,9 @@
     UpdateMovementRequest,
     UpdateTrainingSessionRequest,
     SetEntry,
-    Movement,
-    TrainingSession,
-    TrainingProgram,
+    MovementDTO,
+    TrainingSessionDTO,
+    TrainingProgramDTO,
     TrainingSessionStatus
 
   } from '$lib/api/ApiClient';
@@ -24,9 +24,9 @@
 
   let slug = '';
   let sessionID = '';
-  let session: TrainingSession | undefined;
+  let session: TrainingSessionDTO | undefined;
   let sessionIndex = 0;
-  let program: TrainingProgram | undefined;
+  let program: TrainingProgramDTO | undefined;
   let unitMap: Record<number, 'lbs' | 'kg'> = {};
   let showUncompleted = true;
   let showCompleted = true;
@@ -62,7 +62,7 @@
     }
   });
 
-  function movementToUpdateRequest(movement: Movement) {
+  function movementToUpdateRequest(movement: MovementDTO) {
     return {
       movementID: movement.movementID!,
       trainingSessionID: movement.trainingSessionID!,
