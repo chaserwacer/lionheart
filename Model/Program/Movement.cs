@@ -27,6 +27,7 @@ public class Movement
     public List<SetEntry> Sets { get; set; } = [];
     public string Notes { get; set; } = string.Empty;
     public bool IsCompleted { get; set; } = false;
+    public required int Ordering { get; set; } 
 
     public MovementDTO ToDTO()
     {

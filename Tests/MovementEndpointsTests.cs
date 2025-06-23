@@ -311,6 +311,84 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task UpdateMovementOrder_WithValidData_UpdatesOrdering()
+    {
+        _client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Test", _testUserId);
+
+        var programId = await CreateTrainingProgramForUser(_testUserId);
+        var sessionId = await CreateTrainingSessionForUser(_testUserId, programId);
+        var movementBaseId1 = await CreateMovementBase(_testUserId, "Bench Press");
+        var movementBaseId2 = await CreateMovementBase(_testUserId, "Squat");
+        var movementBaseId3 = await CreateMovementBase(_testUserId, "Deadlift");
+
+        // Create three movements
+        var req1 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId1, MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 }, Notes = "" };
+        var req2 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId2, MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 }, Notes = "" };
+        var req3 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId3, MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 }, Notes = "" };
+
+        var resp1 = await _client.PostAsJsonAsync("/api/movement/create", req1);
+        var resp2 = await _client.PostAsJsonAsync("/api/movement/create", req2);
+        var resp3 = await _client.PostAsJsonAsync("/api/movement/create", req3);
+        var m1 = await resp1.Content.ReadFromJsonAsync<MovementDTO>();
+        var m2 = await resp2.Content.ReadFromJsonAsync<MovementDTO>();
+        var m3 = await resp3.Content.ReadFromJsonAsync<MovementDTO>();
+
+        // New order: m3, m1, m2
+        var request = new UpdateMovementOrderRequest
+        {
+            TrainingSessionID = sessionId,
+            IDs = new List<Guid> { m3!.MovementID, m1!.MovementID, m2!.MovementID }
+        };
+        var updateResp = await _client.PutAsJsonAsync("/api/movement/update-order", request);
+        updateResp.EnsureSuccessStatusCode();
+
+        // Fetch movements and check ordering
+        var getResp = await _client.GetAsync($"/api/movement/get-all/{sessionId}");
+        getResp.EnsureSuccessStatusCode();
+        var movements = await getResp.Content.ReadFromJsonAsync<List<MovementDTO>>();
+        Assert.NotNull(movements);
+
+        Assert.Equal(m3.MovementID, movements[0].MovementID);
+        Assert.Equal(m1.MovementID, movements[1].MovementID);
+        Assert.Equal(m2.MovementID, movements[2].MovementID);
+    }
+    [Fact]
+    public async Task UpdateMovementOrder_WithBadData_ReturnsBadRequest()
+    {
+        _client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Test", _testUserId);
+
+        var programId = await CreateTrainingProgramForUser(_testUserId);
+        var sessionId = await CreateTrainingSessionForUser(_testUserId, programId);
+        var movementBaseId1 = await CreateMovementBase(_testUserId, "Bench Press");
+        var movementBaseId2 = await CreateMovementBase(_testUserId, "Squat");
+        var movementBaseId3 = await CreateMovementBase(_testUserId, "Deadlift");
+
+        // Create three movements
+        var req1 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId1, MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 }, Notes = "" };
+        var req2 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId2, MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 }, Notes = "" };
+        var req3 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId3, MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 }, Notes = "" };
+
+        var resp1 = await _client.PostAsJsonAsync("/api/movement/create", req1);
+        var resp2 = await _client.PostAsJsonAsync("/api/movement/create", req2);
+        var resp3 = await _client.PostAsJsonAsync("/api/movement/create", req3);
+        var m1 = await resp1.Content.ReadFromJsonAsync<MovementDTO>();
+        var m2 = await resp2.Content.ReadFromJsonAsync<MovementDTO>();
+        var m3 = await resp3.Content.ReadFromJsonAsync<MovementDTO>();
+
+        // New order: m3, m1, m2
+        var request = new UpdateMovementOrderRequest
+        {
+            TrainingSessionID = sessionId,
+            IDs = new List<Guid> { m3!.MovementID, m1!.MovementID }
+        };
+        var updateResp = await _client.PutAsJsonAsync("/api/movement/update-order", request);
+        Assert.False(updateResp.IsSuccessStatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, updateResp.StatusCode);
+    }
+
     #endregion
 
     #region Validation Failure Cases
@@ -635,7 +713,7 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         var response = await _client.PostAsJsonAsync("/api/movement/create", request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var movement = await response.Content.ReadFromJsonAsync<Movement>();
+        var movement = await response.Content.ReadFromJsonAsync<MovementDTO>();
         Assert.NotNull(movement);
         Assert.Contains("🔥💪", movement.Notes);
     }

@@ -60,5 +60,13 @@ public interface IMovementService
     /// <param name="request">The movement base creation request.</param>
     /// <returns>A result containing the created movement base.</returns>
     Task<Result<MovementBase>> CreateMovementBaseAsync(CreateMovementBaseRequest request);
+    /// <summary>
+    /// Update the order of movements in a training session.
+    /// This is used to change the order in which movements are displayed or performed.
+    /// </summary>
+    /// <param name="user"></param>
+    /// <param name="request"></param>
+    /// <returns></returns>
+    Task<Result> UpdateMovementOrder(IdentityUser user, UpdateMovementOrderRequest request);
 
 }

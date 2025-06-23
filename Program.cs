@@ -12,6 +12,9 @@ using System.ComponentModel;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using OllamaSharp;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -69,15 +72,29 @@ catch
 Models:
 phi4-mini
 nemotron-mini
+llama3-groq-tool-use:8b
 
-*/
 builder.Services.AddChatClient(
     new ChatClientBuilder(
         new OllamaChatClient(new Uri("http://localhost:11434"), "phi4-mini")
     )
+    
     .UseFunctionInvocation()
     .Build()
 );
+*/
+IChatClient client = new OllamaApiClient(new Uri("http://localhost:11434"), "phi4-mini");
+
+var chatClient = new ChatClientBuilder(client)
+    .UseFunctionInvocation(null, options =>
+    {
+        options.AllowConcurrentInvocation = true;
+    })
+    .Build();
+
+
+builder.Services.AddSingleton<IChatClient>(chatClient);
+
 
 
 
