@@ -27,7 +27,7 @@ namespace lionheart.Controllers
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
-            return this.ToActionResult(await _chatService.ChatAsync(user, userPrompt));
+            return this.ToActionResult(await _chatService.ChatAsync(user));
 
 
         }

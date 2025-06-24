@@ -6,17 +6,21 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
+using ModelContextProtocol.Server;
+using System.ComponentModel;
 
 namespace lionheart.Endpoints.MovementEndpoints
 {
     [ValidateModel]
+    [McpServerToolType]
+    
     public class GetMovementBasesEndpoint : EndpointBaseAsync
         .WithoutRequest
         .WithActionResult<List<MovementBase>>
     {
         private readonly IMovementService _movementService;
         private readonly UserManager<IdentityUser> _userManager;
-
+        
         public GetMovementBasesEndpoint(IMovementService movementService, UserManager<IdentityUser> userManager)
         {
             _movementService = movementService;
@@ -27,6 +31,7 @@ namespace lionheart.Endpoints.MovementEndpoints
         [EndpointDescription("Get all available movement bases.")]
         [ProducesResponseType<List<MovementBase>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [McpServerTool, Description("Get all available movement bases.")]
         public override async Task<ActionResult<List<MovementBase>>> HandleAsync(CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);

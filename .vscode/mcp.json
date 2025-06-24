@@ -1,14 +1,17 @@
 {
   "inputs": [],
   "servers": {
-    "LionMCPServer": {
-      "type": "stdio",
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "C:\\code\\lionheart\\lionheart.csproj"
-      ]
+    // "lionmcp": {
+    //   "type": "stdio",
+    //   "command": "dotnet",
+    //   "args": [
+    //     "run",
+    //     "--project",
+    //     "C:\\code\\lionheart\\lionheart.csproj"
+    //   ]
+    // },
+    "lionhttpmcp": {
+      "url": "http://localhost:7025/sse"
     }
   }
 }

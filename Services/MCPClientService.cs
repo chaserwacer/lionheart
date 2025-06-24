@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
-using ModelContextProtocol.AspNetCore;
 using System.Text;
-using lionheart.Controllers;
-using Ardalis.Result; // For logging and types
+using Ardalis.Result;
+using ModelContextProtocol.Server;
+using lionheart.Model.DTOs;
+using System.Text.Json;
+using Model.McpServer;
 
 namespace lionheart.Services
 {
@@ -13,29 +15,57 @@ namespace lionheart.Services
         private readonly ILogger<MCPClientService> _logger;
         private readonly IChatClient _chatClient;
         private readonly Uri MCP_SERVER_URI = new("http://localhost:7025/sse");
+        private readonly IOuraService _ouraService;
+        private readonly IWellnessService _wellnessService;
+        //private readonly ITrainingSessionService _ouraService;
 
-        public MCPClientService(ILogger<MCPClientService> logger, IChatClient chatClient)
+        public MCPClientService(ILogger<MCPClientService> logger, IChatClient chatClient, IOuraService ouraService, IWellnessService wellnessService)
         {
             _logger = logger;
             _chatClient = chatClient;
+            _ouraService = ouraService;
+            _wellnessService = wellnessService;
         }
 
-        public async Task<Result<string>> ChatAsync(IdentityUser user, string userPrompt)
+        public async Task<Result<string>> ChatAsync(IdentityUser user)
         {
 
-            var chatHistory = GenerateInitialChatHistory(user, userPrompt, 1);
             var client = await CreateMcpClientAsync();
-            var tools = await client.ListToolsAsync();
+            var mcpTools = await client.ListToolsAsync();
+            var dateRange = new DateRangeRequest()
+            {
+                StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)),
+                EndDate = DateOnly.FromDateTime(DateTime.UtcNow)
+            };
 
+
+            LionMcpPrompt lionMCPPrompt = new LionMcpPrompt() { User = user };
+           
+            
+            InstructionPromptSection taskSection = new() { Name = "Primary Task Description" };
+            taskSection.AddInstruction("You are Lionheart, an intelligent training assistant that helps users manage their athletic performance, training plans, wellness, and recovery.");
+            taskSection.AddInstruction("Please assist in generating insights on a users recent data that will be provided later.");
+            lionMCPPrompt.Sections.Add(taskSection);
+
+
+            InstructionPromptSection instructions = new() { Name = "Instructions" };
+            instructions.AddInstruction("1. Analyze the users recent oura data and wellness data, generating insights.");
+            instructions.AddInstruction("2. Prioritize insights on strong differences or similaities between the oura data (measured) vs the wellness data (percieved).");
+            instructions.AddInstruction("3. Do not follow up  with the user, simply provide the insights.");
+            lionMCPPrompt.Sections.Add(instructions);
+
+            await lionMCPPrompt.AddOuraDataSectionAsync(_ouraService, dateRange);
+            await lionMCPPrompt.AddWellnessDataSectionAsync(_wellnessService, dateRange);
+
+            var chatHistory = lionMCPPrompt.ToChatMessage();
+
+            _logger.LogInformation("Chat history: {ChatHistory}", JsonSerializer.Serialize(chatHistory, new JsonSerializerOptions { WriteIndented = true }));
             List<ChatResponseUpdate> updates = [];
             StringBuilder result = new StringBuilder();
-
-
-            await foreach (var update in _chatClient.GetStreamingResponseAsync(
-                chatHistory,
-                new() { Tools = [.. tools], AllowMultipleToolCalls = true }
-            ))
+            await foreach (var update in _chatClient.GetStreamingResponseAsync(chatHistory, new() { Tools = [.. mcpTools], AllowMultipleToolCalls = true }))
             {
+
+
                 result.Append(update);
                 updates.Add(update);
             }
@@ -45,6 +75,7 @@ namespace lionheart.Services
 
         }
 
+    
 
         private async Task<IMcpClient> CreateMcpClientAsync()
         {
@@ -57,59 +88,7 @@ namespace lionheart.Services
                 )
             );
         }
-
-        private string GetSystemPrompt(string userID, int promptNumber)
-        {
-            var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
-            switch (promptNumber)
-            {
-                case 0:
-                    return $"""
-                        You are Lionheart, an intelligent training assistant that helps users manage their athletic performance, training plans, and recovery.
-
-                        Your job is to help user ID `{userID}`.
-
-                        Todays date is {today}.
-
-                        You have access to the following:
-                        - Tools that allow you to create, modify, and analyze training programs, sessions, recovery history, and wellness data.
-                        - Resources that include the user's historical performance, fatigue, sleep, readiness, and injuries.
-
-                        Your responses should:
-                        - Be actionable, concise, and context-aware.
-                        - Modify or generate training plans based on recovery, soreness, goals, and preferences.
-                        - Offer adaptations if the user is tired, injured, or time-constrained.
-                        - Never invent data — always use tools or resources when needed.
-
-                        You can call tools at any time to fetch or modify data.
-                        Never give a repsonse with a tool call, always use the tools to fetch data and then respond with the data.
-                        """;
-                case 1:
-                    return $"""
-                        You are Lionheart, a helpful AI assistant trained to assist athletes with training, recovery, and wellness decisions. You are connected to tools that allow you to access and manage a user’s training programs, wellness data, and session history.
-
-                        When a user asks a question or makes a request, determine whether a tool is available to complete the task. If a tool is available, use it by issuing a function call. Do not simulate tool execution or assume results — always use a real tool call.
-
-
-                        The user you are helping is always associated with a unique user ID, which will be provided to you in the conversation. Always include this ID when making function calls.
-                        Your job is to help user ID `{userID}`.
-                        Use today's date (`{today}`) when needed, and do not refer to outdated knowledge cutoffs — your tools have access to live data. Avoid hallucinating or guessing; ask for clarification if needed.
-
-                        If no tool is available to help, respond conversationally. Otherwise, always prefer tool-based solutions to ensure data accuracy and proper system integration.
-                        """;
-                default:
-                    return "No system prompt available.";
-            }
-            }
-        private List<ChatMessage> GenerateInitialChatHistory(IdentityUser user, string userPrompt, int promptNumber = 0)
-        {
-            return new List<ChatMessage>
-            {
-                new ChatMessage(ChatRole.System, GetSystemPrompt(user.Id.ToString(), promptNumber)),
-                new(ChatRole.User, userPrompt)
-            };
-        }
-    };
+    }
 }
 
  

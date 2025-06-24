@@ -6,6 +6,6 @@ namespace lionheart.Services
 {
     public interface IMCPClientService
     {
-        Task<Result<string>> ChatAsync(IdentityUser user, string userPrompt);
+        Task<Result<string>> ChatAsync(IdentityUser user);
     }
 }

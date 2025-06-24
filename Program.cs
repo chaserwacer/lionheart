@@ -1,27 +1,19 @@
 using lionheart.Data;
-using lionheart;
 using lionheart.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
 using ModelContextProtocol.Server;
-using ModelContextProtocol.Client;
-using ModelContextProtocol.AspNetCore;
 using System.ComponentModel;
 using Microsoft.Extensions.AI;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
 using OllamaSharp;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 var configuration = builder.Configuration;
- 
- 
+
 // Only register SQLite if not running in Testing environment
 if (!builder.Environment.IsEnvironment("Testing"))
 {
@@ -36,13 +28,14 @@ services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
-
 ///////////////////MCP Server Setup////////////////////
 builder.Services
     .AddMcpServer()
     .WithHttpTransport()
+    // .WithPrompts<StringFormatPrompt>()
+    // .WithPrompts<TemplateServerPrompt>()
     .WithToolsFromAssembly();
-
+//builder.Services.AddSingleton<TemplateServerPrompt>();  //TODO: Validate this works [provides templates accessible via server??]
 /////////////////////////////////////////////////////
 
 builder.Services.AddTransient<IUserService, UserService>();
@@ -92,29 +85,28 @@ var chatClient = new ChatClientBuilder(client)
     })
     .Build();
 
+    // IChatClient chatty = client.AsBuilder()
+
 
 builder.Services.AddSingleton<IChatClient>(chatClient);
-
-
-
 
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
 
-
-
 builder.Services.AddHttpClient();
-
-
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(); // <-- Add this
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(options =>
+{
+    options.LogToStandardErrorThreshold = LogLevel.Information; // ✅ stdout clean, logs go to stderr
+});
 
-builder.Logging.AddConsole(); 
-builder.Logging.AddDebug();
+
 
 var app = builder.Build();
 
@@ -163,16 +155,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
-
+// /app.UseStaticFiles();
 
 app.MapControllers();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller}/{action=Index}/{id?}");
 
-app.MapFallbackToFile("about", "about.html");
-app.MapFallbackToFile("index.html");
+// app.MapFallbackToFile("about", "about.html");
+// app.MapFallbackToFile("index.html");
 
 // Only run TypeScript generation in non-test environments
 if (!app.Environment.IsEnvironment("Testing"))
@@ -191,3 +182,17 @@ app.MapMcp();
 app.Run();
 
 public partial class Program { }
+[McpServerToolType]
+public class MCPGUY
+{
+    [McpServerTool, Description("Reverse")]
+    public static string Reverse(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return input;
+
+        char[] charArray = input.ToCharArray();
+        Array.Reverse(charArray);
+        return new string(charArray);
+    }
+}

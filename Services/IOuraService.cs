@@ -20,5 +20,8 @@ namespace lionheart.Services
         /// <param name="date"></param>
         /// <returns></returns>
         Task<Result<DailyOuraDataDTO>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date);
+        Task<List<DailyOuraDataDTO>> GetDailyOuraInfoRangeAsync(
+            IdentityUser user,
+            DateRangeRequest dateRange);
     }
 }

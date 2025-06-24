@@ -40,6 +40,6 @@ public interface IWellnessService
     /// <returns></returns>
     Task<Result<WellnessState>> AddWellnessStateAsync(IdentityUser user, CreateWellnessStateRequest req);
 
-
+    Task<List<WellnessState>> GetWellnessStatesMCP(string userID, DateRangeRequest dateRange);
 }
 
