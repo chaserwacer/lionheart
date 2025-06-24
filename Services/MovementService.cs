@@ -149,6 +149,7 @@ public class MovementService : IMovementService
         await _context.SaveChangesAsync();
         return Result.NoContent();
     }
+    
     [McpServerTool, Description("Gets all movement bases available for creating movements.")]
     public async Task<Result<List<MovementBase>>> GetMovementBasesAsync()
     {
