@@ -1,14 +1,17 @@
 <script>
   import { goto } from "$app/navigation";
   import ActivityTracker from "$lib/components/ActivityTracker.svelte";
-    import OuraSync from "$lib/components/OuraSync.svelte";
+  import OuraSync from "$lib/components/OuraSync.svelte";
   import { fetchBootUserDto, bootUserDto } from "$lib/stores/stores";
   import WellnessTracker from "$lib/components/WellnessTracker.svelte";
   import { onMount } from "svelte";
   import {wellnessStateDate} from "$lib/stores/stores"
-
-
+  import { overrideItemIdKeyNameBeforeInitialisingDndZones } from 'svelte-dnd-action';
   import "tailwindcss/tailwind.css";
+
+
+  // tell svelte-dnd-action to use your `movementID` key instead of `.id`
+  overrideItemIdKeyNameBeforeInitialisingDndZones('movementID');
 
   onMount(async () => {
     await fetchBootUserDto(fetch);
