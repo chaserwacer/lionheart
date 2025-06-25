@@ -141,6 +141,10 @@ namespace Model.McpServer
         section.AddInstruction(
             "**IMPORTANT**: respond with _only_ the JSON array of sessions, using one of the valid GUIDs above. " +
             "No comments, no placeholders, no extra fields.");
+            
+        section.AddInstruction("⚠️ **All GUIDs/IDs (such as movementBaseID) must be strings, surrounded by double quotes.**");
+        section.AddInstruction("⚠️ **Dates** must be in the exact format `YYYY-MM-DD` with no time or timezone.");
+        section.AddInstruction("⚠️ **RPE** must be a number between 1.0 and 10.0, with one decimal place.");
 
         // 5) Minimal JSON shape (no example GUIDs)
         section.AddInstruction(@"[
@@ -148,7 +152,7 @@ namespace Model.McpServer
             ""date"": ""YYYY-MM-DD"",
             ""movements"": [
             {
-                ""movementBaseID"": ""<pick one of the valid GUIDs above>"",
+                ""movementBaseID"": ""<pick one of the valid GUIDs above>"", // must be a string in double quotes
                 ""modifier"": ""None|Pause|Tempo|Explosive"",
                 ""reps"": 5,
                 ""weight"": 100.0,

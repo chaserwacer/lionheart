@@ -187,111 +187,50 @@ public class TrainingSessionService : ITrainingSessionService
         return Result.NoContent();
     }
 
-    [McpServerTool, Description("Generate additional training sessions via AI.")]
-    public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(IdentityUser user, GenerateTrainingSessionsRequest request)
+    [McpServerTool, Description("Generate the next N sessions for a program without AI")]
+public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(
+    IdentityUser user,
+    GenerateTrainingSessionsRequest request)
+{
+    var userGuid = Guid.Parse(user.Id);
+
+    // 1) Verify program ownership
+    var program = await _context.TrainingPrograms
+        .Include(p => p.TrainingSessions)
+        .FirstOrDefaultAsync(p =>
+            p.TrainingProgramID == request.TrainingProgramID &&
+            p.UserID           == userGuid);
+    if (program is null)
+        return Result<List<TrainingSessionDTO>>.NotFound("Program not found or access denied.");
+
+    // 2) Find last date (or fallback to StartDate)
+    var lastDate = program.TrainingSessions
+        .Select(ts => ts.Date)
+        .DefaultIfEmpty(program.StartDate)
+        .Max();
+
+    // 3) Create N new sessions, 7 days apart
+    var newSessions = new List<TrainingSession>();
+    for (int i = 1; i <= request.Count; i++)
     {
-        var userGuid = Guid.Parse(user.Id);
-
-        // 1) Load program + its last sessions (with movements & sets)
-        var program = await _context.TrainingPrograms
-            .Include(p => p.TrainingSessions)
-                .ThenInclude(ts => ts.Movements)
-                    .ThenInclude(m => m.Sets)
-            .FirstOrDefaultAsync(p =>
-                p.TrainingProgramID == request.TrainingProgramID &&
-                p.UserID           == userGuid);
-        if (program is null)
-            return Result<List<TrainingSessionDTO>>.NotFound();
-
-        // 2) Prepare the list of existing session DTOs
-        var existingDtos = program.TrainingSessions
-            .OrderBy(ts => ts.Date)
-            .Select((s, i) => s.ToDTO(i + 1))
-            .ToList();
-
-        // 3) Build the prompt and invoke your helper
-        var prompt = new LionMcpPrompt { User = user };
-        prompt.AddGenerateTrainingSessionsSection(
-            program.Tags,
-            existingDtos,
-            request.Count);
-        
-        var messages   = prompt.ToChatMessage();
-        var chatResult = await _ai.ChatAsync(user, messages);
-        if (!chatResult.IsSuccess)
-            return Result<List<TrainingSessionDTO>>.Error("AI generation failed.");
-
-        // 4) Pull out the JSON array from the AI’s reply
-        var raw = chatResult.Value!.Trim();
-        var idx = raw.IndexOf('[');
-        if (idx < 0)
-            return Result<List<TrainingSessionDTO>>.Error("No JSON found in AI response.");
-        var json = raw[idx..];
-
-        List<AiSession>? aiSessions;
-        try
+        newSessions.Add(new TrainingSession
         {
-            _logger?.LogInformation("RAW AI output:\n{Raw}", chatResult.Value);
-
-            aiSessions = JsonSerializer.Deserialize<List<AiSession>>(
-                json,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        }
-        catch (JsonException je)
-        {
-            return Result<List<TrainingSessionDTO>>.Error($"JSON parse error: {je.Message}");
-        }
-        if (aiSessions is null)
-            return Result<List<TrainingSessionDTO>>.Error("AI returned no sessions.");
-
-        // 5) Persist the new sessions, movements, and set‐entries
-        var createdDtos = new List<TrainingSessionDTO>();
-        foreach (var ai in aiSessions)
-        {
-            var session = new TrainingSession
-            {
-                TrainingSessionID = Guid.NewGuid(),
-                TrainingProgramID = program.TrainingProgramID,
-                Date              = ai.Date,
-                Status            = TrainingSessionStatus.Planned
-            };
-            _context.TrainingSessions.Add(session);
-
-            int order = 1;
-            foreach (var m in ai.Movements)
-            {
-                var mv = new Movement
-                {
-                    MovementID        = Guid.NewGuid(),
-                    TrainingSessionID = session.TrainingSessionID,
-                    MovementBaseID    = m.MovementBaseID,
-                    MovementModifier  = m.Modifier,
-                    Notes             = m.Notes,
-                    IsCompleted       = false,
-                    Ordering          = order++
-                };
-                _context.Movements.Add(mv);
-
-                _context.SetEntries.Add(new SetEntry
-                {
-                    SetEntryID        = Guid.NewGuid(),
-                    MovementID        = mv.MovementID,
-                    RecommendedReps   = m.Reps,
-                    RecommendedWeight = m.Weight,
-                    RecommendedRPE    = m.RPE,
-                    WeightUnit        = m.Unit
-                });
-            }
-
-            await _context.SaveChangesAsync();
-
-            var number = await _context.TrainingSessions
-                .CountAsync(ts =>
-                    ts.TrainingProgramID == program.TrainingProgramID &&
-                    ts.Date           <= session.Date);
-            createdDtos.Add(session.ToDTO(number));
-        }
-
-        return Result<List<TrainingSessionDTO>>.Success(createdDtos);
+            TrainingSessionID = Guid.NewGuid(),
+            TrainingProgramID = program.TrainingProgramID,
+            Date              = lastDate.AddDays(i * 7),
+            Status            = TrainingSessionStatus.Planned
+        });
     }
+    _context.TrainingSessions.AddRange(newSessions);
+    await _context.SaveChangesAsync();
+
+    // 4) Map to DTOs (numbering after existing)
+    var existingCount = program.TrainingSessions.Count;
+    var dtos = newSessions
+        .Select((s, idx) => s.ToDTO(existingCount + idx + 1))
+        .ToList();
+
+    return Result<List<TrainingSessionDTO>>.Success(dtos);
+}
+
 }
