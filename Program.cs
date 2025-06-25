@@ -47,6 +47,7 @@ builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>()
 builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<ISetEntryService, SetEntryService>();
 builder.Services.AddTransient<IMCPClientService, MCPClientService>();
+builder.Services.AddTransient<IPromptService, PromptService>();
 
 // Register Ollama chat client
 var httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:11434") };

@@ -940,6 +940,67 @@ export class DeleteTrainingSessionEndpointClient {
     }
 }
 
+export class GeneratePromptRequestEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param promptType (optional) 
+     * @return OK
+     */
+    generate(promptType: string | undefined): Promise<string> {
+        let url_ = this.baseUrl + "/api/prompts/generate?";
+        if (promptType === null)
+            throw new Error("The parameter 'promptType' cannot be null.");
+        else if (promptType !== undefined)
+            url_ += "PromptType=" + encodeURIComponent("" + promptType) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGenerate(_response);
+        });
+    }
+
+    protected processGenerate(response: Response): Promise<string> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string>(null as any);
+    }
+}
+
 export class GenerateTrainingSessionsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -954,7 +1015,7 @@ export class GenerateTrainingSessionsEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    generate(body: GenerateTrainingSessionsRequest | undefined): Promise<TrainingSessionDTO[]> {
+    generateAll(body: GenerateTrainingSessionsRequest | undefined): Promise<TrainingSessionDTO[]> {
         let url_ = this.baseUrl + "/api/training-session/generate";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -970,11 +1031,11 @@ export class GenerateTrainingSessionsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGenerate(_response);
+            return this.processGenerateAll(_response);
         });
     }
 
-    protected processGenerate(response: Response): Promise<TrainingSessionDTO[]> {
+    protected processGenerateAll(response: Response): Promise<TrainingSessionDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
