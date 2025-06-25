@@ -67,10 +67,10 @@ namespace lionheart.Services
             await lionMCPPrompt.AddWellnessDataSectionAsync(_wellnessService, dateRange);
 
             var chatHistory = lionMCPPrompt.ToChatMessage();
-
+            var chatPrompt = lionMCPPrompt.ToStringPrompty();
             _logger.LogInformation(
-              "Chat history: {ChatHistory}",
-              JsonSerializer.Serialize(chatHistory, new JsonSerializerOptions { WriteIndented = true }));
+              "Prompt: {ChatPropmt}",
+              JsonSerializer.Serialize(chatPrompt, new JsonSerializerOptions { WriteIndented = true }));
 
             var result = new StringBuilder();
             var aiTools  = mcpTools.Select(t => (AITool)t).ToList();  // ← cast here

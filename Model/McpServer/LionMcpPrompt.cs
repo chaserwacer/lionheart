@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,6 +42,14 @@ namespace Model.McpServer
             {
                 new ChatMessage(Role, ComposeContent())
             };
+        }
+
+        /// <summary>
+        /// Converts the assembled prompt into a single string.
+        /// </summary>
+        public string ToStringPrompty()
+        {
+            return ComposeContent();
         }
 
         /// <summary>

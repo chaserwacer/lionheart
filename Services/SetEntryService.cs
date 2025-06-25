@@ -1,9 +1,11 @@
+using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.DTOs;
 using lionheart.Model.TrainingProgram;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol.Server;
 
 namespace lionheart.Services;
 
@@ -11,6 +13,7 @@ namespace lionheart.Services;
 /// Service for managing set entries within movements.
 /// Handles business logic and ensures users can only access their own data.
 /// </summary>
+[McpServerToolType]
 public class SetEntryService : ISetEntryService
 {
     private readonly ModelContext _context;
@@ -21,6 +24,7 @@ public class SetEntryService : ISetEntryService
     }
 
 
+    [McpServerTool, Description("Add a set entry to a movement.")]
     public async Task<Result<SetEntryDTO>> CreateSetEntryAsync(IdentityUser user, CreateSetEntryRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -56,6 +60,7 @@ public class SetEntryService : ISetEntryService
         return Result<SetEntryDTO>.Created(setEntry.ToDTO());
     }
 
+    [McpServerTool, Description("Update an existing set entry.")]
     public async Task<Result<SetEntryDTO>> UpdateSetEntryAsync(IdentityUser user, UpdateSetEntryRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -89,6 +94,7 @@ public class SetEntryService : ISetEntryService
         return Result<SetEntryDTO>.Success(setEntry.ToDTO());
     }
 
+    [McpServerTool, Description("Delete a set entry.")]
     public async Task<Result> DeleteSetEntryAsync(IdentityUser user, Guid setEntryId)
     {
         var userGuid = Guid.Parse(user.Id);

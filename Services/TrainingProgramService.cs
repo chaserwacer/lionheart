@@ -1,15 +1,18 @@
+using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.DTOs;
 using lionheart.Model.TrainingProgram;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol.Server;
 
 namespace lionheart.Services;
 
 /// <summary>
 /// Service for managing <see cref="TrainingProgram"/>s.
 /// </summary>
+[McpServerToolType]
 public class TrainingProgramService : ITrainingProgramService
 {
     private readonly ModelContext _context;
@@ -19,6 +22,7 @@ public class TrainingProgramService : ITrainingProgramService
         _context = context;
     }
 
+    [McpServerTool, Description("Get all programs for the current user.")]
     public async Task<Result<List<TrainingProgramDTO>>> GetTrainingProgramsAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -36,6 +40,7 @@ public class TrainingProgramService : ITrainingProgramService
         return Result<List<TrainingProgramDTO>>.Success(trainingPrograms.Select(p => p.ToDTO()).ToList());
     }
 
+    [McpServerTool, Description("Get a specific program by ID for the current user.")]
     public async Task<Result<TrainingProgramDTO>> GetTrainingProgramAsync(IdentityUser user, Guid TrainingprogramId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -57,6 +62,7 @@ public class TrainingProgramService : ITrainingProgramService
         return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
     }
 
+    [McpServerTool, Description("Create a new training program.")]
     public async Task<Result<TrainingProgramDTO>> CreateTrainingProgramAsync(IdentityUser user, CreateTrainingProgramRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -79,6 +85,7 @@ public class TrainingProgramService : ITrainingProgramService
         return Result<TrainingProgramDTO>.Created(trainingProgram.ToDTO());
     }
 
+    [McpServerTool, Description("Update an existing training program.")]
     public async Task<Result<TrainingProgramDTO>> UpdateTrainingProgramAsync(IdentityUser user, UpdateTrainingProgramRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -105,6 +112,7 @@ public class TrainingProgramService : ITrainingProgramService
         return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
     }
 
+    [McpServerTool, Description("Delete a training program.")]
     public async Task<Result> DeleteTrainingProgramAsync(IdentityUser user, Guid TrainingprogramId)
     {
         var userGuid = Guid.Parse(user.Id);

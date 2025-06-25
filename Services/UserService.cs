@@ -15,6 +15,8 @@ using System.Threading.Tasks;
 
 using lionheart.Model.DTOs;
 using Ardalis.Result;
+using ModelContextProtocol.Server;
+using System.ComponentModel;
 namespace lionheart.Services
 {
     /// <summary>
@@ -26,6 +28,7 @@ namespace lionheart.Services
     /// 
     /// TODO: This class is to be taken and manipulated such that it only contains user centered methods, with those other methods moving to their own service class and then their own controller class. 
     /// </summary>
+    [McpServerToolType]
     public class UserService : IUserService
     {
         private readonly ModelContext _context;
@@ -63,14 +66,14 @@ namespace lionheart.Services
         public async Task<Result<BootUserDTO>> HasCreatedProfileAsync(IdentityUser user)
         {
             var privateKey = Guid.Parse(user.Id);
-        
+
             var lionheartUser = await _context.LionheartUsers.FindAsync(privateKey);
 
             var hasCreatedProfile = lionheartUser is not null;
             var name = hasCreatedProfile ? lionheartUser!.Name : user.UserName ?? "";
-            
+
             var bootUserDto = new BootUserDTO(name, hasCreatedProfile);
-    
+
             return Result<BootUserDTO>.Success(bootUserDto);
 
         }
@@ -105,8 +108,20 @@ namespace lionheart.Services
 
         }
 
+        [McpServerTool, Description("Get Identity User by ID")]
+        public async Task<IdentityUser?> GetIdentityUserAsync(string userID)
+        {
+            if (string.IsNullOrEmpty(userID))
+            {
+                throw new ArgumentException("User ID cannot be null or empty.", nameof(userID));
+            }
+
+            var identityUser = await _context.Users.FindAsync(userID);
 
 
+
+            return identityUser;
+        }
 
 
 

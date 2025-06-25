@@ -6,13 +6,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;            // for JsonSerializer
 using Model.McpServer;             // for LionMcpPrompt, InstructionPromptSection
+using ModelContextProtocol.Server;
+using lionheart.Services;
+using System.ComponentModel;
 
-
-namespace lionheart.Services;
-
-/// <summary>
-/// Service for managing <see cref="TrainingSession"/>s within a training program.
-/// </summary>
+[McpServerToolType]
 public class TrainingSessionService : ITrainingSessionService
 {
     private readonly ModelContext _context;
@@ -37,12 +35,14 @@ public class TrainingSessionService : ITrainingSessionService
     public int Ordering { get; set; }
     }
 
-    public TrainingSessionService(ModelContext context, IMCPClientService aiClient)
+    public TrainingSessionService(ModelContext context, IMCPClientService aiClient,  ILogger<MCPClientService> logger)
     {
+        _logger = logger;
         _context = context;
         _ai = aiClient;
     }
 
+    [McpServerTool, Description("Get all training sessions for a program.")]
     public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, Guid programId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -64,6 +64,7 @@ public class TrainingSessionService : ITrainingSessionService
         return Result<List<TrainingSessionDTO>>.Success(sessionDTOs);
     }
 
+    [McpServerTool, Description("Get a specific training session by ID.")]
     public async Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -96,6 +97,7 @@ public class TrainingSessionService : ITrainingSessionService
         return Result<TrainingSessionDTO>.Success(session.ToDTO(sessionNumber));
     }
 
+    [McpServerTool, Description("Create a new training session.")]
     public async Task<Result<TrainingSessionDTO>> CreateTrainingSessionAsync(IdentityUser user, CreateTrainingSessionRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -134,6 +136,7 @@ public class TrainingSessionService : ITrainingSessionService
         return Result<TrainingSessionDTO>.Created(session.ToDTO(sessionNumber));
     }
 
+    [McpServerTool, Description("Update an existing training session.")]
     public async Task<Result<TrainingSessionDTO>> UpdateTrainingSessionAsync(IdentityUser user, UpdateTrainingSessionRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -165,6 +168,7 @@ public class TrainingSessionService : ITrainingSessionService
         return Result<TrainingSessionDTO>.Success(session.ToDTO(sessionNumber));
     }
 
+    [McpServerTool, Description("Delete a training session.")]
     public async Task<Result> DeleteTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -182,9 +186,9 @@ public class TrainingSessionService : ITrainingSessionService
         await _context.SaveChangesAsync();
         return Result.NoContent();
     }
-    public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(
-        IdentityUser user,
-        GenerateTrainingSessionsRequest request)
+
+    [McpServerTool, Description("Generate additional training sessions via AI.")]
+    public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(IdentityUser user, GenerateTrainingSessionsRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
 

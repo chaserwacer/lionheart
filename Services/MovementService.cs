@@ -3,16 +3,11 @@ using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.DTOs;
 using lionheart.Model.TrainingProgram;
+using lionheart.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
 
-namespace lionheart.Services;
-
-/// <summary>
-/// Service for managing movements within training sessions.
-/// Handles business logic and ensures users can only access their own data.
-/// </summary>
 [McpServerToolType]
 public class MovementService : IMovementService
 {
@@ -23,14 +18,15 @@ public class MovementService : IMovementService
         _context = context;
     }
 
-    public async Task<Result<List<MovementDTO>>> GetMovementsAsync(IdentityUser user, Guid trainingSessionID)
+    [McpServerTool, Description("Get all movements for a specific training session.")]
+    public async Task<Result<List<MovementDTO>>> GetMovementsAsync(IdentityUser user, Guid sessionId)
     {
         var userGuid = Guid.Parse(user.Id);
         
         // Verify user owns the training session
         var session = await _context.TrainingSessions
             .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID && 
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == sessionId && 
                                      ts.TrainingProgram!.UserID == userGuid);
         
         if (session is null)
@@ -39,7 +35,7 @@ public class MovementService : IMovementService
         }
 
         var movements = await _context.Movements
-            .Where(m => m.TrainingSessionID == trainingSessionID)
+            .Where(m => m.TrainingSessionID == sessionId)
             .Include(m => m.MovementBase)
             .Include(m => m.Sets)
             .OrderBy(m => m.Ordering)
@@ -49,6 +45,7 @@ public class MovementService : IMovementService
     }
 
 
+    [McpServerTool, Description("Create a new movement within a training session.")]
     public async Task<Result<MovementDTO>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -92,6 +89,7 @@ public class MovementService : IMovementService
         return Result<MovementDTO>.Created(movement.ToDTO());
     }
 
+    [McpServerTool, Description("Update an existing movement.")]
     public async Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -128,6 +126,7 @@ public class MovementService : IMovementService
         return Result<MovementDTO>.Success(movement.ToDTO());
     }
 
+    [McpServerTool, Description("Delete a movement.")]
     public async Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -160,6 +159,7 @@ public class MovementService : IMovementService
         return Result<List<MovementBase>>.Success(movementBases);
     }
 
+    [McpServerTool, Description("Create a new movement base.")]
     public async Task<Result<MovementBase>> CreateMovementBaseAsync(CreateMovementBaseRequest request)
     {
         // Check if movement base with this name already exists
@@ -182,6 +182,7 @@ public class MovementService : IMovementService
         return Result<MovementBase>.Created(movementBase);
     }
 
+    [McpServerTool, Description("Update completion status of all movements in a session.")]
     public async Task<Result> UpdateMovementsCompletion(IdentityUser user, UpdateMovementsCompletionRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -208,6 +209,7 @@ public class MovementService : IMovementService
         return Result.Success();
     }
 
+    [McpServerTool, Description("Reorder movements in a training session.")]
     public async Task<Result> UpdateMovementOrder(IdentityUser user, UpdateMovementOrderRequest request)
     {
         var userGuid = Guid.Parse(user.Id);

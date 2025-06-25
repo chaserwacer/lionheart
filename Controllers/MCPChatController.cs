@@ -50,5 +50,15 @@ namespace lionheart.Controllers
             // 4) Return via ToActionResult
             return this.ToActionResult(result);
         }
+         [HttpGet(Name = "PromptTest")]
+        public async Task<ActionResult<string>> PromptTesty()
+        {
+            // 1) Get the ASP.NET Identity user
+            var user = await _userManager.GetUserAsync(User);
+            if (user is null)
+                return Unauthorized("User is not recognized or no longer exists.");
+
+            return this.ToActionResult(await _chatService.ChatAsync(user));
+        }
     }
 }
