@@ -109,6 +109,16 @@ public class TrainingSessionDTO
     public Guid TrainingProgramID { get; init; }
     public int SessionNumber { get; set; }
     public DateOnly Date { get; set; }
-    public TrainingSessionStatus Status { get; set; } 
+    public TrainingSessionStatus Status { get; set; }
     public List<MovementDTO> Movements { get; set; } = [];
+}
+
+public class GenerateTrainingSessionsRequest
+{
+    [Required] 
+    public required Guid TrainingProgramID { get; init; }
+
+    [Required]
+    [Range(1, int.MaxValue)]
+    public required int Count { get; init; }
 }

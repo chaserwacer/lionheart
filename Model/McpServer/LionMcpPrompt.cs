@@ -90,7 +90,70 @@ namespace Model.McpServer
             await section.LoadDataAsync(User, range, cancellationToken);
             Sections.Add(section);
         }
+
+
+       /// <summary>
+        /// Instructs the LLM how to generate the next N sessions,
+        /// given program tags and existing sessions data.
+        /// </summary>
+        public void AddGenerateTrainingSessionsSection(
+        IEnumerable<string> programTags,
+        List<TrainingSessionDTO> existingSessions,
+        int count)
+        {
+        var section = new InstructionPromptSection { Name = "Generate Training Sessions" };
+
+        // 1) Program Tags
+        section.AddInstruction($"Program Tags: {string.Join(", ", programTags)}");
+
+        // 2) Existing Sessions (JSON)
+        section.AddInstruction("Existing Sessions:");
+        section.AddInstruction(
+            JsonSerializer.Serialize(
+            existingSessions,
+            new JsonSerializerOptions { WriteIndented = true }));
+
+        // 3) Here are the only valid movementBaseID values.
+        var validGuids = existingSessions
+            .SelectMany(s => s.Movements)
+            .Select(m => m.MovementBaseID.ToString())
+            .Distinct();
+        section.AddInstruction("Valid movementBaseID GUIDs:");
+        foreach (var g in validGuids)
+        {
+            section.AddInstruction($"  \"{g}\"");
+        }
+
+        // 4) Instructions
+        section.AddInstruction($"Generate the next {count} sessions.");
+        section.AddInstruction(
+            "Ramp up RPE on the main lifts (squat, bench, deadlift) by +0.5 each week; " +
+            "keep assistance exercises and set/rep schemes identical.");
+        section.AddInstruction(
+            "**IMPORTANT**: respond with _only_ the JSON array of sessions, using one of the valid GUIDs above. " +
+            "No comments, no placeholders, no extra fields.");
+
+        // 5) Minimal JSON shape (no example GUIDs)
+        section.AddInstruction(@"[
+        {
+            ""date"": ""YYYY-MM-DD"",
+            ""movements"": [
+            {
+                ""movementBaseID"": ""<pick one of the valid GUIDs above>"",
+                ""modifier"": ""None|Pause|Tempo|Explosive"",
+                ""reps"": 5,
+                ""weight"": 100.0,
+                ""rpe"": 7.5,
+                ""unit"": ""Kg""
+            }
+            ]
+        }
+        ]");
+
+        Sections.Add(section);
+        }
     }
+    
 
     /// <summary>
     /// Defines a named section of a prompt that can render its content as text.
@@ -230,4 +293,7 @@ namespace Model.McpServer
         public override string ToString()
             => $"{Name}:\n{Content}";
     }
+
+
+
 }
