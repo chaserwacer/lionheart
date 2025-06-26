@@ -69,4 +69,6 @@ public interface IMovementService
     /// <returns></returns>
     Task<Result> UpdateMovementOrder(IdentityUser user, UpdateMovementOrderRequest request);
 
+    Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId);
+
 }
