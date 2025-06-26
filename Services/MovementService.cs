@@ -22,13 +22,13 @@ public class MovementService : IMovementService
     public async Task<Result<List<MovementDTO>>> GetMovementsAsync(IdentityUser user, Guid sessionId)
     {
         var userGuid = Guid.Parse(user.Id);
-        
+
         // Verify user owns the training session
         var session = await _context.TrainingSessions
             .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == sessionId && 
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == sessionId &&
                                      ts.TrainingProgram!.UserID == userGuid);
-        
+
         if (session is null)
         {
             return Result<List<MovementDTO>>.NotFound("Training session not found or access denied.");
@@ -49,21 +49,21 @@ public class MovementService : IMovementService
     public async Task<Result<MovementDTO>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
-        
+
         // Verify user owns the training session
         var session = await _context.TrainingSessions
             .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID && 
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
                                      ts.TrainingProgram!.UserID == userGuid);
-        
+
         if (session is null)
         {
             return Result<MovementDTO>.NotFound("Training session not found or access denied.");
         }
 
         // Verify movement base exists
-        var movementBase = await _context.MovementBases.FindAsync(request.MovementBaseID);  
-        
+        var movementBase = await _context.MovementBases.FindAsync(request.MovementBaseID);
+
         if (movementBase is null)
         {
             return Result<MovementDTO>.NotFound("Movement base not found.");
@@ -82,10 +82,10 @@ public class MovementService : IMovementService
             MovementBase = movementBase,
             Ordering = maxOrdering + 1
         };
-        var x  = movement.MovementBaseID;
+        var x = movement.MovementBaseID;
         _context.Movements.Add(movement);
         await _context.SaveChangesAsync();
-    
+
         return Result<MovementDTO>.Created(movement.ToDTO());
     }
 
@@ -98,7 +98,7 @@ public class MovementService : IMovementService
             .ThenInclude(ts => ts.TrainingProgram)
             .FirstOrDefaultAsync(m => m.MovementID == request.MovementID);
 
-        
+
 
         if (movement == null)
         {
@@ -110,8 +110,8 @@ public class MovementService : IMovementService
         }
 
         // Verify movement base exists if being updated
-        var movementBase = await _context.MovementBases.FindAsync(request.MovementBaseID);    
-        
+        var movementBase = await _context.MovementBases.FindAsync(request.MovementBaseID);
+
         if (movementBase == null)
         {
             return Result<MovementDTO>.NotFound("Movement base not found.");
@@ -148,7 +148,7 @@ public class MovementService : IMovementService
         await _context.SaveChangesAsync();
         return Result.NoContent();
     }
-    
+
     [McpServerTool, Description("Gets all movement bases available for creating movements.")]
     public async Task<Result<List<MovementBase>>> GetMovementBasesAsync()
     {
@@ -165,7 +165,7 @@ public class MovementService : IMovementService
         // Check if movement base with this name already exists
         var existingBase = await _context.MovementBases
             .FirstOrDefaultAsync(mb => mb.Name.ToLower() == request.Name.ToLower());
-        
+
         if (existingBase != null)
         {
             return Result<MovementBase>.Conflict("A movement base with this name already exists.");
@@ -186,14 +186,14 @@ public class MovementService : IMovementService
     public async Task<Result> UpdateMovementsCompletion(IdentityUser user, UpdateMovementsCompletionRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
-        
+
         // Verify user owns the training session
         var session = await _context.TrainingSessions
             .Include(ts => ts.TrainingProgram)
             .Include(ts => ts.Movements)
             .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
                            ts.TrainingProgram!.UserID == userGuid);
-        
+
         if (session is null)
         {
             return Result.NotFound("Training session not found or access denied.");
@@ -246,4 +246,28 @@ public class MovementService : IMovementService
         await _context.SaveChangesAsync();
         return Result.Success();
     }
+    
+    [McpServerTool, Description("Delete a movement base.")]
+    public async Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)
+    {
+        // Verify the base exists
+        var movementBase = await _context.MovementBases.FindAsync(movementBaseId);
+        if (movementBase == null)
+        {
+            return Result.NotFound("Movement base not found.");
+        }
+
+        // Prevent deleting a base that’s in use
+        var inUse = await _context.Movements.AnyAsync(m => m.MovementBaseID == movementBaseId);
+        if (inUse)
+        {
+            return Result.Conflict("Cannot delete movement base while it has associated movements.");
+        }
+
+        // Remove and save
+        _context.MovementBases.Remove(movementBase);
+        await _context.SaveChangesAsync();
+        return Result.NoContent();
+    }
+
 }
