@@ -128,8 +128,9 @@ public class TrainingProgramService : ITrainingProgramService
         await _context.SaveChangesAsync();
         return Result.NoContent();
     }
-    
+
     [McpServerTool, Description("Generate a populated training program with sessions and movements.")]
+
     public async Task<Result<TrainingProgramDTO>> GeneratePopulatedTrainingProgramAsync(IdentityUser user, GeneratePopulatedTrainingProgramRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -153,7 +154,7 @@ public class TrainingProgramService : ITrainingProgramService
                 TrainingSessionID = Guid.NewGuid(),
                 TrainingProgramID = trainingProgram.TrainingProgramID,
                 Date = sessionRequest.createTrainingSessionRequest.Date,
-                Status = TrainingSessionStatus.Planned         
+                Status = TrainingSessionStatus.Planned
             };
 
             _context.TrainingSessions.Add(trainingSession);
@@ -207,6 +208,82 @@ public class TrainingProgramService : ITrainingProgramService
         await _context.SaveChangesAsync();
         return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
     }
+
+    public async Task<Result<TrainingProgramDTO>> CreateTrainingProgramFromJSON(IdentityUser user, TrainingProgramDTO trainingProgramDTO)
+    {
+        var Guid = System.Guid.Parse(user.Id);
+    //     var trainingProgramDTO = System.Text.Json.JsonSerializer.Deserialize<TrainingProgramDTO>(trainingProgramJson);
+
+        if (trainingProgramDTO is null)
+        {
+            return Result<TrainingProgramDTO>.Error("Invalid JSON format.");
+        }
+
+        var newTrainingProgram = new TrainingProgram
+        {
+            TrainingProgramID = System.Guid.NewGuid(),
+            UserID = Guid,
+            Title = trainingProgramDTO.Title,
+            StartDate = trainingProgramDTO.StartDate,
+            EndDate = trainingProgramDTO.EndDate,
+            Tags = trainingProgramDTO.Tags ?? []
+        };
+
+        var trainingSessions = new List<TrainingSession>();
+        foreach (var sessionDTO in trainingProgramDTO.TrainingSessions)
+        {
+            var newSession = new TrainingSession
+            {
+                TrainingSessionID = System.Guid.NewGuid(),
+                TrainingProgramID = newTrainingProgram.TrainingProgramID,
+                Date = sessionDTO.Date,
+                Status = sessionDTO.Status
+            };
+
+            var movements = new List<Movement>();
+            foreach (var movementDTO in sessionDTO.Movements)
+            {
+                int count = 0;
+                var newMovement = new Movement
+                {
+                    MovementID = System.Guid.NewGuid(),
+                    MovementBaseID = movementDTO.MovementBaseID,
+                    Notes = movementDTO.Notes,
+                    Ordering = count++,
+                    TrainingSessionID = newSession.TrainingSessionID
+                };
+
+                var setEntries = new List<SetEntry>();
+                foreach (var setEntryDTO in movementDTO.Sets)
+                {
+                    var newSetEntry = new SetEntry
+                    {
+                        SetEntryID = System.Guid.NewGuid(),
+                        ActualReps = setEntryDTO.ActualReps,
+                        ActualWeight = setEntryDTO.ActualWeight,
+                        ActualRPE = setEntryDTO.ActualRPE,
+                        RecommendedReps = setEntryDTO.RecommendedReps,
+                        RecommendedWeight = setEntryDTO.RecommendedWeight,
+                        RecommendedRPE = setEntryDTO.RecommendedRPE,
+                        WeightUnit = setEntryDTO.WeightUnit
+                    };
+                    setEntries.Add(newSetEntry);
+                }
+                newMovement.Sets.AddRange(setEntries);
+                movements.Add(newMovement);
+            }
+            newSession.Movements.AddRange(movements);
+            trainingSessions.Add(newSession);
+        }
+        await _context.TrainingPrograms.AddAsync(newTrainingProgram);
+        await _context.TrainingSessions.AddRangeAsync(trainingSessions);
+        await _context.Movements.AddRangeAsync(trainingSessions.SelectMany(ts => ts.Movements));
+        await _context.SetEntries.AddRangeAsync(trainingSessions.SelectMany(ts => ts.Movements).SelectMany(m => m.Sets));
+        await _context.SaveChangesAsync();
+        return Result<TrainingProgramDTO>.Success(newTrainingProgram.ToDTO());
+    }
+
+  
 
 
 }

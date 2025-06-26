@@ -50,6 +50,12 @@ public interface ITrainingSessionService
     /// <returns>A result indicating success or failure.</returns>
     Task<Result> DeleteTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
 
-
+    /// <summary>
+    /// Create the next <see cref="Count"/> training sessions for a program, computing dates
+    /// based on existing sessions (or StartDate if none exist).
+    /// </summary>
+    Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(IdentityUser user, GenerateTrainingSessionsRequest request);
+    
+     Task<Result<TrainingSessionDTO>> CreateTrainingSessionFromJSON(IdentityUser user, TrainingSessionDTO trainingSessionDTO);
 
 }
