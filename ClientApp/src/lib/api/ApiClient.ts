@@ -629,6 +629,73 @@ export class CreateTrainingProgramEndpointClient {
     }
 }
 
+export class CreateTrainingProgramFromJSONEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    createFromJson(body: TrainingProgramDTO | undefined): Promise<TrainingSessionDTO> {
+        let url_ = this.baseUrl + "/api/training-program/create-from-json";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreateFromJson(_response);
+        });
+    }
+
+    protected processCreateFromJson(response: Response): Promise<TrainingSessionDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = TrainingSessionDTO.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingSessionDTO>(null as any);
+    }
+}
+
 export class CreateTrainingSessionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -664,6 +731,73 @@ export class CreateTrainingSessionEndpointClient {
     }
 
     protected processCreate5(response: Response): Promise<TrainingSessionDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = TrainingSessionDTO.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TrainingSessionDTO>(null as any);
+    }
+}
+
+export class CreateTrainingSessionFromJSONEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    createFromJson2(body: TrainingSessionDTO | undefined): Promise<TrainingSessionDTO> {
+        let url_ = this.baseUrl + "/api/training-session/create-from-json";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreateFromJson2(_response);
+        });
+    }
+
+    protected processCreateFromJson2(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {

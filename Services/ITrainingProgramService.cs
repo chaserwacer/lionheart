@@ -47,4 +47,6 @@ public interface ITrainingProgramService
     Task<Result> DeleteTrainingProgramAsync(IdentityUser user, Guid programId);
 
 
+    Task<Result<TrainingProgramDTO>> CreateTrainingProgramFromJSON(IdentityUser user, TrainingProgramDTO trainingProgramDTO);
+    
 }
