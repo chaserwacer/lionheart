@@ -303,14 +303,23 @@ public class TrainingSessionService : ITrainingSessionService
         var movements = new List<Movement>();
         foreach (var movementDTO in trainingSessionDTO.Movements)
         {
+            var movementBase = await _context.MovementBases.FindAsync(movementDTO.MovementBaseID);
+
+            if (movementBase is null)
+            {
+                return Result<TrainingSessionDTO>.NotFound("Movement base not found.");
+            }
             int count = 0;
             var newMovement = new Movement
             {
                 MovementID = System.Guid.NewGuid(),
                 MovementBaseID = movementDTO.MovementBaseID,
+                MovementBase = movementBase,
                 Notes = movementDTO.Notes,
                 Ordering = count++,
-                TrainingSessionID = newSession.TrainingSessionID
+                TrainingSessionID = newSession.TrainingSessionID,
+                MovementModifier = movementDTO.MovementModifier ?? new MovementModifier(),
+                IsCompleted = movementDTO.IsCompleted
             };
 
             var setEntries = new List<SetEntry>();
@@ -338,5 +347,55 @@ public class TrainingSessionService : ITrainingSessionService
         await _context.SetEntries.AddRangeAsync(newSession.Movements.SelectMany(m => m.Sets));
         await _context.SaveChangesAsync();
         return Result<TrainingSessionDTO>.Created(newSession.ToDTO(1));
+    }
+
+    public async Task<Result<TrainingSessionDTO>> GetNextTrainingSessionAsync(IdentityUser user, Guid trainingProgramID)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        var nextSession = await _context.TrainingSessions
+            .Where(ts => ts.TrainingProgramID == trainingProgramID &&
+                        ts.TrainingProgram!.UserID == userGuid 
+                        && ts.Status == TrainingSessionStatus.Planned)
+            .FirstOrDefaultAsync();
+
+        if (nextSession is null)
+        {
+            return Result<TrainingSessionDTO>.NotFound("No upcoming training sessions found.");
+        }
+
+        var sessionNumber = await _context.TrainingSessions
+            .Where(ts => ts.TrainingProgramID == nextSession.TrainingProgramID &&
+                        ts.Date <= nextSession.Date)
+            .OrderBy(ts => ts.Date)
+            .ThenBy(ts => ts.TrainingSessionID)
+            .CountAsync(ts => ts.Date < nextSession.Date ||
+                            (ts.Date == nextSession.Date && ts.TrainingSessionID.CompareTo(nextSession.TrainingSessionID) <= 0));
+
+        return Result<TrainingSessionDTO>.Success(nextSession.ToDTO(sessionNumber));
+    }
+    public async Task<Result<TrainingSessionDTO>> GetLastTrainingSessionAsync(IdentityUser user, Guid trainingProgramID)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        var lastSession = await _context.TrainingSessions
+            .Where(ts => ts.TrainingProgramID == trainingProgramID &&
+                        ts.TrainingProgram!.UserID == userGuid 
+                        && ts.Status == TrainingSessionStatus.Completed)
+            .OrderByDescending(ts => ts.Date)
+            .FirstOrDefaultAsync();
+
+        if (lastSession is null)
+        {
+            return Result<TrainingSessionDTO>.NotFound("No training sessions found for this program.");
+        }
+
+        var sessionNumber = await _context.TrainingSessions
+            .Where(ts => ts.TrainingProgramID == lastSession.TrainingProgramID &&
+                        ts.Date <= lastSession.Date)
+            .OrderBy(ts => ts.Date)
+            .ThenBy(ts => ts.TrainingSessionID)
+            .CountAsync(ts => ts.Date < lastSession.Date ||
+                            (ts.Date == lastSession.Date && ts.TrainingSessionID.CompareTo(lastSession.TrainingSessionID) <= 0));
+
+        return Result<TrainingSessionDTO>.Success(lastSession.ToDTO(sessionNumber));
     }
 }
