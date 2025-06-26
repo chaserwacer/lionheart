@@ -6,12 +6,6 @@ public class GeneratePopulatedTrainingProgramRequest
 {
     public required TrainingProgramDTO TrainingProgram { get; set; } = new TrainingProgramDTO();
     public required List<GeneratePopulatedTrainingSessionRequest> GenerateTrainingSessionsRequests { get; set; } = new List<GeneratePopulatedTrainingSessionRequest>();
-    // Generate Traininf Program, using that TrainingProgrsamDTO, create the GenerratePopulatedTrainignPrograamRequest
-
-    // FOr each generata training sessions request 
-         // createtrainingsession()
-        // For each createmovementrequest - create movmenent()
-    // For each createsetentryrequest - CreateSetEntry()()
 
 
 }
