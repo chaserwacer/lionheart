@@ -57,7 +57,7 @@
 
 <div class="p-6 max-w-4xl mx-auto text-base-content">
   <button
-    on:click={() => goto(`/programs/${programSlug}`)}
+    on:click={() => goto(`/programs`)}
     class="btn btn-sm btn-outline mb-6"
   >
     ← Back to Session

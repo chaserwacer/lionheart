@@ -69,7 +69,7 @@ namespace lionheart.Services
             var chatHistory = lionMCPPrompt.ToChatMessage();
             var chatPrompt = lionMCPPrompt.ToStringPrompty();
             _logger.LogInformation(
-              "Prompt: {ChatPropmt}",
+              "Prompt: {ChatPrompt}",
               JsonSerializer.Serialize(chatPrompt, new JsonSerializerOptions { WriteIndented = true }));
 
             var result = new StringBuilder();
