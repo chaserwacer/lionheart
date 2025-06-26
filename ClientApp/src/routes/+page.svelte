@@ -25,11 +25,20 @@
   } from "$lib/stores/activityStore.js";
   import SingleActivityViewer from "$lib/components/SingleActivityViewer.svelte";
   import { syncOuraData, GetDailyOuraInfo } from "$lib/stores/ouraStore.js";
+  import {
+    GetTrainingProgramsEndpointClient, TrainingProgramDTO, TrainingSessionDTO, TrainingSessionStatus
+  } from '$lib/api/ApiClient';
 
+    let program: TrainingProgramDTO | undefined;
+    let sessions: TrainingSessionDTO[] = [];
+    let programID = '';
+    let lastCompletedSession: TrainingSessionDTO | null = null;
+    let nextUpcomingSession:  TrainingSessionDTO | null = null;
   /**
    * @type {typeof import("svelte-chartjs").Line}
    */
   let wellnessGraph: typeof import("svelte-chartjs").Line;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
   let wellnessGraphData = {
     labels: [],
@@ -115,6 +124,7 @@
       goto("/auth");
     } else {
       await fetchWellnessState();
+      await loadSessions();
       wellnessStateDate.set(selectedDate);
       const module = await import("svelte-chartjs");
       wellnessGraph = module.Line;
@@ -127,6 +137,7 @@
       activityTypeRatio.set(await fetchActivityRatio(selectedDate, fetch));
       weeklyMuscleSets = await fetchWeeklyMuscleSetsDto(selectedDate, fetch);
       dailyOuraInfo.set(await GetDailyOuraInfo(selectedDate, fetch));
+
     }
   });
 
@@ -212,6 +223,33 @@
   $: {
     if (lastUpdatePage != $pageUpdate) {
       updatePageInfo();
+    }
+  }
+    function computeOverview() {
+      // last completed (_2)
+      const done = sessions.filter(s => s.status === TrainingSessionStatus._2);
+      lastCompletedSession = done.length ? done[done.length - 1] : null;
+      // next upcoming (undefined or _0)
+      nextUpcomingSession =
+        sessions.find(s => s.status === undefined || Number(s.status) === Number(TrainingSessionStatus._0)) ??
+        null;
+    }
+
+
+ async function loadSessions() {
+    const client = new GetTrainingProgramsEndpointClient(baseUrl);
+    try {
+      const all = await client.getAll3();
+      if (all.length === 0) return;
+      // take first program
+      sessions = (all[0].trainingSessions ?? [])
+        .slice()
+        .sort((a, b) =>
+          new Date(a.date ?? '').getTime() - new Date(b.date ?? '').getTime()
+        );
+      computeOverview();
+    } catch (e) {
+      console.error('loadSessions failed', e);
     }
   }
 </script>
@@ -509,20 +547,92 @@
       </tbody>
     </table>
   </div>
+  <div class="divider divider-horizontal"></div>
+<div class="card bg-primary text-primary-content rounded-lg m-2 hover:shadow-xl">
+  <div class="overflow-x-auto">
+    <table class="table-auto w-full">
+      <thead>
+        <tr>
+          <th class="font-bold text-lg text-primary-content shadow p-3">Session</th>
+          <th class="font-bold text-lg text-primary-content shadow">Details</th>
+        </tr>
+      </thead>
+      <!-- add divide-y here: -->
+      <tbody class="divide-y divide-primary-content">
+        <!-- Last Completed Row -->
+        <tr>
+          <td class="align-top p-5">Last Completed</td>
+          <td>
+            {#if lastCompletedSession && lastCompletedSession.movements?.length}
+              <ul class="list-disc list-inside space-y-1 px-2">
+                {#each lastCompletedSession.movements.slice(0,3) as m}
+                  <li>
+                    <span class="font-semibold">{m.movementBase?.name}</span>:
+                    {#if m.sets?.[0]}
+                      {m.sets[0].recommendedReps}×{m.sets[0].recommendedWeight}
+                      {m.sets[0].weightUnit === 0 ? 'kg' : 'lbs'} @ RPE
+                      {m.sets[0].recommendedRPE}
+                    {:else}
+                      <em>No sets defined</em>
+                    {/if}
+                  </li>
+                {/each}
+                {#if lastCompletedSession.movements.length > 3}
+                  <li>…</li>
+                {/if}
+              </ul>
+            {:else}
+              <em>No completed sessions yet.</em>
+            {/if}
+          </td>
+        </tr>
+
+        <!-- Next Upcoming Row -->
+        <tr>
+          <td class="align-top p-5">Next Upcoming</td>
+          <td>
+            {#if nextUpcomingSession && nextUpcomingSession.movements?.length}
+              <ul class="list-disc list-inside space-y-1">
+                {#each nextUpcomingSession.movements.slice(0,3) as m}
+                  <li>
+                    <span class="font-semibold">{m.movementBase?.name}</span>:
+                    {#if m.sets?.[0]}
+                      {m.sets[0].recommendedReps}×{m.sets[0].recommendedWeight}
+                      {m.sets[0].weightUnit === 0 ? 'kg' : 'lbs'} @ RPE
+                      {m.sets[0].recommendedRPE}
+                    {:else}
+                      <em>No sets defined</em>
+                    {/if}
+                  </li>
+                {/each}
+                {#if nextUpcomingSession.movements.length > 3}
+                  <li>…</li>
+                {/if}
+              </ul>
+            {:else}
+              <em>All caught up!</em>
+            {/if}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<div class="divider">Oura</div>
-<div
 
-  class="flex flex-wrap items-center justify-center lg:items-start lg:justify-start"
->
-  <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
-    <span class="indicator-item badge badge-info">oura</span>
-    <div class="card-body">
-      <h2 class="card-title text-5xl">Resilience</h2>
-      <p>Level:</p>
-      <p class=" text-3xl font-bold">
-        {$dailyOuraInfo.resilienceData.resilienceLevel}
+
+
+</div>
+
+  <div class="divider">Oura</div>
+  <div class="flex flex-wrap items-center justify-center lg:items-start lg:justify-start">
+    <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">
+      <span class="indicator-item badge badge-info">oura</span>
+      <div class="card-body">
+        <h2 class="card-title text-5xl">Resilience</h2>
+        <p>Level:</p>
+        <p class=" text-3xl font-bold">
+          {$dailyOuraInfo.resilienceData.resilienceLevel}
       </p>
 
       Daytime Recovery:<progress
