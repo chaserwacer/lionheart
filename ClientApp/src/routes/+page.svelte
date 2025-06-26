@@ -513,6 +513,7 @@
 
 <div class="divider">Oura</div>
 <div
+
   class="flex flex-wrap items-center justify-center lg:items-start lg:justify-start"
 >
   <div class="card bg-base-300 w-80 shadow-xl m-5 indicator">

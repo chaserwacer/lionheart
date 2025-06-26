@@ -187,16 +187,17 @@ public class TrainingSessionService : ITrainingSessionService
         return Result.NoContent();
     }
 
-    [McpServerTool, Description("Generate the next N sessions for a program without AI")]
+    [McpServerTool, Description("Generate the next N sessions for a program with AI-selected movements, creating movement bases if needed")]
 public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(
     IdentityUser user,
     GenerateTrainingSessionsRequest request)
 {
     var userGuid = Guid.Parse(user.Id);
 
-    // 1) Verify program ownership
+    // 1) Verify program ownership and fetch all sessions with movements
     var program = await _context.TrainingPrograms
         .Include(p => p.TrainingSessions)
+            .ThenInclude(ts => ts.Movements)
         .FirstOrDefaultAsync(p =>
             p.TrainingProgramID == request.TrainingProgramID &&
             p.UserID           == userGuid);
@@ -209,22 +210,77 @@ public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsyn
         .DefaultIfEmpty(program.StartDate)
         .Max();
 
-    // 3) Create N new sessions, 7 days apart
+    // 3) Define main lifts and assistance
+    var mainLiftOrder = new[] { "Squat", "Bench Press", "Deadlift" };
+    var assistanceName = "Barbell Row";
     var newSessions = new List<TrainingSession>();
+    var newMovements = new List<Movement>();
+    var newMovementBases = new List<MovementBase>();
+
     for (int i = 1; i <= request.Count; i++)
     {
-        newSessions.Add(new TrainingSession
+        var sessionDate = lastDate.AddDays(i * 2); // 2 days apart for variety
+        var session = new TrainingSession
         {
             TrainingSessionID = Guid.NewGuid(),
             TrainingProgramID = program.TrainingProgramID,
-            Date              = lastDate.AddDays(i * 7),
-            Status            = TrainingSessionStatus.Planned
-        });
+            Date              = sessionDate,
+            Status            = TrainingSessionStatus.Planned,
+            Movements         = new List<Movement>()
+        };
+
+        // Main lift
+        var mainLiftName = mainLiftOrder[(program.TrainingSessions.Count + i - 1) % mainLiftOrder.Length];
+        var mainLift = await _context.MovementBases.FirstOrDefaultAsync(mb => mb.Name.ToLower() == mainLiftName.ToLower());
+        if (mainLift == null)
+        {
+            mainLift = new MovementBase { MovementBaseID = Guid.NewGuid(), Name = mainLiftName };
+            _context.MovementBases.Add(mainLift);
+            newMovementBases.Add(mainLift);
+        }
+        var mainMovement = new Movement
+        {
+            MovementID = Guid.NewGuid(),
+            TrainingSessionID = session.TrainingSessionID,
+            MovementBaseID = mainLift.MovementBaseID,
+            MovementModifier = new MovementModifier { Name = "No Modifier" },
+            Notes = $"Main lift: {mainLift.Name}",
+            IsCompleted = false,
+            Ordering = 1
+        };
+        session.Movements.Add(mainMovement);
+        newMovements.Add(mainMovement);
+
+        // Assistance movement
+        var assistance = await _context.MovementBases.FirstOrDefaultAsync(mb => mb.Name.ToLower() == assistanceName.ToLower());
+        if (assistance == null)
+        {
+            assistance = new MovementBase { MovementBaseID = Guid.NewGuid(), Name = assistanceName };
+            _context.MovementBases.Add(assistance);
+            newMovementBases.Add(assistance);
+        }
+        var assistMovement = new Movement
+        {
+            MovementID = Guid.NewGuid(),
+            TrainingSessionID = session.TrainingSessionID,
+            MovementBaseID = assistance.MovementBaseID,
+            MovementModifier = new MovementModifier { Name = "No Modifier" },
+            Notes = $"Assistance: {assistance.Name}",
+            IsCompleted = false,
+            Ordering = 2
+        };
+        session.Movements.Add(assistMovement);
+        newMovements.Add(assistMovement);
+
+        newSessions.Add(session);
     }
     _context.TrainingSessions.AddRange(newSessions);
+    _context.Movements.AddRange(newMovements);
+    if (newMovementBases.Count > 0)
+        await _context.SaveChangesAsync(); // Save new movement bases before adding movements
     await _context.SaveChangesAsync();
 
-    // 4) Map to DTOs (numbering after existing)
+    // 5) Map to DTOs (numbering after existing)
     var existingCount = program.TrainingSessions.Count;
     var dtos = newSessions
         .Select((s, idx) => s.ToDTO(existingCount + idx + 1))

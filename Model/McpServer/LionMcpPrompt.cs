@@ -101,70 +101,7 @@ namespace Model.McpServer
         }
 
 
-       /// <summary>
-        /// Instructs the LLM how to generate the next N sessions,
-        /// given program tags and existing sessions data.
-        /// </summary>
-        public void AddGenerateTrainingSessionsSection(
-        IEnumerable<string> programTags,
-        List<TrainingSessionDTO> existingSessions,
-        int count)
-        {
-        var section = new InstructionPromptSection { Name = "Generate Training Sessions" };
-
-        // 1) Program Tags
-        section.AddInstruction($"Program Tags: {string.Join(", ", programTags)}");
-
-        // 2) Existing Sessions (JSON)
-        section.AddInstruction("Existing Sessions:");
-        section.AddInstruction(
-            JsonSerializer.Serialize(
-            existingSessions,
-            new JsonSerializerOptions { WriteIndented = true }));
-
-        // 3) Here are the only valid movementBaseID values.
-        var validGuids = existingSessions
-            .SelectMany(s => s.Movements)
-            .Select(m => m.MovementBaseID.ToString())
-            .Distinct();
-        section.AddInstruction("Valid movementBaseID GUIDs:");
-        foreach (var g in validGuids)
-        {
-            section.AddInstruction($"  \"{g}\"");
-        }
-
-        // 4) Instructions
-        section.AddInstruction($"Generate the next {count} sessions.");
-        section.AddInstruction(
-            "Ramp up RPE on the main lifts (squat, bench, deadlift) by +0.5 each week; " +
-            "keep assistance exercises and set/rep schemes identical.");
-        section.AddInstruction(
-            "**IMPORTANT**: respond with _only_ the JSON array of sessions, using one of the valid GUIDs above. " +
-            "No comments, no placeholders, no extra fields.");
-            
-        section.AddInstruction("⚠️ **All GUIDs/IDs (such as movementBaseID) must be strings, surrounded by double quotes.**");
-        section.AddInstruction("⚠️ **Dates** must be in the exact format `YYYY-MM-DD` with no time or timezone.");
-        section.AddInstruction("⚠️ **RPE** must be a number between 1.0 and 10.0, with one decimal place.");
-
-        // 5) Minimal JSON shape (no example GUIDs)
-        section.AddInstruction(@"[
-        {
-            ""date"": ""YYYY-MM-DD"",
-            ""movements"": [
-            {
-                ""movementBaseID"": ""<pick one of the valid GUIDs above>"", // must be a string in double quotes
-                ""modifier"": ""None|Pause|Tempo|Explosive"",
-                ""reps"": 5,
-                ""weight"": 100.0,
-                ""rpe"": 7.5,
-                ""unit"": ""Kg""
-            }
-            ]
-        }
-        ]");
-
-        Sections.Add(section);
-        }
+       
     }
     
 
