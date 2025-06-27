@@ -221,37 +221,35 @@ public class TrainingProgramService : ITrainingProgramService
     /// <returns></returns>
     public async Task<Result<TrainingProgramDTO>> CreateTrainingProgramFromJSON(IdentityUser user, TrainingProgramDTO trainingProgramDTO)
     {
-        var Guid = System.Guid.Parse(user.Id);
-    //     var trainingProgramDTO = System.Text.Json.JsonSerializer.Deserialize<TrainingProgramDTO>(trainingProgramJson);
+        // 1) Prevent duplicate program
+        if (await _context.TrainingPrograms
+            .AnyAsync(p => p.TrainingProgramID == trainingProgramDTO.TrainingProgramID))
+        return Result<TrainingProgramDTO>.Error("TrainingProgramID already exists.");
 
-        if (trainingProgramDTO is null)
-        {
-            return Result<TrainingProgramDTO>.Error("Invalid JSON format.");
-        }
+    // 2) Create the program entity with the correct properties
+    var userGuid = Guid.Parse(user.Id);
+    var newProgram = new TrainingProgram {
+        TrainingProgramID = Guid.NewGuid(),
+        UserID            = userGuid,                     // ← make this change
+        Title             = trainingProgramDTO.Title,
+        StartDate         = trainingProgramDTO.StartDate,
+        EndDate           = trainingProgramDTO.EndDate,
+        Tags              = trainingProgramDTO.Tags
+    };
 
-        var newTrainingProgram = new TrainingProgram
+        // 3) Create each session WITHOUT SessionNumber on the entity
+        foreach (var sessionDto in trainingProgramDTO.TrainingSessions)
         {
-            TrainingProgramID = System.Guid.NewGuid(),
-            UserID = Guid,
-            Title = trainingProgramDTO.Title,
-            StartDate = trainingProgramDTO.StartDate,
-            EndDate = trainingProgramDTO.EndDate,
-            Tags = trainingProgramDTO.Tags ?? []
-        };
-
-        var trainingSessions = new List<TrainingSession>();
-        foreach (var sessionDTO in trainingProgramDTO.TrainingSessions)
-        {
-            var newSession = new TrainingSession
-            {
-                TrainingSessionID = System.Guid.NewGuid(),
-                TrainingProgramID = newTrainingProgram.TrainingProgramID,
-                Date = sessionDTO.Date,
-                Status = sessionDTO.Status
+            var newSession = new TrainingSession {
+                TrainingSessionID = Guid.NewGuid(),
+                TrainingProgramID = newProgram.TrainingProgramID,
+                Date              = sessionDto.Date,
+                Status            = sessionDto.Status
+                // no SessionNumber property on the entity
             };
 
-            var movements = new List<Movement>();
-            foreach (var movementDTO in sessionDTO.Movements)
+            int movementOrder = 0;
+            foreach (var mDto in sessionDto.Movements)
             {
                 var movementBase =  await _context.MovementBases.FindAsync(movementDTO.MovementBaseID);
                 if (movementBase is null)
@@ -274,34 +272,44 @@ public class TrainingProgramService : ITrainingProgramService
                 var setEntries = new List<SetEntry>();
                 foreach (var setEntryDTO in movementDTO.Sets)
                 {
-                    var newSetEntry = new SetEntry
-                    {
-                        SetEntryID = System.Guid.NewGuid(),
-                        ActualReps = setEntryDTO.ActualReps,
-                        ActualWeight = setEntryDTO.ActualWeight,
-                        ActualRPE = setEntryDTO.ActualRPE,
-                        RecommendedReps = setEntryDTO.RecommendedReps,
-                        RecommendedWeight = setEntryDTO.RecommendedWeight,
-                        RecommendedRPE = setEntryDTO.RecommendedRPE,
-                        WeightUnit = setEntryDTO.WeightUnit
+                    var newSet = new SetEntry {
+                        SetEntryID        = Guid.NewGuid(),
+                        MovementID        = newMovement.MovementID,
+                        RecommendedReps   = sDto.RecommendedReps,
+                        RecommendedWeight = sDto.RecommendedWeight,
+                        RecommendedRPE    = sDto.RecommendedRPE,
+                        WeightUnit        = sDto.WeightUnit,
+                        ActualReps        = sDto.ActualReps,
+                        ActualWeight      = sDto.ActualWeight,
+                        ActualRPE         = sDto.ActualRPE
                     };
-                    setEntries.Add(newSetEntry);
+                    newMovement.Sets.Add(newSet);
                 }
-                newMovement.Sets.AddRange(setEntries);
-                movements.Add(newMovement);
+
+                newSession.Movements.Add(newMovement);
             }
-            newSession.Movements.AddRange(movements);
-            trainingSessions.Add(newSession);
+
+            newProgram.TrainingSessions.Add(newSession);
         }
-        await _context.TrainingPrograms.AddAsync(newTrainingProgram);
-        await _context.TrainingSessions.AddRangeAsync(trainingSessions);
-        await _context.Movements.AddRangeAsync(trainingSessions.SelectMany(ts => ts.Movements));
-        await _context.SetEntries.AddRangeAsync(trainingSessions.SelectMany(ts => ts.Movements).SelectMany(m => m.Sets));
+
+        // 4) Persist and reload with nav‐props
+        await _context.TrainingPrograms.AddAsync(newProgram);
         await _context.SaveChangesAsync();
-        return Result<TrainingProgramDTO>.Success(newTrainingProgram.ToDTO());
+
+        var programWithNav = await _context.TrainingPrograms
+            .AsNoTracking()
+            .Include(p => p.TrainingSessions)
+            .ThenInclude(ts => ts.Movements)
+                .ThenInclude(m => m.MovementBase)
+            .Include(p => p.TrainingSessions)
+            .ThenInclude(ts => ts.Movements)
+                .ThenInclude(m => m.MovementModifier)
+            .Include(p => p.TrainingSessions)
+            .ThenInclude(ts => ts.Movements)
+                .ThenInclude(m => m.Sets)
+            .FirstAsync(p => p.TrainingProgramID == newProgram.TrainingProgramID);
+
+        // 5) Map back to DTO (this is where SessionNumber is applied)
+        return Result<TrainingProgramDTO>.Created(programWithNav.ToDTO());
     }
-
-  
-
-
 }

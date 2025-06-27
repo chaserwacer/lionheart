@@ -46,7 +46,7 @@ public interface ITrainingProgramService
     /// <returns>A result indicating success or failure.</returns>
     Task<Result> DeleteTrainingProgramAsync(IdentityUser user, Guid programId);
 
-
+    Task<Result<TrainingProgramDTO>> GeneratePopulatedTrainingProgramAsync(IdentityUser user, GeneratePopulatedTrainingProgramRequest request);
     Task<Result<TrainingProgramDTO>> CreateTrainingProgramFromJSON(IdentityUser user, TrainingProgramDTO trainingProgramDTO);
     
 }

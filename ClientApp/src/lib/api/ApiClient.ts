@@ -643,7 +643,7 @@ export class CreateTrainingProgramFromJSONEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    createFromJson(body: TrainingProgramDTO | undefined): Promise<TrainingSessionDTO> {
+    createFromJson(body: TrainingProgramDTO | undefined): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/create-from-json";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -663,14 +663,14 @@ export class CreateTrainingProgramFromJSONEndpointClient {
         });
     }
 
-    protected processCreateFromJson(response: Response): Promise<TrainingSessionDTO> {
+    protected processCreateFromJson(response: Response): Promise<TrainingProgramDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
             return response.text().then((_responseText) => {
             let result201: any = null;
             let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result201 = TrainingSessionDTO.fromJS(resultData201);
+            result201 = TrainingProgramDTO.fromJS(resultData201);
             return result201;
             });
         } else if (status === 401) {
@@ -692,7 +692,7 @@ export class CreateTrainingProgramFromJSONEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<TrainingSessionDTO>(null as any);
+        return Promise.resolve<TrainingProgramDTO>(null as any);
     }
 }
 

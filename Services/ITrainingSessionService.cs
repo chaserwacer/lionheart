@@ -61,4 +61,5 @@ public interface ITrainingSessionService
 
      Task<Result<TrainingSessionDTO>> CreateTrainingSessionFromJSON(IdentityUser user, TrainingSessionDTO trainingSessionDTO);
 
+
 }

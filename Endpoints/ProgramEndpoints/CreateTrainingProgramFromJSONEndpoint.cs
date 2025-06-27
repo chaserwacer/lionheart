@@ -6,13 +6,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
-using ModelContextProtocol.Server;
 using System.ComponentModel;
 
-namespace lionheart.Endpoints.TrainiungSessionEndpoints
+namespace lionheart.Endpoints.TrainingProgramEndpoints
 {
     [ValidateModel]
-    [McpServerToolType]
     public class CreateTrainingProgramFromJSONEndpoint : EndpointBaseAsync
         .WithRequest<TrainingProgramDTO>
         .WithActionResult<TrainingProgramDTO>
@@ -20,23 +18,29 @@ namespace lionheart.Endpoints.TrainiungSessionEndpoints
         private readonly ITrainingProgramService _trainingProgramService;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public CreateTrainingProgramFromJSONEndpoint(ITrainingProgramService trainingProgramService, UserManager<IdentityUser> userManager)
+        public CreateTrainingProgramFromJSONEndpoint(
+            ITrainingProgramService trainingProgramService,
+            UserManager<IdentityUser> userManager)
         {
             _trainingProgramService = trainingProgramService;
             _userManager = userManager;
         }
-        [McpServerTool, Description("Create a new populated training program from JSON data")]
+
         [HttpPost("api/training-program/create-from-json")]
-        [EndpointDescription("Create a new populated training program")]
-        [ProducesResponseType<TrainingSessionDTO>(StatusCodes.Status201Created)]
+        [EndpointDescription("Create a new populated training program from JSON data")]
+        [ProducesResponseType<TrainingProgramDTO>(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public override async Task<ActionResult<TrainingProgramDTO>> HandleAsync([FromBody] TrainingProgramDTO request, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<TrainingProgramDTO>> HandleAsync(
+            [FromBody] TrainingProgramDTO request,
+            CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
+            if (user is null)
+                return Unauthorized("User is not recognized or no longer exists.");
 
-            return this.ToActionResult(await _trainingProgramService.CreateTrainingProgramFromJSON(user, request));
+            var result = await _trainingProgramService.CreateTrainingProgramFromJSON(user, request);
+            return this.ToActionResult(result);
         }
     }
 }
