@@ -643,7 +643,7 @@ export class CreateTrainingProgramFromJSONEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    createFromJson(body: TrainingProgramDTO | undefined): Promise<TrainingSessionDTO> {
+    createFromJson(body: TrainingProgramDTO | undefined): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/create-from-json";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -663,14 +663,14 @@ export class CreateTrainingProgramFromJSONEndpointClient {
         });
     }
 
-    protected processCreateFromJson(response: Response): Promise<TrainingSessionDTO> {
+    protected processCreateFromJson(response: Response): Promise<TrainingProgramDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
             return response.text().then((_responseText) => {
             let result201: any = null;
             let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result201 = TrainingSessionDTO.fromJS(resultData201);
+            result201 = TrainingProgramDTO.fromJS(resultData201);
             return result201;
             });
         } else if (status === 401) {
@@ -692,7 +692,7 @@ export class CreateTrainingProgramFromJSONEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<TrainingSessionDTO>(null as any);
+        return Promise.resolve<TrainingProgramDTO>(null as any);
     }
 }
 
@@ -830,7 +830,7 @@ export class CreateTrainingSessionFromJSONEndpointClient {
     }
 }
 
-export class DeleteMovementEndpointClient {
+export class DeleteMovementBaseEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -843,11 +843,11 @@ export class DeleteMovementEndpointClient {
     /**
      * @return No Content
      */
-    delete(movementId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/movement/delete/{movementId}";
-        if (movementId === undefined || movementId === null)
-            throw new Error("The parameter 'movementId' must be defined.");
-        url_ = url_.replace("{movementId}", encodeURIComponent("" + movementId));
+    delete(movementBaseId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/movement-base/delete/{movementBaseId}";
+        if (movementBaseId === undefined || movementBaseId === null)
+            throw new Error("The parameter 'movementBaseId' must be defined.");
+        url_ = url_.replace("{movementBaseId}", encodeURIComponent("" + movementBaseId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -882,6 +882,13 @@ export class DeleteMovementEndpointClient {
             result404 = ProblemDetails.fromJS(resultData404);
             return throwException("Not Found", status, _responseText, _headers, result404);
             });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ProblemDetails.fromJS(resultData409);
+            return throwException("Conflict", status, _responseText, _headers, result409);
+            });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
@@ -891,7 +898,7 @@ export class DeleteMovementEndpointClient {
     }
 }
 
-export class DeleteSetEntryEndpointClient {
+export class DeleteMovementEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -904,11 +911,11 @@ export class DeleteSetEntryEndpointClient {
     /**
      * @return No Content
      */
-    delete2(setEntryId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/set-entry/delete/{setEntryId}";
-        if (setEntryId === undefined || setEntryId === null)
-            throw new Error("The parameter 'setEntryId' must be defined.");
-        url_ = url_.replace("{setEntryId}", encodeURIComponent("" + setEntryId));
+    delete2(movementId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/movement/delete/{movementId}";
+        if (movementId === undefined || movementId === null)
+            throw new Error("The parameter 'movementId' must be defined.");
+        url_ = url_.replace("{movementId}", encodeURIComponent("" + movementId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -952,7 +959,7 @@ export class DeleteSetEntryEndpointClient {
     }
 }
 
-export class DeleteTrainingProgramEndpointClient {
+export class DeleteSetEntryEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -965,11 +972,11 @@ export class DeleteTrainingProgramEndpointClient {
     /**
      * @return No Content
      */
-    delete3(programId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/training-program/delete/{programId}";
-        if (programId === undefined || programId === null)
-            throw new Error("The parameter 'programId' must be defined.");
-        url_ = url_.replace("{programId}", encodeURIComponent("" + programId));
+    delete3(setEntryId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/set-entry/delete/{setEntryId}";
+        if (setEntryId === undefined || setEntryId === null)
+            throw new Error("The parameter 'setEntryId' must be defined.");
+        url_ = url_.replace("{setEntryId}", encodeURIComponent("" + setEntryId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1013,7 +1020,7 @@ export class DeleteTrainingProgramEndpointClient {
     }
 }
 
-export class DeleteTrainingSessionEndpointClient {
+export class DeleteTrainingProgramEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -1026,11 +1033,11 @@ export class DeleteTrainingSessionEndpointClient {
     /**
      * @return No Content
      */
-    delete4(trainingSessionId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/training-session/delete/{trainingSessionId}";
-        if (trainingSessionId === undefined || trainingSessionId === null)
-            throw new Error("The parameter 'trainingSessionId' must be defined.");
-        url_ = url_.replace("{trainingSessionId}", encodeURIComponent("" + trainingSessionId));
+    delete4(programId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/training-program/delete/{programId}";
+        if (programId === undefined || programId === null)
+            throw new Error("The parameter 'programId' must be defined.");
+        url_ = url_.replace("{programId}", encodeURIComponent("" + programId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1045,6 +1052,67 @@ export class DeleteTrainingSessionEndpointClient {
     }
 
     protected processDelete4(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class DeleteTrainingSessionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return No Content
+     */
+    delete5(trainingSessionId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/training-session/delete/{trainingSessionId}";
+        if (trainingSessionId === undefined || trainingSessionId === null)
+            throw new Error("The parameter 'trainingSessionId' must be defined.");
+        url_ = url_.replace("{trainingSessionId}", encodeURIComponent("" + trainingSessionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDelete5(_response);
+        });
+    }
+
+    protected processDelete5(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
