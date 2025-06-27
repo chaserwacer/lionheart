@@ -25,14 +25,14 @@ public class TrainingSessionService : ITrainingSessionService
 
     private class AiMovement
     {
-    public Guid MovementBaseID { get; set; }
-    public MovementModifier Modifier { get; set; } = new MovementModifier();
-    public int Reps { get; set; }
-    public double Weight { get; set; }
-    public double RPE { get; set; }
-    public WeightUnit Unit { get; set; }
-    public string Notes { get; set; } = string.Empty;
-    public int Ordering { get; set; }
+        public Guid MovementBaseID { get; set; }
+        public MovementModifier Modifier { get; set; } = new MovementModifier();
+        public int Reps { get; set; }
+        public double Weight { get; set; }
+        public double RPE { get; set; }
+        public WeightUnit Unit { get; set; }
+        public string Notes { get; set; } = string.Empty;
+        public int Ordering { get; set; }
     }
 
     public TrainingSessionService(ModelContext context, IMCPClientService aiClient, ILogger<MCPClientService> logger)
@@ -188,107 +188,115 @@ public class TrainingSessionService : ITrainingSessionService
     }
 
     [McpServerTool, Description("Generate the next N sessions for a program with AI-selected movements, creating movement bases if needed")]
-public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(
+    public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(
     IdentityUser user,
     GenerateTrainingSessionsRequest request)
-{
-    var userGuid = Guid.Parse(user.Id);
-
-    // 1) Verify program ownership and fetch all sessions with movements
-    var program = await _context.TrainingPrograms
-        .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements)
-        .FirstOrDefaultAsync(p =>
-            p.TrainingProgramID == request.TrainingProgramID &&
-            p.UserID           == userGuid);
-    if (program is null)
-        return Result<List<TrainingSessionDTO>>.NotFound("Program not found or access denied.");
-
-    // 2) Find last date (or fallback to StartDate)
-    var lastDate = program.TrainingSessions
-        .Select(ts => ts.Date)
-        .DefaultIfEmpty(program.StartDate)
-        .Max();
-
-    // 3) Define main lifts and assistance
-    var mainLiftOrder = new[] { "Squat", "Bench Press", "Deadlift" };
-    var assistanceName = "Barbell Row";
-    var newSessions = new List<TrainingSession>();
-    var newMovements = new List<Movement>();
-    var newMovementBases = new List<MovementBase>();
-
-    for (int i = 1; i <= request.Count; i++)
     {
-        var sessionDate = lastDate.AddDays(i * 2); // 2 days apart for variety
-        var session = new TrainingSession
-        {
-            TrainingSessionID = Guid.NewGuid(),
-            TrainingProgramID = program.TrainingProgramID,
-            Date              = sessionDate,
-            Status            = TrainingSessionStatus.Planned,
-            Movements         = new List<Movement>()
-        };
+        var userGuid = Guid.Parse(user.Id);
 
-        // Main lift
-        var mainLiftName = mainLiftOrder[(program.TrainingSessions.Count + i - 1) % mainLiftOrder.Length];
-        var mainLift = await _context.MovementBases.FirstOrDefaultAsync(mb => mb.Name.ToLower() == mainLiftName.ToLower());
-        if (mainLift == null)
+        // 1) Verify program ownership and fetch all sessions with movements
+        var program = await _context.TrainingPrograms
+            .Include(p => p.TrainingSessions)
+                .ThenInclude(ts => ts.Movements)
+            .FirstOrDefaultAsync(p =>
+                p.TrainingProgramID == request.TrainingProgramID &&
+                p.UserID == userGuid);
+        if (program is null)
+            return Result<List<TrainingSessionDTO>>.NotFound("Program not found or access denied.");
+
+        // 2) Find last date (or fallback to StartDate)
+        var lastDate = program.TrainingSessions
+            .Select(ts => ts.Date)
+            .DefaultIfEmpty(program.StartDate)
+            .Max();
+
+        // 3) Define main lifts and assistance
+        var mainLiftOrder = new[] { "Squat", "Bench Press", "Deadlift" };
+        var assistanceName = "Barbell Row";
+        var newSessions = new List<TrainingSession>();
+        var newMovements = new List<Movement>();
+        var newMovementBases = new List<MovementBase>();
+
+        for (int i = 1; i <= request.Count; i++)
         {
-            mainLift = new MovementBase { MovementBaseID = Guid.NewGuid(), Name = mainLiftName };
-            _context.MovementBases.Add(mainLift);
-            newMovementBases.Add(mainLift);
+            var sessionDate = lastDate.AddDays(i * 2); // 2 days apart for variety
+            var session = new TrainingSession
+            {
+                TrainingSessionID = Guid.NewGuid(),
+                TrainingProgramID = program.TrainingProgramID,
+                Date = sessionDate,
+                Status = TrainingSessionStatus.Planned,
+                Movements = new List<Movement>()
+            };
+
+            // Main lift
+            var mainLiftName = mainLiftOrder[(program.TrainingSessions.Count + i - 1) % mainLiftOrder.Length];
+            var mainLift = await _context.MovementBases.FirstOrDefaultAsync(mb => mb.Name.ToLower() == mainLiftName.ToLower());
+            if (mainLift == null)
+            {
+                mainLift = new MovementBase { MovementBaseID = Guid.NewGuid(), Name = mainLiftName };
+                _context.MovementBases.Add(mainLift);
+                newMovementBases.Add(mainLift);
+            }
+            var mainMovement = new Movement
+            {
+                MovementID = Guid.NewGuid(),
+                TrainingSessionID = session.TrainingSessionID,
+                MovementBaseID = mainLift.MovementBaseID,
+                MovementModifier = new MovementModifier { Name = "No Modifier" },
+                Notes = $"Main lift: {mainLift.Name}",
+                IsCompleted = false,
+                Ordering = 1
+            };
+            session.Movements.Add(mainMovement);
+            newMovements.Add(mainMovement);
+
+            // Assistance movement
+            var assistance = await _context.MovementBases.FirstOrDefaultAsync(mb => mb.Name.ToLower() == assistanceName.ToLower());
+            if (assistance == null)
+            {
+                assistance = new MovementBase { MovementBaseID = Guid.NewGuid(), Name = assistanceName };
+                _context.MovementBases.Add(assistance);
+                newMovementBases.Add(assistance);
+            }
+            var assistMovement = new Movement
+            {
+                MovementID = Guid.NewGuid(),
+                TrainingSessionID = session.TrainingSessionID,
+                MovementBaseID = assistance.MovementBaseID,
+                MovementModifier = new MovementModifier { Name = "No Modifier" },
+                Notes = $"Assistance: {assistance.Name}",
+                IsCompleted = false,
+                Ordering = 2
+            };
+            session.Movements.Add(assistMovement);
+            newMovements.Add(assistMovement);
+
+            newSessions.Add(session);
         }
-        var mainMovement = new Movement
-        {
-            MovementID = Guid.NewGuid(),
-            TrainingSessionID = session.TrainingSessionID,
-            MovementBaseID = mainLift.MovementBaseID,
-            MovementModifier = new MovementModifier { Name = "No Modifier" },
-            Notes = $"Main lift: {mainLift.Name}",
-            IsCompleted = false,
-            Ordering = 1
-        };
-        session.Movements.Add(mainMovement);
-        newMovements.Add(mainMovement);
+        _context.TrainingSessions.AddRange(newSessions);
+        _context.Movements.AddRange(newMovements);
+        if (newMovementBases.Count > 0)
+            await _context.SaveChangesAsync(); // Save new movement bases before adding movements
+        await _context.SaveChangesAsync();
 
-        // Assistance movement
-        var assistance = await _context.MovementBases.FirstOrDefaultAsync(mb => mb.Name.ToLower() == assistanceName.ToLower());
-        if (assistance == null)
-        {
-            assistance = new MovementBase { MovementBaseID = Guid.NewGuid(), Name = assistanceName };
-            _context.MovementBases.Add(assistance);
-            newMovementBases.Add(assistance);
-        }
-        var assistMovement = new Movement
-        {
-            MovementID = Guid.NewGuid(),
-            TrainingSessionID = session.TrainingSessionID,
-            MovementBaseID = assistance.MovementBaseID,
-            MovementModifier = new MovementModifier { Name = "No Modifier" },
-            Notes = $"Assistance: {assistance.Name}",
-            IsCompleted = false,
-            Ordering = 2
-        };
-        session.Movements.Add(assistMovement);
-        newMovements.Add(assistMovement);
+        // 5) Map to DTOs (numbering after existing)
+        var existingCount = program.TrainingSessions.Count;
+        var dtos = newSessions
+            .Select((s, idx) => s.ToDTO(existingCount + idx + 1))
+            .ToList();
 
-        newSessions.Add(session);
+        return Result<List<TrainingSessionDTO>>.Success(dtos);
     }
-    _context.TrainingSessions.AddRange(newSessions);
-    _context.Movements.AddRange(newMovements);
-    if (newMovementBases.Count > 0)
-        await _context.SaveChangesAsync(); // Save new movement bases before adding movements
-    await _context.SaveChangesAsync();
-
-    // 5) Map to DTOs (numbering after existing)
-    var existingCount = program.TrainingSessions.Count;
-    var dtos = newSessions
-        .Select((s, idx) => s.ToDTO(existingCount + idx + 1))
-        .ToList();
-
-    return Result<List<TrainingSessionDTO>>.Success(dtos);
-}
-
+    /// <summary>
+    ///  Create a training session from a JSON object.
+    ///  This method is used to create a training session with movements and sets.
+    /// 
+    /// For MCP use
+    /// </summary>
+    /// <param name="user"></param>
+    /// <param name="trainingSessionDTO"></param>
+    /// <returns></returns>
     public async Task<Result<TrainingSessionDTO>> CreateTrainingSessionFromJSON(IdentityUser user, TrainingSessionDTO trainingSessionDTO)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -349,12 +357,19 @@ public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsyn
         return Result<TrainingSessionDTO>.Created(newSession.ToDTO(1));
     }
 
+    /// <summary>
+    ///  Get the next training session for a user and program.
+    ///  Returns the first planned session for the program.
+    /// </summary>
+    /// <param name="user"></param>
+    /// <param name="trainingProgramID"></param>
+    /// <returns></returns>
     public async Task<Result<TrainingSessionDTO>> GetNextTrainingSessionAsync(IdentityUser user, Guid trainingProgramID)
     {
         var userGuid = Guid.Parse(user.Id);
         var nextSession = await _context.TrainingSessions
             .Where(ts => ts.TrainingProgramID == trainingProgramID &&
-                        ts.TrainingProgram!.UserID == userGuid 
+                        ts.TrainingProgram!.UserID == userGuid
                         && ts.Status == TrainingSessionStatus.Planned)
             .FirstOrDefaultAsync();
 
@@ -373,29 +388,32 @@ public async Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsyn
 
         return Result<TrainingSessionDTO>.Success(nextSession.ToDTO(sessionNumber));
     }
-    public async Task<Result<TrainingSessionDTO>> GetLastTrainingSessionAsync(IdentityUser user, Guid trainingProgramID)
+
+    /// <summary>
+    ///  Get the previous <paramref name="numberSessions"/>s for a user and program.
+    ///  Returns a list of completed training sessions, ordered by date descending.
+    /// </summary>
+    /// <param name="user"></param>
+    /// <param name="trainingProgramID"></param>
+    /// <param name="numberSessions"></param>
+    /// <returns></returns>
+    public async Task<Result<List<TrainingSessionDTO>>> GetPreviousTrainingSessionsAsync(IdentityUser user, Guid trainingProgramID, int numberSessions)
     {
         var userGuid = Guid.Parse(user.Id);
-        var lastSession = await _context.TrainingSessions
+        var sessions = await _context.TrainingSessions
             .Where(ts => ts.TrainingProgramID == trainingProgramID &&
-                        ts.TrainingProgram!.UserID == userGuid 
+                        ts.TrainingProgram!.UserID == userGuid
                         && ts.Status == TrainingSessionStatus.Completed)
             .OrderByDescending(ts => ts.Date)
-            .FirstOrDefaultAsync();
+            .Take(numberSessions)
+            .ToListAsync();
 
-        if (lastSession is null)
+        if (sessions is null)
         {
-            return Result<TrainingSessionDTO>.NotFound("No training sessions found for this program.");
+            return Result<List<TrainingSessionDTO>>.NotFound("No training sessions found for this program.");
         }
 
-        var sessionNumber = await _context.TrainingSessions
-            .Where(ts => ts.TrainingProgramID == lastSession.TrainingProgramID &&
-                        ts.Date <= lastSession.Date)
-            .OrderBy(ts => ts.Date)
-            .ThenBy(ts => ts.TrainingSessionID)
-            .CountAsync(ts => ts.Date < lastSession.Date ||
-                            (ts.Date == lastSession.Date && ts.TrainingSessionID.CompareTo(lastSession.TrainingSessionID) <= 0));
-
-        return Result<TrainingSessionDTO>.Success(lastSession.ToDTO(sessionNumber));
+        var sessionDTOs = sessions.Select((session, index) => session.ToDTO(index + 1)).ToList();
+        return Result<List<TrainingSessionDTO>>.Success(sessionDTOs);
     }
 }

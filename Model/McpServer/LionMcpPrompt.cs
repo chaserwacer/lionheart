@@ -68,37 +68,9 @@ namespace Model.McpServer
             return $"{content}\n\n{footer}";
         }
 
-        /// <summary>
-        /// Adds an Oura data section by fetching the user's daily Oura data
-        /// over the given date range.
-        /// </summary>
-        /// <param name="ouraService">The service to retrieve Oura data.</param>
-        /// <param name="range">The date range for which to fetch Oura data.</param>
-        public async Task AddOuraDataSectionAsync(
-            IOuraService ouraService,
-            DateRangeRequest range,
-            CancellationToken cancellationToken = default)
-        {
-            var section = new OuraDataPromptSection(ouraService);
-            await section.LoadDataAsync(User, range, cancellationToken);
-            Sections.Add(section);
-        }
+       
 
-        /// <summary>
-        /// Adds a wellness data section by fetching the user's wellness
-        /// states over the given date range.
-        /// </summary>
-        /// <param name="wellnessService">The service to retrieve wellness data.</param>
-        /// <param name="range">The date range for which to fetch wellness states.</param>
-        public async Task AddWellnessDataSectionAsync(
-            IWellnessService wellnessService,
-            DateRangeRequest range,
-            CancellationToken cancellationToken = default)
-        {
-            var section = new WellnessDataPromptSection(wellnessService);
-            await section.LoadDataAsync(User, range, cancellationToken);
-            Sections.Add(section);
-        }
+      
 
 
        
@@ -244,6 +216,72 @@ namespace Model.McpServer
             => $"{Name}:\n{Content}";
     }
 
+    public class TrainingProgramPromptSection : IPromptSection
+    {
+        private readonly ITrainingProgramService _trainingProgramService;
+        private readonly ITrainingSessionService _trainingSessionService;
+        private TrainingProgramDTO _trainingProgram;
 
+        public string Name { get; set; } = "Training Program";
+
+        /// <inheritdoc/>
+        public string Content { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// Initializes a new instance with the given wellness service.
+        /// </summary>
+        public TrainingProgramPromptSection(ITrainingProgramService trainingProgramService, ITrainingSessionService trainingSessionService, TrainingProgramDTO trainingProgram)
+        {
+            _trainingProgramService = trainingProgramService;
+            _trainingSessionService = trainingSessionService;
+            _trainingProgram = trainingProgram;
+        }
+
+
+        public async Task LoadLastSessions(
+            IdentityUser user,
+            int numberSessions = 1)
+        {
+            var lastTrainingSessions = await _trainingSessionService.GetPreviousTrainingSessionsAsync(user, _trainingProgram.TrainingProgramID, numberSessions);
+
+            Content += "Last Training Sessions:\n";
+            Content += JsonSerializer.Serialize(lastTrainingSessions, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+           
+            
+        }
+        public async Task LoadNextSession(
+            IdentityUser user)
+        {
+            Content += "Next Training Session:\n";
+            var nextTrainingSession = await _trainingSessionService.GetNextTrainingSessionAsync(user, _trainingProgram.TrainingProgramID);
+            Content += JsonSerializer.Serialize(nextTrainingSession, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <inheritdoc/>
+        public override string ToString()
+            => $"{Name}:\n{Content}";
+    }
 
 }

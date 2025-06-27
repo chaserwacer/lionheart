@@ -49,13 +49,16 @@ public interface ITrainingSessionService
     /// <param name="sessionId">The session ID to delete.</param>
     /// <returns>A result indicating success or failure.</returns>
     Task<Result> DeleteTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
+    Task<Result<TrainingSessionDTO>> GetNextTrainingSessionAsync(IdentityUser user, Guid trainingProgramID);
+    Task<Result<List<TrainingSessionDTO>>> GetPreviousTrainingSessionsAsync(IdentityUser user, Guid trainingProgramID,  int numberSessions);
+
 
     /// <summary>
     /// Create the next <see cref="Count"/> training sessions for a program, computing dates
     /// based on existing sessions (or StartDate if none exist).
     /// </summary>
     Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(IdentityUser user, GenerateTrainingSessionsRequest request);
-    
+
      Task<Result<TrainingSessionDTO>> CreateTrainingSessionFromJSON(IdentityUser user, TrainingSessionDTO trainingSessionDTO);
 
 }

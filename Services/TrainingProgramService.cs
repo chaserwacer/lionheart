@@ -130,7 +130,12 @@ public class TrainingProgramService : ITrainingProgramService
     }
 
     [McpServerTool, Description("Generate a populated training program with sessions and movements.")]
-
+    /// <summary>
+    ///  Generates a populated training program with sessions and movements based on the provided request.
+    /// </summary>
+    /// <param name="user">The user for whom the training program is being generated.</param>
+    /// <param name="request">The request containing the training program details and session requests.</param>
+    /// <returns>A result containing the generated training program DTO.</returns>
     public async Task<Result<TrainingProgramDTO>> GeneratePopulatedTrainingProgramAsync(IdentityUser user, GeneratePopulatedTrainingProgramRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -208,7 +213,12 @@ public class TrainingProgramService : ITrainingProgramService
         await _context.SaveChangesAsync();
         return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
     }
-
+    /// <summary>
+    ///  Creates a training program from a JSON string.
+    /// </summary>
+    /// <param name="user"></param>
+    /// <param name="trainingProgramDTO"></param>
+    /// <returns></returns>
     public async Task<Result<TrainingProgramDTO>> CreateTrainingProgramFromJSON(IdentityUser user, TrainingProgramDTO trainingProgramDTO)
     {
         var Guid = System.Guid.Parse(user.Id);
@@ -243,10 +253,18 @@ public class TrainingProgramService : ITrainingProgramService
             var movements = new List<Movement>();
             foreach (var movementDTO in sessionDTO.Movements)
             {
+                var movementBase =  await _context.MovementBases.FindAsync(movementDTO.MovementBaseID);
+                if (movementBase is null)
+                {
+                    return Result<TrainingProgramDTO>.Error($"Movement Base with ID: '{movementDTO.MovementBaseID}' not found.");
+                }
                 int count = 0;
                 var newMovement = new Movement
                 {
                     MovementID = System.Guid.NewGuid(),
+                    MovementBase = movementBase,
+                    MovementModifier = movementDTO.MovementModifier,
+                    IsCompleted = movementDTO.IsCompleted,
                     MovementBaseID = movementDTO.MovementBaseID,
                     Notes = movementDTO.Notes,
                     Ordering = count++,

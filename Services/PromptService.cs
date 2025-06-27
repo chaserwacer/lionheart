@@ -21,16 +21,19 @@ namespace lionheart.Services
         private readonly IOuraService _ouraService;
         private readonly IWellnessService _wellnessService;
         private readonly ITrainingProgramService _trainingProgramService;
+        private readonly ITrainingSessionService _trainingSessionService;
         public PromptService(
             ILogger<MCPClientService> logger,
             IChatClient chatClient,
             IOuraService ouraService,
             IWellnessService wellnessService,
-            ITrainingProgramService trainingProgramService
-                    )
+            ITrainingProgramService trainingProgramService,
+            ITrainingSessionService trainingSessionService
+        )
         {
             _logger = logger;
             _trainingProgramService = trainingProgramService;
+            _trainingSessionService = trainingSessionService;
             _ouraService = ouraService;
             _wellnessService = wellnessService;
         }
@@ -62,8 +65,8 @@ namespace lionheart.Services
                 instructions.AddInstruction("3. Do not follow up with the user, simply provide the insights.");
                 lionMCPPrompt.Sections.Add(instructions);
 
-                await lionMCPPrompt.AddOuraDataSectionAsync(_ouraService, dateRange);
-                await lionMCPPrompt.AddWellnessDataSectionAsync(_wellnessService, dateRange);
+                // await lionMCPPrompt.AddOuraDataSectionAsync(_ouraService, dateRange);
+                // await lionMCPPrompt.AddWellnessDataSectionAsync(_wellnessService, dateRange);
 
                 var chatHistory = lionMCPPrompt.ToChatMessage();
                 var chatPrompt = lionMCPPrompt.ToStringPrompty();
@@ -161,7 +164,7 @@ namespace lionheart.Services
                 var chatPrompt = lionMCPPrompt.ToStringPrompty();
                 return Result.Success(chatPrompt);
             }
-             else if (request.PromptType is not null && request.PromptType == "gensess.01")
+            else if (request.PromptType is not null && request.PromptType == "gensess.01")
             {
 
                 var lionMCPPrompt = new LionMcpPrompt { User = user };
@@ -205,11 +208,96 @@ namespace lionheart.Services
                 var chatPrompt = lionMCPPrompt.ToStringPrompty();
                 return Result.Success(chatPrompt);
             }
+            else if (request.PromptType == "modsess")
+            {
+                return await ModSessPrompt(user);
+            }
             else
             {
                 return Result<string>.Error("Invalid prompt type specified.");
             }
 
+        }
+
+        public async Task<Result<string>> ModSessPrompt(IdentityUser user)
+        {
+            var prompt = new LionMcpPrompt()
+            {
+                User = user
+            };
+
+
+            var roleSection = new InstructionPromptSection() { Name = "Role/Objective" };
+            roleSection.AddInstruction("You are a training data agent responsible for intelligently modifying a user's daily training session.");
+            roleSection.AddInstruction("Your primary objective is to analyze the user's most recent training session and their current Oura Ring data (readiness, sleep, recovery) to produce a modified training session that is suitable for their current state.");
+            roleSection.AddInstruction("You are trusted to adjust volume, intensity, exercise selection, or even suggest rest based on the data.");
+
+            prompt.Sections.Add(roleSection);
+
+            var instructionsSection = new InstructionPromptSection() { Name = "Instructions" };
+            instructionsSection.AddInstruction("Use the provided data only to make your decision.");
+            instructionsSection.AddInstruction("You may reduce volume or intensity if recovery or readiness scores are poor.");
+            instructionsSection.AddInstruction("You may maintain or slightly increase challenge if recovery is high and previous training was well-tolerated.");
+            instructionsSection.AddInstruction("Always modify based on both recent training performance and current Oura metrics.");
+            // instructionsSection.AddInstruction("Do not invent exercises or data. Only adjust what's present.");
+            instructionsSection.AddInstruction("If the session should be skipped or replaced with rest, clearly state that in the output.");
+            instructionsSection.AddInstruction("All changes must be reflected via function calls used to modify the training sessions contents.");
+
+            prompt.Sections.Add(instructionsSection);
+
+            var reasoningStepsSection = new InstructionPromptSection() { Name = "Reasoning Steps" };
+            reasoningStepsSection.AddInstruction("0. Use the UserID [given later] as a parameter for invoking the GetIdentityUser method. This Identity User will then be the Identity User you require for other service tools.");
+            reasoningStepsSection.AddInstruction("1. Examine the user's most recent training session: what was performed, how hard it was, and what areas were stressed.");
+            reasoningStepsSection.AddInstruction("2. Analyze the user's Oura Ring data for readiness, recovery, and sleep quality.");
+            reasoningStepsSection.AddInstruction("3. Determine if today is appropriate for training, rest, or an adjustment.");
+            reasoningStepsSection.AddInstruction("4. Modify the training session via utilizing the tool methods you have been provided for modifying set entries and movements.");
+            // reasoningStepsSection.AddInstruction("5. Return only the modified session object.");
+
+            prompt.Sections.Add(reasoningStepsSection);
+
+            // var examplesSection = new InstructionPromptSection() { Name = "Examples" };
+            // examplesSection.AddInstruction("Example: If the user performed heavy deadlifts yesterday and today has poor sleep and low readiness, reduce volume or substitute with mobility work.");
+            // examplesSection.AddInstruction("Example: If the user slept well, has a high readiness score, and the prior session was low intensity, consider increasing challenge slightly.");
+
+            // prompt.Sections.Add(examplesSection);
+
+            var contextSession = new InstructionPromptSection() { Name = "Context" };
+            contextSession.AddInstruction("The user’s training session object includes exercises, sets, reps, and notes.");
+            contextSession.AddInstruction("The user's Oura data includes readiness score (0–100), sleep quality, and recovery indicators.");
+            contextSession.AddInstruction("The session and data are always for the current day and should be treated as fresh context.");
+            contextSession.AddInstruction("You may assume the user is a trained individual following a consistent weekly routine.");
+            prompt.Sections.Add(contextSession);
+
+            var dateRange = new DateRangeRequest
+            {
+                StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
+                EndDate = DateOnly.FromDateTime(DateTime.UtcNow)
+            };
+            var ouraDataSection = new OuraDataPromptSection(_ouraService);
+            await ouraDataSection.LoadDataAsync(user, dateRange);
+            prompt.Sections.Add(ouraDataSection);
+
+            var wellnessDataSection = new WellnessDataPromptSection(_wellnessService);
+            await wellnessDataSection.LoadDataAsync(user, dateRange);
+            prompt.Sections.Add(wellnessDataSection);
+
+            var programs =  await _trainingProgramService.GetTrainingProgramsAsync(user);
+            if (programs.IsError() || programs.Value.Count == 0)
+            {
+                return Result<string>.Error("No training programs found for the user.");
+            }
+            var trainingProgramSection = new TrainingProgramPromptSection(_trainingProgramService, _trainingSessionService, programs.Value[0]);
+            await trainingProgramSection.LoadLastSessions(user, 1);
+            await trainingProgramSection.LoadNextSession(user);
+            prompt.Sections.Add(trainingProgramSection);
+
+            var finalInstructionsSection = new InstructionPromptSection() { Name = "Final Instructions" };
+            finalInstructionsSection.AddInstruction("Apply your modifications, do not ask for confirmation or further input.");
+            finalInstructionsSection.AddInstruction("All modifications must be precise, justifiable by the input data, and reflect good programming logic.");
+
+            prompt.Sections.Add(finalInstructionsSection);
+
+            return Result.Success(prompt.ToStringPrompty());
         }
     }
 }

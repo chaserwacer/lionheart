@@ -63,8 +63,8 @@ namespace lionheart.Services
             instructions.AddInstruction("3. Do not follow up with the user, simply provide the insights.");
             lionMCPPrompt.Sections.Add(instructions);
 
-            await lionMCPPrompt.AddOuraDataSectionAsync(_ouraService, dateRange);
-            await lionMCPPrompt.AddWellnessDataSectionAsync(_wellnessService, dateRange);
+            // await lionMCPPrompt.AddOuraDataSectionAsync(_ouraService, dateRange);
+            // await lionMCPPrompt.AddWellnessDataSectionAsync(_wellnessService, dateRange);
 
             var chatHistory = lionMCPPrompt.ToChatMessage();
             var chatPrompt = lionMCPPrompt.ToStringPrompty();
