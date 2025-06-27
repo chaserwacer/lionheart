@@ -191,75 +191,82 @@ public class TrainingSessionService : ITrainingSessionService
     public async Task<Result<TrainingSessionDTO>> CreateTrainingSessionFromJSON(
             IdentityUser user,
             TrainingSessionDTO trainingSessionDTO)
-        {
-            // 1. Validate program exists
-            var programId = trainingSessionDTO.TrainingProgramID;
-            if (!await _context.TrainingPrograms.AnyAsync(p => p.TrainingProgramID == programId))
-                return Result<TrainingSessionDTO>.Error("Invalid TrainingProgramID.");
+    {
+        // 1. Validate program exists
+        var programId = trainingSessionDTO.TrainingProgramID;
+        if (!await _context.TrainingPrograms.AnyAsync(p => p.TrainingProgramID == programId))
+            return Result<TrainingSessionDTO>.Error("Invalid TrainingProgramID.");
 
         // 2) Create root session
-            var newSession = new TrainingSession {
-                TrainingSessionID = Guid.NewGuid(),
-                TrainingProgramID = trainingSessionDTO.TrainingProgramID,
-                Date              = trainingSessionDTO.Date,
-                Status            = trainingSessionDTO.Status
-            };
+        var newSession = new TrainingSession
+        {
+            TrainingSessionID = Guid.NewGuid(),
+            TrainingProgramID = trainingSessionDTO.TrainingProgramID,
+            Date = trainingSessionDTO.Date,
+            Status = trainingSessionDTO.Status
+        };
 
-            int order = 0;
-            foreach (var mDto in trainingSessionDTO.Movements)
+        int order = 0;
+        foreach (var mDto in trainingSessionDTO.Movements)
+        {
+            // fetch the actual MovementBase entity so nav-prop is populated
+            var baseEntity = await _context.MovementBases.FindAsync(mDto.MovementBaseID)!;
+            if (baseEntity is null)
             {
-                // fetch the actual MovementBase entity so nav-prop is populated
-                var baseEntity = await _context.MovementBases.FindAsync(mDto.MovementBaseID)!;
-
-                var newMovement = new Movement {
-                    MovementID        = Guid.NewGuid(),
-                    TrainingSessionID = newSession.TrainingSessionID,
-                    MovementBaseID    = mDto.MovementBaseID,
-                    MovementBase      = baseEntity,            // ← set nav-prop
-                    Notes             = mDto.Notes,
-                    MovementModifier  = mDto.MovementModifier, // ← copy modifier
-                    IsCompleted       = mDto.IsCompleted,      // ← copy completion
-                    Ordering          = order++
-                };
-
-                foreach (var sDto in mDto.Sets)
-                {
-                    var newSet = new SetEntry {
-                        SetEntryID       = Guid.NewGuid(),
-                        MovementID       = newMovement.MovementID, // ← explicit FK
-                        RecommendedReps  = sDto.RecommendedReps,
-                        RecommendedWeight = sDto.RecommendedWeight,
-                        RecommendedRPE   = sDto.RecommendedRPE,
-                        WeightUnit       = sDto.WeightUnit,
-                        ActualReps       = sDto.ActualReps,
-                        ActualWeight     = sDto.ActualWeight,
-                        ActualRPE        = sDto.ActualRPE
-                    };
-                    newMovement.Sets.Add(newSet);
-                }
-
-                newSession.Movements.Add(newMovement);
+                return Result<TrainingSessionDTO>.Error($"MovementBaseID {mDto.MovementBaseID} not found.");
             }
 
-            // 3) Persist
-            await _context.TrainingSessions.AddAsync(newSession);
-            await _context.SaveChangesAsync();
+            var newMovement = new Movement
+            {
+                MovementID = Guid.NewGuid(),
+                TrainingSessionID = newSession.TrainingSessionID,
+                MovementBaseID = mDto.MovementBaseID,
+                MovementBase = baseEntity,            // ← set nav-prop
+                Notes = mDto.Notes,
+                MovementModifier = mDto.MovementModifier, // ← copy modifier
+                IsCompleted = mDto.IsCompleted,      // ← copy completion
+                Ordering = order++
+            };
 
-            // 4) Reload with nav-props so ToDTO() can see names & modifiers
-            var sessionWithNav = await _context.TrainingSessions
-            .AsNoTracking()
-            .Include(ts => ts.Movements)!
-                .ThenInclude(m => m.MovementBase)
-            .Include(ts => ts.Movements)!
-                .ThenInclude(m => m.MovementModifier)
-            .Include(ts => ts.Movements)!
-                .ThenInclude(m => m.Sets)
-            .FirstAsync(ts => ts.TrainingSessionID == newSession.TrainingSessionID);
+            foreach (var sDto in mDto.Sets)
+            {
+                var newSet = new SetEntry
+                {
+                    SetEntryID = Guid.NewGuid(),
+                    MovementID = newMovement.MovementID, // ← explicit FK
+                    RecommendedReps = sDto.RecommendedReps,
+                    RecommendedWeight = sDto.RecommendedWeight,
+                    RecommendedRPE = sDto.RecommendedRPE,
+                    WeightUnit = sDto.WeightUnit,
+                    ActualReps = sDto.ActualReps,
+                    ActualWeight = sDto.ActualWeight,
+                    ActualRPE = sDto.ActualRPE
+                };
+                newMovement.Sets.Add(newSet);
+            }
 
-            // 5) Return fully hydrated DTO
-            return Result<TrainingSessionDTO>.Created(
-            sessionWithNav.ToDTO(trainingSessionDTO.SessionNumber));
+            newSession.Movements.Add(newMovement);
         }
+
+        // 3) Persist
+        await _context.TrainingSessions.AddAsync(newSession);
+        await _context.SaveChangesAsync();
+
+        // 4) Reload with nav-props so ToDTO() can see names & modifiers
+        var sessionWithNav = await _context.TrainingSessions
+        .AsNoTracking()
+        .Include(ts => ts.Movements)!
+            .ThenInclude(m => m.MovementBase)
+        .Include(ts => ts.Movements)!
+            .ThenInclude(m => m.MovementModifier)
+        .Include(ts => ts.Movements)!
+            .ThenInclude(m => m.Sets)
+        .FirstAsync(ts => ts.TrainingSessionID == newSession.TrainingSessionID);
+
+        // 5) Return fully hydrated DTO
+        return Result<TrainingSessionDTO>.Created(
+        sessionWithNav.ToDTO(trainingSessionDTO.SessionNumber));
+    }
 
     /// <summary>
     ///  Get the next training session for a user and program.
@@ -321,7 +328,7 @@ public class TrainingSessionService : ITrainingSessionService
         return Result<List<TrainingSessionDTO>>.Success(sessionDTOs);
     }
 
-   
+
 
 
 }

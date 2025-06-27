@@ -248,8 +248,8 @@ public class TrainingProgramService : ITrainingProgramService
                 // no SessionNumber property on the entity
             };
 
-            int movementOrder = 0;
-            foreach (var mDto in sessionDto.Movements)
+           // int movementOrder = 0;
+            foreach (var movementDTO in sessionDto.Movements)
             {
                 var movementBase =  await _context.MovementBases.FindAsync(movementDTO.MovementBaseID);
                 if (movementBase is null)
@@ -270,7 +270,7 @@ public class TrainingProgramService : ITrainingProgramService
                 };
 
                 var setEntries = new List<SetEntry>();
-                foreach (var setEntryDTO in movementDTO.Sets)
+                foreach (var sDto in movementDTO.Sets)
                 {
                     var newSet = new SetEntry {
                         SetEntryID        = Guid.NewGuid(),
