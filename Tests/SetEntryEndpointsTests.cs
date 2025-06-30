@@ -157,7 +157,8 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Standard", Equipment = "Barbell", Duration = 0 },
-            Notes = "Test movement"
+            Notes = "Test movement",
+            WeightUnit = WeightUnit.Kilograms
         };
 
         var response = await client.PostAsJsonAsync("/api/movement/create", request);
@@ -187,7 +188,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 8.5,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8
@@ -202,7 +202,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Equal(request.RecommendedReps, setEntry.RecommendedReps);
         Assert.Equal(request.RecommendedWeight, setEntry.RecommendedWeight);
         Assert.Equal(request.RecommendedRPE, setEntry.RecommendedRPE);
-        Assert.Equal(request.WeightUnit, setEntry.WeightUnit);
         Assert.Equal(request.ActualReps, setEntry.ActualReps);
         Assert.Equal(request.ActualWeight, setEntry.ActualWeight);
         Assert.Equal(request.ActualRPE, setEntry.ActualRPE);
@@ -226,7 +225,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 8,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8.5
@@ -242,7 +240,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 6,
             RecommendedWeight = 105,
             RecommendedRPE = 10,
-            WeightUnit = WeightUnit.Pounds,
             ActualReps = 6,
             ActualWeight = 105,
             ActualRPE = 0.5
@@ -255,7 +252,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         Assert.NotNull(updated);
         Assert.Equal(updateRequest.SetEntryID, updated.SetEntryID);
         Assert.Equal(updateRequest.RecommendedReps, updated.RecommendedReps);
-        Assert.Equal(updateRequest.WeightUnit, updated.WeightUnit);
         Assert.Equal(updateRequest.ActualRPE, updated.ActualRPE);
     }
 
@@ -277,7 +273,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 8,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8
@@ -329,7 +324,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 11, // Invalid, should be 1-10
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8
@@ -345,7 +339,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 0, // Invalid, should be 1-10
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8
@@ -363,7 +356,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 1.7, // Invalid, should be 1-10
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8
@@ -386,7 +378,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 8,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8,
@@ -420,7 +411,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 8,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8
@@ -464,7 +454,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 8,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8
@@ -495,7 +484,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 8,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8
@@ -514,7 +502,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 6,
             RecommendedWeight = 105,
             RecommendedRPE = 9,
-            WeightUnit = WeightUnit.Pounds,
             ActualReps = 6,
             ActualWeight = 105,
             ActualRPE = 9
@@ -545,7 +532,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 5,
             RecommendedWeight = 100,
             RecommendedRPE = 8,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 5,
             ActualWeight = 100,
             ActualRPE = 8
@@ -591,7 +577,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 10,
             RecommendedWeight = 0,
             RecommendedRPE = 5,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 10,
             ActualWeight = 0,
             ActualRPE = 5
@@ -622,7 +607,6 @@ public class SetEntryEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             RecommendedReps = 1,
             RecommendedWeight = 50,
             RecommendedRPE = 1,
-            WeightUnit = WeightUnit.Kilograms,
             ActualReps = 100,
             ActualWeight = 50,
             ActualRPE = 10

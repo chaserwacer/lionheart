@@ -14,8 +14,6 @@ public class CreateSetEntryRequest : IValidatableObject
     [Range(0.5, 10.0)]
     public required double RecommendedRPE { get; init; }
 
-    [Required]
-    public required WeightUnit WeightUnit { get; init; }
 
     [Required]
     public required int ActualReps { get; init; }
@@ -65,8 +63,6 @@ public class UpdateSetEntryRequest : IValidatableObject
     [Range(0.5, 10.0)]
     public required double RecommendedRPE { get; init; }
 
-    [Required]
-    public required WeightUnit WeightUnit { get; init; }
 
     [Required]
     public required int ActualReps { get; init; }
@@ -108,7 +104,6 @@ public class SetEntryDTO
     public int RecommendedReps { get; set; }
     public double RecommendedWeight { get; set; }
     public double RecommendedRPE { get; set; }
-    public WeightUnit WeightUnit { get; set; }
     public int ActualReps { get; set; }
     public double ActualWeight { get; set; }
     public double ActualRPE { get; set; }

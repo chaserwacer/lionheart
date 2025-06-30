@@ -80,7 +80,8 @@ public class MovementService : IMovementService
             MovementModifier = request.MovementModifier,
             IsCompleted = false,
             MovementBase = movementBase,
-            Ordering = maxOrdering + 1
+            Ordering = maxOrdering + 1,
+            WeightUnit = request.WeightUnit
         };
         var x = movement.MovementBaseID;
         _context.Movements.Add(movement);
@@ -121,6 +122,7 @@ public class MovementService : IMovementService
         movement.Notes = request.Notes;
         movement.MovementModifier = request.MovementModifier;
         movement.IsCompleted = request.IsCompleted;
+        movement.WeightUnit = request.WeightUnit;
 
         await _context.SaveChangesAsync();
         return Result<MovementDTO>.Success(movement.ToDTO());

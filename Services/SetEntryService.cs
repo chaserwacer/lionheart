@@ -49,7 +49,6 @@ public class SetEntryService : ISetEntryService
             RecommendedReps = request.RecommendedReps,
             RecommendedWeight = request.RecommendedWeight,
             RecommendedRPE = request.RecommendedRPE,
-            WeightUnit = request.WeightUnit,
             ActualReps = request.ActualReps,
             ActualWeight = request.ActualWeight,
             ActualRPE = request.ActualRPE
@@ -82,7 +81,6 @@ public class SetEntryService : ISetEntryService
         
             setEntry.RecommendedRPE = request.RecommendedRPE;
         
-            setEntry.WeightUnit = request.WeightUnit;
         
             setEntry.ActualReps = request.ActualReps;
         

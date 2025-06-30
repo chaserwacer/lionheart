@@ -143,7 +143,8 @@ public class HierarchicalInclusionEndpointsTests : IClassFixture<WebApplicationF
                 TrainingSessionID = sessionId,
                 MovementBaseID = movementBase.MovementBaseID,
                 MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 },
-                Notes = $"Movement for session {sessionId}"
+                Notes = $"Movement for session {sessionId}",
+                WeightUnit = WeightUnit.Kilograms,
             };
             var movementResponse = await _client.PostAsJsonAsync("/api/movement/create", movementRequest);
             movementResponse.EnsureSuccessStatusCode();
@@ -158,7 +159,6 @@ public class HierarchicalInclusionEndpointsTests : IClassFixture<WebApplicationF
                 RecommendedReps = 5,
                 RecommendedWeight = 100,
                 RecommendedRPE = 8,
-                WeightUnit = WeightUnit.Kilograms,
                 ActualReps = 5,
                 ActualWeight = 100,
                 ActualRPE = 8

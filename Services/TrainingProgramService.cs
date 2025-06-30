@@ -199,8 +199,7 @@ public class TrainingProgramService : ITrainingProgramService
                         ActualRPE = setEntryRequest.ActualRPE,
                         RecommendedReps = setEntryRequest.RecommendedReps,
                         RecommendedWeight = setEntryRequest.RecommendedWeight,
-                        RecommendedRPE = setEntryRequest.RecommendedRPE,
-                        WeightUnit = setEntryRequest.WeightUnit
+                        RecommendedRPE = setEntryRequest.RecommendedRPE
                     };
 
                     _context.SetEntries.Add(setEntry);
@@ -278,7 +277,6 @@ public class TrainingProgramService : ITrainingProgramService
                         RecommendedReps   = sDto.RecommendedReps,
                         RecommendedWeight = sDto.RecommendedWeight,
                         RecommendedRPE    = sDto.RecommendedRPE,
-                        WeightUnit        = sDto.WeightUnit,
                         ActualReps        = sDto.ActualReps,
                         ActualWeight      = sDto.ActualWeight,
                         ActualRPE         = sDto.ActualRPE
