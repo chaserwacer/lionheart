@@ -237,7 +237,6 @@ public class TrainingSessionService : ITrainingSessionService
                     RecommendedReps = sDto.RecommendedReps,
                     RecommendedWeight = sDto.RecommendedWeight,
                     RecommendedRPE = sDto.RecommendedRPE,
-                    WeightUnit = sDto.WeightUnit,
                     ActualReps = sDto.ActualReps,
                     ActualWeight = sDto.ActualWeight,
                     ActualRPE = sDto.ActualRPE

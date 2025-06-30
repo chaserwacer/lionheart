@@ -14,7 +14,8 @@ public class CreateMovementRequest
 
     [Required]
     public required Guid TrainingSessionID { get; init; }
-
+    [Required]
+    public required WeightUnit WeightUnit { get; set; }
 
 }
 
@@ -35,6 +36,8 @@ public class UpdateMovementRequest
     public required Guid TrainingSessionID { get; init; }
     [Required]
     public required bool IsCompleted { get; init; }
+    [Required]
+    public required WeightUnit WeightUnit { get; set; }
 
 
 }
@@ -63,7 +66,7 @@ public class MovementDTO
     public Guid MovementBaseID { get; set; }
     public MovementBase MovementBase { get; set; } = new();
     public MovementModifier MovementModifier { get; set; } = new();
-
+    public WeightUnit WeightUnit { get; set; }
     public List<SetEntryDTO> Sets { get; set; } = [];
     public string Notes { get; set; } = string.Empty;
     public bool IsCompleted { get; set; } = false;

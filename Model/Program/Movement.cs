@@ -28,6 +28,7 @@ public class Movement
     public string Notes { get; set; } = string.Empty;
     public bool IsCompleted { get; set; } = false;
     public required int Ordering { get; set; } 
+    public WeightUnit WeightUnit { get; set; }
 
     public MovementDTO ToDTO()
     {
@@ -81,7 +82,6 @@ public class SetEntry
     public int RecommendedReps { get; set; }
     public double RecommendedWeight { get; set; }
     public double RecommendedRPE { get; set; }
-    public WeightUnit WeightUnit { get; set; }
     public int ActualReps { get; set; }
     public double ActualWeight { get; set; }
     public double ActualRPE { get; set; }
@@ -95,7 +95,6 @@ public class SetEntry
             RecommendedReps = RecommendedReps,
             RecommendedWeight = RecommendedWeight,
             RecommendedRPE = RecommendedRPE,
-            WeightUnit = WeightUnit,
             ActualReps = ActualReps,
             ActualWeight = ActualWeight,
             ActualRPE = ActualRPE

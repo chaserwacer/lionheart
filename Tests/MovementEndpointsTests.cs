@@ -163,7 +163,8 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 },
-            Notes = ""
+            Notes = "",
+            WeightUnit = WeightUnit.Kilograms
         };
 
         var response = await _client.PostAsJsonAsync("/api/movement/create", request);
@@ -174,6 +175,7 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Equal(sessionId, movement.TrainingSessionID);
         Assert.Equal(movementBaseId, movement.MovementBaseID);
         Assert.Equal("Paused", movement.MovementModifier.Name);
+        Assert.Equal(WeightUnit.Kilograms, movement.WeightUnit);
         Assert.Equal("", movement.Notes);
         Assert.False(movement.IsCompleted);
     }
@@ -211,14 +213,16 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId1,
             MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 },
-            Notes = "Good set"
+            Notes = "Good set",
+            WeightUnit = WeightUnit.Kilograms
         };
         var request2 = new CreateMovementRequest
         {
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId2,
             MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 },
-            Notes = "Solid"
+            Notes = "Solid",
+            WeightUnit = WeightUnit.Kilograms
         };
 
         var response1 = await _client.PostAsJsonAsync("/api/movement/create", request1);
@@ -256,7 +260,8 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 },
-            Notes = "Heavy"
+            Notes = "Heavy",
+            WeightUnit = WeightUnit.Kilograms
         };
         var createResponse = await _client.PostAsJsonAsync("/api/movement/create", createRequest);
         var created = await createResponse.Content.ReadFromJsonAsync<MovementDTO>();
@@ -269,7 +274,8 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Sumo", Equipment = "Barbell", Duration = 0 },
             Notes = "Switched to sumo",
-            IsCompleted = true
+            IsCompleted = true,
+            WeightUnit = WeightUnit.Kilograms
         };
 
         var response = await _client.PutAsJsonAsync("/api/movement/update", updateRequest);
@@ -297,7 +303,8 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Bodyweight", Equipment = "None", Duration = 0 },
-            Notes = "Easy"
+            Notes = "Easy",
+            WeightUnit = WeightUnit.Kilograms
         };
         var createResponse = await _client.PostAsJsonAsync("/api/movement/create", createRequest);
         var created = await createResponse.Content.ReadFromJsonAsync<MovementDTO>();
@@ -324,9 +331,9 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         var movementBaseId3 = await CreateMovementBase(_testUserId, "Deadlift");
 
         // Create three movements
-        var req1 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId1, MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 }, Notes = "" };
-        var req2 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId2, MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 }, Notes = "" };
-        var req3 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId3, MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 }, Notes = "" };
+        var req1 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId1, MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 }, Notes = "",WeightUnit = WeightUnit.Kilograms };
+        var req2 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId2, MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 }, Notes = "",WeightUnit = WeightUnit.Kilograms };
+        var req3 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId3, MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 }, Notes = "",WeightUnit = WeightUnit.Kilograms };
 
         var resp1 = await _client.PostAsJsonAsync("/api/movement/create", req1);
         var resp2 = await _client.PostAsJsonAsync("/api/movement/create", req2);
@@ -367,9 +374,9 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         var movementBaseId3 = await CreateMovementBase(_testUserId, "Deadlift");
 
         // Create three movements
-        var req1 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId1, MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 }, Notes = "" };
-        var req2 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId2, MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 }, Notes = "" };
-        var req3 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId3, MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 }, Notes = "" };
+        var req1 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId1, MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 }, Notes = "", WeightUnit = WeightUnit.Kilograms };
+        var req2 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId2, MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 }, Notes = "",WeightUnit = WeightUnit.Kilograms };
+        var req3 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId3, MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 }, Notes = "",WeightUnit = WeightUnit.Kilograms };
 
         var resp1 = await _client.PostAsJsonAsync("/api/movement/create", req1);
         var resp2 = await _client.PostAsJsonAsync("/api/movement/create", req2);
@@ -450,6 +457,7 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
 
         var request = new
         {
+            WeightUnit = WeightUnit.Kilograms,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 },
             // Notes missing
@@ -473,8 +481,9 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         {
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 },
-            Notes = "Missing TrainingSessionID"
-            // TrainingSessionID missing
+            Notes = "Missing TrainingSessionID",
+            // TrainingSessionID missing,
+            WeightUnit = WeightUnit.Kilograms
         };
 
         var response = await _client.PostAsJsonAsync("/api/movement/create", request);
@@ -499,7 +508,8 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 },
             Notes = "Missing MovementID",
             TrainingSessionID = sessionId,
-            IsCompleted = false
+            IsCompleted = false,
+            WeightUnit = WeightUnit.Kilograms
         };
 
         var response = await _client.PutAsJsonAsync("/api/movement/update", request);
@@ -523,7 +533,8 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 },
-            Notes = "For update"
+            Notes = "For update",
+            WeightUnit = WeightUnit.Kilograms
         };
         var createResponse = await _client.PostAsJsonAsync("/api/movement/create", createRequest);
         var created = await createResponse.Content.ReadFromJsonAsync<MovementDTO>();
@@ -582,7 +593,8 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 },
-            Notes = "Should not be allowed"
+            Notes = "Should not be allowed",
+            WeightUnit = WeightUnit.Kilograms
         };
 
         // Act
@@ -611,7 +623,8 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 },
-            Notes = "Other's movement"
+            Notes = "Other's movement",
+            WeightUnit = WeightUnit.Kilograms
         };
         var createResponse = await _client.PostAsJsonAsync("/api/movement/create", createRequest);
         var created = await createResponse.Content.ReadFromJsonAsync<MovementDTO>();
@@ -627,7 +640,8 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Low Bar", Equipment = "Barbell", Duration = 0 },
             Notes = "Trying to hack",
-            IsCompleted = true
+            IsCompleted = true,
+            WeightUnit = WeightUnit.Kilograms
         };
 
         var response = await _client.PutAsJsonAsync("/api/movement/update", updateRequest);
@@ -655,7 +669,9 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 },
-            Notes = "Other's movement"
+            Notes = "Other's movement",
+            WeightUnit = WeightUnit.Kilograms,
+
         };
         var createResponse = await _client.PostAsJsonAsync("/api/movement/create", createRequest);
         var created = await createResponse.Content.ReadFromJsonAsync<MovementDTO>();
@@ -707,7 +723,9 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
             TrainingSessionID = sessionId,
             MovementBaseID = movementBaseId,
             MovementModifier = new MovementModifier { Name = "Weighted", Equipment = "Plate", Duration = 0 },
-            Notes = "🔥💪 Special chars! @#%&*"
+            Notes = "🔥💪 Special chars! @#%&*",
+            WeightUnit = WeightUnit.Kilograms,
+
         };
 
         var response = await _client.PostAsJsonAsync("/api/movement/create", request);
