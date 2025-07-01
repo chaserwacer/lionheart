@@ -478,11 +478,11 @@
       <div
         class="stats shadow bg-primary text-primary-content hover:shadow-xl m-0"
       >
-        <div class="stat">
+        <!-- <div class="stat">
           <div class="stat-title text-primary-content">Activity Minutes</div>
           <div class="stat-value">{lastWeeksActivityMinutes}</div>
           <div class="stat-desc text-primary-content">In the last 7 days</div>
-        </div>
+        </div> -->
         <div class="stat">
           <div class="stat-title text-primary-content">Activity Ratio</div>
           <div class="stat-value">
@@ -570,7 +570,7 @@
                     <span class="font-semibold">{m.movementBase?.name}</span>:
                     {#if m.sets?.[0]}
                       {m.sets[0].recommendedReps}×{m.sets[0].recommendedWeight}
-                      {m.sets[0].weightUnit === 0 ? 'kg' : 'lbs'} @ RPE
+                       @ RPE
                       {m.sets[0].recommendedRPE}
                     {:else}
                       <em>No sets defined</em>
@@ -598,7 +598,7 @@
                     <span class="font-semibold">{m.movementBase?.name}</span>:
                     {#if m.sets?.[0]}
                       {m.sets[0].recommendedReps}×{m.sets[0].recommendedWeight}
-                      {m.sets[0].weightUnit === 0 ? 'kg' : 'lbs'} @ RPE
+                       @ RPE
                       {m.sets[0].recommendedRPE}
                     {:else}
                       <em>No sets defined</em>

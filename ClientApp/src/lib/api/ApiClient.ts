@@ -5215,15 +5215,15 @@ export interface IMovementBase {
 }
 
 export class MovementDTO implements IMovementDTO {
-    movementID?: string;
-    trainingSessionID?: string;
-    movementBaseID?: string;
-    movementBase?: MovementBase;
-    movementModifier?: MovementModifier;
-    weightUnit?: WeightUnit;
-    sets?: SetEntryDTO[] | undefined;
-    notes?: string | undefined;
-    isCompleted?: boolean;
+    movementID!: string;
+    trainingSessionID!: string;
+    movementBaseID!: string;
+    movementBase!: MovementBase;
+    movementModifier!: MovementModifier;
+    weightUnit!: WeightUnit;
+    sets!: SetEntryDTO[];
+    notes!: string | undefined;
+    isCompleted!: boolean;
 
     constructor(data?: IMovementDTO) {
         if (data) {
@@ -5232,6 +5232,11 @@ export class MovementDTO implements IMovementDTO {
                     (<any>this)[property] = (<any>data)[property];
             }
         }
+        if (!data) {
+            this.movementBase = new MovementBase();
+            this.movementModifier = new MovementModifier();
+            this.sets = [];
+        }
     }
 
     init(_data?: any) {
@@ -5239,8 +5244,8 @@ export class MovementDTO implements IMovementDTO {
             this.movementID = _data["movementID"];
             this.trainingSessionID = _data["trainingSessionID"];
             this.movementBaseID = _data["movementBaseID"];
-            this.movementBase = _data["movementBase"] ? MovementBase.fromJS(_data["movementBase"]) : <any>undefined;
-            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : <any>undefined;
+            this.movementBase = _data["movementBase"] ? MovementBase.fromJS(_data["movementBase"]) : new MovementBase();
+            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : new MovementModifier();
             this.weightUnit = _data["weightUnit"];
             if (Array.isArray(_data["sets"])) {
                 this.sets = [] as any;
@@ -5279,15 +5284,15 @@ export class MovementDTO implements IMovementDTO {
 }
 
 export interface IMovementDTO {
-    movementID?: string;
-    trainingSessionID?: string;
-    movementBaseID?: string;
-    movementBase?: MovementBase;
-    movementModifier?: MovementModifier;
-    weightUnit?: WeightUnit;
-    sets?: SetEntryDTO[] | undefined;
-    notes?: string | undefined;
-    isCompleted?: boolean;
+    movementID: string;
+    trainingSessionID: string;
+    movementBaseID: string;
+    movementBase: MovementBase;
+    movementModifier: MovementModifier;
+    weightUnit: WeightUnit;
+    sets: SetEntryDTO[];
+    notes: string | undefined;
+    isCompleted: boolean;
 }
 
 export class MovementModifier implements IMovementModifier {
@@ -5923,14 +5928,14 @@ export interface ISetEntry {
 }
 
 export class SetEntryDTO implements ISetEntryDTO {
-    setEntryID?: string;
-    movementID?: string;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
-    actualReps?: number;
-    actualWeight?: number;
-    actualRPE?: number;
+    setEntryID!: string;
+    movementID!: string;
+    recommendedReps!: number;
+    recommendedWeight!: number;
+    recommendedRPE!: number;
+    actualReps!: number;
+    actualWeight!: number;
+    actualRPE!: number;
 
     constructor(data?: ISetEntryDTO) {
         if (data) {
@@ -5976,14 +5981,14 @@ export class SetEntryDTO implements ISetEntryDTO {
 }
 
 export interface ISetEntryDTO {
-    setEntryID?: string;
-    movementID?: string;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
-    actualReps?: number;
-    actualWeight?: number;
-    actualRPE?: number;
+    setEntryID: string;
+    movementID: string;
+    recommendedReps: number;
+    recommendedWeight: number;
+    recommendedRPE: number;
+    actualReps: number;
+    actualWeight: number;
+    actualRPE: number;
 }
 
 export class SleepData implements ISleepData {
@@ -6131,13 +6136,13 @@ export interface ITrainingProgram {
 }
 
 export class TrainingProgramDTO implements ITrainingProgramDTO {
-    trainingProgramID?: string;
-    title?: string | undefined;
-    startDate?: Date;
-    nextTrainingSessionDate?: Date;
-    endDate?: Date;
-    trainingSessions?: TrainingSessionDTO[] | undefined;
-    tags?: string[] | undefined;
+    trainingProgramID!: string;
+    title!: string | undefined;
+    startDate!: Date;
+    nextTrainingSessionDate!: Date;
+    endDate!: Date;
+    trainingSessions!: TrainingSessionDTO[] | undefined;
+    tags!: string[] | undefined;
 
     constructor(data?: ITrainingProgramDTO) {
         if (data) {
@@ -6197,13 +6202,13 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
 }
 
 export interface ITrainingProgramDTO {
-    trainingProgramID?: string;
-    title?: string | undefined;
-    startDate?: Date;
-    nextTrainingSessionDate?: Date;
-    endDate?: Date;
-    trainingSessions?: TrainingSessionDTO[] | undefined;
-    tags?: string[] | undefined;
+    trainingProgramID: string;
+    title: string | undefined;
+    startDate: Date;
+    nextTrainingSessionDate: Date;
+    endDate: Date;
+    trainingSessions: TrainingSessionDTO[] | undefined;
+    tags: string[] | undefined;
 }
 
 export class TrainingSession implements ITrainingSession {
@@ -6271,12 +6276,12 @@ export interface ITrainingSession {
 }
 
 export class TrainingSessionDTO implements ITrainingSessionDTO {
-    trainingSessionID?: string;
-    trainingProgramID?: string;
-    sessionNumber?: number;
-    date?: Date;
-    status?: TrainingSessionStatus;
-    movements?: MovementDTO[] | undefined;
+    trainingSessionID!: string;
+    trainingProgramID!: string;
+    sessionNumber!: number;
+    date!: Date;
+    status!: TrainingSessionStatus;
+    movements!: MovementDTO[];
 
     constructor(data?: ITrainingSessionDTO) {
         if (data) {
@@ -6284,6 +6289,9 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
+        }
+        if (!data) {
+            this.movements = [];
         }
     }
 
@@ -6326,12 +6334,12 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
 }
 
 export interface ITrainingSessionDTO {
-    trainingSessionID?: string;
-    trainingProgramID?: string;
-    sessionNumber?: number;
-    date?: Date;
-    status?: TrainingSessionStatus;
-    movements?: MovementDTO[] | undefined;
+    trainingSessionID: string;
+    trainingProgramID: string;
+    sessionNumber: number;
+    date: Date;
+    status: TrainingSessionStatus;
+    movements: MovementDTO[];
 }
 
 export enum TrainingSessionStatus {

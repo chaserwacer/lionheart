@@ -4,7 +4,7 @@ using ModelContextProtocol.Server;
 
 public class GeneratePopulatedTrainingProgramRequest
 {
-    public required TrainingProgramDTO TrainingProgram { get; set; } = new TrainingProgramDTO();
+    public required TrainingProgramDTO TrainingProgram { get; set; }
     public required List<GeneratePopulatedTrainingSessionRequest> GenerateTrainingSessionsRequests { get; set; } = new List<GeneratePopulatedTrainingSessionRequest>();
 
 

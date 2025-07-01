@@ -61,15 +61,16 @@ public class UpdateMovementsCompletionRequest
 
 public class MovementDTO
 {
-    public Guid MovementID { get; init; }
-    public Guid TrainingSessionID { get; init; }
-    public Guid MovementBaseID { get; set; }
-    public MovementBase MovementBase { get; set; } = new();
-    public MovementModifier MovementModifier { get; set; } = new();
-    public WeightUnit WeightUnit { get; set; }
-    public List<SetEntryDTO> Sets { get; set; } = [];
-    public string Notes { get; set; } = string.Empty;
-    public bool IsCompleted { get; set; } = false;
+    public required Guid MovementID { get; init; }
+    public required Guid TrainingSessionID { get; init; }
+    public required Guid MovementBaseID { get; set; }
+    public required MovementBase MovementBase { get; set; } = new();
+    public required MovementModifier MovementModifier { get; set; } = new();
+    public required WeightUnit WeightUnit { get; set; }
+    [Required]
+    public required List<SetEntryDTO> Sets { get; set; } = [];
+    public required string Notes { get; set; } = string.Empty;
+    public required bool IsCompleted { get; set; } = false;
     
 }
 

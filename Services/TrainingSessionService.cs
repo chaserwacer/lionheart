@@ -165,7 +165,24 @@ public class TrainingSessionService : ITrainingSessionService
             .CountAsync(ts => ts.Date < session.Date ||
                             (ts.Date == session.Date && ts.TrainingSessionID.CompareTo(session.TrainingSessionID) <= 0));
 
-        return Result<TrainingSessionDTO>.Success(session.ToDTO(sessionNumber));
+        // Reload the session with all navigation properties
+        var hydratedSession = await _context.TrainingSessions
+            .AsNoTracking()
+            .Include(ts => ts.TrainingProgram)
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.Sets)
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.MovementBase)
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.MovementModifier)
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == session.TrainingSessionID);
+
+        if (hydratedSession is null)
+        {
+            return Result<TrainingSessionDTO>.NotFound("Training session not found after update.");
+        }
+
+        return Result<TrainingSessionDTO>.Success(hydratedSession.ToDTO(sessionNumber));
     }
 
     [McpServerTool, Description("Delete a training session.")]
