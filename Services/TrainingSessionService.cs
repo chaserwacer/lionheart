@@ -188,6 +188,7 @@ public class TrainingSessionService : ITrainingSessionService
     }
 
 
+    [McpServerTool, Description("create new session with movements.")]
     public async Task<Result<TrainingSessionDTO>> CreateTrainingSessionFromJSON(
             IdentityUser user,
             TrainingSessionDTO trainingSessionDTO)
