@@ -41,7 +41,8 @@ public class Movement
             MovementModifier = MovementModifier,
             Sets = Sets.Select(set => set.ToDTO()).ToList(),
             Notes = Notes,
-            IsCompleted = IsCompleted
+            IsCompleted = IsCompleted,
+            WeightUnit = WeightUnit
         };
     }
     

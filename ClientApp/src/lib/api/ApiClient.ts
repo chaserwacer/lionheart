@@ -3848,6 +3848,7 @@ export class CreateMovementRequest implements ICreateMovementRequest {
     movementModifier!: MovementModifier;
     notes!: string;
     trainingSessionID!: string;
+    weightUnit!: WeightUnit;
 
     constructor(data?: ICreateMovementRequest) {
         if (data) {
@@ -3867,6 +3868,7 @@ export class CreateMovementRequest implements ICreateMovementRequest {
             this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : new MovementModifier();
             this.notes = _data["notes"];
             this.trainingSessionID = _data["trainingSessionID"];
+            this.weightUnit = _data["weightUnit"];
         }
     }
 
@@ -3883,6 +3885,7 @@ export class CreateMovementRequest implements ICreateMovementRequest {
         data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
         data["notes"] = this.notes;
         data["trainingSessionID"] = this.trainingSessionID;
+        data["weightUnit"] = this.weightUnit;
         return data;
     }
 }
@@ -3892,6 +3895,7 @@ export interface ICreateMovementRequest {
     movementModifier: MovementModifier;
     notes: string;
     trainingSessionID: string;
+    weightUnit: WeightUnit;
 }
 
 export class CreatePersonalApiAccessTokenRequest implements ICreatePersonalApiAccessTokenRequest {
@@ -4169,7 +4173,6 @@ export class CreateSetEntryRequest implements ICreateSetEntryRequest {
     recommendedReps!: number;
     recommendedWeight!: number;
     recommendedRPE!: number;
-    weightUnit!: WeightUnit;
     actualReps!: number;
     actualWeight!: number;
     actualRPE!: number;
@@ -4189,7 +4192,6 @@ export class CreateSetEntryRequest implements ICreateSetEntryRequest {
             this.recommendedReps = _data["recommendedReps"];
             this.recommendedWeight = _data["recommendedWeight"];
             this.recommendedRPE = _data["recommendedRPE"];
-            this.weightUnit = _data["weightUnit"];
             this.actualReps = _data["actualReps"];
             this.actualWeight = _data["actualWeight"];
             this.actualRPE = _data["actualRPE"];
@@ -4209,7 +4211,6 @@ export class CreateSetEntryRequest implements ICreateSetEntryRequest {
         data["recommendedReps"] = this.recommendedReps;
         data["recommendedWeight"] = this.recommendedWeight;
         data["recommendedRPE"] = this.recommendedRPE;
-        data["weightUnit"] = this.weightUnit;
         data["actualReps"] = this.actualReps;
         data["actualWeight"] = this.actualWeight;
         data["actualRPE"] = this.actualRPE;
@@ -4222,7 +4223,6 @@ export interface ICreateSetEntryRequest {
     recommendedReps: number;
     recommendedWeight: number;
     recommendedRPE: number;
-    weightUnit: WeightUnit;
     actualReps: number;
     actualWeight: number;
     actualRPE: number;
@@ -5101,6 +5101,7 @@ export class Movement implements IMovement {
     notes?: string | undefined;
     isCompleted?: boolean;
     ordering!: number;
+    weightUnit?: WeightUnit;
 
     constructor(data?: IMovement) {
         if (data) {
@@ -5127,6 +5128,7 @@ export class Movement implements IMovement {
             this.notes = _data["notes"];
             this.isCompleted = _data["isCompleted"];
             this.ordering = _data["ordering"];
+            this.weightUnit = _data["weightUnit"];
         }
     }
 
@@ -5153,6 +5155,7 @@ export class Movement implements IMovement {
         data["notes"] = this.notes;
         data["isCompleted"] = this.isCompleted;
         data["ordering"] = this.ordering;
+        data["weightUnit"] = this.weightUnit;
         return data;
     }
 }
@@ -5168,6 +5171,7 @@ export interface IMovement {
     notes?: string | undefined;
     isCompleted?: boolean;
     ordering: number;
+    weightUnit?: WeightUnit;
 }
 
 export class MovementBase implements IMovementBase {
@@ -5211,14 +5215,15 @@ export interface IMovementBase {
 }
 
 export class MovementDTO implements IMovementDTO {
-    movementID?: string;
-    trainingSessionID?: string;
-    movementBaseID?: string;
-    movementBase?: MovementBase;
-    movementModifier?: MovementModifier;
-    sets?: SetEntryDTO[] | undefined;
-    notes?: string | undefined;
-    isCompleted?: boolean;
+    movementID!: string;
+    trainingSessionID!: string;
+    movementBaseID!: string;
+    movementBase!: MovementBase;
+    movementModifier!: MovementModifier;
+    weightUnit!: WeightUnit;
+    sets!: SetEntryDTO[];
+    notes!: string | undefined;
+    isCompleted!: boolean;
 
     constructor(data?: IMovementDTO) {
         if (data) {
@@ -5227,6 +5232,11 @@ export class MovementDTO implements IMovementDTO {
                     (<any>this)[property] = (<any>data)[property];
             }
         }
+        if (!data) {
+            this.movementBase = new MovementBase();
+            this.movementModifier = new MovementModifier();
+            this.sets = [];
+        }
     }
 
     init(_data?: any) {
@@ -5234,8 +5244,9 @@ export class MovementDTO implements IMovementDTO {
             this.movementID = _data["movementID"];
             this.trainingSessionID = _data["trainingSessionID"];
             this.movementBaseID = _data["movementBaseID"];
-            this.movementBase = _data["movementBase"] ? MovementBase.fromJS(_data["movementBase"]) : <any>undefined;
-            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : <any>undefined;
+            this.movementBase = _data["movementBase"] ? MovementBase.fromJS(_data["movementBase"]) : new MovementBase();
+            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : new MovementModifier();
+            this.weightUnit = _data["weightUnit"];
             if (Array.isArray(_data["sets"])) {
                 this.sets = [] as any;
                 for (let item of _data["sets"])
@@ -5260,6 +5271,7 @@ export class MovementDTO implements IMovementDTO {
         data["movementBaseID"] = this.movementBaseID;
         data["movementBase"] = this.movementBase ? this.movementBase.toJSON() : <any>undefined;
         data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        data["weightUnit"] = this.weightUnit;
         if (Array.isArray(this.sets)) {
             data["sets"] = [];
             for (let item of this.sets)
@@ -5272,14 +5284,15 @@ export class MovementDTO implements IMovementDTO {
 }
 
 export interface IMovementDTO {
-    movementID?: string;
-    trainingSessionID?: string;
-    movementBaseID?: string;
-    movementBase?: MovementBase;
-    movementModifier?: MovementModifier;
-    sets?: SetEntryDTO[] | undefined;
-    notes?: string | undefined;
-    isCompleted?: boolean;
+    movementID: string;
+    trainingSessionID: string;
+    movementBaseID: string;
+    movementBase: MovementBase;
+    movementModifier: MovementModifier;
+    weightUnit: WeightUnit;
+    sets: SetEntryDTO[];
+    notes: string | undefined;
+    isCompleted: boolean;
 }
 
 export class MovementModifier implements IMovementModifier {
@@ -5853,7 +5866,6 @@ export class SetEntry implements ISetEntry {
     recommendedReps?: number;
     recommendedWeight?: number;
     recommendedRPE?: number;
-    weightUnit?: WeightUnit;
     actualReps?: number;
     actualWeight?: number;
     actualRPE?: number;
@@ -5875,7 +5887,6 @@ export class SetEntry implements ISetEntry {
             this.recommendedReps = _data["recommendedReps"];
             this.recommendedWeight = _data["recommendedWeight"];
             this.recommendedRPE = _data["recommendedRPE"];
-            this.weightUnit = _data["weightUnit"];
             this.actualReps = _data["actualReps"];
             this.actualWeight = _data["actualWeight"];
             this.actualRPE = _data["actualRPE"];
@@ -5897,7 +5908,6 @@ export class SetEntry implements ISetEntry {
         data["recommendedReps"] = this.recommendedReps;
         data["recommendedWeight"] = this.recommendedWeight;
         data["recommendedRPE"] = this.recommendedRPE;
-        data["weightUnit"] = this.weightUnit;
         data["actualReps"] = this.actualReps;
         data["actualWeight"] = this.actualWeight;
         data["actualRPE"] = this.actualRPE;
@@ -5912,22 +5922,20 @@ export interface ISetEntry {
     recommendedReps?: number;
     recommendedWeight?: number;
     recommendedRPE?: number;
-    weightUnit?: WeightUnit;
     actualReps?: number;
     actualWeight?: number;
     actualRPE?: number;
 }
 
 export class SetEntryDTO implements ISetEntryDTO {
-    setEntryID?: string;
-    movementID?: string;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
-    weightUnit?: WeightUnit;
-    actualReps?: number;
-    actualWeight?: number;
-    actualRPE?: number;
+    setEntryID!: string;
+    movementID!: string;
+    recommendedReps!: number;
+    recommendedWeight!: number;
+    recommendedRPE!: number;
+    actualReps!: number;
+    actualWeight!: number;
+    actualRPE!: number;
 
     constructor(data?: ISetEntryDTO) {
         if (data) {
@@ -5945,7 +5953,6 @@ export class SetEntryDTO implements ISetEntryDTO {
             this.recommendedReps = _data["recommendedReps"];
             this.recommendedWeight = _data["recommendedWeight"];
             this.recommendedRPE = _data["recommendedRPE"];
-            this.weightUnit = _data["weightUnit"];
             this.actualReps = _data["actualReps"];
             this.actualWeight = _data["actualWeight"];
             this.actualRPE = _data["actualRPE"];
@@ -5966,7 +5973,6 @@ export class SetEntryDTO implements ISetEntryDTO {
         data["recommendedReps"] = this.recommendedReps;
         data["recommendedWeight"] = this.recommendedWeight;
         data["recommendedRPE"] = this.recommendedRPE;
-        data["weightUnit"] = this.weightUnit;
         data["actualReps"] = this.actualReps;
         data["actualWeight"] = this.actualWeight;
         data["actualRPE"] = this.actualRPE;
@@ -5975,15 +5981,14 @@ export class SetEntryDTO implements ISetEntryDTO {
 }
 
 export interface ISetEntryDTO {
-    setEntryID?: string;
-    movementID?: string;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
-    weightUnit?: WeightUnit;
-    actualReps?: number;
-    actualWeight?: number;
-    actualRPE?: number;
+    setEntryID: string;
+    movementID: string;
+    recommendedReps: number;
+    recommendedWeight: number;
+    recommendedRPE: number;
+    actualReps: number;
+    actualWeight: number;
+    actualRPE: number;
 }
 
 export class SleepData implements ISleepData {
@@ -6131,13 +6136,13 @@ export interface ITrainingProgram {
 }
 
 export class TrainingProgramDTO implements ITrainingProgramDTO {
-    trainingProgramID?: string;
-    title?: string | undefined;
-    startDate?: Date;
-    nextTrainingSessionDate?: Date;
-    endDate?: Date;
-    trainingSessions?: TrainingSessionDTO[] | undefined;
-    tags?: string[] | undefined;
+    trainingProgramID!: string;
+    title!: string | undefined;
+    startDate!: Date;
+    nextTrainingSessionDate!: Date;
+    endDate!: Date;
+    trainingSessions!: TrainingSessionDTO[] | undefined;
+    tags!: string[] | undefined;
 
     constructor(data?: ITrainingProgramDTO) {
         if (data) {
@@ -6197,13 +6202,13 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
 }
 
 export interface ITrainingProgramDTO {
-    trainingProgramID?: string;
-    title?: string | undefined;
-    startDate?: Date;
-    nextTrainingSessionDate?: Date;
-    endDate?: Date;
-    trainingSessions?: TrainingSessionDTO[] | undefined;
-    tags?: string[] | undefined;
+    trainingProgramID: string;
+    title: string | undefined;
+    startDate: Date;
+    nextTrainingSessionDate: Date;
+    endDate: Date;
+    trainingSessions: TrainingSessionDTO[] | undefined;
+    tags: string[] | undefined;
 }
 
 export class TrainingSession implements ITrainingSession {
@@ -6271,12 +6276,12 @@ export interface ITrainingSession {
 }
 
 export class TrainingSessionDTO implements ITrainingSessionDTO {
-    trainingSessionID?: string;
-    trainingProgramID?: string;
-    sessionNumber?: number;
-    date?: Date;
-    status?: TrainingSessionStatus;
-    movements?: MovementDTO[] | undefined;
+    trainingSessionID!: string;
+    trainingProgramID!: string;
+    sessionNumber!: number;
+    date!: Date;
+    status!: TrainingSessionStatus;
+    movements!: MovementDTO[];
 
     constructor(data?: ITrainingSessionDTO) {
         if (data) {
@@ -6284,6 +6289,9 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
+        }
+        if (!data) {
+            this.movements = [];
         }
     }
 
@@ -6326,12 +6334,12 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
 }
 
 export interface ITrainingSessionDTO {
-    trainingSessionID?: string;
-    trainingProgramID?: string;
-    sessionNumber?: number;
-    date?: Date;
-    status?: TrainingSessionStatus;
-    movements?: MovementDTO[] | undefined;
+    trainingSessionID: string;
+    trainingProgramID: string;
+    sessionNumber: number;
+    date: Date;
+    status: TrainingSessionStatus;
+    movements: MovementDTO[];
 }
 
 export enum TrainingSessionStatus {
@@ -6508,6 +6516,7 @@ export class UpdateMovementRequest implements IUpdateMovementRequest {
     notes!: string;
     trainingSessionID!: string;
     isCompleted!: boolean;
+    weightUnit!: WeightUnit;
 
     constructor(data?: IUpdateMovementRequest) {
         if (data) {
@@ -6529,6 +6538,7 @@ export class UpdateMovementRequest implements IUpdateMovementRequest {
             this.notes = _data["notes"];
             this.trainingSessionID = _data["trainingSessionID"];
             this.isCompleted = _data["isCompleted"];
+            this.weightUnit = _data["weightUnit"];
         }
     }
 
@@ -6547,6 +6557,7 @@ export class UpdateMovementRequest implements IUpdateMovementRequest {
         data["notes"] = this.notes;
         data["trainingSessionID"] = this.trainingSessionID;
         data["isCompleted"] = this.isCompleted;
+        data["weightUnit"] = this.weightUnit;
         return data;
     }
 }
@@ -6558,6 +6569,7 @@ export interface IUpdateMovementRequest {
     notes: string;
     trainingSessionID: string;
     isCompleted: boolean;
+    weightUnit: WeightUnit;
 }
 
 export class UpdateMovementsCompletionRequest implements IUpdateMovementsCompletionRequest {
@@ -6605,7 +6617,6 @@ export class UpdateSetEntryRequest implements IUpdateSetEntryRequest {
     recommendedReps!: number;
     recommendedWeight!: number;
     recommendedRPE!: number;
-    weightUnit!: WeightUnit;
     actualReps!: number;
     actualWeight!: number;
     actualRPE!: number;
@@ -6626,7 +6637,6 @@ export class UpdateSetEntryRequest implements IUpdateSetEntryRequest {
             this.recommendedReps = _data["recommendedReps"];
             this.recommendedWeight = _data["recommendedWeight"];
             this.recommendedRPE = _data["recommendedRPE"];
-            this.weightUnit = _data["weightUnit"];
             this.actualReps = _data["actualReps"];
             this.actualWeight = _data["actualWeight"];
             this.actualRPE = _data["actualRPE"];
@@ -6647,7 +6657,6 @@ export class UpdateSetEntryRequest implements IUpdateSetEntryRequest {
         data["recommendedReps"] = this.recommendedReps;
         data["recommendedWeight"] = this.recommendedWeight;
         data["recommendedRPE"] = this.recommendedRPE;
-        data["weightUnit"] = this.weightUnit;
         data["actualReps"] = this.actualReps;
         data["actualWeight"] = this.actualWeight;
         data["actualRPE"] = this.actualRPE;
@@ -6661,7 +6670,6 @@ export interface IUpdateSetEntryRequest {
     recommendedReps: number;
     recommendedWeight: number;
     recommendedRPE: number;
-    weightUnit: WeightUnit;
     actualReps: number;
     actualWeight: number;
     actualRPE: number;

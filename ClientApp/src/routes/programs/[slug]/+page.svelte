@@ -21,6 +21,7 @@
   let showModal = false;
   let showCompleted = true;
   let showUpcoming = true;
+  let showInProgress = true;
   let showSkipped = true;
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
@@ -62,7 +63,7 @@
 
     const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
     try {
-      await deleteClient.delete4(sessionID);
+      await deleteClient.delete5(sessionID);
       sessions = sessions.filter(s => s.trainingSessionID !== sessionID);
       assignSessionNumbers();
     } catch {
@@ -86,7 +87,7 @@
       const s = m.sets && m.sets.length > 0 ? m.sets[0] : undefined;
       const rep = s?.recommendedReps ? `${s.recommendedReps} reps` : '';
       const rpe = s?.recommendedRPE ? `RPE ${s.recommendedRPE}` : '';
-      const wt = s?.recommendedWeight ? `${s.recommendedWeight} ${s.weightUnit === 0 ? 'kg' : 'lbs'}` : '';
+      const wt = s?.recommendedWeight ? `${s.recommendedWeight}` : '';
       return [m.movementBase?.name ?? '', rep, wt, rpe].filter(Boolean).join(' ');
     }) ?? [];
   }
@@ -175,20 +176,78 @@
 
     <div class="mb-4 flex items-center justify-between">
       <h2 class="text-2xl font-bold flex items-center gap-2">
-        Upcoming Sessions
-        <button on:click={() => showUpcoming = !showUpcoming} class="btn btn-xs btn-outline btn-primary">
-          {showUpcoming ? '🡫' : '🡪'}
+        In Progress Sessions
+        <button on:click={() => showInProgress = !showInProgress} class="btn btn-xs btn-outline btn-primary">
+          {showInProgress ? '🡫' : '🡪'}
         </button>
       </h2>
     </div>
 
+    {#if showInProgress}
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+        {#each sessions.filter(s => s.status === TrainingSessionStatus._1) as session (session.trainingSessionID)}
+          <div class="bg-base-100 text-base-content border border-base-300 rounded-xl shadow-md hover:shadow-lg transition p-4">
+            <div class="flex items-center justify-between border-b border-base-300 pb-2 mb-3">
+              <span class="bg-primary text-primary-content text px-2 py-1 rounded font-mono">
+                Session # {session.sessionNumber}
+              </span>
+             
+            </div>
+
+            <a href={`/programs/${slug}/session/${session.trainingSessionID}`} class="space-y-4 mt-3 block">
+              <div class="bg-base-200 p-3 rounded-lg border border-base-300">
+                <h3 class="font-semibold text-sm mb-1 text-base-content/80">Preview</h3>
+                <ul class="text-sm space-y-1">
+                  {#each getSessionPreview(session) as item}
+                    <li>- {item}</li>
+                  {/each}
+                </ul>
+              </div>
+
+              <div class="bg-base-200 p-3 rounded-lg border border-base-300">
+                <h3 class="font-semibold text-sm mb-1 text-base-content/80">Considerations</h3>
+                <ul class="text-sm space-y-1">
+                  {#each getConsiderations(0) as point}
+                    <li>- {point}</li>
+                  {/each}
+                </ul>
+              </div>
+            </a>
+
+            <div class="flex justify-end gap-2 mt-4">
+              <button on:click={() => session.trainingSessionID && toggleSkipSession(session.trainingSessionID)}
+                class={`btn btn-xs ${session.status === TrainingSessionStatus._3 ? 'btn-warning' : 'btn-outline btn-primary'}`}>
+                {session.status === TrainingSessionStatus._3 ? 'Undo Skip' : 'Skip'}
+              </button>
+              <button on:click={() => session.trainingSessionID && deleteSession(session.trainingSessionID)}
+                class="btn btn-xs btn-error text-white">
+                Delete
+              </button>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+      <div class="divider"></div>
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-2xl font-bold flex items-center gap-2">
+        Upcoming Sessions
+        <button on:click={() => showInProgress = !showInProgress} class="btn btn-xs btn-outline btn-primary">
+          {showInProgress ? '🡫' : '🡪'}
+        </button>
+      </h2>
+    </div>
+    
     {#if showUpcoming}
+      
+
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         {#each sessions.filter(s => s.status === TrainingSessionStatus._0 || s.status === undefined) as session (session.trainingSessionID)}
           <div class="bg-base-100 text-base-content border border-base-300 rounded-xl shadow-md hover:shadow-lg transition p-4">
             <div class="flex items-center justify-between border-b border-base-300 pb-2 mb-3">
-              <span class="bg-primary text-primary-content text-xs px-2 py-1 rounded font-mono">
-                # {session.sessionNumber}
+              <span class="bg-primary text-primary-content text px-2 py-1 rounded font-mono">
+                Session # {session.sessionNumber}
               </span>
               <div class="flex items-center gap-2">
                 <button on:click={() => shiftSessionDate(session, -1)} class="btn btn-xs btn-outline btn-primary">←</button>
@@ -231,7 +290,7 @@
         {/each}
       </div>
     {/if}
-
+      <div class="divider"></div>
     {#if sessions.some(s => s.status === TrainingSessionStatus._3)}
       <div class="mb-4 flex items-center justify-between mt-6">
         <h2 class="text-xl font-bold flex items-center gap-2">
@@ -300,6 +359,7 @@
         </div>
       {/if}
     {/if}
+
   </div>
 {:else}
   <div class="p-6 max-w-4xl mx-auto">

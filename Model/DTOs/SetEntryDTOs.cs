@@ -99,12 +99,12 @@ public class UpdateSetEntryRequest : IValidatableObject
 
 public class SetEntryDTO
 {
-    public Guid SetEntryID { get; init; }
-    public Guid MovementID { get; init; }
-    public int RecommendedReps { get; set; }
-    public double RecommendedWeight { get; set; }
-    public double RecommendedRPE { get; set; }
-    public int ActualReps { get; set; }
-    public double ActualWeight { get; set; }
-    public double ActualRPE { get; set; }
+    public required Guid SetEntryID { get; init; }
+    public required Guid MovementID { get; init; }
+    public required int RecommendedReps { get; set; }
+    public required double RecommendedWeight { get; set; }
+    public required double RecommendedRPE { get; set; }
+    public required int ActualReps { get; set; }
+    public required double ActualWeight { get; set; }
+    public required double ActualRPE { get; set; }
 }

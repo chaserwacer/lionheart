@@ -31,16 +31,16 @@ public class CreateTrainingProgramRequest : IValidatableObject
 }
 public class TrainingProgramDTO
 {
-    public Guid TrainingProgramID { get; init; }
+    public required Guid TrainingProgramID { get; init; }
 
-    public string Title { get; set; } = string.Empty;
+    public required string Title { get; set; } = string.Empty;
 
-    public DateOnly StartDate { get; set; }
-    public DateOnly NextTrainingSessionDate { get; set; }
-    public DateOnly EndDate { get; set; }
-    public List<TrainingSessionDTO> TrainingSessions { get; set; } = [];
+    public required DateOnly StartDate { get; set; }
+    public required DateOnly NextTrainingSessionDate { get; set; }
+    public required DateOnly EndDate { get; set; }
+    public required List<TrainingSessionDTO> TrainingSessions { get; set; } = [];
   
-    public List<string> Tags { get; set; } = [];
+    public required List<string> Tags { get; set; } = [];
 }
 
 public class UpdateTrainingProgramRequest : IValidatableObject
@@ -105,12 +105,13 @@ public class UpdateTrainingSessionRequest
 
 public class TrainingSessionDTO
 {
-    public Guid TrainingSessionID { get; init; }
-    public Guid TrainingProgramID { get; init; }
-    public int SessionNumber { get; set; }
-    public DateOnly Date { get; set; }
-    public TrainingSessionStatus Status { get; set; }
-    public List<MovementDTO> Movements { get; set; } = [];
+    public required Guid TrainingSessionID { get; init; }
+    public required Guid TrainingProgramID { get; init; }
+    public required int SessionNumber { get; set; }
+    public required DateOnly Date { get; set; }
+    public required TrainingSessionStatus Status { get; set; }
+    [Required]
+    public required List<MovementDTO> Movements { get; set; } = [];
 }
 
 public class GenerateTrainingSessionsRequest

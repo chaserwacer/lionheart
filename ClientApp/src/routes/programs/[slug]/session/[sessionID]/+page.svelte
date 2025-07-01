@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { slugify } from '$lib/utils/slugify';
-  import CreateMovementModal from '$lib/components/CreateMovement.svelte';
+  import { page } from "$app/stores";
+  import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
+  import { slugify } from "$lib/utils/slugify";
+  import CreateMovementModal from "$lib/components/CreateMovement.svelte";
   import {
     GetTrainingProgramsEndpointClient,
     GetTrainingSessionEndpointClient,
@@ -17,23 +17,39 @@
     MovementDTO,
     TrainingSessionDTO,
     TrainingProgramDTO,
-    TrainingSessionStatus
+    TrainingSessionStatus,
+    WeightUnit,
+  } from "$lib/api/ApiClient";
+  import { base } from "$app/paths";
+  // import { m } from 'vitest/dist/reporters-yx5ZTtEV.js';
 
-  } from '$lib/api/ApiClient';
-    import { base } from '$app/paths';
-
-  let slug = '';
-  let sessionID = '';
-  let session: TrainingSessionDTO | undefined;
-  let sessionIndex = 0;
-  let program: TrainingProgramDTO | undefined;
-  let unitMap: Record<number, 'lbs' | 'kg'> = {};
+  let slug = "";
+  let sessionID = "";
+  let session: TrainingSessionDTO;
+  let program: TrainingProgramDTO;
+  let unitMap: Record<number, "lbs" | "kg"> = {};
   let showUncompleted = true;
   let showCompleted = true;
   let showModal = false;
+  let selectedDate = "";
   const allowedSteps = [1, 5, 10, 25];
   let weightStep: number = 5;
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
+  let dateInput: HTMLInputElement;
+  const baseUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "http://localhost:5174";
+
+  function getSessionStatus(status: TrainingSessionStatus) {
+    if (status === undefined) return "Unknown";
+    const statusInt = status.valueOf();
+
+    // Map the enum value to a string
+    if (statusInt === TrainingSessionStatus._0) return "Planned";
+    if (statusInt === TrainingSessionStatus._1) return "In Progress";
+    if (statusInt === TrainingSessionStatus._2) return "Completed";
+    if (statusInt === TrainingSessionStatus._3) return "Skipped";
+  }
 
   onMount(async () => {
     slug = $page.params.slug;
@@ -42,90 +58,62 @@
     const programsClient = new GetTrainingProgramsEndpointClient(baseUrl);
     const sessionClient = new GetTrainingSessionEndpointClient(baseUrl);
 
-
     try {
       const allPrograms = await programsClient.getAll3();
-      program = allPrograms.find(p => slugify(p.title ?? '') === slug);
-      if (!program) return;
+      const foundProgram = allPrograms.find(
+        (p) => slugify(p.title ?? "") === slug,
+      );
+      if (!foundProgram) return;
+      program = foundProgram;
 
       session = await sessionClient.get2(sessionID);
-      sessionIndex = program.trainingSessions?.findIndex(s => s.trainingSessionID === sessionID) ?? 0;
+      selectedDate = session.date.toISOString().slice(0, 10);
 
       session.movements?.forEach((movement) => {
-    movement.sets?.forEach(set => {
-      if (set.actualReps === 0) set.actualReps = set.recommendedReps ?? 5;
-      if (set.actualRPE === 0) set.actualRPE = set.recommendedRPE ?? 7;
-    });
-    });
+        movement.sets?.forEach((set) => {
+          if (set.actualReps === 0) set.actualReps = set.recommendedReps;
+          if (set.actualRPE === 0) set.actualRPE = set.recommendedRPE;
+        });
+      });
+
     } catch (err) {
-      console.error('Failed to load session data:', err);
+      console.error("Failed to load session data:", err);
     }
   });
 
   function movementToUpdateRequest(movement: MovementDTO) {
     return {
-      movementID: movement.movementID!,
+      movementID: movement.movementID,
       trainingSessionID: movement.trainingSessionID!,
-      movementBaseID: movement.movementBase?.movementBaseID ?? movement.movementBaseID!,
+      movementBaseID: movement.movementBaseID,
       movementModifier: {
-        name: movement.movementModifier?.name ?? 'No Modifier',
-        equipment: movement.movementModifier?.equipment ?? 'None',
-        duration: movement.movementModifier?.duration ?? 0
+        name: movement.movementModifier.name,
+        equipment: movement.movementModifier.equipment,
+        duration: movement.movementModifier.duration,
       },
-      notes: movement.notes ?? '',
-      isCompleted: movement.isCompleted ?? false
+      weightUnit: movement.weightUnit,
+      notes: movement.notes,
+      isCompleted: movement.isCompleted,
     };
   }
 
-function getRpeColor(actual?: number, recommended?: number): string {
-  if (actual === undefined || recommended === undefined) return 'border-base-300';
-  const diff = actual - recommended;
+  function getRpeColor(actual: number, recommended: number): string {
+    if (actual === undefined || recommended === undefined)
+      return "border-base-300";
+    const diff = actual - recommended;
 
-  if (diff >= 1.0) return 'border-error text-error bg-error/10';
-  if (diff <= -1.0) return 'border-warning text-warning bg-warning/10';
-  return 'border-success text-success bg-success/10';
-}
-
-
-
-  function resetSet(mvIndex: number, setIndex: number) {
-    const set = session?.movements?.[mvIndex]?.sets?.[setIndex];
-    if (!set?.setEntryID || !set?.movementID) return;
-
-    // Mutate in place
-    set.actualReps = set.recommendedReps ?? 5;
-    set.actualWeight = set.recommendedWeight ?? 0;
-    set.actualRPE = set.recommendedRPE ?? 7;
-
-    // Force reactivity: deep clone of sets to reassign
-    session!.movements![mvIndex].sets = [...session!.movements![mvIndex].sets!];
-
-    const request = UpdateSetEntryRequest.fromJS({
-      setEntryID: set.setEntryID,
-      movementID: set.movementID,
-      recommendedReps: set.recommendedReps ?? 5,
-      recommendedWeight: set.recommendedWeight ?? 0,
-      recommendedRPE: set.recommendedRPE ?? 7,
-      weightUnit: set.weightUnit ?? 1,
-      actualReps: set.actualReps,
-      actualWeight: set.actualWeight,
-      actualRPE: set.actualRPE
-    });
-
-    const updateSetClient = new UpdateSetEntryEndpointClient(baseUrl);
-    updateSetClient.update2(request).catch((err) => {
-      console.error('Failed to reset set', err);
-    });
+    if (diff >= 1.0) return "border-error text-error bg-error/10";
+    if (diff <= -1.0) return "border-warning text-warning bg-warning/10";
+    return "border-success text-success bg-success/10";
   }
-
 
   function updateSetValue(
     mvIndex: number,
     setIndex: number,
-    field: keyof Pick<SetEntry, 'actualReps' | 'actualWeight' | 'actualRPE'>,
-    value: number
+    field: keyof Pick<SetEntry, "actualReps" | "actualWeight" | "actualRPE">,
+    value: number,
   ) {
-    const set = session?.movements?.[mvIndex]?.sets?.[setIndex];
+    const set = session.movements[mvIndex].sets[setIndex];
     if (!set?.setEntryID || !set?.movementID) return;
 
     set[field] = value;
@@ -136,173 +124,267 @@ function getRpeColor(actual?: number, recommended?: number): string {
       recommendedReps: set.recommendedReps ?? 5,
       recommendedWeight: set.recommendedWeight ?? 100,
       recommendedRPE: set.recommendedRPE ?? 7,
-      weightUnit: set.weightUnit ?? 1,
       actualReps: set.actualReps ?? 0,
       actualWeight: set.actualWeight ?? 0,
-      actualRPE: set.actualRPE ?? 0
+      actualRPE: set.actualRPE ?? 0,
     });
 
     const updateSetClient = new UpdateSetEntryEndpointClient(baseUrl);
-    updateSetClient.update2(request).catch(err => {
-      console.error('Failed to update set entry', err);
+    updateSetClient.update2(request).catch((err) => {
+      console.error("Failed to update set entry", err);
     });
   }
 
   async function toggleComplete(index: number) {
     if (!session) return;
 
-    const movement = session.movements?.[index];
-    if (!movement?.movementID) return;
+    const movement = session.movements[index];
 
     movement.isCompleted = !movement.isCompleted;
 
     const updateMovementClient = new UpdateMovementEndpointClient(baseUrl);
-    await updateMovementClient.update(UpdateMovementRequest.fromJS(movementToUpdateRequest(movement)));
-
-    await updateSessionStatus();
+    await updateMovementClient.update(
+      UpdateMovementRequest.fromJS(movementToUpdateRequest(movement)),
+    );
+    handleMovementsChanged();
   }
-
 
   async function deleteMovement(index: number) {
-  if (!session) return;
-
-  const movement = session.movements?.[index];
-  if (!movement?.movementID) return;
-
-  // Call your backend DELETE endpoint
-  const res = await fetch(`${baseUrl}/api/movement/delete/${movement.movementID}`, {
-    method: 'DELETE',
-    credentials: 'include'
-  });
-
-  if (!res.ok) {
-    console.error('Failed to delete movement');
-    return;
-  }
-
-  // Remove it from local session state
-  session.movements = session.movements?.filter((_, i) => i !== index) ?? [];
-
-  await updateSessionStatus();
-}
-
-  async function updateSessionStatus() {
     if (!session) return;
 
-    const movements = session.movements ?? [];
-    const isComplete = movements.length === 0 || movements.every(m => m.isCompleted);
+    const movement = session.movements?.[index];
+    if (!movement?.movementID) return;
 
-    session.status = isComplete
-      ? TrainingSessionStatus._2
-      : TrainingSessionStatus._0;
+    // Call your backend DELETE endpoint
+    const res = await fetch(
+      `${baseUrl}/api/movement/delete/${movement.movementID}`,
+      {
+        method: "DELETE",
+        credentials: "include",
+      },
+    );
 
-    const updateSessionClient = new UpdateTrainingSessionEndpointClient(baseUrl);
-    await updateSessionClient.update4(UpdateTrainingSessionRequest.fromJS({
-      trainingSessionID: session.trainingSessionID!,
-      trainingProgramID: session.trainingProgramID!,
-      date: session.date!,
-      status: session.status
-    }));
+    if (!res.ok) {
+      console.error("Failed to delete movement");
+      return;
+    }
+
+    // Remove it from local session state
+    session.movements = session.movements?.filter((_, i) => i !== index);
   }
 
-  async function handleMovementCreated() {
+  async function updateSession() {
+    if (!session) return;
+
+    const updateSessionClient = new UpdateTrainingSessionEndpointClient(
+      baseUrl,
+    );
+
+    const updatedDate = new Date(selectedDate);
+    updatedDate.setDate(updatedDate.getDate() + 1); // Increment by one day 
+    session = await updateSessionClient.update4(
+      UpdateTrainingSessionRequest.fromJS({
+        trainingSessionID: session.trainingSessionID,
+        trainingProgramID: session.trainingProgramID,
+        date: updatedDate,
+        status: session.status,
+      }),
+    );
+    editingDate = false;
+    await handleMovementsChanged();
+  }
+
+  async function handleMovementsChanged() {
     // Reload the session's movements
     const sessionClient = new GetTrainingSessionEndpointClient(baseUrl);
     session = await sessionClient.get2(sessionID);
 
-    await updateSessionStatus();
     showModal = false;
   }
 
+  const labelMap = {
+    [WeightUnit._0]: "KG",
+    [WeightUnit._1]: "LBS",
+  };
 
-  function convertWeight(w: number, toUnit: 'kg' | 'lbs'): number {
-    return toUnit === 'kg'
-      ? +(w * 0.453592).toFixed(1)
-      : +(w / 0.453592).toFixed(1);
+  async function handleUnitToggle(movement: MovementDTO, e: Event) {
+    const checked = (e.target as HTMLInputElement).checked;
+    movement.weightUnit = checked ? WeightUnit._1 : WeightUnit._0;
+
+    const updateMovementClient = new UpdateMovementEndpointClient(baseUrl);
+    await updateMovementClient
+      .update(UpdateMovementRequest.fromJS(movementToUpdateRequest(movement)))
+      .catch((err) => {
+        console.error("Failed to update movement weight unit", err);
+      });
+    await handleMovementsChanged();
   }
 
+
+
+  let editingStatus = false;
+  let tempStatus: TrainingSessionStatus;
+  let editingDate = false;
+  let tempDate: string; // Use string for input[type="date"] binding
 </script>
 
 {#if session}
   <div class="p-10 max-w-6xl mx-auto text-base-content">
-    <a
-      href={`/programs/${slug}`}
-      class="btn btn-sm btn-outline mb-6"
-    >
+    <a href={`/programs/${slug}`} class="btn btn-sm btn-outline mb-6">
       ← Back to Program
     </a>
 
-    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-3">
-      <h1 class="text-3xl sm:text-4xl font-bold">
-        Session {sessionIndex + 1} <span class="text-base-content/60">· {program?.title}</span>
-      </h1>
-      <div class="flex items-center gap-2">
-        <label class="text-sm">Weight step:</label>
-        <select bind:value={weightStep} class="select select-sm bg-base-200 text-base-content border-base-300">
-          {#each allowedSteps as step}
-            <option value={step}>{step}</option>
-          {/each}
-        </select>
+    <div
+      class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-3"
+    >
+      <div class="flex flex-col gap-3">
+        <!-- <div class="stats shadow border ">
+          <div class="stat place-items-center">
+            <div class="stat-title">{program?.title}</div>
+            <div class="stat-value">Session # {session.sessionNumber}</div>
+          </div>
+        </div> -->
+        <p class="text-4xl font-bold">{program?.title}</p>
+        <p class="text-3xl italic">Session # {session.sessionNumber}</p>
+        <div class="stats shadow border">
+          <div class="stat">
+            <div class="stat-title">Session Date</div>
+            <div
+              class="stat-value text-2xl font-normal"
+              style="min-height:2.5rem;"
+            >
+              {#if editingDate}
+                <input
+                  type="date"
+                  bind:value={selectedDate}
+                  on:change={updateSession}
+                  class="btn btn-accent"
+                />
+              {:else}
+                {session.date.toISOString().slice(0, 10)}
+              {/if}
+            </div>
+            <div class="stat-actions">
+              {#if !editingDate}
+                <button
+                  class="btn btn-xs"
+                  on:click={() => {
+                    // Set tempDate to current session date in yyyy-mm-dd format
+                    tempDate = session.date
+                      ? new Date(session.date).toISOString().slice(0, 10)
+                      : "";
+                    editingDate = true;
+                  }}
+                >
+                  EDIT
+                </button>
+              {/if}
+            </div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-title">Session Status</div>
+            <div
+              class="stat-value text-2xl font-normal"
+              style="min-height:2.5rem;"
+            >
+              {#if editingStatus}
+                <select
+                  class="select select-sm w-full"
+                  bind:value={tempStatus}
+                  on:change={() => {
+                    /* no-op, handled on save */
+                  }}
+                >
+                  <option value={TrainingSessionStatus._0}>Planned</option>
+                  <option value={TrainingSessionStatus._1}>In Progress</option>
+                  <option value={TrainingSessionStatus._2}>Completed</option>
+                  <option value={TrainingSessionStatus._3}>Skipped</option>
+                </select>
+              {:else}
+                {getSessionStatus(session.status)}
+              {/if}
+            </div>
+            <div class="stat-actions">
+              {#if editingStatus}
+                <button
+                  class="btn btn-xs btn-success mr-1"
+                  on:click={async () => {
+                    session.status = tempStatus;
+                    await updateSession();
+                    editingStatus = false;
+                  }}
+                >
+                  Save
+                </button>
+                <button
+                  class="btn btn-xs btn-ghost"
+                  on:click={() => (editingStatus = false)}
+                >
+                  Cancel
+                </button>
+              {:else}
+                <button
+                  class="btn btn-xs"
+                  on:click={() => {
+                    tempStatus = session.status;
+                    editingStatus = true;
+                  }}
+                >
+                  EDIT
+                </button>
+              {/if}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Uncompleted Section -->
     <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-semibold">Uncompleted Movements
+      <h2 class="text-xl font-semibold">
+        Uncompleted Movements
         <button
-          on:click={() => showUncompleted = !showUncompleted}
+          on:click={() => (showUncompleted = !showUncompleted)}
           class="text-lg hover:text-primary ml-2"
         >
-          {showUncompleted ? '▾' : '▸'}
+          {showUncompleted ? "▾" : "▸"}
         </button>
       </h2>
     </div>
 
     {#if showUncompleted}
       <div class="flex flex-wrap gap-6 items-start">
-        {#each session.movements ?? [] as movement, mvIndex (movement.movementID)}
-          {#if !movement.isCompleted && !movement.notes?.startsWith('[REMOVED]')}
-            <div class="bg-base-100 border border-base-300 rounded-xl p-5 shadow-md transition hover:shadow-lg w-full sm:w-[350px]">
-
+        {#each session.movements as movement, mvIndex (movement.movementID)}
+          {#if !movement.isCompleted && !movement.notes?.startsWith("[REMOVED]")}
+            <div
+              class="bg-base-100 border border-base-300 rounded-xl p-5 shadow-md transition hover:shadow-lg w-full sm:w-[350px]"
+            >
               <div class="flex justify-between items-start mb-3">
                 <div>
-                  <h3 class="text-xl font-bold">{movement.movementBase?.name ?? 'Unnamed'}</h3>
-                  <p class="text-sm text-base-content/60 italic">{movement.movementModifier?.name ?? 'No Modifier'}</p>
+                  <h3 class="text-xl font-bold">
+                    {movement.movementBase?.name ?? "Unnamed"}
+                  </h3>
+                  <div class="badge badge-secondary">
+                    {movement.movementModifier?.equipment}
+                  </div>
+                  <div class="badge badge-primary">
+                    {movement.movementModifier?.name}
+                  </div>
+                  <div class="badge badge-primary">
+                    Duration: {movement.movementModifier?.duration}
+                  </div>
                 </div>
-                <span class="text-sm text-warning">💡 Focus</span>
               </div>
 
-              <div class="flex justify-between items-center mb-4 text-sm">
-                <label class="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={unitMap[mvIndex] === 'kg'}
-                    on:change={() => {
-                      const newUnit = unitMap[mvIndex] === 'lbs' ? 'kg' : 'lbs';
-                      movement.sets?.forEach(set => {
-                        set.actualWeight = convertWeight(set.actualWeight ?? 0, newUnit);
-                        set.recommendedWeight = convertWeight(set.recommendedWeight ?? 0, newUnit);
-                      });
-                      unitMap[mvIndex] = newUnit;
-                    }}
-                  />
-                  Use kg
-                </label>
-
-                <div class="flex gap-2">
-                  <button
-                    on:click={() => toggleComplete(mvIndex)}
-                    class="btn btn-xs btn-success"
-                  >
-                    {movement.isCompleted ? 'Undo' : 'Complete'}
-                  </button>
-                  <button
-                    on:click={() => deleteMovement(mvIndex)}
-                    class="btn btn-xs btn-error"
-                  >
-                    Remove
-                  </button>
-                </div>
+              <div class="flex flex-row items-center gap-2 mb-4">
+                <p>Unit: {labelMap[movement.weightUnit]}</p>
+                <input
+                  type="checkbox"
+                  checked={movement.weightUnit === WeightUnit._1}
+                  class="toggle toggle-xs"
+                  on:change={(e) => handleUnitToggle(movement, e)}
+                />
               </div>
 
               <ul class="space-y-3">
@@ -315,7 +397,13 @@ function getRpeColor(actual?: number, recommended?: number): string {
                           type="number"
                           class="input input-sm bg-base-100 border-base-300 text-center"
                           bind:value={set.actualReps}
-                          on:input={() => updateSetValue(mvIndex, setIndex, 'actualReps', set.actualReps ?? 0)}
+                          on:input={() =>
+                            updateSetValue(
+                              mvIndex,
+                              setIndex,
+                              "actualReps",
+                              set.actualReps ?? 0,
+                            )}
                         />
                       </div>
                       <div class="flex flex-col gap-1">
@@ -324,7 +412,13 @@ function getRpeColor(actual?: number, recommended?: number): string {
                           type="number"
                           class={`input input-sm text-center ${getRpeColor(set.actualRPE, set.recommendedRPE)}`}
                           bind:value={set.actualRPE}
-                          on:input={() => updateSetValue(mvIndex, setIndex, 'actualRPE', set.actualRPE ?? 0)}
+                          on:input={() =>
+                            updateSetValue(
+                              mvIndex,
+                              setIndex,
+                              "actualRPE",
+                              set.actualRPE ?? 0,
+                            )}
                         />
                       </div>
                       <div class="flex flex-col gap-1">
@@ -334,18 +428,24 @@ function getRpeColor(actual?: number, recommended?: number): string {
                           step={weightStep}
                           class="input input-sm bg-base-100 border-base-300 text-center"
                           bind:value={set.actualWeight}
-                          on:input={() => updateSetValue(mvIndex, setIndex, 'actualWeight', set.actualWeight ?? 0)}
+                          on:input={() =>
+                            updateSetValue(
+                              mvIndex,
+                              setIndex,
+                              "actualWeight",
+                              set.actualWeight ?? 0,
+                            )}
                         />
                       </div>
                     </div>
-                    <div class="text-right mt-2">
+                    <!-- <div class="text-right mt-2">
                       <button
                         on:click={() => resetSet(mvIndex, setIndex)}
                         class="text-xs text-error hover:underline"
                       >
                         Reset
                       </button>
-                    </div>
+                    </div> -->
                   </li>
                 {/each}
               </ul>
@@ -358,6 +458,21 @@ function getRpeColor(actual?: number, recommended?: number): string {
                   bind:value={movement.notes}
                 />
               </div>
+
+              <div class="flex gap-2">
+                <button
+                  on:click={() => toggleComplete(mvIndex)}
+                  class="btn btn-xs btn-success"
+                >
+                  {movement.isCompleted ? "Undo" : "✓"}
+                </button>
+                <button
+                  on:click={() => deleteMovement(mvIndex)}
+                  class="btn btn-xs btn-error"
+                >
+                  X
+                </button>
+              </div>
             </div>
           {/if}
         {/each}
@@ -365,24 +480,30 @@ function getRpeColor(actual?: number, recommended?: number): string {
     {/if}
 
     <!-- Completed Section -->
-    {#if session.movements?.some(m => m.isCompleted)}
+    {#if session.movements?.some((m) => m.isCompleted)}
       <div class="flex justify-between items-center mt-10 mb-4">
         <h2 class="text-xl font-semibold">Completed Movements</h2>
         <button
-          on:click={() => showCompleted = !showCompleted}
+          on:click={() => (showCompleted = !showCompleted)}
           class="text-lg hover:text-primary"
         >
-          {showCompleted ? '▾' : '▸'}
+          {showCompleted ? "▾" : "▸"}
         </button>
       </div>
 
       {#if showCompleted}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-70">
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-70"
+        >
           {#each session.movements as movement, mvIndex (movement.movementID)}
             {#if movement.isCompleted}
               <div class="bg-base-200 border border-base-300 rounded-xl p-4">
-                <h3 class="text-xl font-bold mb-2">{movement.movementBase?.name ?? 'Unnamed'}</h3>
-                <p class="text-sm italic text-base-content/60">Marked complete</p>
+                <h3 class="text-xl font-bold mb-2">
+                  {movement.movementBase?.name ?? "Unnamed"}
+                </h3>
+                <p class="text-sm italic text-base-content/60">
+                  Marked complete
+                </p>
                 <button
                   on:click={() => toggleComplete(mvIndex)}
                   class="text-xs text-warning hover:underline mt-2"
@@ -404,7 +525,7 @@ function getRpeColor(actual?: number, recommended?: number): string {
 
 <!-- Floating Add Movement Button -->
 <button
-  on:click={() => showModal = true}
+  on:click={() => (showModal = true)}
   class="fixed bottom-6 right-6 btn btn-primary btn-circle text-xl shadow-lg z-50"
 >
   +
@@ -414,7 +535,7 @@ function getRpeColor(actual?: number, recommended?: number): string {
   <CreateMovementModal
     show={showModal}
     sessionID={session.trainingSessionID}
-    on:close={() => showModal = false}
-    on:created={handleMovementCreated}
+    on:close={() => (showModal = false)}
+    on:created={handleMovementsChanged}
   />
 {/if}

@@ -61,7 +61,8 @@
       movementBaseID: movementBase.movementBaseID,
       trainingSessionID: sessionID,
       notes: '',
-      movementModifier: modifier
+      movementModifier: modifier,
+      weightUnit: WeightUnit._1, // Default to LBS
     }));
 
     for (const scheme of repSchemes) {
@@ -74,7 +75,6 @@
           actualReps: scheme.reps,
           actualWeight: 0,
           actualRPE: scheme.rpe,
-          weightUnit: WeightUnit._1
         }));
       }
     }
