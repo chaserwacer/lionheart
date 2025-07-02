@@ -8,6 +8,8 @@ using ModelContextProtocol.Server;
 using System.ComponentModel;
 using Microsoft.Extensions.AI;
 using OllamaSharp;
+using OpenAI;    // <-- this is the official OpenAIClient
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -62,6 +64,10 @@ catch
     throw new InvalidOperationException("Please start Ollama with `ollama serve` or `ollama run phi4-mini`.");
 }
 
+
+builder.Services.AddSingleton<OpenAiService>();
+
+
 /*
 Models:
 phi4-mini
@@ -77,6 +83,7 @@ builder.Services.AddChatClient(
     .Build()
 );
 */
+
 IChatClient client = new OllamaApiClient(new Uri("http://localhost:11434"), "phi4-mini");
 
 var chatClient = new ChatClientBuilder(client)
@@ -95,6 +102,8 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
+
+
 
 builder.Services.AddHttpClient();
 
@@ -197,3 +206,6 @@ public class MCPGUY
         return new string(charArray);
     }
 }
+
+
+

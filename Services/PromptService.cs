@@ -11,7 +11,13 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Server;
 using lionheart.Model.DTOs;
 using Model.McpServer;
-
+using Azure.AI.OpenAI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace lionheart.Services
 {
@@ -22,13 +28,22 @@ namespace lionheart.Services
         private readonly IWellnessService _wellnessService;
         private readonly ITrainingProgramService _trainingProgramService;
         private readonly ITrainingSessionService _trainingSessionService;
+        private readonly IMovementService _movementService;
+        private readonly ISetEntryService _setEntryService;
+
+
+        private readonly OpenAiService _openAi;
+
         public PromptService(
             ILogger<MCPClientService> logger,
             IChatClient chatClient,
             IOuraService ouraService,
             IWellnessService wellnessService,
             ITrainingProgramService trainingProgramService,
-            ITrainingSessionService trainingSessionService
+            ITrainingSessionService trainingSessionService,
+            OpenAiService openAi,
+            IMovementService movementService,
+            ISetEntryService setEntryService
         )
         {
             _logger = logger;
@@ -36,14 +51,18 @@ namespace lionheart.Services
             _trainingSessionService = trainingSessionService;
             _ouraService = ouraService;
             _wellnessService = wellnessService;
+            _openAi = openAi;
+            _movementService = movementService;
+            _setEntryService = setEntryService;
         }
-
 
 
 
 
         public async Task<Result<string>> GeneratePromptAsync(IdentityUser user, GeneratePromptRequest request)
         {
+            var inputs = request.Inputs;
+
             if (request.PromptType is not null && request.PromptType == "cb.01")
             {
                 var dateRange = new DateRangeRequest
@@ -208,10 +227,22 @@ namespace lionheart.Services
                 var chatPrompt = lionMCPPrompt.ToStringPrompty();
                 return Result.Success(chatPrompt);
             }
+            if (request.PromptType == "genprog.04")
+                return await GenerateProgramInitializationPrompt(user);
+            else if (request.PromptType == "genprog.04.step1")
+                return await GenerateProgramShellPrompt(user, request.Inputs);
+            else if (request.PromptType == "genprog.04.step2")
+                return await GeneratePreferencesPrompt(user, request.Inputs);
+            else if (request.PromptType == "genprog.04.step3")
+                return await GenerateFirstWeekSessionsPrompt(user, request.Inputs);
+            else if (request.PromptType == "genprog.04.step4")
+                return await GenerateRemainingWeeksPrompt(user, request.Inputs);
+
             else if (request.PromptType == "modsess")
             {
                 return await ModSessPrompt(user);
             }
+
             else
             {
                 return Result<string>.Error("Invalid prompt type specified.");
@@ -281,7 +312,7 @@ namespace lionheart.Services
             await wellnessDataSection.LoadDataAsync(user, dateRange);
             prompt.Sections.Add(wellnessDataSection);
 
-            var programs =  await _trainingProgramService.GetTrainingProgramsAsync(user);
+            var programs = await _trainingProgramService.GetTrainingProgramsAsync(user);
             if (programs.IsError() || programs.Value.Count == 0)
             {
                 return Result<string>.Error("No training programs found for the user.");
@@ -299,5 +330,194 @@ namespace lionheart.Services
 
             return Result.Success(prompt.ToStringPrompty());
         }
+
+
+        private async Task<Result<string>> GenerateProgramInitializationPrompt(IdentityUser user)
+        {
+            var lionMCPPrompt = new LionMcpPrompt { User = user };
+
+            var task = new InstructionPromptSection { Name = "Task Overview" };
+            task.AddInstruction("You are an agent that generates valid TrainingProgramDTO JSON for a .NET codebase. You will guide the user through the program creation workflow.");
+            lionMCPPrompt.Sections.Add(task);
+
+            var behavior = new InstructionPromptSection { Name = "Behavior" };
+            behavior.AddInstruction("Do not create any JSON or issue any tool calls yet. Simply acknowledge readiness and await further user input.");
+            lionMCPPrompt.Sections.Add(behavior);
+
+            var promptText = lionMCPPrompt.ToStringPrompty(); // This returns a string
+            var response = await _openAi.ChatAsync(promptText);
+            return Result.Success(response);
+        }
+        private async Task<Result<string>> GenerateProgramShellPrompt(IdentityUser user, Dictionary<string, object>? inputs)
+        {
+            var title = inputs?["title"]?.ToString() ?? "Untitled Program";
+            var length = inputs?["lengthWeeks"]?.ToString() ?? "3";
+
+            var prompt = new LionMcpPrompt { User = user };
+
+            var task = new InstructionPromptSection { Name = "Phase 1: Create Program Shell" };
+            task.AddInstruction($"Create a blank TrainingProgramDTO named '{title}' with a duration of {length} weeks.");
+            task.AddInstruction("- trainingProgramID: new UUID v4");
+            task.AddInstruction("- tags: [\"Powerlifting\"]");
+            task.AddInstruction("- createdByUserId: getIdentityUser()");
+            task.AddInstruction("- startDate, endDate, nextTrainingSessionDate: all set to the next Monday on or after 2025-06-30");
+            task.AddInstruction("- trainingSessions: empty array");
+            task.AddInstruction("Call `createTrainingProgramFromJson(programDto)` using the object above.");
+            prompt.Sections.Add(task);
+
+            var promptText = prompt.ToStringPrompty();
+            var response = await _openAi.ChatAndRespondAsync(promptText, OpenAiFunctionTools.All, async (name, argsJson) =>
+            {
+                return await ExecuteToolCallAsync(name, argsJson, user);
+            });
+            return Result.Success(response);
+        }
+
+        private async Task<Result<string>> GeneratePreferencesPrompt(IdentityUser user, Dictionary<string, object>? inputs)
+        {
+            var daysPerWeek = inputs?["daysPerWeek"]?.ToString() ?? "4";
+            var preferredDays = inputs?["preferredDays"] is IEnumerable<object> days
+                ? string.Join(", ", days)
+                : "Mon, Wed, Fri";
+            var squatDays = inputs?["squatDays"]?.ToString() ?? "2";
+            var benchDays = inputs?["benchDays"]?.ToString() ?? "3";
+            var deadliftDays = inputs?["deadliftDays"]?.ToString() ?? "1";
+            var favoriteMovements = inputs?["favoriteMovements"] is IEnumerable<object> moves
+                ? string.Join(", ", moves)
+                : "None";
+
+            var prompt = new LionMcpPrompt { User = user };
+
+            var task = new InstructionPromptSection { Name = "Phase 2: User Preferences" };
+            task.AddInstruction("Use the following preferences provided by the user:");
+            task.AddInstruction($"- Days per week: {daysPerWeek}");
+            task.AddInstruction($"- Preferred training days: {preferredDays}");
+            task.AddInstruction($"- Weekly lift goals → Squat: {squatDays}, Bench: {benchDays}, Deadlift: {deadliftDays}");
+            task.AddInstruction($"- Favorite movements: {favoriteMovements}");
+            task.AddInstruction("Use these values when planning sessions, but do not generate any sessions yet.");
+            prompt.Sections.Add(task);
+
+            var promptText = prompt.ToStringPrompty();
+            var response = await _openAi.ChatAndRespondAsync(promptText, OpenAiFunctionTools.All, async (name, argsJson) =>
+            {
+                return await ExecuteToolCallAsync(name, argsJson, user);
+            });
+            return Result.Success(response);
+
+        }
+
+        private async Task<Result<string>> GenerateFirstWeekSessionsPrompt(IdentityUser user, Dictionary<string, object>? inputs)
+        {
+            var programId = inputs?["trainingProgramID"]?.ToString() ?? "MISSING_PROGRAM_ID";
+
+            var prompt = new LionMcpPrompt { User = user };
+
+            var task = new InstructionPromptSection { Name = "Phase 3: Build First Week of Sessions" };
+            task.AddInstruction($"Use trainingProgramID: {programId}.");
+            task.AddInstruction("For each selected training day in week 1:");
+            task.AddInstruction("1. Construct a TrainingSessionDTO:");
+            task.AddInstruction("   - trainingSessionID: new UUID");
+            task.AddInstruction("   - sessionNumber: sequential, using getTrainingSessions(programId)");
+            task.AddInstruction("   - status: 0");
+            task.AddInstruction("   - movements: based on user's preferred lifts");
+            task.AddInstruction("2. Call `createTrainingSessionFromJson(sessionDto)` after each session.");
+            prompt.Sections.Add(task);
+
+            var promptText = prompt.ToStringPrompty();
+            var response = await _openAi.ChatAndRespondAsync(promptText, OpenAiFunctionTools.All, async (name, argsJson) =>
+            {
+                return await ExecuteToolCallAsync(name, argsJson, user);
+            });
+            return Result.Success(response);
+        }
+
+        private async Task<Result<string>> GenerateRemainingWeeksPrompt(IdentityUser user, Dictionary<string, object>? inputs)
+        {
+            var prompt = new LionMcpPrompt { User = user };
+
+            var task = new InstructionPromptSection { Name = "Phase 4: Generate Weeks 2–3" };
+            task.AddInstruction("Use week 1 as a template.");
+            task.AddInstruction("- Copy structure, maintain movement pattern, skip weekends.");
+            task.AddInstruction("- Increment RPE each week: 7.0 → 7.5 → 8.0.");
+            task.AddInstruction("- Assign new UUIDs, update dates, assign session numbers.");
+            task.AddInstruction("- Call createTrainingSessionFromJson(sessionDto) for each.");
+            prompt.Sections.Add(task);
+
+            var promptText = prompt.ToStringPrompty();
+            var response = await _openAi.ChatAndRespondAsync(promptText, OpenAiFunctionTools.All, async (name, argsJson) =>
+            {
+                return await ExecuteToolCallAsync(name, argsJson, user);
+            });
+            return Result.Success(response);
+        }
+        
+
+    public async Task<object?> ExecuteToolCallAsync(string functionName, string argumentsJson, IdentityUser user)
+    {
+        try
+        {
+            switch (functionName)
+            {
+                case "createTrainingProgram":
+                {
+                    var req = JsonSerializer.Deserialize<CreateTrainingProgramRequest>(argumentsJson);
+                    return await _trainingProgramService.CreateTrainingProgramAsync(user, req!);
+                }
+
+                case "createTrainingSession":
+                {
+                    var req = JsonSerializer.Deserialize<CreateTrainingSessionRequest>(argumentsJson);
+                    return await _trainingSessionService.CreateTrainingSessionAsync(user, req!);
+                }
+
+                case "createMovement":
+                {
+                    var req = JsonSerializer.Deserialize<CreateMovementRequest>(argumentsJson);
+                    return await _movementService.CreateMovementAsync(user, req!);
+                }
+
+                case "createSetEntry":
+                {
+                    var req = JsonSerializer.Deserialize<CreateSetEntryRequest>(argumentsJson);
+                    return await _setEntryService.CreateSetEntryAsync(user, req!);
+                }
+
+                case "getIdentityUser":
+                {
+                    return user; // Assumes you're returning the whole IdentityUser object
+                }
+
+                case "getMovementBases":
+                {
+                    return await _movementService.GetMovementBasesAsync();
+                }
+
+                case "getTrainingPrograms":
+                {
+                    return await _trainingProgramService.GetTrainingProgramsAsync(user);
+                }
+
+                case "getTrainingSessions":
+                {
+                    var req = JsonSerializer.Deserialize<GetTrainingSessionsRequest>(argumentsJson);
+                    return await _trainingSessionService.GetTrainingSessionsAsync(user, req!.TrainingProgramID);
+                }
+
+                default:
+                    throw new InvalidOperationException($"Unknown tool: {functionName}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error executing tool function: {Function}", functionName);
+            return null;
+        }
     }
+
+
+
+
+
+    }
+    
 }

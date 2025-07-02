@@ -67,16 +67,8 @@ namespace Model.McpServer
 
             return $"{content}\n\n{footer}";
         }
-
-       
-
-      
-
-
-       
     }
     
-
     /// <summary>
     /// Defines a named section of a prompt that can render its content as text.
     /// </summary>
@@ -262,22 +254,6 @@ namespace Model.McpServer
                 WriteIndented = true
             });
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         /// <inheritdoc/>
         public override string ToString()

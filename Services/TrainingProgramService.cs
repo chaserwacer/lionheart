@@ -212,6 +212,7 @@ public class TrainingProgramService : ITrainingProgramService
         await _context.SaveChangesAsync();
         return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
     }
+   
     /// <summary>
     ///  Creates a training program from a JSON string.
     /// </summary>
@@ -223,34 +224,36 @@ public class TrainingProgramService : ITrainingProgramService
         // 1) Prevent duplicate program
         if (await _context.TrainingPrograms
             .AnyAsync(p => p.TrainingProgramID == trainingProgramDTO.TrainingProgramID))
-        return Result<TrainingProgramDTO>.Error("TrainingProgramID already exists.");
+            return Result<TrainingProgramDTO>.Error("TrainingProgramID already exists.");
 
-    // 2) Create the program entity with the correct properties
-    var userGuid = Guid.Parse(user.Id);
-    var newProgram = new TrainingProgram {
-        TrainingProgramID = Guid.NewGuid(),
-        UserID            = userGuid,                     // ← make this change
-        Title             = trainingProgramDTO.Title,
-        StartDate         = trainingProgramDTO.StartDate,
-        EndDate           = trainingProgramDTO.EndDate,
-        Tags              = trainingProgramDTO.Tags
-    };
+        // 2) Create the program entity with the correct properties
+        var userGuid = Guid.Parse(user.Id);
+        var newProgram = new TrainingProgram
+        {
+            TrainingProgramID = Guid.NewGuid(),
+            UserID = userGuid,                     // ← make this change
+            Title = trainingProgramDTO.Title,
+            StartDate = trainingProgramDTO.StartDate,
+            EndDate = trainingProgramDTO.EndDate,
+            Tags = trainingProgramDTO.Tags
+        };
 
         // 3) Create each session WITHOUT SessionNumber on the entity
         foreach (var sessionDto in trainingProgramDTO.TrainingSessions)
         {
-            var newSession = new TrainingSession {
+            var newSession = new TrainingSession
+            {
                 TrainingSessionID = Guid.NewGuid(),
                 TrainingProgramID = newProgram.TrainingProgramID,
-                Date              = sessionDto.Date,
-                Status            = sessionDto.Status
+                Date = sessionDto.Date,
+                Status = sessionDto.Status
                 // no SessionNumber property on the entity
             };
 
-           // int movementOrder = 0;
+            // int movementOrder = 0;
             foreach (var movementDTO in sessionDto.Movements)
             {
-                var movementBase =  await _context.MovementBases.FindAsync(movementDTO.MovementBaseID);
+                var movementBase = await _context.MovementBases.FindAsync(movementDTO.MovementBaseID);
                 if (movementBase is null)
                 {
                     return Result<TrainingProgramDTO>.Error($"Movement Base with ID: '{movementDTO.MovementBaseID}' not found.");
@@ -271,15 +274,16 @@ public class TrainingProgramService : ITrainingProgramService
                 var setEntries = new List<SetEntry>();
                 foreach (var sDto in movementDTO.Sets)
                 {
-                    var newSet = new SetEntry {
-                        SetEntryID        = Guid.NewGuid(),
-                        MovementID        = newMovement.MovementID,
-                        RecommendedReps   = sDto.RecommendedReps,
+                    var newSet = new SetEntry
+                    {
+                        SetEntryID = Guid.NewGuid(),
+                        MovementID = newMovement.MovementID,
+                        RecommendedReps = sDto.RecommendedReps,
                         RecommendedWeight = sDto.RecommendedWeight,
-                        RecommendedRPE    = sDto.RecommendedRPE,
-                        ActualReps        = sDto.ActualReps,
-                        ActualWeight      = sDto.ActualWeight,
-                        ActualRPE         = sDto.ActualRPE
+                        RecommendedRPE = sDto.RecommendedRPE,
+                        ActualReps = sDto.ActualReps,
+                        ActualWeight = sDto.ActualWeight,
+                        ActualRPE = sDto.ActualRPE
                     };
                     newMovement.Sets.Add(newSet);
                 }

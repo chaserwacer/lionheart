@@ -70,6 +70,11 @@ public class UpdateTrainingProgramRequest : IValidatableObject
     }
 }
 
+public class GetTrainingSessionsRequest
+{
+    [Required]
+    public required Guid TrainingProgramID { get; init; }
+}
 
 
 
