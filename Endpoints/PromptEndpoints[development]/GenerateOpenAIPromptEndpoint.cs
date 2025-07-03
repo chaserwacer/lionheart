@@ -1,4 +1,3 @@
-using Ardalis.ApiEndpoints;
 using Ardalis.Result;
 using lionheart.Model.DTOs;
 using lionheart.Services;
@@ -9,10 +8,10 @@ using Ardalis.Filters;
 
 namespace lionheart.Endpoints.PromptEndpoints
 {
+    [ApiController] // Optional, but doesn’t hurt
+    [Route("api/openai/prompt")]
     [ValidateModel]
-    public class GenerateOpenAIPromptEndpoint : EndpointBaseAsync
-        .WithRequest<GeneratePromptRequest>
-        .WithActionResult<string>
+    public class GenerateOpenAIPromptEndpoint : ControllerBase
     {
         private readonly IPromptService _promptService;
         private readonly UserManager<IdentityUser> _userManager;
@@ -23,11 +22,10 @@ namespace lionheart.Endpoints.PromptEndpoints
             _userManager = userManager;
         }
 
-        [HttpPost("api/openai/prompt")]
-        [EndpointDescription("Generates a system prompt using OpenAI-specific logic and user-defined inputs.")]
-        [ProducesResponseType<string>(StatusCodes.Status200OK)]
+        [HttpPost]
+        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public override async Task<ActionResult<string>> HandleAsync(
+        public async Task<ActionResult<string>> GeneratePromptAsync(
             [FromBody] GeneratePromptRequest request,
             CancellationToken cancellationToken = default)
         {

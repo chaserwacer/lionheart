@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 public static class OpenAiFunctionTools
 {
     public static readonly List<FunctionToolDefinition> All = new()
@@ -6,22 +8,33 @@ public static class OpenAiFunctionTools
         {
             Name = "createTrainingProgram",
             Description = "Create a new training program using title and start date.",
-            Parameters = new
+            Parameters = JsonDocument.Parse("""
             {
-                title = "string",
-                startDate = "string" // YYYY-MM-DD
+                "type": "object",
+                "properties": {
+                    "title": { "type": "string" },
+                    "startDate": { "type": "string", "format": "date" }
+                },
+                "required": ["title", "startDate"]
             }
-        },
+            """)
+        }
+,
         new FunctionToolDefinition
         {
             Name = "createTrainingSession",
             Description = "Create a new session for a program with a specific date and number.",
-            Parameters = new
+            Parameters = JsonDocument.Parse("""
             {
-                trainingProgramID = "string",
-                sessionNumber = "int",
-                date = "string" // YYYY-MM-DD
+                "type": "object",
+                "properties": {
+                    "trainingProgramID": { "type": "string" },
+                    "sessionDate": { "type": "string", "format": "date" },
+                    "sessionNumber": { "type": "integer" }
+                },
+                "required": ["trainingProgramID", "sessionDate", "sessionNumber"]
             }
+            """)
         },
         new FunctionToolDefinition
         {

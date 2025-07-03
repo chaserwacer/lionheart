@@ -73,8 +73,17 @@ public class OpenAiService
         }),
         tool_choice = "auto"
     };
+    Console.WriteLine("Sending payload:");
+    Console.WriteLine(JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
 
     var response = await _http.PostAsJsonAsync("v1/chat/completions", payload);
+    var body = await response.Content.ReadAsStringAsync(); // 👈 get error detail
+    Console.WriteLine($"Status: {(int)response.StatusCode}");
+    Console.WriteLine("Response body:");
+    Console.WriteLine(body);
+
+
+
     response.EnsureSuccessStatusCode();
     var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
     var root = json!.RootElement;
@@ -132,7 +141,7 @@ public class OpenAiService
 
         var secondPayload = new
         {
-            model = "gpt-4o",
+            model = "gpt-4.0",
             messages = toolMessage
         };
 

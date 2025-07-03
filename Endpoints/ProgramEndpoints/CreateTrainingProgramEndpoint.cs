@@ -14,7 +14,7 @@ namespace lionheart.Endpoints.ProgramEndpoints
     public class CreateTrainingProgramEndpoint : EndpointBaseAsync
         .WithRequest<CreateTrainingProgramRequest>
         .WithActionResult<TrainingProgramDTO>
-    {
+    { 
         private readonly ITrainingProgramService _trainingProgramService;
         private readonly UserManager<IdentityUser> _userManager;
 
