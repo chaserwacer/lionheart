@@ -19,16 +19,10 @@
   let movementOptions: MovementBase[] = [];
   let selectedMovementBaseID: string = '';
   let selectedModifierName: string = 'No Modifier';
-  let repSchemes = [{ sets: 1, reps: 5, rpe: 8 }];
+  let repSchemes: { sets: number; reps: number; rpe: number; weight: number }[] = [];
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
-  const modifiers: MovementModifier[] = [
-    MovementModifier.fromJS({ name: 'No Modifier', equipment: 'None', duration: 0 }),
-    MovementModifier.fromJS({ name: 'Paused', equipment: 'Barbell', duration: 1 }),
-    MovementModifier.fromJS({ name: 'Tempo 3-1-0', equipment: 'Barbell', duration: 1 }),
-    MovementModifier.fromJS({ name: 'Dumbbell Variant', equipment: 'Dumbbell', duration: 0 }),
-    MovementModifier.fromJS({ name: 'Chains Added', equipment: 'Barbell', duration: 0 })
-  ];
+
 
   onMount(async () => {
     try {
@@ -40,7 +34,7 @@
   });
 
   function addRepScheme() {
-  repSchemes = [...repSchemes, { sets: 1, reps: 5, rpe: 8 }];
+  repSchemes = [...repSchemes, { sets: 0, reps: 0, rpe: 0, weight: 0 }];
 }
 
 
@@ -51,8 +45,7 @@
 
   async function createMovement() {
     const movementBase = movementOptions.find(m => m.movementBaseID === selectedMovementBaseID);
-    const modifier = modifiers.find(m => m.name === selectedModifierName);
-    if (!movementBase || !modifier) return;
+    if (!movementBase ) return;
 
     const movementClient = new CreateMovementEndpointClient(baseUrl);
     const setClient = new CreateSetEntryEndpointClient(baseUrl);
@@ -61,8 +54,12 @@
       movementBaseID: movementBase.movementBaseID,
       trainingSessionID: sessionID,
       notes: '',
-      movementModifier: modifier,
-      weightUnit: WeightUnit._1, // Default to LBS
+      movementModifier: {
+        name: modifierName,
+        equipment: modifierEquipment,
+        duration: modifierDuration
+      },
+      weightUnit: WeightUnit._1,
     }));
 
     for (const scheme of repSchemes) {
@@ -70,11 +67,11 @@
         await setClient.create3(CreateSetEntryRequest.fromJS({
           movementID: movement.movementID!,
           recommendedReps: scheme.reps,
-          recommendedWeight: 0,
+          recommendedWeight: scheme.weight,
           recommendedRPE: scheme.rpe,
-          actualReps: scheme.reps,
+          actualReps: 0,
           actualWeight: 0,
-          actualRPE: scheme.rpe,
+          actualRPE: 0,
         }));
       }
     }
@@ -86,6 +83,10 @@
   function close() {
     dispatch('close');
   }
+
+  let modifierName: string = '';
+let modifierEquipment: string = '';
+let modifierDuration: number = 0;
 </script>
 
 {#if show}
@@ -107,27 +108,61 @@
             {/each}
           </select>
 
-          <select bind:value={selectedModifierName} class="select select-bordered w-full">
-            {#each modifiers as mod}
-              <option value={mod.name}>{mod.name}</option>
-            {/each}
-          </select>
+          
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mb-4">
+          <div class="flex flex-col">
+            <label class="label label-text mb-1" for="modifier-name">Modifier Name</label>
+            <input
+              id="modifier-name"
+              type="text"
+              class="input input-bordered w-full"
+              bind:value={modifierName}
+              placeholder="e.g. Paused"
+            />
+          </div>
+          <div class="flex flex-col">
+            <label class="label label-text mb-1" for="modifier-equipment">Equipment</label>
+            <select
+              id="modifier-equipment"
+              class="select select-bordered w-full"
+              bind:value={modifierEquipment}
+            >
+              <option value="" disabled selected>none</option>
+              <option>Kettlebell</option>
+              <option>Barbell</option>
+              <option>Dumbbell</option>
+            </select>
+          </div>
+          <div class="flex flex-col">
+            <label class="label label-text mb-1" for="modifier-duration">Duration (sec)</label>
+            <input
+              id="modifier-duration"
+              type="number"
+              min="0"
+              class="input input-bordered w-full"
+              bind:value={modifierDuration}
+              placeholder="0"
+            />
+          </div>
         </div>
 
         {#if repSchemes.length}
           <div class="space-y-4">
             {#each repSchemes as rs, i}
               <div class="space-y-1">
-                <div class="grid grid-cols-3 gap-4 text-sm font-semibold text-gray-400">
-                  <div class="">Sets</div>
-                  <div class="">Reps</div>
-                  <div class="">RPE</div>
+                <div class="grid grid-cols-4 gap-4 text-sm font-semibold text-gray-400">
+                  <div>Sets</div>
+                  <div>Reps</div>
+                  <div>RPE</div>
+                  <div>Weight</div>
                 </div>
-
-                <div class="grid grid-cols-3 gap-4 items-center">
+                <div class="grid grid-cols-4 gap-4 items-center">
                   <input type="number" min="1" bind:value={rs.sets} class="input input-sm input-bordered text-center" />
                   <input type="number" min="1" bind:value={rs.reps} class="input input-sm input-bordered text-center" />
                   <input type="number" step="0.5" min="1" max="10" bind:value={rs.rpe} class="input input-sm input-bordered text-center" />
+                  <input type="number" min="0" step="0.5" bind:value={rs.weight} class="input input-sm input-bordered text-center" />
                 </div>
 
                 <div class="text-right">

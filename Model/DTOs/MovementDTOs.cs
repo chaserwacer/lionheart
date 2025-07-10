@@ -71,12 +71,17 @@ public class MovementDTO
     public required List<SetEntryDTO> Sets { get; set; } = [];
     public required string Notes { get; set; } = string.Empty;
     public required bool IsCompleted { get; set; } = false;
-    
+    public required int Ordering { get; set; } 
 }
 
+public class MovementOrderUpdate
+{
+    public Guid MovementID { get; set; }
+    public int Ordering { get; set; }
+}
 
-    public class UpdateMovementOrderRequest
-    {
-        public Guid TrainingSessionID { get; set; }
-        public List<Guid> IDs { get; set; } = new List<Guid>();
-    }
+public class UpdateMovementOrderRequest
+{
+    public Guid TrainingSessionID { get; set; }
+    public List<MovementOrderUpdate> Movements { get; set; } = new();
+}

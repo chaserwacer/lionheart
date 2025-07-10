@@ -215,39 +215,32 @@ public class MovementService : IMovementService
     public async Task<Result> UpdateMovementOrder(IdentityUser user, UpdateMovementOrderRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
-        // Verify user owns the training session
         var session = await _context.TrainingSessions
             .Include(ts => ts.TrainingProgram)
             .Include(ts => ts.Movements)
             .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
                                    ts.TrainingProgram!.UserID == userGuid);
-        if (session is null)
-        {
-            return Result.NotFound("Training session not found or access denied.");
-        }
+    if (session is null)
+        return Result.NotFound("Training session not found or access denied.");
 
-        // Get all movements for this session
-        var sessionMovementIds = session.Movements.Select(m => m.MovementID).ToHashSet();
-        var requestMovementIds = request.IDs.ToHashSet();
+    var sessionMovements = session.Movements.ToDictionary(m => m.MovementID);
+    var requestIds = request.Movements.Select(m => m.MovementID).ToHashSet();
 
-        // Validate that the IDs in the request match exactly with the movements in the session
-        if (!sessionMovementIds.SetEquals(requestMovementIds))
-        {
-            return Result.Invalid(new List<ValidationError> {
+    // Validate all session movements are present in the request and vice versa
+    if (!(new HashSet<Guid>(sessionMovements.Keys)).SetEquals(requestIds))
+        return Result.Invalid(new List<ValidationError> {
             new ValidationError { ErrorMessage = "Movement IDs don't match exactly with session movements." }
-            });
-        }
+        });
 
-        // Update movement order based on the sequence in request.IDs
-        for (int i = 0; i < request.IDs.Count; i++)
-        {
-            var movement = session.Movements.First(m => m.MovementID == request.IDs[i]);
-            movement.Ordering = i;
-        }
-
-        await _context.SaveChangesAsync();
-        return Result.Success();
+    // Update ordering
+    foreach (var update in request.Movements)
+    {
+        sessionMovements[update.MovementID].Ordering = update.Ordering;
     }
+
+    await _context.SaveChangesAsync();
+    return Result.Success();
+}
     
     [McpServerTool, Description("Delete a movement base.")]
     public async Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)

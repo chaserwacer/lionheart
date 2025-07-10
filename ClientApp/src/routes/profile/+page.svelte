@@ -177,9 +177,10 @@
           class="select select-primary bg-primary text-primary-content"
           data-choose-theme
         >
-          <option value="default">Default</option>
-          <option value="lofi">White</option>
-          <option value="black">Black</option>
+          <option value="lofi">Light Mode</option>
+          <option value="black">Dark Mode</option>
+          <option value="coffee">lion-gold</option>
+          
           <option value="autumn">Autumn</option>
           <option value="nord">Blue</option>
           <option value="retro">Retro</option>

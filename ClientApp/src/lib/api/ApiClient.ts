@@ -5342,6 +5342,7 @@ export class MovementDTO implements IMovementDTO {
     sets!: SetEntryDTO[];
     notes!: string | undefined;
     isCompleted!: boolean;
+    ordering!: number;
 
     constructor(data?: IMovementDTO) {
         if (data) {
@@ -5372,6 +5373,7 @@ export class MovementDTO implements IMovementDTO {
             }
             this.notes = _data["notes"];
             this.isCompleted = _data["isCompleted"];
+            this.ordering = _data["ordering"];
         }
     }
 
@@ -5397,6 +5399,7 @@ export class MovementDTO implements IMovementDTO {
         }
         data["notes"] = this.notes;
         data["isCompleted"] = this.isCompleted;
+        data["ordering"] = this.ordering;
         return data;
     }
 }
@@ -5411,6 +5414,7 @@ export interface IMovementDTO {
     sets: SetEntryDTO[];
     notes: string | undefined;
     isCompleted: boolean;
+    ordering: number;
 }
 
 export class MovementModifier implements IMovementModifier {
@@ -5455,6 +5459,46 @@ export interface IMovementModifier {
     name?: string | undefined;
     equipment?: string | undefined;
     duration?: number;
+}
+
+export class MovementOrderUpdate implements IMovementOrderUpdate {
+    movementID?: string;
+    ordering?: number;
+
+    constructor(data?: IMovementOrderUpdate) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementID = _data["movementID"];
+            this.ordering = _data["ordering"];
+        }
+    }
+
+    static fromJS(data: any): MovementOrderUpdate {
+        data = typeof data === 'object' ? data : {};
+        let result = new MovementOrderUpdate();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementID"] = this.movementID;
+        data["ordering"] = this.ordering;
+        return data;
+    }
+}
+
+export interface IMovementOrderUpdate {
+    movementID?: string;
+    ordering?: number;
 }
 
 export class MuscleSetsDto implements IMuscleSetsDto {
@@ -6581,7 +6625,7 @@ export interface ITwoFactorResponse {
 
 export class UpdateMovementOrderRequest implements IUpdateMovementOrderRequest {
     trainingSessionID?: string;
-    iDs?: string[] | undefined;
+    movements?: MovementOrderUpdate[] | undefined;
 
     constructor(data?: IUpdateMovementOrderRequest) {
         if (data) {
@@ -6595,10 +6639,10 @@ export class UpdateMovementOrderRequest implements IUpdateMovementOrderRequest {
     init(_data?: any) {
         if (_data) {
             this.trainingSessionID = _data["trainingSessionID"];
-            if (Array.isArray(_data["iDs"])) {
-                this.iDs = [] as any;
-                for (let item of _data["iDs"])
-                    this.iDs!.push(item);
+            if (Array.isArray(_data["movements"])) {
+                this.movements = [] as any;
+                for (let item of _data["movements"])
+                    this.movements!.push(MovementOrderUpdate.fromJS(item));
             }
         }
     }
@@ -6613,10 +6657,10 @@ export class UpdateMovementOrderRequest implements IUpdateMovementOrderRequest {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["trainingSessionID"] = this.trainingSessionID;
-        if (Array.isArray(this.iDs)) {
-            data["iDs"] = [];
-            for (let item of this.iDs)
-                data["iDs"].push(item);
+        if (Array.isArray(this.movements)) {
+            data["movements"] = [];
+            for (let item of this.movements)
+                data["movements"].push(item ? item.toJSON() : <any>undefined);
         }
         return data;
     }
@@ -6624,7 +6668,7 @@ export class UpdateMovementOrderRequest implements IUpdateMovementOrderRequest {
 
 export interface IUpdateMovementOrderRequest {
     trainingSessionID?: string;
-    iDs?: string[] | undefined;
+    movements?: MovementOrderUpdate[] | undefined;
 }
 
 export class UpdateMovementRequest implements IUpdateMovementRequest {

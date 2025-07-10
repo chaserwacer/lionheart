@@ -331,9 +331,9 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         var movementBaseId3 = await CreateMovementBase(_testUserId, "Deadlift");
 
         // Create three movements
-        var req1 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId1, MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 }, Notes = "",WeightUnit = WeightUnit.Kilograms };
-        var req2 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId2, MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 }, Notes = "",WeightUnit = WeightUnit.Kilograms };
-        var req3 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId3, MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 }, Notes = "",WeightUnit = WeightUnit.Kilograms };
+        var req1 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId1, MovementModifier = new MovementModifier { Name = "Paused", Equipment = "Barbell", Duration = 2 }, Notes = "", WeightUnit = WeightUnit.Kilograms };
+        var req2 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId2, MovementModifier = new MovementModifier { Name = "High Bar", Equipment = "Barbell", Duration = 0 }, Notes = "", WeightUnit = WeightUnit.Kilograms };
+        var req3 = new CreateMovementRequest { TrainingSessionID = sessionId, MovementBaseID = movementBaseId3, MovementModifier = new MovementModifier { Name = "Conventional", Equipment = "Barbell", Duration = 0 }, Notes = "", WeightUnit = WeightUnit.Kilograms };
 
         var resp1 = await _client.PostAsJsonAsync("/api/movement/create", req1);
         var resp2 = await _client.PostAsJsonAsync("/api/movement/create", req2);
@@ -343,10 +343,15 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         var m3 = await resp3.Content.ReadFromJsonAsync<MovementDTO>();
 
         // New order: m3, m1, m2
-        var request = new UpdateMovementOrderRequest
+        var request = new
         {
             TrainingSessionID = sessionId,
-            IDs = new List<Guid> { m3!.MovementID, m1!.MovementID, m2!.MovementID }
+            Movements = new List<object>
+            {
+                new { MovementID = m3!.MovementID, Ordering = 0 },
+                new { MovementID = m1!.MovementID, Ordering = 1 },
+                new { MovementID = m2!.MovementID, Ordering = 2 }
+            }
         };
         var updateResp = await _client.PutAsJsonAsync("/api/movement/update-order", request);
         updateResp.EnsureSuccessStatusCode();
@@ -386,10 +391,15 @@ public class MovementEndpointsTests : IClassFixture<WebApplicationFactory<Progra
         var m3 = await resp3.Content.ReadFromJsonAsync<MovementDTO>();
 
         // New order: m3, m1, m2
-        var request = new UpdateMovementOrderRequest
+        var request = new
         {
             TrainingSessionID = sessionId,
-            IDs = new List<Guid> { m3!.MovementID, m1!.MovementID }
+            Movements = new List<object>
+            {
+                new { MovementID = m3!.MovementID, Ordering = 0 },
+                new { MovementID = m1!.MovementID, Ordering = 1 },
+                new { MovementID = m2!.MovementID, Ordering = 2 }
+            }
         };
         var updateResp = await _client.PutAsJsonAsync("/api/movement/update-order", request);
         Assert.False(updateResp.IsSuccessStatusCode);

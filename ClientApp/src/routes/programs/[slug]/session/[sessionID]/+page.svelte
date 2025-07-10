@@ -25,6 +25,8 @@
     DeleteSetEntryEndpointClient,
     MovementBase,
     GetMovementBasesEndpointClient,
+    UpdateMovementOrderEndpointClient,
+    UpdateMovementOrderRequest,
   } from "$lib/api/ApiClient";
   import { base } from "$app/paths";
 
@@ -130,13 +132,9 @@
     await refreshSessionData();
   }
 
-  async function deleteMovement(index: number) {
+  async function deleteMovement(movement: MovementDTO) {
     if (!session) return;
-
-    const movement = session.movements?.[index];
     if (!movement?.movementID) return;
-
-    // Call your backend DELETE endpoint
     const res = await fetch(
       `${baseUrl}/api/movement/delete/${movement.movementID}`,
       {
@@ -144,14 +142,11 @@
         credentials: "include",
       },
     );
-
     if (!res.ok) {
       console.error("Failed to delete movement");
       return;
     }
-
-    // Remove it from local session state
-    session.movements = session.movements?.filter((_, i) => i !== index);
+    await refreshSessionData();
   }
 
   async function updateSession() {
@@ -227,6 +222,62 @@
 
     await refreshSessionData();
   }
+
+  async function deleteSession(sessionID: string) {
+    const res = await fetch(`${baseUrl}/api/session/delete/${sessionID}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      console.error("Failed to delete session");
+      return;
+    }
+
+    // Redirect to the program page after deletion
+    goto(`/programs/${slug}`);
+  }
+  async function reorderMovement(
+    movement: MovementDTO,
+    direction: "up" | "down",
+  ) {
+    if (!session || !session.movements) return;
+    // Sort movements by ordering
+    const movements = session.movements
+      .slice()
+      .sort((a, b) => a.ordering - b.ordering);
+    const index = movements.findIndex(
+      (m) => m.movementID === movement.movementID,
+    );
+    if (
+      (direction === "up" && index === 0) ||
+      (direction === "down" && index === movements.length - 1)
+    ) {
+      return;
+    }
+    const swapWith = direction === "up" ? index - 1 : index + 1;
+    [movements[index], movements[swapWith]] = [
+      movements[swapWith],
+      movements[index],
+    ];
+    // Assign new ordering values
+    const movementOrderUpdates = movements.map((m, i) => ({
+      movementID: m.movementID,
+      ordering: i,
+    }));
+    try {
+      const client = new UpdateMovementOrderEndpointClient(baseUrl);
+      await client.updateOrder(
+        UpdateMovementOrderRequest.fromJS({
+          trainingSessionID: session.trainingSessionID,
+          movements: movementOrderUpdates,
+        }),
+      );
+    } catch (err) {
+      console.error("Failed to update order:", err);
+    }
+    await refreshSessionData();
+  }
 </script>
 
 {#if session}
@@ -241,6 +292,7 @@
       <div class="flex flex-col gap-3">
         <p class="text-4xl font-bold">{program?.title}</p>
         <p class="text-3xl italic">Session # {session.sessionNumber}</p>
+
         <div class="stats shadow border">
           <div class="stat">
             <div class="stat-title">Session Date</div>
@@ -249,12 +301,7 @@
               style="min-height:2.5rem;"
             >
               {#if editingDate}
-                <input
-                  type="date"
-                  bind:value={selectedDate}
-                  on:change={updateSession}
-                  class="btn btn-accent"
-                />
+                <input class="btn btn-accent" />
               {:else}
                 {session.date.toISOString().slice(0, 10)}
               {/if}
@@ -336,17 +383,19 @@
     </div>
 
     <div class="flex flex-col gap-6 items-stretch w-full">
-      {#each session.movements as movement, mvIndex (movement.movementID)}
+      {#each session.movements
+        ?.slice()
+        .sort((a, b) => a.ordering - b.ordering) as movement}
         {#if !movement.isCompleted}
           <div
             class="bg-base-100 border border-base-300 rounded-xl p-5 shadow-md transition hover:shadow-lg w-full"
           >
-            <div class="flex justify-between items-start mb-3 flex flex-col">
+            <div class="flex justify-between items-start mb-1 flex flex-col">
               <div class="flex flex-wrap gap-x-5">
                 <button
                   type="button"
                   on:click={() => (editingMovementBaseName = true)}
-                  class="font-bold text-5xl mb-5 font-primary bg-transparent border-none text-left p-0 focus:outline-none"
+                  class="font-bold text-4xl mb-2 font-primary bg-transparent border-none text-left p-0 focus:outline-none"
                   style="background: none;"
                 >
                   {movement.movementBase.name}
@@ -368,14 +417,14 @@
               <div class="flex">
                 <input
                   type="text"
-                  placeholder="Type here"
-                  class="input input-primary w-32 m-1"
+                  placeholder="Modifer"
+                  class="input input-sm input-primary w-28 m-1"
                   bind:value={movement.movementModifier.name}
                   on:change={() => updateMovement(movement)}
                 />
 
                 <select
-                  class="select select-primary m-1"
+                  class="select select-sm select-primary m-1"
                   bind:value={movement.movementModifier.equipment}
                   on:change={() => updateMovement(movement)}
                 >
@@ -393,20 +442,27 @@
                   min="0"
                   bind:value={movement.movementModifier.duration}
                   on:input={() => updateMovement(movement)}
-                  class="peer input input-xl input-primary w-16 m-1"
+                  class="peer input input-sm input-primary w-16 m-1"
                 />
+
+                  <label
+                    class="swap border border-primary rounded w-10 m-1 swap-xs swap-flip m-1"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={movement.weightUnit === WeightUnit._1}
+                      on:change={(e) => handleUnitToggle(movement, e)}
+                    />
+
+                    <div class="swap-on text-xs ">LBS</div>
+
+                    <div class="swap-off text-xs">
+                      KGS
+                    </div>
+                  </label>
               </div>
             </div>
 
-            <div class="flex flex-row items-center m-1 mb-4">
-              <p>Unit: {labelMap[movement.weightUnit]}</p>
-              <input
-                type="checkbox"
-                checked={movement.weightUnit === WeightUnit._1}
-                class=" ml-1 toggle toggle-xs"
-                on:change={(e) => handleUnitToggle(movement, e)}
-              />
-            </div>
 
             <ul
               class="overflow-x-auto w-full border border-base-300 rounded-xl shadow-md hover:shadow-lg transition p-4"
@@ -613,54 +669,77 @@
                 {movement.isCompleted ? "Undo" : "✓"}
               </button>
               <button
-                on:click={() => deleteMovement(mvIndex)}
+                on:click={() => deleteMovement(movement)}
                 class="btn btn-xs btn-error"
               >
                 X
               </button>
+              <!-- Up arrow -->
+              {#if movement.ordering > 0}
+                <button
+                  class="btn btn-xs"
+                  on:click={() => reorderMovement(movement, "up")}
+                >
+                  ↑
+                </button>
+              {/if}
+              <!-- Down arrow -->
+              {#if movement.ordering < session.movements.length - 1}
+                <button
+                  class="btn btn-xs"
+                  on:click={() => reorderMovement(movement, "down")}
+                >
+                  ↓
+                </button>
+              {/if}
             </div>
           </div>
         {/if}
+        {#if movement.isCompleted}
+          <div
+            class="bg-base-200 border border-base-300 rounded-xl p-5 shadow-md transition hover:shadow-lg w-full"
+          >
+            <div class="font-bold text-2xl">{movement.movementBase.name}</div>
+            <div class="badge badge-primary">{movement.movementModifier.name}</div>
+            <div class="badge badge-primary">{movement.movementModifier.equipment}</div>
+            <div class="badge badge-primary">{movement.movementModifier.duration}s</div>
+            <div class="badge badge-primary">{labelMap[movement.weightUnit]}</div>
+            
+            <div>
+              <table class="table table-xs w-1/2 outline outline-1 mt-3">
+                <thead>
+                  <tr>
+                    <th>Set</th>
+                    <th>Reps</th>
+                    <th>Weight</th>
+                    <th>RPE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each movement.sets as set, index}
+                    <tr>
+                      <td>{index + 1}</td>
+                      <td>{set.actualReps}</td>
+                      <td>{set.actualWeight}</td>
+                      <td>{set.actualRPE}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-2">Notes: {movement.notes}</div>
+            <button
+              class="btn btn-xs outline mt-2"
+              on:click={() => toggleMovementComplete(movement)}
+            >
+              Edit Movement
+            </button>
+          </div>
+        {/if}
       {/each}
+      <button class="btn btn-error">Delete Training Session</button>
     </div>
-
-    <!-- Completed Section -->
-    {#if session.movements?.some((m) => m.isCompleted)}
-      <div class="flex justify-between items-center mt-10 mb-4">
-        <h2 class="text-xl font-semibold">Completed Movements</h2>
-        <button
-          on:click={() => (showCompleted = !showCompleted)}
-          class="text-lg hover:text-primary"
-        >
-          {showCompleted ? "▾" : "▸"}
-        </button>
-      </div>
-
-      {#if showCompleted}
-        <div
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-70"
-        >
-          {#each session.movements as movement, mvIndex (movement.movementID)}
-            {#if movement.isCompleted}
-              <div class="bg-base-200 border border-base-300 rounded-xl p-4">
-                <h3 class="text-xl font-bold mb-2">
-                  {movement.movementBase.name}
-                </h3>
-                <p class="text-sm italic text-base-content/60">
-                  Marked complete
-                </p>
-                <button
-                  on:click={() => toggleMovementComplete(movement)}
-                  class="text-xs text-warning hover:underline mt-2"
-                >
-                  Undo
-                </button>
-              </div>
-            {/if}
-          {/each}
-        </div>
-      {/if}
-    {/if}
+    
   </div>
 {:else}
   <div class="p-6 max-w-4xl mx-auto text-error">
