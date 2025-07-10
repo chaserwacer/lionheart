@@ -11,7 +11,7 @@ public class CreateSetEntryRequest : IValidatableObject
     public required double RecommendedWeight { get; init; }
 
     [Required]
-    [Range(0.5, 10.0)]
+    [Range(0, 10.0)]
     public required double RecommendedRPE { get; init; }
 
 
@@ -22,7 +22,7 @@ public class CreateSetEntryRequest : IValidatableObject
     public required double ActualWeight { get; init; }
 
     [Required]
-    [Range(0.5, 10.0)]
+    [Range(0, 10.0)]
     public required double ActualRPE { get; init; }
     
     [Required]
@@ -60,7 +60,7 @@ public class UpdateSetEntryRequest : IValidatableObject
     public required double RecommendedWeight { get; init; }
 
     [Required]
-    [Range(0.5, 10.0)]
+    [Range(0, 10.0)]
     public required double RecommendedRPE { get; init; }
 
 
@@ -71,7 +71,7 @@ public class UpdateSetEntryRequest : IValidatableObject
     public required double ActualWeight { get; init; }
 
     [Required]
-    [Range(0.5, 10.0)]
+    [Range(0, 10.0)]
     public required double ActualRPE { get; init; }
     
     [Required]

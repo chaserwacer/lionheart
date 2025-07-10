@@ -29,6 +29,9 @@
   let selectedMovementBaseID = '';
   let tempModifierID = 'No Modifier';
   let repSchemeDraft = { sets: 1, reps: 5, rpe: 8 };
+  let movementModifierName='';
+  let movementModifierEquipment = '';
+  let movementModifierDuration = 0;
 
   interface MovementItem {
     movementID: string;
@@ -131,12 +134,14 @@
         trainingSessionID: session.trainingSessionID!,
         notes: '',
         movementModifier: new MovementModifier({
-          name: matchedMod.name,
-          equipment: matchedMod.equipment,
-          duration: matchedMod.duration
+          name: movementModifierName,
+          equipment: movementModifierEquipment,
+          duration: movementModifierDuration
         })
       });
-
+      movementModifierName = '';
+      movementModifierEquipment = '';
+      movementModifierDuration = 0;
       const movementDTO = await movementClient.create2(movementReq);
       movement.movementDTO = movementDTO;
       tempToReal[movement.movementID] = movementDTO.movementID!;
@@ -188,7 +193,7 @@
           <button on:click={close} class="text-gray-400 hover:text-white text-2xl font-bold">&times;</button>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="flex flex-col">
           <select bind:value={selectedMovementBaseID} class="select select-bordered w-full">
             <option value="">Select a movement</option>
             {#each movementOptions as m}
@@ -196,11 +201,37 @@
             {/each}
           </select>
 
-          <select bind:value={tempModifierID} class="select select-bordered w-full">
-            {#each modifiers as mod}
-              <option value={mod.name}>{mod.name}</option>
-            {/each}
-          </select>
+          <div class="flex flex-col">
+                <input
+                  type="text"
+                  placeholder="Type here"
+                  class="input input w-32 m-1"
+                  bind:value={movementModifierName}
+
+                />
+
+                <select
+                  class="select w-32 m-1"
+                  bind:value={movementModifierEquipment}
+
+                >
+                  <option disabled selected
+                    >{movementModifierEquipment}</option
+                  >
+                  <option>Kettlebell</option>
+                  <option>Barbell</option>
+                  <option>Angular</option>
+                </select>
+
+                <input
+                  type="number"
+                  id="duration"
+                  min="0"
+                  bind:value={movementModifierDuration}
+                  
+                  class="peer input input-xl y w-16 m-1"
+                />
+              </div>
         </div>
 
         <button on:click={addMovementByID} class="text-sm text-green-500 hover:underline mb-6">+ Add Movement</button>

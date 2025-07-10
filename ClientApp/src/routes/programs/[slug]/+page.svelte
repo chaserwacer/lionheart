@@ -34,7 +34,7 @@
       if (program) {
         programID = program.trainingProgramID!;
         sessions = program.trainingSessions ?? [];
-        sessions.sort((a, b) => new Date(a.date ?? '').getTime() - new Date(b.date ?? '').getTime());
+        // sessions.sort((a, b) => new Date(a.date ?? '').getTime() - new Date(b.date ?? '').getTime());
       }
     } catch (error) {
       console.error('Failed to load program', error);
@@ -43,18 +43,10 @@
 
   onMount(async () => {
     await loadSessions();
-    assignSessionNumbers();
+
   });
 
-  function assignSessionNumbers() {
-  sessions = [...sessions]
-    .sort((a, b) => new Date(a.date ?? '').getTime() - new Date(b.date ?? '').getTime())
-    .map((s, i) => {
-      const updated = TrainingSessionDTO.fromJS(s); // preserve DTO methods
-      updated.sessionNumber = i + 1;
-      return updated;
-    });
-}
+
 
   
   async function deleteSession(sessionID: string) {
@@ -65,22 +57,14 @@
     try {
       await deleteClient.delete5(sessionID);
       sessions = sessions.filter(s => s.trainingSessionID !== sessionID);
-      assignSessionNumbers();
+      loadSessions(); // Reload sessions to reflect changes
     } catch {
       alert("Failed to delete session.");
     }
   }
 
-  function formatDate(dateInput: Date | string | undefined): string {
-    if (!dateInput) return '—';
-    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-    return date.toLocaleDateString(undefined, {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  }
+
+
 
   function getSessionPreview(session: TrainingSessionDTO): string[] {
     return session.movements?.slice(0, 3).map(m => {
@@ -96,9 +80,6 @@
     return ['Overshot last session', 'Recent poor sleep', 'Shoulder pain'].slice(0, (index % 3) + 1);
   }
 
-  function safeDate(input: string | Date | undefined): Date {
-    return input instanceof Date ? input : new Date(input ?? new Date());
-  }
 
   async function toggleSkipSession(sessionID: string) {
     if (!program) return;
@@ -115,28 +96,22 @@
         UpdateTrainingSessionRequest.fromJS({
           trainingSessionID: sessionID,
           trainingProgramID: program.trainingProgramID!,
-          date: new Date(session.date ?? new Date()),
+          date: new Date(session.date),
           status: newStatus
         })
       );
       session.status = newStatus;
-      assignSessionNumbers();
+      loadSessions(); 
     } catch {
       alert('Failed to update session status');
     }
   }
 
-  async function handleSessionCreated() {
-    await loadSessions();
-    assignSessionNumbers();
-    showModal = false;
-  }
-
- async function shiftSessionDate(session: TrainingSessionDTO, deltaDays: number) {
+  async function shiftSessionDate(session: TrainingSessionDTO, deltaDays: number) {
   if (!program) return;
 
-  const newDate = new Date(session.date ?? new Date());
-  newDate.setDate(newDate.getDate() + deltaDays);
+  const newDate = new Date(session.date);
+  newDate.setDate(newDate.getDate() + deltaDays + 1);
 
   // Update the local session object
   session.date = newDate;
@@ -148,12 +123,12 @@
       trainingSessionID: session.trainingSessionID!,
       trainingProgramID: program.trainingProgramID!,
       date: newDate,
-      status: session.status ?? TrainingSessionStatus._0
+      status: session.status
     }));
 
     // Trigger Svelte update
     sessions = [...sessions];
-    assignSessionNumbers(); // Re-sort based on new dates
+    loadSessions(); 
 
   } catch (err) {
     console.error('Failed to update session date', err);
@@ -192,24 +167,26 @@
               <span class="bg-primary text-primary-content text px-2 py-1 rounded font-mono">
                 Session # {session.sessionNumber}
               </span>
-             
+             <div class="flex items-center gap-2">
+                <h2 class="text-sm md:text-base font-semibold">{session.date.toISOString().slice(0, 10)}</h2>
+              </div>
             </div>
 
             <a href={`/programs/${slug}/session/${session.trainingSessionID}`} class="space-y-4 mt-3 block">
               <div class="bg-base-200 p-3 rounded-lg border border-base-300">
-                <h3 class="font-semibold text-sm mb-1 text-base-content/80">Preview</h3>
+                <h3 class="font-semibold text-sm mb-1 text-base-content/80">Completed Movements</h3>
                 <ul class="text-sm space-y-1">
-                  {#each getSessionPreview(session) as item}
-                    <li>- {item}</li>
+                  {#each session.movements.filter(m => m.isCompleted) as item}
+                    <li>- {item.movementBase.name}</li>
                   {/each}
                 </ul>
               </div>
 
               <div class="bg-base-200 p-3 rounded-lg border border-base-300">
-                <h3 class="font-semibold text-sm mb-1 text-base-content/80">Considerations</h3>
+                <h3 class="font-semibold text-sm mb-1 text-base-content/80">Uncompleted Movements</h3>
                 <ul class="text-sm space-y-1">
-                  {#each getConsiderations(0) as point}
-                    <li>- {point}</li>
+                  {#each session.movements.filter(m => !m.isCompleted) as item}
+                    <li>- {item.movementBase.name}</li>
                   {/each}
                 </ul>
               </div>
@@ -233,8 +210,8 @@
     <div class="mb-4 flex items-center justify-between">
       <h2 class="text-2xl font-bold flex items-center gap-2">
         Upcoming Sessions
-        <button on:click={() => showInProgress = !showInProgress} class="btn btn-xs btn-outline btn-primary">
-          {showInProgress ? '🡫' : '🡪'}
+        <button on:click={() => showUpcoming = !showUpcoming} class="btn btn-xs btn-outline btn-primary">
+          {showUpcoming ? '🡫' : '🡪'}
         </button>
       </h2>
     </div>
@@ -251,7 +228,7 @@
               </span>
               <div class="flex items-center gap-2">
                 <button on:click={() => shiftSessionDate(session, -1)} class="btn btn-xs btn-outline btn-primary">←</button>
-                <h2 class="text-sm md:text-base font-semibold">{formatDate(session.date)}</h2>
+                <h2 class="text-sm md:text-base font-semibold">{session.date.toISOString().slice(0, 10)}</h2>
                 <button on:click={() => shiftSessionDate(session, 1)} class="btn btn-xs btn-outline btn-primary">→</button>
               </div>
             </div>
@@ -305,7 +282,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60 mb-10">
           {#each sessions.filter(s => s.status === TrainingSessionStatus._3) as session (session.trainingSessionID)}
             <div class="bg-base-100 text-base-content border border-base-300 rounded-xl p-4 shadow">
-              <h2 class="text-lg font-semibold mb-2">Skipped – {formatDate(session.date)}</h2>
+              <h2 class="text-lg font-semibold mb-2">Skipped – {session.date.toISOString().slice(0, 10)}</h2>
               <p class="text-sm italic text-base-content mb-2">This session was skipped.</p>
               <button
                 on:click={() => session.trainingSessionID && toggleSkipSession(session.trainingSessionID)}
@@ -334,7 +311,7 @@
           {#each sessions.filter(s => s.status === TrainingSessionStatus._2) as session (session.trainingSessionID)}
             <a href={`/programs/${slug}/session/${session.trainingSessionID}`} class="block">
               <div class="bg-base-100 text-base-content border border-base-300 rounded-xl p-4 shadow hover:shadow-md transition">
-                <h2 class="text-lg font-semibold mb-2">{formatDate(session.date)}</h2>
+                <h2 class="text-lg font-semibold mb-2">{session.date.toISOString().slice(0, 10)}</h2>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
                     <h3 class="font-semibold text-sm mb-1">Preview</h3>

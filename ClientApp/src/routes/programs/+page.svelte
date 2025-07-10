@@ -94,7 +94,7 @@
       const rep = set?.recommendedReps ? `${set.recommendedReps} reps` : '';
       const rpe = set?.recommendedRPE ? `RPE ${set.recommendedRPE}` : '';
       const weight = set?.recommendedWeight
-        ? `${set.recommendedWeight} ${set.weightUnit === WeightUnit._0 ? 'kg' : 'lbs'}`
+        ? `${set.recommendedWeight} ${movement.weightUnit === WeightUnit._0 ? 'kg' : 'lbs'}`
         : '';
       return [movement.movementBase?.name ?? '', rep, weight, rpe].filter(Boolean).join(' ');
     }) ?? [];
