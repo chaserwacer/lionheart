@@ -43,6 +43,7 @@
   let weightStep: number = 5;
   let dateInput: HTMLInputElement;
   let windowWidth = 0;
+  let chosenMovementBaseIndexForEditing = 0;
   let modifiers: MovementBase[] = [];
   const baseUrl =
     typeof window !== "undefined"
@@ -104,6 +105,7 @@
   }
 
   async function updateMovement(movement: MovementDTO) {
+    movement.movementBaseID = movement.movementBase.movementBaseID!;
     editingMovementBaseName = false;
     const request = UpdateMovementRequest.fromJS({
       movementID: movement.movementID,
@@ -390,28 +392,38 @@
           <div
             class="bg-base-100 border border-base-300 rounded-xl p-5 shadow-md transition hover:shadow-lg w-full"
           >
-            <div class="flex justify-between items-start mb-1 flex flex-col">
-              <div class="flex flex-wrap gap-x-5">
-                <button
-                  type="button"
-                  on:click={() => (editingMovementBaseName = true)}
-                  class="font-bold text-4xl mb-2 font-primary bg-transparent border-none text-left p-0 focus:outline-none"
-                  style="background: none;"
-                >
-                  {movement.movementBase.name}
-                </button>
-                {#if editingMovementBaseName}
+            <div class="flex justify-between items-start mb-1 flex-col">
+              <div class="flex flex-wrap gap-x-3 items-center">
+                {#if editingMovementBaseName && chosenMovementBaseIndexForEditing === movement.ordering}
                   <select
                     bind:value={movement.movementBase}
                     on:change={() => {
                       updateMovement(movement);
                     }}
-                    class="select select-primary select-xs mt-4"
+                    class="select select-primary select-md"
                   >
                     {#each modifiers as mod}
                       <option value={mod}>{mod.name}</option>
                     {/each}
                   </select>
+                  <button
+                    class="btn btn-xs ml-2"
+                    on:click={() => (editingMovementBaseName = false)}
+                    aria-label="Cancel">✕</button
+                  >
+                {:else}
+                  <span class="font-bold text-4xl mb-2 font-primary"
+                    >{movement.movementBase.name}</span
+                  >
+                  <button
+                    type="button"
+                    class="btn btn-xs ml-2"
+                    on:click={() => (
+                      (editingMovementBaseName = true),
+                      (chosenMovementBaseIndexForEditing = movement.ordering)
+                    )}
+                    aria-label="Edit movement base">✎</button
+                  >
                 {/if}
               </div>
               <div class="flex">
@@ -445,24 +457,21 @@
                   class="peer input input-sm input-primary w-16 m-1"
                 />
 
-                  <label
-                    class="swap border border-primary rounded w-10 m-1 swap-xs swap-flip m-1"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={movement.weightUnit === WeightUnit._1}
-                      on:change={(e) => handleUnitToggle(movement, e)}
-                    />
+                <label
+                  class="swap border border-primary rounded w-10 m-1 swap-xs swap-flip m-1"
+                >
+                  <input
+                    type="checkbox"
+                    checked={movement.weightUnit === WeightUnit._1}
+                    on:change={(e) => handleUnitToggle(movement, e)}
+                  />
 
-                    <div class="swap-on text-xs ">LBS</div>
+                  <div class="swap-on text-xs">LBS</div>
 
-                    <div class="swap-off text-xs">
-                      KGS
-                    </div>
-                  </label>
+                  <div class="swap-off text-xs">KGS</div>
+                </label>
               </div>
             </div>
-
 
             <ul
               class="overflow-x-auto w-full border border-base-300 rounded-xl shadow-md hover:shadow-lg transition p-4"
@@ -498,29 +507,30 @@
                 </thead>
                 <tbody>
                   {#each movement.sets as set, index}
+                    
                     <!-- Full single-row layout for medium+ screens -->
                     <tr class="hidden md:table-row">
                       <td class="font text-sm font-bold w-fit">{index + 1}</td>
-                      <td
-                        ><input
+                      <td class="relative group">
+                        <input
                           type="number"
                           class="input input-xs bg-base-200 border-base-300 text-center w-12"
                           min="0"
                           bind:value={set.recommendedReps}
                           on:input={() => updateSetEntry(set)}
-                        /></td
-                      >
-                      <td
-                        ><input
+                        />
+                      </td>
+                      <td class="relative group">
+                        <input
                           type="number"
                           min="0"
-                          class="input input-xs bg-base-200 border-base-300 text-center w-20"
+                          class="input input-xs bg-base-200 border-base-300 text-center w-16"
                           bind:value={set.recommendedWeight}
                           on:input={() => updateSetEntry(set)}
-                        /></td
-                      >
-                      <td
-                        ><input
+                        />
+                      </td>
+                      <td class="relative group">
+                        <input
                           type="number"
                           class="input input-xs bg-base-200 border-base-300 text-center w-12"
                           min="0"
@@ -528,37 +538,70 @@
                           step="0.5"
                           bind:value={set.recommendedRPE}
                           on:input={() => updateSetEntry(set)}
-                        /></td
-                      >
-                      <td class=" "
-                        ><input
+                        />
+                      </td>
+                      <td class="relative group">
+                         <!-- Button appears only on hover -->
+                        <button
+                          class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-px w-3"
+                          on:click={() => {
+                            set.actualReps = set.recommendedReps;
+                            updateSetEntry(set);
+                          }}
+                        >
+                          ←
+                        </button>
+                        <input
                           type="number"
                           class="input input-xs bg-base-100 border-base-300 text-center w-12"
                           min="0"
                           bind:value={set.actualReps}
                           on:input={() => updateSetEntry(set)}
-                        /></td
-                      >
-                      <td
-                        ><input
+                        />
+                       
+                      </td>
+                      <td class="relative group">
+                         <!-- Button appears only on hover -->
+                        <button
+                          class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-px  w-3"
+                          on:click={() => {
+                            set.actualWeight = set.recommendedWeight;
+                            updateSetEntry(set);
+                          }}
+                        >
+                          ←
+                        </button>
+                        <input
                           type="number"
-                          class="input input-xs bg-base-100 border-base-300 text-center w-20"
+                          class="input input-xs bg-base-100 border-base-300 text-center  w-16"
                           min="0"
                           bind:value={set.actualWeight}
                           on:input={() => updateSetEntry(set)}
-                        /></td
-                      >
-                      <td
-                        ><input
+                        />
+                       
+                      </td>
+                      <td class="relative group">
+                         <!-- Button appears only on hover -->
+                        <button
+                          class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-px w-3"
+                          on:click={() => {
+                            set.actualRPE = set.recommendedRPE;
+                            updateSetEntry(set);
+                          }}
+                        >
+                          ←
+                        </button>
+                        <input
                           type="number"
                           class="input input-xs bg-base-100 border-base-300 text-center w-12"
+                          bind:value={set.actualRPE}
                           min="0"
                           max="10"
                           step="0.5"
-                          bind:value={set.actualRPE}
                           on:input={() => updateSetEntry(set)}
-                        /></td
-                      >
+                        />
+                       
+                      </td>
                       <td
                         ><button
                           class="btn btn-xs btn-error"
@@ -700,11 +743,19 @@
             class="bg-base-200 border border-base-300 rounded-xl p-5 shadow-md transition hover:shadow-lg w-full"
           >
             <div class="font-bold text-2xl">{movement.movementBase.name}</div>
-            <div class="badge badge-primary">{movement.movementModifier.name}</div>
-            <div class="badge badge-primary">{movement.movementModifier.equipment}</div>
-            <div class="badge badge-primary">{movement.movementModifier.duration}s</div>
-            <div class="badge badge-primary">{labelMap[movement.weightUnit]}</div>
-            
+            <div class="badge badge-primary">
+              {movement.movementModifier.name}
+            </div>
+            <div class="badge badge-primary">
+              {movement.movementModifier.equipment}
+            </div>
+            <div class="badge badge-primary">
+              {movement.movementModifier.duration}s
+            </div>
+            <div class="badge badge-primary">
+              {labelMap[movement.weightUnit]}
+            </div>
+
             <div>
               <table class="table table-xs w-1/2 outline outline-1 mt-3">
                 <thead>
@@ -727,7 +778,7 @@
                 </tbody>
               </table>
             </div>
-            <div class="mt-2">Notes: {movement.notes}</div>
+            <div class="mt-2 whitespace-pre-wrap">Notes: {movement.notes}</div>
             <button
               class="btn btn-xs outline mt-2"
               on:click={() => toggleMovementComplete(movement)}
@@ -739,7 +790,6 @@
       {/each}
       <button class="btn btn-error">Delete Training Session</button>
     </div>
-    
   </div>
 {:else}
   <div class="p-6 max-w-4xl mx-auto text-error">
