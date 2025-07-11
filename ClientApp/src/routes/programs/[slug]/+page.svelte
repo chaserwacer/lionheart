@@ -15,7 +15,7 @@
   } from '$lib/api/ApiClient';
 
   const slug = $page.params.slug;
-  let program: TrainingProgramDTO | undefined;
+  let program: TrainingProgramDTO ;
   let sessions: TrainingSessionDTO[] = [];
   let programID = '';
   let showModal = false;
@@ -30,7 +30,7 @@
 
     try {
       const allPrograms = await getProgramsClient.getAll3();
-      program = allPrograms.find(p => slugify(p.title ?? '') === slug);
+      program = allPrograms.find(p => slugify(p.title ?? '') === slug)!;
       if (program) {
         programID = program.trainingProgramID!;
         sessions = program.trainingSessions ?? [];
@@ -147,19 +147,19 @@
       </a>
     </div>
 
-    <h1 class="text-4xl font-extrabold mb-6">{program.title}</h1>
+    <h1 class="text-4xl font-extrabold mb-2">{program.title}</h1>
+    {#each program.tags ?? [] as tag}
+      <span class="badge badge-primary ">{tag}</span>
+    {/each}
+    <div class="divider divider-2 divider-primary"></div>
+    
 
-    <div class="mb-4 flex items-center justify-between">
+    {#if sessions.some(s => s.status === TrainingSessionStatus._1)}
+      <div class="mb-4 flex items-center justify-between">
       <h2 class="text-2xl font-bold flex items-center gap-2">
-        In Progress Sessions
-        <button on:click={() => showInProgress = !showInProgress} class="btn btn-xs btn-outline btn-primary">
-          {showInProgress ? '🡫' : '🡪'}
-        </button>
+        Active Sessions
       </h2>
     </div>
-
-    {#if showInProgress}
-      
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         {#each sessions.filter(s => s.status === TrainingSessionStatus._1) as session (session.trainingSessionID)}
           <div class="bg-base-100 text-base-content border border-base-300 rounded-xl shadow-md hover:shadow-lg transition p-4">
@@ -167,6 +167,7 @@
               <span class="bg-primary text-primary-content text px-2 py-1 rounded font-mono">
                 Session # {session.sessionNumber}
               </span>
+              <progress class="progress w-20"></progress>
              <div class="flex items-center gap-2">
                 <h2 class="text-sm md:text-base font-semibold">{session.date.toISOString().slice(0, 10)}</h2>
               </div>
@@ -205,22 +206,21 @@
           </div>
         {/each}
       </div>
-    {/if}
       <div class="divider"></div>
+    {/if}
+      
     <div class="mb-4 flex items-center justify-between">
       <h2 class="text-2xl font-bold flex items-center gap-2">
-        Upcoming Sessions
-        <button on:click={() => showUpcoming = !showUpcoming} class="btn btn-xs btn-outline btn-primary">
-          {showUpcoming ? '🡫' : '🡪'}
-        </button>
+        Incoming Sessions
+    
       </h2>
     </div>
     
-    {#if showUpcoming}
+    {#if sessions.length > 0}
       
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-        {#each sessions.filter(s => s.status === TrainingSessionStatus._0 || s.status === undefined) as session (session.trainingSessionID)}
+        {#each sessions.filter(s => s.status === TrainingSessionStatus._0 ) as session (session.trainingSessionID)}
           <div class="bg-base-100 text-base-content border border-base-300 rounded-xl shadow-md hover:shadow-lg transition p-4">
             <div class="flex items-center justify-between border-b border-base-300 pb-2 mb-3">
               <span class="bg-primary text-primary-content text px-2 py-1 rounded font-mono">
@@ -237,8 +237,8 @@
               <div class="bg-base-200 p-3 rounded-lg border border-base-300">
                 <h3 class="font-semibold text-sm mb-1 text-base-content/80">Preview</h3>
                 <ul class="text-sm space-y-1">
-                  {#each getSessionPreview(session) as item}
-                    <li>- {item}</li>
+                  {#each session.movements as movement}
+                    <li>- {movement.sets.length} x {movement.movementBase.name}</li>
                   {/each}
                 </ul>
               </div>
@@ -266,14 +266,15 @@
           </div>
         {/each}
       </div>
-    {/if}
       <div class="divider"></div>
+    {/if}
+      
     {#if sessions.some(s => s.status === TrainingSessionStatus._3)}
       <div class="mb-4 flex items-center justify-between mt-6">
         <h2 class="text-xl font-bold flex items-center gap-2">
           Skipped Sessions
           <button on:click={() => showSkipped = !showSkipped} class="btn btn-xs btn-outline btn-primary">
-            {showSkipped ? '🡫' : '🡪'}
+            {showSkipped ? '-' : '+'}
           </button>
         </h2>
       </div>
@@ -301,7 +302,7 @@
         <h2 class="text-xl font-bold flex items-center gap-2">
           Completed Sessions
           <button on:click={() => showCompleted = !showCompleted} class="btn btn-xs btn-outline btn-primary">
-            {showCompleted ? '🡫' : '🡪'}
+            {showCompleted ? '-' : '+'}
           </button>
         </h2>
       </div>
@@ -314,21 +315,15 @@
                 <h2 class="text-lg font-semibold mb-2">{session.date.toISOString().slice(0, 10)}</h2>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 class="font-semibold text-sm mb-1">Preview</h3>
+                    <h3 class="font-semibold text-sm mb-1">Movements</h3>
+                    <div class="divider m-0"></div>
                     <ul class="text-sm space-y-1">
-                      {#each getSessionPreview(session) as item}
-                        <li>- {item}</li>
+                      {#each session.movements as movement}
+                        <li>{movement.sets.length } x {movement.movementBase.name}</li>
                       {/each}
                     </ul>
                   </div>
-                  <div>
-                    <h3 class="font-semibold text-sm mb-1">Considerations</h3>
-                    <ul class="text-sm space-y-1">
-                      {#each getConsiderations(0) as point}
-                        <li>- {point}</li>
-                      {/each}
-                    </ul>
-                  </div>
+                  
                 </div>
               </div>
             </a>

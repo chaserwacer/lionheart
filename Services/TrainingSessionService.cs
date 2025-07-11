@@ -51,7 +51,7 @@ public class TrainingSessionService : ITrainingSessionService
             .Where(ts => ts.TrainingProgramID == programId &&
                         ts.TrainingProgram!.UserID == userGuid)
             .Include(ts => ts.TrainingProgram)
-            .Include(ts => ts.Movements)
+            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
             .ThenInclude(m => m.Sets)
             .Include(ts => ts.Movements)
             .ThenInclude(m => m.MovementBase)
@@ -72,7 +72,7 @@ public class TrainingSessionService : ITrainingSessionService
             .Where(ts => ts.TrainingSessionID == trainingSessionID &&
                         ts.TrainingProgram!.UserID == userGuid)
             .Include(ts => ts.TrainingProgram)
-            .Include(ts => ts.Movements)
+            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
             .ThenInclude(m => m.Sets)
             .Include(ts => ts.Movements)
             .ThenInclude(m => m.MovementBase)
@@ -84,7 +84,7 @@ public class TrainingSessionService : ITrainingSessionService
         {
             return Result<TrainingSessionDTO>.NotFound("Training session not found or access denied.");
         }
-
+        
         // Calculate session number by counting sessions before this one in the same program
         var sessionNumber = await _context.TrainingSessions
             .Where(ts => ts.TrainingProgramID == session.TrainingProgramID &&
@@ -169,7 +169,7 @@ public class TrainingSessionService : ITrainingSessionService
         var hydratedSession = await _context.TrainingSessions
             .AsNoTracking()
             .Include(ts => ts.TrainingProgram)
-            .Include(ts => ts.Movements)
+            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.Sets)
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.MovementBase)
@@ -272,7 +272,7 @@ public class TrainingSessionService : ITrainingSessionService
         // 4) Reload with nav-props so ToDTO() can see names & modifiers
         var sessionWithNav = await _context.TrainingSessions
         .AsNoTracking()
-        .Include(ts => ts.Movements)!
+        .Include(ts => ts.Movements.OrderBy(m => m.Ordering))!
             .ThenInclude(m => m.MovementBase)
         .Include(ts => ts.Movements)!
             .ThenInclude(m => m.MovementModifier)

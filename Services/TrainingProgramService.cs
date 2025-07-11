@@ -29,7 +29,7 @@ public class TrainingProgramService : ITrainingProgramService
         var trainingPrograms = await _context.TrainingPrograms
             .Where(p => p.UserID == userGuid)
             .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements)
+            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.MovementBase)
             .Include(p => p.TrainingSessions)
             .ThenInclude(ts => ts.Movements)
@@ -47,7 +47,7 @@ public class TrainingProgramService : ITrainingProgramService
         var trainingProgram = await _context.TrainingPrograms
             .Where(p => p.TrainingProgramID == TrainingprogramId && p.UserID == userGuid)
             .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements)
+            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.MovementBase)
             .Include(p => p.TrainingSessions)
             .ThenInclude(ts => ts.Movements)
@@ -301,7 +301,7 @@ public class TrainingProgramService : ITrainingProgramService
         var programWithNav = await _context.TrainingPrograms
             .AsNoTracking()
             .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements)
+            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.MovementBase)
             .Include(p => p.TrainingSessions)
             .ThenInclude(ts => ts.Movements)
