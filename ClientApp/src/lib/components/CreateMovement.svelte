@@ -56,7 +56,7 @@
       notes: '',
       movementModifier: {
         name: modifierName,
-        equipment: modifierEquipment,
+        equipment: modifierEquipment || 'none',
         duration: modifierDuration
       },
       weightUnit: WeightUnit._1,

@@ -303,13 +303,19 @@
               style="min-height:2.5rem;"
             >
               {#if editingDate}
-                <input class="btn btn-accent" />
+                <input
+                  type="date"
+                  bind:value={selectedDate}
+                  on:change={updateSession}
+                  class="btn btn-accent"
+                />
               {:else}
                 {session.date.toISOString().slice(0, 10)}
               {/if}
             </div>
             <div class="stat-actions">
               {#if !editingDate}
+              
                 <button
                   class="btn btn-xs"
                   on:click={() => {
