@@ -46,35 +46,51 @@ public static class OpenAiFunctionTools
         {
             Name = "getTrainingSessions",
             Description = "Get all sessions for a given program ID.",
-            Parameters = new
+            Parameters = JsonDocument.Parse("""
             {
-                trainingProgramID = "string"
+                "type": "object",
+                "properties": {
+                    "trainingProgramID": { "type": "string" }
+                },
+                "required": ["trainingProgramID"]
             }
+            """)
         },
         new FunctionToolDefinition
         {
             Name = "createMovement",
             Description = "Create a movement in a session using base ID and modifier.",
-            Parameters = new
+            Parameters = JsonDocument.Parse("""
             {
-                trainingSessionID = "string",
-                movementBaseID = "string",
-                movementModifier = "int",
-                notes = "string",
-                weightUnit = "int"
+                "type": "object",
+                "properties": {
+                    "trainingSessionID": { "type": "string" },
+                    "movementBaseID": { "type": "string" },
+                    "movementModifier": { "type": "integer" },
+                    "notes": { "type": "string", "nullable": true },
+                    "weightUnit": { "type": "integer", "default": 0 }
+                },
+                "required": ["trainingSessionID", "movementBaseID", "movementModifier"]
             }
+            """)
+
         },
         new FunctionToolDefinition
         {
             Name = "createSetEntry",
             Description = "Create a set entry with reps, weight, and RPE.",
-            Parameters = new
+            Parameters = JsonDocument.Parse("""
             {
-                movementID = "string",
-                recommendedReps = "int",
-                recommendedWeight = "float",
-                recommendedRPE = "float"
+                "type": "object",
+                "properties": {
+                    "movementID": { "type": "string" },
+                    "reps": { "type": "integer" },
+                    "weight": { "type": "number" },
+                    "rpe": { "type": "number" }
+                },
+                "required": ["movementID", "reps", "weight", "rpe"]
             }
+            """)    
         },
         new FunctionToolDefinition
         {
