@@ -50,58 +50,16 @@ builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<ISetEntryService, SetEntryService>();
 builder.Services.AddTransient<IMCPClientService, MCPClientService>();
 builder.Services.AddTransient<IPromptService, PromptService>();
-
-// Register Ollama chat client
-var httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:11434") };
-try
-{
-    var ping = await httpClient.GetAsync("/");
-    if (!ping.IsSuccessStatusCode)
-        throw new Exception("Ollama is not responding.");
-}
-catch
-{
-    throw new InvalidOperationException("Please start Ollama with `ollama serve` or `ollama run phi4-mini`.");
-}
-
-
 builder.Services.AddSingleton<OpenAiService>();
-
-
-/*
-Models:
-phi4-mini
-nemotron-mini
-llama3-groq-tool-use:8b
-
-builder.Services.AddChatClient(
-    new ChatClientBuilder(
-        new OllamaChatClient(new Uri("http://localhost:11434"), "phi4-mini")
-    )
-    
-    .UseFunctionInvocation()
-    .Build()
-);
-*/
-
-IChatClient client = new OllamaApiClient(new Uri("http://localhost:11434"), "phi4-mini");
-
-var chatClient = new ChatClientBuilder(client)
-    .UseFunctionInvocation(null, options =>
-    {
-        options.AllowConcurrentInvocation = true;
-    })
-    .Build();
-
-    // IChatClient chatty = client.AsBuilder()
-
-
-builder.Services.AddSingleton<IChatClient>(chatClient);
-
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
+
+string model = "gpt-4o";
+IChatClient chatClient = new OpenAIClient(configuration["OpenAI:ApiKey"]).GetChatClient(model).AsIChatClient();
+builder.Services.AddSingleton<IChatClient>(chatClient);
+
 
 
 
