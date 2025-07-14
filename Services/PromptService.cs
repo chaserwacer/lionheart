@@ -460,6 +460,7 @@ namespace lionheart.Services
             {
                 case "createTrainingProgram":
                 {
+                    _logger.LogError("Deserialization input for createTrainingProgram:\n{Json}", argumentsJson);
                     var req = JsonSerializer.Deserialize<CreateTrainingProgramRequest>(argumentsJson);
                     return await _trainingProgramService.CreateTrainingProgramAsync(user, req!);
                 }

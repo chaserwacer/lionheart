@@ -7,18 +7,24 @@ public static class OpenAiFunctionTools
         new FunctionToolDefinition
         {
             Name = "createTrainingProgram",
-            Description = "Create a new training program using title and start date.",
+            Description = "Create a new training program using title, date range, and tags.",
             Parameters = JsonDocument.Parse("""
             {
                 "type": "object",
                 "properties": {
                     "title": { "type": "string" },
-                    "startDate": { "type": "string", "format": "date" }
+                    "startDate": { "type": "string", "format": "date" },
+                    "endDate": { "type": "string", "format": "date" },
+                    "tags": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                    }
                 },
-                "required": ["title", "startDate"]
+                "required": ["title", "startDate", "endDate", "tags"]
             }
             """)
         }
+
 ,
         new FunctionToolDefinition
         {

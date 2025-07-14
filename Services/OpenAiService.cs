@@ -141,7 +141,7 @@ public class OpenAiService
 
         var secondPayload = new
         {
-            model = "gpt-4.0",
+            model = "gpt-4o",
             messages = toolMessage
         };
 
