@@ -31,15 +31,20 @@ public class CreateTrainingProgramRequest : IValidatableObject
 }
 public class TrainingProgramDTO
 {
+    [Required]
     public required Guid TrainingProgramID { get; init; }
-
+    [Required]
     public required string Title { get; set; } = string.Empty;
-
+    [Required]
     public required DateOnly StartDate { get; set; }
+
+    [Required]
     public required DateOnly NextTrainingSessionDate { get; set; }
+    [Required]
     public required DateOnly EndDate { get; set; }
+    [Required]
     public required List<TrainingSessionDTO> TrainingSessions { get; set; } = [];
-  
+    [Required]
     public required List<string> Tags { get; set; } = [];
 }
 

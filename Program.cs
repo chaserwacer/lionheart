@@ -48,8 +48,6 @@ builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>()
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<ISetEntryService, SetEntryService>();
-builder.Services.AddTransient<IMCPClientService, MCPClientService>();
-builder.Services.AddTransient<IPromptService, PromptService>();
 builder.Services.AddSingleton<OpenAiService>();
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
@@ -57,11 +55,15 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 });
 
 string model = "gpt-4o";
-IChatClient chatClient = new OpenAIClient(configuration["OpenAI:ApiKey"]).GetChatClient(model).AsIChatClient();
-builder.Services.AddSingleton<IChatClient>(chatClient);
+string key = configuration["OpenAI:ApiKey"] ?? throw new InvalidOperationException("OpenAI API key is not configured.");
 
 
+IChatClient client =
+    new ChatClientBuilder(new OpenAIClient(key).GetChatClient(model ?? "gpt-4o").AsIChatClient())
+    .UseFunctionInvocation()
+    .Build();
 
+builder.Services.AddSingleton<IChatClient>(client);
 
 builder.Services.AddHttpClient();
 

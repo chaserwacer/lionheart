@@ -6299,12 +6299,12 @@ export interface ITrainingProgram {
 
 export class TrainingProgramDTO implements ITrainingProgramDTO {
     trainingProgramID!: string;
-    title!: string | undefined;
+    title!: string;
     startDate!: Date;
     nextTrainingSessionDate!: Date;
     endDate!: Date;
-    trainingSessions!: TrainingSessionDTO[] | undefined;
-    tags!: string[] | undefined;
+    trainingSessions!: TrainingSessionDTO[];
+    tags!: string[];
 
     constructor(data?: ITrainingProgramDTO) {
         if (data) {
@@ -6312,6 +6312,10 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
+        }
+        if (!data) {
+            this.trainingSessions = [];
+            this.tags = [];
         }
     }
 
@@ -6365,12 +6369,12 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
 
 export interface ITrainingProgramDTO {
     trainingProgramID: string;
-    title: string | undefined;
+    title: string;
     startDate: Date;
     nextTrainingSessionDate: Date;
     endDate: Date;
-    trainingSessions: TrainingSessionDTO[] | undefined;
-    tags: string[] | undefined;
+    trainingSessions: TrainingSessionDTO[];
+    tags: string[];
 }
 
 export class TrainingSession implements ITrainingSession {
