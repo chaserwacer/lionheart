@@ -1142,133 +1142,6 @@ export class DeleteTrainingSessionEndpointClient {
     }
 }
 
-export class GenerateOpenAIPromptEndpointClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * @param body (optional) 
-     * @return OK
-     */
-    prompt(body: GeneratePromptRequest | undefined): Promise<string> {
-        let url_ = this.baseUrl + "/api/openai/prompt";
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(body);
-
-        let options_: RequestInit = {
-            body: content_,
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "text/plain"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processPrompt(_response);
-        });
-    }
-
-    protected processPrompt(response: Response): Promise<string> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-                result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
-            return result200;
-            });
-        } else if (status === 401) {
-            return response.text().then((_responseText) => {
-            let result401: any = null;
-            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result401 = ProblemDetails.fromJS(resultData401);
-            return throwException("Unauthorized", status, _responseText, _headers, result401);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<string>(null as any);
-    }
-}
-
-export class GeneratePromptRequestEndpointClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * @param promptType (optional) 
-     * @param inputs (optional) 
-     * @return OK
-     */
-    generate(promptType: string | undefined, inputs: { [key: string]: any; } | undefined): Promise<string> {
-        let url_ = this.baseUrl + "/api/prompts/generate?";
-        if (promptType === null)
-            throw new Error("The parameter 'promptType' cannot be null.");
-        else if (promptType !== undefined)
-            url_ += "PromptType=" + encodeURIComponent("" + promptType) + "&";
-        if (inputs === null)
-            throw new Error("The parameter 'inputs' cannot be null.");
-        else if (inputs !== undefined)
-            url_ += "Inputs=" + encodeURIComponent("" + inputs) + "&";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            headers: {
-                "Accept": "text/plain"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGenerate(_response);
-        });
-    }
-
-    protected processGenerate(response: Response): Promise<string> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-                result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
-            return result200;
-            });
-        } else if (status === 401) {
-            return response.text().then((_responseText) => {
-            let result401: any = null;
-            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result401 = ProblemDetails.fromJS(resultData401);
-            return throwException("Unauthorized", status, _responseText, _headers, result401);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<string>(null as any);
-    }
-}
-
 export class GetActivitiesEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2738,7 +2611,7 @@ export class LogoutUserEndpointClient {
     }
 }
 
-export class MCPChatClient {
+export class ModifyTrainingSessionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -2749,30 +2622,25 @@ export class MCPChatClient {
     }
 
     /**
-     * @param body (optional) 
      * @return OK
      */
-    chat(body: string | undefined): Promise<string> {
-        let url_ = this.baseUrl + "/MCPChat";
+    modifyTrainingSession(): Promise<string> {
+        let url_ = this.baseUrl + "/api/ai/modify-training-session";
         url_ = url_.replace(/[?&]$/, "");
 
-        const content_ = JSON.stringify(body);
-
         let options_: RequestInit = {
-            body: content_,
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
                 "Accept": "text/plain"
             }
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processChat(_response);
+            return this.processModifyTrainingSession(_response);
         });
     }
 
-    protected processChat(response: Response): Promise<string> {
+    protected processModifyTrainingSession(response: Response): Promise<string> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2783,43 +2651,12 @@ export class MCPChatClient {
     
             return result200;
             });
-        } else if (status !== 200 && status !== 204) {
+        } else if (status === 401) {
             return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<string>(null as any);
-    }
-
-    /**
-     * @return OK
-     */
-    promptTest(): Promise<string> {
-        let url_ = this.baseUrl + "/MCPChat";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            headers: {
-                "Accept": "text/plain"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processPromptTest(_response);
-        });
-    }
-
-    protected processPromptTest(response: Response): Promise<string> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-                result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
-            return result200;
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
             });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
@@ -4662,58 +4499,6 @@ export class ForgotPasswordRequest implements IForgotPasswordRequest {
 
 export interface IForgotPasswordRequest {
     email: string | undefined;
-}
-
-export class GeneratePromptRequest implements IGeneratePromptRequest {
-    promptType?: string | undefined;
-    inputs?: { [key: string]: any; } | undefined;
-
-    constructor(data?: IGeneratePromptRequest) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.promptType = _data["promptType"];
-            if (_data["inputs"]) {
-                this.inputs = {} as any;
-                for (let key in _data["inputs"]) {
-                    if (_data["inputs"].hasOwnProperty(key))
-                        (<any>this.inputs)![key] = _data["inputs"][key];
-                }
-            }
-        }
-    }
-
-    static fromJS(data: any): GeneratePromptRequest {
-        data = typeof data === 'object' ? data : {};
-        let result = new GeneratePromptRequest();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["promptType"] = this.promptType;
-        if (this.inputs) {
-            data["inputs"] = {};
-            for (let key in this.inputs) {
-                if (this.inputs.hasOwnProperty(key))
-                    (<any>data["inputs"])[key] = (<any>this.inputs)[key];
-            }
-        }
-        return data;
-    }
-}
-
-export interface IGeneratePromptRequest {
-    promptType?: string | undefined;
-    inputs?: { [key: string]: any; } | undefined;
 }
 
 export class HttpValidationProblemDetails implements IHttpValidationProblemDetails {

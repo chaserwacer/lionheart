@@ -6,9 +6,8 @@ using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
-using Microsoft.Extensions.AI;
-using OllamaSharp;
-using OpenAI;    // <-- this is the official OpenAIClient
+using lionheart.Services.AI;
+
 
 
 
@@ -48,21 +47,13 @@ builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>()
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<ISetEntryService, SetEntryService>();
+builder.Services.AddTransient<IToolCallExecutor, ToolCallExecutor>();
+builder.Services.AddTransient<IModifyTrainingSessionService, ModifyTrainingSessionService>();
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
 
-string model = "gpt-4o";
-string key = configuration["OpenAI:ApiKey"] ?? throw new InvalidOperationException("OpenAI API key is not configured.");
-
-
-IChatClient client =
-    new ChatClientBuilder(new OpenAIClient(key).GetChatClient(model ?? "gpt-4o").AsIChatClient())
-    .UseFunctionInvocation()
-    .Build();
-
-builder.Services.AddSingleton<IChatClient>(client);
 
 builder.Services.AddHttpClient();
 
