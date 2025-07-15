@@ -48,7 +48,6 @@ builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>()
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<ISetEntryService, SetEntryService>();
-builder.Services.AddSingleton<OpenAiService>();
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
