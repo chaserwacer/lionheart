@@ -24,7 +24,6 @@ public static class OpenAiFunctionTools
             }
             """)
         }
-
 ,
         new FunctionToolDefinition
         {

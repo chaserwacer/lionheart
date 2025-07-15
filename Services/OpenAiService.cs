@@ -161,12 +161,4 @@ public class OpenAiService
     // Regular assistant message (no tool call)
     return choice.GetProperty("message").GetProperty("content").GetString()!;
 }
-
-
-
-
-
-
-
-
 }
