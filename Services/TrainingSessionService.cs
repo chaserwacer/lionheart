@@ -14,8 +14,7 @@ using System.ComponentModel;
 public class TrainingSessionService : ITrainingSessionService
 {
     private readonly ModelContext _context;
-    private readonly IMCPClientService _ai;
-    private readonly ILogger<MCPClientService> _logger;
+
 
     private class AiSession
     {
@@ -35,11 +34,9 @@ public class TrainingSessionService : ITrainingSessionService
         public int Ordering { get; set; }
     }
 
-    public TrainingSessionService(ModelContext context, IMCPClientService aiClient, ILogger<MCPClientService> logger)
+    public TrainingSessionService(ModelContext context)
     {
-        _logger = logger;
         _context = context;
-        _ai = aiClient;
     }
 
     [McpServerTool, Description("Get all training sessions for a program.")]

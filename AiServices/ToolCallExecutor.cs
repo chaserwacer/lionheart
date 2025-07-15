@@ -1,97 +1,157 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
+using OpenAI.Chat;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Text.Json.Nodes;
+using System.Text.Json;
+using lionheart.Services;
 using lionheart.Model.DTOs;
-using Model.McpServer;
+using Ardalis.Result;
 
-namespace lionheart.Services.AI
+/// <summary>
+/// This class implements the IToolCallExecutor interface and handles the execution of tool calls. 
+/// The primary entry point is <see cref="ExecuteToolCallsAsync"/>.
+/// </summary>
+public class ToolCallExecutor : IToolCallExecutor
 {
-    public interface IToolCallExecutor
+    private readonly ITrainingSessionService _trainingSessionService;
+    private readonly IMovementService _movementService;
+    private readonly ISetEntryService _setEntryService;
+
+    public ToolCallExecutor(
+        ITrainingSessionService trainingSessionService,
+        IMovementService movementService,
+        ISetEntryService setEntryService)
     {
-        Task<object?> ExecuteAsync(string functionName, JsonElement argsJson, IdentityUser user);
+        _trainingSessionService = trainingSessionService;
+        _movementService = movementService;
+        _setEntryService = setEntryService;
+    }
+    /// <summary>
+    /// Intakes a list of tool calls and executes them sequentially.
+    /// If any tool call fails, it returns a single error result.
+    /// </summary>
+    /// <param name="toolCalls"></param>
+    /// <param name="user"></param>
+    /// <returns></returns>
+    public async Task<List<Result<ToolChatMessage>>> ExecuteToolCallsAsync(IReadOnlyList<ChatToolCall> toolCalls, IdentityUser user)
+    {
+        var results = new List<Result<ToolChatMessage>>();
+        foreach (var toolCall in toolCalls)
+        {
+            var result = await ExecuteToolAsync(toolCall, user);
+            if (!result.IsSuccess)
+            {
+                // If any tool call errors, return a single error result list
+                return new List<Result<ToolChatMessage>> { result };
+            }
+            results.Add(result);
+        }
+        return results;
     }
 
-    public class ToolCallExecutor : IToolCallExecutor
+    /// <summary>
+    /// Private helper method.
+    /// Executes a single tool call based on its function name and arguments.
+    /// It handles various tool functions related to training sessions, movements, and set entries.
+    /// </summary>
+    /// <param name="toolCall"></param>
+    /// <param name="user"></param>
+    /// <returns></returns>
+    private async Task<Result<ToolChatMessage>> ExecuteToolAsync(ChatToolCall toolCall, IdentityUser user)
     {
-        private readonly ITrainingProgramService _trainingProgramService;
-        private readonly ITrainingSessionService _trainingSessionService;
-        private readonly IMovementService _movementService;
-        private readonly ISetEntryService _setEntryService;
+        var fn = toolCall.FunctionName;
+        var args = JsonNode.Parse(toolCall.FunctionArguments);
 
-        public ToolCallExecutor(
-            ITrainingProgramService trainingProgramService,
-            ITrainingSessionService trainingSessionService,
-            IMovementService movementService,
-            ISetEntryService setEntryService)
+        try
         {
-            _trainingProgramService = trainingProgramService;
-            _trainingSessionService = trainingSessionService;
-            _movementService = movementService;
-            _setEntryService = setEntryService;
+            switch (fn)
+            {
+                case "GetTrainingSessionAsync":
+                    {
+                        var idStr = args?["trainingSessionID"]?.GetValue<string>();
+                        if (string.IsNullOrWhiteSpace(idStr) || !Guid.TryParse(idStr, out var id))
+                            return Result<ToolChatMessage>.Error("Missing or invalid trainingSessionID.");
+                        var result = await _trainingSessionService.GetTrainingSessionAsync(user, id);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "CreateTrainingSessionAsync":
+                    {
+                        var request = args?["request"]?.Deserialize<CreateTrainingSessionRequest>();
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSession.");
+                        var result = await _trainingSessionService.CreateTrainingSessionAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "UpdateTrainingSessionAsync":
+                    {
+                        var request = args?["request"]?.Deserialize<UpdateTrainingSessionRequest>();
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateTrainingSession.");
+                        var result = await _trainingSessionService.UpdateTrainingSessionAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "CreateMovementAsync":
+                    {
+                        var request = args?["request"]?.Deserialize<CreateMovementRequest>();
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateMovement.");
+                        var result = await _movementService.CreateMovementAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "UpdateMovementAsync":
+                    {
+                        var request = args?["request"]?.Deserialize<UpdateMovementRequest>();
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateMovement.");
+                        var result = await _movementService.UpdateMovementAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "DeleteMovementAsync":
+                    {
+                        var idStr = args?["movementId"]?.GetValue<string>();
+                        if (string.IsNullOrWhiteSpace(idStr) || !Guid.TryParse(idStr, out var id))
+                            return Result<ToolChatMessage>.Error("Missing or invalid movementId.");
+                        var result = await _movementService.DeleteMovementAsync(user, id);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "CreateSetEntryAsync":
+                    {
+                        var request = args?["request"]?.Deserialize<CreateSetEntryRequest>();
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateSetEntry.");
+                        var result = await _setEntryService.CreateSetEntryAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "UpdateSetEntryAsync":
+                    {
+                        var request = args?["request"]?.Deserialize<UpdateSetEntryRequest>();
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateSetEntry.");
+                        var result = await _setEntryService.UpdateSetEntryAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "DeleteSetEntryAsync":
+                    {
+                        var idStr = args?["setEntryId"]?.GetValue<string>();
+                        if (string.IsNullOrWhiteSpace(idStr) || !Guid.TryParse(idStr, out var id))
+                            return Result<ToolChatMessage>.Error("Missing or invalid setEntryId.");
+                        var result = await _setEntryService.DeleteSetEntryAsync(user, id);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "GetMovementBasesAsync":
+                    {
+                        var result = await _movementService.GetMovementBasesAsync();
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                default:
+                    return Result<ToolChatMessage>.Error($"Tool function '{fn}' is not implemented.");
+            }
         }
-
-        public async Task<object?> ExecuteAsync(string functionName, JsonElement argsJson, IdentityUser user)
+        catch (Exception ex)
         {
-            try
-            {
-                switch (functionName)
-                {
-                    case "CreateTrainingProgramAsync":
-                        var progReq = argsJson.GetProperty("request").Deserialize<CreateTrainingProgramRequest>();
-                        return await _trainingProgramService.CreateTrainingProgramAsync(user, progReq!);
-
-                    case "UpdateTrainingProgramAsync":
-                        var updateProg = argsJson.GetProperty("request").Deserialize<UpdateTrainingProgramRequest>();
-                        return await _trainingProgramService.UpdateTrainingProgramAsync(user, updateProg!);
-
-                    case "DeleteTrainingProgramAsync":
-                        var deleteProgId = argsJson.GetProperty("trainingProgramId").GetGuid();
-                        return await _trainingProgramService.DeleteTrainingProgramAsync(user, deleteProgId);
-
-                    case "CreateTrainingSessionAsync":
-                        var sessReq = argsJson.GetProperty("request").Deserialize<CreateTrainingSessionRequest>();
-                        return await _trainingSessionService.CreateTrainingSessionAsync(user, sessReq!);
-
-                    case "UpdateTrainingSessionAsync":
-                        var updateSess = argsJson.GetProperty("request").Deserialize<UpdateTrainingSessionRequest>();
-                        return await _trainingSessionService.UpdateTrainingSessionAsync(user, updateSess!);
-
-                    case "DeleteTrainingSessionAsync":
-                        var deleteSessId = argsJson.GetProperty("trainingSessionID").GetGuid();
-                        return await _trainingSessionService.DeleteTrainingSessionAsync(user, deleteSessId);
-
-                    case "CreateMovementAsync":
-                        var moveReq = argsJson.GetProperty("request").Deserialize<CreateMovementRequest>();
-                        return await _movementService.CreateMovementAsync(user, moveReq!);
-
-                    case "UpdateMovementAsync":
-                        var updateMove = argsJson.GetProperty("request").Deserialize<UpdateMovementRequest>();
-                        return await _movementService.UpdateMovementAsync(user, updateMove!);
-
-                    case "DeleteMovementAsync":
-                        var deleteMoveId = argsJson.GetProperty("movementId").GetGuid();
-                        return await _movementService.DeleteMovementAsync(user, deleteMoveId);
-
-                    case "CreateSetEntryAsync":
-                        var setReq = argsJson.GetProperty("request").Deserialize<CreateSetEntryRequest>();
-                        return await _setEntryService.CreateSetEntryAsync(user, setReq!);
-
-                    case "UpdateSetEntryAsync":
-                        var updateSet = argsJson.GetProperty("request").Deserialize<UpdateSetEntryRequest>();
-                        return await _setEntryService.UpdateSetEntryAsync(user, updateSet!);
-
-                    case "DeleteSetEntryAsync":
-                        var deleteSetId = argsJson.GetProperty("setEntryId").GetGuid();
-                        return await _setEntryService.DeleteSetEntryAsync(user, deleteSetId);
-
-                    default:
-                        throw new InvalidOperationException($"Unknown tool function: {functionName}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Tool execution error ({functionName}): {ex.Message}");
-                return null;
-            }
+            return Result<ToolChatMessage>.Error($"Exception in {fn}: {ex.Message}");
         }
     }
 }
+
