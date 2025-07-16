@@ -32,7 +32,7 @@ namespace lionheart.Services.AI
 
         public async Task<Result<string>> GenerateProgramShellAsync(IdentityUser user, ProgramShellDTO dto)
         {
-            var prompt = PromptBuilder.ProgramShell(dto.Title, dto.LengthWeeks.ToString()).Build();
+            var prompt = PromptBuilder.ProgramShell(dto.Title, dto.StartDate, dto.EndDate, dto.Tag).Build();
             var messages = new List<ChatMessage> { new UserChatMessage(prompt) };
 
             var result = await RunAiLoopAsync(messages, OpenAiToolHandler.GetTrainingProgramPopulationTools(), user);

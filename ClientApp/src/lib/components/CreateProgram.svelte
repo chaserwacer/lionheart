@@ -99,28 +99,38 @@
     aiResponse = null;
 
     try {
-  aiResponse = await initClient.init();
-console.log('Initialization AI Response:', aiResponse);
+      aiResponse = await initClient.init();
+      console.log('Initialization AI Response:', aiResponse);
 
-  aiStep = 2;
+      aiStep = 2;
 
-  const shellDto = ProgramShellDTO.fromJS({
-    title,
-    lengthWeeks: 3
-  });
+      const shellDto = ProgramShellDTO.fromJS({
+        title: title.trim(),
+        startDate: new Date(startDate).toISOString().split('T')[0], // ✅ Format as string
+        endDate: new Date(endDate).toISOString().split('T')[0],     // ✅ Format as string
+        tag: selectedTag
+      });
 
-  aiResponse = await shellClient.shell(shellDto);
-} catch (err) {
-  console.error('AI shell error:', err);
 
-  if (err instanceof Response) {
-    const errorText = await err.text();
-    console.error('API Error Body:', errorText);
-  }
 
-  aiResponse = 'Error during AI program creation.';
-}
 
+      console.log("Sending ProgramShellDTO:", shellDto);
+      console.log('Sending ProgramShellDTO (JSON):', shellDto.toJSON());
+      aiResponse = await shellClient.shell(shellDto);
+      console.log('AI Shell Response:', aiResponse);
+
+    } catch (err) {
+      console.error('AI shell error:', err);
+
+      if (err instanceof Response) {
+        const errorText = await err.text();
+        console.error('API Error Body:', errorText);
+      }
+
+      aiResponse = 'Error during AI program creation.';
+    } finally {
+      isAiLoading = false;
+    }
   }
 
   async function sendPreferences() {

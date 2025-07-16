@@ -7,12 +7,15 @@ using Microsoft.AspNetCore.Diagnostics;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using lionheart.Services.AI;
-
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
+
+
 var configuration = builder.Configuration;
 
 // Only register SQLite if not running in Testing environment
@@ -157,6 +160,7 @@ public class MCPGUY
         return new string(charArray);
     }
 }
+
 
 
 

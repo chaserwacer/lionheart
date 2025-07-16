@@ -26,13 +26,29 @@ namespace lionheart.Endpoints.AIEndpoints
         }
 
         [HttpPost("api/ai/program/shell")]
-        public override async Task<ActionResult<string>> HandleAsync(ProgramShellDTO request, CancellationToken cancellationToken = default)
+        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+        [Produces("text/plain")]
+        public override async Task<ActionResult<string>> HandleAsync(
+            [FromBody] ProgramShellDTO dto, // ✅ REQUIRED for correct model binding
+            CancellationToken cancellationToken = default)
         {
+
+            Console.WriteLine("Hit Shell HandleAsync");
+            // Optional: return a validation error if model binding fails
+            if (!ModelState.IsValid)
+            {
+                var errors = string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage));
+                return BadRequest($"Model binding failed: {errors}");
+            }
+
+
             var user = await _userManager.GetUserAsync(User);
             if (user is null)
                 return Unauthorized();
 
-            var result = await _service.GenerateProgramShellAsync(user, request);
+            var result = await _service.GenerateProgramShellAsync(user, dto);
             return this.ToActionResult(result);
         }
     }

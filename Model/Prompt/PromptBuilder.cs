@@ -45,14 +45,14 @@ namespace lionheart.Model.Prompt
                 .AddSection("Behavior",
                     "Do not create any JSON or issue any tool calls yet. Simply acknowledge readiness and await further user input.");
 
-        public static PromptBuilder ProgramShell(string title, string lengthWeeks) =>
+        public static PromptBuilder ProgramShell(string title, DateOnly startDate, DateOnly endDate, string tag) =>
             new PromptBuilder()
                 .AddSection("Phase 1: Create Program Shell",
-                    $"Create a blank TrainingProgramDTO named '{title}' with a duration of {lengthWeeks} weeks.",
-                    "- trainingProgramID: new UUID v4",
-                    "- tags: [\"Powerlifting\"]",
+                    $"Create a blank TrainingProgramDTO named '{title}' spanning from {startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd}.",
+                    $"- trainingProgramID: new UUID v4",
+                    $"- tags: [\"{tag}\"]",
                     "- createdByUserId: getIdentityUser()",
-                    "- startDate, endDate, nextTrainingSessionDate: all set to the next Monday on or after 2025-06-30",
+                    "- startDate, endDate, nextTrainingSessionDate: set from inputs",
                     "- trainingSessions: empty array",
                     "Call `createTrainingProgramFromJson(programDto)` using the object above.");
 
