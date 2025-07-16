@@ -3,9 +3,9 @@
   import { browser } from '$app/environment';
   import {
     CreateTrainingProgramEndpointClient,
-    CreateTrainingProgramRequest,
-    GenerateOpenAIPromptEndpointClient,
-    GeneratePromptRequest
+    CreateTrainingProgramRequest
+    // GenerateOpenAIPromptEndpointClient,
+    // GeneratePromptRequest
   } from '$lib/api/ApiClient';
 
   export let show: boolean;
@@ -28,7 +28,7 @@
   ];
 
   let client: CreateTrainingProgramEndpointClient | null = null;
-  let aiClient: GenerateOpenAIPromptEndpointClient | null = null;
+  // let aiClient: GenerateOpenAIPromptEndpointClient | null = null;
 
   let aiStep = 0;
   let aiResponse: string | null = null;
@@ -37,7 +37,7 @@
   onMount(() => {
     if (browser) {
       client = new CreateTrainingProgramEndpointClient(baseUrl);
-      aiClient = new GenerateOpenAIPromptEndpointClient(baseUrl);
+      // aiClient = new GenerateOpenAIPromptEndpointClient(baseUrl);
     }
   });
 
@@ -86,34 +86,34 @@
       return;
     }
 
-    if (!aiClient) {
-      alert('AI client not initialized.');
-      return;
-    }
+    // if (!aiClient) {
+    //   alert('AI client not initialized.');
+    //   return;
+    // }
 
     aiStep = 1;
     isAiLoading = true;
     aiResponse = null;
 
-    const req: GeneratePromptRequest = GeneratePromptRequest.fromJS({
-      promptType: 'genprog.04.step1',
-      inputs: {
-        title,
-        startDate,
-        endDate,
-         lengthWeeks: '3', // Add this back
-        tag: selectedTag
-      }
-    });
+    // const req: GeneratePromptRequest = GeneratePromptRequest.fromJS({
+    //   promptType: 'genprog.04.step1',
+    //   inputs: {
+    //     title,
+    //     startDate,
+    //     endDate,
+    //      lengthWeeks: '3', // Add this back
+    //     tag: selectedTag
+    //   }
+    // });
 
-    try {
-      aiResponse = await aiClient.prompt(req);
-    } catch (err) {
-      console.error('AI generation error:', err);
-      aiResponse = 'Error during AI generation.';
-    } finally {
-      isAiLoading = false;
-    }
+    // try {
+    //   aiResponse = await aiClient.prompt(req);
+    // } catch (err) {
+    //   console.error('AI generation error:', err);
+    //   aiResponse = 'Error during AI generation.';
+    // } finally {
+    //   isAiLoading = false;
+    // }
   }
 </script>
 
