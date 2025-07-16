@@ -1142,6 +1142,271 @@ export class DeleteTrainingSessionEndpointClient {
     }
 }
 
+export class GenerateProgramFirstWeekEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    weekOne(body: FirstWeekGenerationDTO | undefined): Promise<string> {
+        let url_ = this.baseUrl + "/api/ai/program/week-one";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processWeekOne(_response);
+        });
+    }
+
+    protected processWeekOne(response: Response): Promise<string> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string>(null as any);
+    }
+}
+
+export class GenerateProgramInitializationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    init(): Promise<string> {
+        let url_ = this.baseUrl + "/api/ai/program/init";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processInit(_response);
+        });
+    }
+
+    protected processInit(response: Response): Promise<string> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string>(null as any);
+    }
+}
+
+export class GenerateProgramPreferencesEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    preferences(body: ProgramPreferencesDTO | undefined): Promise<string> {
+        let url_ = this.baseUrl + "/api/ai/program/preferences";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPreferences(_response);
+        });
+    }
+
+    protected processPreferences(response: Response): Promise<string> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string>(null as any);
+    }
+}
+
+export class GenerateProgramRemainingWeeksEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    continueWeeks(body: RemainingWeeksGenerationDTO | undefined): Promise<string> {
+        let url_ = this.baseUrl + "/api/ai/program/continue-weeks";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processContinueWeeks(_response);
+        });
+    }
+
+    protected processContinueWeeks(response: Response): Promise<string> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string>(null as any);
+    }
+}
+
+export class GenerateProgramShellEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    shell(body: ProgramShellDTO | undefined): Promise<string> {
+        let url_ = this.baseUrl + "/api/ai/program/shell";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processShell(_response);
+        });
+    }
+
+    protected processShell(response: Response): Promise<string> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string>(null as any);
+    }
+}
+
 export class GetActivitiesEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -4465,6 +4730,42 @@ export interface IDateRangeRequest {
     endDate: Date;
 }
 
+export class FirstWeekGenerationDTO implements IFirstWeekGenerationDTO {
+    trainingProgramID!: string;
+
+    constructor(data?: IFirstWeekGenerationDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingProgramID = _data["trainingProgramID"];
+        }
+    }
+
+    static fromJS(data: any): FirstWeekGenerationDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new FirstWeekGenerationDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingProgramID"] = this.trainingProgramID;
+        return data;
+    }
+}
+
+export interface IFirstWeekGenerationDTO {
+    trainingProgramID: string;
+}
+
 export class ForgotPasswordRequest implements IForgotPasswordRequest {
     email!: string | undefined;
 
@@ -5410,6 +5711,102 @@ export interface IProblemDetails {
     [key: string]: any;
 }
 
+export class ProgramPreferencesDTO implements IProgramPreferencesDTO {
+    daysPerWeek!: number;
+    preferredDays!: string;
+    squatDays?: number;
+    benchDays?: number;
+    deadliftDays?: number;
+    favoriteMovements?: string | undefined;
+
+    constructor(data?: IProgramPreferencesDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.daysPerWeek = _data["daysPerWeek"];
+            this.preferredDays = _data["preferredDays"];
+            this.squatDays = _data["squatDays"];
+            this.benchDays = _data["benchDays"];
+            this.deadliftDays = _data["deadliftDays"];
+            this.favoriteMovements = _data["favoriteMovements"];
+        }
+    }
+
+    static fromJS(data: any): ProgramPreferencesDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new ProgramPreferencesDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["daysPerWeek"] = this.daysPerWeek;
+        data["preferredDays"] = this.preferredDays;
+        data["squatDays"] = this.squatDays;
+        data["benchDays"] = this.benchDays;
+        data["deadliftDays"] = this.deadliftDays;
+        data["favoriteMovements"] = this.favoriteMovements;
+        return data;
+    }
+}
+
+export interface IProgramPreferencesDTO {
+    daysPerWeek: number;
+    preferredDays: string;
+    squatDays?: number;
+    benchDays?: number;
+    deadliftDays?: number;
+    favoriteMovements?: string | undefined;
+}
+
+export class ProgramShellDTO implements IProgramShellDTO {
+    title!: string;
+    lengthWeeks!: number;
+
+    constructor(data?: IProgramShellDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.title = _data["title"];
+            this.lengthWeeks = _data["lengthWeeks"];
+        }
+    }
+
+    static fromJS(data: any): ProgramShellDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new ProgramShellDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["title"] = this.title;
+        data["lengthWeeks"] = this.lengthWeeks;
+        return data;
+    }
+}
+
+export interface IProgramShellDTO {
+    title: string;
+    lengthWeeks: number;
+}
+
 export class ReadinessData implements IReadinessData {
     readinessScore?: number;
     temperatureDeviation?: number;
@@ -5556,6 +5953,36 @@ export class RegisterRequest implements IRegisterRequest {
 export interface IRegisterRequest {
     email: string | undefined;
     password: string | undefined;
+}
+
+export class RemainingWeeksGenerationDTO implements IRemainingWeeksGenerationDTO {
+
+    constructor(data?: IRemainingWeeksGenerationDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+    }
+
+    static fromJS(data: any): RemainingWeeksGenerationDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new RemainingWeeksGenerationDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        return data;
+    }
+}
+
+export interface IRemainingWeeksGenerationDTO {
 }
 
 export class ResendConfirmationEmailRequest implements IResendConfirmationEmailRequest {

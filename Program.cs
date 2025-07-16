@@ -44,6 +44,7 @@ builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();
 builder.Services.AddTransient<IWellnessService, WellnessService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
+builder.Services.AddScoped<IProgramGenerationService, ProgramGenerationService>();
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<ISetEntryService, SetEntryService>();
