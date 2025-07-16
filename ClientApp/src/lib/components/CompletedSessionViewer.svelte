@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import {
     DeleteTrainingSessionEndpointClient,
+    DuplicateTrainingSessionEndpointClient,
     MovementDTO,
     TrainingSessionStatus,
     type TrainingSessionDTO,
@@ -46,6 +47,16 @@
     }
   }
 
+  async function duplicateSession() {
+    const duplicateClient = new DuplicateTrainingSessionEndpointClient(baseUrl);
+    try {
+      await duplicateClient.duplicate(session.trainingSessionID);
+      await loadSessions();
+    } catch {
+      alert("Failed to duplicate session.");
+    }
+  }
+
   // Calculate total tonnage for the session
   function getTotalTonnage(session: TrainingSessionDTO): number {
     return session.movements.reduce((total, m) => {
@@ -76,35 +87,47 @@
   <div
     class="card-body text-left pl-4 pt-4 pr-0 w-64 h-64 outline rounded-lg bg-success/10"
   >
-    <h2 class="card-title flex justify-between items-center pr-4 text-xl">
-      Session {session.sessionNumber}
-      <div class="flex items-center gap-2">
-        <div class="badge badge-success badge-md p-1 italic">
-          {getSessionStatus(session.status)}
-        </div>
-        <button
-          class="btn btn-xs outline rounded w-5 h-5 min-w-0 min-h-0 p-0 flex items-center justify-center rounded-xs hover:btn-error"
-          on:click={(e) => {
-            e.stopPropagation();
-            deleteSession();
-          }}>x</button
-        >
-      </div>
-    </h2>
     <div
-      class="text-sm text-base-content/60 flex items-center justify-between pr-4"
+      class="card-title flex justify-between items-center pr-4 text-xl font-bold"
     >
-      {formatSessionDate(session.date)}
-      <span>Total Tonnage: {getTotalTonnage(session).toLocaleString()}</span>
+      <div class="flex flex-col">
+        Session <div class="text-4xl">{session.sessionNumber}</div>
+      </div>
+      <div class="flex flex-col items-end gap-4">
+        <div class="flex items-center gap-2">
+          <div class="badge badge-success badge-md p-1 italic">
+            {getSessionStatus(session.status)}
+          </div>
+          <button
+            class="btn btn-xs outline rounded-md w-5 h-5 min-w-0 min-h-0 p-0 flex items-center justify-center rounded-xs hover:btn-accent"
+            on:click={(e) => {
+              e.stopPropagation();
+              duplicateSession();
+            }}>⧉</button
+          >
+          <button
+            class="btn btn-xs outline rounded-md w-5 h-5 min-w-0 min-h-0 p-0 flex items-center justify-center rounded-xs hover:btn-error"
+            on:click={(e) => {
+              e.stopPropagation();
+              deleteSession();
+            }}>x</button
+          >
+        </div>
+        <div class="text-md text-base-content/60 flex items-center">
+          {formatSessionDate(session.date)}
+          <!-- <span class="ml-2"
+            >Tonnage: <div>
+              {getTotalTonnage(session).toLocaleString()}
+            </div></span
+          > -->
+        </div>
+      </div>
     </div>
-
-    <!-- Movements Section (full width, no considerations) -->
     <div class="flex flex-col w-full pr-4">
       <div class="flex pb-2">
         <div class="divider divider-neutral divider-end m-0 w-2/4"></div>
         <div class="divider divider-neutral m-0 w-2/4 text-xs">avg</div>
       </div>
-
       <table class="table-auto w-full text-xs table-fixed border-collapse">
         <thead>
           <tr class="text-left border-b border-base-300">
@@ -118,11 +141,9 @@
         <tbody>
           {#each session.movements as m}
             <tr class="border-b border-base-300">
-              <!-- Movement name with more space -->
               <td class="pr-2 break-words whitespace-normal w-1/2">
                 {m.movementBase.name}
               </td>
-              <!-- Other items tighter -->
               <td class="text-center">{m.sets.length}</td>
               <td class="text-center">
                 {#if m.sets.length > 0}

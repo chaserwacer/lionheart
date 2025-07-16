@@ -1,8 +1,13 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { TrainingSessionStatus, type TrainingSessionDTO } from '$lib/api/ApiClient';
+  import { DeleteTrainingSessionEndpointClient, DuplicateTrainingSessionEndpointClient, TrainingSessionStatus, type TrainingSessionDTO } from '$lib/api/ApiClient';
   export let session: TrainingSessionDTO;
   export let slug: string;
+    const baseUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "http://localhost:5174";
+        export let loadSessions: () => Promise<void>;
 
   function view() {
     goto(`/programs/${slug}/session/${session.trainingSessionID}`);
@@ -26,7 +31,30 @@
       day: 'numeric',
     });
   }
+  async function deleteSession() {
+    const confirmed = confirm("Are you sure you want to delete this session?");
+    if (!confirmed || !session) return;
+
+    const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
+    try {
+      await deleteClient.delete5(session.trainingSessionID);
+      await loadSessions(); // Reload sessions to reflect changes
+    } catch {
+      alert("Failed to delete session.");
+    }
+  }
+
+  async function duplicateSession() {
+    const duplicateClient = new DuplicateTrainingSessionEndpointClient(baseUrl);
+    try {
+      await duplicateClient.duplicate(session.trainingSessionID);
+      await loadSessions();
+    } catch {
+      alert("Failed to duplicate session.");
+    }
+  }
 </script>
+
 
 <button
   type="button"
@@ -35,20 +63,35 @@
   aria-label="View skipped session details"
 >
   <div class="card-body text-left pl-4 pt-4 pr-0 w-64 h-64 outline rounded-lg bg-neutral/10">
-    <h2 class="card-title flex justify-between items-center pr-4 text-xl ">
-      Session {session.sessionNumber}
-      <div class="flex items-center gap-2">
-        <div class="badge badge-neutral badge-md p-1 italic">
-          {getSessionStatus(session.status)}
+    <div class="card-title flex justify-between items-center pr-4 text-xl font-bold">
+      <div class="flex flex-col">
+        Session <div class="text-4xl">{session.sessionNumber}</div>
+      </div>
+      <div class="flex flex-col items-end gap-4">
+        <div class="flex items-center gap-2">
+          <div class="badge badge-neutral badge-md p-1 italic">
+            {getSessionStatus(session.status)}
+          </div>
+          <button
+            class="btn btn-xs outline rounded-md w-5 h-5 min-w-0 min-h-0 p-0 flex items-center justify-center rounded-xs hover:btn-accent"
+            on:click={(e) => {
+              e.stopPropagation();
+              duplicateSession();
+            }}>⧉</button>
+          <button
+            class="btn btn-xs outline rounded-md w-5 h-5 min-w-0 min-h-0 p-0 flex items-center justify-center rounded-xs hover:btn-error"
+            on:click={(e) => {
+              e.stopPropagation();
+              deleteSession();
+            }}>x</button>
+        </div>
+        <div class="text-md text-base-content/60 flex items-center">
+          {formatSessionDate(session.date)}
         </div>
       </div>
-    </h2>
-    <div class="text-sm text-base-content/60 flex items-center pr-4">
-      {formatSessionDate(session.date)}
     </div>
-
+    <div class="divider divider-neutral m-0 w-full pr-4"></div>
     <div class="flex flex-col w-full pr-4 gap-2">
-      <div class="divider divider-neutral m-0 w-full"></div>
       <table class="table-auto w-full text-xs table-fixed border-collapse">
         <thead>
           <tr class="text-left border-b border-base-300">

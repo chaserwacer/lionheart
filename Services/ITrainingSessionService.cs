@@ -61,5 +61,11 @@ public interface ITrainingSessionService
 
      Task<Result<TrainingSessionDTO>> CreateTrainingSessionFromJSON(IdentityUser user, TrainingSessionDTO trainingSessionDTO);
 
-
+    /// <summary>
+    /// Duplicate a training session, including all movements and set entries.
+    /// </summary>
+    /// <param name="user">The user who owns the session.</param>
+    /// <param name="trainingSessionID">The session ID to duplicate.</param>
+    /// <returns>A result containing the duplicated training session.</returns>
+    Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
 }

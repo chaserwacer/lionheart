@@ -132,13 +132,13 @@ let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
                 <div>
                   <div class="">
                     {#if session.status === TrainingSessionStatus._1}
-                      <InProgressSessionViewer {session} {slug} />
+                      <InProgressSessionViewer {session} {slug} loadSessions={loadProgram}/>
                     {:else if session.status === TrainingSessionStatus._0}
                       <PlannedSessionViewer {session} {slug} loadSessions={loadProgram}/>
                     {:else if session.status === TrainingSessionStatus._2}
                       <CompletedSessionViewer {session} {slug} loadSessions={loadProgram}/>
                     {:else}
-                      <SkippedSessionViewer {session} {slug} />
+                      <SkippedSessionViewer {session} {slug} loadSessions={loadProgram}/>
                     {/if}
                   </div>
                 </div>

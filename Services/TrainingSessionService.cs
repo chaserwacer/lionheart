@@ -342,7 +342,80 @@ public class TrainingSessionService : ITrainingSessionService
         return Result<List<TrainingSessionDTO>>.Success(sessionDTOs);
     }
 
+    [McpServerTool, Description("Duplicate an existing training session.")]
+    public async Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        var originalSession = await _context.TrainingSessions
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.Sets)
+            .Include(ts => ts.TrainingProgram)
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID && ts.TrainingProgram!.UserID == userGuid);
 
+        if (originalSession == null)
+            return Result.NotFound();
 
+        // Create new session
+        var newSession = new TrainingSession
+        {
+            TrainingSessionID = Guid.NewGuid(),
+            TrainingProgramID = originalSession.TrainingProgramID,
+            TrainingProgram = originalSession.TrainingProgram,
+            Date = originalSession.Date, 
+            Status = TrainingSessionStatus.Planned,
+            Movements = new List<Movement>()
+        };
 
+        foreach (var movement in originalSession.Movements)
+        {
+            var newMovementModififer = new MovementModifier()
+            {
+                Name = movement.MovementModifier.Name,
+                Equipment = movement.MovementModifier.Equipment,
+                Duration = movement.MovementModifier.Duration,
+            };
+            var movementBase = await _context.MovementBases.FindAsync(movement.MovementBaseID);
+            if (movementBase is null)
+            {
+                return Result<TrainingSessionDTO>.Error($"MovementBaseID {movement.MovementBaseID} not found.");
+            }
+            var newMovement = new Movement
+            {
+                MovementID = Guid.NewGuid(),
+                TrainingSessionID = newSession.TrainingSessionID,
+                TrainingSession = newSession,
+                MovementBaseID = movementBase.MovementBaseID,
+                MovementBase = movementBase,
+                MovementModifier = newMovementModififer,
+                Notes = movement.Notes,
+                IsCompleted = false,
+                Ordering = movement.Ordering,
+                WeightUnit = movement.WeightUnit,
+                Sets = new List<SetEntry>()
+            };
+
+            foreach (var set in movement.Sets)
+            {
+                var newSet = new SetEntry
+                {
+                    SetEntryID = Guid.NewGuid(),
+                    MovementID = newMovement.MovementID,
+                    Movement = newMovement,
+                    RecommendedReps = set.RecommendedReps,
+                    RecommendedWeight = set.RecommendedWeight,
+                    RecommendedRPE = set.RecommendedRPE,
+                    ActualReps = set.ActualReps,
+                    ActualWeight = set.ActualWeight,
+                    ActualRPE = set.ActualRPE
+                };
+                newMovement.Sets.Add(newSet);
+            }
+            newSession.Movements.Add(newMovement);
+        }
+
+        _context.TrainingSessions.Add(newSession);
+        await _context.SaveChangesAsync();
+
+        return Result.Success(newSession.ToDTO(0)); // Session number can be set as needed
+    }
 }
