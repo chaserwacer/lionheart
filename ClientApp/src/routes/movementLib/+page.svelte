@@ -52,16 +52,22 @@
 
   $: programSlug = $page.params.slug;
 
+  function goToPreviousPage() {
+    if($page.params.sessionID) {
+      goto(`/programs/${programSlug}/session/${$page.params.sessionID}`);
+    
+      return;
+    }
+    goto(`/programs/${programSlug}`);
+  }
+
+  $: returnTo = $page.url.searchParams.get('returnTo') ?? '/programs';
+
   onMount(loadMovements);
 </script>
 
 <div class="p-6 max-w-4xl mx-auto text-base-content">
-  <button
-    on:click={() => goto(`/programs`)}
-    class="btn btn-sm btn-outline mb-6"
-  >
-    ← Back to Session
-  </button>
+  <a class="btn btn-sm btn-outline mb-4" href={returnTo}>← Back</a>
 
   <h1 class="text-3xl font-bold mb-6">Movement Library</h1>
 

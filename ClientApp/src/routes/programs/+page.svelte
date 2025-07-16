@@ -65,7 +65,7 @@
   }
 
   function goToProgram(program: TrainingProgramDTO) {
-    goto(`/programs/${slugify(program.title ?? '')}`);
+    goto(`/programs/${slugify(program.trainingProgramID)}`);
   }
 
   function formatDate(dateInput: Date | string | undefined): string {

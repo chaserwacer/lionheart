@@ -29,6 +29,7 @@
 
   function formatSessionDate(date: string | Date) {
     const d = new Date(date);
+    //d.setDate(d.getDate() + 1); // Adjust to local time
     return d.toLocaleDateString(undefined, {
       weekday: "short",
       month: "short",
@@ -63,29 +64,34 @@
   aria-label="View session details"
 >
   <div class="card-body text-left pl-4 pt-4 pr-0 w-64 h-64 outline rounded-lg">
-    <h2 class="card-title flex gap-2">
+    <h2 class="card-title flex justify-between items-center pr-4 text-xl">
+      <!-- Session number stays left -->
       Session {session.sessionNumber}
-      <div class="badge badge-primary badge-md p-1 italic">
-        {getSessionStatus(session.status)}
+
+      <!-- Badge and delete button grouped right -->
+      <div class="flex items-center gap-2">
+        <div class="badge badge-primary badge-md p-1 italic">
+          {getSessionStatus(session.status)}
+        </div>
+         <button
+          class="btn btn-xs outline rounded-md w-5 h-5 min-w-0 min-h-0 p-0 flex items-center justify-center rounded-xs hover:btn-error"
+          on:click={(e) => {
+            e.stopPropagation();
+            deleteSession();
+          }}>x</button>
+     
       </div>
-      <button
-        class="btn btn-xs btn-error w-6 h-6 min-w-0 min-h-0 p-0 flex items-center justify-center rounded-sm"
-        on:click={(e) => {
-          e.stopPropagation(); // 👈 Prevents triggering card click
-          deleteSession();
-        }}>x</button
-      >
     </h2>
     <div class="text-sm text-base-content/60 flex items-center">
       {formatSessionDate(session.date)}
     </div>
 
-    <div class="flex flex-row">
+    <div class="flex flex-row justify-between">
       <!-- Movements Section -->
-      <div class="flex flex-col grow-3 pr-5 max-w-24">
-        <h3 class="font-semibold text-sm mb-1 ">Movements</h3>
-        <div class="divider m-0 w-23 "></div>
-        <ul class="text-sm space-y-1 ">
+      <div class="flex flex-col grow-3 pr-5">
+        <h3 class="font-semibold text-sm mb-1">Movements</h3>
+        <div class="divider divider-neutral m-0 w-23"></div>
+        <ul class="text-xs space-y-1">
           {#each session.movements as m}
             <li class="break-all">{m.sets.length} x {m.movementBase.name}</li>
           {/each}
@@ -93,9 +99,9 @@
       </div>
 
       <!-- Considerations Section -->
-      <div class="flex flex-col border-l pl-4 flex-1 ">
+      <div class="flex flex-col border-l-2 border-neutral pl-5 flex-1 pr-4">
         <h3 class="font-semibold text-sm mb-1">Considerations</h3>
-        <div class="divider m-0 w-24"></div>
+        <div class="divider divider-neutral m-0 w-24"></div>
         <div class="text-xs text-base-content/80 italic w-24">
           {getConsideration(session)}
         </div>

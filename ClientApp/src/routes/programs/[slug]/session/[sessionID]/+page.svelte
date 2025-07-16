@@ -27,22 +27,19 @@
     GetMovementBasesEndpointClient,
     UpdateMovementOrderEndpointClient,
     UpdateMovementOrderRequest,
+    GetTrainingProgramEndpointClient,
+    DeleteTrainingSessionEndpointClient,
   } from "$lib/api/ApiClient";
   import { base } from "$app/paths";
 
-  let slug = "";
-  let sessionID = "";
+  let slug = $page.params.slug;
+  let sessionID = $page.params.sessionID;
   let session: TrainingSessionDTO;
   let program: TrainingProgramDTO;
-  let showUncompleted = true;
-  let showCompleted = true;
   let showModal = false;
   let selectedDate = "";
   let editingMovementBaseName = false;
-  let editingSetViewer = false;
-  let weightStep: number = 5;
-  let dateInput: HTMLInputElement;
-  let windowWidth = 0;
+
   let chosenMovementBaseIndexForEditing = 0;
   let modifiers: MovementBase[] = [];
   const baseUrl =
@@ -62,24 +59,18 @@
   }
 
   onMount(async () => {
-    slug = $page.params.slug;
-    sessionID = $page.params.sessionID;
 
-    const programsClient = new GetTrainingProgramsEndpointClient(baseUrl);
+
+    const programsClient = new GetTrainingProgramEndpointClient(baseUrl);
     const sessionClient = new GetTrainingSessionEndpointClient(baseUrl);
     const movementBaseClient = new GetMovementBasesEndpointClient(baseUrl);
 
     try {
-      const allPrograms = await programsClient.getAll3();
-      const foundProgram = allPrograms.find(
-        (p) => slugify(p.title ?? "") === slug,
-      );
-      if (!foundProgram) return;
-      program = foundProgram;
-
+      program = await programsClient.get(slug);
       session = await sessionClient.get2(sessionID);
-      selectedDate = session.date.toISOString().slice(0, 10);
+      if (!session) return;
 
+      selectedDate = session.date.toISOString().slice(0, 10);
       modifiers = await movementBaseClient.getAll();
     } catch (err) {
       console.error("Failed to load session data:", err);
@@ -225,19 +216,16 @@
     await refreshSessionData();
   }
 
-  async function deleteSession(sessionID: string) {
-    const res = await fetch(`${baseUrl}/api/session/delete/${sessionID}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      console.error("Failed to delete session");
-      return;
+   async function deleteSession() {
+    const confirmed = confirm("Are you sure you want to delete this session?");
+    if (!confirmed || !session) return;
+    const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
+    try {
+      await deleteClient.delete5(session.trainingSessionID);
+      goto(`/programs/${slug}`); // Redirect to program page after deletion
+    } catch {
+      alert("Failed to delete session.");
     }
-
-    // Redirect to the program page after deletion
-    goto(`/programs/${slug}`);
   }
   async function reorderMovement(
     movement: MovementDTO,
@@ -282,14 +270,36 @@
   }
 </script>
 
+ 
+
 {#if session}
-  <div class="p-10 max-w-6xl mx-auto text-base-content">
-    <a href={`/programs/${slug}`} class="btn btn-sm btn-outline mb-6">
-      ← Back to Program
+  <div class="p-6 max-w-6xl mx-auto text-base-content">
+    <div class="flex justify-between items-center w-full mb-4">
+        <a href={`/programs/${slug}`} class="btn btn-sm btn-primary">
+      ← Back
     </a>
+      <h1 class="text-xl md:text-4xl font-extrabold mb-2 text-center">
+        {program.title}
+      </h1>
+      <a
+        class="btn btn-sm btn-primary"
+        href={`/movementLib?returnTo=/programs/${slug}/session/${sessionID}`}
+      >
+        Items →
+      </a>
+    </div>
+
+    <div class="text-center items-center justify-center">
+      {#each program.tags as tag}
+        <span class="badge badge-primary">{tag}</span>
+      {/each}
+    </div>
+    <div class="divider divider-2 divider-primary">
+    
+    </div>
 
     <div
-      class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-3"
+      class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-5"
     >
       <div class="flex flex-col gap-3">
         <p class="text-4xl font-bold">{program?.title}</p>
@@ -794,12 +804,13 @@
           </div>
         {/if}
       {/each}
-      <button class="btn btn-error">Delete Training Session</button>
+      <button class="btn btn-error" on:click={deleteSession}>Delete Training Session</button>
     </div>
   </div>
 {:else}
-  <div class="p-6 max-w-4xl mx-auto text-error">
-    <h1 class="text-2xl font-bold">Session not found</h1>
+  <div class="p-6 max-w-4xl mx-auto flex items-center justify-center">
+    <span class="loading loading-spinner loading-xs"></span>
+
   </div>
 {/if}
 
