@@ -82,7 +82,7 @@ namespace lionheart.Services.AI
                     case ChatFinishReason.Stop:
                         messages.Add(new AssistantChatMessage(completion));
                         var finalResponse = completion.Content[0].Text;
-                        return Result<string>.Success(finalResponse ?? "Model responded but gave no content.");
+                        return Result<string>.Success(finalResponse);
 
                     case ChatFinishReason.ToolCalls:
                         messages.Add(new AssistantChatMessage(completion));
