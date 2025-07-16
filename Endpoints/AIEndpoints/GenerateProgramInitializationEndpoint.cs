@@ -25,6 +25,8 @@ namespace lionheart.Endpoints.AIEndpoints
         }
 
         [HttpPost("api/ai/program/init")]
+        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+        [Produces("text/plain")]    
         public override async Task<ActionResult<string>> HandleAsync(CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);

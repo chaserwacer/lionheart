@@ -1231,7 +1231,7 @@ export class GenerateProgramInitializationEndpointClient {
         if (status === 200) {
             return response.text().then((_responseText) => {
             let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            let resultData200 = _responseText === "" ? null : _responseText;
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
     
             return result200;
@@ -1393,7 +1393,7 @@ export class GenerateProgramShellEndpointClient {
         if (status === 200) {
             return response.text().then((_responseText) => {
             let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            let resultData200 = _responseText === "" ? null : _responseText;
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
     
             return result200;
@@ -5769,7 +5769,9 @@ export interface IProgramPreferencesDTO {
 
 export class ProgramShellDTO implements IProgramShellDTO {
     title!: string;
-    lengthWeeks!: number;
+    startDate!: Date;
+    endDate!: Date;
+    tag!: string;
 
     constructor(data?: IProgramShellDTO) {
         if (data) {
@@ -5783,7 +5785,9 @@ export class ProgramShellDTO implements IProgramShellDTO {
     init(_data?: any) {
         if (_data) {
             this.title = _data["title"];
-            this.lengthWeeks = _data["lengthWeeks"];
+            this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
+            this.endDate = _data["endDate"] ? new Date(_data["endDate"].toString()) : <any>undefined;
+            this.tag = _data["tag"];
         }
     }
 
@@ -5797,14 +5801,18 @@ export class ProgramShellDTO implements IProgramShellDTO {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["title"] = this.title;
-        data["lengthWeeks"] = this.lengthWeeks;
+        data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
+        data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
+        data["tag"] = this.tag;
         return data;
     }
 }
 
 export interface IProgramShellDTO {
     title: string;
-    lengthWeeks: number;
+    startDate: Date;
+    endDate: Date;
+    tag: string;
 }
 
 export class ReadinessData implements IReadinessData {
