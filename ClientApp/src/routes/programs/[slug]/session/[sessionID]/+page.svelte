@@ -54,7 +54,7 @@
     // Map the enum value to a string
     if (statusInt === TrainingSessionStatus._0) return "Planned";
     if (statusInt === TrainingSessionStatus._1) return "In Progress";
-    if (statusInt === TrainingSessionStatus._2) return "Completed";
+    if (statusInt === TrainingSessionStatus._2) return "Complete";
     if (statusInt === TrainingSessionStatus._3) return "Skipped";
   }
 
@@ -358,7 +358,7 @@
                 >
                   <option value={TrainingSessionStatus._0}>Planned</option>
                   <option value={TrainingSessionStatus._1}>In Progress</option>
-                  <option value={TrainingSessionStatus._2}>Completed</option>
+                  <option value={TrainingSessionStatus._2}>Complete</option>
                   <option value={TrainingSessionStatus._3}>Skipped</option>
                 </select>
               {:else}

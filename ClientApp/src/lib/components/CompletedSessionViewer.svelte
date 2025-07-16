@@ -23,7 +23,7 @@
     const statusInt = status.valueOf();
     if (statusInt === TrainingSessionStatus._0) return "PLANNED";
     if (statusInt === TrainingSessionStatus._1) return "ACTIVE";
-    if (statusInt === TrainingSessionStatus._2) return "COMPLETED";
+    if (statusInt === TrainingSessionStatus._2) return "COMPLETE";
     if (statusInt === TrainingSessionStatus._3) return "SKIPPED";
   }
   function formatSessionDate(date: string | Date) {
