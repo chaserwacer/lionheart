@@ -116,7 +116,7 @@
     </div>
     <!-- <div class="divider divider-neutral m-0 w-full pr-6"></div> -->
     
-    <div class="flex flex-col w-full pr-4 gap-2">
+    <div class="flex flex-col w-full pr-4 gap-2 overflow-hidden text-ellipsis h-64">
       <progress class="progress progress-xs progress-neutral mt-1 w-full mb-1"></progress>
       <table class="table-auto w-full text-xs table-fixed border-collapse">
         <thead>

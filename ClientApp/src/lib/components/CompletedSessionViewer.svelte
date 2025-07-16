@@ -123,7 +123,7 @@
         </div>
       </div>
     </div>
-    <div class="flex flex-col w-full pr-4">
+    <div class="flex flex-col w-full pr-4 overflow-hidden text-ellipsis h-64" >
       <div class="flex pb-2">
         <div class="divider divider-neutral divider-end m-0 w-2/4"></div>
         <div class="divider divider-neutral m-0 w-2/4 text-xs">avg</div>

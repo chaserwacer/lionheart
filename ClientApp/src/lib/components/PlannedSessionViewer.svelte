@@ -110,23 +110,30 @@
       </div>
     </div>
     <div class="divider divider-neutral m-0 w-full pr-4"></div>
-    <div class="flex flex-row justify-between">
+    <div
+      class="flex flex-row justify-between w-full pr-4 overflow-hidden text-ellipsis h-64"
+    >
       <!-- Movements Section -->
-      <div class="flex flex-col grow-3 pr-5">
-        <h3 class="font-semibold text-sm mb-1">Movements</h3>
-        <div class="divider divider-neutral m-0 w-23"></div>
-        <ul class="text-xs space-y-1">
+      <div class="flex flex-col h-full w-1/2 pr-1">
+        <h3 class="font-semibold text-sm mb-1 ">Movements</h3>
+
+        <div class="text-xs space-y-1 flex-1 overflow-hidden">
           {#each session.movements as m}
-            <li class="break-all">{m.sets.length} x {m.movementBase.name}</li>
+            <div class="break-all truncate">
+              {m.sets.length} x {m.movementBase.name}
+            </div>
           {/each}
-        </ul>
+        </div>
       </div>
 
       <!-- Considerations Section -->
-      <div class="flex flex-col  pl-5 flex-1 pr-4">
-        <h3 class="font-semibold text-sm mb-1">Considerations</h3>
-        <div class="divider divider-neutral m-0 w-24"></div>
-        <div class="text-xs text-base-content/80 italic w-24">
+      <div class="flex flex-col h-full w-1/2 pl-1 ">
+        <h3 class="font-semibold text-sm mb-1 ">Considerations</h3>
+ 
+        <div
+          class="text-xs text-base-content/80 italic w-full break-words overflow-hidden "
+          style="max-height: 100%;"
+        >
           {getConsideration(session)}
         </div>
       </div>
