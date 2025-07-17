@@ -46,15 +46,17 @@ namespace lionheart.Model.Prompt
                     "Do not create any JSON or issue any tool calls yet. Simply acknowledge readiness and await further user input.");
 
         public static PromptBuilder ProgramShell(string title, DateOnly startDate, DateOnly endDate, string tag) =>
-            new PromptBuilder()
-                .AddSection("Phase 1: Create Program Shell",
-                    $"Create a blank TrainingProgramDTO named '{title}' spanning from {startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd}.",
-                    $"- trainingProgramID: new UUID v4",
-                    $"- tags: [\"{tag}\"]",
-                    "- createdByUserId: getIdentityUser()",
-                    "- startDate, endDate, nextTrainingSessionDate: set from inputs",
-                    "- trainingSessions: empty array",
-                    "Call `createTrainingProgramFromJson(programDto)` using the object above.");
+        new PromptBuilder()
+            .AddSection("Phase 1: Create Program Shell",
+            "The user has provided these values:",
+            $"- title: \"{title}\"",
+            $"- startDate: \"{startDate:yyyy-MM-dd}\"",
+            $"- endDate: \"{endDate:yyyy-MM-dd}\"",
+            $"- tags: [\"{tag}\"]",
+            "",
+            "Now CALL the function CreateTrainingProgramAsync(request) with those values; do NOT emit any other text."
+            );
+
 
         public static PromptBuilder Preferences(ProgramPreferencesDTO dto)
         {

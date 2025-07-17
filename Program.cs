@@ -45,7 +45,7 @@ builder.Services
 //builder.Services.AddSingleton<TemplateServerPrompt>();  //TODO: Validate this works [provides templates accessible via server??]
 /////////////////////////////////////////////////////
 
-
+builder.Services.AddMemoryCache();
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();

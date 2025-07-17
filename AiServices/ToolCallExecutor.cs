@@ -17,15 +17,18 @@ public class ToolCallExecutor : IToolCallExecutor
     private readonly ITrainingSessionService _trainingSessionService;
     private readonly IMovementService _movementService;
     private readonly ISetEntryService _setEntryService;
+    private readonly ITrainingProgramService _trainingProgramService;
 
     public ToolCallExecutor(
         ITrainingSessionService trainingSessionService,
         IMovementService movementService,
-        ISetEntryService setEntryService)
+        ISetEntryService setEntryService,
+        ITrainingProgramService trainingProgramService)
     {
         _trainingSessionService = trainingSessionService;
         _movementService = movementService;
         _setEntryService = setEntryService;
+        _trainingProgramService = trainingProgramService;
     }
     /// <summary>
     /// Intakes a list of tool calls and executes them sequentially.
@@ -81,6 +84,14 @@ public class ToolCallExecutor : IToolCallExecutor
                         if (request == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSession.");
                         var result = await _trainingSessionService.CreateTrainingSessionAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "CreateTrainingProgramAsync":
+                    {
+                        var request = args?["request"]?.Deserialize<CreateTrainingProgramRequest>();
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingProgram.");
+                        var result = await _trainingProgramService.CreateTrainingProgramAsync(user, request);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 case "UpdateTrainingSessionAsync":
