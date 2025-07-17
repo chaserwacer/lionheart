@@ -67,7 +67,7 @@
 
     try {
       program = await programsClient.get(slug);
-      session = await sessionClient.get2(sessionID);
+      session = await sessionClient.get2(slug, sessionID);
       if (!session) return;
 
       selectedDate = session.date.toISOString().slice(0, 10);
@@ -185,7 +185,8 @@
   async function refreshSessionData() {
     // Reload the session's movements
     const sessionClient = new GetTrainingSessionEndpointClient(baseUrl);
-    session = await sessionClient.get2(sessionID);
+    
+    session = await sessionClient.get2(slug, sessionID);
     showModal = false;
   }
 

@@ -30,9 +30,27 @@ public class TrainingProgram
 
     public TrainingProgramDTO ToDTO()
     {
-        var sessions = TrainingSessions.OrderBy(s => s.Date)
-            .Select((session, index) => session.ToDTO(index + 1))
+        var orderedSessions = TrainingSessions
+            .OrderBy(s => s.Date)
+            .ThenBy(s => s.CreationTime)
             .ToList();
+
+        var sessionNumbers = new List<double>();
+        double sessionIndex = 1;
+        foreach (var group in orderedSessions.GroupBy(s => s.Date))
+        {
+            var sameDaySessions = group.OrderBy(s => s.CreationTime).ToList();
+            for (int i = 0; i < sameDaySessions.Count; i++)
+            {
+                sessionNumbers.Add(sessionIndex + (i == 0 ? 0 : i * 0.1));
+            }
+            sessionIndex++;
+        }
+
+        var sessions = orderedSessions
+            .Select((session, idx) => session.ToDTO(sessionNumbers[idx]))
+            .ToList();
+
         return new TrainingProgramDTO
         {
             TrainingProgramID = TrainingProgramID,

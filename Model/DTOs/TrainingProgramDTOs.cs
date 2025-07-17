@@ -117,7 +117,7 @@ public class TrainingSessionDTO
 {
     public required Guid TrainingSessionID { get; init; }
     public required Guid TrainingProgramID { get; init; }
-    public required int SessionNumber { get; set; }
+    public required double SessionNumber { get; set; } // Changed from int to double
     public required DateOnly Date { get; set; }
     public required TrainingSessionStatus Status { get; set; }
     [Required]
@@ -126,10 +126,18 @@ public class TrainingSessionDTO
 
 public class GenerateTrainingSessionsRequest
 {
-    [Required] 
+    [Required]
     public required Guid TrainingProgramID { get; init; }
 
     [Required]
     [Range(1, int.MaxValue)]
     public required int Count { get; init; }
+}
+
+public class GetTrainingSessionRequest
+{
+    [Required]
+    public required Guid TrainingSessionID { get; init; }
+    [Required]
+    public required Guid TrainingProgramID { get; init; }
 }

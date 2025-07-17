@@ -2081,11 +2081,14 @@ export class GetTrainingSessionEndpointClient {
     /**
      * @return OK
      */
-    get2(trainingSessionId: string): Promise<TrainingSessionDTO> {
-        let url_ = this.baseUrl + "/api/training-session/get/{trainingSessionId}";
-        if (trainingSessionId === undefined || trainingSessionId === null)
-            throw new Error("The parameter 'trainingSessionId' must be defined.");
-        url_ = url_.replace("{trainingSessionId}", encodeURIComponent("" + trainingSessionId));
+    get2(programId: string, sessionId: string): Promise<TrainingSessionDTO> {
+        let url_ = this.baseUrl + "/api/training-session/get/{programId}/{sessionId}";
+        if (programId === undefined || programId === null)
+            throw new Error("The parameter 'programId' must be defined.");
+        url_ = url_.replace("{programId}", encodeURIComponent("" + programId));
+        if (sessionId === undefined || sessionId === null)
+            throw new Error("The parameter 'sessionId' must be defined.");
+        url_ = url_.replace("{sessionId}", encodeURIComponent("" + sessionId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -6669,6 +6672,7 @@ export class TrainingSession implements ITrainingSession {
     date?: Date;
     status?: TrainingSessionStatus;
     movements?: Movement[] | undefined;
+    creationTime?: Date;
 
     constructor(data?: ITrainingSession) {
         if (data) {
@@ -6691,6 +6695,7 @@ export class TrainingSession implements ITrainingSession {
                 for (let item of _data["movements"])
                     this.movements!.push(Movement.fromJS(item));
             }
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
         }
     }
 
@@ -6713,6 +6718,7 @@ export class TrainingSession implements ITrainingSession {
             for (let item of this.movements)
                 data["movements"].push(item ? item.toJSON() : <any>undefined);
         }
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
         return data;
     }
 }
@@ -6724,6 +6730,7 @@ export interface ITrainingSession {
     date?: Date;
     status?: TrainingSessionStatus;
     movements?: Movement[] | undefined;
+    creationTime?: Date;
 }
 
 export class TrainingSessionDTO implements ITrainingSessionDTO {

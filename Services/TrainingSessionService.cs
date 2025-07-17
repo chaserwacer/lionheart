@@ -4,8 +4,6 @@ using lionheart.Model.DTOs;
 using lionheart.Model.TrainingProgram;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;            // for JsonSerializer
-using Model.McpServer;             // for LionMcpPrompt, InstructionPromptSection
 using ModelContextProtocol.Server;
 using lionheart.Services;
 using System.ComponentModel;
@@ -38,60 +36,57 @@ public class TrainingSessionService : ITrainingSessionService
     {
         _context = context;
     }
+    private async Task<List<TrainingSessionDTO>> GetOrderedSessionsAsync(Guid programId, Guid userGuid)
+    {
+        var orderedSessions = await _context.TrainingSessions
+            .Where(ts => ts.TrainingProgramID == programId &&
+                        ts.TrainingProgram!.UserID == userGuid)
+            .Include(ts => ts.TrainingProgram)
+            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
+                .ThenInclude(m => m.Sets)
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.MovementBase)
+            .OrderBy(ts => ts.Date)
+            .ThenBy(ts => ts.CreationTime)
+            .ToListAsync();
+
+       var sessionNumbers = new List<double>();
+        double sessionIndex = 1;
+        foreach (var group in orderedSessions.GroupBy(s => s.Date))
+        {
+            var sameDaySessions = group.OrderBy(s => s.CreationTime).ToList();
+            for (int i = 0; i < sameDaySessions.Count; i++)
+            {
+                sessionNumbers.Add(sessionIndex + (i == 0 ? 0 : i * 0.1));
+            }
+            sessionIndex++;
+        }
+
+        return orderedSessions
+            .Select((session, idx) => session.ToDTO(sessionNumbers[idx]))
+            .ToList();
+    }
+
 
     [McpServerTool, Description("Get all training sessions for a program.")]
     public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, Guid programId)
     {
         var userGuid = Guid.Parse(user.Id);
 
-        var sessions = await _context.TrainingSessions
-            .Where(ts => ts.TrainingProgramID == programId &&
-                        ts.TrainingProgram!.UserID == userGuid)
-            .Include(ts => ts.TrainingProgram)
-            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
-            .ThenInclude(m => m.Sets)
-            .Include(ts => ts.Movements)
-            .ThenInclude(m => m.MovementBase)
-            .OrderBy(ts => ts.Date)
-            .ToListAsync();
-
-        // Generate session numbers based on date order within the program
-        var sessionDTOs = sessions.Select((session, index) => session.ToDTO(index + 1)).ToList();
-
-        return Result<List<TrainingSessionDTO>>.Success(sessionDTOs);
+        return Result<List<TrainingSessionDTO>>.Success(await GetOrderedSessionsAsync(programId, userGuid));
     }
 
     [McpServerTool, Description("Get a specific training session by ID.")]
-    public async Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
+    public async Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, GetTrainingSessionRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
-        var session = await _context.TrainingSessions
-            .Where(ts => ts.TrainingSessionID == trainingSessionID &&
-                        ts.TrainingProgram!.UserID == userGuid)
-            .Include(ts => ts.TrainingProgram)
-            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
-            .ThenInclude(m => m.Sets)
-            .Include(ts => ts.Movements)
-            .ThenInclude(m => m.MovementBase)
-            .Include(ts => ts.Movements)
-            .ThenInclude(m => m.MovementModifier)
-            .FirstOrDefaultAsync();
-
+        var sessions = await GetOrderedSessionsAsync(request.TrainingProgramID, userGuid);
+        var session = sessions.First(s => s.TrainingSessionID == request.TrainingSessionID);
         if (session is null)
         {
-            return Result<TrainingSessionDTO>.NotFound("Training session not found or access denied.");
+            return Result<TrainingSessionDTO>.NotFound("Training session not found.");
         }
-        
-        // Calculate session number by counting sessions before this one in the same program
-        var sessionNumber = await _context.TrainingSessions
-            .Where(ts => ts.TrainingProgramID == session.TrainingProgramID &&
-                        ts.Date <= session.Date)
-            .OrderBy(ts => ts.Date)
-            .ThenBy(ts => ts.TrainingSessionID) // For sessions on same date, use ID for consistent ordering
-            .CountAsync(ts => ts.Date < session.Date ||
-                            (ts.Date == session.Date && ts.TrainingSessionID.CompareTo(session.TrainingSessionID) <= 0));
-
-        return Result<TrainingSessionDTO>.Success(session.ToDTO(sessionNumber));
+        return Result<TrainingSessionDTO>.Success(session);
     }
 
     [McpServerTool, Description("Create a new training session.")]
@@ -115,7 +110,8 @@ public class TrainingSessionService : ITrainingSessionService
             TrainingSessionID = Guid.NewGuid(),
             TrainingProgramID = request.TrainingProgramID,
             Status = TrainingSessionStatus.Planned,
-            Date = date
+            Date = date,
+            CreationTime = DateTime.UtcNow // <-- Set creation time
         };
 
         _context.TrainingSessions.Add(session);
@@ -126,7 +122,7 @@ public class TrainingSessionService : ITrainingSessionService
             .Where(ts => ts.TrainingProgramID == request.TrainingProgramID &&
                         ts.Date <= date)
             .OrderBy(ts => ts.Date)
-            .ThenBy(ts => ts.TrainingSessionID)
+            .ThenBy(ts => ts.CreationTime)
             .CountAsync(ts => ts.Date < date ||
                             (ts.Date == date && ts.TrainingSessionID.CompareTo(session.TrainingSessionID) <= 0));
 
@@ -314,33 +310,6 @@ public class TrainingSessionService : ITrainingSessionService
         return Result<TrainingSessionDTO>.Success(nextSession.ToDTO(sessionNumber));
     }
 
-    /// <summary>
-    ///  Get the previous <paramref name="numberSessions"/>s for a user and program.
-    ///  Returns a list of completed training sessions, ordered by date descending.
-    /// </summary>
-    /// <param name="user"></param>
-    /// <param name="trainingProgramID"></param>
-    /// <param name="numberSessions"></param>
-    /// <returns></returns>
-    public async Task<Result<List<TrainingSessionDTO>>> GetPreviousTrainingSessionsAsync(IdentityUser user, Guid trainingProgramID, int numberSessions)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        var sessions = await _context.TrainingSessions
-            .Where(ts => ts.TrainingProgramID == trainingProgramID &&
-                        ts.TrainingProgram!.UserID == userGuid
-                        && ts.Status == TrainingSessionStatus.Completed)
-            .OrderByDescending(ts => ts.Date)
-            .Take(numberSessions)
-            .ToListAsync();
-
-        if (sessions is null)
-        {
-            return Result<List<TrainingSessionDTO>>.NotFound("No training sessions found for this program.");
-        }
-
-        var sessionDTOs = sessions.Select((session, index) => session.ToDTO(index + 1)).ToList();
-        return Result<List<TrainingSessionDTO>>.Success(sessionDTOs);
-    }
 
     [McpServerTool, Description("Duplicate an existing training session.")]
     public async Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
@@ -361,7 +330,7 @@ public class TrainingSessionService : ITrainingSessionService
             TrainingSessionID = Guid.NewGuid(),
             TrainingProgramID = originalSession.TrainingProgramID,
             TrainingProgram = originalSession.TrainingProgram,
-            Date = originalSession.Date, 
+            Date = originalSession.Date,
             Status = TrainingSessionStatus.Planned,
             Movements = new List<Movement>()
         };
@@ -416,6 +385,12 @@ public class TrainingSessionService : ITrainingSessionService
         _context.TrainingSessions.Add(newSession);
         await _context.SaveChangesAsync();
 
-        return Result.Success(newSession.ToDTO(0)); // Session number can be set as needed
+        var sessions = await GetOrderedSessionsAsync(newSession.TrainingProgramID, userGuid);
+        var session = sessions.First(s => s.TrainingSessionID == newSession.TrainingSessionID);
+        if (session is null)
+        {
+            return Result<TrainingSessionDTO>.Error("Error duplicating session.");
+        }
+        return Result<TrainingSessionDTO>.Success(session);
     }
 }

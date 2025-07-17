@@ -18,8 +18,9 @@ public class TrainingSession
     public DateOnly Date { get; set; }
     public TrainingSessionStatus Status { get; set; } = TrainingSessionStatus.Planned;
     public List<Movement> Movements { get; set; } = [];
+    public DateTime CreationTime { get; set; }
 
-    public TrainingSessionDTO ToDTO(int sessionNumber)
+    public TrainingSessionDTO ToDTO(double sessionNumber)
     {
         return new TrainingSessionDTO
         {

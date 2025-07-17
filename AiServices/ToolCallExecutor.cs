@@ -69,10 +69,10 @@ public class ToolCallExecutor : IToolCallExecutor
             {
                 case "GetTrainingSessionAsync":
                     {
-                        var idStr = args?["trainingSessionID"]?.GetValue<string>();
-                        if (string.IsNullOrWhiteSpace(idStr) || !Guid.TryParse(idStr, out var id))
-                            return Result<ToolChatMessage>.Error("Missing or invalid trainingSessionID.");
-                        var result = await _trainingSessionService.GetTrainingSessionAsync(user, id);
+                        var request = args?["request"]?.Deserialize<GetTrainingSessionRequest>();
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for GetTrainingSession.");
+                        var result = await _trainingSessionService.GetTrainingSessionAsync(user, request);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 case "CreateTrainingSessionAsync":

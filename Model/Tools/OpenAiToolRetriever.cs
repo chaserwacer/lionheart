@@ -274,9 +274,16 @@ namespace Model.Tools
                     {
                         "type": "object",
                         "properties": {
-                            "trainingSessionID": { "type": "string", "format": "uuid" }
+                            "request": {
+                                "type": "object",
+                                "properties": {
+                                    "trainingProgramID": { "type": "string", "format": "uuid" },
+                                    "trainingSessionID": { "type": "string", "format": "uuid" }
+                                },
+                                "required": ["trainingProgramID", "trainingSessionID"]
+                            }
                         },
-                        "required": ["trainingSessionID"]
+                        "required": ["request"]
                     }
                     """)
                 ),

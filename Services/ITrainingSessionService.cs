@@ -22,7 +22,7 @@ public interface ITrainingSessionService
     /// <param name="user">The user who owns the session.</param>
     /// <param name="trainingSessionID">The session ID to retrieve.</param>
     /// <returns>A result containing the training session.</returns>
-    Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
+    Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, GetTrainingSessionRequest request);
 
     /// <summary>
     /// Create a new training session within a program.
@@ -49,8 +49,7 @@ public interface ITrainingSessionService
     /// <param name="sessionId">The session ID to delete.</param>
     /// <returns>A result indicating success or failure.</returns>
     Task<Result> DeleteTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
-    Task<Result<TrainingSessionDTO>> GetNextTrainingSessionAsync(IdentityUser user, Guid trainingProgramID);
-    Task<Result<List<TrainingSessionDTO>>> GetPreviousTrainingSessionsAsync(IdentityUser user, Guid trainingProgramID,  int numberSessions);
+
 
 
     /// <summary>
