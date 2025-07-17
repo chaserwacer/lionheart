@@ -78,7 +78,9 @@ let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
         return;
       }
       sessionsByWeek = groupSessionsByWeek(program.trainingSessions);
-      console.log("sessionsByWeek", sessionsByWeek);  
+      // console.log("sessionsByWeek", sessionsByWeek);  
+          console.log("program viewer page sessions", program.trainingSessions);
+
     } catch (error) {
       console.error("Failed to load program", error);
     }

@@ -72,6 +72,11 @@ builder.Services
       new DateOnlyJsonConverter("yyyy-MM-dd"));
   });
 
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new DateOnlyJsonConverter());
+    });
 
 builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();

@@ -74,12 +74,18 @@
       return;
     }
 
-    const request = CreateTrainingProgramRequest.fromJS({
-      title,
-      startDate: new Date(startDate).toISOString().split('T')[0],
-      endDate: new Date(endDate).toISOString().split('T')[0],
-      tags: [selectedTag]
-    });
+    const addDays = (date: string | Date, days: number): Date => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const request = CreateTrainingProgramRequest.fromJS({
+  title,
+  startDate: addDays(startDate, 1).toISOString().split('T')[0],
+  endDate: addDays(endDate, 1).toISOString().split('T')[0],
+  tags: [selectedTag]
+});
 
     try {
       await plainClient.create4(request);
