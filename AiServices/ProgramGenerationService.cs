@@ -35,7 +35,12 @@ namespace lionheart.Services.AI
             var prompt = PromptBuilder.ProgramShell(dto.Title, dto.StartDate, dto.EndDate, dto.Tag).Build();
             var messages = new List<ChatMessage> { new UserChatMessage(prompt) };
 
-            var result = await RunAiLoopAsync(messages, OpenAiToolHandler.GetTrainingProgramPopulationTools(), user);
+
+
+            var result = await RunAiLoopAsync(
+                      new List<ChatMessage> { new UserChatMessage(prompt) },
+                     tools: new List<ChatTool>(),    // ← no tools
+                     user);
             return result;
         }
 

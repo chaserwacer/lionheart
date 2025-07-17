@@ -9,6 +9,9 @@ using System.ComponentModel;
 using lionheart.Services.AI;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using lionheart.Converters;
 
 
 
@@ -42,6 +45,7 @@ builder.Services
 //builder.Services.AddSingleton<TemplateServerPrompt>();  //TODO: Validate this works [provides templates accessible via server??]
 /////////////////////////////////////////////////////
 
+
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();
@@ -58,10 +62,18 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
 
+builder.Services
+  .AddControllers()
+  .AddJsonOptions(opts =>
+  {
+    // if you're on .NET 7+, this is built-in,
+    // otherwise pull in a custom converter like below.
+    opts.JsonSerializerOptions.Converters.Add(
+      new DateOnlyJsonConverter("yyyy-MM-dd"));
+  });
+
 
 builder.Services.AddHttpClient();
-
-builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(); // <-- Add this
 builder.Logging.ClearProviders();
