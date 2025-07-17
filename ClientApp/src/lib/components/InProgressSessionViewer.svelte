@@ -1,4 +1,8 @@
 <script lang="ts">
+  function formatNumber(num?: number): string {
+    if (num === undefined || num === null) return "";
+    return num.toFixed(2);
+  }
   import { goto } from "$app/navigation";
   import {
     TrainingSessionStatus,

@@ -50,21 +50,21 @@ public class TrainingSessionService : ITrainingSessionService
             .ThenBy(ts => ts.CreationTime)
             .ToListAsync();
 
-       var sessionNumbers = new List<double>();
-        double sessionIndex = 1;
+        int sessionIndex = 1;
+        var sessions = new List<TrainingSessionDTO>();
         foreach (var group in orderedSessions.GroupBy(s => s.Date))
         {
             var sameDaySessions = group.OrderBy(s => s.CreationTime).ToList();
             for (int i = 0; i < sameDaySessions.Count; i++)
             {
-                sessionNumbers.Add(sessionIndex + (i == 0 ? 0 : i * 0.1));
+
+                var sessionNumberStr = $"{sessionIndex}.{i:D2}";
+                var sessionNumber = double.Parse(sessionNumberStr);
+                sessions.Add(sameDaySessions[i].ToDTO(sessionNumber));
             }
             sessionIndex++;
         }
-
-        return orderedSessions
-            .Select((session, idx) => session.ToDTO(sessionNumbers[idx]))
-            .ToList();
+        return sessions;
     }
 
 
@@ -332,7 +332,8 @@ public class TrainingSessionService : ITrainingSessionService
             TrainingProgram = originalSession.TrainingProgram,
             Date = originalSession.Date,
             Status = TrainingSessionStatus.Planned,
-            Movements = new List<Movement>()
+            Movements = new List<Movement>(),
+            CreationTime = DateTime.UtcNow 
         };
 
         foreach (var movement in originalSession.Movements)

@@ -1,4 +1,10 @@
 <script lang="ts">
+  function formatNumber(num?: number): string {
+    if (num === undefined || num === null) return "";
+    // Show up to 2 decimals, but trim trailing zeroes
+    return num.toFixed(2);
+  }
+
   import { goto } from "$app/navigation";
   import {
     DeleteTrainingSessionEndpointClient,
@@ -91,8 +97,8 @@
       class="card-title flex justify-between items-center pr-4 text-xl font-bold"
     >
       <div class="flex flex-col">
-        Session <div class="text-4xl">{session.sessionNumber}</div>
-      </div>
+    Session <div class="text-4xl">{session.sessionNumber}</div>
+  </div>
       <div class="flex flex-col items-end gap-4">
         <div class="flex items-center gap-2">
           <div class="badge badge-success badge-md p-1 italic">

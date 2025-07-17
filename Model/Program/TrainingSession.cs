@@ -34,9 +34,9 @@ public class TrainingSession
     }
 }
 public enum TrainingSessionStatus
-    {
-        Planned,
-        InProgress,
-        Completed,
-        Skipped,
-    }
+{
+    Planned,
+    InProgress,
+    Completed,
+    Skipped,
+}
