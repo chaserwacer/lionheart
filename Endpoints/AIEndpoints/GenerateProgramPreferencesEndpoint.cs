@@ -4,7 +4,6 @@ using lionheart.Model.DTOs;
 using lionheart.Services.AI;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Ardalis.Result.AspNetCore;
 using Microsoft.AspNetCore.Authorization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,7 +13,7 @@ namespace lionheart.Endpoints.AIEndpoints
     [Authorize]
     public class GenerateProgramPreferencesEndpoint : EndpointBaseAsync
         .WithRequest<ProgramPreferencesDTO>
-        .WithActionResult<string>
+        .WithActionResult
     {
         private readonly IProgramGenerationService _service;
         private readonly UserManager<IdentityUser> _userManager;
@@ -26,14 +25,17 @@ namespace lionheart.Endpoints.AIEndpoints
         }
 
         [HttpPost("api/ai/program/preferences")]
-        public override async Task<ActionResult<string>> HandleAsync(ProgramPreferencesDTO request, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult> HandleAsync(ProgramPreferencesDTO request, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null)
                 return Unauthorized();
 
             var result = await _service.GeneratePreferencesAsync(user, request);
-            return this.ToActionResult(result);
+
+            return result.IsSuccess
+                ? Ok(result.Value) // Sends plain text string as HTTP 200 with correct type
+                : BadRequest(result.Errors);
         }
     }
 }

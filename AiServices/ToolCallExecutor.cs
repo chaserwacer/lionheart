@@ -7,6 +7,7 @@ using System.Text.Json;
 using lionheart.Services;
 using lionheart.Model.DTOs;
 using Ardalis.Result;
+using lionheart.Converters;
 
 /// <summary>
 /// This class implements the IToolCallExecutor interface and handles the execution of tool calls. 
@@ -19,6 +20,11 @@ public class ToolCallExecutor : IToolCallExecutor
     private readonly ISetEntryService _setEntryService;
     private readonly ITrainingProgramService _trainingProgramService;
 
+    private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     public ToolCallExecutor(
         ITrainingSessionService trainingSessionService,
         IMovementService movementService,
@@ -29,6 +35,7 @@ public class ToolCallExecutor : IToolCallExecutor
         _movementService = movementService;
         _setEntryService = setEntryService;
         _trainingProgramService = trainingProgramService;
+         _jsonOptions.Converters.Add(new DateOnlyJsonConverter("yyyy-MM-dd"));
     }
     /// <summary>
     /// Intakes a list of tool calls and executes them sequentially.
@@ -80,20 +87,25 @@ public class ToolCallExecutor : IToolCallExecutor
                     }
                 case "CreateTrainingSessionAsync":
                     {
-                        var request = args?["request"]?.Deserialize<CreateTrainingSessionRequest>();
+                        var request = args?["request"]?.Deserialize<CreateTrainingSessionRequest>(_jsonOptions);
                         if (request == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSession.");
                         var result = await _trainingSessionService.CreateTrainingSessionAsync(user, request);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
-                case "CreateTrainingProgramAsync":
+                    case "CreateTrainingProgramAsync":
                     {
-                        var request = args?["request"]?.Deserialize<CreateTrainingProgramRequest>();
+                        // Deserialize the *root* JSON object…
+                        var request = args?.Deserialize<CreateTrainingProgramRequest>(_jsonOptions);
                         if (request == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingProgram.");
+                            return Result<ToolChatMessage>.Error("Invalid arguments for CreateTrainingProgramAsync.");
+
                         var result = await _trainingProgramService.CreateTrainingProgramAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                        return Result<ToolChatMessage>.Success(
+                        new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result))
+                        );
                     }
+
                 case "UpdateTrainingSessionAsync":
                     {
                         var request = args?["request"]?.Deserialize<UpdateTrainingSessionRequest>();

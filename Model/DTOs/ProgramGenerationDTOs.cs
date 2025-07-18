@@ -2,24 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace lionheart.Model.DTOs
 {
-    public class ProgramShellDTO
-    {
-        [Required]
-        public required string Title { get; init; }
-
-        [Required]
-        [DataType(DataType.Date)]
-        public required DateOnly StartDate { get; init; }
-
-        [Required]
-        [DataType(DataType.Date)]
-        public required DateOnly EndDate { get; init; }
-
-        [Required]
-        public required string Tag { get; init; }
-    }
-
-
     public class ProgramPreferencesDTO
     {
         [Required]

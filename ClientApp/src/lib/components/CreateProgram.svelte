@@ -4,12 +4,9 @@
   import {
     CreateTrainingProgramEndpointClient,
     CreateTrainingProgramRequest,
-    GenerateProgramInitializationEndpointClient,
-    GenerateProgramShellEndpointClient,
     GenerateProgramPreferencesEndpointClient,
     GenerateProgramFirstWeekEndpointClient,
     GenerateProgramRemainingWeeksEndpointClient,
-    ProgramShellDTO,
     ProgramPreferencesDTO,
     FirstWeekGenerationDTO,
     RemainingWeeksGenerationDTO
@@ -22,15 +19,12 @@
   let startDate = '';
   let endDate = '';
   let selectedTag = 'Powerlifting';
-
   const tagOptions = ['Powerlifting', 'Bodybuilding', 'General Fitness', 'Running', 'Biking', 'Swimming'];
 
   const baseUrl = browser ? window.location.origin : 'http://localhost:5174';
   let plainClient: CreateTrainingProgramEndpointClient | null = null;
 
-  // AI clients
-  let initClient: GenerateProgramInitializationEndpointClient | null = null;
-  let shellClient: GenerateProgramShellEndpointClient | null = null;
+
   let prefClient: GenerateProgramPreferencesEndpointClient | null = null;
   let week1Client: GenerateProgramFirstWeekEndpointClient | null = null;
   let weekXClient: GenerateProgramRemainingWeeksEndpointClient | null = null;
@@ -46,13 +40,11 @@
   let deadliftDays = '1';
   let favoriteMovements = '';
 
-  let trainingProgramID: string = '';
+  let trainingProgramID = '';
 
   onMount(() => {
     if (browser) {
       plainClient = new CreateTrainingProgramEndpointClient(baseUrl);
-      initClient = new GenerateProgramInitializationEndpointClient(baseUrl);
-      shellClient = new GenerateProgramShellEndpointClient(baseUrl);
       prefClient = new GenerateProgramPreferencesEndpointClient(baseUrl);
       week1Client = new GenerateProgramFirstWeekEndpointClient(baseUrl);
       weekXClient = new GenerateProgramRemainingWeeksEndpointClient(baseUrl);
@@ -61,6 +53,15 @@
 
   function close() {
     dispatch('close');
+  }
+   function reset() {
+    title = '';
+    startDate = '';
+    endDate = '';
+    selectedTag = 'Powerlifting';
+    aiStep = 0;
+    aiResponse = null;
+    trainingProgramID = '';
   }
 
   async function createProgram() {
@@ -91,107 +92,102 @@
     }
   }
 
-  async function createWithAi() {
-    if (!initClient || !shellClient) return;
-
-    aiStep = 1;
-    isAiLoading = true;
-    aiResponse = null;
-
-    try {
-      aiResponse = await initClient.init();
-      console.log('Initialization AI Response:', aiResponse);
-
-      aiStep = 2;
-
-      const shellDto = ProgramShellDTO.fromJS({
-        title: title.trim(),
-        startDate: new Date(startDate).toISOString().split('T')[0], // ✅ Format as string
-        endDate: new Date(endDate).toISOString().split('T')[0],     // ✅ Format as string
-        tag: selectedTag
-      });
-
-
-
-
-      console.log("Sending ProgramShellDTO:", shellDto);
-      console.log('Sending ProgramShellDTO (JSON):', shellDto.toJSON());
-      aiResponse = await shellClient.shell(shellDto);
-      console.log('AI Shell Response:', aiResponse);
-
-    } catch (err) {
-      console.error('AI shell error:', err);
-
-      if (err instanceof Response) {
-        const errorText = await err.text();
-        console.error('API Error Body:', errorText);
-      }
-
-      aiResponse = 'Error during AI program creation.';
-    } finally {
-      isAiLoading = false;
-    }
+async function createWithAi() {
+  if (!plainClient) {
+    alert('API client not initialized.');
+    return;
+  }
+  if (!title || !startDate || !endDate || !selectedTag) {
+    alert('All fields are required.');
+    return;
   }
 
-  async function sendPreferences() {
-    if (!prefClient) return;
+  aiStep = 1;
+  isAiLoading = true;
+  aiResponse = null;
 
-    aiStep = 3;
-    isAiLoading = true;
-    aiResponse = null;
-
-    try {
-      const prefDto = ProgramPreferencesDTO.fromJS({
-        daysPerWeek,
-        preferredDays,
-        squatDays,
-        benchDays,
-        deadliftDays,
-        favoriteMovements
-      });
-
-      aiResponse = await prefClient.preferences(prefDto);
-      aiStep = 4;
-
-      const firstDto = FirstWeekGenerationDTO.fromJS({
-        trainingProgramID
-      });
-
-      aiResponse = await week1Client!.weekOne(firstDto);
-    } catch (err) {
-      console.error('AI preference/week1 error:', err);
-      aiResponse = 'Error during preference processing.';
-    } finally {
-      isAiLoading = false;
-    }
-  }
-
-  async function generateNextWeek() {
-    if (!weekXClient) return;
-
-    aiStep += 1;
-    isAiLoading = true;
-    aiResponse = null;
-
-    try {
-      const weekDto = RemainingWeeksGenerationDTO.fromJS({});
-      aiResponse = await weekXClient.continueWeeks(weekDto);
-    } catch (err) {
-      console.error('AI weekX error:', err);
-      aiResponse = 'Error generating additional weeks.';
-    } finally {
-      isAiLoading = false;
-    }
-  }
-
-  function reset() {
-    title = '';
-    startDate = '';
-    endDate = '';
-    selectedTag = 'Powerlifting';
+  try {
+    const request = CreateTrainingProgramRequest.fromJS({
+      title: title.trim(),
+      startDate: new Date(startDate).toISOString().split('T')[0],
+      endDate: new Date(endDate).toISOString().split('T')[0],
+      tags: [selectedTag]
+    });
+    const result = await plainClient.create4(request);
+    trainingProgramID = result.trainingProgramID;
+  } catch (error) {
+    console.error('AI program creation error:', error);
+    alert('There was an error creating the program.');
     aiStep = 0;
-    aiResponse = null;
+  } finally {
+    isAiLoading = false;
   }
+}
+
+async function sendPreferences() {
+  if (!prefClient || !trainingProgramID) return;
+
+  isAiLoading = true;
+  aiResponse = null;
+
+  try {
+    const prefDto = ProgramPreferencesDTO.fromJS({
+      daysPerWeek,
+      preferredDays,
+      squatDays,
+      benchDays,
+      deadliftDays,
+      favoriteMovements
+    });
+  await prefClient.preferences(prefDto);
+    aiStep = 2; // move to week 1 generation button
+  } catch (err) {
+    console.error('Preferences error:', err);
+    aiResponse = 'Error sending preferences.';
+    aiStep = 1;
+  } finally {
+    isAiLoading = false;
+  }
+}
+
+async function generateFirstWeek() {
+  if (!week1Client || !trainingProgramID) return;
+
+  isAiLoading = true;
+  aiResponse = null;
+
+  try {
+    const firstDto = FirstWeekGenerationDTO.fromJS({ trainingProgramID });
+    aiResponse = await week1Client.firstWeek(firstDto);
+    aiStep = 3; // move to continue/next-week
+  } catch (err) {
+    console.error('AI week1 error:', err);
+    aiResponse = 'Error generating first week.';
+    aiStep = 2;
+  } finally {
+    isAiLoading = false;
+  }
+}
+
+async function generateNextWeek() {
+  if (!weekXClient) return;
+
+  isAiLoading = true;
+  aiResponse = null;
+
+  try {
+    const weekDto = RemainingWeeksGenerationDTO.fromJS({ trainingProgramID });
+    aiResponse = await weekXClient.continueWeeks(weekDto);
+    aiStep += 1;
+  } catch (err) {
+    console.error('AI weekX error:', err);
+    aiResponse = 'Error generating additional weeks.';
+    aiStep -= 1;
+  } finally {
+    isAiLoading = false;
+  }
+}
+
 </script>
 
 {#if show}
@@ -215,32 +211,101 @@
           {/each}
         </select>
 
-        {#if aiStep < 3}
-          <p class="text-sm text-gray-400 italic">
-            Or generate with AI and input your training preferences in the next step.
-          </p>
-        {/if}
 
         <!-- Phase 3: Preferences Form -->
-        {#if aiStep === 3}
-          <div class="space-y-2 border-t border-base-300 pt-4">
-            <h3 class="font-bold">User Preferences</h3>
-            <input bind:value={daysPerWeek} type="number" min="1" max="7" placeholder="Days per week" class="input input-bordered w-full" />
-            <input bind:value={preferredDays} type="text" placeholder="Preferred training days (e.g. Mon, Wed, Fri)" class="input input-bordered w-full" />
-            <input bind:value={squatDays} type="number" min="0" max="7" placeholder="Squat days per week" class="input input-bordered w-full" />
-            <input bind:value={benchDays} type="number" min="0" max="7" placeholder="Bench days per week" class="input input-bordered w-full" />
-            <input bind:value={deadliftDays} type="number" min="0" max="7" placeholder="Deadlift days per week" class="input input-bordered w-full" />
-            <input bind:value={favoriteMovements} type="text" placeholder="Favorite movements (comma-separated)" class="input input-bordered w-full" />
-          </div>
-        {/if}
+       {#if aiStep === 1}
+      <div class="space-y-4 border-t border-base-300 pt-4">
+        <h3 class="font-bold text-lg">User Preferences</h3>
 
-        <!-- Phase 4+: Week Confirmation & Continue -->
-        {#if aiStep >= 4}
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Days per week</span>
+          </label>
+          <input
+            bind:value={daysPerWeek}
+            type="number"
+            min="1"
+            max="7"
+            placeholder="e.g. 4"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Preferred days</span>
+          </label>
+          <input
+            bind:value={preferredDays}
+            type="text"
+            placeholder="e.g. Mon, Wed, Fri"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Squat days per week</span>
+          </label>
+          <input
+            bind:value={squatDays}
+            type="number"
+            min="0"
+            max="7"
+            placeholder="e.g. 2"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Bench days per week</span>
+          </label>
+          <input
+            bind:value={benchDays}
+            type="number"
+            min="0"
+            max="7"
+            placeholder="e.g. 3"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Deadlift days per week</span>
+          </label>
+          <input
+            bind:value={deadliftDays}
+            type="number"
+            min="0"
+            max="7"
+            placeholder="e.g. 1"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Favorite movements</span>
+          </label>
+          <input
+            bind:value={favoriteMovements}
+            type="text"
+            placeholder="Comma-separated list"
+            class="input input-bordered w-full"
+          />
+        </div>
+      </div>
+      {/if}
+
+
+        {#if aiStep >= 2}
+          <!-- Phase 2+: Week Confirmation & Continue -->
           <div class="space-y-2 border-t border-base-300 pt-4">
             <p class="text-sm text-gray-400">
               Review the generated week above, then click continue to add the next week.
             </p>
-            <button on:click={generateNextWeek} class="btn btn-accent w-full">Generate Next Week</button>
           </div>
         {/if}
 
@@ -264,14 +329,21 @@
           {#if aiStep === 0}
             <button on:click={createProgram} class="btn btn-success">Create</button>
             <button on:click={createWithAi} class="btn btn-primary">Create with AI</button>
-          {:else if aiStep === 3}
-            <button on:click={sendPreferences} class="btn btn-primary">Continue</button>
-          {:else if aiStep >= 4}
-            <button on:click={generateNextWeek} class="btn btn-primary">Continue</button>
+
+          {:else if aiStep === 1}
+            <button on:click={sendPreferences} class="btn btn-primary">Submit Preferences</button>
+
+          {:else if aiStep === 2}
+            <button on:click={generateFirstWeek} class="btn btn-primary">Generate Week 1</button>
+
+          {:else if aiStep >= 3}
+            <button on:click={generateNextWeek} class="btn btn-primary">Generate Next Week</button>
           {/if}
         </div>
       </div>
+
     </div>
   </div>
 {/if}
+
 

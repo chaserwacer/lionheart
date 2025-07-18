@@ -46,7 +46,7 @@ namespace lionheart.Services.AI
 
             var prompt = $@"You are an AI assistant tasked with retreiving available movemement bases";
 
-            var tools = OpenAiToolHandler.GetModifyTrainingSessionTools();
+            var tools = OpenAiToolRetriever.GetModifyTrainingSessionTools();
             List<ChatMessage> messages = new List<ChatMessage>
             {
                 new UserChatMessage(prompt)

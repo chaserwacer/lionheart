@@ -25,15 +25,28 @@ namespace lionheart.Endpoints.AIEndpoints
             _userManager = userManager;
         }
 
-        [HttpPost("api/ai/program/week-one")]
-        public override async Task<ActionResult<string>> HandleAsync(FirstWeekGenerationDTO request, CancellationToken cancellationToken = default)
+        [HttpPost("api/ai/program/first-week")]
+        public override async Task<ActionResult<string>> HandleAsync(
+            FirstWeekGenerationDTO request,
+            CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null)
                 return Unauthorized();
 
             var result = await _service.GenerateFirstWeekAsync(user, request);
-            return this.ToActionResult(result);
+            if (!result.IsSuccess)
+            {
+                Console.WriteLine($"FirstWeek generation failed: {string.Join(" | ", result.Errors)}");
+                return BadRequest(result.Errors);
+            }
+
+
+            return result.IsSuccess
+                ? Content(result.Value, "text/plain") // ✅ explicitly typed as string content
+                : BadRequest(result.Errors);
         }
+
+
     }
 }
