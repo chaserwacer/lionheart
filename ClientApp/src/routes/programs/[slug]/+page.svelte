@@ -92,7 +92,7 @@
 </script>
 
 {#if program}
-  <div class="p-6 max-w-6xl flex flex-col items-center justify-center mx-auto">
+  <div class="p-5 pt-2 max-w-6xl flex flex-col items-center justify-center mx-auto">
     <div class="flex justify-between items-center w-full">
       <a href="/programs" class="btn btn-sm btn-primary"> ← Programs </a>
       <h1 class="text-xl md:text-4xl font-extrabold mb-2 text-center">
