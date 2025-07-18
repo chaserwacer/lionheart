@@ -3,6 +3,7 @@
   import { slugify } from "$lib/utils/slugify";
   import { goto } from "$app/navigation";
   import CreateProgramModal from "$lib/components/CreateProgram.svelte";
+  import TrainingProgramViewer from "$lib/components/TrainingProgramViewer.svelte";
 
   import {
     TrainingProgramDTO,
@@ -129,7 +130,7 @@
           new Date(session.date) >= today,
       )
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      console.log("completedSessions", completedSessions);
+    console.log("completedSessions", completedSessions);
     return [completedSessions[0], plannedSessions[0]];
   }
 
@@ -149,110 +150,10 @@
 
   <div class="flex flex-col gap-8 w-full">
     {#each programs as program}
-      <div class="relative group w-full">
-        <div
-          role="link"
-          tabindex="0"
-          class="card bg-base-100 text-base-content border border-base-300 shadow-md hover:shadow-lg transition cursor-pointer w-full min-h-[400px] max-w-full overflow-hidden"
-          on:click={() => goToProgram(program)}
-          on:keydown={(e) => e.key === "Enter" && goToProgram(program)}
-        >
-          <div class="card-body flex flex-col justify-between w-full">
-            <!-- Header -->
-            <div class="flex flex-col gap-2 mb-2">
-              <div class="flex items-center justify-between">
-                <h2
-                  class="card-title text-2xl md:text-3xl pb-6 truncate w-full"
-                >
-                  {program.title }
-                </h2>
-                <button
-                  type="button"
-                  on:click|stopPropagation={() =>
-                    program.trainingProgramID &&
-                    deleteProgram(program.trainingProgramID)}
-                  class="text-error hover:text-error-content text-xl font-bold ml-2"
-                  title="Delete program"
-                >
-                  &times;
-                </button>
-              </div>
-              <div class="flex flex-col md:flex-row gap-6 mt-2 w-full">
-                <!-- Left: Dates stacked -->
-                <div class="flex flex-col gap-2 flex-1">
-                  <div class="stat bg-base-200 rounded-lg px-4 py-2">
-                    <div class="stat-title text-xs">Start</div>
-                    <div class="stat-value text-base">
-                      {formatDate(program.startDate)}
-                    </div>
-                  </div>
-                  <div class="stat bg-base-200 rounded-lg px-4 py-2">
-                    <div class="stat-title text-xs">End</div>
-                    <div class="stat-value text-base">
-                      {formatDate(program.endDate)}
-                    </div>
-                  </div>
-                  <div class="flex flex-row gap-2 mt-2">
-                    <span
-                      class={`text-xs font-semibold px-3 py-1 rounded-full ${getTypeColor(program.tags?.[0] ?? "")}`}
-                    >
-                      {program.tags?.[0] ?? "Unknown"}
-                    </span>
-                  </div>
-                </div>
-                <!-- Right: Completed and Next planned session -->
-                <div class="flex-1 flex flex-row justify-center items-center">
-                  {#key program.trainingProgramID}
-                    {#if programsDisplaySessions[program.trainingProgramID]}
-                      <div class="flex flex-col md:flex-row gap-4 w-full bg-transparent items-center">
-                        {#if programsDisplaySessions[program.trainingProgramID][0]}
-                          <div class="px-0 py-0">
-                            <div class="font-semibold text-xs mb-1">
-                              Last Completed
-                            </div>
-                            <CompleteSessionViewer
-                              slug={program.trainingProgramID}
-                              session={programsDisplaySessions[
-                                program.trainingProgramID
-                              ][0]}
-                              loadSessions={loadPrograms}
-                            />
-                          </div>
-                        {/if}
-                        {#if programsDisplaySessions[program.trainingProgramID][1]}
-                          <div class="px-0 py-0">
-                            <div class="font-semibold text-xs mb-1">
-                              Next Planned
-                            </div>
-                            <PlannedSessionViewer
-                              slug={program.trainingProgramID}
-                              session={programsDisplaySessions[
-                                program.trainingProgramID
-                              ][1]}
-                              loadSessions={loadPrograms}
-                            />
-                          </div>
-                        {/if}
-                      </div>
-                    {/if}
-                  {/key}
-                </div>
-              </div>
-            </div>
-            <!-- Progress -->
-            <div class="mt-6">
-              <progress
-                class="progress w-full progress-primary"
-                value={calculateProgress(program)}
-                max="100"
-              ></progress>
-              <p class="text-sm text-right mt-1">
-                {calculateProgress(program)}%
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <TrainingProgramViewer
+        {program}
+        {loadPrograms}
+      />
     {/each}
   </div>
 </div>

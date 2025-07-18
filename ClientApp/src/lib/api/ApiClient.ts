@@ -6512,6 +6512,7 @@ export class TrainingProgram implements ITrainingProgram {
     startDate?: Date;
     nextTrainingSessionDate?: Date;
     endDate?: Date;
+    isCompleted?: boolean;
     trainingSessions?: TrainingSession[] | undefined;
     tags?: string[] | undefined;
 
@@ -6532,6 +6533,7 @@ export class TrainingProgram implements ITrainingProgram {
             this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
             this.nextTrainingSessionDate = _data["nextTrainingSessionDate"] ? new Date(_data["nextTrainingSessionDate"].toString()) : <any>undefined;
             this.endDate = _data["endDate"] ? new Date(_data["endDate"].toString()) : <any>undefined;
+            this.isCompleted = _data["isCompleted"];
             if (Array.isArray(_data["trainingSessions"])) {
                 this.trainingSessions = [] as any;
                 for (let item of _data["trainingSessions"])
@@ -6560,6 +6562,7 @@ export class TrainingProgram implements ITrainingProgram {
         data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
         data["nextTrainingSessionDate"] = this.nextTrainingSessionDate ? formatDate(this.nextTrainingSessionDate) : <any>undefined;
         data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
+        data["isCompleted"] = this.isCompleted;
         if (Array.isArray(this.trainingSessions)) {
             data["trainingSessions"] = [];
             for (let item of this.trainingSessions)
@@ -6581,6 +6584,7 @@ export interface ITrainingProgram {
     startDate?: Date;
     nextTrainingSessionDate?: Date;
     endDate?: Date;
+    isCompleted?: boolean;
     trainingSessions?: TrainingSession[] | undefined;
     tags?: string[] | undefined;
 }
@@ -6593,6 +6597,7 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
     endDate!: Date;
     trainingSessions!: TrainingSessionDTO[];
     tags!: string[];
+    isCompleted!: boolean;
 
     constructor(data?: ITrainingProgramDTO) {
         if (data) {
@@ -6624,6 +6629,7 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
                 for (let item of _data["tags"])
                     this.tags!.push(item);
             }
+            this.isCompleted = _data["isCompleted"];
         }
     }
 
@@ -6651,6 +6657,7 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
             for (let item of this.tags)
                 data["tags"].push(item);
         }
+        data["isCompleted"] = this.isCompleted;
         return data;
     }
 }
@@ -6663,6 +6670,7 @@ export interface ITrainingProgramDTO {
     endDate: Date;
     trainingSessions: TrainingSessionDTO[];
     tags: string[];
+    isCompleted: boolean;
 }
 
 export class TrainingSession implements ITrainingSession {
@@ -7140,6 +7148,7 @@ export class UpdateTrainingProgramRequest implements IUpdateTrainingProgramReque
     startDate!: Date;
     endDate!: Date;
     tags!: string[];
+    isCompleted!: boolean;
 
     constructor(data?: IUpdateTrainingProgramRequest) {
         if (data) {
@@ -7164,6 +7173,7 @@ export class UpdateTrainingProgramRequest implements IUpdateTrainingProgramReque
                 for (let item of _data["tags"])
                     this.tags!.push(item);
             }
+            this.isCompleted = _data["isCompleted"];
         }
     }
 
@@ -7185,6 +7195,7 @@ export class UpdateTrainingProgramRequest implements IUpdateTrainingProgramReque
             for (let item of this.tags)
                 data["tags"].push(item);
         }
+        data["isCompleted"] = this.isCompleted;
         return data;
     }
 }
@@ -7195,6 +7206,7 @@ export interface IUpdateTrainingProgramRequest {
     startDate: Date;
     endDate: Date;
     tags: string[];
+    isCompleted: boolean;
 }
 
 export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionRequest {

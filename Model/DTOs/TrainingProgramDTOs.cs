@@ -46,6 +46,8 @@ public class TrainingProgramDTO
     public required List<TrainingSessionDTO> TrainingSessions { get; set; } = [];
     [Required]
     public required List<string> Tags { get; set; } = [];
+    [Required]
+    public required bool IsCompleted { get; set; }
 }
 
 public class UpdateTrainingProgramRequest : IValidatableObject
@@ -63,6 +65,8 @@ public class UpdateTrainingProgramRequest : IValidatableObject
 
     [Required]
     public required List<string> Tags { get; init; }
+    [Required]
+    public required bool IsCompleted { get; init; }
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (EndDate < StartDate)

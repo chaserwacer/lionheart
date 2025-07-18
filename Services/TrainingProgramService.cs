@@ -77,7 +77,8 @@ public class TrainingProgramService : ITrainingProgramService
             Title = request.Title,
             StartDate = startDate,
             EndDate = endDate,
-            Tags = request.Tags ?? []
+            Tags = request.Tags ?? [],
+            IsCompleted = false,
         };
 
         _context.TrainingPrograms.Add(trainingProgram);
@@ -103,7 +104,7 @@ public class TrainingProgramService : ITrainingProgramService
 
 
         trainingProgram.EndDate = request.EndDate;
-
+        trainingProgram.IsCompleted = request.IsCompleted;
 
         trainingProgram.Tags = request.Tags;
 

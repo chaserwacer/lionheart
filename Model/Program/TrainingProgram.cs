@@ -21,6 +21,7 @@ public class TrainingProgram
     public DateOnly StartDate { get; set; }
     public DateOnly NextTrainingSessionDate { get; set; }
     public DateOnly EndDate { get; set; }
+    public bool IsCompleted { get; set; } = false;
     public List<TrainingSession> TrainingSessions { get; set; } = [];
     /// <summary>
     /// Hold label tags for the program. [Ex: "Powerlifting", "Hypertrophy", "Endurance"]
@@ -37,7 +38,7 @@ public class TrainingProgram
 
         int sessionIndex = 1;
         var sessions = new List<TrainingSessionDTO>();
-        
+
         foreach (var group in orderedSessions.GroupBy(s => s.Date))
         {
             var sameDaySessions = group.OrderBy(s => s.CreationTime).ToList();
@@ -47,13 +48,13 @@ public class TrainingProgram
 
                 var sessionNumberStr = $"{sessionIndex}.{i:D2}";
                 var sessionNumber = double.Parse(sessionNumberStr);
-               
+
                 sessions.Add(sameDaySessions[i].ToDTO(sessionNumber));
             }
             sessionIndex++;
         }
-        
-     
+
+
         return new TrainingProgramDTO
         {
             TrainingProgramID = TrainingProgramID,
@@ -62,7 +63,8 @@ public class TrainingProgram
             NextTrainingSessionDate = NextTrainingSessionDate,
             EndDate = EndDate,
             TrainingSessions = sessions,
-            Tags = Tags
+            Tags = Tags,
+            IsCompleted = IsCompleted
         };
     }
 }

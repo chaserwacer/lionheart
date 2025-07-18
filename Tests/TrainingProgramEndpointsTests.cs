@@ -198,7 +198,8 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
             Title = "Updated Title",
             StartDate = DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
             EndDate = DateOnly.FromDateTime(DateTime.Now.AddDays(31)),
-            Tags = new List<string> { "Updated", "Modified" }
+            Tags = new List<string> { "Updated", "Modified" },
+            IsCompleted = true
         };
 
         // Act
@@ -412,7 +413,8 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
             Title = "", // Invalid - empty title
             StartDate = DateOnly.FromDateTime(DateTime.Now),
             EndDate = DateOnly.FromDateTime(DateTime.Now.AddDays(-5)), // Invalid - end before start
-            Tags = new List<string>()
+            Tags = new List<string>(),
+            IsCompleted = true
         };
 
         // Act
@@ -455,7 +457,8 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
             Title = "Updated Title",
             StartDate = DateOnly.FromDateTime(DateTime.Now),
             EndDate = DateOnly.FromDateTime(DateTime.Now.AddDays(30)),
-            Tags = new List<string> { "Updated" }
+            Tags = new List<string> { "Updated" },
+            IsCompleted = true
         };
 
         // Act
@@ -541,7 +544,8 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
             Title = "Hacked Title",
             StartDate = DateOnly.FromDateTime(DateTime.Now),
             EndDate = DateOnly.FromDateTime(DateTime.Now.AddDays(30)),
-            Tags = new List<string> { "Hacked" }
+            Tags = new List<string> { "Hacked" },
+            IsCompleted = true
         };
 
         var response = await _client.PutAsJsonAsync("/api/training-program/update", updateRequest);
@@ -634,7 +638,8 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
             Title = "Test",
             StartDate = DateOnly.FromDateTime(DateTime.Now),
             EndDate = DateOnly.FromDateTime(DateTime.Now.AddDays(30)),
-            Tags = new List<string>()
+            Tags = new List<string>(),
+            IsCompleted = false
         };
 
         // Act
@@ -721,7 +726,8 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
             Title = "Updated Title Only",
             StartDate = createdProgram.StartDate, // Keep same
             EndDate = createdProgram.EndDate, // Keep same
-            Tags = createdProgram.Tags // Keep same
+            Tags = createdProgram.Tags, // Keep same
+            IsCompleted = true
         };
 
         // Act
@@ -782,7 +788,8 @@ public class TrainingProgramEndpointsTests : IClassFixture<WebApplicationFactory
             Title = "Updated Integration Test Program",
             StartDate = createdProgram.StartDate,
             EndDate = createdProgram.EndDate.AddDays(30),
-            Tags = new List<string> { "Updated", "Integration", "Test" }
+            Tags = new List<string> { "Updated", "Integration", "Test" },
+            IsCompleted = true
         };
 
         var updateResponse = await _client.PutAsJsonAsync("/api/training-program/update", updateRequest);
