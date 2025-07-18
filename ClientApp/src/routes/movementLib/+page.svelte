@@ -3,45 +3,65 @@
   import { goto } from '$app/navigation';
   import { slugify } from '$lib/utils/slugify';
   import { page } from '$app/stores';
-  import {
-    MovementBase,
-  } from '$lib/api/ApiClient';
+import {
+  MovementBase,
+  CreateMovementBaseRequest,
+  CreateMovementBaseEndpointClient,
+  DeleteMovementBaseEndpointClient,
+  GetMovementBasesEndpointClient
+} from '$lib/api/ApiClient';
 
   let movementOptions: MovementBase[] = [];
   let newMovementName = '';
   let error = '';
-
-  // Dynamic base URL based on the environment
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
 
+  const deleteClient = new DeleteMovementBaseEndpointClient(baseUrl);
+  async function deleteMovementBase(id: string) {
+    if (id === "") {
+      error = 'Invalid movement base ID';
+      return;
+    }
+    error = '';
+    try {
+      await deleteClient.delete(id);
+      await loadMovements();
+    } catch (e: any) {
+      if (e instanceof Response) {
+        if (e.status === 409) {
+          error = 'Cannot delete: Movement base is in use.';
+        } else if (e.status === 404) {
+          error = 'Movement base not found or not owned by you.';
+        } else {
+          error = 'Failed to delete movement base.';
+        }
+      } else {
+        error = 'Failed to delete movement base';
+      }
+      console.error(e);
+    }
+  }
+
+
+
+  const getAllClient = new GetMovementBasesEndpointClient(baseUrl);
   async function loadMovements() {
     try {
-      const res = await fetch(`${baseUrl}/api/movement-base/get-all`, {
-        credentials: 'include'
-      });
-      movementOptions = await res.json();
+      movementOptions = await getAllClient.getAll();
     } catch (err) {
       console.error('Failed to fetch movement bases:', err);
     }
   }
 
+  const createClient = new CreateMovementBaseEndpointClient(baseUrl);
   async function addMovementBase() {
     error = '';
     if (!newMovementName.trim()) return;
 
     try {
-      const res = await fetch(`${baseUrl}/api/movement-base/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ name: newMovementName })
-      });
-
-      if (!res.ok) throw new Error('Bad response');
-
+      const req = new CreateMovementBaseRequest();
+      req.name = newMovementName;
+      await createClient.create(req);
       newMovementName = '';
       await loadMovements();
     } catch (e) {
@@ -93,7 +113,12 @@
     <h2 class="text-xl font-semibold mb-4">Available Movements</h2>
     <ul class="space-y-2">
       {#each movementOptions as m}
-        <li class="bg-base-200 border border-base-300 p-3 rounded">{m.name}</li>
+        <li class="bg-base-200 border border-base-300 p-3 rounded flex items-center justify-between">
+          <span>{m.name}</span>
+          {#if m.userID}
+            <button class="btn btn-xs btn-error" on:click={() => deleteMovementBase(m.movementBaseID ?? "")}>Delete</button>
+          {/if}
+        </li>
       {/each}
     </ul>
   </div>

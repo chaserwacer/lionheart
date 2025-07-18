@@ -34,7 +34,7 @@ namespace lionheart.Endpoints.MovementEndpoints
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-            return this.ToActionResult(await _movementService.CreateMovementBaseAsync(request));
+            return this.ToActionResult(await _movementService.CreateMovementBaseAsync(user, request));
         }
     }
 }

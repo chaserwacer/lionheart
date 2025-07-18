@@ -49,17 +49,19 @@ public interface IMovementService
     Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId);
 
     /// <summary>
-    /// Get all available movement bases.
+    /// Get all available movement bases for a user (and optionally global/shared bases).
     /// </summary>
+    /// <param name="user">The user whose movement bases to retrieve.</param>
     /// <returns>A result containing a list of movement bases.</returns>
-    Task<Result<List<MovementBase>>> GetMovementBasesAsync();
+    Task<Result<List<MovementBase>>> GetMovementBasesAsync(IdentityUser user);
 
     /// <summary>
-    /// Create a new movement base.
+    /// Create a new movement base for a user.
     /// </summary>
+    /// <param name="user">The user creating the movement base.</param>
     /// <param name="request">The movement base creation request.</param>
     /// <returns>A result containing the created movement base.</returns>
-    Task<Result<MovementBase>> CreateMovementBaseAsync(CreateMovementBaseRequest request);
+    Task<Result<MovementBase>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request);
     /// <summary>
     /// Update the order of movements in a training session.
     /// This is used to change the order in which movements are displayed or performed.
@@ -69,6 +71,12 @@ public interface IMovementService
     /// <returns></returns>
     Task<Result> UpdateMovementOrder(IdentityUser user, UpdateMovementOrderRequest request);
 
+    /// <summary>
+    /// Delete a movement base by ID for a user.
+    /// </summary>
+    /// <param name="user">The user requesting deletion.</param>
+    /// <param name="movementBaseId">The movement base ID to delete.</param>
+    /// <returns>A result indicating success or failure.</returns>
     Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId);
 
 }

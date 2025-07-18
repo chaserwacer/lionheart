@@ -274,8 +274,9 @@
  
 
 {#if session}
-  <div class="p-6 max-w-6xl mx-auto text-base-content">
-    <div class="flex justify-between items-center w-full mb-4">
+  <div class="p-5 pt-2 max-w-6xl mx-auto text-base-content">
+    <div class="">
+    <div class="flex justify-between items-center w-full ">
         <a href={`/programs/${slug}`} class="btn btn-sm btn-primary">
       ← Back
     </a>
@@ -294,6 +295,7 @@
       {#each program.tags as tag}
         <span class="badge badge-primary">{tag}</span>
       {/each}
+    </div>
     </div>
     <div class="divider divider-2 divider-primary">
     

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
-  import { browser } from '$app/environment';
+  import { createEventDispatcher, onMount } from "svelte";
+  import { browser } from "$app/environment";
   import {
     CreateTrainingProgramEndpointClient,
     CreateTrainingProgramRequest,
@@ -9,8 +9,8 @@
     GenerateProgramRemainingWeeksEndpointClient,
     ProgramPreferencesDTO,
     FirstWeekGenerationDTO,
-    RemainingWeeksGenerationDTO
-  } from '$lib/api/ApiClient';
+    RemainingWeeksGenerationDTO,
+  } from "$lib/api/ApiClient";
 
   export let show: boolean;
   const dispatch = createEventDispatcher();
@@ -21,7 +21,7 @@
   let selectedTag = 'Powerlifting';
   const tagOptions = ['Powerlifting', 'Bodybuilding', 'General Fitness', 'Running', 'Biking', 'Swimming'];
 
-  const baseUrl = browser ? window.location.origin : 'http://localhost:5174';
+  const baseUrl = browser ? window.location.origin : "http://localhost:5174";
   let plainClient: CreateTrainingProgramEndpointClient | null = null;
 
 
@@ -33,12 +33,12 @@
   let aiResponse: string | null = null;
   let isAiLoading = false;
 
-  let daysPerWeek = '4';
-  let preferredDays = 'Mon, Wed, Fri';
-  let squatDays = '2';
-  let benchDays = '3';
-  let deadliftDays = '1';
-  let favoriteMovements = '';
+  let daysPerWeek = "4";
+  let preferredDays = "Mon, Wed, Fri";
+  let squatDays = "2";
+  let benchDays = "3";
+  let deadliftDays = "1";
+  let favoriteMovements = "";
 
   let trainingProgramID = '';
 
@@ -66,29 +66,35 @@
 
   async function createProgram() {
     if (!title || !startDate || !endDate || !selectedTag) {
-      alert('All fields are required.');
+      alert("All fields are required.");
       return;
     }
 
     if (!plainClient) {
-      alert('API client not initialized.');
+      alert("API client not initialized.");
       return;
     }
 
+    const addDays = (date: string | Date, days: number): Date => {
+      const d = new Date(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    };
+
     const request = CreateTrainingProgramRequest.fromJS({
       title,
-      startDate: new Date(startDate).toISOString().split('T')[0],
-      endDate: new Date(endDate).toISOString().split('T')[0],
-      tags: [selectedTag]
+      startDate: addDays(startDate, 1).toISOString().split("T")[0],
+      endDate: addDays(endDate, 1).toISOString().split("T")[0],
+      tags: [selectedTag],
     });
 
     try {
       await plainClient.create4(request);
       reset();
-      dispatch('created');
+      dispatch("created");
     } catch (error) {
-      console.error('Failed to create program:', error);
-      alert('There was an error creating the program.');
+      console.error("Failed to create program:", error);
+      alert("There was an error creating the program.");
     }
   }
 
@@ -191,20 +197,43 @@ async function generateNextWeek() {
 </script>
 
 {#if show}
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-    <div class="bg-base-200 text-base-content rounded-lg w-full max-w-md border border-base-300 max-h-[90vh] flex flex-col">
-
+  <div
+    class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+  >
+    <div
+      class="bg-base-200 text-base-content rounded-lg w-full max-w-md border border-base-300 max-h-[90vh] flex flex-col"
+    >
       <!-- Scrollable form content -->
-      <div class="p-6 overflow-y-auto space-y-4" style="max-height: calc(90vh - 6rem);">
+      <div
+        class="p-6 overflow-y-auto space-y-4"
+        style="max-height: calc(90vh - 6rem);"
+      >
         <div class="flex justify-between items-center mb-2">
           <h2 class="text-2xl font-bold">Create New Program</h2>
-          <button on:click={close} class="text-gray-400 hover:text-white text-2xl font-bold">&times;</button>
+          <button
+            on:click={close}
+            class="text-gray-400 hover:text-white text-2xl font-bold"
+            >&times;</button
+          >
         </div>
 
         <!-- Phase 0: Initial Inputs -->
-        <input bind:value={title} type="text" placeholder="Program Title" class="input input-bordered w-full" />
-        <input bind:value={startDate} type="date" class="input input-bordered w-full" />
-        <input bind:value={endDate} type="date" class="input input-bordered w-full" />
+        <input
+          bind:value={title}
+          type="text"
+          placeholder="Program Title"
+          class="input input-bordered w-full"
+        />
+        <input
+          bind:value={startDate}
+          type="date"
+          class="input input-bordered w-full"
+        />
+        <input
+          bind:value={endDate}
+          type="date"
+          class="input input-bordered w-full"
+        />
         <select bind:value={selectedTag} class="select select-bordered w-full">
           {#each tagOptions as tag}
             <option value={tag}>{tag}</option>
@@ -304,7 +333,8 @@ async function generateNextWeek() {
           <!-- Phase 2+: Week Confirmation & Continue -->
           <div class="space-y-2 border-t border-base-300 pt-4">
             <p class="text-sm text-gray-400">
-              Review the generated week above, then click continue to add the next week.
+              Review the generated week above, then click continue to add the
+              next week.
             </p>
           </div>
         {/if}
@@ -316,14 +346,18 @@ async function generateNextWeek() {
             <span>Generating with AI...</span>
           </div>
         {:else if aiResponse}
-          <div class="mt-4 bg-base-100 p-3 rounded border border-base-300 max-h-48 overflow-auto whitespace-pre-wrap text-sm">
+          <div
+            class="mt-4 bg-base-100 p-3 rounded border border-base-300 max-h-48 overflow-auto whitespace-pre-wrap text-sm"
+          >
             {aiResponse}
           </div>
         {/if}
       </div>
 
       <!-- Sticky Footer -->
-      <div class="p-4 border-t border-base-300 bg-base-100 flex justify-between">
+      <div
+        class="p-4 border-t border-base-300 bg-base-100 flex justify-between"
+      >
         <button on:click={close} class="btn btn-ghost">Cancel</button>
         <div class="flex space-x-2">
           {#if aiStep === 0}

@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import CreateSessionModal from "$lib/components/CreateSession.svelte";
+  import EditTrainingProgramModal from "$lib/components/EditTrainingProgramModal.svelte";
   import { slugify } from "$lib/utils/slugify";
   import {
     TrainingProgramDTO,
@@ -14,6 +15,7 @@
   const slug = $page.params.slug;
   let program: TrainingProgramDTO;
   let showModal = false;
+  let showEditModal = false;
 
   const baseUrl =
     typeof window !== "undefined"
@@ -24,37 +26,37 @@
   import InProgressSessionViewer from "$lib/components/InProgressSessionViewer.svelte";
   import CompletedSessionViewer from "$lib/components/CompletedSessionViewer.svelte";
   import SkippedSessionViewer from "$lib/components/SkippedSessionViewer.svelte";
-    import { load } from "../../+layout";
+  import { load } from "../../+layout";
 
   // Group sessions into weekly buckets
   function getWeekStart(d: Date) {
-  const dt = new Date(d);
-  const day = dt.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  // If already Sunday (day=0), keep as is
-  dt.setDate(dt.getDate() - day -1);
+    const dt = new Date(d);
+    const day = dt.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // If already Sunday (day=0), keep as is
+    dt.setDate(dt.getDate() - day - 1);
 
-  return dt.toISOString().slice(0, 10);
-}
+    return dt.toISOString().slice(0, 10);
+  }
 
   function groupSessionsByWeek(sessions: TrainingSessionDTO[]) {
-  return sessions
-    .slice()
-    .sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      return dateA.getTime() - dateB.getTime();
-    })
-    .reduce(
-      (acc, s) => {
-        s.date.setDate(s.date.getDate() + 1); // Adjust to local time
-        const wk = getWeekStart(new Date(s.date));
-        
-        (acc[wk] ||= []).push(s);
-        return acc;
-      },
-      {} as Record<string, TrainingSessionDTO[]>,
-    );
-}
+    return sessions
+      .slice()
+      .sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateA.getTime() - dateB.getTime();
+      })
+      .reduce(
+        (acc, s) => {
+          s.date.setDate(s.date.getDate() + 1); // Adjust to local time
+          const wk = getWeekStart(new Date(s.date));
+
+          (acc[wk] ||= []).push(s);
+          return acc;
+        },
+        {} as Record<string, TrainingSessionDTO[]>,
+      );
+  }
   function formatDateMonthDateYear(key: string) {
     var adjustedDate = new Date(key);
     adjustedDate.setDate(adjustedDate.getDate() + 1);
@@ -65,8 +67,7 @@
     });
   }
 
-let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
-
+  let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
 
   async function loadProgram() {
     const getProgramsClient = new GetTrainingProgramEndpointClient(baseUrl);
@@ -78,7 +79,8 @@ let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
         return;
       }
       sessionsByWeek = groupSessionsByWeek(program.trainingSessions);
-      console.log("sessionsByWeek", sessionsByWeek);  
+      // console.log("sessionsByWeek", sessionsByWeek);
+      console.log("program viewer page sessions", program.trainingSessions);
     } catch (error) {
       console.error("Failed to load program", error);
     }
@@ -87,21 +89,16 @@ let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
   onMount(async () => {
     await loadProgram();
   });
-
-
-
-  
-
-  
 </script>
 
 {#if program}
-  <div class="p-6 max-w-6xl flex flex-col items-center justify-center mx-auto">
+  <div class="p-5 pt-2 max-w-6xl flex flex-col items-center justify-center mx-auto">
     <div class="flex justify-between items-center w-full">
       <a href="/programs" class="btn btn-sm btn-primary"> ← Programs </a>
       <h1 class="text-xl md:text-4xl font-extrabold mb-2 text-center">
         {program.title}
       </h1>
+
       <a
         class="btn btn-sm btn-primary"
         href={`/movementLib?returnTo=/programs/${slug}`}
@@ -109,7 +106,9 @@ let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
         Items →
       </a>
     </div>
-
+    <h1 class="text-xl badge badge-info font-extrabold mb-2 p-3 text-center">
+      {program.isCompleted ? "COMPLETE" : "ACTIVE"}
+    </h1>
     <div class="text-center items-center justify-center">
       {#each program.tags as tag}
         <span class="badge badge-primary">{tag}</span>
@@ -132,13 +131,29 @@ let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
                 <div>
                   <div class="">
                     {#if session.status === TrainingSessionStatus._1}
-                      <InProgressSessionViewer {session} {slug} loadSessions={loadProgram}/>
+                      <InProgressSessionViewer
+                        {session}
+                        {slug}
+                        loadSessions={loadProgram}
+                      />
                     {:else if session.status === TrainingSessionStatus._0}
-                      <PlannedSessionViewer {session} {slug} loadSessions={loadProgram}/>
+                      <PlannedSessionViewer
+                        {session}
+                        {slug}
+                        loadSessions={loadProgram}
+                      />
                     {:else if session.status === TrainingSessionStatus._2}
-                      <CompletedSessionViewer {session} {slug} loadSessions={loadProgram}/>
+                      <CompletedSessionViewer
+                        {session}
+                        {slug}
+                        loadSessions={loadProgram}
+                      />
                     {:else}
-                      <SkippedSessionViewer {session} {slug} loadSessions={loadProgram}/>
+                      <SkippedSessionViewer
+                        {session}
+                        {slug}
+                        loadSessions={loadProgram}
+                      />
                     {/if}
                   </div>
                 </div>
@@ -153,7 +168,6 @@ let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
 {:else}
   <div class="p-6 max-w-4xl mx-auto flex items-center justify-center">
     <span class="loading loading-spinner loading-xs"></span>
-
   </div>
 {/if}
 
@@ -165,6 +179,15 @@ let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
   +
 </button>
 
+<!-- Floating Edit Button (next to Add) -->
+<button
+  on:click={() => (showEditModal = true)}
+  class="fixed bottom-6 right-24 btn btn-circle btn-secondary text-xl shadow-lg z-40"
+  title="Edit Program"
+>
+  ✎
+</button>
+
 {#if program}
   <CreateSessionModal
     show={showModal}
@@ -173,6 +196,16 @@ let sessionsByWeek: Record<string, TrainingSessionDTO[]> = {};
     on:close={() => (showModal = false)}
     on:createdWithSession={() => {
       showModal = false;
+      loadProgram();
+    }}
+  />
+
+  <EditTrainingProgramModal
+    show={showEditModal}
+    {program}
+    on:close={() => (showEditModal = false)}
+    on:saved={() => {
+      showEditModal = false;
       loadProgram();
     }}
   />
