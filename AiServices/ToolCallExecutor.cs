@@ -152,7 +152,7 @@ public class ToolCallExecutor : IToolCallExecutor
                     }
                 case "GetMovementBasesAsync":
                     {
-                        var result = await _movementService.GetMovementBasesAsync();
+                        var result = await _movementService.GetMovementBasesAsync(user);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 default:

@@ -5449,6 +5449,7 @@ export interface IMovement {
 export class MovementBase implements IMovementBase {
     movementBaseID?: string;
     name?: string | undefined;
+    userID?: string;
 
     constructor(data?: IMovementBase) {
         if (data) {
@@ -5463,6 +5464,7 @@ export class MovementBase implements IMovementBase {
         if (_data) {
             this.movementBaseID = _data["movementBaseID"];
             this.name = _data["name"];
+            this.userID = _data["userID"];
         }
     }
 
@@ -5477,6 +5479,7 @@ export class MovementBase implements IMovementBase {
         data = typeof data === 'object' ? data : {};
         data["movementBaseID"] = this.movementBaseID;
         data["name"] = this.name;
+        data["userID"] = this.userID;
         return data;
     }
 }
@@ -5484,6 +5487,7 @@ export class MovementBase implements IMovementBase {
 export interface IMovementBase {
     movementBaseID?: string;
     name?: string | undefined;
+    userID?: string;
 }
 
 export class MovementDTO implements IMovementDTO {

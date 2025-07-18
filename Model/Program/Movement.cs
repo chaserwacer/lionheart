@@ -57,7 +57,7 @@ public class MovementBase
     [Key]
     public Guid MovementBaseID { get; init; }
     public string Name { get; set; } = string.Empty;
-    // Other base specific properties can be added here [Ex: muscle groups trained]
+    public Guid UserID { get; init; }
 }
 /// <summary>
 /// Represents the modifcation of a <see cref="MovementBase"/>.

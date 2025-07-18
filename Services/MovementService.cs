@@ -151,32 +151,35 @@ public class MovementService : IMovementService
         return Result.NoContent();
     }
 
-    [McpServerTool, Description("Gets all movement bases available for creating movements.")]
-    public async Task<Result<List<MovementBase>>> GetMovementBasesAsync()
+    [McpServerTool, Description("Gets all movement bases available for creating movements for a user.")]
+    public async Task<Result<List<MovementBase>>> GetMovementBasesAsync(IdentityUser user)
     {
+        var userGuid = Guid.Parse(user.Id);
         var movementBases = await _context.MovementBases
+            .Where(mb => mb.UserID == userGuid) // include global/shared
             .OrderBy(mb => mb.Name)
             .ToListAsync();
-
         return Result<List<MovementBase>>.Success(movementBases);
     }
 
-    [McpServerTool, Description("Create a new movement base.")]
-    public async Task<Result<MovementBase>> CreateMovementBaseAsync(CreateMovementBaseRequest request)
+    [McpServerTool, Description("Create a new movement base for a user.")]
+    public async Task<Result<MovementBase>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request)
     {
-        // Check if movement base with this name already exists
+        var userGuid = Guid.Parse(user.Id);
+        // Check if movement base with this name already exists for this user
         var existingBase = await _context.MovementBases
-            .FirstOrDefaultAsync(mb => mb.Name.ToLower() == request.Name.ToLower());
+            .FirstOrDefaultAsync(mb => mb.Name.ToLower() == request.Name.ToLower() && mb.UserID == userGuid);
 
         if (existingBase != null)
         {
-            return Result<MovementBase>.Conflict("A movement base with this name already exists.");
+            return Result<MovementBase>.Conflict("A movement base with this name already exists for this user.");
         }
 
         var movementBase = new MovementBase
         {
             MovementBaseID = Guid.NewGuid(),
-            Name = request.Name
+            Name = request.Name,
+            UserID = userGuid
         };
 
         _context.MovementBases.Add(movementBase);
@@ -242,14 +245,15 @@ public class MovementService : IMovementService
     return Result.Success();
 }
     
-    [McpServerTool, Description("Delete a movement base.")]
+    [McpServerTool, Description("Delete a movement base for a user.")]
     public async Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)
     {
-        // Verify the base exists
-        var movementBase = await _context.MovementBases.FindAsync(movementBaseId);
+        var userGuid = Guid.Parse(user.Id);
+        // Verify the base exists and belongs to the user
+        var movementBase = await _context.MovementBases.FirstOrDefaultAsync(mb => mb.MovementBaseID == movementBaseId && mb.UserID == userGuid);
         if (movementBase == null)
         {
-            return Result.NotFound("Movement base not found.");
+            return Result.NotFound("Movement base not found or not owned by user.");
         }
 
         // Prevent deleting a base that’s in use
