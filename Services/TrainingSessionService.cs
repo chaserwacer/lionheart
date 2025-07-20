@@ -20,17 +20,17 @@ public class TrainingSessionService : ITrainingSessionService
 
     }
 
-    private class AiMovement
-    {
-        public Guid MovementBaseID { get; set; }
-        public MovementModifier Modifier { get; set; } = new MovementModifier();
-        public int Reps { get; set; }
-        public double Weight { get; set; }
-        public double RPE { get; set; }
-        public WeightUnit Unit { get; set; }
-        public string Notes { get; set; } = string.Empty;
-        public int Ordering { get; set; }
-    }
+    // private class AiMovement
+    // {
+    //     public Guid MovementBaseID { get; set; }
+    //     public MovementModifier Modifier { get; set; } = new MovementModifier();
+    //     public int Reps { get; set; }
+    //     public double Weight { get; set; }
+    //     public double RPE { get; set; }
+    //     public WeightUnit Unit { get; set; }
+    //     public string Notes { get; set; } = string.Empty;
+    //     public int Ordering { get; set; }
+    // }
 
     public TrainingSessionService(ModelContext context)
     {
@@ -46,6 +46,8 @@ public class TrainingSessionService : ITrainingSessionService
                 .ThenInclude(m => m.Sets)
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.MovementBase)
+            .Include(m => m.Movements)
+                .ThenInclude(m => m.MovementModifier.Equipment)
             .OrderBy(ts => ts.Date)
             .ThenBy(ts => ts.CreationTime)
             .ToListAsync();
@@ -167,7 +169,7 @@ public class TrainingSessionService : ITrainingSessionService
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.MovementBase)
             .Include(ts => ts.Movements)
-                .ThenInclude(m => m.MovementModifier)
+                .ThenInclude(m => m.MovementModifier.Equipment)
             .FirstOrDefaultAsync(ts => ts.TrainingSessionID == session.TrainingSessionID);
 
         if (hydratedSession is null)
@@ -278,37 +280,7 @@ public class TrainingSessionService : ITrainingSessionService
         sessionWithNav.ToDTO(trainingSessionDTO.SessionNumber));
     }
 
-    /// <summary>
-    ///  Get the next training session for a user and program.
-    ///  Returns the first planned session for the program.
-    /// </summary>
-    /// <param name="user"></param>
-    /// <param name="trainingProgramID"></param>
-    /// <returns></returns>
-    public async Task<Result<TrainingSessionDTO>> GetNextTrainingSessionAsync(IdentityUser user, Guid trainingProgramID)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        var nextSession = await _context.TrainingSessions
-            .Where(ts => ts.TrainingProgramID == trainingProgramID &&
-                        ts.TrainingProgram!.UserID == userGuid
-                        && ts.Status == TrainingSessionStatus.Planned)
-            .FirstOrDefaultAsync();
-
-        if (nextSession is null)
-        {
-            return Result<TrainingSessionDTO>.NotFound("No upcoming training sessions found.");
-        }
-
-        var sessionNumber = await _context.TrainingSessions
-            .Where(ts => ts.TrainingProgramID == nextSession.TrainingProgramID &&
-                        ts.Date <= nextSession.Date)
-            .OrderBy(ts => ts.Date)
-            .ThenBy(ts => ts.TrainingSessionID)
-            .CountAsync(ts => ts.Date < nextSession.Date ||
-                            (ts.Date == nextSession.Date && ts.TrainingSessionID.CompareTo(nextSession.TrainingSessionID) <= 0));
-
-        return Result<TrainingSessionDTO>.Success(nextSession.ToDTO(sessionNumber));
-    }
+   
 
 
     [McpServerTool, Description("Duplicate an existing training session.")]

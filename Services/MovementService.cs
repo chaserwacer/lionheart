@@ -38,6 +38,7 @@ public class MovementService : IMovementService
             .Where(m => m.TrainingSessionID == sessionId)
             .Include(m => m.MovementBase)
             .Include(m => m.Sets)
+            .Include(m => m.MovementModifier.Equipment)
             .OrderBy(m => m.Ordering)
             .ToListAsync();
 
@@ -69,6 +70,12 @@ public class MovementService : IMovementService
             return Result<MovementDTO>.NotFound("Movement base not found.");
         }
 
+        var equipment = await _context.Equipments.FindAsync(request.MovementModifier.EquipmentID);
+        if (equipment == null)
+        {
+            return Result<MovementDTO>.NotFound("Equipment not found.");
+        }
+
         var orderings = await _context.Movements.Select(m => (int?)m.Ordering).ToListAsync();
         var maxOrdering = orderings.Count > 0 && orderings.Any(o => o.HasValue) ? orderings.Max() ?? -1 : -1;
         var movement = new Movement
@@ -77,7 +84,13 @@ public class MovementService : IMovementService
             TrainingSessionID = request.TrainingSessionID,
             MovementBaseID = request.MovementBaseID,
             Notes = request.Notes,
-            MovementModifier = request.MovementModifier,
+            MovementModifier = new MovementModifier
+            {
+                Name = request.MovementModifier.Name,
+                EquipmentID = equipment.EquipmentID,
+                Equipment = equipment,
+                Duration = request.MovementModifier.Duration
+            },
             IsCompleted = false,
             MovementBase = movementBase,
             Ordering = maxOrdering + 1,
@@ -118,9 +131,21 @@ public class MovementService : IMovementService
             return Result<MovementDTO>.NotFound("Movement base not found.");
         }
 
+        var equipment = await _context.Equipments.FindAsync(request.MovementModifier.EquipmentID);
+        if (equipment == null)
+        {
+            return Result<MovementDTO>.NotFound("Equipment not found.");
+        }
+    
         movement.MovementBaseID = request.MovementBaseID;
         movement.Notes = request.Notes;
-        movement.MovementModifier = request.MovementModifier;
+        movement.MovementModifier = new MovementModifier
+        {
+            Name = request.MovementModifier.Name,
+            EquipmentID = equipment.EquipmentID,
+            Equipment = equipment,
+            Duration = request.MovementModifier.Duration
+        };
         movement.IsCompleted = request.IsCompleted;
         movement.WeightUnit = request.WeightUnit;
 
@@ -223,28 +248,28 @@ public class MovementService : IMovementService
             .Include(ts => ts.Movements)
             .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
                                    ts.TrainingProgram!.UserID == userGuid);
-    if (session is null)
-        return Result.NotFound("Training session not found or access denied.");
+        if (session is null)
+            return Result.NotFound("Training session not found or access denied.");
 
-    var sessionMovements = session.Movements.ToDictionary(m => m.MovementID);
-    var requestIds = request.Movements.Select(m => m.MovementID).ToHashSet();
+        var sessionMovements = session.Movements.ToDictionary(m => m.MovementID);
+        var requestIds = request.Movements.Select(m => m.MovementID).ToHashSet();
 
-    // Validate all session movements are present in the request and vice versa
-    if (!(new HashSet<Guid>(sessionMovements.Keys)).SetEquals(requestIds))
-        return Result.Invalid(new List<ValidationError> {
+        // Validate all session movements are present in the request and vice versa
+        if (!(new HashSet<Guid>(sessionMovements.Keys)).SetEquals(requestIds))
+            return Result.Invalid(new List<ValidationError> {
             new ValidationError { ErrorMessage = "Movement IDs don't match exactly with session movements." }
         });
 
-    // Update ordering
-    foreach (var update in request.Movements)
-    {
-        sessionMovements[update.MovementID].Ordering = update.Ordering;
+        // Update ordering
+        foreach (var update in request.Movements)
+        {
+            sessionMovements[update.MovementID].Ordering = update.Ordering;
+        }
+
+        await _context.SaveChangesAsync();
+        return Result.Success();
     }
 
-    await _context.SaveChangesAsync();
-    return Result.Success();
-}
-    
     [McpServerTool, Description("Delete a movement base for a user.")]
     public async Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)
     {
@@ -268,5 +293,64 @@ public class MovementService : IMovementService
         await _context.SaveChangesAsync();
         return Result.NoContent();
     }
+
+    public async Task<Result<Equipment>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        // Check if equipment with this name already exists for this user
+        var existingEquipment = await _context.Equipments
+            .FirstOrDefaultAsync(e => e.Name.ToLower() == request.Name.ToLower() && e.UserID == userGuid);
+
+        if (existingEquipment != null)
+        {
+            return Result<Equipment>.Conflict("An equipment with this name already exists for this user.");
+        }
+
+        var equipment = new Equipment
+        {
+            EquipmentID = Guid.NewGuid(),
+            Name = request.Name,
+            UserID = userGuid
+        };
+
+        _context.Equipments.Add(equipment);
+        await _context.SaveChangesAsync();
+        return Result<Equipment>.Created(equipment);
+    }
+
+    public async Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        // Verify the equipment exists and belongs to the user
+        var equipment = await _context.Equipments.FirstOrDefaultAsync(e => e.EquipmentID == equipmentId && e.UserID == userGuid);
+        if (equipment == null)
+        {
+            return Result.NotFound("Equipment not found or not owned by user.");
+        }
+
+         // Prevent deleting a equipment that’s in use
+        var inUse = await _context.Movements.AnyAsync(m => m.MovementModifier.EquipmentID == equipmentId);
+        if (inUse)
+        {
+            return Result.Conflict("Cannot delete equipment while it has associated movements.");
+        }
+
+        // Remove and save
+        _context.Equipments.Remove(equipment);
+        await _context.SaveChangesAsync();
+        return Result.NoContent();
+    }
+
+    public async Task<Result<List<Equipment>>> GetEquipmentsAsync(IdentityUser user)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        var equipments = await _context.Equipments
+            .Where(e => e.UserID == userGuid)
+            .OrderBy(e => e.Name)
+            .ToListAsync();
+        return Result<List<Equipment>>.Success(equipments);
+    }
+
+
 
 }

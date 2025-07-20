@@ -8,7 +8,13 @@
     CreateSetEntryRequest,
     WeightUnit,
     MovementBase,
-    MovementModifier
+    MovementModifier,
+
+    Equipment,
+
+    GetEquipmentsEndpointClient
+
+
   } from '$lib/api/ApiClient';
 
   export let show: boolean;
@@ -17,7 +23,9 @@
   const dispatch = createEventDispatcher();
 
   let movementOptions: MovementBase[] = [];
+  let equipmentOptions: Equipment[] = [];
   let selectedMovementBaseID: string = '';
+  let selectedEquipmentID: string = '';
   let selectedModifierName: string = 'No Modifier';
   let repSchemes: { sets: number; reps: number; rpe: number; weight: number }[] = [];
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5174';
@@ -27,7 +35,9 @@
   onMount(async () => {
     try {
       const client = new GetMovementBasesEndpointClient(baseUrl);
-      movementOptions = await client.getAll();
+      movementOptions = await client.getAll2();
+      const equipmentClient = new GetEquipmentsEndpointClient(baseUrl);
+      equipmentOptions = await equipmentClient.getAll();
     } catch (err) {
       console.error('Failed to fetch movement bases', err);
     }
@@ -45,18 +55,20 @@
 
   async function createMovement() {
     const movementBase = movementOptions.find(m => m.movementBaseID === selectedMovementBaseID);
+    const equipment = equipmentOptions.find(e => e.equipmentID === selectedEquipmentID);
     if (!movementBase ) return;
 
     const movementClient = new CreateMovementEndpointClient(baseUrl);
     const setClient = new CreateSetEntryEndpointClient(baseUrl);
 
-    const movement = await movementClient.create2(CreateMovementRequest.fromJS({
+    const movement = await movementClient.create3(CreateMovementRequest.fromJS({
       movementBaseID: movementBase.movementBaseID,
       trainingSessionID: sessionID,
       notes: '',
       movementModifier: {
         name: modifierName,
-        equipment: modifierEquipment || 'none',
+        equipmentID: selectedEquipmentID,
+        equipment: equipment,
         duration: modifierDuration
       },
       weightUnit: WeightUnit._1,
@@ -64,7 +76,7 @@
 
     for (const scheme of repSchemes) {
       for (let i = 0; i < scheme.sets; i++) {
-        await setClient.create3(CreateSetEntryRequest.fromJS({
+        await setClient.create4(CreateSetEntryRequest.fromJS({
           movementID: movement.movementID!,
           recommendedReps: scheme.reps,
           recommendedWeight: scheme.weight,
@@ -124,15 +136,11 @@ let modifierDuration: number = 0;
           </div>
           <div class="flex flex-col">
             <label class="label label-text mb-1" for="modifier-equipment">Equipment</label>
-            <select
-              id="modifier-equipment"
-              class="select select-bordered w-full"
-              bind:value={modifierEquipment}
-            >
-              <option value="" disabled selected>none</option>
-              <option>Kettlebell</option>
-              <option>Barbell</option>
-              <option>Dumbbell</option>
+            <select bind:value={selectedEquipmentID} class="select select-bordered w-full">
+              <option value="">Select equipment</option>
+              {#each equipmentOptions as e}
+                <option value={e.equipmentID}>{e.name}</option>
+              {/each}
             </select>
           </div>
           <div class="flex flex-col">

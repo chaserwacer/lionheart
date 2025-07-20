@@ -35,7 +35,7 @@
   async function loadPrograms() {
     try {
       const getProgramsClient = new GetTrainingProgramsEndpointClient(baseUrl);
-      programs = await getProgramsClient.getAll3();
+      programs = await getProgramsClient.getAll4();
       programsDisplaySessions = {};
       programs.forEach((element) => {
         for (const session of element.trainingSessions) {
@@ -65,7 +65,7 @@
       const deleteProgramClient = new DeleteTrainingProgramEndpointClient(
         baseUrl,
       );
-      await deleteProgramClient.delete4(programID);
+      await deleteProgramClient.delete5(programID);
       programs = programs.filter((p) => p.trainingProgramID !== programID);
     } catch (err) {
       alert("Failed to delete program.");

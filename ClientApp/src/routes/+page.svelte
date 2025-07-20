@@ -247,7 +247,7 @@
   async function loadSessions() {
     const client = new GetTrainingProgramsEndpointClient(baseUrl);
     try {
-      const all = await client.getAll3();
+      const all = await client.getAll4();
       if (all.length === 0) return;
       // take first program
       sessions = (all[0].trainingSessions ?? [])
@@ -268,7 +268,7 @@
   async function loadPrograms() {
     const client = new GetTrainingProgramsEndpointClient(baseUrl);
     try {
-      const all = await client.getAll3();
+      const all = await client.getAll4();
       programs = all;
       activeProgram = programs.find((p) => !p.isCompleted) ?? null;
     } catch (e) {

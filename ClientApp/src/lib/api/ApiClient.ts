@@ -308,7 +308,7 @@ export class AddWellnessStateEndpointClient {
     }
 }
 
-export class CreateMovementBaseEndpointClient {
+export class CreateEquipmentEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -322,8 +322,8 @@ export class CreateMovementBaseEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create(body: CreateMovementBaseRequest | undefined): Promise<MovementBase> {
-        let url_ = this.baseUrl + "/api/movement-base/create";
+    create(body: CreateEquipmentRequest | undefined): Promise<Equipment> {
+        let url_ = this.baseUrl + "/api/equipment/create";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(body);
@@ -342,7 +342,74 @@ export class CreateMovementBaseEndpointClient {
         });
     }
 
-    protected processCreate(response: Response): Promise<MovementBase> {
+    protected processCreate(response: Response): Promise<Equipment> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = Equipment.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ProblemDetails.fromJS(resultData409);
+            return throwException("Conflict", status, _responseText, _headers, result409);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Equipment>(null as any);
+    }
+}
+
+export class CreateMovementBaseEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    create2(body: CreateMovementBaseRequest | undefined): Promise<MovementBase> {
+        let url_ = this.baseUrl + "/api/movement-base/create";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate2(_response);
+        });
+    }
+
+    protected processCreate2(response: Response): Promise<MovementBase> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -389,7 +456,7 @@ export class CreateMovementEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create2(body: CreateMovementRequest | undefined): Promise<MovementDTO> {
+    create3(body: CreateMovementRequest | undefined): Promise<MovementDTO> {
         let url_ = this.baseUrl + "/api/movement/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -405,11 +472,11 @@ export class CreateMovementEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate2(_response);
+            return this.processCreate3(_response);
         });
     }
 
-    protected processCreate2(response: Response): Promise<MovementDTO> {
+    protected processCreate3(response: Response): Promise<MovementDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -516,7 +583,7 @@ export class CreateSetEntryEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create3(body: CreateSetEntryRequest | undefined): Promise<SetEntryDTO> {
+    create4(body: CreateSetEntryRequest | undefined): Promise<SetEntryDTO> {
         let url_ = this.baseUrl + "/api/set-entry/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -532,11 +599,11 @@ export class CreateSetEntryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate3(_response);
+            return this.processCreate4(_response);
         });
     }
 
-    protected processCreate3(response: Response): Promise<SetEntryDTO> {
+    protected processCreate4(response: Response): Promise<SetEntryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -583,7 +650,7 @@ export class CreateTrainingProgramEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create4(body: CreateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
+    create5(body: CreateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -599,11 +666,11 @@ export class CreateTrainingProgramEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate4(_response);
+            return this.processCreate5(_response);
         });
     }
 
-    protected processCreate4(response: Response): Promise<TrainingProgramDTO> {
+    protected processCreate5(response: Response): Promise<TrainingProgramDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -710,7 +777,7 @@ export class CreateTrainingSessionEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create5(body: CreateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
+    create6(body: CreateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/training-session/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -726,11 +793,11 @@ export class CreateTrainingSessionEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate5(_response);
+            return this.processCreate6(_response);
         });
     }
 
-    protected processCreate5(response: Response): Promise<TrainingSessionDTO> {
+    protected processCreate6(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -830,7 +897,7 @@ export class CreateTrainingSessionFromJSONEndpointClient {
     }
 }
 
-export class DeleteMovementBaseEndpointClient {
+export class DeleteEquipmentEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -843,11 +910,11 @@ export class DeleteMovementBaseEndpointClient {
     /**
      * @return No Content
      */
-    delete(movementBaseId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/movement-base/delete/{movementBaseId}";
-        if (movementBaseId === undefined || movementBaseId === null)
-            throw new Error("The parameter 'movementBaseId' must be defined.");
-        url_ = url_.replace("{movementBaseId}", encodeURIComponent("" + movementBaseId));
+    delete(equipmentId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/equipment/delete/{equipmentId}";
+        if (equipmentId === undefined || equipmentId === null)
+            throw new Error("The parameter 'equipmentId' must be defined.");
+        url_ = url_.replace("{equipmentId}", encodeURIComponent("" + equipmentId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -898,7 +965,7 @@ export class DeleteMovementBaseEndpointClient {
     }
 }
 
-export class DeleteMovementEndpointClient {
+export class DeleteMovementBaseEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -911,11 +978,11 @@ export class DeleteMovementEndpointClient {
     /**
      * @return No Content
      */
-    delete2(movementId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/movement/delete/{movementId}";
-        if (movementId === undefined || movementId === null)
-            throw new Error("The parameter 'movementId' must be defined.");
-        url_ = url_.replace("{movementId}", encodeURIComponent("" + movementId));
+    delete2(movementBaseId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/movement-base/delete/{movementBaseId}";
+        if (movementBaseId === undefined || movementBaseId === null)
+            throw new Error("The parameter 'movementBaseId' must be defined.");
+        url_ = url_.replace("{movementBaseId}", encodeURIComponent("" + movementBaseId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -950,6 +1017,13 @@ export class DeleteMovementEndpointClient {
             result404 = ProblemDetails.fromJS(resultData404);
             return throwException("Not Found", status, _responseText, _headers, result404);
             });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ProblemDetails.fromJS(resultData409);
+            return throwException("Conflict", status, _responseText, _headers, result409);
+            });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
@@ -959,7 +1033,7 @@ export class DeleteMovementEndpointClient {
     }
 }
 
-export class DeleteSetEntryEndpointClient {
+export class DeleteMovementEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -972,11 +1046,11 @@ export class DeleteSetEntryEndpointClient {
     /**
      * @return No Content
      */
-    delete3(setEntryId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/set-entry/delete/{setEntryId}";
-        if (setEntryId === undefined || setEntryId === null)
-            throw new Error("The parameter 'setEntryId' must be defined.");
-        url_ = url_.replace("{setEntryId}", encodeURIComponent("" + setEntryId));
+    delete3(movementId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/movement/delete/{movementId}";
+        if (movementId === undefined || movementId === null)
+            throw new Error("The parameter 'movementId' must be defined.");
+        url_ = url_.replace("{movementId}", encodeURIComponent("" + movementId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1020,7 +1094,7 @@ export class DeleteSetEntryEndpointClient {
     }
 }
 
-export class DeleteTrainingProgramEndpointClient {
+export class DeleteSetEntryEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -1033,11 +1107,11 @@ export class DeleteTrainingProgramEndpointClient {
     /**
      * @return No Content
      */
-    delete4(programId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/training-program/delete/{programId}";
-        if (programId === undefined || programId === null)
-            throw new Error("The parameter 'programId' must be defined.");
-        url_ = url_.replace("{programId}", encodeURIComponent("" + programId));
+    delete4(setEntryId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/set-entry/delete/{setEntryId}";
+        if (setEntryId === undefined || setEntryId === null)
+            throw new Error("The parameter 'setEntryId' must be defined.");
+        url_ = url_.replace("{setEntryId}", encodeURIComponent("" + setEntryId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1081,7 +1155,7 @@ export class DeleteTrainingProgramEndpointClient {
     }
 }
 
-export class DeleteTrainingSessionEndpointClient {
+export class DeleteTrainingProgramEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -1094,11 +1168,11 @@ export class DeleteTrainingSessionEndpointClient {
     /**
      * @return No Content
      */
-    delete5(trainingSessionId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/training-session/delete/{trainingSessionId}";
-        if (trainingSessionId === undefined || trainingSessionId === null)
-            throw new Error("The parameter 'trainingSessionId' must be defined.");
-        url_ = url_.replace("{trainingSessionId}", encodeURIComponent("" + trainingSessionId));
+    delete5(programId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/training-program/delete/{programId}";
+        if (programId === undefined || programId === null)
+            throw new Error("The parameter 'programId' must be defined.");
+        url_ = url_.replace("{programId}", encodeURIComponent("" + programId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1113,6 +1187,67 @@ export class DeleteTrainingSessionEndpointClient {
     }
 
     protected processDelete5(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class DeleteTrainingSessionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return No Content
+     */
+    delete6(trainingSessionId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/training-session/delete/{trainingSessionId}";
+        if (trainingSessionId === undefined || trainingSessionId === null)
+            throw new Error("The parameter 'trainingSessionId' must be defined.");
+        url_ = url_.replace("{trainingSessionId}", encodeURIComponent("" + trainingSessionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDelete6(_response);
+        });
+    }
+
+    protected processDelete6(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -1636,7 +1771,7 @@ export class GetDailyOuraDataEndpointClient {
     }
 }
 
-export class GetMovementBasesEndpointClient {
+export class GetEquipmentsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -1649,8 +1784,8 @@ export class GetMovementBasesEndpointClient {
     /**
      * @return OK
      */
-    getAll(): Promise<MovementBase[]> {
-        let url_ = this.baseUrl + "/api/movement-base/get-all";
+    getAll(): Promise<Equipment[]> {
+        let url_ = this.baseUrl + "/api/equipment/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1665,7 +1800,69 @@ export class GetMovementBasesEndpointClient {
         });
     }
 
-    protected processGetAll(response: Response): Promise<MovementBase[]> {
+    protected processGetAll(response: Response): Promise<Equipment[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(Equipment.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Equipment[]>(null as any);
+    }
+}
+
+export class GetMovementBasesEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    getAll2(): Promise<MovementBase[]> {
+        let url_ = this.baseUrl + "/api/movement-base/get-all";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAll2(_response);
+        });
+    }
+
+    protected processGetAll2(response: Response): Promise<MovementBase[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1711,7 +1908,7 @@ export class GetMovementsEndpointClient {
     /**
      * @return OK
      */
-    getAll2(sessionID: string): Promise<Movement[]> {
+    getAll3(sessionID: string): Promise<Movement[]> {
         let url_ = this.baseUrl + "/api/movement/get-all/{sessionId}";
         if (sessionID === undefined || sessionID === null)
             throw new Error("The parameter 'sessionID' must be defined.");
@@ -1726,11 +1923,11 @@ export class GetMovementsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll2(_response);
+            return this.processGetAll3(_response);
         });
     }
 
-    protected processGetAll2(response: Response): Promise<Movement[]> {
+    protected processGetAll3(response: Response): Promise<Movement[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1911,7 +2108,7 @@ export class GetTrainingProgramsEndpointClient {
     /**
      * @return OK
      */
-    getAll3(): Promise<TrainingProgramDTO[]> {
+    getAll4(): Promise<TrainingProgramDTO[]> {
         let url_ = this.baseUrl + "/api/training-program/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -1923,11 +2120,11 @@ export class GetTrainingProgramsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll3(_response);
+            return this.processGetAll4(_response);
         });
     }
 
-    protected processGetAll3(response: Response): Promise<TrainingProgramDTO[]> {
+    protected processGetAll4(response: Response): Promise<TrainingProgramDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2041,7 +2238,7 @@ export class GetTrainingSessionsEndpointClient {
     /**
      * @return OK
      */
-    getAll4(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
+    getAll5(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
         let url_ = this.baseUrl + "/api/training-session/get-all/{trainingProgramId}";
         if (trainingProgramId === undefined || trainingProgramId === null)
             throw new Error("The parameter 'trainingProgramId' must be defined.");
@@ -2056,11 +2253,11 @@ export class GetTrainingSessionsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll4(_response);
+            return this.processGetAll5(_response);
         });
     }
 
-    protected processGetAll4(response: Response): Promise<TrainingSessionDTO[]> {
+    protected processGetAll5(response: Response): Promise<TrainingSessionDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -3827,6 +4024,42 @@ export interface ICreateActivityRequest {
     externalVariablesRating: number;
 }
 
+export class CreateEquipmentRequest implements ICreateEquipmentRequest {
+    name!: string;
+
+    constructor(data?: ICreateEquipmentRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.name = _data["name"];
+        }
+    }
+
+    static fromJS(data: any): CreateEquipmentRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateEquipmentRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["name"] = this.name;
+        return data;
+    }
+}
+
+export interface ICreateEquipmentRequest {
+    name: string;
+}
+
 export class CreateLiftRequest implements ICreateLiftRequest {
     dateTime!: Date;
     timeInMinutes!: number;
@@ -4690,6 +4923,50 @@ export interface IDateRangeRequest {
     endDate: Date;
 }
 
+export class Equipment implements IEquipment {
+    equipmentID?: string;
+    name?: string | undefined;
+    userID?: string;
+
+    constructor(data?: IEquipment) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.equipmentID = _data["equipmentID"];
+            this.name = _data["name"];
+            this.userID = _data["userID"];
+        }
+    }
+
+    static fromJS(data: any): Equipment {
+        data = typeof data === 'object' ? data : {};
+        let result = new Equipment();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["equipmentID"] = this.equipmentID;
+        data["name"] = this.name;
+        data["userID"] = this.userID;
+        return data;
+    }
+}
+
+export interface IEquipment {
+    equipmentID?: string;
+    name?: string | undefined;
+    userID?: string;
+}
+
 export class FirstWeekGenerationDTO implements IFirstWeekGenerationDTO {
     trainingProgramID!: string;
 
@@ -5105,6 +5382,8 @@ export class LionheartUser implements ILionheartUser {
     apiAccessTokens?: ApiAccessToken[] | undefined;
     dailyOuraInfos?: DailyOuraInfo[] | undefined;
     trainingPrograms?: TrainingProgram[] | undefined;
+    movementBases?: MovementBase[] | undefined;
+    equipments?: Equipment[] | undefined;
 
     constructor(data?: ILionheartUser) {
         if (data) {
@@ -5146,6 +5425,16 @@ export class LionheartUser implements ILionheartUser {
                 this.trainingPrograms = [] as any;
                 for (let item of _data["trainingPrograms"])
                     this.trainingPrograms!.push(TrainingProgram.fromJS(item));
+            }
+            if (Array.isArray(_data["movementBases"])) {
+                this.movementBases = [] as any;
+                for (let item of _data["movementBases"])
+                    this.movementBases!.push(MovementBase.fromJS(item));
+            }
+            if (Array.isArray(_data["equipments"])) {
+                this.equipments = [] as any;
+                for (let item of _data["equipments"])
+                    this.equipments!.push(Equipment.fromJS(item));
             }
         }
     }
@@ -5189,6 +5478,16 @@ export class LionheartUser implements ILionheartUser {
             for (let item of this.trainingPrograms)
                 data["trainingPrograms"].push(item ? item.toJSON() : <any>undefined);
         }
+        if (Array.isArray(this.movementBases)) {
+            data["movementBases"] = [];
+            for (let item of this.movementBases)
+                data["movementBases"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.equipments)) {
+            data["equipments"] = [];
+            for (let item of this.equipments)
+                data["equipments"].push(item ? item.toJSON() : <any>undefined);
+        }
         return data;
     }
 }
@@ -5204,6 +5503,8 @@ export interface ILionheartUser {
     apiAccessTokens?: ApiAccessToken[] | undefined;
     dailyOuraInfos?: DailyOuraInfo[] | undefined;
     trainingPrograms?: TrainingProgram[] | undefined;
+    movementBases?: MovementBase[] | undefined;
+    equipments?: Equipment[] | undefined;
 }
 
 export class LoginRequest implements ILoginRequest {
@@ -5260,7 +5561,7 @@ export class Movement implements IMovement {
     trainingSession?: TrainingSession;
     movementBaseID?: string;
     movementBase?: MovementBase;
-    movementModifier?: MovementModifier;
+    movementModifier!: MovementModifier;
     sets?: SetEntry[] | undefined;
     notes?: string | undefined;
     isCompleted?: boolean;
@@ -5274,6 +5575,9 @@ export class Movement implements IMovement {
                     (<any>this)[property] = (<any>data)[property];
             }
         }
+        if (!data) {
+            this.movementModifier = new MovementModifier();
+        }
     }
 
     init(_data?: any) {
@@ -5283,7 +5587,7 @@ export class Movement implements IMovement {
             this.trainingSession = _data["trainingSession"] ? TrainingSession.fromJS(_data["trainingSession"]) : <any>undefined;
             this.movementBaseID = _data["movementBaseID"];
             this.movementBase = _data["movementBase"] ? MovementBase.fromJS(_data["movementBase"]) : <any>undefined;
-            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : <any>undefined;
+            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : new MovementModifier();
             if (Array.isArray(_data["sets"])) {
                 this.sets = [] as any;
                 for (let item of _data["sets"])
@@ -5330,7 +5634,7 @@ export interface IMovement {
     trainingSession?: TrainingSession;
     movementBaseID?: string;
     movementBase?: MovementBase;
-    movementModifier?: MovementModifier;
+    movementModifier: MovementModifier;
     sets?: SetEntry[] | undefined;
     notes?: string | undefined;
     isCompleted?: boolean;
@@ -5469,7 +5773,8 @@ export interface IMovementDTO {
 
 export class MovementModifier implements IMovementModifier {
     name?: string | undefined;
-    equipment?: string | undefined;
+    equipmentID?: string;
+    equipment!: Equipment;
     duration?: number;
 
     constructor(data?: IMovementModifier) {
@@ -5479,12 +5784,16 @@ export class MovementModifier implements IMovementModifier {
                     (<any>this)[property] = (<any>data)[property];
             }
         }
+        if (!data) {
+            this.equipment = new Equipment();
+        }
     }
 
     init(_data?: any) {
         if (_data) {
             this.name = _data["name"];
-            this.equipment = _data["equipment"];
+            this.equipmentID = _data["equipmentID"];
+            this.equipment = _data["equipment"] ? Equipment.fromJS(_data["equipment"]) : new Equipment();
             this.duration = _data["duration"];
         }
     }
@@ -5499,7 +5808,8 @@ export class MovementModifier implements IMovementModifier {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["name"] = this.name;
-        data["equipment"] = this.equipment;
+        data["equipmentID"] = this.equipmentID;
+        data["equipment"] = this.equipment ? this.equipment.toJSON() : <any>undefined;
         data["duration"] = this.duration;
         return data;
     }
@@ -5507,7 +5817,8 @@ export class MovementModifier implements IMovementModifier {
 
 export interface IMovementModifier {
     name?: string | undefined;
-    equipment?: string | undefined;
+    equipmentID?: string;
+    equipment: Equipment;
     duration?: number;
 }
 

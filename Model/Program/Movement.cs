@@ -22,7 +22,7 @@ public class Movement
     [ForeignKey("MovementBase")]
     public Guid MovementBaseID { get; set; }
     public MovementBase MovementBase { get; set; } = new();
-    public MovementModifier MovementModifier { get; set; } = new();
+    public required MovementModifier MovementModifier { get; set; } 
 
     public List<SetEntry> Sets { get; set; } = [];
     public string Notes { get; set; } = string.Empty;
@@ -67,8 +67,19 @@ public class MovementBase
 public class MovementModifier
 {
     public string Name { get; set; } = string.Empty;
-    public string Equipment { get; set; } = string.Empty;
+    public Guid EquipmentID { get; set; }
+    [ForeignKey("EquipmentID")]
+    [Required]
+    public required Equipment Equipment { get; set; } = new();
     public int Duration { get; set; }
+}
+
+public class Equipment
+{
+    [Key]
+    public Guid EquipmentID { get; init; }
+    public string Name { get; set; } = string.Empty;
+    public Guid UserID { get; init; }
 }
 /// <summary>
 /// Represents a set entry within a <see cref="Movement"/>.

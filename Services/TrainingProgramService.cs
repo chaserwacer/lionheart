@@ -32,8 +32,11 @@ public class TrainingProgramService : ITrainingProgramService
             .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.MovementBase)
             .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements)
+            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.Sets)
+            .Include(p => p.TrainingSessions)
+            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
+                .ThenInclude(m => m.MovementModifier.Equipment)
             .OrderBy(p => p.StartDate)
             .ToListAsync();
 
@@ -50,8 +53,11 @@ public class TrainingProgramService : ITrainingProgramService
             .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.MovementBase)
             .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements)
+            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.Sets)
+            .Include(p => p.TrainingSessions)
+            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
+                .ThenInclude(m => m.MovementModifier.Equipment)
             .FirstOrDefaultAsync();
 
         if (trainingProgram is null)
@@ -130,89 +136,6 @@ public class TrainingProgramService : ITrainingProgramService
         return Result.NoContent();
     }
 
-    [McpServerTool, Description("Generate a populated training program with sessions and movements.")]
-    /// <summary>
-    ///  Generates a populated training program with sessions and movements based on the provided request.
-    /// </summary>
-    /// <param name="user">The user for whom the training program is being generated.</param>
-    /// <param name="request">The request containing the training program details and session requests.</param>
-    /// <returns>A result containing the generated training program DTO.</returns>
-    public async Task<Result<TrainingProgramDTO>> GeneratePopulatedTrainingProgramAsync(IdentityUser user, GeneratePopulatedTrainingProgramRequest request)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        var trainingProgram = new TrainingProgram
-        {
-            TrainingProgramID = Guid.NewGuid(),
-            UserID = userGuid,
-            Title = request.TrainingProgram.Title,
-            StartDate = request.TrainingProgram.StartDate,
-            EndDate = request.TrainingProgram.EndDate,
-            Tags = request.TrainingProgram.Tags ?? []
-        };
-
-        _context.TrainingPrograms.Add(trainingProgram);
-        await _context.SaveChangesAsync();
-
-        foreach (var sessionRequest in request.GenerateTrainingSessionsRequests)
-        {
-            var trainingSession = new TrainingSession
-            {
-                TrainingSessionID = Guid.NewGuid(),
-                TrainingProgramID = trainingProgram.TrainingProgramID,
-                Date = sessionRequest.createTrainingSessionRequest.Date,
-                Status = TrainingSessionStatus.Planned
-            };
-
-            _context.TrainingSessions.Add(trainingSession);
-            await _context.SaveChangesAsync();
-
-            int ordering = 0;
-            foreach (var movementRequest in sessionRequest.CreateMovementRequests)
-            {
-                var movementBase = await _context.MovementBases
-                    .FindAsync(movementRequest.MovementBaseID);
-
-                if (movementBase is null)
-                {
-                    return Result<TrainingProgramDTO>.Error($"Movement Base with ID:'{movementRequest.MovementBaseID}' not found.");
-                }
-
-                var movement = new Movement
-                {
-                    MovementID = Guid.NewGuid(),
-                    TrainingSessionID = trainingSession.TrainingSessionID,
-                    MovementBaseID = movementBase.MovementBaseID,
-                    Notes = movementRequest.Notes,
-                    Ordering = ordering
-                };
-
-                _context.Movements.Add(movement);
-                await _context.SaveChangesAsync();
-
-                foreach (var setEntryRequest in sessionRequest.CreateSetEntryRequests)
-                {
-                    var setEntry = new SetEntry
-                    {
-                        SetEntryID = Guid.NewGuid(),
-                        MovementID = movement.MovementID,
-                        ActualReps = setEntryRequest.ActualReps,
-                        ActualWeight = setEntryRequest.ActualWeight,
-                        ActualRPE = setEntryRequest.ActualRPE,
-                        RecommendedReps = setEntryRequest.RecommendedReps,
-                        RecommendedWeight = setEntryRequest.RecommendedWeight,
-                        RecommendedRPE = setEntryRequest.RecommendedRPE
-                    };
-
-                    _context.SetEntries.Add(setEntry);
-                }
-
-                ordering++;
-            }
-        }
-
-        await _context.SaveChangesAsync();
-        return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
-    }
    
     /// <summary>
     ///  Creates a training program from a JSON string.

@@ -50,6 +50,13 @@ public class CreateMovementBaseRequest
     public required string Name { get; init; }
 }
 
+public class CreateEquipmentRequest
+{
+    [Required]
+    public required string Name { get; init; }
+
+}
+
 public class UpdateMovementsCompletionRequest
 {
     [Required]
@@ -65,7 +72,7 @@ public class MovementDTO
     public required Guid TrainingSessionID { get; init; }
     public required Guid MovementBaseID { get; set; }
     public required MovementBase MovementBase { get; set; } = new();
-    public required MovementModifier MovementModifier { get; set; } = new();
+    public required MovementModifier MovementModifier { get; set; }
     public required WeightUnit WeightUnit { get; set; }
     [Required]
     public required List<SetEntryDTO> Sets { get; set; } = [];

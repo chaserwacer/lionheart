@@ -79,4 +79,8 @@ public interface IMovementService
     /// <returns>A result indicating success or failure.</returns>
     Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId);
 
+
+    Task<Result<List<Equipment>>> GetEquipmentsAsync(IdentityUser user);
+    Task<Result<Equipment>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request);
+    Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId);
 }

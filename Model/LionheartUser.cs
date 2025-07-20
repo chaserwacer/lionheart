@@ -22,4 +22,6 @@ public class LionheartUser
     public List<ApiAccessToken> ApiAccessTokens { get; set; } = [];
     public List<DailyOuraInfo> DailyOuraInfos { get; set; } = [];
     public List<TrainingProgram> TrainingPrograms { get; set; } = [];
+    public List<MovementBase> MovementBases { get; set; } = [];
+    public List<Equipment> Equipments { get; set; } = [];
 }

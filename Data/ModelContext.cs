@@ -25,6 +25,7 @@ namespace lionheart.Data
         public DbSet<TrainingProgram> TrainingPrograms { get; set; }
         public DbSet<TrainingSession> TrainingSessions { get; set; }
         public DbSet<MovementBase> MovementBases { get; set; }
+        public DbSet<Equipment> Equipments { get; set; }
         public DbSet<Movement> Movements { get; set; }
         public DbSet<SetEntry> SetEntries { get; set; }
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
@@ -99,13 +100,31 @@ namespace lionheart.Data
             modelBuilder.Entity<MovementBase>()
                 .HasKey(m => m.MovementBaseID);
             modelBuilder.Entity<Movement>()
-                .OwnsOne(m => m.MovementModifier);
+                .OwnsOne(m => m.MovementModifier)
+                .HasOne(m => m.Equipment)
+                .WithMany()
+                .HasForeignKey(m => m.EquipmentID)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+
             modelBuilder.Entity<Movement>()
                 .HasOne<MovementBase>(m => m.MovementBase)
                 .WithMany()
                 .HasForeignKey(m => m.MovementBaseID)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
+
+            modelBuilder.Entity<MovementBase>()
+                    .HasOne<LionheartUser>()
+                    .WithMany(u => u.MovementBases)
+                    .HasForeignKey(m => m.UserID);
+            modelBuilder.Entity<Equipment>()
+                .HasKey(e => e.EquipmentID);
+            modelBuilder.Entity<Equipment>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.Equipments)
+                .HasForeignKey(e => e.UserID);
+
             // Set Entries
             modelBuilder.Entity<SetEntry>()
                 .HasKey(s => s.SetEntryID);

@@ -29,6 +29,8 @@
     UpdateMovementOrderRequest,
     GetTrainingProgramEndpointClient,
     DeleteTrainingSessionEndpointClient,
+    GetEquipmentsEndpointClient,
+    Equipment,
   } from "$lib/api/ApiClient";
   import { base } from "$app/paths";
 
@@ -42,6 +44,7 @@
 
   let chosenMovementBaseIndexForEditing = 0;
   let modifiers: MovementBase[] = [];
+  let equipmentOptions: Equipment[] = [];
   const baseUrl =
     typeof window !== "undefined"
       ? window.location.origin
@@ -59,11 +62,10 @@
   }
 
   onMount(async () => {
-
-
     const programsClient = new GetTrainingProgramEndpointClient(baseUrl);
     const sessionClient = new GetTrainingSessionEndpointClient(baseUrl);
     const movementBaseClient = new GetMovementBasesEndpointClient(baseUrl);
+    const equipmentClient = new GetEquipmentsEndpointClient(baseUrl);
 
     try {
       program = await programsClient.get(slug);
@@ -71,7 +73,9 @@
       if (!session) return;
 
       selectedDate = session.date.toISOString().slice(0, 10);
-      modifiers = await movementBaseClient.getAll();
+      modifiers = await movementBaseClient.getAll2();
+      equipmentOptions = await equipmentClient.getAll();
+      console.log("equipmentOptions", equipmentOptions);
     } catch (err) {
       console.error("Failed to load session data:", err);
     }
@@ -98,13 +102,16 @@
   async function updateMovement(movement: MovementDTO) {
     movement.movementBaseID = movement.movementBase.movementBaseID!;
     editingMovementBaseName = false;
+    const equipment = equipmentOptions.find(e => e.equipmentID === movement.movementModifier.equipmentID);
+
     const request = UpdateMovementRequest.fromJS({
       movementID: movement.movementID,
       trainingSessionID: movement.trainingSessionID!,
       movementBaseID: movement.movementBaseID,
       movementModifier: {
         name: movement.movementModifier.name,
-        equipment: movement.movementModifier.equipment,
+        equipmentID: equipment?.equipmentID,
+        equipment: equipment,
         duration: movement.movementModifier.duration,
       },
       weightUnit: movement.weightUnit,
@@ -175,7 +182,7 @@
     });
 
     var client = new CreateSetEntryEndpointClient(baseUrl);
-    await client.create3(request).catch((err) => {
+    await client.create4(request).catch((err) => {
       console.error("Failed to add set to movement", err);
     });
 
@@ -185,9 +192,17 @@
   async function refreshSessionData() {
     // Reload the session's movements
     const sessionClient = new GetTrainingSessionEndpointClient(baseUrl);
-    
+
     session = await sessionClient.get2(slug, sessionID);
     showModal = false;
+
+    const movementBaseClient = new GetMovementBasesEndpointClient(baseUrl);
+    const equipmentClient = new GetEquipmentsEndpointClient(baseUrl);
+
+ 
+    modifiers = await movementBaseClient.getAll2();
+    equipmentOptions = await equipmentClient.getAll();
+    
   }
 
   const labelMap = {
@@ -210,19 +225,19 @@
 
   async function deleteSetEntry(set: SetEntryDTO) {
     var client = new DeleteSetEntryEndpointClient(baseUrl);
-    await client.delete3(set.setEntryID).catch((err) => {
+    await client.delete4(set.setEntryID).catch((err) => {
       console.error("Failed tdelete set entry", err);
     });
 
     await refreshSessionData();
   }
 
-   async function deleteSession() {
+  async function deleteSession() {
     const confirmed = confirm("Are you sure you want to delete this session?");
     if (!confirmed || !session) return;
     const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
     try {
-      await deleteClient.delete5(session.trainingSessionID);
+      await deleteClient.delete6(session.trainingSessionID);
       goto(`/programs/${slug}`); // Redirect to program page after deletion
     } catch {
       alert("Failed to delete session.");
@@ -271,35 +286,31 @@
   }
 </script>
 
- 
-
 {#if session}
   <div class="p-5 pt-2 max-w-6xl mx-auto text-base-content">
     <div class="">
-    <div class="flex justify-between items-center w-full ">
+      <div class="flex justify-between items-center w-full">
         <a href={`/programs/${slug}`} class="btn btn-sm btn-primary">
-      ← Back
-    </a>
-      <h1 class="text-xl md:text-4xl font-extrabold mb-2 text-center">
-        {program.title}
-      </h1>
-      <a
-        class="btn btn-sm btn-primary"
-        href={`/movementLib?returnTo=/programs/${slug}/session/${sessionID}`}
-      >
-        Items →
-      </a>
-    </div>
+          ← Back
+        </a>
+        <h1 class="text-xl md:text-4xl font-extrabold mb-2 text-center">
+          {program.title}
+        </h1>
+        <a
+          class="btn btn-sm btn-primary"
+          href={`/movementLib?returnTo=/programs/${slug}/session/${sessionID}`}
+        >
+          Items →
+        </a>
+      </div>
 
-    <div class="text-center items-center justify-center">
-      {#each program.tags as tag}
-        <span class="badge badge-primary">{tag}</span>
-      {/each}
+      <div class="text-center items-center justify-center">
+        {#each program.tags as tag}
+          <span class="badge badge-primary">{tag}</span>
+        {/each}
+      </div>
     </div>
-    </div>
-    <div class="divider divider-2 divider-primary">
-    
-    </div>
+    <div class="divider divider-2 divider-primary"></div>
 
     <div
       class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-5"
@@ -328,7 +339,6 @@
             </div>
             <div class="stat-actions">
               {#if !editingDate}
-              
                 <button
                   class="btn btn-xs"
                   on:click={() => {
@@ -455,16 +465,18 @@
                 />
 
                 <select
-                  class="select select-sm select-primary m-1"
-                  bind:value={movement.movementModifier.equipment}
+                  bind:value={movement.movementModifier.equipmentID}
                   on:change={() => updateMovement(movement)}
+                  class="select select-sm select-primary m-1"
                 >
-                  <option disabled selected
-                    >{movement.movementModifier.equipment}</option
-                  >
-                  <option>Kettlebell</option>
-                  <option>Barbell</option>
-                  <option>Angular</option>
+                
+                  {#each equipmentOptions as e}
+                  {#if e.equipmentID === movement.movementModifier.equipmentID}
+                    <option value={e.equipmentID} selected>{e.name}</option>
+                  {:else}
+                    <option value={e.equipmentID}>{e.name}</option>
+                  {/if}
+                  {/each}
                 </select>
 
                 <input
@@ -526,7 +538,6 @@
                 </thead>
                 <tbody>
                   {#each movement.sets as set, index}
-                    
                     <!-- Full single-row layout for medium+ screens -->
                     <tr class="hidden md:table-row">
                       <td class="font text-sm font-bold w-fit">{index + 1}</td>
@@ -560,7 +571,7 @@
                         />
                       </td>
                       <td class="relative group">
-                         <!-- Button appears only on hover -->
+                        <!-- Button appears only on hover -->
                         <button
                           class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-px w-3"
                           on:click={() => {
@@ -577,12 +588,11 @@
                           bind:value={set.actualReps}
                           on:input={() => updateSetEntry(set)}
                         />
-                       
                       </td>
                       <td class="relative group">
-                         <!-- Button appears only on hover -->
+                        <!-- Button appears only on hover -->
                         <button
-                          class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-px  w-3"
+                          class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-px w-3"
                           on:click={() => {
                             set.actualWeight = set.recommendedWeight;
                             updateSetEntry(set);
@@ -592,15 +602,14 @@
                         </button>
                         <input
                           type="number"
-                          class="input input-xs bg-base-100 border-base-300 text-center  w-16"
+                          class="input input-xs bg-base-100 border-base-300 text-center w-16"
                           min="0"
                           bind:value={set.actualWeight}
                           on:input={() => updateSetEntry(set)}
                         />
-                       
                       </td>
                       <td class="relative group">
-                         <!-- Button appears only on hover -->
+                        <!-- Button appears only on hover -->
                         <button
                           class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-px w-3"
                           on:click={() => {
@@ -619,7 +628,6 @@
                           step="0.5"
                           on:input={() => updateSetEntry(set)}
                         />
-                       
                       </td>
                       <td
                         ><button
@@ -807,13 +815,14 @@
           </div>
         {/if}
       {/each}
-      <button class="btn btn-error" on:click={deleteSession}>Delete Training Session</button>
+      <button class="btn btn-error" on:click={deleteSession}
+        >Delete Training Session</button
+      >
     </div>
   </div>
 {:else}
   <div class="p-6 max-w-4xl mx-auto flex items-center justify-center">
     <span class="loading loading-spinner loading-xs"></span>
-
   </div>
 {/if}
 
