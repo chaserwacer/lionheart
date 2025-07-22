@@ -5775,7 +5775,7 @@ export class MovementModifier implements IMovementModifier {
     name?: string | undefined;
     equipmentID?: string;
     equipment!: Equipment;
-    duration?: number;
+    duration?: number | undefined;
 
     constructor(data?: IMovementModifier) {
         if (data) {
@@ -5819,7 +5819,7 @@ export interface IMovementModifier {
     name?: string | undefined;
     equipmentID?: string;
     equipment: Equipment;
-    duration?: number;
+    duration?: number | undefined;
 }
 
 export class MovementOrderUpdate implements IMovementOrderUpdate {

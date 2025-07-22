@@ -71,7 +71,7 @@ public class MovementModifier
     [ForeignKey("EquipmentID")]
     [Required]
     public required Equipment Equipment { get; set; } = new();
-    public int Duration { get; set; }
+    public int? Duration { get; set; }
 }
 
 public class Equipment

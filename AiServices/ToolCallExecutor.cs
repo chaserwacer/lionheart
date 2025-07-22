@@ -8,6 +8,8 @@ using lionheart.Services;
 using lionheart.Model.DTOs;
 using Ardalis.Result;
 using lionheart.Converters;
+using System.Text.Json.Serialization; // if not already at top
+
 
 /// <summary>
 /// This class implements the IToolCallExecutor interface and handles the execution of tool calls. 
@@ -20,10 +22,12 @@ public class ToolCallExecutor : IToolCallExecutor
     private readonly ISetEntryService _setEntryService;
     private readonly ITrainingProgramService _trainingProgramService;
 
-    private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
-    {
-        PropertyNameCaseInsensitive = true
-    };
+private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+{
+    PropertyNameCaseInsensitive = true,
+    Converters = { new JsonStringEnumConverter() } // ✅ Fixes enum parsing from "Kilograms"
+};
+
 
     public ToolCallExecutor(
         ITrainingSessionService trainingSessionService,
@@ -77,6 +81,16 @@ public class ToolCallExecutor : IToolCallExecutor
         {
             switch (fn)
             {
+                case "CreateTrainingSessionWeekAsync":
+                {
+                    var request = args?["request"]?.Deserialize<CreateTrainingSessionWeekRequest>(_jsonOptions);
+                    if (request == null)
+                        return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSessionWeekAsync.");
+                    
+                    var result = await _trainingSessionService.CreateTrainingSessionWeekAsync(user, request);
+                    return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                }
+
                 case "GetTrainingSessionAsync":
                     {
                         var request = args?["request"]?.Deserialize<GetTrainingSessionRequest>();
@@ -165,6 +179,11 @@ public class ToolCallExecutor : IToolCallExecutor
                 case "GetMovementBasesAsync":
                     {
                         var result = await _movementService.GetMovementBasesAsync(user);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "GetEquipmentsAsync":
+                    {
+                        var result = await _movementService.GetEquipmentsAsync(user);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 default:

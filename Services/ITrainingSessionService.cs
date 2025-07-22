@@ -58,7 +58,7 @@ public interface ITrainingSessionService
     /// </summary>
     // Task<Result<List<TrainingSessionDTO>>> GenerateTrainingSessionsAsync(IdentityUser user, GenerateTrainingSessionsRequest request);
 
-     Task<Result<TrainingSessionDTO>> CreateTrainingSessionFromJSON(IdentityUser user, TrainingSessionDTO trainingSessionDTO);
+    Task<Result<TrainingSessionDTO>> CreateTrainingSessionFromJSON(IdentityUser user, TrainingSessionDTO trainingSessionDTO);
 
     /// <summary>
     /// Duplicate a training session, including all movements and set entries.
@@ -67,4 +67,6 @@ public interface ITrainingSessionService
     /// <param name="trainingSessionID">The session ID to duplicate.</param>
     /// <returns>A result containing the duplicated training session.</returns>
     Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
+
+    Task<Result<List<TrainingSessionDTO>>> CreateTrainingSessionWeekAsync(IdentityUser user, CreateTrainingSessionWeekRequest request);
 }

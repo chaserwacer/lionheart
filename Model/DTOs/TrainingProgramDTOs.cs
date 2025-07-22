@@ -100,6 +100,7 @@ public class CreateTrainingSessionRequest
 
 }
 
+
 public class UpdateTrainingSessionRequest
 {
     [Required]
