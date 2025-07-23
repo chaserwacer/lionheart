@@ -8,6 +8,9 @@ using lionheart.Services;
 using lionheart.Model.DTOs;
 using Ardalis.Result;
 using lionheart.Converters;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http.Json; // if not already at top
+
 
 /// <summary>
 /// This class implements the IToolCallExecutor interface and handles the execution of tool calls. 
@@ -20,26 +23,40 @@ public class ToolCallExecutor : IToolCallExecutor
     private readonly ISetEntryService _setEntryService;
     private readonly ITrainingProgramService _trainingProgramService;
     private readonly IOuraService _ouraService;
+    private readonly JsonSerializerOptions _jsonOptions;
 
-    private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
-    {
-        PropertyNameCaseInsensitive = true
-    };
+// Static base options shared across clones
+private static readonly JsonSerializerOptions _baseJsonOptions = new JsonSerializerOptions
+{
+    PropertyNameCaseInsensitive = true,
+    Converters = { new JsonStringEnumConverter() } // ✅ Ensures enums like "Kilograms" deserialize
+};
 
-    public ToolCallExecutor(
-        ITrainingSessionService trainingSessionService,
-        IMovementService movementService,
-        ISetEntryService setEntryService,
-        ITrainingProgramService trainingProgramService,
+// Clone and add DateOnly converter
+private static JsonSerializerOptions CloneWithDateOnlySupport(JsonSerializerOptions original)
+{
+    var clone = new JsonSerializerOptions(original);
+    clone.Converters.Add(new DateOnlyJsonConverter("yyyy-MM-dd"));
+    return clone;
+}
+
+public ToolCallExecutor(
+    ITrainingSessionService trainingSessionService,
+    IMovementService movementService,
+    ISetEntryService setEntryService,
+    ITrainingProgramService trainingProgramService,
         IOuraService ouraService)
-    {
-        _trainingSessionService = trainingSessionService;
-        _movementService = movementService;
-        _setEntryService = setEntryService;
-        _trainingProgramService = trainingProgramService;
+{
+    _trainingSessionService = trainingSessionService;
+    _movementService = movementService;
+    _setEntryService = setEntryService;
+    _trainingProgramService = trainingProgramService;
         _ouraService = ouraService;
-         _jsonOptions.Converters.Add(new DateOnlyJsonConverter("yyyy-MM-dd"));
-    }
+
+    // ✅ Clone base options with DateOnly support
+    _jsonOptions = CloneWithDateOnlySupport(_baseJsonOptions);
+}
+
     /// <summary>
     /// Intakes a list of tool calls and executes them sequentially.
     /// If any tool call fails, it returns a single error result.
@@ -80,6 +97,16 @@ public class ToolCallExecutor : IToolCallExecutor
         {
             switch (fn)
             {
+                case "CreateTrainingSessionWeekAsync":
+                {
+                    var request = args?["request"]?.Deserialize<CreateTrainingSessionWeekRequest>(_jsonOptions);
+                    if (request == null)
+                        return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSessionWeekAsync.");
+                    
+                    var result = await _trainingSessionService.CreateTrainingSessionWeekAsync(user, request);
+                    return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                }
+
                 case "GetTrainingSessionAsync":
                     {
                         var request = args?["request"]?.Deserialize<GetTrainingSessionRequest>();
@@ -187,6 +214,11 @@ public class ToolCallExecutor : IToolCallExecutor
                             return Result<ToolChatMessage>.Error("Missing or invalid arguments for GetDailyOuraInfosAsync.");
 
                         var result = await _ouraService.GetDailyOuraInfosAsync(user, dateRange);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "GetEquipmentsAsync":
+                    {
+                        var result = await _movementService.GetEquipmentsAsync(user);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 default:

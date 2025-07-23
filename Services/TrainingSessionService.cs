@@ -105,6 +105,7 @@ public class TrainingSessionService : ITrainingSessionService
         {
             return Result<TrainingSessionDTO>.NotFound("Training program not found or access denied.");
         }
+        
 
         var date = request.Date;
         var session = new TrainingSession
@@ -130,6 +131,87 @@ public class TrainingSessionService : ITrainingSessionService
 
         return Result<TrainingSessionDTO>.Created(session.ToDTO(sessionNumber));
     }
+
+
+    [McpServerTool, Description("Create a full week of training sessions with structured movements.")]
+    public async Task<Result<List<TrainingSessionDTO>>> CreateTrainingSessionWeekAsync(
+        IdentityUser user,
+        CreateTrainingSessionWeekRequest request)
+    {
+        var userGuid = Guid.Parse(user.Id);
+
+        var program = await _context.TrainingPrograms
+            .FirstOrDefaultAsync(tp => tp.TrainingProgramID == request.TrainingProgramID && tp.UserID == userGuid);
+
+        if (program is null)
+            return Result<List<TrainingSessionDTO>>.NotFound("Training program not found or access denied.");
+
+        var createdSessions = new List<TrainingSessionDTO>();
+
+        foreach (var sessionDto in request.Sessions)
+        {
+            var newSession = new TrainingSession
+            {
+                TrainingSessionID = Guid.NewGuid(),
+                TrainingProgramID = request.TrainingProgramID,
+                Date = sessionDto.Date,
+                Status = TrainingSessionStatus.Planned,
+                CreationTime = DateTime.UtcNow
+            };
+
+            int movementOrder = 0;
+            foreach (var mDto in sessionDto.Movements)
+            {
+                var baseEntity = await _context.MovementBases.FindAsync(mDto.MovementBaseID);
+                if (baseEntity is null)
+                    return Result<List<TrainingSessionDTO>>.Error($"MovementBaseID {mDto.MovementBaseID} not found.");
+
+                var equipment = await _context.Equipments.FindAsync(mDto.MovementModifier!.EquipmentID);
+                if (equipment is null)
+                    return Result<List<TrainingSessionDTO>>.Error($"EquipmentID {mDto.MovementModifier.EquipmentID} not found.");
+
+                var hydratedModifier = new MovementModifier
+                {
+                    Name = mDto.MovementModifier.Name,
+                    EquipmentID = mDto.MovementModifier.EquipmentID,
+                    Equipment = equipment,
+                    Duration = mDto.MovementModifier.Duration
+                };
+
+                var newMovement = new Movement
+                {
+                    MovementID = Guid.NewGuid(),
+                    TrainingSessionID = newSession.TrainingSessionID,
+                    MovementBaseID = mDto.MovementBaseID,
+                    MovementBase = baseEntity,
+                    Notes = mDto.Notes,
+                    MovementModifier = hydratedModifier,
+                    IsCompleted = false,
+                    Ordering = movementOrder++
+                };
+
+                foreach (var sDto in mDto.Sets)
+                {
+                    newMovement.Sets.Add(new SetEntry
+                    {
+                        SetEntryID = Guid.NewGuid(),
+                        RecommendedReps = sDto.RecommendedReps,
+                        RecommendedWeight = sDto.RecommendedWeight,
+                        RecommendedRPE = sDto.RecommendedRPE
+                    });
+                }
+
+                newSession.Movements.Add(newMovement);
+            }
+
+            _context.TrainingSessions.Add(newSession);
+            createdSessions.Add(newSession.ToDTO(sessionDto.SessionNumber));
+        }
+
+        await _context.SaveChangesAsync();
+        return Result<List<TrainingSessionDTO>>.Created(createdSessions);
+    }
+
 
     [McpServerTool, Description("Update an existing training session.")]
     public async Task<Result<TrainingSessionDTO>> UpdateTrainingSessionAsync(IdentityUser user, UpdateTrainingSessionRequest request)

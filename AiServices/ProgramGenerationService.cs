@@ -70,7 +70,7 @@ namespace lionheart.Services.AI
         public async Task<Result<string>> GenerateRemainingWeeksAsync(IdentityUser user, RemainingWeeksGenerationDTO dto)
         {
             var messages = GetOrInitConversation(user);
-            messages.Add(new UserChatMessage(PromptBuilder.RemainingWeeks().Build()));
+            messages.Add(new UserChatMessage(PromptBuilder.RemainingWeeks(dto.TrainingProgramID).Build()));
             return await RunAiLoopAsync(messages, OpenAiToolRetriever.GetTrainingProgramPopulationTools(), user);
         }
 

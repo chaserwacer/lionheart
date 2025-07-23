@@ -89,7 +89,7 @@
     });
 
     try {
-      await plainClient.create4(request);
+      await plainClient.create5(request);
       reset();
       dispatch("created");
     } catch (error) {
@@ -119,7 +119,7 @@ async function createWithAi() {
       endDate: new Date(endDate).toISOString().split('T')[0],
       tags: [selectedTag]
     });
-    const result = await plainClient.create4(request);
+    const result = await plainClient.create5(request);
     trainingProgramID = result.trainingProgramID;
   } catch (error) {
     console.error('AI program creation error:', error);
@@ -370,8 +370,10 @@ async function generateNextWeek() {
           {:else if aiStep === 2}
             <button on:click={generateFirstWeek} class="btn btn-primary">Generate Week 1</button>
 
-          {:else if aiStep >= 3}
+          {:else if aiStep === 3}
             <button on:click={generateNextWeek} class="btn btn-primary">Generate Next Week</button>
+         {:else if aiStep >= 4}
+            <button on:click={close} class="btn btn-primary">Complete</button>
           {/if}
         </div>
       </div>

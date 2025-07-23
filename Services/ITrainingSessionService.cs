@@ -68,4 +68,6 @@ public interface ITrainingSessionService
     /// <returns>A result containing the duplicated training session.</returns>
     Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
     Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsByDateRangeAsync(IdentityUser user, DateRangeRequest dateRange);
+
+    Task<Result<List<TrainingSessionDTO>>> CreateTrainingSessionWeekAsync(IdentityUser user, CreateTrainingSessionWeekRequest request);
 }

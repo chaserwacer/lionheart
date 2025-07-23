@@ -3,11 +3,37 @@ using Azure.AI.OpenAI;
 using OpenAI.Chat;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
+using lionheart.Model.DTOs;
+
 
 namespace Model.Tools
 {
     public static class OpenAiToolRetriever
     {
+
+        private static JsonObject BuildMovementModifierSchema() => new JsonObject
+        {
+            ["type"] = "object",
+            ["properties"] = new JsonObject
+            {
+                ["name"] = new JsonObject { ["type"] = "string" },
+                ["equipmentID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                ["duration"] = new JsonObject { ["type"] = "integer" },
+                ["equipment"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["equipmentID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                        ["name"] = new JsonObject { ["type"] = "string" }
+                    },
+                    ["required"] = new JsonArray("equipmentID", "name")
+                }
+            },
+            ["required"] = new JsonArray("name", "equipmentID", "duration", "equipment") // duration is optional
+        };
+
+
         /// <summary>
         /// Returns all ChatTool definitions needed for generating and fully populating a training program,
         /// including sessions, movements, and set entries.
@@ -90,10 +116,9 @@ namespace Model.Tools
                     )
                 ),
 
-                // Create Training Session
                 ChatTool.CreateFunctionTool(
                     functionName: "CreateTrainingSessionAsync",
-                    functionDescription: "Create a new training session within a program.",
+                    functionDescription: "Create a new training session within a program, including structured movement data.",
                     functionParameters: BinaryData.FromObjectAsJson(
                         new JsonObject
                         {
@@ -105,16 +130,53 @@ namespace Model.Tools
                                     ["type"] = "object",
                                     ["properties"] = new JsonObject
                                     {
+                                        ["trainingSessionID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
                                         ["trainingProgramID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
-                                        ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" }
+                                        ["sessionNumber"] = new JsonObject { ["type"] = "integer" },
+                                        ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" },
+                                        ["status"] = new JsonObject { ["type"] = "integer" },
+                                        ["movements"] = new JsonObject
+                                        {
+                                            ["type"] = "array",
+                                            ["items"] = new JsonObject
+                                            {
+                                                ["type"] = "object",
+                                                ["properties"] = new JsonObject
+                                                {
+                                                    ["movementID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                                                    ["movementBaseID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                                                    ["movementModifier"] = new JsonObject { ["type"] = "object" }, // optionally expand if strict validation is needed
+                                                    ["notes"] = new JsonObject { ["type"] = "string" },
+                                                    ["isCompleted"] = new JsonObject { ["type"] = "boolean" },
+                                                    ["sets"] = new JsonObject
+                                                    {
+                                                        ["type"] = "array",
+                                                        ["items"] = new JsonObject
+                                                        {
+                                                            ["type"] = "object",
+                                                            ["properties"] = new JsonObject
+                                                            {
+                                                                ["setEntryID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                                                                ["recommendedReps"] = new JsonObject { ["type"] = "integer" },
+                                                                ["recommendedWeight"] = new JsonObject { ["type"] = "number" },
+                                                                ["recommendedRPE"] = new JsonObject { ["type"] = "number" }
+                                                            },
+                                                            ["required"] = new JsonArray("setEntryID", "recommendedReps", "recommendedWeight", "recommendedRPE")
+                                                        }
+                                                    }
+                                                },
+                                                ["required"] = new JsonArray("movementID", "movementBaseID", "sets")
+                                            }
+                                        }
                                     },
-                                    ["required"] = new JsonArray("trainingProgramID", "date")
+                                    ["required"] = new JsonArray("trainingSessionID", "trainingProgramID", "sessionNumber", "date", "status", "movements")
                                 }
                             },
                             ["required"] = new JsonArray("request")
                         }
                     )
                 ),
+
 
                 // Update Training Session
                 ChatTool.CreateFunctionTool(
@@ -315,6 +377,78 @@ namespace Model.Tools
                     )
                 ),
 
+                ChatTool.CreateFunctionTool(
+                    functionName: "CreateTrainingSessionWeekAsync",
+                    functionDescription: "Create a full week of structured training sessions with movements and sets.",
+                    functionParameters: BinaryData.FromObjectAsJson(
+                        new JsonObject
+                        {
+                            ["type"] = "object",
+                            ["properties"] = new JsonObject
+                            {
+                                ["request"] = new JsonObject
+                                {
+                                    ["type"] = "object",
+                                    ["properties"] = new JsonObject
+                                    {
+                                        ["trainingProgramID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                                        ["sessions"] = new JsonObject
+                                        {
+                                            ["type"] = "array",
+                                            ["items"] = new JsonObject
+                                            {
+                                                ["type"] = "object",
+                                                ["properties"] = new JsonObject
+                                                {
+                                                    ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" },
+                                                    ["sessionNumber"] = new JsonObject { ["type"] = "integer" },
+                                                    ["movements"] = new JsonObject
+                                                    {
+                                                        ["type"] = "array",
+                                                        ["items"] = new JsonObject
+                                                        {
+                                                            ["type"] = "object",
+                                                            ["properties"] = new JsonObject
+                                                            {
+                                                                ["movementBaseID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                                                                ["movementModifier"] = BuildMovementModifierSchema(),
+
+                                                                ["notes"] = new JsonObject { ["type"] = "string" },
+                                                                ["weightUnit"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("Kilograms", "Pounds") },
+                                                                ["sets"] = new JsonObject
+                                                                {
+                                                                    ["type"] = "array",
+                                                                    ["items"] = new JsonObject
+                                                                    {
+                                                                        ["type"] = "object",
+                                                                        ["properties"] = new JsonObject
+                                                                        {
+                                                                            ["recommendedReps"] = new JsonObject { ["type"] = "integer" },
+                                                                            ["recommendedWeight"] = new JsonObject { ["type"] = "number" },
+                                                                            ["recommendedRPE"] = new JsonObject { ["type"] = "number" }
+                                                                        },
+                                                                        ["required"] = new JsonArray("recommendedReps", "recommendedWeight", "recommendedRPE")
+                                                                    }
+                                                                }
+                                                            },
+                                                            ["required"] = new JsonArray("movementBaseID", "movementModifier", "notes", "weightUnit", "sets")
+                                                        }
+                                                    }
+                                                },
+                                                ["required"] = new JsonArray("date", "sessionNumber", "movements")
+                                            }
+                                        }
+                                    },
+                                    ["required"] = new JsonArray("trainingProgramID", "sessions")
+                                }
+                            },
+                            ["required"] = new JsonArray("request")
+                        }
+                    )
+                ),
+
+
+
                 // Get Movement Bases
                 ChatTool.CreateFunctionTool(
                     functionName: "GetMovementBasesAsync",
@@ -328,11 +462,9 @@ namespace Model.Tools
                         }
                     )
                 ),
-
-                // Get Equipments
                 ChatTool.CreateFunctionTool(
                     functionName: "GetEquipmentsAsync",
-                    functionDescription: "Retrieve all equipment associated with a user.",
+                    functionDescription: "Gets all equipment available for creating movements.",
                     functionParameters: BinaryData.FromObjectAsJson(
                         new JsonObject
                         {
@@ -379,8 +511,6 @@ namespace Model.Tools
                         }
                     )
                 ),
-
-              
 
                 // Update Training Session
                 ChatTool.CreateFunctionTool(

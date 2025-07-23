@@ -25,7 +25,7 @@
       date: date
     });
 
-    const session = await sessionClient.create5(sessionRequest);
+    const session = await sessionClient.create6(sessionRequest);
 
     dispatch('createdWithSession', {
       sessionID: session.trainingSessionID!,
