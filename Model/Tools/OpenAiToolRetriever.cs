@@ -14,9 +14,6 @@ namespace Model.Tools
         /// </summary>
         public static List<ChatTool> GetTrainingProgramPopulationTools()
         {
-            // Helper local to build JSON schemas
-            JsonObject BuildSchema(object schema) => (JsonObject)schema;
-
             var tools = new List<ChatTool>
             {
                 // Create Training Program
@@ -330,6 +327,20 @@ namespace Model.Tools
                             ["required"] = new JsonArray()
                         }
                     )
+                ),
+
+                // Get Equipments
+                ChatTool.CreateFunctionTool(
+                    functionName: "GetEquipmentsAsync",
+                    functionDescription: "Retrieve all equipment associated with a user.",
+                    functionParameters: BinaryData.FromObjectAsJson(
+                        new JsonObject
+                        {
+                            ["type"] = "object",
+                            ["properties"] = new JsonObject(),
+                            ["required"] = new JsonArray()
+                        }
+                    )
                 )
             };
 
@@ -369,31 +380,7 @@ namespace Model.Tools
                     )
                 ),
 
-                // Create Training Session
-                ChatTool.CreateFunctionTool(
-                    functionName: "CreateTrainingSessionAsync",
-                    functionDescription: "Create a new training session within a program.",
-                    functionParameters: BinaryData.FromObjectAsJson(
-                        new JsonObject
-                        {
-                            ["type"] = "object",
-                            ["properties"] = new JsonObject
-                            {
-                                ["request"] = new JsonObject
-                                {
-                                    ["type"] = "object",
-                                    ["properties"] = new JsonObject
-                                    {
-                                        ["trainingProgramID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
-                                        ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" }
-                                    },
-                                    ["required"] = new JsonArray("trainingProgramID", "date")
-                                }
-                            },
-                            ["required"] = new JsonArray("request")
-                        }
-                    )
-                ),
+              
 
                 // Update Training Session
                 ChatTool.CreateFunctionTool(
@@ -568,6 +555,62 @@ namespace Model.Tools
                         "required": []
                     }
                     """)
+                ),
+
+                // Get all equipments
+                ChatTool.CreateFunctionTool(
+                    functionName: "GetEquipmentsAsync",
+                    functionDescription: "Retrieve all equipment associated with a user.",
+                    functionParameters: BinaryData.FromString("""
+                    {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                    """)
+                ),
+
+                // Get Daily Oura Info
+                ChatTool.CreateFunctionTool(
+                    functionName: "GetDailyOuraInfoAsync",
+                    functionDescription: "Fetch daily Oura info for a specific date.",
+                    functionParameters: BinaryData.FromObjectAsJson(
+                        new JsonObject
+                        {
+                            ["type"] = "object",
+                            ["properties"] = new JsonObject
+                            {
+                                ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" }
+                            },
+                            ["required"] = new JsonArray("date")
+                        }
+                    )
+                ),
+
+                // Get Daily Oura Infos
+                ChatTool.CreateFunctionTool(
+                    functionName: "GetDailyOuraInfosAsync",
+                    functionDescription: "Fetch daily Oura infos for a date range.",
+                    functionParameters: BinaryData.FromObjectAsJson(
+                        new JsonObject
+                        {
+                            ["type"] = "object",
+                            ["properties"] = new JsonObject
+                            {
+                                ["dateRange"] = new JsonObject
+                                {
+                                    ["type"] = "object",
+                                    ["properties"] = new JsonObject
+                                    {
+                                        ["startDate"] = new JsonObject { ["type"] = "string", ["format"] = "date" },
+                                        ["endDate"] = new JsonObject { ["type"] = "string", ["format"] = "date" }
+                                    },
+                                    ["required"] = new JsonArray("startDate", "endDate")
+                                }
+                            },
+                            ["required"] = new JsonArray("dateRange")
+                        }
+                    )
                 )
             };
 

@@ -3044,15 +3044,20 @@ export class ModifyTrainingSessionEndpointClient {
     }
 
     /**
+     * @param body (optional) 
      * @return OK
      */
-    modifyTrainingSession(): Promise<string> {
+    modifyTrainingSession(body: GetTrainingSessionRequest | undefined): Promise<string> {
         let url_ = this.baseUrl + "/api/ai/modify-training-session";
         url_ = url_.replace(/[?&]$/, "");
 
+        const content_ = JSON.stringify(body);
+
         let options_: RequestInit = {
+            body: content_,
             method: "POST",
             headers: {
+                "Content-Type": "application/json",
                 "Accept": "text/plain"
             }
         };
@@ -5039,6 +5044,46 @@ export interface IForgotPasswordRequest {
     email: string | undefined;
 }
 
+export class GetTrainingSessionRequest implements IGetTrainingSessionRequest {
+    trainingSessionID!: string;
+    trainingProgramID!: string;
+
+    constructor(data?: IGetTrainingSessionRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.trainingProgramID = _data["trainingProgramID"];
+        }
+    }
+
+    static fromJS(data: any): GetTrainingSessionRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetTrainingSessionRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["trainingProgramID"] = this.trainingProgramID;
+        return data;
+    }
+}
+
+export interface IGetTrainingSessionRequest {
+    trainingSessionID: string;
+    trainingProgramID: string;
+}
+
 export class HttpValidationProblemDetails implements IHttpValidationProblemDetails {
     type?: string | undefined;
     title?: string | undefined;
@@ -6972,6 +7017,7 @@ export enum TrainingSessionStatus {
     _1 = 1,
     _2 = 2,
     _3 = 3,
+    _4 = 4,
 }
 
 export class TwoFactorRequest implements ITwoFactorRequest {

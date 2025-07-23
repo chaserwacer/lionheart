@@ -39,4 +39,5 @@ public enum TrainingSessionStatus
     InProgress,
     Completed,
     Skipped,
+    AIModified
 }

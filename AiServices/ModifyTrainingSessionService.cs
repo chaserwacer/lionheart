@@ -6,13 +6,17 @@ using OpenAI.Chat;
 using Model.Tools;
 using OpenAI;
 using Ardalis.Result;
+using lionheart.Model.Prompt;
+using lionheart.Model.DTOs;
+using System.Text.Json;
+using k8s.KubeConfigModels;
 
 
 namespace lionheart.Services.AI
 {
     public interface IModifyTrainingSessionService
     {
-        Task<Result<string>> ModifySessionAsync(IdentityUser user);
+        Task<Result<string>> ModifySessionAsync(IdentityUser user, GetTrainingSessionRequest request);
     }
     /// <summary>
     /// This service is responsible for modifying training sessions.
@@ -22,34 +26,72 @@ namespace lionheart.Services.AI
     {
         private readonly ChatClient _chatClient;
         private readonly IToolCallExecutor _toolCallExecutor;
+        private readonly ITrainingProgramService _trainingProgramService;
+        private readonly ITrainingSessionService _trainingSessionService;
+        private readonly IMovementService _movementService;
+        private readonly ISetEntryService _setEntryService;
+        private readonly IOuraService _ouraService;
+        private readonly IActivityService _activityService;
+        private readonly IWellnessService _wellnessService;
 
-        public ModifyTrainingSessionService(IConfiguration config, IToolCallExecutor toolCallExecutor)
+        public ModifyTrainingSessionService(
+            IConfiguration config,
+            IToolCallExecutor toolCallExecutor,
+            ITrainingProgramService trainingProgramService,
+            ITrainingSessionService trainingSessionService,
+            IMovementService movementService,
+            ISetEntryService setEntryService,
+            IOuraService ouraService,
+            IActivityService activityService,
+            IWellnessService wellnessService
+        )
         {
-            // Instantiate a new client in each service instance so different models can be used for different tasks 
+
+            // TODO: Declare chat client in program.cs as (transient??) and inject it here 
             _chatClient = new(model: "gpt-4o", apiKey: config["OpenAI:ApiKey"]);
             _toolCallExecutor = toolCallExecutor;
+            _trainingProgramService = trainingProgramService;
+            _trainingSessionService = trainingSessionService;
+            _movementService = movementService;
+            _setEntryService = setEntryService;
+            _ouraService = ouraService;
+            _activityService = activityService;
+            _wellnessService = wellnessService;
         }
 
 
-        public async Task<Result<string>> ModifySessionAsync(IdentityUser user)
+        public async Task<Result<string>> ModifySessionAsync(IdentityUser user, GetTrainingSessionRequest request)
         {
-            /*
-            PROMPTT BUILDING is currently stubbed out - 
-              just to test the logic of the ai, the prompt asks the ai to use the tools to retrieve available movement bases.
-
-              in the future this should obviously be replaced with the actual fucntionality for modifying a training session based on users performance and wearables. 
+            // Duplicate the training session, modify the duplicate.
+            var duplicateSessionResponse = await _trainingSessionService.DuplicateTrainingSessionAsync(user, request.TrainingSessionID);
+            if (!duplicateSessionResponse.IsSuccess)
+            {
+                return Result<string>.Error(duplicateSessionResponse.Errors.ToString());
+            }
+            var sessionToModify = duplicateSessionResponse.Value;
             
-            **/
+            var dateRange = new DateRangeRequest
+            {
+                StartDate = DateOnly.FromDateTime(DateTime.Now - TimeSpan.FromDays(7)),
+                EndDate = DateOnly.FromDateTime(DateTime.Now)
+            };
 
 
-
-
-            var prompt = $@"You are an AI assistant tasked with retreiving available movemement bases";
-
+            var systemPrompt = PromptBuilder.ModifyTrainingSessionSys().Build();
+            var userPrompt = "Modify the provided training session based on the user’s recent data and preferences. Use the provided tools for all modifications. Do not alter the session directly.";
+            var userContextResult = await BuildUserContext(user, dateRange);
+            if (!userContextResult.IsSuccess)
+            {
+                return Result<string>.Error(userContextResult.Errors.ToString());
+            }
             var tools = OpenAiToolRetriever.GetModifyTrainingSessionTools();
             List<ChatMessage> messages = new List<ChatMessage>
             {
-                new UserChatMessage(prompt)
+                new SystemChatMessage(systemPrompt),
+                new UserChatMessage(userPrompt),
+                new UserChatMessage("User context: " + JsonSerializer.Serialize(userContextResult.Value)),
+                new UserChatMessage("Training Program ID: " + sessionToModify.TrainingProgramID),
+                new UserChatMessage("Session to modify[use trainingSessionID as UID]: " + JsonSerializer.Serialize(sessionToModify)),
             };
             ChatCompletionOptions options = new()
             {
@@ -60,7 +102,12 @@ namespace lionheart.Services.AI
                 options.Tools.Add(tool);
             }
 
+            return await RunAiLoopAsync(messages, options, user);
+            
+        }
 
+        private async Task<Result<string>> RunAiLoopAsync(List<ChatMessage> messages, ChatCompletionOptions options, IdentityUser user)
+        {
             bool requiresAction;
 
             do
@@ -115,7 +162,48 @@ namespace lionheart.Services.AI
             return Result<string>.Error("Unexpected completion finish reason");
         }
 
+        private async Task<Result<string>> BuildUserContext(IdentityUser user, DateRangeRequest dateRange)
+        {
+            // Fetch activities
+            var activitiesResult = await _activityService.GetActivitiesAsync(user, dateRange);
+            if (!activitiesResult.IsSuccess)
+            {
+                return Result<string>.Error("Failed to fetch activities: " + string.Join(", ", activitiesResult.Errors));
+            }
 
+            // Fetch Oura data
+            var ouraDataResult = await _ouraService.GetDailyOuraInfosAsync(user, dateRange);
+            if (!ouraDataResult.IsSuccess)
+            {
+                return Result<string>.Error("Failed to fetch Oura data: " + string.Join(", ", ouraDataResult.Errors));
+            }
+
+            // Fetch wellness states
+            var wellnessStatesResult = await _wellnessService.GetWellnessStatesAsync(user, dateRange);
+            if (!wellnessStatesResult.IsSuccess)
+            {
+                return Result<string>.Error("Failed to fetch wellness states: " + string.Join(", ", wellnessStatesResult.Errors));
+            }
+
+            // Fetch training sessions
+            var trainingSessionsResult = await _trainingSessionService.GetTrainingSessionsByDateRangeAsync(user, dateRange);
+            if (!trainingSessionsResult.IsSuccess)
+            {
+                return Result<string>.Error("Failed to fetch training sessions: " + string.Join(", ", trainingSessionsResult.Errors));
+            }
+
+            // Aggregate data into a single object
+            var userContext = new
+            {
+                Activities = activitiesResult.Value,
+                OuraData = ouraDataResult.Value,
+                WellnessStates = wellnessStatesResult.Value,
+                TrainingSessions = trainingSessionsResult.Value
+            };
+
+            // Serialize the aggregated data into a JSON string
+            return Result<string>.Success(JsonSerializer.Serialize(userContext));
+        }
 
 
 

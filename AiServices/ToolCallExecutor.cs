@@ -19,6 +19,7 @@ public class ToolCallExecutor : IToolCallExecutor
     private readonly IMovementService _movementService;
     private readonly ISetEntryService _setEntryService;
     private readonly ITrainingProgramService _trainingProgramService;
+    private readonly IOuraService _ouraService;
 
     private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
     {
@@ -29,12 +30,14 @@ public class ToolCallExecutor : IToolCallExecutor
         ITrainingSessionService trainingSessionService,
         IMovementService movementService,
         ISetEntryService setEntryService,
-        ITrainingProgramService trainingProgramService)
+        ITrainingProgramService trainingProgramService,
+        IOuraService ouraService)
     {
         _trainingSessionService = trainingSessionService;
         _movementService = movementService;
         _setEntryService = setEntryService;
         _trainingProgramService = trainingProgramService;
+        _ouraService = ouraService;
          _jsonOptions.Converters.Add(new DateOnlyJsonConverter("yyyy-MM-dd"));
     }
     /// <summary>
@@ -165,6 +168,25 @@ public class ToolCallExecutor : IToolCallExecutor
                 case "GetMovementBasesAsync":
                     {
                         var result = await _movementService.GetMovementBasesAsync(user);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "GetDailyOuraInfoAsync":
+                    {
+                        var dateStr = args?["date"]?.GetValue<string>();
+                        if (string.IsNullOrWhiteSpace(dateStr) || !DateOnly.TryParse(dateStr, out var date))
+                            return Result<ToolChatMessage>.Error("Missing or invalid arguments for GetDailyOuraInfoAsync.");
+
+                        var result = await _ouraService.GetDailyOuraInfoAsync(user, date);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+
+                case "GetDailyOuraInfosAsync":
+                    {
+                        var dateRange = args?["dateRange"]?.Deserialize<DateRangeRequest>();
+                        if ( dateRange == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid arguments for GetDailyOuraInfosAsync.");
+
+                        var result = await _ouraService.GetDailyOuraInfosAsync(user, dateRange);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 default:

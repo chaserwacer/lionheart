@@ -456,6 +456,26 @@ namespace lionheart.Services
             return dtos;
         }
 
+        public async Task<Result<List<DailyOuraDataDTO>>> GetDailyOuraInfosAsync(IdentityUser user, DateRangeRequest dateRange)
+        {
+            var userGuid = Guid.Parse(user.Id);
+
+            var dailyOuraInfos = await _context.DailyOuraInfos
+                .Where(x => x.UserID == userGuid && x.Date >= dateRange.StartDate && x.Date <= dateRange.EndDate)
+                .Select(dto => new DailyOuraDataDTO
+                {
+                    ObjectID = dto.ObjectID,
+                    Date = dto.Date,
+                    ResilienceData = dto.ResilienceData,
+                    ReadinessData = dto.ReadinessData,
+                    SleepData = dto.SleepData,
+                    ActivityData = dto.ActivityData,
+                })
+                .ToListAsync();
+
+            return Result<List<DailyOuraDataDTO>>.Success(dailyOuraInfos);
+        }
+
     }
     /// <summary>
     /// DTO object used for determining when the Oura Data for a given date was synced. Used to determine if a day's info needs to be updated or if it is final.

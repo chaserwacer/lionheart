@@ -74,65 +74,65 @@ namespace lionheart.Services.AI
             return await RunAiLoopAsync(messages, OpenAiToolRetriever.GetTrainingProgramPopulationTools(), user);
         }
 
-private async Task<Result<string>> RunAiLoopAsync(
-    List<ChatMessage> messages,
-    List<ChatTool> tools,
-    IdentityUser user)
-{
-    var options = new ChatCompletionOptions();
-    tools.ForEach(tool => options.Tools.Add(tool));
-
-    var toolResponses = new List<string>();
-    string? assistantNarration = null;
-
-    bool requiresAction;
-    do
-    {
-        requiresAction = false;
-        ChatCompletion response = await _chatClient.CompleteChatAsync(messages, options);
-        ChatCompletion completion = response;
-
-        switch (completion.FinishReason)
+        private async Task<Result<string>> RunAiLoopAsync(
+            List<ChatMessage> messages,
+            List<ChatTool> tools,
+            IdentityUser user)
         {
-            case ChatFinishReason.Stop:
-                messages.Add(new AssistantChatMessage(completion));
-                assistantNarration = completion.Content[0].Text;
-                break;
+            var options = new ChatCompletionOptions();
+            tools.ForEach(tool => options.Tools.Add(tool));
 
-            case ChatFinishReason.ToolCalls:
-                messages.Add(new AssistantChatMessage(completion));
-                var toolResults = await _toolCallExecutor.ExecuteToolCallsAsync(completion.ToolCalls, user);
+            var toolResponses = new List<string>();
+            string? assistantNarration = null;
 
-                foreach (var tr in toolResults)
+            bool requiresAction;
+            do
+            {
+                requiresAction = false;
+                ChatCompletion response = await _chatClient.CompleteChatAsync(messages, options);
+                ChatCompletion completion = response;
+
+                switch (completion.FinishReason)
                 {
-                    if (!tr.IsSuccess)
-                        return Result<string>.Error(string.Join("; ", tr.Errors));
+                    case ChatFinishReason.Stop:
+                        messages.Add(new AssistantChatMessage(completion));
+                        assistantNarration = completion.Content[0].Text;
+                        break;
 
-                    messages.Add(tr.Value);
-                    toolResponses.Add(tr.Value.Content[0].Text);
+                    case ChatFinishReason.ToolCalls:
+                        messages.Add(new AssistantChatMessage(completion));
+                        var toolResults = await _toolCallExecutor.ExecuteToolCallsAsync(completion.ToolCalls, user);
+
+                        foreach (var tr in toolResults)
+                        {
+                            if (!tr.IsSuccess)
+                                return Result<string>.Error(string.Join("; ", tr.Errors));
+
+                            messages.Add(tr.Value);
+                            toolResponses.Add(tr.Value.Content[0].Text);
+                        }
+
+                        requiresAction = true;
+                        break;
+
+                    default:
+                        return Result<string>.Error($"AI response failed: {completion.FinishReason}");
                 }
+            } while (requiresAction);
 
-                requiresAction = true;
-                break;
+            // ✅ Wrap both into a single JSON string
+            var payload = new
+            {
+                toolResponses,
+                summary = assistantNarration
+            };
 
-            default:
-                return Result<string>.Error($"AI response failed: {completion.FinishReason}");
+            string json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+            {
+                WriteIndented = false
+            });
+
+            return Result<string>.Success(json);
         }
-    } while (requiresAction);
-
-    // ✅ Wrap both into a single JSON string
-    var payload = new
-    {
-        toolResponses,
-        summary = assistantNarration
-    };
-
-    string json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
-    {
-        WriteIndented = false
-    });
-
-    return Result<string>.Success(json);
-}
     }
 }

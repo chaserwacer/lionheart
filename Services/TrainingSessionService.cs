@@ -366,4 +366,28 @@ public class TrainingSessionService : ITrainingSessionService
         }
         return Result<TrainingSessionDTO>.Success(session);
     }
+
+    [McpServerTool, Description("Fetch training sessions within a date range.")]
+    public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsByDateRangeAsync(IdentityUser user, DateRangeRequest dateRange)
+    {
+        var userGuid = Guid.Parse(user.Id);
+
+        var sessions = await _context.TrainingSessions
+            .Where(ts => ts.TrainingProgram!.UserID == userGuid && ts.Date >= dateRange.StartDate && ts.Date <= dateRange.EndDate)
+            .Include(ts => ts.TrainingProgram)
+            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
+                .ThenInclude(m => m.Sets)
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.MovementBase)
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.MovementModifier.Equipment)
+            .OrderBy(ts => ts.Date)
+            .ThenBy(ts => ts.CreationTime)
+            .ToListAsync();
+
+    
+
+        var sessionDTOs = sessions.Select((session, index) => session.ToDTO(index + 1)).ToList();
+        return Result<List<TrainingSessionDTO>>.Success(sessionDTOs);
+    }
 }

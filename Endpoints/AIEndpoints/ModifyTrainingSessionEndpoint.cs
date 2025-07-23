@@ -5,12 +5,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
+using lionheart.Model.DTOs;
 
 namespace lionheart.Endpoints.AIEndpoints
 {
     [ValidateModel]
     public class ModifyTrainingSessionEndpoint : EndpointBaseAsync
-        .WithoutRequest
+        .WithRequest<GetTrainingSessionRequest>
         .WithActionResult<string>
     {
         private readonly IModifyTrainingSessionService _modifyTrainingSessionService;
@@ -28,13 +29,13 @@ namespace lionheart.Endpoints.AIEndpoints
         [EndpointDescription("Modify a training session using AI based on user and Oura data.")]
         [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public override async Task<ActionResult<string>> HandleAsync(CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<string>> HandleAsync(GetTrainingSessionRequest request,CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null)
                 return Unauthorized("User is not recognized or no longer exists.");
 
-            var result = await _modifyTrainingSessionService.ModifySessionAsync(user);
+            var result = await _modifyTrainingSessionService.ModifySessionAsync(user, request);
             return this.ToActionResult(result);
         }
     }
