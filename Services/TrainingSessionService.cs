@@ -392,10 +392,16 @@ public class TrainingSessionService : ITrainingSessionService
 
         foreach (var movement in originalSession.Movements)
         {
+            var equipment = await _context.Equipments.FindAsync(movement.MovementModifier.EquipmentID);
+            if (equipment is null)
+            {
+                return Result<TrainingSessionDTO>.Error($"EquipmentID {movement.MovementModifier.EquipmentID} not found.");
+            }
             var newMovementModififer = new MovementModifier()
             {
                 Name = movement.MovementModifier.Name,
-                Equipment = movement.MovementModifier.Equipment,
+                EquipmentID = movement.MovementModifier.EquipmentID,
+                Equipment = equipment,
                 Duration = movement.MovementModifier.Duration,
             };
             var movementBase = await _context.MovementBases.FindAsync(movement.MovementBaseID);
