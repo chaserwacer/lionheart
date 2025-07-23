@@ -89,15 +89,10 @@ public class GetTrainingSessionsRequest
 
 public class CreateTrainingSessionRequest
 {
-
-
     [Required]
     public required DateOnly Date { get; init; }
     [Required]
     public Guid TrainingProgramID { get; init; }
-
-
-
 }
 
 

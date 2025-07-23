@@ -6191,6 +6191,7 @@ export interface IRegisterRequest {
 }
 
 export class RemainingWeeksGenerationDTO implements IRemainingWeeksGenerationDTO {
+    trainingProgramID!: string;
 
     constructor(data?: IRemainingWeeksGenerationDTO) {
         if (data) {
@@ -6202,6 +6203,9 @@ export class RemainingWeeksGenerationDTO implements IRemainingWeeksGenerationDTO
     }
 
     init(_data?: any) {
+        if (_data) {
+            this.trainingProgramID = _data["trainingProgramID"];
+        }
     }
 
     static fromJS(data: any): RemainingWeeksGenerationDTO {
@@ -6213,11 +6217,13 @@ export class RemainingWeeksGenerationDTO implements IRemainingWeeksGenerationDTO
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
+        data["trainingProgramID"] = this.trainingProgramID;
         return data;
     }
 }
 
 export interface IRemainingWeeksGenerationDTO {
+    trainingProgramID: string;
 }
 
 export class ResendConfirmationEmailRequest implements IResendConfirmationEmailRequest {

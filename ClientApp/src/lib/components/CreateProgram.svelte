@@ -370,8 +370,10 @@ async function generateNextWeek() {
           {:else if aiStep === 2}
             <button on:click={generateFirstWeek} class="btn btn-primary">Generate Week 1</button>
 
-          {:else if aiStep >= 3}
+          {:else if aiStep === 3}
             <button on:click={generateNextWeek} class="btn btn-primary">Generate Next Week</button>
+         {:else if aiStep >= 4}
+            <button on:click={close} class="btn btn-primary">Complete</button>
           {/if}
         </div>
       </div>

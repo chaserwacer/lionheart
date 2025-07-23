@@ -33,7 +33,8 @@ namespace lionheart.Model.DTOs
 
     public class RemainingWeeksGenerationDTO
     {
-        // No inputs now; included for structural parity and potential expansion
+        [Required]
+        public string TrainingProgramID { get; init; } = string.Empty;
     }
     public class CreateSetEntryInlineDTO
     {

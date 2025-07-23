@@ -30,7 +30,7 @@ namespace Model.Tools
                     ["required"] = new JsonArray("equipmentID", "name")
                 }
             },
-            ["required"] = new JsonArray("name", "equipmentID", "equipment") // duration is optional
+            ["required"] = new JsonArray("name", "equipmentID", "duration", "equipment") // duration is optional
         };
 
 
