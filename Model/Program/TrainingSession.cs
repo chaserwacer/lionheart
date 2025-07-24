@@ -19,6 +19,7 @@ public class TrainingSession
     public TrainingSessionStatus Status { get; set; } = TrainingSessionStatus.Planned;
     public List<Movement> Movements { get; set; } = [];
     public DateTime CreationTime { get; set; }
+    public string Notes { get; set; } = string.Empty;
 
     public TrainingSessionDTO ToDTO(double sessionNumber)
     {
@@ -29,7 +30,8 @@ public class TrainingSession
             Status = Status,
             Movements = Movements.Select(m => m.ToDTO()).ToList(),
             SessionNumber = sessionNumber,
-            TrainingProgramID = TrainingProgramID
+            TrainingProgramID = TrainingProgramID,
+            Notes = Notes
         };
     }
 }

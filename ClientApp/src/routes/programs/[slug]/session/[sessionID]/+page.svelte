@@ -59,6 +59,7 @@
     if (statusInt === TrainingSessionStatus._1) return "In Progress";
     if (statusInt === TrainingSessionStatus._2) return "Complete";
     if (statusInt === TrainingSessionStatus._3) return "Skipped";
+    if (statusInt === TrainingSessionStatus._4) return "AI Modified";
   }
 
   onMount(async () => {
@@ -102,7 +103,9 @@
   async function updateMovement(movement: MovementDTO) {
     movement.movementBaseID = movement.movementBase.movementBaseID!;
     editingMovementBaseName = false;
-    const equipment = equipmentOptions.find(e => e.equipmentID === movement.movementModifier.equipmentID);
+    const equipment = equipmentOptions.find(
+      (e) => e.equipmentID === movement.movementModifier.equipmentID,
+    );
 
     const request = UpdateMovementRequest.fromJS({
       movementID: movement.movementID,
@@ -164,6 +167,7 @@
         trainingProgramID: session.trainingProgramID,
         date: updatedDate,
         status: session.status,
+        notes: session.notes,
       }),
     );
     editingDate = false;
@@ -199,10 +203,8 @@
     const movementBaseClient = new GetMovementBasesEndpointClient(baseUrl);
     const equipmentClient = new GetEquipmentsEndpointClient(baseUrl);
 
- 
     modifiers = await movementBaseClient.getAll2();
     equipmentOptions = await equipmentClient.getAll();
-    
   }
 
   const labelMap = {
@@ -222,6 +224,8 @@
   let tempStatus: TrainingSessionStatus;
   let editingDate = false;
   let tempDate: string; // Use string for input[type="date"] binding
+  let editingNotes = false;
+  let tempNotes: string;
 
   async function deleteSetEntry(set: SetEntryDTO) {
     var client = new DeleteSetEntryEndpointClient(baseUrl);
@@ -373,6 +377,7 @@
                   <option value={TrainingSessionStatus._1}>In Progress</option>
                   <option value={TrainingSessionStatus._2}>Complete</option>
                   <option value={TrainingSessionStatus._3}>Skipped</option>
+                  <option value={TrainingSessionStatus._4}>AI Modified</option>
                 </select>
               {:else}
                 {getSessionStatus(session.status)}
@@ -414,6 +419,18 @@
     </div>
 
     <div class="flex flex-col gap-6 items-stretch w-full">
+      <div>
+        <div class="mb-1 bg-base-100 border border-base-300 rounded-xl p-5 h-64 shadow-md transition hover:shadow-lg w-full">
+          <p class="text-lg font-bold">Session Notes</p>
+          <div class="divider m-0 p-0"></div>
+          <textarea
+            rows="7"
+            class="textarea textarea-lg  text-xs resize-none w-full m-0 p-2"
+            bind:value={session.notes}
+            on:change={() => updateSession()}
+          />
+        </div>
+      </div>
       {#each session.movements
         ?.slice()
         .sort((a, b) => a.ordering - b.ordering) as movement}
@@ -469,13 +486,12 @@
                   on:change={() => updateMovement(movement)}
                   class="select select-sm select-primary m-1"
                 >
-                
                   {#each equipmentOptions as e}
-                  {#if e.equipmentID === movement.movementModifier.equipmentID}
-                    <option value={e.equipmentID} selected>{e.name}</option>
-                  {:else}
-                    <option value={e.equipmentID}>{e.name}</option>
-                  {/if}
+                    {#if e.equipmentID === movement.movementModifier.equipmentID}
+                      <option value={e.equipmentID} selected>{e.name}</option>
+                    {:else}
+                      <option value={e.equipmentID}>{e.name}</option>
+                    {/if}
                   {/each}
                 </select>
 

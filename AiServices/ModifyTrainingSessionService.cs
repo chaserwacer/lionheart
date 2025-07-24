@@ -10,6 +10,7 @@ using lionheart.Model.Prompt;
 using lionheart.Model.DTOs;
 using System.Text.Json;
 using k8s.KubeConfigModels;
+using lionheart.Model.TrainingProgram;
 
 
 namespace lionheart.Services.AI
@@ -72,8 +73,8 @@ namespace lionheart.Services.AI
             
             var dateRange = new DateRangeRequest
             {
-                StartDate = DateOnly.FromDateTime(DateTime.Now - TimeSpan.FromDays(7)),
-                EndDate = DateOnly.FromDateTime(DateTime.Now)
+                StartDate = sessionToModify.Date.AddDays(-7),
+                EndDate = sessionToModify.Date
             };
 
 
@@ -102,8 +103,34 @@ namespace lionheart.Services.AI
                 options.Tools.Add(tool);
             }
 
-            return await RunAiLoopAsync(messages, options, user);
-            
+            var response = await RunAiLoopAsync(messages, options, user);
+
+            // Validate updated session exists, update its status to AIModified
+            var getUpdatedSession = new GetTrainingSessionRequest
+            {
+                TrainingSessionID = sessionToModify.TrainingSessionID,
+                TrainingProgramID = sessionToModify.TrainingProgramID
+            };
+            var updatedSession = await _trainingSessionService.GetTrainingSessionAsync(user, getUpdatedSession);
+            if (!updatedSession.IsSuccess)
+            {
+                return Result<string>.Error("Failed to retrieve updated session: " + string.Join(", ", updatedSession.Errors));
+            }
+            var updateSessionStatusToAIModified = new UpdateTrainingSessionRequest()
+            {
+                TrainingSessionID = updatedSession.Value.TrainingSessionID,
+                TrainingProgramID = updatedSession.Value.TrainingProgramID,
+                Status = TrainingSessionStatus.AIModified,
+                Date = updatedSession.Value.Date,
+                Notes = updatedSession.Value.Notes
+            };
+            var updateResponse = await _trainingSessionService.UpdateTrainingSessionAsync(user, updateSessionStatusToAIModified);
+            if (!updateResponse.IsSuccess)
+            {
+                return Result<string>.Error("Failed to update session status to AIModified: " + string.Join(", ", updateResponse.Errors));
+            }
+            return response;
+
         }
 
         private async Task<Result<string>> RunAiLoopAsync(List<ChatMessage> messages, ChatCompletionOptions options, IdentityUser user)
@@ -136,7 +163,7 @@ namespace lionheart.Services.AI
                             // First, add the assistant message with tool calls to the conversation history.
                             messages.Add(new AssistantChatMessage(completion));
 
-                            var toolCallResults = await _toolCallExecutor.ExecuteToolCallsAsync(completion.ToolCalls, user);
+                            var toolCallResults = await _toolCallExecutor.ExecuteModifyTrainingSessionToolCallsAsync(completion.ToolCalls, user);
                             foreach (var result in toolCallResults)
                             {
                                 if (!result.IsSuccess)

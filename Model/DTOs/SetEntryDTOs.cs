@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Collections.Generic;
 using lionheart.Model.TrainingProgram;
+using System.Text.Json.Serialization;
 
 public class CreateSetEntryRequest : IValidatableObject
 {
@@ -51,30 +52,38 @@ public class CreateSetEntryRequest : IValidatableObject
 public class UpdateSetEntryRequest : IValidatableObject
 {
     [Required]
+    [JsonPropertyName("setEntryID")]
     public required Guid SetEntryID { get; init; }
     
     [Required]
+    [JsonPropertyName("recommendedReps")]
     public required int RecommendedReps { get; init; }
 
     [Required]
+    [JsonPropertyName("recommendedWeight")]
     public required double RecommendedWeight { get; init; }
 
     [Required]
+    [JsonPropertyName("recommendedRPE")]
     [Range(0, 10.0)]
     public required double RecommendedRPE { get; init; }
 
 
     [Required]
+    [JsonPropertyName("actualReps")]
     public required int ActualReps { get; init; }
 
     [Required]
+    [JsonPropertyName("actualWeight")]
     public required double ActualWeight { get; init; }
 
     [Required]
+    [JsonPropertyName("actualRPE")]
     [Range(0, 10.0)]
     public required double ActualRPE { get; init; }
     
     [Required]
+    [JsonPropertyName("movementID")]
     public required Guid MovementID { get; init; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

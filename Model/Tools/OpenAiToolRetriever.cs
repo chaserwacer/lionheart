@@ -197,7 +197,7 @@ namespace Model.Tools
                                         ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" },
                                         ["status"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("Planned", "InProgress", "Completed", "Skipped") }
                                     },
-                                    ["required"] = new JsonArray("trainingSessionID")
+                                    ["required"] = new JsonArray("trainingSessionID", "date", "status")
                                 }
                             },
                             ["required"] = new JsonArray("request")
@@ -321,7 +321,7 @@ namespace Model.Tools
                                         ["actualWeight"] = new JsonObject { ["type"] = "number" },
                                         ["actualRPE"] = new JsonObject { ["type"] = "number" }
                                     },
-                                    ["required"] = new JsonArray("movementID")
+                                    ["required"] = new JsonArray("movementID", "recommendedReps", "recommendedWeight", "recommendedRPE", "actualReps", "actualWeight", "actualRPE")
                                 }
                             },
                             ["required"] = new JsonArray("request")
@@ -352,7 +352,7 @@ namespace Model.Tools
                                         ["actualWeight"] = new JsonObject { ["type"] = "number" },
                                         ["actualRPE"] = new JsonObject { ["type"] = "number" }
                                     },
-                                    ["required"] = new JsonArray("setEntryID")
+                                    ["required"] = new JsonArray("setEntryID", "recommendedReps", "recommendedWeight", "recommendedRPE", "actualReps", "actualWeight", "actualRPE")
                                 }
                             },
                             ["required"] = new JsonArray("request")
@@ -531,7 +531,7 @@ namespace Model.Tools
                                         ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" },
                                         ["status"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("Planned", "InProgress", "Completed", "Skipped") }
                                     },
-                                    ["required"] = new JsonArray("trainingSessionID")
+                                    ["required"] = new JsonArray("trainingSessionID", "date", "status")
                                 }
                             },
                             ["required"] = new JsonArray("request")
@@ -622,9 +622,10 @@ namespace Model.Tools
                                     "recommendedRPE": { "type": "number" },
                                     "actualReps": { "type": "integer" },
                                     "actualWeight": { "type": "number" },
-                                    "actualRPE": { "type": "number" }
+                                    "actualRPE": { "type": "number" },
+                                    "weightUnit": { "type": "string", "enum": ["Kilograms", "Pounds"] }
                                 },
-                                "required": ["movementID"]
+                                "required": ["movementID", "recommendedReps", "recommendedWeight", "recommendedRPE", "actualReps", "actualWeight", "actualRPE", "weightUnit"]
                             }
                         },
                         "required": ["request"]
@@ -644,14 +645,16 @@ namespace Model.Tools
                                 "type": "object",
                                 "properties": {
                                     "setEntryID": { "type": "string", "format": "uuid" },
+                                    "movementID": { "type": "string", "format": "uuid" },
                                     "recommendedReps": { "type": "integer" },
                                     "recommendedWeight": { "type": "number" },
                                     "recommendedRPE": { "type": "number" },
                                     "actualReps": { "type": "integer" },
                                     "actualWeight": { "type": "number" },
-                                    "actualRPE": { "type": "number" }
+                                    "actualRPE": { "type": "number" },
+                                    "weightUnit": { "type": "string", "enum": ["Kilograms", "Pounds"] }
                                 },
-                                "required": ["setEntryID"]
+                                "required": ["setEntryID", "movementID", "recommendedReps", "recommendedWeight", "recommendedRPE", "actualReps", "actualWeight", "actualRPE", "weightUnit"]
                             }
                         },
                         "required": ["request"]

@@ -27,6 +27,7 @@
   import CompletedSessionViewer from "$lib/components/CompletedSessionViewer.svelte";
   import SkippedSessionViewer from "$lib/components/SkippedSessionViewer.svelte";
   import { load } from "../../+layout";
+    import AiModifiedSessionViewer from "$lib/components/AIModifiedSessionViewer.svelte";
 
   // Group sessions into weekly buckets
   function getWeekStart(d: Date) {
@@ -130,13 +131,13 @@
               {#each sessionByWeek[1] as session}
                 <div>
                   <div class="">
-                    {#if session.status === TrainingSessionStatus._1}
+                    {#if session.status === TrainingSessionStatus._1 }
                       <InProgressSessionViewer
                         {session}
                         {slug}
                         loadSessions={loadProgram}
                       />
-                    {:else if session.status === TrainingSessionStatus._0}
+                    {:else if session.status === TrainingSessionStatus._0 }
                       <PlannedSessionViewer
                         {session}
                         {slug}
@@ -148,12 +149,22 @@
                         {slug}
                         loadSessions={loadProgram}
                       />
-                    {:else}
+                    {:else if session.status === TrainingSessionStatus._4 }
+                      <AiModifiedSessionViewer
+                        {session}
+                        {slug}
+                        loadSessions={loadProgram}
+                      />
+                    {:else if session.status === TrainingSessionStatus._3}
                       <SkippedSessionViewer
                         {session}
                         {slug}
                         loadSessions={loadProgram}
                       />
+                    {:else}
+                      <div class="text-red-500">
+                        Unknown session status: {session.status}
+                      </div>
                     {/if}
                   </div>
                 </div>

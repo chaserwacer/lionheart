@@ -114,7 +114,8 @@ public class TrainingSessionService : ITrainingSessionService
             TrainingProgramID = request.TrainingProgramID,
             Status = TrainingSessionStatus.Planned,
             Date = date,
-            CreationTime = DateTime.UtcNow // <-- Set creation time
+            CreationTime = DateTime.UtcNow, // <-- Set creation time
+            Notes = string.Empty
         };
 
         _context.TrainingSessions.Add(session);
@@ -156,7 +157,8 @@ public class TrainingSessionService : ITrainingSessionService
                 TrainingProgramID = request.TrainingProgramID,
                 Date = sessionDto.Date,
                 Status = TrainingSessionStatus.Planned,
-                CreationTime = DateTime.UtcNow
+                CreationTime = DateTime.UtcNow,
+                Notes = sessionDto.Notes ?? string.Empty
             };
 
             int movementOrder = 0;
@@ -230,6 +232,7 @@ public class TrainingSessionService : ITrainingSessionService
 
         session.Date = request.Date;
         session.Status = request.Status;
+        session.Notes = request.Notes;
 
         await _context.SaveChangesAsync();
 
@@ -298,7 +301,9 @@ public class TrainingSessionService : ITrainingSessionService
             TrainingSessionID = Guid.NewGuid(),
             TrainingProgramID = trainingSessionDTO.TrainingProgramID,
             Date = trainingSessionDTO.Date,
-            Status = trainingSessionDTO.Status
+            Status = trainingSessionDTO.Status,
+            Notes = trainingSessionDTO.Notes,
+            CreationTime = DateTime.UtcNow 
         };
 
         int order = 0;
@@ -387,7 +392,8 @@ public class TrainingSessionService : ITrainingSessionService
             Date = originalSession.Date,
             Status = TrainingSessionStatus.Planned,
             Movements = new List<Movement>(),
-            CreationTime = DateTime.UtcNow 
+            CreationTime = DateTime.UtcNow,
+            Notes = originalSession.Notes 
         };
 
         foreach (var movement in originalSession.Movements)

@@ -77,6 +77,8 @@ namespace lionheart.Model.DTOs
 
         [Required]
         public required List<CreateMovementInlineDTO> Movements { get; init; }
+        
+        public string Notes { get; set; } = string.Empty;
     }
 
     public class CreateTrainingSessionWeekRequest

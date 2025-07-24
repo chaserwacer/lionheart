@@ -30,6 +30,7 @@
     if (statusInt === TrainingSessionStatus._1) return "ACTIVE";
     if (statusInt === TrainingSessionStatus._2) return "COMPLETED";
     if (statusInt === TrainingSessionStatus._3) return "SKIPPED";
+    if (statusInt === TrainingSessionStatus._4) return "AI Modified";
   }
 
   function formatSessionDate(date: string | Date) {
@@ -56,7 +57,7 @@
 
     const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
     try {
-      await deleteClient.delete5(session.trainingSessionID);
+      await deleteClient.delete6(session.trainingSessionID);
       await loadSessions(); // Reload sessions to reflect changes
     } catch {
       alert("Failed to delete session.");

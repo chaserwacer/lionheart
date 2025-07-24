@@ -461,6 +461,7 @@ namespace lionheart.Services
             var userGuid = Guid.Parse(user.Id);
 
             var dailyOuraInfos = await _context.DailyOuraInfos
+                .AsNoTracking()
                 .Where(x => x.UserID == userGuid && x.Date >= dateRange.StartDate && x.Date <= dateRange.EndDate)
                 .Select(dto => new DailyOuraDataDTO
                 {

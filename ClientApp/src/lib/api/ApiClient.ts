@@ -6891,6 +6891,7 @@ export class TrainingSession implements ITrainingSession {
     status?: TrainingSessionStatus;
     movements?: Movement[] | undefined;
     creationTime?: Date;
+    notes?: string | undefined;
 
     constructor(data?: ITrainingSession) {
         if (data) {
@@ -6914,6 +6915,7 @@ export class TrainingSession implements ITrainingSession {
                     this.movements!.push(Movement.fromJS(item));
             }
             this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+            this.notes = _data["notes"];
         }
     }
 
@@ -6937,6 +6939,7 @@ export class TrainingSession implements ITrainingSession {
                 data["movements"].push(item ? item.toJSON() : <any>undefined);
         }
         data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        data["notes"] = this.notes;
         return data;
     }
 }
@@ -6949,6 +6952,7 @@ export interface ITrainingSession {
     status?: TrainingSessionStatus;
     movements?: Movement[] | undefined;
     creationTime?: Date;
+    notes?: string | undefined;
 }
 
 export class TrainingSessionDTO implements ITrainingSessionDTO {
@@ -6958,6 +6962,7 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
     date!: Date;
     status!: TrainingSessionStatus;
     movements!: MovementDTO[];
+    notes!: string;
 
     constructor(data?: ITrainingSessionDTO) {
         if (data) {
@@ -6983,6 +6988,7 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
                 for (let item of _data["movements"])
                     this.movements!.push(MovementDTO.fromJS(item));
             }
+            this.notes = _data["notes"];
         }
     }
 
@@ -7005,6 +7011,7 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
             for (let item of this.movements)
                 data["movements"].push(item ? item.toJSON() : <any>undefined);
         }
+        data["notes"] = this.notes;
         return data;
     }
 }
@@ -7016,6 +7023,7 @@ export interface ITrainingSessionDTO {
     date: Date;
     status: TrainingSessionStatus;
     movements: MovementDTO[];
+    notes: string;
 }
 
 export enum TrainingSessionStatus {
@@ -7425,6 +7433,7 @@ export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionReque
     date!: Date;
     status!: TrainingSessionStatus;
     trainingSessionID?: string;
+    notes!: string;
 
     constructor(data?: IUpdateTrainingSessionRequest) {
         if (data) {
@@ -7441,6 +7450,7 @@ export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionReque
             this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
             this.status = _data["status"];
             this.trainingSessionID = _data["trainingSessionID"];
+            this.notes = _data["notes"];
         }
     }
 
@@ -7457,6 +7467,7 @@ export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionReque
         data["date"] = this.date ? formatDate(this.date) : <any>undefined;
         data["status"] = this.status;
         data["trainingSessionID"] = this.trainingSessionID;
+        data["notes"] = this.notes;
         return data;
     }
 }
@@ -7466,6 +7477,7 @@ export interface IUpdateTrainingSessionRequest {
     date: Date;
     status: TrainingSessionStatus;
     trainingSessionID?: string;
+    notes: string;
 }
 
 export enum WeightUnit {

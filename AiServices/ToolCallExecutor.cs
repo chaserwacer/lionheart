@@ -25,37 +25,37 @@ public class ToolCallExecutor : IToolCallExecutor
     private readonly IOuraService _ouraService;
     private readonly JsonSerializerOptions _jsonOptions;
 
-// Static base options shared across clones
-private static readonly JsonSerializerOptions _baseJsonOptions = new JsonSerializerOptions
-{
-    PropertyNameCaseInsensitive = true,
-    Converters = { new JsonStringEnumConverter() } // ✅ Ensures enums like "Kilograms" deserialize
-};
+    // Static base options shared across clones
+    private static readonly JsonSerializerOptions _baseJsonOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() } // ✅ Ensures enums like "Kilograms" deserialize
+    };
 
-// Clone and add DateOnly converter
-private static JsonSerializerOptions CloneWithDateOnlySupport(JsonSerializerOptions original)
-{
-    var clone = new JsonSerializerOptions(original);
-    clone.Converters.Add(new DateOnlyJsonConverter("yyyy-MM-dd"));
-    return clone;
-}
+    // Clone and add DateOnly converter
+    private static JsonSerializerOptions CloneWithDateOnlySupport(JsonSerializerOptions original)
+    {
+        var clone = new JsonSerializerOptions(original);
+        clone.Converters.Add(new DateOnlyJsonConverter("yyyy-MM-dd"));
+        return clone;
+    }
 
-public ToolCallExecutor(
-    ITrainingSessionService trainingSessionService,
-    IMovementService movementService,
-    ISetEntryService setEntryService,
-    ITrainingProgramService trainingProgramService,
-        IOuraService ouraService)
-{
-    _trainingSessionService = trainingSessionService;
-    _movementService = movementService;
-    _setEntryService = setEntryService;
-    _trainingProgramService = trainingProgramService;
+    public ToolCallExecutor(
+        ITrainingSessionService trainingSessionService,
+        IMovementService movementService,
+        ISetEntryService setEntryService,
+        ITrainingProgramService trainingProgramService,
+            IOuraService ouraService)
+    {
+        _trainingSessionService = trainingSessionService;
+        _movementService = movementService;
+        _setEntryService = setEntryService;
+        _trainingProgramService = trainingProgramService;
         _ouraService = ouraService;
 
-    // ✅ Clone base options with DateOnly support
-    _jsonOptions = CloneWithDateOnlySupport(_baseJsonOptions);
-}
+        // ✅ Clone base options with DateOnly support
+        _jsonOptions = CloneWithDateOnlySupport(_baseJsonOptions);
+    }
 
     /// <summary>
     /// Intakes a list of tool calls and executes them sequentially.
@@ -70,6 +70,29 @@ public ToolCallExecutor(
         foreach (var toolCall in toolCalls)
         {
             var result = await ExecuteToolAsync(toolCall, user);
+            if (!result.IsSuccess)
+            {
+                // If any tool call errors, return a single error result list
+                return new List<Result<ToolChatMessage>> { result };
+            }
+            results.Add(result);
+        }
+        return results;
+    }
+
+    /// <summary>
+    /// Intakes a list of tool calls and executes them sequentially.
+    /// If any tool call fails, it returns a single error result.
+    /// </summary>
+    /// <param name="toolCalls"></param>
+    /// <param name="user"></param>
+    /// <returns></returns>
+    public async Task<List<Result<ToolChatMessage>>> ExecuteModifyTrainingSessionToolCallsAsync(IReadOnlyList<ChatToolCall> toolCalls, IdentityUser user)
+    {
+        var results = new List<Result<ToolChatMessage>>();
+        foreach (var toolCall in toolCalls)
+        {
+            var result = await ExecuteModifyTrainingSessionTools(toolCall, user);
             if (!result.IsSuccess)
             {
                 // If any tool call errors, return a single error result list
@@ -98,14 +121,14 @@ public ToolCallExecutor(
             switch (fn)
             {
                 case "CreateTrainingSessionWeekAsync":
-                {
-                    var request = args?["request"]?.Deserialize<CreateTrainingSessionWeekRequest>(_jsonOptions);
-                    if (request == null)
-                        return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSessionWeekAsync.");
-                    
-                    var result = await _trainingSessionService.CreateTrainingSessionWeekAsync(user, request);
-                    return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
-                }
+                    {
+                        var request = args?["request"]?.Deserialize<CreateTrainingSessionWeekRequest>(_jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSessionWeekAsync.");
+
+                        var result = await _trainingSessionService.CreateTrainingSessionWeekAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
 
                 case "GetTrainingSessionAsync":
                     {
@@ -123,7 +146,7 @@ public ToolCallExecutor(
                         var result = await _trainingSessionService.CreateTrainingSessionAsync(user, request);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
-                    case "CreateTrainingProgramAsync":
+                case "CreateTrainingProgramAsync":
                     {
                         // Deserialize the *root* JSON object…
                         var request = args?.Deserialize<CreateTrainingProgramRequest>(_jsonOptions);
@@ -210,7 +233,198 @@ public ToolCallExecutor(
                 case "GetDailyOuraInfosAsync":
                     {
                         var dateRange = args?["dateRange"]?.Deserialize<DateRangeRequest>();
-                        if ( dateRange == null)
+                        if (dateRange == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid arguments for GetDailyOuraInfosAsync.");
+
+                        var result = await _ouraService.GetDailyOuraInfosAsync(user, dateRange);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "GetEquipmentsAsync":
+                    {
+                        var result = await _movementService.GetEquipmentsAsync(user);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                default:
+                    return Result<ToolChatMessage>.Error($"Tool function '{fn}' is not implemented.");
+            }
+        }
+        catch (Exception ex)
+        {
+            return Result<ToolChatMessage>.Error($"Exception in {fn}: {ex.Message}");
+        }
+    }
+    /// <summary>
+    /// Private helper method.
+    /// Executes a single tool call based on its function name and arguments.
+    /// Used for <see cref="ModifyTrainingSessionService"/>
+    /// </summary>
+    /// <param name="toolCall"></param>
+    /// <param name="user"></param>
+    /// <returns></returns>
+    private async Task<Result<ToolChatMessage>> ExecuteModifyTrainingSessionTools(ChatToolCall toolCall, IdentityUser user)
+    {
+        var fn = toolCall.FunctionName;
+        var args = toolCall.FunctionArguments.ToString();
+
+        try
+        {
+            switch (fn)
+            {
+                case "CreateTrainingSessionWeekAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        if (requestNode == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSessionWeekAsync.");
+
+                        var request = JsonSerializer.Deserialize<CreateTrainingSessionWeekRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSessionWeekAsync.");
+
+                        var result = await _trainingSessionService.CreateTrainingSessionWeekAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+
+                case "GetTrainingSessionAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        if (requestNode == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for GetTrainingSession.");
+
+                        var request = JsonSerializer.Deserialize<GetTrainingSessionRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for GetTrainingSession.");
+
+                        var result = await _trainingSessionService.GetTrainingSessionAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "CreateTrainingSessionAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        if (requestNode == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSession.");
+
+                        var request = JsonSerializer.Deserialize<CreateTrainingSessionRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSession.");
+
+                        var result = await _trainingSessionService.CreateTrainingSessionAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "CreateTrainingProgramAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        if (requestNode == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingProgramAsync.");
+
+                        var request = JsonSerializer.Deserialize<CreateTrainingProgramRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Invalid arguments for CreateTrainingProgramAsync.");
+
+                        var result = await _trainingProgramService.CreateTrainingProgramAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+
+                case "UpdateTrainingSessionAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        if (requestNode == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateTrainingSession.");
+
+                        var request = JsonSerializer.Deserialize<UpdateTrainingSessionRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateTrainingSession.");
+
+                        var result = await _trainingSessionService.UpdateTrainingSessionAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "CreateMovementAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        if (requestNode == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateMovement.");
+
+                        var request = JsonSerializer.Deserialize<CreateMovementRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateMovement.");
+
+                        var result = await _movementService.CreateMovementAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "UpdateMovementAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        if (requestNode == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateMovement.");
+
+                        var request = JsonSerializer.Deserialize<UpdateMovementRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateMovement.");
+
+                        var result = await _movementService.UpdateMovementAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "DeleteMovementAsync":
+                    {
+                        var idStr = JsonSerializer.Deserialize<JsonObject>(args)?["movementId"]?.GetValue<string>();
+                        if (string.IsNullOrWhiteSpace(idStr) || !Guid.TryParse(idStr, out var id))
+                            return Result<ToolChatMessage>.Error("Missing or invalid movementId.");
+
+                        var result = await _movementService.DeleteMovementAsync(user, id);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "CreateSetEntryAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        if (requestNode == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateSetEntry.");
+
+                        var request = JsonSerializer.Deserialize<CreateSetEntryRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateSetEntry.");
+
+                        var result = await _setEntryService.CreateSetEntryAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "UpdateSetEntryAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        if (requestNode == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateSetEntry.");
+
+                        var request = JsonSerializer.Deserialize<UpdateSetEntryRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateSetEntry.");
+
+                        var result = await _setEntryService.UpdateSetEntryAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "DeleteSetEntryAsync":
+                    {
+                        var idStr = JsonSerializer.Deserialize<JsonObject>(args)?["setEntryId"]?.GetValue<string>();
+                        if (string.IsNullOrWhiteSpace(idStr) || !Guid.TryParse(idStr, out var id))
+                            return Result<ToolChatMessage>.Error("Missing or invalid setEntryId.");
+                        var result = await _setEntryService.DeleteSetEntryAsync(user, id);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "GetMovementBasesAsync":
+                    {
+                        var result = await _movementService.GetMovementBasesAsync(user);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "GetDailyOuraInfoAsync":
+                    {
+                        var dateStr = JsonSerializer.Deserialize<JsonObject>(args)?["date"]?.GetValue<string>();
+                        if (string.IsNullOrWhiteSpace(dateStr) || !DateOnly.TryParse(dateStr, out var date))
+                            return Result<ToolChatMessage>.Error("Missing or invalid arguments for GetDailyOuraInfoAsync.");
+
+                        var result = await _ouraService.GetDailyOuraInfoAsync(user, date);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+
+                case "GetDailyOuraInfosAsync":
+                    {
+                        var dateRange = JsonSerializer.Deserialize<DateRangeRequest>(args);
+                        if (dateRange == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid arguments for GetDailyOuraInfosAsync.");
 
                         var result = await _ouraService.GetDailyOuraInfosAsync(user, dateRange);

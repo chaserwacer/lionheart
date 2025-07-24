@@ -109,7 +109,8 @@ public class UpdateTrainingSessionRequest
     public required TrainingSessionStatus Status { get; init; }
     [Key]
     public Guid TrainingSessionID { get; init; }
-
+     [Required(AllowEmptyStrings = true)]
+    public required string Notes { get; set; } = string.Empty;
 
 }
 
@@ -122,6 +123,8 @@ public class TrainingSessionDTO
     public required TrainingSessionStatus Status { get; set; }
     [Required]
     public required List<MovementDTO> Movements { get; set; } = [];
+    [Required]
+    public required string Notes { get; set; } = string.Empty;
 }
 
 public class GenerateTrainingSessionsRequest

@@ -30,6 +30,7 @@
     if (statusInt === TrainingSessionStatus._1) return "ACTIVE";
     if (statusInt === TrainingSessionStatus._2) return "COMPLETED";
     if (statusInt === TrainingSessionStatus._3) return "SKIPPED";
+    if (statusInt === TrainingSessionStatus._4) return "AI Modified";
   }
 
   function formatSessionDate(date: string | Date) {
