@@ -67,23 +67,47 @@ public ToolCallExecutor(
     public async Task<List<Result<ToolChatMessage>>> ExecuteToolCallsAsync(IReadOnlyList<ChatToolCall> toolCalls, IdentityUser user)
     {
         var results = new List<Result<ToolChatMessage>>();
-        foreach (var toolCall in toolCalls)
+
+        // ✅ List of tool functions safe to call in parallel
+        var parallelizable = new[] { "GetMovementBasesAsync", "GetEquipmentsAsync" };
+
+        var parallelCalls = toolCalls.Where(tc => parallelizable.Contains(tc.FunctionName)).ToList();
+        var sequentialCalls = toolCalls.Where(tc => !parallelizable.Contains(tc.FunctionName)).ToList();
+
+        // ✅ Run info tools in parallel
+        var parallelTasks = parallelCalls.Select(async tc =>
         {
-            var result = await ExecuteToolAsync(toolCall, user);
+            var result = await ExecuteToolAsync(tc, user);
+            return (tc, result);
+        });
+
+        var parallelResults = await Task.WhenAll(parallelTasks);
+
+        foreach (var (tc, result) in parallelResults)
+        {
             if (!result.IsSuccess)
-            {
-                // If any tool call errors, return a single error result list
                 return new List<Result<ToolChatMessage>> { result };
-            }
+
             results.Add(result);
         }
+
+        // ✅ Run creation tools in order
+        foreach (var tc in sequentialCalls)
+        {
+            var result = await ExecuteToolAsync(tc, user);
+            if (!result.IsSuccess)
+                return new List<Result<ToolChatMessage>> { result };
+
+            results.Add(result);
+        }
+
         return results;
     }
 
-    /// <summary>
-    /// Private helper method.
-    /// Executes a single tool call based on its function name and arguments.
-    /// It handles various tool functions related to training sessions, movements, and set entries.
+/// <summary>
+/// Private helper method.
+/// Executes a single tool call based on its function name and arguments.
+/// It handles various tool functions related to training sessions, movements, and set entries.
     /// </summary>
     /// <param name="toolCall"></param>
     /// <param name="user"></param>
