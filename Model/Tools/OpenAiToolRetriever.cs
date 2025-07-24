@@ -65,7 +65,29 @@ namespace Model.Tools
                         }
                     )
                 ),
-
+                ChatTool.CreateFunctionTool(
+                    functionName: "GetTrainingProgramAsync",
+                    functionDescription: "Get a specific training program by ID (for the current user).",
+                    functionParameters: BinaryData.FromObjectAsJson(
+                        new JsonObject
+                        {
+                            ["type"] = "object",
+                            ["properties"] = new JsonObject
+                            {
+                                ["request"] = new JsonObject
+                                {
+                                    ["type"] = "object",
+                                    ["properties"] = new JsonObject
+                                    {
+                                        ["TrainingProgramID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" }
+                                    },
+                                    ["required"] = new JsonArray("TrainingProgramID")
+                                }
+                            },
+                            ["required"] = new JsonArray("request")
+                        }
+                    )
+                ),
                 // Update Training Program
                 ChatTool.CreateFunctionTool(
                     functionName: "UpdateTrainingProgramAsync",

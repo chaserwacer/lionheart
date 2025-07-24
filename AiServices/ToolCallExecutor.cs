@@ -69,7 +69,7 @@ public ToolCallExecutor(
         var results = new List<Result<ToolChatMessage>>();
 
         // ✅ List of tool functions safe to call in parallel
-        var parallelizable = new[] { "GetMovementBasesAsync", "GetEquipmentsAsync" };
+        var parallelizable = new[] { "GetMovementBasesAsync", "GetEquipmentsAsync", "GetTrainingProgramAsync" };
 
         var parallelCalls = toolCalls.Where(tc => parallelizable.Contains(tc.FunctionName)).ToList();
         var sequentialCalls = toolCalls.Where(tc => !parallelizable.Contains(tc.FunctionName)).ToList();
@@ -137,6 +137,14 @@ public ToolCallExecutor(
                         if (request == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for GetTrainingSession.");
                         var result = await _trainingSessionService.GetTrainingSessionAsync(user, request);
+                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                    }
+                case "GetTrainingProgramAsync":
+                    {
+                        var request = args?["request"]?.Deserialize<GetTrainingProgramRequest>();
+                        if (request == null)
+                            return Result<ToolChatMessage>.Error("Missing or invalid request for GetTrainingProgram.");
+                        var result = await _trainingProgramService.GetTrainingProgramAsync(user, request.TrainingProgramID);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 case "CreateTrainingSessionAsync":
