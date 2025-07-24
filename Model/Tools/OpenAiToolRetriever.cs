@@ -240,10 +240,20 @@ namespace Model.Tools
                                         ["trainingSessionID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
                                         ["movementBaseID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
                                         ["notes"] = new JsonObject { ["type"] = "string" },
-                                        ["movementModifier"] = new JsonObject { ["type"] = "object" },
+                                        ["movementModifier"] = new JsonObject
+                                        {
+                                            ["type"] = "object",
+                                            ["properties"] = new JsonObject
+                                            {
+                                                ["name"] = new JsonObject { ["type"] = "string" },
+                                                ["equipmentID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                                                ["duration"] = new JsonObject { ["type"] = "integer", ["nullable"] = true }
+                                            },
+                                            ["required"] = new JsonArray("name", "equipmentID")
+                                        },
                                         ["weightUnit"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("Kilograms", "Pounds") }
                                     },
-                                    ["required"] = new JsonArray("trainingSessionID", "movementBaseID")
+                                    ["required"] = new JsonArray("trainingSessionID", "movementBaseID", "notes", "movementModifier", "weightUnit")
                                 }
                             },
                             ["required"] = new JsonArray("request")
@@ -269,11 +279,21 @@ namespace Model.Tools
                                         ["movementID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
                                         ["movementBaseID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
                                         ["notes"] = new JsonObject { ["type"] = "string" },
-                                        ["movementModifier"] = new JsonObject { ["type"] = "object" },
+                                        ["movementModifier"] = new JsonObject
+                                        {
+                                            ["type"] = "object",
+                                            ["properties"] = new JsonObject
+                                            {
+                                                ["name"] = new JsonObject { ["type"] = "string" },
+                                                ["equipmentID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                                                ["duration"] = new JsonObject { ["type"] = "integer", ["nullable"] = true }
+                                            },
+                                            ["required"] = new JsonArray("name", "equipmentID")
+                                        },
                                         ["isCompleted"] = new JsonObject { ["type"] = "boolean" },
                                         ["weightUnit"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("Kilograms", "Pounds") }
                                     },
-                                    ["required"] = new JsonArray("movementID")
+                                    ["required"] = new JsonArray("movementID", "movementBaseID", "notes", "movementModifier", "isCompleted", "weightUnit")
                                 }
                             },
                             ["required"] = new JsonArray("request")
@@ -529,9 +549,10 @@ namespace Model.Tools
                                     {
                                         ["trainingSessionID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
                                         ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" },
-                                        ["status"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("Planned", "InProgress", "Completed", "Skipped") }
+                                        ["status"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("Planned", "InProgress", "Completed", "Skipped", "AIModified") },
+                                        ["notes"] = new JsonObject { ["type"] = "string", ["default"] = "" }
                                     },
-                                    ["required"] = new JsonArray("trainingSessionID", "date", "status")
+                                    ["required"] = new JsonArray("trainingSessionID", "date", "status", "notes")
                                 }
                             },
                             ["required"] = new JsonArray("request")
@@ -553,10 +574,26 @@ namespace Model.Tools
                                     "trainingSessionID": { "type": "string", "format": "uuid" },
                                     "movementBaseID": { "type": "string", "format": "uuid" },
                                     "notes": { "type": "string" },
-                                    "movementModifier": { "type": "object" },
+                                    "movementModifier": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": { "type": "string" },
+                                            "equipmentID": { "type": "string", "format": "uuid" },
+                                            "equipment": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "equipmentID": { "type": "string", "format": "uuid" },
+                                                    "name": { "type": "string" }
+                                                },
+                                                "required": ["equipmentID", "name"]
+                                            },
+                                            "duration": { "type": "integer", "nullable": true }
+                                        },
+                                        "required": ["name", "equipmentID", "equipment", "duration"]
+                                    },
                                     "weightUnit": { "type": "string", "enum": ["Kilograms", "Pounds"] }
                                 },
-                                "required": ["trainingSessionID", "movementBaseID"]
+                                "required": ["trainingSessionID", "movementBaseID", "notes", "movementModifier", "weightUnit"]
                             }
                         },
                         "required": ["request"]
@@ -578,11 +615,28 @@ namespace Model.Tools
                                     "movementID": { "type": "string", "format": "uuid" },
                                     "movementBaseID": { "type": "string", "format": "uuid" },
                                     "notes": { "type": "string" },
-                                    "movementModifier": { "type": "object" },
+                                    "movementModifier": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": { "type": "string" },
+                                            "equipmentID": { "type": "string", "format": "uuid" },
+                                            "equipment": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "equipmentID": { "type": "string", "format": "uuid" },
+                                                    "name": { "type": "string" }
+                                                },
+                                                "required": ["equipmentID", "name"]
+                                            },
+                                            "duration": { "type": "integer", "nullable": true }
+                                        },
+                                        "required": ["name", "equipmentID", "equipment", "duration"]
+                                    },
                                     "isCompleted": { "type": "boolean" },
+                                    "trainingSessionID": { "type": "string", "format": "uuid" },
                                     "weightUnit": { "type": "string", "enum": ["Kilograms", "Pounds"] }
                                 },
-                                "required": ["movementID"]
+                                "required": ["movementID", "movementBaseID", "notes", "movementModifier", "isCompleted", "trainingSessionID", "weightUnit"]
                             }
                         },
                         "required": ["request"]
