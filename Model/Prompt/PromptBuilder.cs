@@ -75,7 +75,7 @@ public static PromptBuilder FirstWeek(string programId) =>
             $"You are creating the **first full week** of structured training sessions for trainingProgramID: {programId}.",
             "",
             "Start by calling these **information tools in parallel**:",
-            "- `GetTrainingProgramAsync` with the provided program ID",
+            $"- `GetTrainingProgramAsync` with the provided program ID {programId}",
             "- `GetMovementBasesAsync` to see valid movementBaseID options",
             "- `GetEquipmentsAsync` to retrieve valid equipment options",
             "✅ You MUST wait for the tool call results before using movementBaseIDs or equipmentIDs in any creation requests.",

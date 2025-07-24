@@ -41,6 +41,11 @@
   let favoriteMovements = "";
 
   let trainingProgramID = '';
+  let preferencesSubmitted = false;
+  let week1Generated = false;
+  let remainingWeeksGenerated = false;
+
+
 
   onMount(() => {
     if (browser) {
@@ -153,6 +158,7 @@ async function sendPreferences() {
     aiStep = 1;
   } finally {
     isAiLoading = false;
+    preferencesSubmitted = true;
   }
 }
 
@@ -172,6 +178,7 @@ async function generateFirstWeek() {
     aiStep = 2;
   } finally {
     isAiLoading = false;
+    week1Generated = true;
   }
 }
 
@@ -191,6 +198,7 @@ async function generateNextWeek() {
     aiStep -= 1;
   } finally {
     isAiLoading = false;
+    remainingWeeksGenerated = true;
   }
 }
 
@@ -346,10 +354,8 @@ async function generateNextWeek() {
             <span>Generating with AI...</span>
           </div>
         {:else if aiResponse}
-          <div
-            class="mt-4 bg-base-100 p-3 rounded border border-base-300 max-h-48 overflow-auto whitespace-pre-wrap text-sm"
-          >
-            {aiResponse}
+          <div class="mt-4 bg-base-100 p-3 rounded border border-base-300 max-h-96 overflow-auto text-sm">
+            <pre>{JSON.stringify(typeof aiResponse === 'string' ? JSON.parse(aiResponse) : aiResponse, null, 2)}</pre>
           </div>
         {/if}
       </div>
@@ -365,13 +371,17 @@ async function generateNextWeek() {
             <button on:click={createWithAi} class="btn btn-primary">Create with AI</button>
 
           {:else if aiStep === 1}
-            <button on:click={sendPreferences} class="btn btn-primary">Submit Preferences</button>
-
+            <button on:click={sendPreferences} disabled={preferencesSubmitted || isAiLoading} class="btn btn-primary">
+              Submit Preferences
+            </button>
           {:else if aiStep === 2}
-            <button on:click={generateFirstWeek} class="btn btn-primary">Generate Week 1</button>
-
+            <button on:click={generateFirstWeek} disabled={!preferencesSubmitted || week1Generated || isAiLoading} class="btn btn-primary">
+              Generate Week 1
+            </button>
           {:else if aiStep === 3}
-            <button on:click={generateNextWeek} class="btn btn-primary">Generate Next Week</button>
+            <button on:click={generateNextWeek} disabled={!week1Generated || remainingWeeksGenerated || isAiLoading} class="btn btn-primary">
+              Continue Weeks
+            </button>
          {:else if aiStep >= 4}
             <button on:click={close} class="btn btn-primary">Complete</button>
           {/if}

@@ -144,3 +144,8 @@ public class GetTrainingSessionRequest
     [Required]
     public required Guid TrainingProgramID { get; init; }
 }
+    public class GetTrainingProgramRequest
+    {
+        [Required]
+        public required Guid TrainingProgramID { get; init; }
+    }
