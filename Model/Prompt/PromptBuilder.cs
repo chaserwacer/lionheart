@@ -60,6 +60,13 @@ namespace lionheart.Model.Prompt
                     $"- Favorite movements: {dto.FavoriteMovements}");
             }
 
+            if (!string.IsNullOrWhiteSpace(dto.UserGoals))
+            {
+                builder.AddSection("User Goals",
+                    $"The user provided the following high-level notes about their needs:",
+                    $"{dto.UserGoals}");
+            }
+
             builder.AddSection("Instruction",
                 "Respond with a short summary (as text) confirming that you’ve noted these preferences and are ready to begin generating sessions when instructed.",
                 "Keep in mind: sessions will later be generated to follow a powerlifting split structure.",
@@ -69,63 +76,66 @@ namespace lionheart.Model.Prompt
             return builder;
         }
 
-public static PromptBuilder FirstWeek(string programId) =>
-    new PromptBuilder()
-        .AddSection("Phase 2: Build First Week of Training Sessions",
-            $"You are creating the **first full week** of structured training sessions for trainingProgramID: {programId}.",
-            "",
-            "Start by calling these **information tools in parallel**:",
-            $"- `GetTrainingProgramAsync` with the provided program ID {programId}",
-            "- `GetMovementBasesAsync` to see valid movementBaseID options",
-            "- `GetEquipmentsAsync` to retrieve valid equipment options",
-            "✅ You MUST wait for the tool call results before using movementBaseIDs or equipmentIDs in any creation requests.",
-            "✅ Use only the UUIDs returned by GetMovementBasesAsync when assigning movementBaseID values.",
-            "",
-            "Once you have the necessary information, create all sessions by calling `CreateTrainingSessionWeekAsync(request)`.",
-            "You will submit a single request object with a `trainingProgramID` and a `sessions` array.",
-            "Each session in the array must include 3–5 fully populated `movements`. Do not skip or delay movement creation.",
-            "",
-            "Your request object must follow this structure:",
-            "",
-            "- trainingProgramID: UUID (provided above)",
-            "- sessions: array of session objects, each with:",
-            "  • date: string (YYYY-MM-DD) within the program’s start and end date",
-            "  • sessionNumber: integer (sequential, starting from 1)",
-            "  • movements: array of 3–5 full movement objects",
-            "",
-            "Each movement object must include:",
-            "- movementBaseID: UUID from GetMovementBasesAsync",
-            "- movementModifier: object with:",
-            "    • name: optional string (e.g. 'Paused', 'Tempo')",
-            "    • equipmentID: UUID from GetEquipmentsAsync",
-            "    • equipment: full object from GetEquipmentsAsync (must match equipmentID)",
-            "    • duration: optional integer (e.g. 2 for 2s pause)",
-            "- notes: optional string cue or rationale",
-            "- weightUnit: must be either 'Kilograms' or 'Pounds'",
-            "- sets: array of 2–5 set objects, each with:",
-            "  • recommendedReps: integer",
-            "  • recommendedWeight: number (in kg or lb)",
-            "  • recommendedRPE: number (e.g. 8.0)"
-        )
-        .AddSection("Programming Guidelines",
-            "- Start each session with a main lift (Squat, Bench Press, or Deadlift)",
-            "- Each main lift must begin with a 'top set' (higher RPE by 0.5, usually 1–3 reps)",
-            "- Follow the top set with 2–4 'backdown sets' (same movement, lower RPE)",
-            "- Some sessions may include multiple main lifts",
-            "- Add 2–4 accessories that support the main lift(s)",
-            "- Vary your selection using GetMovementBasesAsync results",
-            "- Use proper equipmentIDs via GetEquipmentsAsync for each movement",
-            "- Follow user preferences from the previous step (lift focus, split, etc.)",
-            "- Avoid overloading the same muscles on consecutive days"
-        )
-        .AddSection("Tool Call Rules",
-            "✅ First, call `GetTrainingProgramAsync`, `GetMovementBasesAsync`, and `GetEquipmentsAsync` — these can be called in parallel.",
-            "✅ Then call `CreateTrainingSessionWeekAsync(request)` with all sessions and movements included.",
-            "✅ Ensure all UUIDs (trainingProgramID, movementBaseIDs, equipmentIDs) are valid.",
-            "❌ Do NOT submit tool calls with empty `movements` arrays.",
-            "❌ Do NOT split session creation from movement population.",
-            "❌ Do NOT call `CreateTrainingSessionWeekAsync` before retrieving equipment and movement data."
-        );
+
+        public static PromptBuilder FirstWeek(string programId) =>
+            new PromptBuilder()
+                .AddSection("Phase 2: Build First Week of Training Sessions",
+                    $"You are creating the **first full week** of structured training sessions for trainingProgramID: {programId}.",
+                    "",
+                    "Start by calling these **information tools in parallel**:",
+                    $"- `GetTrainingProgramAsync` with the provided program ID {programId}",
+                    "- `GetMovementBasesAsync` to see valid movementBaseID options",
+                    "- `GetEquipmentsAsync` to retrieve valid equipment options",
+                    "✅ You MUST wait for the tool call results before using movementBaseIDs or equipmentIDs in any creation requests.",
+                    "✅ Use only the UUIDs returned by GetMovementBasesAsync when assigning movementBaseID values.",
+                    "",
+                    "Once you have the necessary information, create all sessions by calling `CreateTrainingSessionWeekAsync(request)`.",
+                    "You will submit a single request object with a `trainingProgramID` and a `sessions` array.",
+                    "Each session in the array must include 3–5 fully populated `movements`. Do not skip or delay movement creation.",
+                    "",
+                    "Your request object must follow this structure:",
+                    "",
+                    "- trainingProgramID: UUID (provided above)",
+                    "- sessions: array of session objects, each with:",
+                    "  • date: string (YYYY-MM-DD) within the program’s start and end date",
+                    "  • sessionNumber: integer (sequential, starting from 1)",
+                    "  • movements: array of 3–5 full movement objects",
+                    "",
+                    "Each movement object must include:",
+                    "- movementBaseID: UUID from GetMovementBasesAsync",
+                    "- movementModifier: object with:",
+                    "    • name: optional string (e.g. 'Paused', 'Tempo')",
+                    "    • equipmentID: UUID from GetEquipmentsAsync",
+                    "    • equipment: full object from GetEquipmentsAsync (must match equipmentID)",
+                    "    • duration: optional integer (e.g. 2 for 2s pause)",
+                    "- notes: optional string cue or rationale",
+                    "- weightUnit: must be either 'Kilograms' or 'Pounds'",
+                    "- sets: array of 2–5 set objects, each with:",
+                    "  • recommendedReps: integer",
+                    "  • recommendedWeight: number (in kg or lb)",
+                    "  • recommendedRPE: number (e.g. 8.0)"
+                )
+                .AddSection("Programming Guidelines",
+                    "- Start each session with a main lift (Squat, Bench Press, or Deadlift)",
+                    "- Each main lift must begin with a 'top set' (higher RPE by 0.5, usually 1–3 reps)",
+                    "- Follow the top set with 2–4 'backdown sets' (same movement, lower RPE)",
+                    "- Some sessions may include multiple main lifts",
+                    "- Add 2–4 accessories that support the main lift(s)",
+                    "- Vary your selection using GetMovementBasesAsync results",
+                    "- Use proper equipmentIDs via GetEquipmentsAsync for each movement",
+                    "- Follow user preferences from the previous step (lift focus, split, etc.)",
+                    "- Avoid overloading the same muscles on consecutive days"
+                )
+                .AddSection("Tool Call Rules",
+                    "✅ First, call `GetTrainingProgramAsync`, `GetMovementBasesAsync`, and `GetEquipmentsAsync` — these can be called in parallel.",
+                    "✅ Then call `CreateTrainingSessionWeekAsync(request)` with all sessions and movements included.",
+                    "✅ Ensure all UUIDs (trainingProgramID, movementBaseIDs, equipmentIDs) are valid.",
+                    "❌ Do NOT submit tool calls with empty `movements` arrays.",
+                    "❌ Do NOT split session creation from movement population.",
+                    "❌ Do NOT call `CreateTrainingSessionWeekAsync` before retrieving equipment and movement data."
+                );
+        
+        
 
 
 
@@ -169,6 +179,7 @@ public static PromptBuilder FirstWeek(string programId) =>
             "❌ Do NOT repeat exact movement sets from previous weeks.",
             "❌ Do NOT use weekends for training unless they were used in Week 1.",
             "❌ Do NOT split movement population from session creation.");
+            
 
 
 

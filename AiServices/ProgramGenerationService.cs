@@ -45,9 +45,13 @@ namespace lionheart.Services.AI
                 return new List<ChatMessage>
                 {
                     new SystemChatMessage(
-                    "You are a .NET assistant.  When the user asks to create a training program, " +
-                    "you MUST call the functions required using tools with the proper arguments object, " +
-                    "and you must NOT output any raw JSON or text unless asked to explain what you are doing."
+                        "You are a .NET assistant. When the user asks to create a training program, " +
+                        "you MUST call the functions required using tools with the proper arguments object, " +
+                        "and you must NOT output any raw JSON or text unless asked to explain what you are doing.\n" +
+                        "You MUST follow user preferences exactly (e.g., exact lift frequencies).\n" +
+                        "You MUST apply top-set + backoff logic for all main lifts.\n" +
+                        "You MUST assign accessory RPEs between 8–9 unless explicitly instructed otherwise.\n" +
+                        "You MUST consider and incorporate user-provided goals."
                     )
                 };
             });
@@ -120,7 +124,6 @@ namespace lionheart.Services.AI
                 }
             } while (requiresAction);
 
-            // ✅ Wrap both into a single JSON string
             var payload = new
             {
                 toolResponses,
@@ -130,6 +133,12 @@ namespace lionheart.Services.AI
             string json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
             {
                 WriteIndented = false
+            });
+
+            var cacheKey = $"{ConversationCacheKeyPrefix}{user.Id}";
+            _cache.Set(cacheKey, messages, new MemoryCacheEntryOptions
+            {
+                SlidingExpiration = TimeSpan.FromMinutes(30)
             });
 
             return Result<string>.Success(json);
