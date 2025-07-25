@@ -133,13 +133,13 @@
 
       <!-- Considerations Section -->
       <div class="flex flex-col h-full w-1/2 pl-1 ">
-        <h3 class="font-semibold text-sm mb-1 ">Considerations</h3>
+        <h3 class="font-semibold text-sm mb-1 ">Notes</h3>
  
         <div
           class="text-xs text-base-content/80 italic w-full break-words overflow-hidden "
           style="max-height: 100%;"
         >
-          {getConsideration(session)}
+          {session.notes}
         </div>
       </div>
     </div>
