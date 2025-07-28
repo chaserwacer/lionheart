@@ -23,6 +23,8 @@ namespace lionheart.Model.DTOs
         public int DeadliftDays { get; init; }
 
         public string FavoriteMovements { get; init; } = string.Empty;
+        public string? UserGoals { get; set; }
+
     }
 
     public class FirstWeekGenerationDTO

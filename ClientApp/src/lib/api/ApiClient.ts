@@ -6037,6 +6037,7 @@ export class ProgramPreferencesDTO implements IProgramPreferencesDTO {
     benchDays?: number;
     deadliftDays?: number;
     favoriteMovements?: string | undefined;
+    userGoals?: string | undefined;
 
     constructor(data?: IProgramPreferencesDTO) {
         if (data) {
@@ -6055,6 +6056,7 @@ export class ProgramPreferencesDTO implements IProgramPreferencesDTO {
             this.benchDays = _data["benchDays"];
             this.deadliftDays = _data["deadliftDays"];
             this.favoriteMovements = _data["favoriteMovements"];
+            this.userGoals = _data["userGoals"];
         }
     }
 
@@ -6073,6 +6075,7 @@ export class ProgramPreferencesDTO implements IProgramPreferencesDTO {
         data["benchDays"] = this.benchDays;
         data["deadliftDays"] = this.deadliftDays;
         data["favoriteMovements"] = this.favoriteMovements;
+        data["userGoals"] = this.userGoals;
         return data;
     }
 }
@@ -6084,6 +6087,7 @@ export interface IProgramPreferencesDTO {
     benchDays?: number;
     deadliftDays?: number;
     favoriteMovements?: string | undefined;
+    userGoals?: string | undefined;
 }
 
 export class ReadinessData implements IReadinessData {

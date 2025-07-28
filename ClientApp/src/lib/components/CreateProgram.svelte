@@ -44,6 +44,7 @@
   let preferencesSubmitted = false;
   let week1Generated = false;
   let remainingWeeksGenerated = false;
+  let userGoals = '';
 
 
 
@@ -148,7 +149,8 @@ async function sendPreferences() {
       squatDays,
       benchDays,
       deadliftDays,
-      favoriteMovements
+      favoriteMovements,
+      userGoals
     });
   await prefClient.preferences(prefDto);
     aiStep = 2; // move to week 1 generation button
@@ -332,6 +334,17 @@ async function generateNextWeek() {
             placeholder="Comma-separated list"
             class="input input-bordered w-full"
           />
+        </div>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Describe your training goals or needs</span>
+          </label>
+          <textarea
+            bind:value={userGoals}
+            placeholder="e.g. I've been powerlifting 5 years and struggle with bench off the chest..."
+            class="textarea textarea-bordered w-full"
+            rows="3"
+          ></textarea>
         </div>
       </div>
       {/if}
