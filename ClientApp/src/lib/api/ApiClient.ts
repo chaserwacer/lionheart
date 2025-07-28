@@ -3047,7 +3047,7 @@ export class ModifyTrainingSessionEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    modifyTrainingSession(body: GetTrainingSessionRequest | undefined): Promise<string> {
+    modifyTrainingSession(body: GetTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/ai/modify-training-session";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3067,15 +3067,14 @@ export class ModifyTrainingSessionEndpointClient {
         });
     }
 
-    protected processModifyTrainingSession(response: Response): Promise<string> {
+    protected processModifyTrainingSession(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
             return response.text().then((_responseText) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-                result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+            result200 = TrainingSessionDTO.fromJS(resultData200);
             return result200;
             });
         } else if (status === 401) {
@@ -3090,7 +3089,7 @@ export class ModifyTrainingSessionEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<string>(null as any);
+        return Promise.resolve<TrainingSessionDTO>(null as any);
     }
 }
 
