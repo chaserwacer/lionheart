@@ -13,11 +13,17 @@ using System.Text.Json;
 using NJsonSchema;
 using Microsoft.AspNetCore.Identity;
 
+/// <summary>
+/// Helper class for generating OpenAI chat tool definitions. 
+/// </summary>
 public static class ChatToolHelper
 {
     /// <summary>
-    /// Create a single ChatTool from a given method. Returns Failure instead of throwing.
+    /// Creates a chat tool from a <paramref name="methodName"/> defined in the <paramref name="declaringType"/>.
     /// </summary>
+    /// <param name="declaringType"></param>
+    /// <param name="methodName"></param>
+    /// <returns></returns>
     public static async Task<Result<ChatTool>> CreateFromMethodAsync(Type declaringType, string methodName)
     {
         var method = declaringType
@@ -79,7 +85,7 @@ public static class ChatToolHelper
 
 
 
-            
+
         }
 
         var tool = ChatTool.CreateFunctionTool(
@@ -93,8 +99,12 @@ public static class ChatToolHelper
     }
 
     /// <summary>
-    /// Create multiple ChatTools by explicit method names.
+    /// Creates a list of chat tools from the specified <paramref name="declaringType"/> and <paramref name="methodNames"/>.
+    /// Each method name should correspond to a method in the declaring type that can be used as a chat tool.
     /// </summary>
+    /// <param name="declaringType"></param>
+    /// <param name="methodNames"></param>
+    /// <returns></returns>
     public static async Task<Result<List<ChatTool>>> CreateToolsFromMethodsAsync(Type declaringType, IEnumerable<string> methodNames)
     {
         var tools = new List<ChatTool>();

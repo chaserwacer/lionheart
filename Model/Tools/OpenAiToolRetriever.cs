@@ -8,6 +8,9 @@ using lionheart.Services;
 
 namespace Model.Tools
 {
+    /// <summary>
+    /// Provides methods to retrieve OpenAI chat tool definitions for various operations/purposes.
+    /// </summary>
     public static class OpenAiToolRetriever
     {
 
@@ -540,7 +543,7 @@ namespace Model.Tools
             {
                 tools.AddRange(sessionTools.Value);
             }
-            
+
 
             var movementTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
                 typeof(MovementService),
@@ -574,7 +577,7 @@ namespace Model.Tools
                 tools.AddRange(setEntryTools.Value);
             }
 
-            
+
             return tools;
         }
     }
