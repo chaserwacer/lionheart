@@ -4928,9 +4928,9 @@ export interface IDateRangeRequest {
 }
 
 export class Equipment implements IEquipment {
-    equipmentID?: string;
-    name?: string | undefined;
-    userID?: string;
+    equipmentID!: string;
+    name!: string;
+    userID!: string;
 
     constructor(data?: IEquipment) {
         if (data) {
@@ -4966,9 +4966,9 @@ export class Equipment implements IEquipment {
 }
 
 export interface IEquipment {
-    equipmentID?: string;
-    name?: string | undefined;
-    userID?: string;
+    equipmentID: string;
+    name: string;
+    userID: string;
 }
 
 export class FirstWeekGenerationDTO implements IFirstWeekGenerationDTO {
@@ -5816,10 +5816,10 @@ export interface IMovementDTO {
 }
 
 export class MovementModifier implements IMovementModifier {
-    name?: string | undefined;
-    equipmentID?: string;
+    name!: string;
+    equipmentID!: string;
     equipment!: Equipment;
-    duration?: number | undefined;
+    duration!: number;
 
     constructor(data?: IMovementModifier) {
         if (data) {
@@ -5860,10 +5860,10 @@ export class MovementModifier implements IMovementModifier {
 }
 
 export interface IMovementModifier {
-    name?: string | undefined;
-    equipmentID?: string;
+    name: string;
+    equipmentID: string;
     equipment: Equipment;
-    duration?: number | undefined;
+    duration: number;
 }
 
 export class MovementOrderUpdate implements IMovementOrderUpdate {
@@ -7435,7 +7435,7 @@ export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionReque
     trainingProgramID!: string;
     date!: Date;
     status!: TrainingSessionStatus;
-    trainingSessionID?: string;
+    trainingSessionID!: string;
     notes!: string;
 
     constructor(data?: IUpdateTrainingSessionRequest) {
@@ -7479,7 +7479,7 @@ export interface IUpdateTrainingSessionRequest {
     trainingProgramID: string;
     date: Date;
     status: TrainingSessionStatus;
-    trainingSessionID?: string;
+    trainingSessionID: string;
     notes: string;
 }
 

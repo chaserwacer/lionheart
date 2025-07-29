@@ -9,6 +9,7 @@
     import { onMount } from "svelte";
     import PlannedSessionViewer from "./PlannedSessionViewer.svelte";
     import AiModifiedSessionViewer from "./AIModifiedSessionViewer.svelte";
+    import { page } from "$app/stores";
     export let loadSession: () => Promise<void>;
     const baseUrl =
         typeof window !== "undefined"
@@ -17,8 +18,7 @@
     export let show = false;
     export let session: TrainingSessionDTO;
     const dispatch = createEventDispatcher();
-    let isLoading = true;
-    let startedModifying = false;
+    let modifyingSessionRunning = false;
     let modifiedSession: TrainingSessionDTO;
 
     onMount(async () => {
@@ -32,15 +32,16 @@
     }
 
     async function ModifySession() {
-        startedModifying = true;
+        modifyingSessionRunning = true;
         const client = new ModifyTrainingSessionEndpointClient(baseUrl);
         try {
             const request = GetTrainingSessionRequest.fromJS({
                 trainingSessionID: session.trainingSessionID,
-                programID: session.trainingProgramID,
+                trainingProgramID: session.trainingProgramID,
             });
+            console.log("Requesting AI modification for session:", request);
             modifiedSession = await client.modifyTrainingSession(request);
-            isLoading = false;
+            modifyingSessionRunning = false;
         } catch (error) {
             console.error("Failed to modify session:", error);
         }
@@ -52,8 +53,8 @@
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 w-full"
     >
         <div class="bg-white rounded-lg shadow-lg p-5 w-3/4">
-            <p class="text-2xl pb-2 font-bold">Modify Training Session</p>
-            <div class="badge badge-info p-1 m-0">AI</div>
+            <p class="text-3xl pb-1 font-bold">Modify Training Session</p>
+            <div class="badge badge-info p-1 m-0">AI Feature</div>
             <div class="divider m-0 mb-5 p-0"></div>
             <div class="flex flex-col md:flex-row gap-4 justify-between">
                 <!-- Current Session -->
@@ -68,13 +69,14 @@
                 </div>
 
                 <!-- AI Modifying Section -->
-                {#if isLoading && startedModifying}
+                {#if modifyingSessionRunning}
                     <div class="flex flex-col justify-center text-center w-64">
                         <div>
                             <span class="loading loading-spinner loading-lg"
                             ></span>
                             <p class="mt-2 text-center">
                                 AI is modifying program...
+                                
                             </p>
                         </div>
                     </div>
@@ -88,18 +90,26 @@
                         </p>
                     </div>
                 {/if}
+
+                {#if modifiedSession}
                  <!-- Modified Session -->
                     <div class="flex flex-col w-64">
                         <h2 class="text-lg font-bold mb-2">Modified Session</h2>
                         <AiModifiedSessionViewer
-                            {session}
-                            slug={session.trainingProgramID}
+                            session={modifiedSession}
+                            slug={modifiedSession.trainingProgramID}
                             loadSessions={loadSession}
                             on:close={close}
                         />
                     </div>
+                    {:else}
+                    <div class="flex flex-col w-64">
+                        <h2 class="text-lg font-bold mb-2">Modified Session</h2>
+                        <p class="text-sm">Not yet generated.</p>
+                    </div>
+                    {/if}
             </div>
-            <div class="divider m-0 mt-5 p-0"></div>
+            <div class="divider m-0 mt-10 p-0"></div>
             <!-- Action Buttons -->
             <div class="mt-5 flex justify-end gap-2">
                 <button class="btn btn-success" on:click={ModifySession}

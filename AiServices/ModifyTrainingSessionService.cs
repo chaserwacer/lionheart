@@ -85,7 +85,7 @@ namespace lionheart.Services.AI
             {
                 return Result<TrainingSessionDTO>.Error(userContextResult.Errors.ToString());
             }
-            var tools = OpenAiToolRetriever.GetModifyTrainingSessionTools();
+            var tools = await OpenAiToolRetriever.GetModifyTrainingSessionTools();
             List<ChatMessage> messages = new List<ChatMessage>
             {
                 new SystemChatMessage(systemPrompt),
@@ -104,7 +104,10 @@ namespace lionheart.Services.AI
             }
 
             var response = await RunAiLoopAsync(messages, options, user);
-
+            if (!response.IsSuccess)
+            {
+                return Result<TrainingSessionDTO>.Error("AI modification failed: " + response.Errors.ToString());
+            }
             // Validate updated session exists, update its status to AIModified
             var getUpdatedSession = new GetTrainingSessionRequest
             {

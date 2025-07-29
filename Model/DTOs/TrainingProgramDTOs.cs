@@ -99,7 +99,7 @@ public class CreateTrainingSessionRequest
 public class UpdateTrainingSessionRequest
 {
     [Required]
-    public Guid TrainingProgramID { get; init; }
+    public required Guid TrainingProgramID { get; init; }
 
     [Required]
     public required DateOnly Date { get; init; }
@@ -108,7 +108,8 @@ public class UpdateTrainingSessionRequest
     [Required]
     public required TrainingSessionStatus Status { get; init; }
     [Key]
-    public Guid TrainingSessionID { get; init; }
+    [Required]
+    public required Guid TrainingSessionID { get; init; }
      [Required(AllowEmptyStrings = true)]
     public required string Notes { get; set; } = string.Empty;
 
