@@ -12,7 +12,7 @@ namespace lionheart.Endpoints.AIEndpoints
     [ValidateModel]
     public class ModifyTrainingSessionEndpoint : EndpointBaseAsync
         .WithRequest<GetTrainingSessionRequest>
-        .WithActionResult<string>
+        .WithActionResult<TrainingSessionDTO>
     {
         private readonly IModifyTrainingSessionService _modifyTrainingSessionService;
         private readonly UserManager<IdentityUser> _userManager;
@@ -27,9 +27,9 @@ namespace lionheart.Endpoints.AIEndpoints
 
         [HttpPost("api/ai/modify-training-session")]
         [EndpointDescription("Modify a training session using AI based on user and Oura data.")]
-        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(TrainingSessionDTO), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public override async Task<ActionResult<string>> HandleAsync(GetTrainingSessionRequest request,CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<TrainingSessionDTO>> HandleAsync(GetTrainingSessionRequest request,CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null)

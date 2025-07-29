@@ -3047,7 +3047,7 @@ export class ModifyTrainingSessionEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    modifyTrainingSession(body: GetTrainingSessionRequest | undefined): Promise<string> {
+    modifyTrainingSession(body: GetTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/ai/modify-training-session";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3067,15 +3067,14 @@ export class ModifyTrainingSessionEndpointClient {
         });
     }
 
-    protected processModifyTrainingSession(response: Response): Promise<string> {
+    protected processModifyTrainingSession(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
             return response.text().then((_responseText) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-                result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+            result200 = TrainingSessionDTO.fromJS(resultData200);
             return result200;
             });
         } else if (status === 401) {
@@ -3090,7 +3089,7 @@ export class ModifyTrainingSessionEndpointClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<string>(null as any);
+        return Promise.resolve<TrainingSessionDTO>(null as any);
     }
 }
 
@@ -4929,9 +4928,9 @@ export interface IDateRangeRequest {
 }
 
 export class Equipment implements IEquipment {
-    equipmentID?: string;
-    name?: string | undefined;
-    userID?: string;
+    equipmentID!: string;
+    name!: string;
+    userID!: string;
 
     constructor(data?: IEquipment) {
         if (data) {
@@ -4967,9 +4966,9 @@ export class Equipment implements IEquipment {
 }
 
 export interface IEquipment {
-    equipmentID?: string;
-    name?: string | undefined;
-    userID?: string;
+    equipmentID: string;
+    name: string;
+    userID: string;
 }
 
 export class FirstWeekGenerationDTO implements IFirstWeekGenerationDTO {
@@ -5817,10 +5816,10 @@ export interface IMovementDTO {
 }
 
 export class MovementModifier implements IMovementModifier {
-    name?: string | undefined;
-    equipmentID?: string;
+    name!: string;
+    equipmentID!: string;
     equipment!: Equipment;
-    duration?: number | undefined;
+    duration!: number;
 
     constructor(data?: IMovementModifier) {
         if (data) {
@@ -5861,10 +5860,10 @@ export class MovementModifier implements IMovementModifier {
 }
 
 export interface IMovementModifier {
-    name?: string | undefined;
-    equipmentID?: string;
+    name: string;
+    equipmentID: string;
     equipment: Equipment;
-    duration?: number | undefined;
+    duration: number;
 }
 
 export class MovementOrderUpdate implements IMovementOrderUpdate {
@@ -7436,7 +7435,7 @@ export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionReque
     trainingProgramID!: string;
     date!: Date;
     status!: TrainingSessionStatus;
-    trainingSessionID?: string;
+    trainingSessionID!: string;
     notes!: string;
 
     constructor(data?: IUpdateTrainingSessionRequest) {
@@ -7480,7 +7479,7 @@ export interface IUpdateTrainingSessionRequest {
     trainingProgramID: string;
     date: Date;
     status: TrainingSessionStatus;
-    trainingSessionID?: string;
+    trainingSessionID: string;
     notes: string;
 }
 

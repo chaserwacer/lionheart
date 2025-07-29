@@ -4,10 +4,13 @@ using OpenAI.Chat;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using lionheart.Model.DTOs;
-
+using lionheart.Services;
 
 namespace Model.Tools
 {
+    /// <summary>
+    /// Provides methods to retrieve OpenAI chat tool definitions for various operations/purposes.
+    /// </summary>
     public static class OpenAiToolRetriever
     {
 
@@ -522,306 +525,58 @@ namespace Model.Tools
         }
 
         /// <summary>
-        /// Returns all ChatTool definitions used to modify a specific training session.
+        /// Returns all ChatTool definitions used to modify a specific training session using ChatToolHelper.
         /// </summary>
-        public static List<ChatTool> GetModifyTrainingSessionTools()
+        public static async Task<List<ChatTool>> GetModifyTrainingSessionTools()
         {
-            var tools = new List<ChatTool>
+            var tools = new List<ChatTool>();
+            var sessionTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
+                typeof(TrainingSessionService),
+                new[]
+                {
+                    "GetTrainingSessionAsync",
+                    "UpdateTrainingSessionAsync",
+                }
+            );
+
+            if (sessionTools.IsSuccess)
             {
-                // Get Training Session
-                ChatTool.CreateFunctionTool(
-                    functionName: "GetTrainingSessionAsync",
-                    functionDescription: "Get a specific training session by ID.",
-                    functionParameters: BinaryData.FromObjectAsJson(
-                        new JsonObject
-                        {
-                            ["type"] = "object",
-                            ["properties"] = new JsonObject
-                            {
-                                ["request"] = new JsonObject
-                                {
-                                    ["type"] = "object",
-                                    ["properties"] = new JsonObject
-                                    {
-                                        ["trainingProgramID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
-                                        ["trainingSessionID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" }
-                                    },
-                                    ["required"] = new JsonArray("trainingProgramID", "trainingSessionID")
-                                }
-                            },
-                            ["required"] = new JsonArray("request")
-                        }
-                    )
-                ),
+                tools.AddRange(sessionTools.Value);
+            }
 
-                // Update Training Session
-                ChatTool.CreateFunctionTool(
-                    functionName: "UpdateTrainingSessionAsync",
-                    functionDescription: "Update an existing training session.",
-                    functionParameters: BinaryData.FromObjectAsJson(
-                        new JsonObject
-                        {
-                            ["type"] = "object",
-                            ["properties"] = new JsonObject
-                            {
-                                ["request"] = new JsonObject
-                                {
-                                    ["type"] = "object",
-                                    ["properties"] = new JsonObject
-                                    {
-                                        ["trainingSessionID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
-                                        ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" },
-                                        ["status"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("Planned", "InProgress", "Completed", "Skipped", "AIModified") },
-                                        ["notes"] = new JsonObject { ["type"] = "string", ["default"] = "" }
-                                    },
-                                    ["required"] = new JsonArray("trainingSessionID", "date", "status", "notes")
-                                }
-                            },
-                            ["required"] = new JsonArray("request")
-                        }
-                    )
-                ),
 
-                // Create a new movement
-                ChatTool.CreateFunctionTool(
-                    functionName: "CreateMovementAsync",
-                    functionDescription: "Create a new movement within a training session.",
-                    functionParameters: BinaryData.FromString("""
-                    {
-                        "type": "object",
-                        "properties": {
-                            "request": {
-                                "type": "object",
-                                "properties": {
-                                    "trainingSessionID": { "type": "string", "format": "uuid" },
-                                    "movementBaseID": { "type": "string", "format": "uuid" },
-                                    "notes": { "type": "string" },
-                                    "movementModifier": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": { "type": "string" },
-                                            "equipmentID": { "type": "string", "format": "uuid" },
-                                            "equipment": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "equipmentID": { "type": "string", "format": "uuid" },
-                                                    "name": { "type": "string" }
-                                                },
-                                                "required": ["equipmentID", "name"]
-                                            },
-                                            "duration": { "type": "integer", "nullable": true }
-                                        },
-                                        "required": ["name", "equipmentID", "equipment", "duration"]
-                                    },
-                                    "weightUnit": { "type": "string", "enum": ["Kilograms", "Pounds"] }
-                                },
-                                "required": ["trainingSessionID", "movementBaseID", "notes", "movementModifier", "weightUnit"]
-                            }
-                        },
-                        "required": ["request"]
-                    }
-                    """)
-                ),
+            var movementTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
+                typeof(MovementService),
+                new[]
+                {
+                    "CreateMovementAsync",
+                    "UpdateMovementAsync",
+                    "DeleteMovementAsync",
+                    "GetMovementBasesAsync",
+                    "GetEquipmentsAsync",
+                }
+            );
 
-                // Edit (update) a movement
-                ChatTool.CreateFunctionTool(
-                    functionName: "UpdateMovementAsync",
-                    functionDescription: "Update an existing movement.",
-                    functionParameters: BinaryData.FromString("""
-                    {
-                        "type": "object",
-                        "properties": {
-                            "request": {
-                                "type": "object",
-                                "properties": {
-                                    "movementID": { "type": "string", "format": "uuid" },
-                                    "movementBaseID": { "type": "string", "format": "uuid" },
-                                    "notes": { "type": "string" },
-                                    "movementModifier": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": { "type": "string" },
-                                            "equipmentID": { "type": "string", "format": "uuid" },
-                                            "equipment": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "equipmentID": { "type": "string", "format": "uuid" },
-                                                    "name": { "type": "string" }
-                                                },
-                                                "required": ["equipmentID", "name"]
-                                            },
-                                            "duration": { "type": "integer", "nullable": true }
-                                        },
-                                        "required": ["name", "equipmentID", "equipment", "duration"]
-                                    },
-                                    "isCompleted": { "type": "boolean" },
-                                    "trainingSessionID": { "type": "string", "format": "uuid" },
-                                    "weightUnit": { "type": "string", "enum": ["Kilograms", "Pounds"] }
-                                },
-                                "required": ["movementID", "movementBaseID", "notes", "movementModifier", "isCompleted", "trainingSessionID", "weightUnit"]
-                            }
-                        },
-                        "required": ["request"]
-                    }
-                    """)
-                ),
+            if (movementTools.IsSuccess)
+            {
+                tools.AddRange(movementTools.Value);
+            }
 
-                // Delete a movement
-                ChatTool.CreateFunctionTool(
-                    functionName: "DeleteMovementAsync",
-                    functionDescription: "Delete a movement by ID.",
-                    functionParameters: BinaryData.FromString("""
-                    {
-                        "type": "object",
-                        "properties": {
-                            "movementId": { "type": "string", "format": "uuid" }
-                        },
-                        "required": ["movementId"]
-                    }
-                    """)
-                ),
+            var setEntryTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
+                typeof(SetEntryService),
+                new[]
+                {
+                    "CreateSetEntryAsync",
+                    "UpdateSetEntryAsync",
+                    "DeleteSetEntryAsync"
+                }
+            );
 
-                // Create a set entry
-                ChatTool.CreateFunctionTool(
-                    functionName: "CreateSetEntryAsync",
-                    functionDescription: "Add a set entry to a movement.",
-                    functionParameters: BinaryData.FromString("""
-                    {
-                        "type": "object",
-                        "properties": {
-                            "request": {
-                                "type": "object",
-                                "properties": {
-                                    "movementID": { "type": "string", "format": "uuid" },
-                                    "recommendedReps": { "type": "integer" },
-                                    "recommendedWeight": { "type": "number" },
-                                    "recommendedRPE": { "type": "number" },
-                                    "actualReps": { "type": "integer" },
-                                    "actualWeight": { "type": "number" },
-                                    "actualRPE": { "type": "number" },
-                                    "weightUnit": { "type": "string", "enum": ["Kilograms", "Pounds"] }
-                                },
-                                "required": ["movementID", "recommendedReps", "recommendedWeight", "recommendedRPE", "actualReps", "actualWeight", "actualRPE", "weightUnit"]
-                            }
-                        },
-                        "required": ["request"]
-                    }
-                    """)
-                ),
+            if (setEntryTools.IsSuccess)
+            {
+                tools.AddRange(setEntryTools.Value);
+            }
 
-                // Edit (update) a set entry
-                ChatTool.CreateFunctionTool(
-                    functionName: "UpdateSetEntryAsync",
-                    functionDescription: "Update an existing set entry.",
-                    functionParameters: BinaryData.FromString("""
-                    {
-                        "type": "object",
-                        "properties": {
-                            "request": {
-                                "type": "object",
-                                "properties": {
-                                    "setEntryID": { "type": "string", "format": "uuid" },
-                                    "movementID": { "type": "string", "format": "uuid" },
-                                    "recommendedReps": { "type": "integer" },
-                                    "recommendedWeight": { "type": "number" },
-                                    "recommendedRPE": { "type": "number" },
-                                    "actualReps": { "type": "integer" },
-                                    "actualWeight": { "type": "number" },
-                                    "actualRPE": { "type": "number" },
-                                    "weightUnit": { "type": "string", "enum": ["Kilograms", "Pounds"] }
-                                },
-                                "required": ["setEntryID", "movementID", "recommendedReps", "recommendedWeight", "recommendedRPE", "actualReps", "actualWeight", "actualRPE", "weightUnit"]
-                            }
-                        },
-                        "required": ["request"]
-                    }
-                    """)
-                ),
-
-                // Delete a set entry
-                ChatTool.CreateFunctionTool(
-                    functionName: "DeleteSetEntryAsync",
-                    functionDescription: "Delete a set entry by ID.",
-                    functionParameters: BinaryData.FromString("""
-                    {
-                        "type": "object",
-                        "properties": {
-                            "setEntryId": { "type": "string", "format": "uuid" }
-                        },
-                        "required": ["setEntryId"]
-                    }
-                    """)
-                ),
-
-                // Get all movement bases
-                ChatTool.CreateFunctionTool(
-                    functionName: "GetMovementBasesAsync",
-                    functionDescription: "Gets all movement bases available for creating movements.",
-                    functionParameters: BinaryData.FromString("""
-                    {
-                        "type": "object",
-                        "properties": {},
-                        "required": []
-                    }
-                    """)
-                ),
-
-                // Get all equipments
-                ChatTool.CreateFunctionTool(
-                    functionName: "GetEquipmentsAsync",
-                    functionDescription: "Retrieve all equipment associated with a user.",
-                    functionParameters: BinaryData.FromString("""
-                    {
-                        "type": "object",
-                        "properties": {},
-                        "required": []
-                    }
-                    """)
-                ),
-
-                // Get Daily Oura Info
-                ChatTool.CreateFunctionTool(
-                    functionName: "GetDailyOuraInfoAsync",
-                    functionDescription: "Fetch daily Oura info for a specific date.",
-                    functionParameters: BinaryData.FromObjectAsJson(
-                        new JsonObject
-                        {
-                            ["type"] = "object",
-                            ["properties"] = new JsonObject
-                            {
-                                ["date"] = new JsonObject { ["type"] = "string", ["format"] = "date" }
-                            },
-                            ["required"] = new JsonArray("date")
-                        }
-                    )
-                ),
-
-                // Get Daily Oura Infos
-                ChatTool.CreateFunctionTool(
-                    functionName: "GetDailyOuraInfosAsync",
-                    functionDescription: "Fetch daily Oura infos for a date range.",
-                    functionParameters: BinaryData.FromObjectAsJson(
-                        new JsonObject
-                        {
-                            ["type"] = "object",
-                            ["properties"] = new JsonObject
-                            {
-                                ["dateRange"] = new JsonObject
-                                {
-                                    ["type"] = "object",
-                                    ["properties"] = new JsonObject
-                                    {
-                                        ["startDate"] = new JsonObject { ["type"] = "string", ["format"] = "date" },
-                                        ["endDate"] = new JsonObject { ["type"] = "string", ["format"] = "date" }
-                                    },
-                                    ["required"] = new JsonArray("startDate", "endDate")
-                                }
-                            },
-                            ["required"] = new JsonArray("dateRange")
-                        }
-                    )
-                )
-            };
 
             return tools;
         }

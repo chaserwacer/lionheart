@@ -304,7 +304,7 @@ public class ToolCallExecutor : IToolCallExecutor
             {
                 case "CreateTrainingSessionWeekAsync":
                     {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSessionWeekAsync.");
 
@@ -318,7 +318,7 @@ public class ToolCallExecutor : IToolCallExecutor
 
                 case "GetTrainingSessionAsync":
                     {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for GetTrainingSession.");
 
@@ -331,7 +331,7 @@ public class ToolCallExecutor : IToolCallExecutor
                     }
                 case "CreateTrainingSessionAsync":
                     {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSession.");
 
@@ -344,7 +344,7 @@ public class ToolCallExecutor : IToolCallExecutor
                     }
                 case "CreateTrainingProgramAsync":
                     {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingProgramAsync.");
 
@@ -358,7 +358,7 @@ public class ToolCallExecutor : IToolCallExecutor
 
                 case "UpdateTrainingSessionAsync":
                     {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateTrainingSession.");
 
@@ -371,7 +371,7 @@ public class ToolCallExecutor : IToolCallExecutor
                     }
                 case "CreateMovementAsync":
                     {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for CreateMovement.");
 
@@ -384,7 +384,7 @@ public class ToolCallExecutor : IToolCallExecutor
                     }
                 case "UpdateMovementAsync":
                     {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateMovement.");
 
@@ -397,16 +397,17 @@ public class ToolCallExecutor : IToolCallExecutor
                     }
                 case "DeleteMovementAsync":
                     {
-                        var idStr = JsonSerializer.Deserialize<JsonObject>(args)?["movementId"]?.GetValue<string>();
-                        if (string.IsNullOrWhiteSpace(idStr) || !Guid.TryParse(idStr, out var id))
+                        var idStr = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (idStr == null )
                             return Result<ToolChatMessage>.Error("Missing or invalid movementId.");
-
+                        if (!Guid.TryParse(idStr.ToJsonString(), out var id))
+                            return Result<ToolChatMessage>.Error("Missing or invalid movementId.");
                         var result = await _movementService.DeleteMovementAsync(user, id);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 case "CreateSetEntryAsync":
                     {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for CreateSetEntry.");
 
@@ -419,7 +420,7 @@ public class ToolCallExecutor : IToolCallExecutor
                     }
                 case "UpdateSetEntryAsync":
                     {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args)?["request"];
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
                             return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateSetEntry.");
 
@@ -432,34 +433,17 @@ public class ToolCallExecutor : IToolCallExecutor
                     }
                 case "DeleteSetEntryAsync":
                     {
-                        var idStr = JsonSerializer.Deserialize<JsonObject>(args)?["setEntryId"]?.GetValue<string>();
-                        if (string.IsNullOrWhiteSpace(idStr) || !Guid.TryParse(idStr, out var id))
+                        var idStr = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (idStr == null || !Guid.TryParse(idStr.ToJsonString(), out var id))
                             return Result<ToolChatMessage>.Error("Missing or invalid setEntryId.");
+
+                            
                         var result = await _setEntryService.DeleteSetEntryAsync(user, id);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 case "GetMovementBasesAsync":
                     {
                         var result = await _movementService.GetMovementBasesAsync(user);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
-                    }
-                case "GetDailyOuraInfoAsync":
-                    {
-                        var dateStr = JsonSerializer.Deserialize<JsonObject>(args)?["date"]?.GetValue<string>();
-                        if (string.IsNullOrWhiteSpace(dateStr) || !DateOnly.TryParse(dateStr, out var date))
-                            return Result<ToolChatMessage>.Error("Missing or invalid arguments for GetDailyOuraInfoAsync.");
-
-                        var result = await _ouraService.GetDailyOuraInfoAsync(user, date);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
-                    }
-
-                case "GetDailyOuraInfosAsync":
-                    {
-                        var dateRange = JsonSerializer.Deserialize<DateRangeRequest>(args);
-                        if (dateRange == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid arguments for GetDailyOuraInfosAsync.");
-
-                        var result = await _ouraService.GetDailyOuraInfosAsync(user, dateRange);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
                 case "GetEquipmentsAsync":

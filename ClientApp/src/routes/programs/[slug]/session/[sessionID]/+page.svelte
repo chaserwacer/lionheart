@@ -4,6 +4,7 @@
   import { goto } from "$app/navigation";
   import { slugify } from "$lib/utils/slugify";
   import CreateMovementModal from "$lib/components/CreateMovement.svelte";
+  import ModifyTrainingSessionModal from "$lib/components/ModifyTrainingSessionModal.svelte";
   import {
     GetTrainingProgramsEndpointClient,
     GetTrainingSessionEndpointClient,
@@ -39,6 +40,7 @@
   let session: TrainingSessionDTO;
   let program: TrainingProgramDTO;
   let showModal = false;
+  let showModifyModal = false;
   let selectedDate = "";
   let editingMovementBaseName = false;
 
@@ -287,6 +289,12 @@
       console.error("Failed to update order:", err);
     }
     await refreshSessionData();
+  }
+
+  function handleModifyModalClose() {
+    showModifyModal = false;
+    refreshSessionData();
+    
   }
 </script>
 
@@ -796,7 +804,7 @@
               {movement.movementModifier.duration}s
             </div>
             <div class="badge badge-primary">
-              {labelMap[movement.weightUnit]}
+              {movement.weightUnit}
             </div>
 
             <div>
@@ -850,11 +858,28 @@
   +
 </button>
 
-{#if showModal && session?.trainingSessionID}
+<!-- Floating Modify Session with AI Button -->
+<button
+  on:click={() => (showModifyModal = true)}
+  class="fixed bottom-20 right-6 btn btn-secondary btn-circle text-xl shadow-lg z-50"
+>
+  AI
+</button>
+
+{#if showModal && session.trainingSessionID}
   <CreateMovementModal
     show={showModal}
     sessionID={session.trainingSessionID}
     on:close={() => (showModal = false)}
     on:created={refreshSessionData}
+  />
+{/if}
+
+{#if showModifyModal}
+  <ModifyTrainingSessionModal
+    show={showModifyModal}
+    loadSession={refreshSessionData}
+    session={session}
+    on:close={handleModifyModalClose}
   />
 {/if}

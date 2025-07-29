@@ -17,7 +17,7 @@ namespace lionheart.Services.AI
 {
     public interface IModifyTrainingSessionService
     {
-        Task<Result<string>> ModifySessionAsync(IdentityUser user, GetTrainingSessionRequest request);
+        Task<Result<TrainingSessionDTO>> ModifySessionAsync(IdentityUser user, GetTrainingSessionRequest request);
     }
     /// <summary>
     /// This service is responsible for modifying training sessions.
@@ -61,13 +61,13 @@ namespace lionheart.Services.AI
         }
 
 
-        public async Task<Result<string>> ModifySessionAsync(IdentityUser user, GetTrainingSessionRequest request)
+        public async Task<Result<TrainingSessionDTO>> ModifySessionAsync(IdentityUser user, GetTrainingSessionRequest request)
         {
             // Duplicate the training session, modify the duplicate.
             var duplicateSessionResponse = await _trainingSessionService.DuplicateTrainingSessionAsync(user, request.TrainingSessionID);
             if (!duplicateSessionResponse.IsSuccess)
             {
-                return Result<string>.Error(duplicateSessionResponse.Errors.ToString());
+                return Result<TrainingSessionDTO>.Error(duplicateSessionResponse.Errors.ToString());
             }
             var sessionToModify = duplicateSessionResponse.Value;
             
@@ -83,9 +83,9 @@ namespace lionheart.Services.AI
             var userContextResult = await BuildUserContext(user, dateRange);
             if (!userContextResult.IsSuccess)
             {
-                return Result<string>.Error(userContextResult.Errors.ToString());
+                return Result<TrainingSessionDTO>.Error(userContextResult.Errors.ToString());
             }
-            var tools = OpenAiToolRetriever.GetModifyTrainingSessionTools();
+            var tools = await OpenAiToolRetriever.GetModifyTrainingSessionTools();
             List<ChatMessage> messages = new List<ChatMessage>
             {
                 new SystemChatMessage(systemPrompt),
@@ -104,7 +104,10 @@ namespace lionheart.Services.AI
             }
 
             var response = await RunAiLoopAsync(messages, options, user);
-
+            if (!response.IsSuccess)
+            {
+                return Result<TrainingSessionDTO>.Error("AI modification failed: " + response.Errors.ToString());
+            }
             // Validate updated session exists, update its status to AIModified
             var getUpdatedSession = new GetTrainingSessionRequest
             {
@@ -114,7 +117,7 @@ namespace lionheart.Services.AI
             var updatedSession = await _trainingSessionService.GetTrainingSessionAsync(user, getUpdatedSession);
             if (!updatedSession.IsSuccess)
             {
-                return Result<string>.Error("Failed to retrieve updated session: " + string.Join(", ", updatedSession.Errors));
+                return Result<TrainingSessionDTO>.Error("Failed to retrieve updated session: " + string.Join(", ", updatedSession.Errors));
             }
             var updateSessionStatusToAIModified = new UpdateTrainingSessionRequest()
             {
@@ -127,9 +130,9 @@ namespace lionheart.Services.AI
             var updateResponse = await _trainingSessionService.UpdateTrainingSessionAsync(user, updateSessionStatusToAIModified);
             if (!updateResponse.IsSuccess)
             {
-                return Result<string>.Error("Failed to update session status to AIModified: " + string.Join(", ", updateResponse.Errors));
+                return Result<TrainingSessionDTO>.Error("Failed to update session status to AIModified: " + string.Join(", ", updateResponse.Errors));
             }
-            return response;
+            return updateResponse;
 
         }
 
