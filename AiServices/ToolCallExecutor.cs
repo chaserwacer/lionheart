@@ -117,12 +117,13 @@ public class ToolCallExecutor : IToolCallExecutor
         foreach (var toolCall in toolCalls)
         {
             var result = await ExecuteModifyTrainingSessionTools(toolCall, user);
+            results.Add(result);
             if (!result.IsSuccess)
             {
-                // If any tool call errors, return a single error result list
-                return new List<Result<ToolChatMessage>> { result };
+                
+                return results;
             }
-            results.Add(result);
+            
         }
         return results;
     }
@@ -302,19 +303,7 @@ public class ToolCallExecutor : IToolCallExecutor
         {
             switch (fn)
             {
-                case "CreateTrainingSessionWeekAsync":
-                    {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
-                        if (requestNode == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSessionWeekAsync.");
 
-                        var request = JsonSerializer.Deserialize<CreateTrainingSessionWeekRequest>(requestNode.ToJsonString(), _jsonOptions);
-                        if (request == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSessionWeekAsync.");
-
-                        var result = await _trainingSessionService.CreateTrainingSessionWeekAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
-                    }
 
                 case "GetTrainingSessionAsync":
                     {
@@ -329,32 +318,7 @@ public class ToolCallExecutor : IToolCallExecutor
                         var result = await _trainingSessionService.GetTrainingSessionAsync(user, request);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
-                case "CreateTrainingSessionAsync":
-                    {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
-                        if (requestNode == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSession.");
 
-                        var request = JsonSerializer.Deserialize<CreateTrainingSessionRequest>(requestNode.ToJsonString(), _jsonOptions);
-                        if (request == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingSession.");
-
-                        var result = await _trainingSessionService.CreateTrainingSessionAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
-                    }
-                case "CreateTrainingProgramAsync":
-                    {
-                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
-                        if (requestNode == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateTrainingProgramAsync.");
-
-                        var request = JsonSerializer.Deserialize<CreateTrainingProgramRequest>(requestNode.ToJsonString(), _jsonOptions);
-                        if (request == null)
-                            return Result<ToolChatMessage>.Error("Invalid arguments for CreateTrainingProgramAsync.");
-
-                        var result = await _trainingProgramService.CreateTrainingProgramAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
-                    }
 
                 case "UpdateTrainingSessionAsync":
                     {
@@ -441,16 +405,7 @@ public class ToolCallExecutor : IToolCallExecutor
                         var result = await _setEntryService.DeleteSetEntryAsync(user, id);
                         return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
                     }
-                case "GetMovementBasesAsync":
-                    {
-                        var result = await _movementService.GetMovementBasesAsync(user);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
-                    }
-                case "GetEquipmentsAsync":
-                    {
-                        var result = await _movementService.GetEquipmentsAsync(user);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
-                    }
+
                 default:
                     return Result<ToolChatMessage>.Error($"Tool function '{fn}' is not implemented.");
             }

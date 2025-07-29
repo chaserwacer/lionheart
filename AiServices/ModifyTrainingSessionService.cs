@@ -60,7 +60,13 @@ namespace lionheart.Services.AI
             _wellnessService = wellnessService;
         }
 
-
+        /// <summary>
+        /// Modifies a training session based on user context and AI-generated suggestions.
+        /// It duplicates the session, modifies it using AI, and updates the session status to AIModified.
+        /// </summary>
+        /// <param name="user"></param>
+        /// <param name="request"></param>
+        /// <returns></returns>
         public async Task<Result<TrainingSessionDTO>> ModifySessionAsync(IdentityUser user, GetTrainingSessionRequest request)
         {
             // Duplicate the training session, modify the duplicate.
@@ -70,7 +76,7 @@ namespace lionheart.Services.AI
                 return Result<TrainingSessionDTO>.Error(duplicateSessionResponse.Errors.ToString());
             }
             var sessionToModify = duplicateSessionResponse.Value;
-            
+
             var dateRange = new DateRangeRequest
             {
                 StartDate = sessionToModify.Date.AddDays(-7),
@@ -93,11 +99,10 @@ namespace lionheart.Services.AI
                 new UserChatMessage("User context: " + JsonSerializer.Serialize(userContextResult.Value)),
                 new UserChatMessage("Training Program ID: " + sessionToModify.TrainingProgramID),
                 new UserChatMessage("Session to modify[use trainingSessionID as UID]: " + JsonSerializer.Serialize(sessionToModify)),
+                new UserChatMessage("Available movement bases: " + JsonSerializer.Serialize(await _movementService.GetMovementBasesAsync(user))),
+                new UserChatMessage("Available equipments: " + JsonSerializer.Serialize(await _movementService.GetEquipmentsAsync(user))),
             };
-            ChatCompletionOptions options = new()
-            {
-
-            };
+            ChatCompletionOptions options = new();
             foreach (var tool in tools)
             {
                 options.Tools.Add(tool);
@@ -106,40 +111,24 @@ namespace lionheart.Services.AI
             var response = await RunAiLoopAsync(messages, options, user);
             if (!response.IsSuccess)
             {
+                await _trainingSessionService.DeleteTrainingSessionAsync(user, sessionToModify.TrainingSessionID);
                 return Result<TrainingSessionDTO>.Error("AI modification failed: " + response.Errors.ToString());
             }
-            // Validate updated session exists, update its status to AIModified
-            var getUpdatedSession = new GetTrainingSessionRequest
-            {
-                TrainingSessionID = sessionToModify.TrainingSessionID,
-                TrainingProgramID = sessionToModify.TrainingProgramID
-            };
-            var updatedSession = await _trainingSessionService.GetTrainingSessionAsync(user, getUpdatedSession);
-            if (!updatedSession.IsSuccess)
-            {
-                return Result<TrainingSessionDTO>.Error("Failed to retrieve updated session: " + string.Join(", ", updatedSession.Errors));
-            }
-            var updateSessionStatusToAIModified = new UpdateTrainingSessionRequest()
-            {
-                TrainingSessionID = updatedSession.Value.TrainingSessionID,
-                TrainingProgramID = updatedSession.Value.TrainingProgramID,
-                Status = TrainingSessionStatus.AIModified,
-                Date = updatedSession.Value.Date,
-                Notes = updatedSession.Value.Notes
-            };
-            var updateResponse = await _trainingSessionService.UpdateTrainingSessionAsync(user, updateSessionStatusToAIModified);
-            if (!updateResponse.IsSuccess)
-            {
-                return Result<TrainingSessionDTO>.Error("Failed to update session status to AIModified: " + string.Join(", ", updateResponse.Errors));
-            }
+            var updateResponse = await ValidateSessionAndPolish(sessionToModify, user);
             return updateResponse;
 
         }
-
+        /// <summary>
+        /// Run interaction with AI, handling tool calls and building the conversation history as <see cref="ChatCompletion"/>s are received.
+        /// </summary>
+        /// <param name="messages">Conversation history/messages/prompts exchanged with the AI</param>
+        /// <param name="options">Item containing tools available for AI use</param>
+        /// <param name="user"></param>
+        /// <returns></returns>
         private async Task<Result<string>> RunAiLoopAsync(List<ChatMessage> messages, ChatCompletionOptions options, IdentityUser user)
         {
             bool requiresAction;
-
+            var numberFailedToolCalls = 0;
             do
             {
                 requiresAction = false;
@@ -171,7 +160,11 @@ namespace lionheart.Services.AI
                             {
                                 if (!result.IsSuccess)
                                 {
-                                    return Result<string>.Error(result.Errors.ToString());
+                                    numberFailedToolCalls++;
+                                    if (numberFailedToolCalls > 5)
+                                    {
+                                        return Result<string>.Error("Too many failed tool calls: " + string.Join(", ", result.Errors));
+                                    }
                                 }
                                 messages.Add(result.Value);
                             }
@@ -235,7 +228,43 @@ namespace lionheart.Services.AI
             return Result<string>.Success(JsonSerializer.Serialize(userContext));
         }
 
+        /// <summary>
+        /// Validates the modified session exists, update its <see cref="TrainingSessionDTO.Status"/> to <see cref="TrainingSessionStatus.AIModified"/>.
+        /// If something fails, the modified session is deleted.
+        /// </summary>
+        /// <param name="sessionToModify"></param>
+        /// <param name="user"></param>
+        /// <returns></returns>
+        private async Task<Result<TrainingSessionDTO>> ValidateSessionAndPolish(TrainingSessionDTO sessionToModify, IdentityUser user)
+        {
 
+            // Validate updated session exists, update its status to AIModified
+            var getUpdatedSession = new GetTrainingSessionRequest
+            {
+                TrainingSessionID = sessionToModify.TrainingSessionID,
+                TrainingProgramID = sessionToModify.TrainingProgramID
+            };
+            var updatedSession = await _trainingSessionService.GetTrainingSessionAsync(user, getUpdatedSession);
+            if (!updatedSession.IsSuccess)
+            {
+                await _trainingSessionService.DeleteTrainingSessionAsync(user, sessionToModify.TrainingSessionID);
+                return Result<TrainingSessionDTO>.Error("Failed to retrieve updated session: " + string.Join(", ", updatedSession.Errors));
+            }
+            var updateSessionStatusToAIModified = new UpdateTrainingSessionRequest()
+            {
+                TrainingSessionID = updatedSession.Value.TrainingSessionID,
+                TrainingProgramID = updatedSession.Value.TrainingProgramID,
+                Status = TrainingSessionStatus.AIModified,
+                Date = updatedSession.Value.Date,
+                Notes = updatedSession.Value.Notes
+            };
+            var updateResponse = await _trainingSessionService.UpdateTrainingSessionAsync(user, updateSessionStatusToAIModified);
+            if (!updateResponse.IsSuccess)
+            {
+                return Result<TrainingSessionDTO>.Error("Failed to update session status to AIModified: " + string.Join(", ", updateResponse.Errors));
+            }
 
+            return Result<TrainingSessionDTO>.Success(updateResponse.Value);
+        }
     }
 }

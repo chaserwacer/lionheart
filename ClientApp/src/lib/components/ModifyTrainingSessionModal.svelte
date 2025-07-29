@@ -43,6 +43,8 @@
             modifiedSession = await client.modifyTrainingSession(request);
             modifyingSessionRunning = false;
         } catch (error) {
+            alert("Failed to modify session.");
+            modifyingSessionRunning = false;
             console.error("Failed to modify session:", error);
         }
     }

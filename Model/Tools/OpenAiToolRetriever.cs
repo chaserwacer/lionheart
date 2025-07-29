@@ -552,8 +552,8 @@ namespace Model.Tools
                     "CreateMovementAsync",
                     "UpdateMovementAsync",
                     "DeleteMovementAsync",
-                    "GetMovementBasesAsync",
-                    "GetEquipmentsAsync",
+                    // "GetMovementBasesAsync",
+                    // "GetEquipmentsAsync",
                 }
             );
 
