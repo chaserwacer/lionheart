@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using lionheart.Model.Oura;
 using lionheart.Model.TrainingProgram;
+using lionheart.Model.Injury;
 
 namespace lionheart.Data
 {
@@ -28,6 +29,9 @@ namespace lionheart.Data
         public DbSet<Equipment> Equipments { get; set; }
         public DbSet<Movement> Movements { get; set; }
         public DbSet<SetEntry> SetEntries { get; set; }
+        public DbSet<Injury> Injuries { get; set; }
+        public DbSet<InjuryEvent> InjuryEvents { get; set; }
+
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -46,6 +50,23 @@ namespace lionheart.Data
                 .HasOne<LionheartUser>()
                 .WithMany(u => u.WellnessStates)
                 .HasForeignKey(w => w.UserID);
+
+            // Injury
+            modelBuilder.Entity<Injury>()
+                .HasKey(i => i.InjuryID);
+
+            modelBuilder.Entity<Injury>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.Injuries)
+                .HasForeignKey(i => i.UserID);
+
+            modelBuilder.Entity<Injury>()
+                .HasMany(i => i.InjuryEvents)
+                .WithOne(e => e.Injury)
+                .HasForeignKey(e => e.InjuryID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
 
             // Identity Users
             modelBuilder.Entity<IdentityUserLogin<string>>()
@@ -105,7 +126,7 @@ namespace lionheart.Data
                 .WithMany()
                 .HasForeignKey(m => m.EquipmentID)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
 
             modelBuilder.Entity<Movement>()
                 .HasOne<MovementBase>(m => m.MovementBase)
@@ -158,6 +179,8 @@ namespace lionheart.Data
                 .OwnsOne(o => o.SleepData);
             modelBuilder.Entity<DailyOuraInfo>()
                 .OwnsOne(o => o.ActivityData);
+            
+            
         }
     }
 }

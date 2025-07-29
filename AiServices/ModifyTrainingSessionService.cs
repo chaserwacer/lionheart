@@ -17,7 +17,7 @@ namespace lionheart.Services.AI
 {
     public interface IModifyTrainingSessionService
     {
-        Task<Result<TrainingSessionDTO>> ModifySessionAsync(IdentityUser user, GetTrainingSessionRequest request);
+        Task<Result<TrainingSessionDTO>> ModifySessionAsync(IdentityUser user, ModifyTrainingSessionWithAIRequest request);
     }
     /// <summary>
     /// This service is responsible for modifying training sessions.
@@ -37,6 +37,7 @@ namespace lionheart.Services.AI
 
         public ModifyTrainingSessionService(
             IConfiguration config,
+            ChatClient chatClient,
             IToolCallExecutor toolCallExecutor,
             ITrainingProgramService trainingProgramService,
             ITrainingSessionService trainingSessionService,
@@ -49,7 +50,9 @@ namespace lionheart.Services.AI
         {
 
             // TODO: Declare chat client in program.cs as (transient??) and inject it here 
-            _chatClient = new(model: "gpt-4o", apiKey: config["OpenAI:ApiKey"]);
+            // _chatClient = new(model: "gpt-4o", apiKey: config["OpenAI:ApiKey"]);
+
+            _chatClient = chatClient;
             _toolCallExecutor = toolCallExecutor;
             _trainingProgramService = trainingProgramService;
             _trainingSessionService = trainingSessionService;
@@ -67,7 +70,7 @@ namespace lionheart.Services.AI
         /// <param name="user"></param>
         /// <param name="request"></param>
         /// <returns></returns>
-        public async Task<Result<TrainingSessionDTO>> ModifySessionAsync(IdentityUser user, GetTrainingSessionRequest request)
+        public async Task<Result<TrainingSessionDTO>> ModifySessionAsync(IdentityUser user, ModifyTrainingSessionWithAIRequest request)
         {
             // Duplicate the training session, modify the duplicate.
             var duplicateSessionResponse = await _trainingSessionService.DuplicateTrainingSessionAsync(user, request.TrainingSessionID);
@@ -83,32 +86,50 @@ namespace lionheart.Services.AI
                 EndDate = sessionToModify.Date
             };
 
-
-            var systemPrompt = PromptBuilder.ModifyTrainingSessionSys().Build();
-            var userPrompt = "Modify the provided training session based on the user’s recent data and preferences. Use the provided tools for all modifications. Do not alter the session directly.";
+            // First Prompt
+            var initialPrompt = PromptBuilder.AnalyzeUserWellness().Build();
             var userContextResult = await BuildUserContext(user, dateRange);
             if (!userContextResult.IsSuccess)
             {
                 return Result<TrainingSessionDTO>.Error(userContextResult.Errors.ToString());
             }
-            var tools = await OpenAiToolRetriever.GetModifyTrainingSessionTools();
-            List<ChatMessage> messages = new List<ChatMessage>
+
+            List<ChatMessage> firstPassMessages = new List<ChatMessage>
             {
-                new SystemChatMessage(systemPrompt),
-                new UserChatMessage(userPrompt),
+                new UserChatMessage(initialPrompt),
                 new UserChatMessage("User context: " + JsonSerializer.Serialize(userContextResult.Value)),
+
+            };
+
+            ChatCompletionOptions options = new();
+
+            var firstResponse = await RunAiLoopAsync(firstPassMessages, options, user);
+            if (!firstResponse.IsSuccess)
+            {
+                await _trainingSessionService.DeleteTrainingSessionAsync(user, sessionToModify.TrainingSessionID);
+                return Result<TrainingSessionDTO>.Error("AI analysis failed: " + firstResponse.Errors.ToString());
+            }
+
+            // Second Prompt
+            var secondPrompt = PromptBuilder.ModifyTrainingSession().Build();
+            List<ChatMessage> secondPassMessages = new()
+            {
+                new SystemChatMessage(secondPrompt),
+                new UserChatMessage("UserContextSummary:\n" + firstResponse.Value),
+                new UserChatMessage("UserPrompt: " + request.UserPrompt),
                 new UserChatMessage("Training Program ID: " + sessionToModify.TrainingProgramID),
                 new UserChatMessage("Session to modify[use trainingSessionID as UID]: " + JsonSerializer.Serialize(sessionToModify)),
                 new UserChatMessage("Available movement bases: " + JsonSerializer.Serialize(await _movementService.GetMovementBasesAsync(user))),
                 new UserChatMessage("Available equipments: " + JsonSerializer.Serialize(await _movementService.GetEquipmentsAsync(user))),
             };
-            ChatCompletionOptions options = new();
+            var tools = await OpenAiToolRetriever.GetModifyTrainingSessionTools();
+
             foreach (var tool in tools)
             {
                 options.Tools.Add(tool);
             }
 
-            var response = await RunAiLoopAsync(messages, options, user);
+            var response = await RunAiLoopAsync(secondPassMessages, options, user);
             if (!response.IsSuccess)
             {
                 await _trainingSessionService.DeleteTrainingSessionAsync(user, sessionToModify.TrainingSessionID);

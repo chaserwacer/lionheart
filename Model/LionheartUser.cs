@@ -1,4 +1,5 @@
 using lionheart.ActivityTracking;
+using lionheart.Model.Injury;
 using lionheart.Model.Oura;
 using lionheart.Model.TrainingProgram;
 using Microsoft.AspNetCore.Identity;
@@ -24,4 +25,5 @@ public class LionheartUser
     public List<TrainingProgram> TrainingPrograms { get; set; } = [];
     public List<MovementBase> MovementBases { get; set; } = [];
     public List<Equipment> Equipments { get; set; } = [];
+    public List<Injury> Injuries { get; set; } = [];
 }

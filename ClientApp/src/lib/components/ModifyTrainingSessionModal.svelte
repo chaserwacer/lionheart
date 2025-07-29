@@ -1,6 +1,6 @@
 <script lang="ts">
     import {
-        GetTrainingSessionRequest,
+        ModifyTrainingSessionWithAIRequest,
         ModifyTrainingSessionEndpointClient,
         TrainingProgramDTO,
         TrainingSessionDTO,
@@ -20,6 +20,7 @@
     const dispatch = createEventDispatcher();
     let modifyingSessionRunning = false;
     let modifiedSession: TrainingSessionDTO;
+    let userPrompt: string = "";
 
     onMount(async () => {
         show = true;
@@ -35,9 +36,10 @@
         modifyingSessionRunning = true;
         const client = new ModifyTrainingSessionEndpointClient(baseUrl);
         try {
-            const request = GetTrainingSessionRequest.fromJS({
+            const request = ModifyTrainingSessionWithAIRequest.fromJS({
                 trainingSessionID: session.trainingSessionID,
                 trainingProgramID: session.trainingProgramID,
+                userPrompt: userPrompt,
             });
             console.log("Requesting AI modification for session:", request);
             modifiedSession = await client.modifyTrainingSession(request);
@@ -114,6 +116,11 @@
             <div class="divider m-0 mt-10 p-0"></div>
             <!-- Action Buttons -->
             <div class="mt-5 flex justify-end gap-2">
+                <input
+                    type="text"
+                    bind:value={userPrompt}
+                    placeholder="Enter any additional instructions or context..."
+                    class="input input-bordered w-full max-w-xs">
                 <button class="btn btn-success" on:click={ModifySession}
                     >Modify Session</button
                 >

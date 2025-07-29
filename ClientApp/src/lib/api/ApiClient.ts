@@ -3047,7 +3047,7 @@ export class ModifyTrainingSessionEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    modifyTrainingSession(body: GetTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
+    modifyTrainingSession(body: ModifyTrainingSessionWithAIRequest | undefined): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/ai/modify-training-session";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -5043,46 +5043,6 @@ export interface IForgotPasswordRequest {
     email: string | undefined;
 }
 
-export class GetTrainingSessionRequest implements IGetTrainingSessionRequest {
-    trainingSessionID!: string;
-    trainingProgramID!: string;
-
-    constructor(data?: IGetTrainingSessionRequest) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.trainingSessionID = _data["trainingSessionID"];
-            this.trainingProgramID = _data["trainingProgramID"];
-        }
-    }
-
-    static fromJS(data: any): GetTrainingSessionRequest {
-        data = typeof data === 'object' ? data : {};
-        let result = new GetTrainingSessionRequest();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["trainingSessionID"] = this.trainingSessionID;
-        data["trainingProgramID"] = this.trainingProgramID;
-        return data;
-    }
-}
-
-export interface IGetTrainingSessionRequest {
-    trainingSessionID: string;
-    trainingProgramID: string;
-}
-
 export class HttpValidationProblemDetails implements IHttpValidationProblemDetails {
     type?: string | undefined;
     title?: string | undefined;
@@ -5339,6 +5299,140 @@ export interface IInfoResponse {
     isEmailConfirmed: boolean;
 }
 
+export class Injury implements IInjury {
+    injuryID?: string;
+    userID!: string;
+    category!: string;
+    injuryDate!: Date;
+    isResolved?: boolean;
+    injuryEvents?: InjuryEvent[] | undefined;
+
+    constructor(data?: IInjury) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.injuryID = _data["injuryID"];
+            this.userID = _data["userID"];
+            this.category = _data["category"];
+            this.injuryDate = _data["injuryDate"] ? new Date(_data["injuryDate"].toString()) : <any>undefined;
+            this.isResolved = _data["isResolved"];
+            if (Array.isArray(_data["injuryEvents"])) {
+                this.injuryEvents = [] as any;
+                for (let item of _data["injuryEvents"])
+                    this.injuryEvents!.push(InjuryEvent.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): Injury {
+        data = typeof data === 'object' ? data : {};
+        let result = new Injury();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["injuryID"] = this.injuryID;
+        data["userID"] = this.userID;
+        data["category"] = this.category;
+        data["injuryDate"] = this.injuryDate ? formatDate(this.injuryDate) : <any>undefined;
+        data["isResolved"] = this.isResolved;
+        if (Array.isArray(this.injuryEvents)) {
+            data["injuryEvents"] = [];
+            for (let item of this.injuryEvents)
+                data["injuryEvents"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IInjury {
+    injuryID?: string;
+    userID: string;
+    category: string;
+    injuryDate: Date;
+    isResolved?: boolean;
+    injuryEvents?: InjuryEvent[] | undefined;
+}
+
+export class InjuryEvent implements IInjuryEvent {
+    injuryEventID?: string;
+    injuryID!: string;
+    injury?: Injury;
+    trainingSessionID!: string;
+    notes?: string | undefined;
+    painLevel?: number;
+    injuryType?: InjuryEventType;
+    creationTime?: Date;
+
+    constructor(data?: IInjuryEvent) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.injuryEventID = _data["injuryEventID"];
+            this.injuryID = _data["injuryID"];
+            this.injury = _data["injury"] ? Injury.fromJS(_data["injury"]) : <any>undefined;
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.notes = _data["notes"];
+            this.painLevel = _data["painLevel"];
+            this.injuryType = _data["injuryType"];
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): InjuryEvent {
+        data = typeof data === 'object' ? data : {};
+        let result = new InjuryEvent();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["injuryEventID"] = this.injuryEventID;
+        data["injuryID"] = this.injuryID;
+        data["injury"] = this.injury ? this.injury.toJSON() : <any>undefined;
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["notes"] = this.notes;
+        data["painLevel"] = this.painLevel;
+        data["injuryType"] = this.injuryType;
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IInjuryEvent {
+    injuryEventID?: string;
+    injuryID: string;
+    injury?: Injury;
+    trainingSessionID: string;
+    notes?: string | undefined;
+    painLevel?: number;
+    injuryType?: InjuryEventType;
+    creationTime?: Date;
+}
+
+export enum InjuryEventType {
+    _0 = 0,
+    _1 = 1,
+    _2 = 2,
+}
+
 export class LiftDetails implements ILiftDetails {
     activityID?: string;
     tonnage?: number;
@@ -5428,6 +5522,7 @@ export class LionheartUser implements ILionheartUser {
     trainingPrograms?: TrainingProgram[] | undefined;
     movementBases?: MovementBase[] | undefined;
     equipments?: Equipment[] | undefined;
+    injuries?: Injury[] | undefined;
 
     constructor(data?: ILionheartUser) {
         if (data) {
@@ -5479,6 +5574,11 @@ export class LionheartUser implements ILionheartUser {
                 this.equipments = [] as any;
                 for (let item of _data["equipments"])
                     this.equipments!.push(Equipment.fromJS(item));
+            }
+            if (Array.isArray(_data["injuries"])) {
+                this.injuries = [] as any;
+                for (let item of _data["injuries"])
+                    this.injuries!.push(Injury.fromJS(item));
             }
         }
     }
@@ -5532,6 +5632,11 @@ export class LionheartUser implements ILionheartUser {
             for (let item of this.equipments)
                 data["equipments"].push(item ? item.toJSON() : <any>undefined);
         }
+        if (Array.isArray(this.injuries)) {
+            data["injuries"] = [];
+            for (let item of this.injuries)
+                data["injuries"].push(item ? item.toJSON() : <any>undefined);
+        }
         return data;
     }
 }
@@ -5549,6 +5654,7 @@ export interface ILionheartUser {
     trainingPrograms?: TrainingProgram[] | undefined;
     movementBases?: MovementBase[] | undefined;
     equipments?: Equipment[] | undefined;
+    injuries?: Injury[] | undefined;
 }
 
 export class LoginRequest implements ILoginRequest {
@@ -5597,6 +5703,50 @@ export interface ILoginRequest {
     password: string | undefined;
     twoFactorCode?: string | undefined;
     twoFactorRecoveryCode?: string | undefined;
+}
+
+export class ModifyTrainingSessionWithAIRequest implements IModifyTrainingSessionWithAIRequest {
+    trainingSessionID!: string;
+    trainingProgramID!: string;
+    userPrompt!: string;
+
+    constructor(data?: IModifyTrainingSessionWithAIRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.trainingProgramID = _data["trainingProgramID"];
+            this.userPrompt = _data["userPrompt"];
+        }
+    }
+
+    static fromJS(data: any): ModifyTrainingSessionWithAIRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new ModifyTrainingSessionWithAIRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["trainingProgramID"] = this.trainingProgramID;
+        data["userPrompt"] = this.userPrompt;
+        return data;
+    }
+}
+
+export interface IModifyTrainingSessionWithAIRequest {
+    trainingSessionID: string;
+    trainingProgramID: string;
+    userPrompt: string;
 }
 
 export class Movement implements IMovement {

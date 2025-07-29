@@ -12,6 +12,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using lionheart.Converters;
+using OpenAI.Chat;
 
 
 
@@ -61,6 +62,11 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
+
+// TODO: Validate whether this is fine as singleton, or if it should be scoped or transient
+builder.Services.AddSingleton<ChatClient>(provider =>
+    new ChatClient(model: "gpt-4o", apiKey: configuration["OpenAI:ApiKey"])
+);
 
 builder.Services
   .AddControllers()

@@ -110,7 +110,7 @@ public class UpdateTrainingSessionRequest
     [Key]
     [Required]
     public required Guid TrainingSessionID { get; init; }
-     [Required(AllowEmptyStrings = true)]
+    [Required(AllowEmptyStrings = true)]
     public required string Notes { get; set; } = string.Empty;
 
 }
@@ -145,8 +145,18 @@ public class GetTrainingSessionRequest
     [Required]
     public required Guid TrainingProgramID { get; init; }
 }
-    public class GetTrainingProgramRequest
-    {
-        [Required]
-        public required Guid TrainingProgramID { get; init; }
-    }
+public class GetTrainingProgramRequest
+{
+    [Required]
+    public required Guid TrainingProgramID { get; init; }
+}
+
+public class ModifyTrainingSessionWithAIRequest
+{
+    [Required]
+    public required Guid TrainingSessionID { get; init; }
+    [Required]
+    public required Guid TrainingProgramID { get; init; }
+    [Required]
+    public required string UserPrompt { get; init; } = string.Empty;
+}
