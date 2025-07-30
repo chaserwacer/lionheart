@@ -157,6 +157,6 @@ public class ModifyTrainingSessionWithAIRequest
     public required Guid TrainingSessionID { get; init; }
     [Required]
     public required Guid TrainingProgramID { get; init; }
-    [Required]
+    [Required(AllowEmptyStrings = true)]
     public required string UserPrompt { get; init; } = string.Empty;
 }
