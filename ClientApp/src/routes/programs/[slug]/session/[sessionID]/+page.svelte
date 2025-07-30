@@ -188,7 +188,7 @@
     });
 
     var client = new CreateSetEntryEndpointClient(baseUrl);
-    await client.create4(request).catch((err) => {
+    await client.create5(request).catch((err) => {
       console.error("Failed to add set to movement", err);
     });
 
