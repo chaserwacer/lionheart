@@ -11,9 +11,10 @@
     MarkInjuryResolvedEndpointClient,
     InjuryEventType,
     GetTrainingProgramsEndpointClient,
-    TrainingSessionStatus,
     TrainingSessionDTO,
-    TrainingProgramDTO
+    TrainingProgramDTO,
+    TrainingSessionStatus,
+    DeleteInjuryEndpointClient 
   } from "$lib/api/ApiClient";
   import { writable } from "svelte/store";
 
@@ -25,7 +26,6 @@
   let newDate = new Date().toISOString().slice(0, 10);
   let newEventNotes = "";
   let newEventPain = 0;
-  let trainingSessions: TrainingSessionDTO[] = [];
   let programs: TrainingProgramDTO[] = [];
   let selectedSession: TrainingSessionDTO | null = null;
   let selectedProgram: TrainingProgramDTO | null = null;
@@ -33,12 +33,11 @@
   let showAddModal = false;
   let showEventModal = false;
   let showSessionPicker = false;
-  let pickingFor = "injury"; // or "event"
+  let pickingFor: "injury" | "event" = "injury";
 
   async function loadTrainingSessions() {
     const client = new GetTrainingProgramsEndpointClient(baseUrl);
     programs = await client.getAll4();
-    trainingSessions = programs.flatMap(p => p.trainingSessions ?? []);
   }
 
   async function loadInjuries() {
@@ -52,49 +51,43 @@
     const injury = await injuryClient.create2(request);
 
     if (selectedSession) {
-      const eventRequest = new CreateInjuryEventRequest({
+      const evtReq = new CreateInjuryEventRequest({
         trainingSessionID: selectedSession.trainingSessionID,
         notes: newEventNotes,
         painLevel: newEventPain,
         injuryType: InjuryEventType._0
       });
-
-      const wrapper = new AddInjuryEventWrapper({ injuryId: injury.injuryID, request: eventRequest });
-      const eventClient = new AddInjuryEventEndpointClient(baseUrl);
-      await eventClient.addEvent(wrapper);
+      const wrapper = new AddInjuryEventWrapper({ injuryId: injury.injuryID, request: evtReq });
+      await new AddInjuryEventEndpointClient(baseUrl).addEvent(wrapper);
     }
 
+    resetForm();
+    await loadInjuries();
+  }
+
+  async function addEventToInjury() {
+    if (!selectedInjury || !selectedSession) return;
+    const evtReq = new CreateInjuryEventRequest({
+      trainingSessionID: selectedSession.trainingSessionID,
+      notes: newEventNotes,
+      painLevel: newEventPain,
+      injuryType: InjuryEventType._0
+    });
+    const wrapper = new AddInjuryEventWrapper({ injuryId: selectedInjury.injuryID, request: evtReq });
+    await new AddInjuryEventEndpointClient(baseUrl).addEvent(wrapper);
+
+    resetForm();
+    showEventModal = false;
+    await loadInjuries();
+  }
+
+  function resetForm() {
     newCategory = "";
     newEventNotes = "";
     newEventPain = 0;
     newDate = new Date().toISOString().slice(0, 10);
     selectedSession = null;
     showAddModal = false;
-
-    await loadInjuries();
-  }
-
-  async function addEventToInjury() {
-    if (!selectedInjury || !selectedSession) return;
-
-    const eventRequest = new CreateInjuryEventRequest({
-      trainingSessionID: selectedSession.trainingSessionID,
-      notes: newEventNotes,
-      painLevel: newEventPain,
-      injuryType: InjuryEventType._0
-    });
-
-    const wrapper = new AddInjuryEventWrapper({ injuryId: selectedInjury.injuryID, request: eventRequest });
-    const eventClient = new AddInjuryEventEndpointClient(baseUrl);
-    await eventClient.addEvent(wrapper);
-
-    newEventNotes = "";
-    newEventPain = 0;
-    newDate = new Date().toISOString().slice(0, 10);
-    selectedSession = null;
-    showEventModal = false;
-
-    await loadInjuries();
   }
 
   function viewInjuryDetail(injury: InjuryDTO) {
@@ -105,10 +98,9 @@
     selectedInjury = null;
   }
 
-  async function resolveInjury(injuryId: string | null | undefined) {
+  async function resolveInjury(injuryId?: string) {
     if (!injuryId) return;
-    const client = new MarkInjuryResolvedEndpointClient(baseUrl);
-    await client.resolve(injuryId);
+    await new MarkInjuryResolvedEndpointClient(baseUrl).resolve(injuryId);
     await loadInjuries();
     selectedInjury = null;
   }
@@ -122,6 +114,24 @@
     selectedSession = session;
     showSessionPicker = false;
   }
+  async function deleteInjury(injuryId: string) {
+    if (!confirm("Are you sure you want to delete this injury?")) return;
+    await new DeleteInjuryEndpointClient(baseUrl).delete2(injuryId);
+    await loadInjuries();
+    selectedInjury = null;
+  }
+  let chatMessages: { role: "user" | "assistant"; content: string }[] = [];
+  let chatInput = "";
+
+  function sendMessage() {
+    if (!chatInput.trim()) return;
+    chatMessages = [...chatMessages, { role: "user", content: chatInput }];
+    chatInput = "";
+    // Fake response
+    setTimeout(() => {
+      chatMessages = [...chatMessages, { role: "assistant", content: "Thanks for your question! I’ll get back to you shortly." }];
+    }, 500);
+  }
 
   onMount(async () => {
     await loadTrainingSessions();
@@ -129,65 +139,110 @@
   });
 </script>
 
+<style>
+  .sidebar {
+    width: 50%;
+    background: var(--pf-base-200);
+    display: flex;
+    flex-direction: column;
+    height: 85vh;
+    padding: 1rem;
+    overflow: hidden; /* prevent entire sidebar scrolling */
+  }
+  .injury-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-right: 0.5rem; /* space for scrollbar */
+  }
+  .injury-card { cursor: pointer; }
+  .injury-card:hover { background: var(--pf-base-300); }
+  .add-button {
+    margin-top: 1rem;
+  }
+  /* make add-button always visible */
+  .sticky-button {
+    position: sticky;
+    bottom: 1rem;
+    align-self: center;
+    width: calc(100% - 2rem);
+  }
+  .chat-bubble {
+    @apply bg-base-300 text-base-content rounded-xl p-3 max-w-xs;
+  }
+  .chat-start .chat-bubble {
+    @apply bg-neutral text-neutral-content;
+  }
+  .chat-end .chat-bubble {
+    @apply bg-accent text-accent-content;
+  }
+
+</style>
 
 <div class="flex h-screen">
   <!-- Sidebar -->
-  <div class="w-1/3 bg-base-200 p-4 overflow-y-auto flex flex-col">
-    <div class="flex justify-between items-center mb-4">
+  <aside class="sidebar">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold">{#if selectedInjury} Events {:else} Injuries {/if}</h2>
       {#if selectedInjury}
-        <button class="btn btn-outline btn-sm" on:click={backToList}>⬅ Back</button>
-        <button class="btn btn-warning btn-sm" on:click={() => resolveInjury(selectedInjury?.injuryID)}>Resolve</button>
+        <button class="btn btn-outline btn-sm" on:click={backToList}>Back</button>
+        <button class="btn btn-warning btn-sm ml-2" on:click={() => resolveInjury(selectedInjury?.injuryID)}>Resolve</button>
       {/if}
     </div>
 
-    {#if selectedInjury}
-      <div class="card bg-base-300 p-4 mb-2 shadow">
-        <h3 class="font-semibold">{selectedInjury.category}</h3>
-        <p class="text-sm">Initial: {selectedInjury.injuryDate}</p>
-        <p class="text-sm">Status: {selectedInjury.isResolved ? "Resolved" : "Active"}</p>
-      </div>
-
-      {#each selectedInjury.injuryEvents.sort((a, b) => new Date(b.creationTime).getTime() - new Date(a.creationTime).getTime()) as evt}
-        <div class="card bg-base-100 p-4 mb-2">
+    <div class="injury-list flex flex-col">
+      {#if selectedInjury}
+        <!-- Selected injury header -->
+        <div class="card bg-base-300 p-4 mb-2 shadow">
+          <h3 class="font-semibold">{selectedInjury.category}</h3>
+          <p class="text-sm">Started: {selectedInjury.injuryDate}</p>
+          <p class="text-sm">Status: {selectedInjury.isResolved ? "Resolved" : "Active"}</p>
+        </div>
+        {#each selectedInjury.injuryEvents.sort((a, b) => new Date(b.creationTime).getTime() - new Date(a.creationTime).getTime()) as evt}
+        <div class="card bg-base-100 p-3 mb-2">
           <p class="text-sm">Session: {evt.trainingSessionID}</p>
           <p class="text-sm">Pain: {evt.painLevel}</p>
-          <p class="text-sm">Type: {evt.injuryType}</p>
-          <p class="text-sm">Notes: {evt.notes}</p>
-          <p class="text-xs">Created: {evt.creationTime}</p>
+          <p class="text-sm">{evt.injuryType}</p>
+          <p class="text-xs italic">{evt.creationTime}</p>
+          <p class="mt-1">{evt.notes}</p>
         </div>
-      {/each}
-    {:else}
-      {#each $injuries as injury (injury.injuryID)}
-        <div class="card bg-base-100 p-4 mb-2 shadow cursor-pointer hover:bg-base-300" on:click={() => viewInjuryDetail(injury)}>
-          <h3 class="font-semibold">{injury.category}</h3>
-          <p class="text-sm">Initial: {injury.injuryDate}</p>
-          <p class="text-sm">Last: {injury.injuryEvents.length ? injury.injuryEvents.slice().sort((a, b) => new Date(b.creationTime).getTime() - new Date(a.creationTime).getTime())[0].creationTime : 'N/A'}</p>
-          <p class="text-sm">{injury.isResolved ? "Resolved" : "Active"}</p>
-        </div>
-      {/each}
-    {/if}
+        {/each}
+      {:else}
+        {#each $injuries as injury (injury.injuryID)}
+          <div class="card bg-base-100 p-4 mb-2 shadow flex justify-between items-start">
+            <button type="button" class="flex-1 injury-card text-left cursor-pointer bg-transparent border-none p-0 text-inherit" on:click={() => viewInjuryDetail(injury)}>
+              <h3 class="font-semibold">{injury.category}</h3>
+              <p class="text-sm">Initial: {injury.injuryDate}</p>
+              <p class="text-sm">Last: {injury.injuryEvents.length ? injury.injuryEvents
+                .slice()
+                .sort((a, b) => new Date(b.creationTime).getTime() - new Date(a.creationTime).getTime())[0].creationTime : 'N/A'}</p>
+              <p class="text-sm">{injury.isResolved ? "Resolved" : "Active"}</p>
+            </button>
+            <button
+              class="btn btn-sm btn-outline btn-error ml-4 tooltip"
+              data-tip="Delete Injury"
+              on:click={() => deleteInjury(injury.injuryID)}>
+             Delete
+            </button>
+          </div>
+        {/each}
+      {/if}
+    </div>
 
-    <button class="btn btn-accent mt-auto" on:click={() => selectedInjury ? showEventModal = true : showAddModal = true}>
+    <button class="btn btn-accent add-button sticky-button" on:click={() => selectedInjury ? showEventModal = true : showAddModal = true}>
       ＋ {selectedInjury ? "Add Event" : "Add Injury"}
     </button>
-  </div>
+  </aside>
 
   <!-- Main content -->
-  <div class="w-2/3 p-6 space-y-4">
+  <main class="w-2/3 p-6 space-y-4">
     <h1 class="text-3xl font-bold text-accent">Injury Tracker</h1>
-
-    {#if selectedInjury}
-      <div class="card bg-base-100 p-4">
-        <h2 class="text-lg font-semibold">{selectedInjury.category}</h2>
-        <p class="text-sm">Started: {selectedInjury.injuryDate}</p>
-        <p class="text-sm">Resolved: {selectedInjury.isResolved ? "Yes" : "No"}</p>
-      </div>
-    {:else}
-      <div class="card bg-base-100 p-6">
-        <p class="text-sm italic text-center">Select an injury to view details</p>
-      </div>
+    {#if !selectedInjury}
+      <div class="card bg-base-100 p-6 text-center italic text-sm">Select an injury to view details</div>
     {/if}
-  </div>
+  </main>
 
   <!-- Add Injury Modal -->
   {#if showAddModal}
@@ -250,7 +305,32 @@
   </div>
 {/if}
 
-  
+<!-- Chat Panel on the Right -->
+<div class="w-full max-w-xl bg-base-100 border-l border-base-300 flex flex-col">
+  <div class="p-4 border-b border-base-300 flex justify-between items-center">
+    <h2 class="text-xl font-bold">AI Assistant</h2>
+    <button class="btn btn-sm btn-outline" on:click={() => chatMessages = []}>New Chat</button>
+  </div>
+
+  <div class="flex-1 overflow-y-auto p-4 space-y-3" id="chatWindow">
+    {#each chatMessages as msg}
+      <div class="chat {msg.role === 'user' ? 'chat-end' : 'chat-start'}">
+        <div class="chat-bubble">{msg.content}</div>
+      </div>
+    {/each}
+  </div>
+
+  <div class="p-4 border-t border-base-300">
+    <textarea
+      class="textarea textarea-bordered w-full h-24"
+      bind:value={chatInput}
+      placeholder="Ask something about injuries, training, recovery..."
+    />
+    <button class="btn btn-accent mt-2 w-full" on:click={sendMessage}>Send</button>
+  </div>
+</div>
+
+
 
 
 </div>
