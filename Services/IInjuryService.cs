@@ -11,5 +11,6 @@ namespace lionheart.Services
         Task<Result<InjuryDTO>> AddInjuryEventAsync(IdentityUser user, Guid injuryId, CreateInjuryEventRequest request);
         Task<Result<List<InjuryDTO>>> GetUserInjuriesAsync(IdentityUser user);
         Task<Result> MarkInjuryResolvedAsync(IdentityUser user, Guid injuryId);
+        Task<Result> DeleteInjuryAsync(IdentityUser user, Guid injuryId);
     }
 }
