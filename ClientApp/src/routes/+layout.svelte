@@ -29,7 +29,7 @@
   <div class="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
     <div class="relative flex h-16 items-center">
       <div
-        class="flex flex-1 items-center justify-center md:items-stretch md:justify-start"
+        class="flex flex-1 items-center justify-center lg:items-stretch lg:justify-start"
       >
         <div class="flex flex-shrink-0 items-center text-primary">
           <img
@@ -41,7 +41,7 @@
             >LIONHEART</a
           >
 
-          <div class="pt-2.5 ml-2 md:hidden">
+          <div class="pt-2.5 ml-2 lg:hidden">
             <div>
               <button>
                 <a href="/profile"
@@ -55,7 +55,7 @@
             </div>
           </div>
         </div>
-        <div class="hidden md:ml-10 md:block pt-1.5">
+        <div class="hidden lg:ml-10 lg:block pt-1.5">
           <div class="flex space-x-4">
             <!-- <a
               href="/"
@@ -73,7 +73,7 @@
       </div>
       <div class="flex justify-end">
         <!-- Profile btn -->
-        <div class="pt-2.5 hidden md:block">
+        <div class="pt-2.5 hidden lg:block">
           <div>
             <button>
               <a href="/profile"
@@ -91,11 +91,13 @@
   </div>
 
   <!-- Mobile menu, show/hide based on menu state. -->
-  <div class="md:hidden text-center">
-    <div class="mb-5">
+  <div class="lg:hidden text-center">
+    <div class="mb-5 gap-2 flex justify-center flex-wrap">
       <ActivityTracker />
       <WellnessTracker selectedDate={$wellnessStateDate}/>
       <OuraSync />
+      <button class="btn btn-sm btn-outline btn-primary" on:click={() => goto('/programs')}>Programs</button>
+            <button class="btn btn-sm btn-outline btn-primary" on:click={() => goto('/injuryPortal')}>Injury</button>
     </div>
   </div>
 </nav>

@@ -69,7 +69,7 @@
     try {
       const req = new CreateMovementBaseRequest();
       req.name = newMovementName;
-      await createClient.create2(req);
+      await createClient.create3(req);
       newMovementName = "";
       await loadMovements();
     } catch (e) {

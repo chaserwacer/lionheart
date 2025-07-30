@@ -32,6 +32,6 @@
     {:else if syncSuccess === false}
         Oura Sync Failed
     {:else}
-        Sync Oura Data
+        Sync Oura Ring
     {/if}
 </button>

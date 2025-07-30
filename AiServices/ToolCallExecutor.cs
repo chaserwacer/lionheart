@@ -111,18 +111,13 @@ public class ToolCallExecutor : IToolCallExecutor
     /// <param name="toolCalls"></param>
     /// <param name="user"></param>
     /// <returns></returns>
-    public async Task<List<Result<ToolChatMessage>>> ExecuteModifyTrainingSessionToolCallsAsync(IReadOnlyList<ChatToolCall> toolCalls, IdentityUser user)
+    public async Task<List<ToolCallResponse>> ExecuteModifyTrainingSessionToolCallsAsync(IReadOnlyList<ChatToolCall> toolCalls, IdentityUser user)
     {
-        var results = new List<Result<ToolChatMessage>>();
+        var results = new List<ToolCallResponse>();
         foreach (var toolCall in toolCalls)
         {
             var result = await ExecuteModifyTrainingSessionTools(toolCall, user);
             results.Add(result);
-            if (!result.IsSuccess)
-            {
-                
-                return results;
-            }
             
         }
         return results;
@@ -294,7 +289,7 @@ public class ToolCallExecutor : IToolCallExecutor
     /// <param name="toolCall"></param>
     /// <param name="user"></param>
     /// <returns></returns>
-    private async Task<Result<ToolChatMessage>> ExecuteModifyTrainingSessionTools(ChatToolCall toolCall, IdentityUser user)
+    private async Task<ToolCallResponse> ExecuteModifyTrainingSessionTools(ChatToolCall toolCall, IdentityUser user)
     {
         var fn = toolCall.FunctionName;
         var args = toolCall.FunctionArguments.ToString();
@@ -303,116 +298,186 @@ public class ToolCallExecutor : IToolCallExecutor
         {
             switch (fn)
             {
-
-
                 case "GetTrainingSessionAsync":
                     {
                         var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for GetTrainingSession.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for GetTrainingSession.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var request = JsonSerializer.Deserialize<GetTrainingSessionRequest>(requestNode.ToJsonString(), _jsonOptions);
                         if (request == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for GetTrainingSession.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for GetTrainingSession.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var result = await _trainingSessionService.GetTrainingSessionAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
                     }
-
-
                 case "UpdateTrainingSessionAsync":
                     {
                         var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateTrainingSession.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for UpdateTrainingSession.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var request = JsonSerializer.Deserialize<UpdateTrainingSessionRequest>(requestNode.ToJsonString(), _jsonOptions);
                         if (request == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateTrainingSession.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for UpdateTrainingSession.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var result = await _trainingSessionService.UpdateTrainingSessionAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
                     }
                 case "CreateMovementAsync":
                     {
                         var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateMovement.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for CreateMovement.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var request = JsonSerializer.Deserialize<CreateMovementRequest>(requestNode.ToJsonString(), _jsonOptions);
                         if (request == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateMovement.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for CreateMovement.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var result = await _movementService.CreateMovementAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
                     }
                 case "UpdateMovementAsync":
                     {
                         var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateMovement.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for UpdateMovement.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var request = JsonSerializer.Deserialize<UpdateMovementRequest>(requestNode.ToJsonString(), _jsonOptions);
                         if (request == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateMovement.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for UpdateMovement.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var result = await _movementService.UpdateMovementAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
                     }
                 case "DeleteMovementAsync":
                     {
                         var idStr = JsonSerializer.Deserialize<JsonObject>(args);
-                        if (idStr == null )
-                            return Result<ToolChatMessage>.Error("Missing or invalid movementId.");
+                        if (idStr == null)
+                        {
+                            var errorMsg = "Missing or invalid movementId.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         if (!Guid.TryParse(idStr.ToJsonString(), out var id))
-                            return Result<ToolChatMessage>.Error("Missing or invalid movementId.");
+                        {
+                            var errorMsg = "Missing or invalid movementId.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var result = await _movementService.DeleteMovementAsync(user, id);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
                     }
                 case "CreateSetEntryAsync":
                     {
                         var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateSetEntry.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for CreateSetEntry.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var request = JsonSerializer.Deserialize<CreateSetEntryRequest>(requestNode.ToJsonString(), _jsonOptions);
                         if (request == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for CreateSetEntry.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for CreateSetEntry.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var result = await _setEntryService.CreateSetEntryAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
                     }
                 case "UpdateSetEntryAsync":
                     {
                         var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
                         if (requestNode == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateSetEntry.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for UpdateSetEntry.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var request = JsonSerializer.Deserialize<UpdateSetEntryRequest>(requestNode.ToJsonString(), _jsonOptions);
                         if (request == null)
-                            return Result<ToolChatMessage>.Error("Missing or invalid request for UpdateSetEntry.");
-
+                        {
+                            var errorMsg = "Missing or invalid request for UpdateSetEntry.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var result = await _setEntryService.UpdateSetEntryAsync(user, request);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
                     }
                 case "DeleteSetEntryAsync":
                     {
                         var idStr = JsonSerializer.Deserialize<JsonObject>(args);
                         if (idStr == null || !Guid.TryParse(idStr.ToJsonString(), out var id))
-                            return Result<ToolChatMessage>.Error("Missing or invalid setEntryId.");
-
-                            
+                        {
+                            var errorMsg = "Missing or invalid setEntryId.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
                         var result = await _setEntryService.DeleteSetEntryAsync(user, id);
-                        return Result<ToolChatMessage>.Success(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result)));
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
                     }
-
                 default:
-                    return Result<ToolChatMessage>.Error($"Tool function '{fn}' is not implemented.");
+                    {
+                        var errorMsg = $"Tool function '{fn}' is not implemented.";
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                    }
             }
         }
         catch (Exception ex)
         {
-            return Result<ToolChatMessage>.Error($"Exception in {fn}: {ex.Message}");
+            var errorMsg = $"Exception in {fn}: {ex.Message}";
+            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
         }
     }
 }
