@@ -5858,7 +5858,7 @@ export interface IInjuryEvent {
 }
 
 export class InjuryEventDTO implements IInjuryEventDTO {
-    trainingSessionID!: string;
+    trainingSessionID?: string | undefined;
     notes!: string;
     painLevel!: number;
     injuryType!: InjuryEventType;
@@ -5902,7 +5902,7 @@ export class InjuryEventDTO implements IInjuryEventDTO {
 }
 
 export interface IInjuryEventDTO {
-    trainingSessionID: string;
+    trainingSessionID?: string | undefined;
     notes: string;
     painLevel: number;
     injuryType: InjuryEventType;

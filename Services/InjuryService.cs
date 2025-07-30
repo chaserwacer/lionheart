@@ -51,7 +51,6 @@ public class InjuryService : IInjuryService
 
         var newEvent = new InjuryEvent
         {
-            InjuryID = injuryId,
             TrainingSessionID = request.TrainingSessionID,
             Notes = request.Notes,
             PainLevel = request.PainLevel,

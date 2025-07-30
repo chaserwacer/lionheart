@@ -18,8 +18,8 @@ public class InjuryDTO
 
 public class InjuryEventDTO
 {
-    [Required]
-    public required Guid TrainingSessionID { get; set; }
+    public Guid? TrainingSessionID { get; set; }
+
     [Required]
     public required string Notes { get; set; } = string.Empty;
     [Required]
