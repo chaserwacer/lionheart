@@ -29,3 +29,33 @@ public class InjuryEventDTO
     [Required]
     public required DateTime CreationTime { get; set; }
 }
+public class CreateInjuryRequest
+{
+    [Required]
+    public string Category { get; set; } = string.Empty;
+
+    [Required]
+    public DateOnly InjuryDate { get; set; }
+}
+
+    public class CreateInjuryEventRequest
+    {
+    [Required]
+    public Guid TrainingSessionID { get; set; }
+
+    public string Notes { get; set; } = string.Empty;
+
+    [Range(0, 10)]
+    public int PainLevel { get; set; }
+
+    public InjuryEventType InjuryType { get; set; } = InjuryEventType.flareup;
+    }
+
+    public class AddInjuryEventWrapper
+{
+    [Required]
+    public Guid InjuryId { get; set; }
+
+    [Required]
+    public required CreateInjuryEventRequest Request { get; set; }
+}
