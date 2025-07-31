@@ -34,7 +34,7 @@
     }
     error = "";
     try {
-      await deleteClient.delete2(id);
+      await deleteClient.delete3(id);
       await loadMovements();
     } catch (e: any) {
       if (e instanceof Response) {
