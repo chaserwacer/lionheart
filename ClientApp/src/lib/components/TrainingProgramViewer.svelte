@@ -103,7 +103,7 @@
             const deleteProgramClient = new DeleteTrainingProgramEndpointClient(
                 baseUrl,
             );
-            await deleteProgramClient.delete5(programID);
+            await deleteProgramClient.delete6(programID);
             await loadPrograms();
         } catch (err) {
             alert("Failed to delete program.");

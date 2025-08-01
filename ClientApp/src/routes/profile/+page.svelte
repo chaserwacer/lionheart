@@ -74,7 +74,7 @@
 <svelte:head>
   <title>Profile</title>
 </svelte:head>
-<div class="flex justify-center md:text-left p-5 text-center">
+<div class="flex justify-center md:text-left p-5 text-center w-5/6 mx-auto">
   <article class="prose lg:prose-xl">
     <h1>Lionheart Profile</h1>
     <h4>Welcome, {$bootUserDto.name}, to Project Lionheart.</h4>
@@ -181,9 +181,9 @@
           <option value="black">Dark Mode</option>
           <option value="coffee">lion-gold</option>
           
-          <option value="autumn">Autumn</option>
+          <option value="forest">greenbean</option>
           <option value="nord">Blue</option>
-          <option value="retro">Retro</option>
+          <option value="business">Business</option>
           <!-- <option value=""></option>
         <option value=""></option> -->
         </select>

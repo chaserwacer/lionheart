@@ -429,6 +429,66 @@ export class AnalyzeUserStateEndpointClient {
     }
 }
 
+export class ChatEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    chat(body: ChatRequest | undefined): Promise<ChatResponse> {
+        let url_ = this.baseUrl + "/api/ai/chat";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processChat(_response);
+        });
+    }
+
+    protected processChat(response: Response): Promise<ChatResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ChatResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ChatResponse>(null as any);
+    }
+}
+
 export class CreateEquipmentEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -4359,6 +4419,82 @@ export class BootUserDTO implements IBootUserDTO {
 export interface IBootUserDTO {
     name?: string | undefined;
     hasCreatedProfile?: boolean;
+}
+
+export class ChatRequest implements IChatRequest {
+    message!: string;
+    creativityLevel!: number;
+
+    constructor(data?: IChatRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.message = _data["message"];
+            this.creativityLevel = _data["creativityLevel"];
+        }
+    }
+
+    static fromJS(data: any): ChatRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["message"] = this.message;
+        data["creativityLevel"] = this.creativityLevel;
+        return data;
+    }
+}
+
+export interface IChatRequest {
+    message: string;
+    creativityLevel: number;
+}
+
+export class ChatResponse implements IChatResponse {
+    response!: string | undefined;
+
+    constructor(data?: IChatResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.response = _data["response"];
+        }
+    }
+
+    static fromJS(data: any): ChatResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["response"] = this.response;
+        return data;
+    }
+}
+
+export interface IChatResponse {
+    response: string | undefined;
 }
 
 export class CreateActivityRequest implements ICreateActivityRequest {

@@ -164,12 +164,22 @@
   });
 </script>
 
-<div class="p-6 max-w-4xl mx-auto text-base-content">
-  <a class="btn btn-sm btn-outline mb-4" href={returnTo}>← Back</a>
+<div class="p-5 pt-2 w-5/6 mx-auto text-base-content ">
+    <div class="">
+      <div class="flex justify-between items-center w-full">
+        <a href={returnTo} class="btn btn-sm btn-primary">
+          ← Back
+        </a>
+        <h1 class="text-xl md:text-4xl font-extrabold mb-2 text-center">
+          Item Library
+        </h1>
+          <div></div>
+      </div>
 
-  <h1 class="text-3xl font-bold mb-6">Item Library</h1>
-
-  <div class="flex flex-col md:flex-row">
+      
+    </div>
+    <div class="divider divider-2 divider-primary"></div>
+  <div class="flex flex-col md:flex-row justify-center">
     <!-- Add New Movement -->
     <div class="flex flex-col">
       <div class="mb-6">
@@ -210,7 +220,7 @@
         </ul>
       </div>
     </div>
-<div class="divider divider-vertical md:divider-horizontal"></div>
+    <div class="divider divider-vertical md:divider-horizontal"></div>
 
     <!-- Add New Equipment -->
     <div class="flex flex-col">

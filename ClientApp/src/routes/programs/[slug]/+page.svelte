@@ -12,7 +12,7 @@
     GetTrainingProgramEndpointClient,
   } from "$lib/api/ApiClient";
 
-  const slug = $page.params.slug;
+  const slug = $page.params.slug!;
   let program: TrainingProgramDTO;
   let showModal = false;
   let showEditModal = false;
@@ -74,7 +74,7 @@
     const getProgramsClient = new GetTrainingProgramEndpointClient(baseUrl);
 
     try {
-      program = await getProgramsClient.get(slug);
+      program = await getProgramsClient.get(slug!);
       if (program == null || program.trainingProgramID == null) {
         console.error("Program not found for slug:", slug);
         return;
@@ -93,7 +93,7 @@
 </script>
 
 {#if program}
-  <div class="p-5 pt-2 max-w-6xl flex flex-col items-center justify-center mx-auto">
+  <div class="flex p-5 pt-2 w-5/6 flex flex-col items-center  mx-auto">
     <div class="flex justify-between items-center w-full">
       <a href="/programs" class="btn btn-sm btn-primary"> ← Programs </a>
       <h1 class="text-xl md:text-4xl font-extrabold mb-2 text-center">

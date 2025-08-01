@@ -25,6 +25,7 @@
 </script>
 
 <!---------------------------------------------------------------------------->
+<div class="flex flex-col min-h-screen ">
 <nav class="bg-primary-content border-b border-primary">
   <div class="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
     <div class="relative flex h-16 items-center">
@@ -67,7 +68,7 @@
             <OuraSync />
             <button class="btn btn-sm btn-outline btn-primary" on:click={() => goto('/programs')}>Programs</button>
             <button class="btn btn-sm btn-outline btn-primary" on:click={() => goto('/injuryPortal')}>Injury</button>
-
+            <button class="btn btn-sm btn-outline btn-primary" on:click={() => goto('/chat')}>HAL</button>
           </div>
         </div>
       </div>
@@ -101,5 +102,8 @@
     </div>
   </div>
 </nav>
+<main class="flex flex-1 overflow-y-auto w-full">
+    <slot />
+  </main>
+</div>
 
-<slot />

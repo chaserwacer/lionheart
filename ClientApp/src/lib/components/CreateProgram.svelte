@@ -95,7 +95,7 @@
     });
 
     try {
-      await plainClient.create5(request);
+      await plainClient.create6(request);
       reset();
       dispatch("created");
     } catch (error) {
@@ -125,7 +125,7 @@ async function createWithAi() {
       endDate: new Date(endDate).toISOString().split('T')[0],
       tags: [selectedTag]
     });
-    const result = await plainClient.create5(request);
+    const result = await plainClient.create6(request);
     trainingProgramID = result.trainingProgramID;
   } catch (error) {
     console.error('AI program creation error:', error);
