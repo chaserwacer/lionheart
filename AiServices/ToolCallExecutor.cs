@@ -10,6 +10,8 @@ using Ardalis.Result;
 using lionheart.Converters;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json; // if not already at top
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Http;
 
 
 /// <summary>
@@ -24,6 +26,8 @@ public class ToolCallExecutor : IToolCallExecutor
     private readonly ITrainingProgramService _trainingProgramService;
     private readonly IOuraService _ouraService;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IWellnessService _wellnessService;
+    private readonly IActivityService _activityService;
 
     // Static base options shared across clones
     private static readonly JsonSerializerOptions _baseJsonOptions = new JsonSerializerOptions
@@ -45,13 +49,17 @@ public class ToolCallExecutor : IToolCallExecutor
         IMovementService movementService,
         ISetEntryService setEntryService,
         ITrainingProgramService trainingProgramService,
-            IOuraService ouraService)
+        IOuraService ouraService,
+        IActivityService activityService,
+        IWellnessService wellnessService)
     {
         _trainingSessionService = trainingSessionService;
         _movementService = movementService;
         _setEntryService = setEntryService;
         _trainingProgramService = trainingProgramService;
         _ouraService = ouraService;
+        _activityService = activityService;
+        _wellnessService = wellnessService;
 
         // ✅ Clone base options with DateOnly support
         _jsonOptions = CloneWithDateOnlySupport(_baseJsonOptions);
@@ -480,5 +488,268 @@ public class ToolCallExecutor : IToolCallExecutor
             return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
         }
     }
-}
 
+    /// <summary>
+    /// Intakes a list of tool calls and executes them sequentially.
+    /// Used for chat interface tools from <see cref="OpenAiToolRetriever.GetChatTools"/>
+    /// </summary>
+    /// <param name="toolCalls">List of chat tool calls to execute</param>
+    /// <param name="user">The current user</param>
+    /// <returns>List of tool call responses</returns>
+    public async Task<List<ToolCallResponse>> ExecuteChatToolCallsAsync(IReadOnlyList<ChatToolCall> toolCalls, IdentityUser user)
+    {
+        var results = new List<ToolCallResponse>();
+        foreach (var toolCall in toolCalls)
+        {
+            var result = await ExecuteChatToolsAsync(toolCall, user);
+            results.Add(result);
+        }
+        return results;
+    }
+
+    /// <summary>
+    /// Private helper method.
+    /// Executes a single chat tool call based on its function name and arguments.
+    /// Used for tools from <see cref="OpenAiToolRetriever.GetChatTools"/>
+    /// </summary>
+    /// <param name="toolCall">The tool call to execute</param>
+    /// <param name="user">The current user</param>
+    /// <returns>A tool call response</returns>
+    private async Task<ToolCallResponse> ExecuteChatToolsAsync(ChatToolCall toolCall, IdentityUser user)
+    {
+        var fn = toolCall.FunctionName;
+        var args = toolCall.FunctionArguments.ToString();
+
+        try
+        {
+            switch (fn)
+            {
+                // Training Program tools
+                case "GetTrainingProgramAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (requestNode == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetTrainingProgram.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var request = JsonSerializer.Deserialize<GetTrainingProgramRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetTrainingProgram.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var result = await _trainingProgramService.GetTrainingProgramAsync(user, request.TrainingProgramID);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+                case "GetTrainingProgramsAsync":
+                    {
+                        var result = await _trainingProgramService.GetTrainingProgramsAsync(user);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+
+                // Training Session tools
+                case "GetTrainingSessionAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (requestNode == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetTrainingSession.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var request = JsonSerializer.Deserialize<GetTrainingSessionRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetTrainingSession.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var result = await _trainingSessionService.GetTrainingSessionAsync(user, request);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+                case "GetTrainingSessionsByDateRangeAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (requestNode == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetTrainingSessionsByDateRange.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var request = JsonSerializer.Deserialize<DateRangeRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetTrainingSessionsByDateRange.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var result = await _trainingSessionService.GetTrainingSessionsByDateRangeAsync(user, request);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+                case "GetTrainingSessionsAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (requestNode == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetTrainingSessions.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var programIdStr = requestNode["trainingProgramID"]?.ToString();
+                        if (string.IsNullOrEmpty(programIdStr) || !Guid.TryParse(programIdStr, out var programId))
+                        {
+                            var errorMsg = "Missing or invalid trainingProgramID for GetTrainingSessions.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var result = await _trainingSessionService.GetTrainingSessionsAsync(user, programId);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+
+                // Movement tools
+                case "GetMovementsAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (requestNode == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetMovements.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var sessionIdStr = requestNode["sessionId"]?.ToString();
+                        if (string.IsNullOrEmpty(sessionIdStr) || !Guid.TryParse(sessionIdStr, out var sessionId))
+                        {
+                            var errorMsg = "Missing or invalid sessionId for GetMovements.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var result = await _movementService.GetMovementsAsync(user, sessionId);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+                case "GetMovementBasesAsync":
+                    {
+                        var result = await _movementService.GetMovementBasesAsync(user);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+                case "GetEquipmentsAsync":
+                    {
+                        var result = await _movementService.GetEquipmentsAsync(user);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+
+                // Wellness tools
+                case "GetWellnessStatesAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (requestNode == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetWellnessStates.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var request = JsonSerializer.Deserialize<DateRangeRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetWellnessStates.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var result = await _wellnessService.GetWellnessStatesAsync(user, request);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+
+                // Oura tools
+                case "GetDailyOuraInfosAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (requestNode == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetDailyOuraInfos.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var request = JsonSerializer.Deserialize<DateRangeRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetDailyOuraInfos.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var result = await _ouraService.GetDailyOuraInfosAsync(user, request);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+
+                // Activity tools
+                case "GetActivitiesAsync":
+                    {
+                        var requestNode = JsonSerializer.Deserialize<JsonObject>(args);
+                        if (requestNode == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetActivities.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var request = JsonSerializer.Deserialize<DateRangeRequest>(requestNode.ToJsonString(), _jsonOptions);
+                        if (request == null)
+                        {
+                            var errorMsg = "Missing or invalid request for GetActivities.";
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        var result = await _activityService.GetActivitiesAsync(user, request);
+                        if (!result.IsSuccess)
+                        {
+                            var errorMsg = string.Join(", ", result.Errors);
+                            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+                        }
+                        return new ToolCallResponse(new ToolChatMessage(toolCall.Id, JsonSerializer.Serialize(result.Value)), true);
+                    }
+
+                default:
+                    return new ToolCallResponse(new ToolChatMessage(toolCall.Id, $"Tool function '{fn}' is not implemented."), false);
+            }
+        }
+        catch (Exception ex)
+        {
+            var errorMsg = $"Exception in {fn}: {ex.Message}";
+            return new ToolCallResponse(new ToolChatMessage(toolCall.Id, errorMsg), false);
+        }
+    }
+}

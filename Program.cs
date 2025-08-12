@@ -58,8 +58,10 @@ builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<ISetEntryService, SetEntryService>();
 builder.Services.AddTransient<IToolCallExecutor, ToolCallExecutor>();
 builder.Services.AddTransient<IModifyTrainingSessionService, ModifyTrainingSessionService>();
+builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 builder.Services.AddTransient<IAnalyzeUserService, AnalyzeUserService>();
+builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
@@ -67,7 +69,7 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 
 // TODO: Validate whether this is fine as singleton, or if it should be scoped or transient
 builder.Services.AddSingleton<ChatClient>(provider =>
-    new ChatClient(model: "gpt-4o", apiKey: configuration["OpenAI:ApiKey"])
+    new ChatClient(model: "gpt-5", apiKey: configuration["OpenAI:ApiKey"])
 );
 
 builder.Services

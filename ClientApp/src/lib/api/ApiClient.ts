@@ -429,6 +429,270 @@ export class AnalyzeUserStateEndpointClient {
     }
 }
 
+export class ChatEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    chatPOST(body: ChatRequest | undefined): Promise<ChatConversationDTO> {
+        let url_ = this.baseUrl + "/api/ai/chat";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processChatPOST(_response);
+        });
+    }
+
+    protected processChatPOST(response: Response): Promise<ChatConversationDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ChatConversationDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ChatConversationDTO>(null as any);
+    }
+}
+
+export class CreateChatConversationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    chatPOST2(body: CreateChatConversationRequest | undefined): Promise<ChatConversationDTO> {
+        let url_ = this.baseUrl + "/api/chat";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processChatPOST2(_response);
+        });
+    }
+
+    protected processChatPOST2(response: Response): Promise<ChatConversationDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ChatConversationDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ChatConversationDTO>(null as any);
+    }
+}
+
+export class DeleteChatConversationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    chatDELETE(body: DeleteChatConversationRequest | undefined): Promise<void> {
+        let url_ = this.baseUrl + "/api/chat";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processChatDELETE(_response);
+        });
+    }
+
+    protected processChatDELETE(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class UpdateChatConversationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    chatPUT(body: UpdateChatConversationRequest | undefined): Promise<ChatConversationDTO> {
+        let url_ = this.baseUrl + "/api/chat";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processChatPUT(_response);
+        });
+    }
+
+    protected processChatPUT(response: Response): Promise<ChatConversationDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ChatConversationDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ChatConversationDTO>(null as any);
+    }
+}
+
 export class CreateEquipmentEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1953,6 +2217,133 @@ export class GetActivityTypeRatioEndpointClient {
     }
 }
 
+export class GetAllChatConversationsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    getAll(): Promise<ChatConversationDTO[]> {
+        let url_ = this.baseUrl + "/api/chat/get-all";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAll(_response);
+        });
+    }
+
+    protected processGetAll(response: Response): Promise<ChatConversationDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(ChatConversationDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ChatConversationDTO[]>(null as any);
+    }
+}
+
+export class GetChatConversationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    chatGET(conversationId: string): Promise<ChatConversationDTO> {
+        let url_ = this.baseUrl + "/api/chat/{conversationId}";
+        if (conversationId === undefined || conversationId === null)
+            throw new Error("The parameter 'conversationId' must be defined.");
+        url_ = url_.replace("{conversationId}", encodeURIComponent("" + conversationId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processChatGET(_response);
+        });
+    }
+
+    protected processChatGET(response: Response): Promise<ChatConversationDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ChatConversationDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ChatConversationDTO>(null as any);
+    }
+}
+
 export class GetDailyOuraDataEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2026,7 +2417,7 @@ export class GetEquipmentsEndpointClient {
     /**
      * @return OK
      */
-    getAll(): Promise<Equipment[]> {
+    getAll2(): Promise<Equipment[]> {
         let url_ = this.baseUrl + "/api/equipment/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2038,11 +2429,11 @@ export class GetEquipmentsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll(_response);
+            return this.processGetAll2(_response);
         });
     }
 
-    protected processGetAll(response: Response): Promise<Equipment[]> {
+    protected processGetAll2(response: Response): Promise<Equipment[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2088,7 +2479,7 @@ export class GetMovementBasesEndpointClient {
     /**
      * @return OK
      */
-    getAll2(): Promise<MovementBase[]> {
+    getAll3(): Promise<MovementBase[]> {
         let url_ = this.baseUrl + "/api/movement-base/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2100,11 +2491,11 @@ export class GetMovementBasesEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll2(_response);
+            return this.processGetAll3(_response);
         });
     }
 
-    protected processGetAll2(response: Response): Promise<MovementBase[]> {
+    protected processGetAll3(response: Response): Promise<MovementBase[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2150,7 +2541,7 @@ export class GetMovementsEndpointClient {
     /**
      * @return OK
      */
-    getAll3(sessionID: string): Promise<Movement[]> {
+    getAll4(sessionID: string): Promise<Movement[]> {
         let url_ = this.baseUrl + "/api/movement/get-all/{sessionId}";
         if (sessionID === undefined || sessionID === null)
             throw new Error("The parameter 'sessionID' must be defined.");
@@ -2165,11 +2556,11 @@ export class GetMovementsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll3(_response);
+            return this.processGetAll4(_response);
         });
     }
 
-    protected processGetAll3(response: Response): Promise<Movement[]> {
+    protected processGetAll4(response: Response): Promise<Movement[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2350,7 +2741,7 @@ export class GetTrainingProgramsEndpointClient {
     /**
      * @return OK
      */
-    getAll4(): Promise<TrainingProgramDTO[]> {
+    getAll5(): Promise<TrainingProgramDTO[]> {
         let url_ = this.baseUrl + "/api/training-program/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2362,11 +2753,11 @@ export class GetTrainingProgramsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll4(_response);
+            return this.processGetAll5(_response);
         });
     }
 
-    protected processGetAll4(response: Response): Promise<TrainingProgramDTO[]> {
+    protected processGetAll5(response: Response): Promise<TrainingProgramDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2480,7 +2871,7 @@ export class GetTrainingSessionsEndpointClient {
     /**
      * @return OK
      */
-    getAll5(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
+    getAll6(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
         let url_ = this.baseUrl + "/api/training-session/get-all/{trainingProgramId}";
         if (trainingProgramId === undefined || trainingProgramId === null)
             throw new Error("The parameter 'trainingProgramId' must be defined.");
@@ -2495,11 +2886,11 @@ export class GetTrainingSessionsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll5(_response);
+            return this.processGetAll6(_response);
         });
     }
 
-    protected processGetAll5(response: Response): Promise<TrainingSessionDTO[]> {
+    protected processGetAll6(response: Response): Promise<TrainingSessionDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -4321,6 +4712,50 @@ export interface IApiAccessToken {
     personalAccessToken?: string | undefined;
 }
 
+export class BinaryData implements IBinaryData {
+    readonly length?: number;
+    readonly isEmpty?: boolean;
+    readonly mediaType?: string | undefined;
+
+    constructor(data?: IBinaryData) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            (<any>this).length = _data["length"];
+            (<any>this).isEmpty = _data["isEmpty"];
+            (<any>this).mediaType = _data["mediaType"];
+        }
+    }
+
+    static fromJS(data: any): BinaryData {
+        data = typeof data === 'object' ? data : {};
+        let result = new BinaryData();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["length"] = this.length;
+        data["isEmpty"] = this.isEmpty;
+        data["mediaType"] = this.mediaType;
+        return data;
+    }
+}
+
+export interface IBinaryData {
+    length?: number;
+    isEmpty?: boolean;
+    mediaType?: string | undefined;
+}
+
 export class BootUserDTO implements IBootUserDTO {
     name?: string | undefined;
     hasCreatedProfile?: boolean;
@@ -4359,6 +4794,485 @@ export class BootUserDTO implements IBootUserDTO {
 export interface IBootUserDTO {
     name?: string | undefined;
     hasCreatedProfile?: boolean;
+}
+
+export class ChatConversation implements IChatConversation {
+    chatConversationId?: string;
+    userID?: string;
+    createdAt?: Date;
+    name?: string | undefined;
+    messages?: ChatMessageItem[] | undefined;
+
+    constructor(data?: IChatConversation) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatConversationId = _data["chatConversationId"];
+            this.userID = _data["userID"];
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : <any>undefined;
+            this.name = _data["name"];
+            if (Array.isArray(_data["messages"])) {
+                this.messages = [] as any;
+                for (let item of _data["messages"])
+                    this.messages!.push(ChatMessageItem.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): ChatConversation {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatConversation();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatConversationId"] = this.chatConversationId;
+        data["userID"] = this.userID;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : <any>undefined;
+        data["name"] = this.name;
+        if (Array.isArray(this.messages)) {
+            data["messages"] = [];
+            for (let item of this.messages)
+                data["messages"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IChatConversation {
+    chatConversationId?: string;
+    userID?: string;
+    createdAt?: Date;
+    name?: string | undefined;
+    messages?: ChatMessageItem[] | undefined;
+}
+
+export class ChatConversationDTO implements IChatConversationDTO {
+    chatConversationId!: string;
+    createdAt!: Date;
+    name!: string;
+    messages!: ChatMessageItemDTO[];
+
+    constructor(data?: IChatConversationDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+        if (!data) {
+            this.messages = [];
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatConversationId = _data["chatConversationId"];
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : <any>undefined;
+            this.name = _data["name"];
+            if (Array.isArray(_data["messages"])) {
+                this.messages = [] as any;
+                for (let item of _data["messages"])
+                    this.messages!.push(ChatMessageItemDTO.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): ChatConversationDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatConversationDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatConversationId"] = this.chatConversationId;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : <any>undefined;
+        data["name"] = this.name;
+        if (Array.isArray(this.messages)) {
+            data["messages"] = [];
+            for (let item of this.messages)
+                data["messages"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IChatConversationDTO {
+    chatConversationId: string;
+    createdAt: Date;
+    name: string;
+    messages: ChatMessageItemDTO[];
+}
+
+export class ChatImageDetailLevel implements IChatImageDetailLevel {
+
+    constructor(data?: IChatImageDetailLevel) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+    }
+
+    static fromJS(data: any): ChatImageDetailLevel {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatImageDetailLevel();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        return data;
+    }
+}
+
+export interface IChatImageDetailLevel {
+}
+
+export class ChatInputAudioFormat implements IChatInputAudioFormat {
+
+    constructor(data?: IChatInputAudioFormat) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+    }
+
+    static fromJS(data: any): ChatInputAudioFormat {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatInputAudioFormat();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        return data;
+    }
+}
+
+export interface IChatInputAudioFormat {
+}
+
+export class ChatMessage implements IChatMessage {
+    readonly content?: ChatMessageContentPart[] | undefined;
+
+    constructor(data?: IChatMessage) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["content"])) {
+                (<any>this).content = [] as any;
+                for (let item of _data["content"])
+                    (<any>this).content!.push(ChatMessageContentPart.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): ChatMessage {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatMessage();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.content)) {
+            data["content"] = [];
+            for (let item of this.content)
+                data["content"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IChatMessage {
+    content?: ChatMessageContentPart[] | undefined;
+}
+
+export class ChatMessageContentPart implements IChatMessageContentPart {
+    kind?: ChatMessageContentPartKind;
+    readonly text?: string | undefined;
+    readonly imageUri?: string | undefined;
+    imageBytes?: BinaryData;
+    readonly imageBytesMediaType?: string | undefined;
+    inputAudioBytes?: BinaryData;
+    inputAudioFormat?: ChatInputAudioFormat;
+    readonly fileId?: string | undefined;
+    fileBytes?: BinaryData;
+    readonly fileBytesMediaType?: string | undefined;
+    readonly filename?: string | undefined;
+    imageDetailLevel?: ChatImageDetailLevel;
+    readonly refusal?: string | undefined;
+
+    constructor(data?: IChatMessageContentPart) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.kind = _data["kind"];
+            (<any>this).text = _data["text"];
+            (<any>this).imageUri = _data["imageUri"];
+            this.imageBytes = _data["imageBytes"] ? BinaryData.fromJS(_data["imageBytes"]) : <any>undefined;
+            (<any>this).imageBytesMediaType = _data["imageBytesMediaType"];
+            this.inputAudioBytes = _data["inputAudioBytes"] ? BinaryData.fromJS(_data["inputAudioBytes"]) : <any>undefined;
+            this.inputAudioFormat = _data["inputAudioFormat"] ? ChatInputAudioFormat.fromJS(_data["inputAudioFormat"]) : <any>undefined;
+            (<any>this).fileId = _data["fileId"];
+            this.fileBytes = _data["fileBytes"] ? BinaryData.fromJS(_data["fileBytes"]) : <any>undefined;
+            (<any>this).fileBytesMediaType = _data["fileBytesMediaType"];
+            (<any>this).filename = _data["filename"];
+            this.imageDetailLevel = _data["imageDetailLevel"] ? ChatImageDetailLevel.fromJS(_data["imageDetailLevel"]) : <any>undefined;
+            (<any>this).refusal = _data["refusal"];
+        }
+    }
+
+    static fromJS(data: any): ChatMessageContentPart {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatMessageContentPart();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["kind"] = this.kind;
+        data["text"] = this.text;
+        data["imageUri"] = this.imageUri;
+        data["imageBytes"] = this.imageBytes ? this.imageBytes.toJSON() : <any>undefined;
+        data["imageBytesMediaType"] = this.imageBytesMediaType;
+        data["inputAudioBytes"] = this.inputAudioBytes ? this.inputAudioBytes.toJSON() : <any>undefined;
+        data["inputAudioFormat"] = this.inputAudioFormat ? this.inputAudioFormat.toJSON() : <any>undefined;
+        data["fileId"] = this.fileId;
+        data["fileBytes"] = this.fileBytes ? this.fileBytes.toJSON() : <any>undefined;
+        data["fileBytesMediaType"] = this.fileBytesMediaType;
+        data["filename"] = this.filename;
+        data["imageDetailLevel"] = this.imageDetailLevel ? this.imageDetailLevel.toJSON() : <any>undefined;
+        data["refusal"] = this.refusal;
+        return data;
+    }
+}
+
+export interface IChatMessageContentPart {
+    kind?: ChatMessageContentPartKind;
+    text?: string | undefined;
+    imageUri?: string | undefined;
+    imageBytes?: BinaryData;
+    imageBytesMediaType?: string | undefined;
+    inputAudioBytes?: BinaryData;
+    inputAudioFormat?: ChatInputAudioFormat;
+    fileId?: string | undefined;
+    fileBytes?: BinaryData;
+    fileBytesMediaType?: string | undefined;
+    filename?: string | undefined;
+    imageDetailLevel?: ChatImageDetailLevel;
+    refusal?: string | undefined;
+}
+
+export enum ChatMessageContentPartKind {
+    _0 = 0,
+    _1 = 1,
+    _2 = 2,
+    _3 = 3,
+    _4 = 4,
+}
+
+export class ChatMessageItem implements IChatMessageItem {
+    chatMessageItemID?: string;
+    chatConversationID?: string;
+    chatConversation?: ChatConversation;
+    chatMessageJson!: string | undefined;
+    chatMessageRole!: ChatMessageRole;
+    chatMessage?: ChatMessage;
+    creationTime?: Date;
+
+    constructor(data?: IChatMessageItem) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatMessageItemID = _data["chatMessageItemID"];
+            this.chatConversationID = _data["chatConversationID"];
+            this.chatConversation = _data["chatConversation"] ? ChatConversation.fromJS(_data["chatConversation"]) : <any>undefined;
+            this.chatMessageJson = _data["chatMessageJson"];
+            this.chatMessageRole = _data["chatMessageRole"];
+            this.chatMessage = _data["chatMessage"] ? ChatMessage.fromJS(_data["chatMessage"]) : <any>undefined;
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): ChatMessageItem {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatMessageItem();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatMessageItemID"] = this.chatMessageItemID;
+        data["chatConversationID"] = this.chatConversationID;
+        data["chatConversation"] = this.chatConversation ? this.chatConversation.toJSON() : <any>undefined;
+        data["chatMessageJson"] = this.chatMessageJson;
+        data["chatMessageRole"] = this.chatMessageRole;
+        data["chatMessage"] = this.chatMessage ? this.chatMessage.toJSON() : <any>undefined;
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IChatMessageItem {
+    chatMessageItemID?: string;
+    chatConversationID?: string;
+    chatConversation?: ChatConversation;
+    chatMessageJson: string | undefined;
+    chatMessageRole: ChatMessageRole;
+    chatMessage?: ChatMessage;
+    creationTime?: Date;
+}
+
+export class ChatMessageItemDTO implements IChatMessageItemDTO {
+    chatMessageItemID!: string;
+    chatConversationID!: string;
+    chatMessage!: ChatMessage;
+    creationTime!: Date;
+    chatMessageRole!: ChatMessageRole;
+
+    constructor(data?: IChatMessageItemDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+        if (!data) {
+            this.chatMessage = new ChatMessage();
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatMessageItemID = _data["chatMessageItemID"];
+            this.chatConversationID = _data["chatConversationID"];
+            this.chatMessage = _data["chatMessage"] ? ChatMessage.fromJS(_data["chatMessage"]) : new ChatMessage();
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+            this.chatMessageRole = _data["chatMessageRole"];
+        }
+    }
+
+    static fromJS(data: any): ChatMessageItemDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatMessageItemDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatMessageItemID"] = this.chatMessageItemID;
+        data["chatConversationID"] = this.chatConversationID;
+        data["chatMessage"] = this.chatMessage ? this.chatMessage.toJSON() : <any>undefined;
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        data["chatMessageRole"] = this.chatMessageRole;
+        return data;
+    }
+}
+
+export interface IChatMessageItemDTO {
+    chatMessageItemID: string;
+    chatConversationID: string;
+    chatMessage: ChatMessage;
+    creationTime: Date;
+    chatMessageRole: ChatMessageRole;
+}
+
+export enum ChatMessageRole {
+    _0 = 0,
+    _1 = 1,
+    _2 = 2,
+    _3 = 3,
+    _4 = 4,
+    _5 = 5,
+}
+
+export class ChatRequest implements IChatRequest {
+    message!: string;
+    chatConversationId!: string;
+
+    constructor(data?: IChatRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.message = _data["message"];
+            this.chatConversationId = _data["chatConversationId"];
+        }
+    }
+
+    static fromJS(data: any): ChatRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChatRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["message"] = this.message;
+        data["chatConversationId"] = this.chatConversationId;
+        return data;
+    }
+}
+
+export interface IChatRequest {
+    message: string;
+    chatConversationId: string;
 }
 
 export class CreateActivityRequest implements ICreateActivityRequest {
@@ -4427,6 +5341,42 @@ export interface ICreateActivityRequest {
     difficultyRating: number;
     engagementRating: number;
     externalVariablesRating: number;
+}
+
+export class CreateChatConversationRequest implements ICreateChatConversationRequest {
+    name!: string;
+
+    constructor(data?: ICreateChatConversationRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.name = _data["name"];
+        }
+    }
+
+    static fromJS(data: any): CreateChatConversationRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateChatConversationRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["name"] = this.name;
+        return data;
+    }
+}
+
+export interface ICreateChatConversationRequest {
+    name: string;
 }
 
 export class CreateEquipmentRequest implements ICreateEquipmentRequest {
@@ -5416,6 +6366,42 @@ export interface IDateRangeRequest {
     endDate: Date;
 }
 
+export class DeleteChatConversationRequest implements IDeleteChatConversationRequest {
+    chatConversationId!: string;
+
+    constructor(data?: IDeleteChatConversationRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatConversationId = _data["chatConversationId"];
+        }
+    }
+
+    static fromJS(data: any): DeleteChatConversationRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new DeleteChatConversationRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatConversationId"] = this.chatConversationId;
+        return data;
+    }
+}
+
+export interface IDeleteChatConversationRequest {
+    chatConversationId: string;
+}
+
 export class Equipment implements IEquipment {
     equipmentID!: string;
     name!: string;
@@ -6127,6 +7113,7 @@ export class LionheartUser implements ILionheartUser {
     movementBases?: MovementBase[] | undefined;
     equipments?: Equipment[] | undefined;
     injuries?: Injury[] | undefined;
+    chatConversations?: ChatConversation[] | undefined;
 
     constructor(data?: ILionheartUser) {
         if (data) {
@@ -6183,6 +7170,11 @@ export class LionheartUser implements ILionheartUser {
                 this.injuries = [] as any;
                 for (let item of _data["injuries"])
                     this.injuries!.push(Injury.fromJS(item));
+            }
+            if (Array.isArray(_data["chatConversations"])) {
+                this.chatConversations = [] as any;
+                for (let item of _data["chatConversations"])
+                    this.chatConversations!.push(ChatConversation.fromJS(item));
             }
         }
     }
@@ -6241,6 +7233,11 @@ export class LionheartUser implements ILionheartUser {
             for (let item of this.injuries)
                 data["injuries"].push(item ? item.toJSON() : <any>undefined);
         }
+        if (Array.isArray(this.chatConversations)) {
+            data["chatConversations"] = [];
+            for (let item of this.chatConversations)
+                data["chatConversations"].push(item ? item.toJSON() : <any>undefined);
+        }
         return data;
     }
 }
@@ -6259,6 +7256,7 @@ export interface ILionheartUser {
     movementBases?: MovementBase[] | undefined;
     equipments?: Equipment[] | undefined;
     injuries?: Injury[] | undefined;
+    chatConversations?: ChatConversation[] | undefined;
 }
 
 export class LoginRequest implements ILoginRequest {
@@ -7901,6 +8899,46 @@ export interface ITwoFactorResponse {
     recoveryCodes?: string[] | undefined;
     isTwoFactorEnabled: boolean;
     isMachineRemembered: boolean;
+}
+
+export class UpdateChatConversationRequest implements IUpdateChatConversationRequest {
+    chatConversationId!: string;
+    name!: string;
+
+    constructor(data?: IUpdateChatConversationRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatConversationId = _data["chatConversationId"];
+            this.name = _data["name"];
+        }
+    }
+
+    static fromJS(data: any): UpdateChatConversationRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateChatConversationRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatConversationId"] = this.chatConversationId;
+        data["name"] = this.name;
+        return data;
+    }
+}
+
+export interface IUpdateChatConversationRequest {
+    chatConversationId: string;
+    name: string;
 }
 
 export class UpdateMovementOrderRequest implements IUpdateMovementOrderRequest {

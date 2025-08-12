@@ -108,6 +108,8 @@
 <svelte:head>
     <title>Authentication</title>
 </svelte:head>
+<div class="flex flex-col w-5/6 mx-auto">
+
 
 <div class="flex flex-row items-center justify-center">
     <img class="h-1/4 w-1/4" src="/src/assets/logo.png" alt="Lion Logo" />
@@ -231,3 +233,4 @@
     <span>{$errorMessage}</span>
   </div>
 {/if}
+</div>

@@ -35,7 +35,7 @@
   async function loadPrograms() {
     try {
       const getProgramsClient = new GetTrainingProgramsEndpointClient(baseUrl);
-      programs = await getProgramsClient.getAll4();
+      programs = await getProgramsClient.getAll5();
       programsDisplaySessions = {};
       programs.forEach((element) => {
         for (const session of element.trainingSessions) {
@@ -145,7 +145,7 @@
   }
 </script>
 
-<div class="p-6 max-w-6xl mx-auto text-base-content">
+<div class="p-5 pt-2 w-5/6 mx-auto text-base-content">
   <h1 class="text-3xl font-bold mb-6">{$bootUserDto.name}'s Program Library</h1>
 
   <div class="flex flex-col gap-8 w-full">

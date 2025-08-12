@@ -593,5 +593,105 @@ private static JsonObject BuildMovementModifierSchema()
 
             return tools;
         }
+
+        /// <summary>
+        /// Returns all ChatTool definitions used for the chat interface to access user data.
+        /// </summary>
+        public static async Task<List<ChatTool>> GetChatTools()
+        {
+            var tools = new List<ChatTool>();
+            
+            // Training Program tools
+            var programTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
+                typeof(TrainingProgramService),
+                new[]
+                {
+                    "GetTrainingProgramAsync",
+                    "GetTrainingProgramsAsync"
+                }
+            );
+            
+            if (programTools.IsSuccess)
+            {
+                tools.AddRange(programTools.Value);
+            }
+            
+            // Training Session tools
+            var sessionTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
+                typeof(TrainingSessionService),
+                new[]
+                {
+                    "GetTrainingSessionAsync",
+                    "GetTrainingSessionsByDateRangeAsync",
+                    "GetTrainingSessionsAsync"
+                }
+            );
+            
+            if (sessionTools.IsSuccess)
+            {
+                tools.AddRange(sessionTools.Value);
+            }
+            
+            // Movement tools
+            var movementTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
+                typeof(MovementService),
+                new[]
+                {
+                    "GetMovementsAsync",
+                    "GetMovementBasesAsync",
+                    "GetEquipmentsAsync"
+                }
+            );
+            
+            if (movementTools.IsSuccess)
+            {
+                tools.AddRange(movementTools.Value);
+            }
+            
+            // Wellness tools
+            var wellnessTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
+                typeof(WellnessService),
+                new[]
+                {
+
+                    "GetWellnessStatesAsync"
+                }
+            );
+            
+            if (wellnessTools.IsSuccess)
+            {
+                tools.AddRange(wellnessTools.Value);
+            }
+            
+            // Oura tools
+            var ouraTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
+                typeof(OuraService),
+                new[]
+                {
+                    "GetDailyOuraInfosAsync"
+                }
+            );
+            
+            if (ouraTools.IsSuccess)
+            {
+                tools.AddRange(ouraTools.Value);
+            }
+            
+            // Activity tools
+            var activityTools = await ChatToolHelper.CreateToolsFromMethodsAsync(
+                typeof(ActivityService),
+                new[]
+                {
+                    "GetActivitiesAsync"
+                }
+            );
+            
+            if (activityTools.IsSuccess)
+            {
+                tools.AddRange(activityTools.Value);
+            }
+            
+            return tools;
+        }
     }
 }

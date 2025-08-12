@@ -26,4 +26,5 @@ public class LionheartUser
     public List<MovementBase> MovementBases { get; set; } = [];
     public List<Equipment> Equipments { get; set; } = [];
     public List<Injury> Injuries { get; set; } = [];
+    public List<ChatConversation> ChatConversations { get; set; } = [];
 }

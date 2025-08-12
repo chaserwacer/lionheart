@@ -31,7 +31,8 @@ namespace lionheart.Data
         public DbSet<SetEntry> SetEntries { get; set; }
         public DbSet<Injury> Injuries { get; set; }
         public DbSet<InjuryEvent> InjuryEvents { get; set; }
-
+        public DbSet<ChatConversation> ChatConversations { get; set; }
+        public DbSet<ChatMessageItem> ChatMessageItems { get; set; }
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -179,8 +180,27 @@ namespace lionheart.Data
                 .OwnsOne(o => o.SleepData);
             modelBuilder.Entity<DailyOuraInfo>()
                 .OwnsOne(o => o.ActivityData);
-            
-            
+
+
+            // Chat Conversations
+            modelBuilder.Entity<ChatConversation>()
+                .HasKey(c => c.ChatConversationId);
+            modelBuilder.Entity<ChatConversation>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.ChatConversations)
+                .HasForeignKey(c => c.UserID);
+            modelBuilder.Entity<ChatMessageItem>()
+                .HasKey(m => m.ChatMessageItemID);
+            modelBuilder.Entity<ChatMessageItem>()
+                .HasOne<ChatConversation>(c => c.ChatConversation)
+                .WithMany(c => c.Messages)
+                .HasForeignKey(m => m.ChatConversationID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Index for ordering and fast queries by conversation
+            modelBuilder.Entity<ChatMessageItem>()
+                .HasIndex(m => new { m.ChatConversationID, m.CreationTime });
+
         }
     }
 }

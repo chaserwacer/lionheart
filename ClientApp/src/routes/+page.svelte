@@ -280,9 +280,9 @@
 <svelte:head>
   <title>Lionheart</title>
 </svelte:head>
-
-<div class="flex flex-row">
-  <article class="prose max-w-none pl-5 pt-5 text-center">
+<div class="flex flex-col w-full p-5 mx-auto">
+<div class="flex flex-row mt-2">
+  <article class="prose max-w-none  text-center">
     <h1 class="mb-2">Lionheart Homebase</h1>
     <div class="flex flex-col md:flex-row items-center md:items-start">
       <h3 class="p-0 m-0 md:w-1/2">
@@ -779,4 +779,5 @@
       ></progress>
     </div>
   </div>
+</div>
 </div>

@@ -71,13 +71,13 @@
     const equipmentClient = new GetEquipmentsEndpointClient(baseUrl);
 
     try {
-      program = await programsClient.get(slug);
-      session = await sessionClient.get2(slug, sessionID);
+      program = await programsClient.get(slug!);
+      session = await sessionClient.get2(slug!, sessionID!);
       if (!session) return;
 
       selectedDate = session.date.toISOString().slice(0, 10);
-      modifiers = await movementBaseClient.getAll2();
-      equipmentOptions = await equipmentClient.getAll();
+      modifiers = await movementBaseClient.getAll3();
+      equipmentOptions = await equipmentClient.getAll2();
       console.log("equipmentOptions", equipmentOptions);
     } catch (err) {
       console.error("Failed to load session data:", err);
@@ -199,14 +199,14 @@
     // Reload the session's movements
     const sessionClient = new GetTrainingSessionEndpointClient(baseUrl);
 
-    session = await sessionClient.get2(slug, sessionID);
+    session = await sessionClient.get2(slug!, sessionID!);
     showModal = false;
 
     const movementBaseClient = new GetMovementBasesEndpointClient(baseUrl);
     const equipmentClient = new GetEquipmentsEndpointClient(baseUrl);
 
-    modifiers = await movementBaseClient.getAll2();
-    equipmentOptions = await equipmentClient.getAll();
+    modifiers = await movementBaseClient.getAll3();
+    equipmentOptions = await equipmentClient.getAll2();
   }
 
   const labelMap = {
@@ -243,6 +243,7 @@
     if (!confirmed || !session) return;
     const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
     try {
+      await deleteClient.delete7(session.trainingSessionID);
       await deleteClient.delete7(session.trainingSessionID);
       goto(`/programs/${slug}`); // Redirect to program page after deletion
     } catch {
@@ -299,7 +300,7 @@
 </script>
 
 {#if session}
-  <div class="p-5 pt-2 max-w-6xl mx-auto text-base-content">
+  <div class="p-5 pt-2 w-5/6 mx-auto text-base-content ">
     <div class="">
       <div class="flex justify-between items-center w-full">
         <a href={`/programs/${slug}`} class="btn btn-sm btn-primary">
