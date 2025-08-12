@@ -329,8 +329,4 @@
     <button class="btn btn-accent mt-2 w-full" on:click={sendMessage}>Send</button>
   </div>
 </div>
-
-
-
-
 </div>

@@ -42,7 +42,7 @@
 
     const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
     try {
-      await deleteClient.delete6(session.trainingSessionID);
+      await deleteClient.delete7(session.trainingSessionID);
       await loadSessions(); // Reload sessions to reflect changes
     } catch {
       alert("Failed to delete session.");

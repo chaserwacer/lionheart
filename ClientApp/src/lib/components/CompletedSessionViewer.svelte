@@ -47,7 +47,7 @@
     if (!confirmed || !session) return;
     const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
     try {
-      await deleteClient.delete6(session.trainingSessionID);
+      await deleteClient.delete7(session.trainingSessionID);
       await loadSessions();
     } catch {
       alert("Failed to delete session.");
