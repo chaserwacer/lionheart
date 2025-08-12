@@ -65,7 +65,7 @@
       const deleteProgramClient = new DeleteTrainingProgramEndpointClient(
         baseUrl,
       );
-      await deleteProgramClient.delete5(programID);
+      await deleteProgramClient.delete6(programID);
       programs = programs.filter((p) => p.trainingProgramID !== programID);
     } catch (err) {
       alert("Failed to delete program.");

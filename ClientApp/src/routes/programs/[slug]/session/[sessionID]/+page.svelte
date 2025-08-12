@@ -231,7 +231,7 @@
 
   async function deleteSetEntry(set: SetEntryDTO) {
     var client = new DeleteSetEntryEndpointClient(baseUrl);
-    await client.delete4(set.setEntryID).catch((err) => {
+    await client.delete5(set.setEntryID).catch((err) => {
       console.error("Failed tdelete set entry", err);
     });
 
@@ -243,7 +243,7 @@
     if (!confirmed || !session) return;
     const deleteClient = new DeleteTrainingSessionEndpointClient(baseUrl);
     try {
-      await deleteClient.delete6(session.trainingSessionID);
+      await deleteClient.delete7(session.trainingSessionID);
       goto(`/programs/${slug}`); // Redirect to program page after deletion
     } catch {
       alert("Failed to delete session.");
