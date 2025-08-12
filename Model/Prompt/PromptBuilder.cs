@@ -76,112 +76,92 @@ namespace lionheart.Model.Prompt
         }
 
 
-    public static PromptBuilder FirstWeek(string programId) =>
-      new PromptBuilder()
-        .AddSection("Phase 2: Create Week 1",
-          $"Target Program: {programId}",
+        public static PromptBuilder FirstWeek(string programId) =>
+            new PromptBuilder()
+                .AddSection("Phase 2: Create Week 1",
+                    $"Target Program: {programId}",
 
-          // STEP 1 — info tools (parallel)
-          "Step 1 — Fetch in parallel:",
-          "- GetTrainingProgramAsync(programId)",
-          "- GetMovementBasesAsync()",
-          "- GetEquipmentsAsync()",
-          "Wait for results. Use ONLY returned UUIDs.",
+                    // STEP 1 — info tools (parallel)
+                    "Step 1 — Fetch in parallel:",
+                    "- GetTrainingProgramAsync(programId)",
+                    "- GetMovementBasesAsync()",
+                    "- GetEquipmentsAsync()",
+                    "Wait for results. Use ONLY returned UUIDs.",
 
-          // WEEKDAY ANCHORING
-          "Weekday Anchoring:",
-          "• Choose exact training weekdays for Week 1 using the user's preferredDays if provided. If not provided, infer a clean pattern (e.g., Mon/Wed/Fri or Mon/Tue/Thu/Sat) within the program date range.",
-          "• Each session’s DATE must align to those weekdays. These weekday choices become the template for ALL future weeks (same days each week).",
-          "• Do not schedule weekends unless preferredDays included them.",
+                    // WEEKDAY ANCHORING
+                    "Weekday Anchoring:",
+                    "• Choose exact training weekdays for Week 1 using the user's preferredDays if provided. If not provided, infer a clean pattern (e.g., Mon/Wed/Fri or Mon/Tue/Thu/Sat) within the program date range.",
+                    "• Each session’s DATE must align to those weekdays. These weekday choices become the template for ALL future weeks (same days each week).",
+                    "• Do not schedule weekends unless preferredDays included them.",
 
-          // STEP 2 — creation (single call)
-          "Step 2 — Immediately create ALL Week‑1 sessions in ONE call:",
-          "Call the function EXACTLY in this shape:",
-          "CreateTrainingSessionWeekAsync({",
-          "  \"request\": {",
-          "    \"trainingProgramID\": \"<programId>\",",
-          "    \"sessions\": [ /* fully populated sessions */ ]",
-          "  }",
-          "})",
-          "Do not ask for confirmation. Do not narrate. Do not call other tools in this step.",
+                    // STEP 2 — creation (single call)
+                    "Step 2 — Immediately create ALL Week-1 sessions in ONE call:",
+                    "Call the function EXACTLY in this shape:",
+                    "CreateTrainingSessionWeekAsync({",
+                    "  \"request\": {",
+                    "    \"trainingProgramID\": \"<programId>\",",
+                    "    \"sessions\": [ /* fully populated sessions */ ]",
+                    "  }",
+                    "})",
+                    "Do not ask for confirmation. Do not narrate. Do not call other tools in this step.",
 
-          // content rules (coaching)
-          "Sessions:",
-          "- Each session has 3–5 movements; the FIRST is the main lift (Squat/Bench/Deadlift).",
-          "- Main lift must include a TOP SET (1–3 reps, highest RPE) followed by 2–4 back‑off sets (lower RPE).",
-          "- 2–4 accessories at RPE 8–9 that support the main lift with 3 sets each",
-          "- Distribute S/B/D frequencies exactly per user request.",
-          "- Use simple DUP across the week (skill/volume/strength exposures).",
+                    // STRUCTURE & DATA RULES
+                    "Each session must have:",
+                    "- 3–5 total movements.",
+                    "- The FIRST movement as the main lift (Squat, Bench, or Deadlift).",
+                    "- movementBaseID from GetMovementBasesAsync.",
+                    "- movementModifier { name, equipmentID, equipment (object), duration } from GetEquipmentsAsync.",
+                    "- weightUnit is 'Kilograms' or 'Pounds'.",
+                    "- sets: 2–5 with recommendedReps, recommendedWeight, recommendedRPE.",
+                    "- No guessed IDs. Use only tool-returned UUIDs.",
+                    "- No empty movement arrays."
+                )
+                .AddSection("Reference",
+                    "Refer to the 'TrainingProgrammingReference' document for:",
+                    "• RPE progression rules.",
+                    "• Example weekly layouts.",
+                    "• Variation usage guidelines.",
+                    "• Accessory programming rules.",
+                    "• Implementation reminders (IDs, equipment, weekday consistency)."
+                )
+                .AddSection("Pre-submit checklist",
+                    "• Week 1 dates align to the chosen weekdays.",
+                    "• One CreateTrainingSessionWeekAsync call made with all sessions populated.",
+                    "• Only tool-returned UUIDs used."
+                );
 
-          // variations
-          "Variations (movementModifier):",
-          "- Use 'Competition' when no special variant (duration = 0).",
-          "- Use 'Paused' for paused variations; set duration to the pause seconds (e.g., 2).",
-          "- Use 'Tempo 3-2-0' style for tempo; set duration to the total tempo seconds (e.g., 3+2+0 = 5).",
-          "- Always include equipmentID and equipment (object) copied from GetEquipmentsAsync for the chosen implement.",
+        public static PromptBuilder RemainingWeeks(string programId) =>
+            new PromptBuilder()
+                .AddSection("Phase 3: Create Weeks 2 and 3",
+                    $"Call GetTrainingProgramAsync('{programId}') to read Week 1 (sessions, dates, frequencies, weekday template).",
+                    "Create Week 2 and Week 3 with exactly the same number of sessions as Week 1.",
+                    "Make ONE CreateTrainingSessionWeekAsync(request) call per week (two total calls)."
+                )
+                .AddSection("Weekday Lock + Dates",
+                    "• Preserve the Week-1 weekday template exactly.",
+                    "• Week 2 = Week 1 date + 7 days.",
+                    "• Week 3 = Week 1 date + 14 days.",
+                    "• No shifting to other weekdays."
+                )
+                .AddSection("Structure & Data Rules",
+                    "• Continue sessionNumber sequentially; keep chronological order.",
+                    "• Regenerate all UUIDs for sessions/movements/sets.",
+                    "• Keep weightUnit consistent.",
+                    "• Use only tool-returned UUIDs for IDs and include full equipment object."
+                )
+                .AddSection("Reference",
+                    "Refer to the 'TrainingProgrammingReference' document for:",
+                    "• RPE wave adjustments for Weeks 2 and 3.",
+                    "• Variation guidelines.",
+                    "• Accessory programming.",
+                    "• Example layouts and recovery spacing."
+                )
+                .AddSection("Pre-submit checklist",
+                    "• Weekday pattern matches Week 1.",
+                    "• Two CreateTrainingSessionWeekAsync calls made (one per week).",
+                    "• All sessions fully populated and follow reference rules."
+                );
 
-          // minimal object reminders (schema handles shape)
-          "Movement object reminders:",
-          "- movementBaseID from GetMovementBasesAsync,",
-          "- movementModifier { name, equipmentID, equipment (object), duration },",
-          "- weightUnit is 'Kilograms' or 'Pounds',",
-          "- sets: 2–5 with recommendedReps, recommendedWeight, recommendedRPE.",
-
-          // guardrails
-          "Rules:",
-          "✅ Info tools first; ✅ Then one CreateTrainingSessionWeekAsync call with fully populated sessions;",
-          "✅ Respect S/B/D frequencies & weekday anchoring; ✅ Use only tool‑returned UUIDs;",
-          "❌ No empty movement arrays; ❌ No guessed IDs; ❌ No extra info calls during creation.")
-        .AddSection("Programming Guardrails",
-          "- Avoid heavy hip/back stress on consecutive days; separate heavy Squat and heavy Deadlift days when possible.",
-          "- Bench gets the highest weekly frequency; include at least one lower‑RPE bench day for skill and one heavier day.",
-          "- Top sets guide intensity; back‑offs accrue volume.")
-        .AddSection("Pre‑submit checklist",
-          "• Week 1 dates align to the chosen weekdays; • each session starts with a main lift;",
-          "• 3–5 movements per session; • main lift has top set + back‑offs;",
-          "• accessories at RPE 8–9; • only tool‑returned UUIDs used; • one creation call made.")
-          .AddSection("Reference Document",
-        "Refer to the attached file 'TrainingProgrammingReference.md' for:",
-        "RPE progression guidelines, example layouts, variation rules, accessory programming, and weekday consistency."
-    );
-
-
-    public static PromptBuilder RemainingWeeks(string programId) =>
-      new PromptBuilder()
-        .AddSection("Phase 3: Create Weeks 2 and 3",
-          $"Call GetTrainingProgramAsync('{programId}') to read Week 1 (sessions, dates, frequencies, weekday template).",
-          "Create Week 2 and Week 3 with exactly the same number of sessions as Week 1.",
-          "Make ONE CreateTrainingSessionWeekAsync(request) call per week (two total calls).")
-
-        .AddSection("Weekday Lock + Dates",
-          "• Preserve the Week‑1 weekday template: if a session was Monday in Week 1, it MUST be Monday in Weeks 2 and 3.",
-          "• Derive dates strictly by offset from Week 1:",
-          "  – Week 2 date = Week 1 date + 7 days",
-          "  – Week 3 date = Week 1 date + 14 days",
-          "• Do not shift to different weekdays. Do not add weekends unless Week 1 used weekends.")
-
-        .AddSection("Progression (S/B/D only)",
-          "Apply the RPE wave ONLY to the main lifts (Squat/Bench/Deadlift). Accessories remain RPE 8–9.",
-          "• Week 2: +0.5 RPE vs the matching main‑lift sets in Week 1.",
-          "• Week 3: +1.0 RPE vs Week 1 (technical—no grinders).",
-          "Rep targets may stay the same; adjust load to hit the RPE.")
-
-        .AddSection("Programming Guardrails",
-          "• First movement each session is the main lift with a top set (1–3 reps, highest RPE) + 2–4 back‑offs (lower RPE).",
-          "• 2–4 accessories at RPE 8–9 that support the main lift.",
-          "• Respect exact weekly S/B/D frequencies.",
-          "• Recovery spacing: avoid heavy hip/back stress on consecutive days; separate heavy SQ and heavy DL when possible.",
-          "• No verbatim duplicates; minor accessory/target tweaks OK (keep the same structure).")
-
-        .AddSection("Variations (movementModifier)",
-          "• Use 'Competition' (duration 0) when comp style; 'Paused' with duration in seconds for pause; 'Tempo a-b-c' with duration = a+b+c.",
-          "• Always copy equipmentID and full equipment object (including userID) from GetEquipmentsAsync; IDs must match.")
-
-        .AddSection("Dates, Order, IDs",
-          "• Dates within program range; follow the +7d/+14d rule.",
-          "• Continue sessionNumber sequentially; keep chronological order.",
-          "• Regenerate ALL UUIDs for sessions/movements/sets.",
-          "• Keep weightUnit consistent across all tools and requests.");
 
 
 
