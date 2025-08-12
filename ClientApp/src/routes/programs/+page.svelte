@@ -35,7 +35,7 @@
   async function loadPrograms() {
     try {
       const getProgramsClient = new GetTrainingProgramsEndpointClient(baseUrl);
-      programs = await getProgramsClient.getAll4();
+      programs = await getProgramsClient.getAll5();
       programsDisplaySessions = {};
       programs.forEach((element) => {
         for (const session of element.trainingSessions) {

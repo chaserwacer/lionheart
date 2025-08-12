@@ -9,14 +9,14 @@
         GetAllChatConversationsEndpointClient,
         GetChatConversationEndpointClient,
         ChatConversationDTO,
+        ChatMessage,
+        ChatMessageRole,
         DeleteChatConversationEndpointClient,
         DeleteChatConversationRequest,
-        ChatMessageRole,
     } from "$lib/api/ApiClient";
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
-    import { slugify } from "$lib/utils/slugify";
-    import { load } from "../+layout";
+    import { get } from "svelte/store";
 
     const baseUrl =
         typeof window !== "undefined"
@@ -26,12 +26,55 @@
     let newMessage = "";
     let loading = false;
     let chatContainer: HTMLElement;
-
+    let currentChatConversation: ChatConversationDTO;
+    let currentConversationId: string = "";
     // Chat conversations
     let conversations: ChatConversationDTO[] = [];
     let loadingConversations = true;
-    let chatConversation: ChatConversationDTO;
-    let hoverConversationId: string | null = null; // track hover to show delete X
+    let hoverConversationId: string | null = null;
+
+    // Send a message to the AI
+    async function sendMessage() {
+        if (!newMessage.trim()) return;
+
+        // Add user message
+        const userQuery = newMessage.trim();
+        newMessage = "";
+        loading = true;
+
+        // Optimistic UI: push a user message shaped like ChatMessageItemDTO
+        currentChatConversation.messages.push({
+            chatMessageItemID: "",
+            chatConversationID: currentConversationId,
+            chatMessageRole: ChatMessageRole._1,
+            creationTime: new Date(),
+            chatMessage: ChatMessage.fromJS({
+                content: [{ text: userQuery }],
+            }),
+        } as any);
+        // Scroll to bottom
+        setTimeout(() => {
+            if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        }, 50);
+
+        try {
+            // Call the chat API
+            const chatClient = new ChatEndpointClient(baseUrl);
+            var request = ChatRequest.fromJS({
+                message: userQuery,
+                chatConversationId: currentConversationId,
+            });
+            currentChatConversation = await chatClient.chatPOST(request);
+
+            // Reset loading state
+            loading = false;
+        } catch (error) {
+            console.error("Error:", error);
+            loading = false;
+        }
+    }
 
     // Load all user conversations
     async function loadConversations() {
@@ -47,61 +90,13 @@
         }
     }
 
-    // Create a new conversation
-    async function createNewConversation(initialMessage: string) {
-        try {
-            loading = true;
-            const createRequest = new CreateChatConversationRequest();
-            createRequest.name =
-                initialMessage.length > 30
-                    ? initialMessage.substring(0, 27) + "..."
-                    : initialMessage; // Use first message as conversation name
-
-            const createClient = new CreateChatConversationEndpointClient(
-                baseUrl,
-            );
-            const chatClient = new ChatEndpointClient(baseUrl);
-            chatConversation = await createClient.chatPOST2(createRequest);
-            // chatConversation.messages = [
-            //     {
-            //         chatMessageRole: ChatMessageRole._1,
-            //         content: initialMessage,
-            //         chatMessageItemID: "",
-            //         chatConversationID: "",
-            //         creationTime: new Date(),
-            //         init: function (_data?: any): void {
-            //             throw new Error("Function not implemented.");
-            //         },
-            //         toJSON: function (data?: any) {
-            //             throw new Error("Function not implemented.");
-            //         },
-            //     },
-            // ];
-            var request = ChatRequest.fromJS({
-                message: initialMessage,
-                chatConversationId: chatConversation.chatConversationId,
-            });
-            await chatClient.chatPOST(request);
-
-            // Update the URL with the new conversation ID
-            await goto(
-                `/chat/${slugify(chatConversation.chatConversationId)}`,
-                {
-                    replaceState: false,
-                },
-            );
-        } catch (error) {
-            console.error("Error creating new conversation:", error);
-            return null;
-        }
-    }
-
     // Select a conversation
-    function selectConversation(id: string) {
+    async function selectConversation(id: string) {
+        if (id === currentConversationId) return;
+
         goto(`/chat/${id}`);
     }
 
-    // Delete a conversation
     async function deleteConversation(id: string, ev?: MouseEvent) {
         if (ev) {
             ev.stopPropagation();
@@ -116,10 +111,8 @@
                 chatConversationId: id,
             });
             await client.chatDELETE(req);
-            // Reload conversations
             await loadConversations();
-            // If we deleted the current one navigate away to blank chat page
-            if ($page.params.chatId === id) {
+            if (currentConversationId === id) {
                 goto("/chat");
             }
         } catch (e) {
@@ -132,7 +125,7 @@
     function handleKeydown(event: KeyboardEvent) {
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
-            createNewConversation(newMessage);
+            sendMessage();
         }
     }
 
@@ -141,29 +134,40 @@
 
         // Load conversations
         await loadConversations();
-    });
-    let currentConversationId = $page.params.chatId ?? "";
-    $: if ($page.params.chatId) {
-        (async () => {
-            currentConversationId = $page.params.chatId ?? "";
-            if (currentConversationId) {
-                try {
-                    const getChatConversationEndpointClient =
-                        new GetChatConversationEndpointClient(baseUrl);
-                    chatConversation =
-                        await getChatConversationEndpointClient.chatGET(
-                            currentConversationId,
-                        );
-                } catch (error) {
-                    console.error("Error loading conversation:", error);
-                }
+        currentConversationId = $page.params.chatId ?? "";
+        if (currentConversationId) {
+            try {
+                const getChatConversationEndpointClient =
+                    new GetChatConversationEndpointClient(baseUrl);
+                currentChatConversation =
+                    await getChatConversationEndpointClient.chatGET(
+                        currentConversationId,
+                    );
+            } catch (error) {
+                console.error("Error loading conversation:", error);
             }
-        })();
+        }
+
+        console.log("chat page mounted, params:", $page.params.chatId);
+    });
+
+    function escapeHtml(str: string): string {
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function getSafeChatMessage(text: string | undefined) {
+        if (!text) return "";
+        return escapeHtml(text).replace(/\n/g, "<br>");
     }
 </script>
 
 <div class="flex flex-col bg-base w-full">
-    <div class="flex h-full">
+    <div class="flex h-full w-full">
         <!-- Sidebar -->
         <div class="hidden md:flex md:w-1/6 flex-col bg-base-300 border-r">
             <div class="p-4 flex justify-between items-center">
@@ -279,55 +283,39 @@
         </div>
 
         <!-- Main Chat Area -->
-        <div class="flex mx-auto w-full flex-col overflow-hidden">
+        <div
+            class="flex flex-col w-full md:w-5/6 items-center p-5 overflow-hidden"
+        >
             <!-- Chat Messages -->
             <div
                 bind:this={chatContainer}
                 class="flex overflow-y-scroll px-4 w-full h-3/4"
             >
-                <div class="flex flex flex-col max-w-3xl mx-auto w-full">
-                    {#if chatConversation && chatConversation.messages}
-                        {#each chatConversation.messages as message, idx}
-                            {#if message.chatMessage.content}
-                                <div class="mb-6">
+                <div class="flex flex flex-col max-w-5xl mx-auto w-full">
+                    {#if currentChatConversation && currentChatConversation.messages}
+                        {#each currentChatConversation.messages as message, idx}
+                            {#if message.chatMessageRole !== ChatMessageRole._0 && message.chatMessageRole !== ChatMessageRole._3 && idx != 0}
+                                <div class="mb-6 w-full">
                                     <div class="flex items-start w-full">
                                         <!-- Avatar -->
-                                        <div class="mr-4 mt-1">
-                                            {#if message.chatMessageRole !== ChatMessageRole._0 && message.chatMessageRole !== ChatMessageRole._3 && idx != 0}
+                                        <div class="mr-4 mt-1 flex">
+                                            {#if message.chatMessageRole === ChatMessageRole._1}
                                                 <div
                                                     class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white"
-                                                >
-                                                    <span
-                                                        class="text-sm font-medium"
-                                                        >Y</span
-                                                    >
-                                                </div>
+                                                ></div>
                                             {:else}
                                                 <div
                                                     class="w-8 h-8 bg-neutral-600 dark:bg-neutral-500 rounded-full flex items-center justify-center text-white"
                                                 >
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        stroke-width="1.5"
-                                                        stroke="currentColor"
-                                                        class="w-5 h-5"
-                                                    >
-                                                        <path
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
-                                                        />
-                                                    </svg>
+                                                    <!-- icon -->
                                                 </div>
                                             {/if}
                                         </div>
 
                                         <!-- Message Content -->
-                                        <div class="flex">
+                                        <div class="flex flex-col w-full">
                                             <div
-                                                class="text-sm font-medium text-primary mb-1"
+                                                class="text-sm font-medium text-primary mb-1 w-full"
                                             >
                                                 {message.chatMessageRole ===
                                                 ChatMessageRole._1
@@ -336,67 +324,29 @@
                                                     : "HAL"}
                                             </div>
                                             <div
-                                                class="prose prose-neutral prose-sm text-base-content dark:prose-invert max-w-none"
+                                                class="bg-base-200 dark:bg-base-300 rounded-lg p-3 w-full break-words"
                                             >
-                                                {message.chatMessage.content?.[0]?.text || ''}
+                                                {@html getSafeChatMessage(
+                                                    message.chatMessage
+                                                        .content?.[0]?.text,
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             {/if}
                         {/each}
-                    {:else}
-                        <p class="text-6xl font-thin text-center pt-20">
-                            Let's get started.
-                        </p>
-                        <p class="text-sm font-bold text-center pt-10">
-                            HAL, is powered by Lionheart Intelligence.
-                        </p>
                     {/if}
+
                     {#if loading}
-                        <div class="mb-6">
-                            <div class="flex items-start">
-                                <div class="mr-4 mt-1">
-                                    <div
-                                        class="w-8 h-8 bg-neutral-600 dark:bg-neutral-500 rounded-full flex items-center justify-center text-white"
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke-width="1.5"
-                                            stroke="currentColor"
-                                            class="w-5 h-5"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
-                                            />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col">
-                                    <div
-                                        class="text-sm font-medium text-neutral mb-1"
-                                    >
-                                        HAL
-                                    </div>
-                                    <div class="flex">
-                                        <span
-                                            class="loading loading-dots loading-md"
-                                        ></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- loading indicator -->
                     {/if}
                 </div>
             </div>
 
             <!-- Message Input -->
-            <div class=" py-4 px-4 md:px-6">
-                <div class="max-w-3xl mx-auto">
+            <div class="w-full p-5 pb-0 md:px-6">
+                <div class="max-w-5xl mx-auto">
                     <div class="relative">
                         <div
                             class="rounded-lg shadow-sm bg-base-300 overflow-hidden"
@@ -419,10 +369,7 @@
                                 </div>
                                 <button
                                     class=" btn btn-primary m-0 btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                    on:click={() =>
-                                        createNewConversation(
-                                            newMessage.trim(),
-                                        )}
+                                    on:click={() => sendMessage()}
                                     disabled={loading || !newMessage.trim()}
                                     aria-label="Send message"
                                 >

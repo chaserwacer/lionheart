@@ -7,13 +7,9 @@ namespace lionheart.Model.DTOs
         [Required]
         public required string Message { get; set; }
         [Required]
-        [Range(1, 5)]
-        public int CreativityLevel { get; set; }
+        public required Guid ChatConversationId { get; init; }
 
     }
-    
-    public class ChatResponse
-    {
-        public required string Response { get; set; }
-    }
+
+ 
 }

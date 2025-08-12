@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using lionheart.Data;
 
@@ -10,9 +11,11 @@ using lionheart.Data;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(ModelContext))]
-    partial class ModelContextModelSnapshot : ModelSnapshot
+    [Migration("20250801040046_ChatConversation")]
+    partial class ChatConversation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.6");
@@ -49,19 +52,19 @@ namespace lionheart.Migrations
                     b.Property<Guid>("ChatConversationID")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ChatMessageJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("ChatMessageRole")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreationTime")
                         .HasColumnType("TEXT");
 
                     b.HasKey("ChatMessageItemID");
 
-                    b.HasIndex("ChatConversationID", "CreationTime");
+                    b.HasIndex("ChatConversationID");
 
                     b.ToTable("ChatMessageItems");
                 });

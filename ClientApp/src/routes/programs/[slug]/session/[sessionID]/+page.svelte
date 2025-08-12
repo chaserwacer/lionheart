@@ -76,8 +76,8 @@
       if (!session) return;
 
       selectedDate = session.date.toISOString().slice(0, 10);
-      modifiers = await movementBaseClient.getAll2();
-      equipmentOptions = await equipmentClient.getAll();
+      modifiers = await movementBaseClient.getAll3();
+      equipmentOptions = await equipmentClient.getAll2();
       console.log("equipmentOptions", equipmentOptions);
     } catch (err) {
       console.error("Failed to load session data:", err);
@@ -205,8 +205,8 @@
     const movementBaseClient = new GetMovementBasesEndpointClient(baseUrl);
     const equipmentClient = new GetEquipmentsEndpointClient(baseUrl);
 
-    modifiers = await movementBaseClient.getAll2();
-    equipmentOptions = await equipmentClient.getAll();
+    modifiers = await movementBaseClient.getAll3();
+    equipmentOptions = await equipmentClient.getAll2();
   }
 
   const labelMap = {

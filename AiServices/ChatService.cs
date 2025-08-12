@@ -10,12 +10,14 @@ using lionheart.Model.Prompt;
 using lionheart.Model.DTOs;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using OllamaSharp;
+
 
 namespace lionheart.Services.AI
 {
     public interface IChatService
     {
-        Task<Result<ChatResponse>> ProcessChatMessageAsync(IdentityUser user, ChatRequest request);
+        Task<Result<ChatConversationDTO>> ProcessChatMessageAsync(IdentityUser user, ChatRequest request);
     }
 
     /// <summary>
@@ -35,6 +37,7 @@ namespace lionheart.Services.AI
         private readonly IOuraService _ouraService;
         private readonly IActivityService _activityService;
         private readonly IWellnessService _wellnessService;
+        private readonly IChatConversationService _chatConversationService;
 
         public ChatService(
             IConfiguration config,
@@ -47,7 +50,8 @@ namespace lionheart.Services.AI
             ISetEntryService setEntryService,
             IOuraService ouraService,
             IActivityService activityService,
-            IWellnessService wellnessService
+            IWellnessService wellnessService,
+            IChatConversationService chatConversationService
         )
         {
             _chatClient = chatClient;
@@ -60,109 +64,110 @@ namespace lionheart.Services.AI
             _ouraService = ouraService;
             _activityService = activityService;
             _wellnessService = wellnessService;
+            _chatConversationService = chatConversationService;
         }
 
-        private List<ChatMessage> GetOrInitConversation(IdentityUser user)
+
+        public async Task<Result<ChatConversationDTO>> ProcessChatMessageAsync(IdentityUser user, ChatRequest request)
         {
-            var cacheKey = $"{ConversationCacheKeyPrefix}{user.Id}";
-            return _cache.GetOrCreate(cacheKey, entry =>
+            var chatConversationResult = await _chatConversationService.GetChatConversationModelVersionAsync(user, request.ChatConversationId);
+            if (!chatConversationResult.IsSuccess || chatConversationResult.Value is null)
             {
-                entry.SlidingExpiration = TimeSpan.FromMinutes(30);
-                return new List<ChatMessage>
-                {
-                    new SystemChatMessage(
-                        "You are an athletic training assistant for the Lionheart application. " +
-                        "Your purpose is to help users understand their training data, provide insights, " +
-                        "and answer questions about their workouts, recovery, and overall fitness progress. " +
-                        "You have access to the user's training programs, sessions, movements, set entries, " +
-                        "Oura data, wellness scores, and activities. " +
-                        "Be friendly, supportive, and provide actionable advice based on the user's data. " +
-                        "When asked for specific metrics or data, use the appropriate tool functions to retrieve accurate information."
-                    )
-                };
-            }) ?? new List<ChatMessage>();
-        }
-
-        public async Task<Result<ChatResponse>> ProcessChatMessageAsync(IdentityUser user, ChatRequest request)
-        {
-            try
-            {
-                // var messages = GetOrInitConversation(user);
-                var messages = new List<ChatMessage>
-                {
-                    new SystemChatMessage(
-                        "You are an athletic training assistant for the Lionheart application. " +
-                        "Your purpose is to help users understand their training data, provide insights, " +
-                        "and answer questions about their workouts, recovery, and overall fitness progress. " +
-                        "You have access to the user's training programs, sessions, movements, set entries, " +
-                        "Oura data, wellness scores, and activities. " +
-                        "Be friendly, supportive, and provide actionable advice based on the user's data. " +
-                        "Always output your responses as clearly structured plain text with no markdown formatting. " +
-                        "Do not use asterisks, hashtags, or any markdown syntax. " +
-                        "Use clear headings in all caps (e.g. WELLNESS SCORES), colons for labeling (e.g. Motivation: 3), and bullet points or numbered lists if needed. " +
-                        "Avoid symbols that will not display properly in a browser." +
-                        "The current date is " + DateTime.UtcNow.ToString("yyyy-MM-dd") + ". " +
-                        "You can use the tools provided to access the user's Training Programs, Sessions, Movements, Set Entries, Oura Data, Wellness Scores, and Activities."
-                    ),
-
-                    // Add user message to conversation history
-                    new UserChatMessage(request.Message)
-                };
-
-                // Create options for the AI
-                var options = new ChatCompletionOptions();
-                options.Temperature = 0.3f;
-
-                // Add all the tools for retrieving user data
-                var tools = await OpenAiToolRetriever.GetChatTools();
-                foreach (var tool in tools)
-                {
-                    options.Tools.Add(tool);
-                }
-                UpdateModelTemperature(options, request);
-                // Run the AI conversation loop
-                var response = await RunAiLoopAsync(messages, options, user);
-                if (!response.IsSuccess)
-                {
-                    return Result<ChatResponse>.Error(string.Join(", ", response.Errors));
-                }
-
-                // Update conversation cache
-                var cacheKey = $"{ConversationCacheKeyPrefix}{user.Id}";
-                _cache.Set(cacheKey, messages, new MemoryCacheEntryOptions
-                {
-                    SlidingExpiration = TimeSpan.FromMinutes(30)
-                });
-
-                // Return the chat response
-                return Result<ChatResponse>.Success(new ChatResponse
-                {
-                    Response = response.Value
-                });
+                return Result<ChatConversationDTO>.Error((ErrorList)chatConversationResult.Errors);
             }
-            catch (Exception ex)
+            var chatConversation = chatConversationResult.Value;
+
+            var handleSystemMessage = await HandleSystemMessageAsync(chatConversation, request, user);
+            if (!handleSystemMessage.IsSuccess)
             {
-                return Result<ChatResponse>.Error($"Error processing chat message: {ex.Message}");
+                return Result<ChatConversationDTO>.Error((ErrorList)handleSystemMessage.Errors);
             }
+
+            var userChatMessage = new UserChatMessage(request.Message);
+            var userMessageRequest = new AddChatMessageRequest
+            {
+                ChatConversationId = chatConversation.ChatConversationId,
+                ChatMessage = userChatMessage
+            };
+            var addUserMessageResult = await _chatConversationService.AddChatMessageAsync(user, userMessageRequest);
+            if (!addUserMessageResult.IsSuccess)
+            {
+                return Result<ChatConversationDTO>.Error((ErrorList)addUserMessageResult.Errors);
+            }
+
+            chatConversationResult = await _chatConversationService.GetChatConversationModelVersionAsync(user, request.ChatConversationId);
+            if (!chatConversationResult.IsSuccess || chatConversationResult.Value is null)
+            {
+                return Result<ChatConversationDTO>.Error((ErrorList)chatConversationResult.Errors);
+            }
+            chatConversation = chatConversationResult.Value;
+
+
+
+            var options = new ChatCompletionOptions();
+            var tools = await OpenAiToolRetriever.GetChatTools();
+            foreach (var tool in tools)
+            {
+                options.Tools.Add(tool);
+            }
+            var aiInteractionResponse = await RunAiLoopAsync(options, user, chatConversation);
+            if (!aiInteractionResponse.IsSuccess)
+            {
+                return Result<ChatConversationDTO>.Error(string.Join(", ", aiInteractionResponse.Errors));
+            }
+
+            return await _chatConversationService.GetChatConversationAsync(user, chatConversation.ChatConversationId);
+
         }
 
-        private void UpdateModelTemperature(ChatCompletionOptions options, ChatRequest request)
+        /// <summary>
+        /// Add the <see cref="SystemChatMessage"/> to the chat conversation if it doesn't exist.
+        /// </summary>
+        private async Task<Result> HandleSystemMessageAsync(ChatConversation chatConversation, ChatRequest request, IdentityUser user)
         {
-            if (request.CreativityLevel == 1) options.Temperature = 0.1f;
-            else if (request.CreativityLevel == 2) options.Temperature = 0.3f;
-            else if (request.CreativityLevel == 3) options.Temperature = 0.5f;
-            else if (request.CreativityLevel == 4) options.Temperature = 0.7f;
-            else if (request.CreativityLevel == 5) options.Temperature = 1.2f;
+            if (chatConversation.Messages.Count == 0)
+            {
+
+                var systemChatMessage = new SystemChatMessage("You are an athletic training assistant for the Lionheart application. " +
+                    "Your purpose is to help users understand their training data, provide insights, " +
+                    "and answer questions about their workouts, recovery, and overall fitness progress. " +
+                    "You have access to the user's training programs, sessions, movements, set entries, " +
+                    "Oura data, wellness scores, and activities. " +
+                    "Be friendly, supportive, and provide actionable advice based on the user's data. " +
+                    "Always output your responses as clearly structured plain text with no markdown formatting. " +
+                    "Do not use asterisks, hashtags, or any markdown syntax. " +
+                    "Avoid symbols that will not display properly in a browser." +
+                    "The current date is " + DateTime.UtcNow.ToString("yyyy-MM-dd") + ". ");
+                var systemChatRequest = new AddChatMessageRequest
+                {
+                    ChatConversationId = chatConversation.ChatConversationId,
+                    ChatMessage = systemChatMessage
+                };
+                var result = await _chatConversationService.AddChatMessageAsync(user, systemChatRequest);
+                if (!result.IsSuccess)
+                {
+                    return Ardalis.Result.Result.Error((ErrorList)result.Errors);
+                }
+                return Result.Success();
+            }
+            return Result.Success();
         }
+
 
         /// <summary>
         /// Run interaction with AI, handling tool calls and building the conversation history as ChatCompletions are received.
         /// </summary>
         private async Task<Result<string>> RunAiLoopAsync(
-            List<ChatMessage> messages,
+
             ChatCompletionOptions options,
-            IdentityUser user)
+            IdentityUser user, ChatConversation chatConversation)
         {
+                // Ensure stable chronological order before sending to OpenAI
+                var messages = new List<ChatMessage>();
+                foreach (var message in chatConversation.Messages.OrderBy(m => m.CreationTime))
+                {
+                    messages.Add(message.ChatMessage);
+                }
             bool requiresAction;
             var numberFailedToolCalls = 0;
 
@@ -184,18 +189,30 @@ namespace lionheart.Services.AI
                 {
                     return Result<string>.Error("Completion returned null from OpenAI API");
                 }
+                // Defer assistant message persistence to switch cases to preserve proper tool-calls chaining
 
                 switch (completion.FinishReason)
                 {
                     case ChatFinishReason.Stop:
                         {
-                            // Add the assistant message to the conversation history.
-                            messages.Add(new AssistantChatMessage(completion));
-
-                            var content = completion.Content[0].Text;
-                            if (content is null)
+                            var content = completion.Content?.Count > 0 ? completion.Content[0]?.Text : null;
+                            if (string.IsNullOrWhiteSpace(content))
                             {
                                 return Result<string>.Error("No content returned from AI model.");
+                            }
+
+                            // Persist final assistant text message
+                            var finalAssistant = new AssistantChatMessage(content);
+                            messages.Add(finalAssistant);
+                            var saveFinalReq = new AddChatMessageRequest
+                            {
+                                ChatConversationId = chatConversation.ChatConversationId,
+                                ChatMessage = finalAssistant,
+                            };
+                            var saveFinalRes = await _chatConversationService.AddChatMessageAsync(user, saveFinalReq);
+                            if (!saveFinalRes.IsSuccess)
+                            {
+                                return Result<string>.Error("Failed to save message to chat conversation: " + string.Join(", ", saveFinalRes.Errors));
                             }
 
                             return Result<string>.Success(content);
@@ -203,8 +220,18 @@ namespace lionheart.Services.AI
 
                     case ChatFinishReason.ToolCalls:
                         {
-                            // First, add the assistant message with tool calls to the conversation history.
-                            messages.Add(new AssistantChatMessage(completion));
+                            var assistantCallMsg = new AssistantChatMessage(completion);
+                            messages.Add(assistantCallMsg);
+                            // var saveAssistantCallReq = new AddChatMessageRequest
+                            // {
+                            //     ChatConversationId = chatConversation.ChatConversationId,
+                            //     ChatMessage = assistantCallMsg,
+                            // };
+                            // var saveAssistantCallRes = await _chatConversationService.AddChatMessageAsync(user, saveAssistantCallReq);
+                            // if (!saveAssistantCallRes.IsSuccess)
+                            // {
+                            //     return Result<string>.Error("Failed to save assistant tool-call message: " + string.Join(", ", saveAssistantCallRes.Errors));
+                            // }
 
                             var toolCallResults = await _toolCallExecutor.ExecuteChatToolCallsAsync(completion.ToolCalls, user);
                             foreach (var result in toolCallResults)
@@ -218,6 +245,17 @@ namespace lionheart.Services.AI
                                     }
                                 }
                                 messages.Add(result.ToolChatMessage);
+                                // persist tool message into conversation
+                                // var toolMsgReq = new AddChatMessageRequest
+                                // {
+                                //     ChatConversationId = chatConversation.ChatConversationId,
+                                //     ChatMessage = result.ToolChatMessage,
+                                // };
+                                // var saveToolMsg = await _chatConversationService.AddChatMessageAsync(user, toolMsgReq);
+                                // if (!saveToolMsg.IsSuccess)
+                                // {
+                                //     return Result<string>.Error("Failed to save tool message: " + string.Join(", ", saveToolMsg.Errors));
+                                // }
                             }
 
                             requiresAction = true;

@@ -55,7 +55,7 @@
   const getAllClient = new GetMovementBasesEndpointClient(baseUrl);
   async function loadMovements() {
     try {
-      movementOptions = await getAllClient.getAll2();
+      movementOptions = await getAllClient.getAll3();
     } catch (err) {
       console.error("Failed to fetch movement bases:", err);
     }
@@ -120,7 +120,7 @@
   );
   async function loadEquipments() {
     try {
-      equipmentOptions = await getAllEquipmentClient.getAll();
+      equipmentOptions = await getAllEquipmentClient.getAll2();
     } catch (err) {
       console.error("Failed to fetch equipment:", err);
     }

@@ -12,7 +12,7 @@ namespace lionheart.Endpoints.AIEndpoints
     [ValidateModel]
     public class ChatEndpoint : EndpointBaseAsync
         .WithRequest<ChatRequest>
-        .WithActionResult<ChatResponse>
+        .WithActionResult<ChatConversationDTO>
     {
         private readonly UserManager<IdentityUser> _userManager;
         private readonly IChatService _chatService;
@@ -27,9 +27,9 @@ namespace lionheart.Endpoints.AIEndpoints
 
         [HttpPost("api/ai/chat")]
         [EndpointDescription("Chat with the LLM assistant about training data and get personalized responses")]
-        [ProducesResponseType(typeof(ChatResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ChatConversationDTO), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public override async Task<ActionResult<ChatResponse>> HandleAsync(ChatRequest request, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<ChatConversationDTO>> HandleAsync(ChatRequest request, CancellationToken cancellationToken = default)
         {
             // Get the authenticated user
             var user = await _userManager.GetUserAsync(User);
