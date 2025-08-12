@@ -76,70 +76,75 @@ namespace lionheart.Model.Prompt
         }
 
 
-public static PromptBuilder FirstWeek(string programId) =>
-  new PromptBuilder()
-    .AddSection("Phase 2: Create Week 1",
-      $"Target Program: {programId}",
+    public static PromptBuilder FirstWeek(string programId) =>
+      new PromptBuilder()
+        .AddSection("Phase 2: Create Week 1",
+          $"Target Program: {programId}",
 
-      // STEP 1 — info tools (parallel)
-      "Step 1 — Fetch in parallel:",
-      "- GetTrainingProgramAsync(programId)",
-      "- GetMovementBasesAsync()",
-      "- GetEquipmentsAsync()",
-      "Wait for results. Use ONLY returned UUIDs.",
+          // STEP 1 — info tools (parallel)
+          "Step 1 — Fetch in parallel:",
+          "- GetTrainingProgramAsync(programId)",
+          "- GetMovementBasesAsync()",
+          "- GetEquipmentsAsync()",
+          "Wait for results. Use ONLY returned UUIDs.",
 
-      // WEEKDAY ANCHORING
-      "Weekday Anchoring:",
-      "• Choose exact training weekdays for Week 1 using the user's preferredDays if provided. If not provided, infer a clean pattern (e.g., Mon/Wed/Fri or Mon/Tue/Thu/Sat) within the program date range.",
-      "• Each session’s DATE must align to those weekdays. These weekday choices become the template for ALL future weeks (same days each week).",
-      "• Do not schedule weekends unless preferredDays included them.",
+          // WEEKDAY ANCHORING
+          "Weekday Anchoring:",
+          "• Choose exact training weekdays for Week 1 using the user's preferredDays if provided. If not provided, infer a clean pattern (e.g., Mon/Wed/Fri or Mon/Tue/Thu/Sat) within the program date range.",
+          "• Each session’s DATE must align to those weekdays. These weekday choices become the template for ALL future weeks (same days each week).",
+          "• Do not schedule weekends unless preferredDays included them.",
 
-      // STEP 2 — creation (single call)
-      "Step 2 — Immediately create ALL Week‑1 sessions in ONE call:",
-      "Call the function EXACTLY in this shape:",
-      "CreateTrainingSessionWeekAsync({",
-      "  \"request\": {",
-      "    \"trainingProgramID\": \"<programId>\",",
-      "    \"sessions\": [ /* fully populated sessions */ ]",
-      "  }",
-      "})",
-      "Do not ask for confirmation. Do not narrate. Do not call other tools in this step.",
+          // STEP 2 — creation (single call)
+          "Step 2 — Immediately create ALL Week‑1 sessions in ONE call:",
+          "Call the function EXACTLY in this shape:",
+          "CreateTrainingSessionWeekAsync({",
+          "  \"request\": {",
+          "    \"trainingProgramID\": \"<programId>\",",
+          "    \"sessions\": [ /* fully populated sessions */ ]",
+          "  }",
+          "})",
+          "Do not ask for confirmation. Do not narrate. Do not call other tools in this step.",
 
-      // content rules (coaching)
-      "Sessions:",
-      "- Each session has 3–5 movements; the FIRST is the main lift (Squat/Bench/Deadlift).",
-      "- Main lift must include a TOP SET (1–3 reps, highest RPE) + 2–4 back‑off sets (lower RPE).",
-      "- 2–4 accessories at RPE 8–9 that support the main lift.",
-      "- Distribute S/B/D frequencies exactly per user request.",
-      "- Use simple DUP across the week (skill/volume/strength exposures).",
+          // content rules (coaching)
+          "Sessions:",
+          "- Each session has 3–5 movements; the FIRST is the main lift (Squat/Bench/Deadlift).",
+          "- Main lift must include a TOP SET (1–3 reps, highest RPE) followed by 2–4 back‑off sets (lower RPE).",
+          "- 2–4 accessories at RPE 8–9 that support the main lift with 3 sets each",
+          "- Distribute S/B/D frequencies exactly per user request.",
+          "- Use simple DUP across the week (skill/volume/strength exposures).",
 
-      // variations
-      "Variations (movementModifier):",
-      "- Use 'Competition' when no special variant (duration = 0).",
-      "- Use 'Paused' for paused variations; set duration to the pause seconds (e.g., 2).",
-      "- Use 'Tempo 3-2-0' style for tempo; set duration to the total tempo seconds (e.g., 3+2+0 = 5).",
-      "- Always include equipmentID and equipment (object) copied from GetEquipmentsAsync for the chosen implement.",
+          // variations
+          "Variations (movementModifier):",
+          "- Use 'Competition' when no special variant (duration = 0).",
+          "- Use 'Paused' for paused variations; set duration to the pause seconds (e.g., 2).",
+          "- Use 'Tempo 3-2-0' style for tempo; set duration to the total tempo seconds (e.g., 3+2+0 = 5).",
+          "- Always include equipmentID and equipment (object) copied from GetEquipmentsAsync for the chosen implement.",
 
-      // minimal object reminders (schema handles shape)
-      "Movement object reminders:",
-      "- movementBaseID from GetMovementBasesAsync,",
-      "- movementModifier { name, equipmentID, equipment (object), duration },",
-      "- weightUnit is 'Kilograms' or 'Pounds',",
-      "- sets: 2–5 with recommendedReps, recommendedWeight, recommendedRPE.",
+          // minimal object reminders (schema handles shape)
+          "Movement object reminders:",
+          "- movementBaseID from GetMovementBasesAsync,",
+          "- movementModifier { name, equipmentID, equipment (object), duration },",
+          "- weightUnit is 'Kilograms' or 'Pounds',",
+          "- sets: 2–5 with recommendedReps, recommendedWeight, recommendedRPE.",
 
-      // guardrails
-      "Rules:",
-      "✅ Info tools first; ✅ Then one CreateTrainingSessionWeekAsync call with fully populated sessions;",
-      "✅ Respect S/B/D frequencies & weekday anchoring; ✅ Use only tool‑returned UUIDs;",
-      "❌ No empty movement arrays; ❌ No guessed IDs; ❌ No extra info calls during creation.")
-    .AddSection("Programming Guardrails",
-      "- Avoid heavy hip/back stress on consecutive days; separate heavy Squat and heavy Deadlift days when possible.",
-      "- Bench gets the highest weekly frequency; include at least one lower‑RPE bench day for skill and one heavier day.",
-      "- Top sets guide intensity; back‑offs accrue volume.")
-    .AddSection("Pre‑submit checklist",
-      "• Week 1 dates align to the chosen weekdays; • each session starts with a main lift;",
-      "• 3–5 movements per session; • main lift has top set + back‑offs;",
-      "• accessories at RPE 8–9; • only tool‑returned UUIDs used; • one creation call made.");
+          // guardrails
+          "Rules:",
+          "✅ Info tools first; ✅ Then one CreateTrainingSessionWeekAsync call with fully populated sessions;",
+          "✅ Respect S/B/D frequencies & weekday anchoring; ✅ Use only tool‑returned UUIDs;",
+          "❌ No empty movement arrays; ❌ No guessed IDs; ❌ No extra info calls during creation.")
+        .AddSection("Programming Guardrails",
+          "- Avoid heavy hip/back stress on consecutive days; separate heavy Squat and heavy Deadlift days when possible.",
+          "- Bench gets the highest weekly frequency; include at least one lower‑RPE bench day for skill and one heavier day.",
+          "- Top sets guide intensity; back‑offs accrue volume.")
+        .AddSection("Pre‑submit checklist",
+          "• Week 1 dates align to the chosen weekdays; • each session starts with a main lift;",
+          "• 3–5 movements per session; • main lift has top set + back‑offs;",
+          "• accessories at RPE 8–9; • only tool‑returned UUIDs used; • one creation call made.")
+          .AddSection("Reference Document",
+        "Refer to the attached file 'TrainingProgrammingReference.md' for:",
+        "RPE progression guidelines, example layouts, variation rules, accessory programming, and weekday consistency."
+    );
+
 
     public static PromptBuilder RemainingWeeks(string programId) =>
       new PromptBuilder()
