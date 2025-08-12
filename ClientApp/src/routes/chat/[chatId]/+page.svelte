@@ -13,6 +13,7 @@
         ChatMessageRole,
         DeleteChatConversationEndpointClient,
         DeleteChatConversationRequest,
+        ChatMessageItemDTO,
     } from "$lib/api/ApiClient";
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
@@ -51,7 +52,7 @@
             chatMessage: ChatMessage.fromJS({
                 content: [{ text: userQuery }],
             }),
-        } as any);
+        } as ChatMessageItemDTO);
         // Scroll to bottom
         setTimeout(() => {
             if (chatContainer) {
