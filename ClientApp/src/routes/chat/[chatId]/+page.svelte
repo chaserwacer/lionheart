@@ -152,6 +152,24 @@
         console.log("chat page mounted, params:", $page.params.chatId);
     });
 
+    $: if ($page.params.chatId) {
+        (async () => {
+            currentConversationId = $page.params.chatId ?? "";
+            if (currentConversationId) {
+                try {
+                    const getChatConversationEndpointClient =
+                        new GetChatConversationEndpointClient(baseUrl);
+                    currentChatConversation =
+                        await getChatConversationEndpointClient.chatGET(
+                            currentConversationId,
+                        );
+                } catch (error) {
+                    console.error("Error loading conversation:", error);
+                }
+            }
+        })();
+    }
+
     function escapeHtml(str: string): string {
         return str
             .replace(/&/g, "&amp;")
