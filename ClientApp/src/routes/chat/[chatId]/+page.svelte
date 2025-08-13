@@ -313,7 +313,7 @@
                 <div class="flex flex flex-col max-w-5xl mx-auto w-full">
                     {#if currentChatConversation && currentChatConversation.messages}
                         {#each currentChatConversation.messages as message, idx}
-                            {#if message.chatMessageRole !== ChatMessageRole._0 && message.chatMessageRole !== ChatMessageRole._3 && idx != 0}
+                            {#if message.chatMessageRole !== ChatMessageRole._0 && message.chatMessageRole !== ChatMessageRole._3}
                                 <div class="mb-6 w-full">
                                     <div class="flex items-start w-full">
                                         <!-- Avatar -->
