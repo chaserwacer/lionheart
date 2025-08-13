@@ -79,7 +79,7 @@ namespace lionheart.Model.DTOs
 
         [Required]
         public required List<CreateMovementInlineDTO> Movements { get; init; }
-        
+
         public string Notes { get; set; } = string.Empty;
     }
 
@@ -90,6 +90,40 @@ namespace lionheart.Model.DTOs
 
         [Required]
         public required List<CreateTrainingSessionWithMovementsDTO> Sessions { get; init; }
+    }
+        public class PreferencesOutlineRequest
+    {
+        // existing user inputs
+        public required ProgramPreferencesDTO Preferences { get; init; }
+        // optional free-text feedback to redo the outline
+        public string? UserFeedback { get; init; }
+    }
+
+    // What the AI returns for the outline step
+    public class ProgramOutlineDTO
+    {
+        public required string Summary { get; init; } // short human-facing blurb
+        public required List<OutlineDayDTO> Microcycle { get; init; } = new();
+        public required List<string> AccessoryHighlights { get; init; } = new();
+    }
+
+    public class OutlineDayDTO
+    {
+        public required string Day { get; init; }
+        public required string Focus { get; init; }
+        public List<string> MainLifts { get; init; } = new();
+        public List<string> Accessories { get; init; } = new();
+    }
+
+    public class MovementBaseSlimDTO
+    {
+        public required Guid MovementBaseID { get; init; }
+        public required string Name { get; init; }
+    }
+    public class EquipmentSlimDTO
+    {
+        public required Guid EquipmentID { get; init; }
+        public required string Name { get; init; }
     }
 }
 

@@ -46,6 +46,23 @@
   let remainingWeeksGenerated = false;
   let userGoals = '';
 
+  type OutlineDay = {
+    Day: string;
+    Focus: string;
+    MainLifts: string[];
+    Accessories: string[];
+  };
+
+  type ProgramOutlineDTO = {
+    Summary: string;
+    Microcycle: OutlineDay[];
+    AccessoryHighlights: string[];
+  };
+
+  // --- ADD: UI state for outline + redo ---
+  let outline: ProgramOutlineDTO | null = null;
+  let redoFeedback = "";
+
 
 
   onMount(() => {
@@ -60,6 +77,15 @@
   function close() {
     dispatch('close');
   }
+
+  function safeParseJson(raw: unknown): any | null {
+  if (raw == null) return null;
+  if (typeof raw !== "string") return null;
+  const t = raw.trim();
+  if (!(t.startsWith("{") || t.startsWith("["))) return null;
+  try { return JSON.parse(t); } catch { return null; }
+}
+
    function reset() {
     title = '';
     startDate = '';
@@ -137,10 +163,11 @@ async function createWithAi() {
 }
 
 async function sendPreferences() {
-  if (!prefClient || !trainingProgramID) return;
+  if (!trainingProgramID) return;
 
   isAiLoading = true;
   aiResponse = null;
+  outline = null;
 
   try {
     const prefDto = ProgramPreferencesDTO.fromJS({
@@ -152,17 +179,94 @@ async function sendPreferences() {
       favoriteMovements,
       userGoals
     });
-  await prefClient.preferences(prefDto);
-    aiStep = 2; // move to week 1 generation button
+
+    // Always get raw text from the server
+    const res = await fetch(`${baseUrl}/api/ai/program/preferences`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(prefDto)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status} ${res.statusText} ${errText}`);
+    }
+
+    const text = await res.text();               // <- never undefined
+    const parsed = safeParseJson(text);          // <- won't throw
+    if (parsed) {
+      outline = parsed as ProgramOutlineDTO;     // show the nice table
+      aiStep = 2;
+    } else {
+      // if model ever returns non-JSON, just show the raw string
+      aiResponse = text;
+      aiStep = 2;
+    }
   } catch (err) {
-    console.error('Preferences error:', err);
-    aiResponse = 'Error sending preferences.';
+    console.error("Preferences error:", err);
+    aiResponse = "Error sending preferences.";
     aiStep = 1;
   } finally {
     isAiLoading = false;
     preferencesSubmitted = true;
   }
 }
+
+
+async function redoOutline() {
+  if (!trainingProgramID) return;
+  if (!redoFeedback.trim()) return;
+
+  isAiLoading = true;
+  aiResponse = null;
+
+  try {
+    const combinedGoals =
+      (userGoals?.trim() ? userGoals.trim() + "\n\n" : "") +
+      `User Adjustments: ${redoFeedback.trim()}`;
+
+    const prefDto = ProgramPreferencesDTO.fromJS({
+      daysPerWeek,
+      preferredDays,
+      squatDays,
+      benchDays,
+      deadliftDays,
+      favoriteMovements,
+      userGoals: combinedGoals
+    });
+
+    // Always fetch raw text to avoid JSON.parse(undefined)
+    const res = await fetch(`${baseUrl}/api/ai/program/preferences`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(prefDto)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status} ${res.statusText} ${errText}`);
+    }
+
+    const text = await res.text();
+    const parsed = safeParseJson(text);
+    if (parsed) {
+      outline = parsed as ProgramOutlineDTO;
+      aiResponse = null;
+    } else {
+      outline = null;
+      aiResponse = text; // show raw if the model ever returns non-JSON
+    }
+
+    aiStep = 2;   // stay on outline review
+    redoFeedback = "";
+  } catch (err) {
+    console.error("Redo outline error:", err);
+    aiResponse = "Error re-generating outline.";
+  } finally {
+    isAiLoading = false;
+  }
+}
+
 
 async function generateFirstWeek() {
   if (!week1Client || !trainingProgramID) return;
@@ -348,6 +452,139 @@ async function generateNextWeek() {
         </div>
       </div>
       {/if}
+      {#if aiStep === 2}
+        <div class="space-y-4 border-t border-base-300 pt-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-bold">Proposed Microcycle Outline</h3>
+
+            {#if outline}
+              <div class="hidden sm:flex items-center gap-2">
+                <span class="badge badge-ghost">{outline.Microcycle?.length || 0} days/wk</span>
+                <div class="flex flex-wrap gap-1">
+                  {#each outline.Microcycle as d}
+                    <span class="badge badge-ghost">{d.Day}</span>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
+
+          {#if outline}
+            {#if outline.Summary}
+              <div class="alert alert-info shadow-sm">
+                <span class="text-sm">{outline.Summary}</span>
+              </div>
+            {/if}
+
+            <!-- Responsive day cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {#each outline.Microcycle as d, i}
+                <div class="card bg-base-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+                  <div class="card-body p-4">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                        <div class="avatar placeholder">
+                          <div class="bg-primary/10 text-primary w-10 rounded-full font-semibold flex items-center justify-center">
+                            {d.Day?.[0] ?? "?"}
+                          </div>
+                        </div>
+                        <div>
+                          <div class="text-xs uppercase opacity-60">{d.Day}</div>
+                          <div class="font-semibold leading-tight">{d.Focus}</div>
+                        </div>
+                      </div>
+                      <span class="badge badge-outline"> {i + 1}</span>
+                    </div>
+
+                    <div class="divider my-3"></div>
+
+                    <div class="space-y-3">
+                      <div>
+                        <div class="text-xs uppercase opacity-60 mb-1">Main lifts</div>
+                        {#if d.MainLifts?.length}
+                          <div class="flex flex-wrap gap-2">
+                            {#each d.MainLifts as ml}
+                              <span class="badge badge-primary badge-outline">{ml}</span>
+                            {/each}
+                          </div>
+                        {:else}
+                          <span class="text-sm opacity-60">-</span>
+                        {/if}
+                      </div>
+
+                      <div>
+                        <div class="text-xs uppercase opacity-60 mb-1">Accessories</div>
+                        {#if d.Accessories?.length}
+                          <div class="flex flex-wrap gap-2">
+                            {#each d.Accessories as acc}
+                              <span class="badge">{acc}</span>
+                            {/each}
+                          </div>
+                        {:else}
+                          <span class="text-sm opacity-60">-</span>
+                        {/if}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+
+            <!-- Accessory highlights -->
+            {#if outline.AccessoryHighlights?.length}
+              <div class="card bg-base-100 shadow-sm">
+                <div class="card-body py-3">
+                  <h4 class="card-title text-sm">Accessory Highlights</h4>
+                  <div class="flex flex-wrap gap-2">
+                    {#each outline.AccessoryHighlights as a}
+                      <span class="badge badge-outline">{a}</span>
+                    {/each}
+                  </div>
+                </div>
+              </div>
+            {/if}
+
+            <!-- Feedback / Redo -->
+            <div class="form-control mt-4">
+              <label class="label">
+                <span class="label-text">Suggest changes (optional)</span>
+              </label>
+              <textarea
+                bind:value={redoFeedback}
+                placeholder="e.g. Move Primary Deadlift to Saturday, add Pendulum Squat earlier, reduce bench frequency to 2..."
+                class="textarea textarea-bordered w-full"
+                rows="3"
+              ></textarea>
+              <div class="mt-2 flex gap-2">
+                <button
+                  on:click={redoOutline}
+                  class="btn btn-outline"
+                  disabled={isAiLoading || !redoFeedback.trim()}
+                >
+                  Redo Outline
+                </button>
+                <button
+                  on:click={generateFirstWeek}
+                  class="btn btn-primary"
+                  disabled={isAiLoading || !preferencesSubmitted || week1Generated}
+                >
+                  Generate Week 1
+                </button>
+              </div>
+            </div>
+
+          {:else}
+            <!-- Fallback: raw response if JSON parse failed -->
+            {#if aiResponse}
+              <div class="mt-2 bg-base-100 p-3 rounded border border-base-300 max-h-96 overflow-auto text-sm">
+                <pre>{typeof aiResponse === 'string' ? aiResponse : JSON.stringify(aiResponse, null, 2)}</pre>
+              </div>
+            {:else}
+              <p class="text-sm opacity-70">No outline returned.</p>
+            {/if}
+          {/if}
+        </div>
+      {/if}
 
 
         {#if aiStep >= 2}
@@ -368,9 +605,10 @@ async function generateNextWeek() {
           </div>
         {:else if aiResponse}
           <div class="mt-4 bg-base-100 p-3 rounded border border-base-300 max-h-96 overflow-auto text-sm">
-            <pre>{JSON.stringify(typeof aiResponse === 'string' ? JSON.parse(aiResponse) : aiResponse, null, 2)}</pre>
+            <pre>{typeof aiResponse === 'string' ? aiResponse : JSON.stringify(aiResponse, null, 2)}</pre>
           </div>
         {/if}
+
       </div>
 
       <!-- Sticky Footer -->

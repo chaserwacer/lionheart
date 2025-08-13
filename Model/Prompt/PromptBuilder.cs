@@ -70,13 +70,57 @@ namespace lionheart.Model.Prompt
             builder.AddSection("Instruction",
                 "Acknowledge these preferences in 3–5 lines and say you’re ready to fetch data/tools when instructed.",
                 "Do NOT call tools yet. Do NOT propose sets/reps here.",
-                "Search the web for powerlifting programming information.",
+              //  "Search the web for powerlifting programming information.",
                 "Review the Training Programming Reference document now.");
 
 
             return builder;
         }
 
+        public static PromptBuilder PreferencesOutline(
+            ProgramPreferencesDTO prefs,
+            IEnumerable<MovementBaseSlimDTO> movementBases,
+            IEnumerable<EquipmentSlimDTO> equipments,
+            string? userFeedback = null)
+        {
+            // NOTE: this step is OUTLINE ONLY. No sets/reps, no tool calls.
+            var mbJson = System.Text.Json.JsonSerializer.Serialize(movementBases);
+            var eqJson = System.Text.Json.JsonSerializer.Serialize(equipments);
+
+            var b = new PromptBuilder()
+                .AddSection("Role",
+                    "You are Lionheart, a powerlifting coach-engine.",
+                    "TASK: Propose a weekly microcycle outline consistent with the user's preferences.",
+                    "Review the Training Programming Reference document now.",
+                    "HARD RULES:",
+                    "- Do NOT call tools. You have all the data you need inline.",
+                    "- Do NOT produce sets/reps or RPE here.",
+                    "- Output must be PURE JSON matching the schema below, and nothing else.")
+                .AddSection("User Preferences",
+                    $"- Days per week: {prefs.DaysPerWeek}",
+                    $"- Preferred days: {prefs.PreferredDays}",
+                    $"- Weekly lift goals ⇒ Squat: {prefs.SquatDays}, Bench: {prefs.BenchDays}, Deadlift: {prefs.DeadliftDays}",
+                    string.IsNullOrWhiteSpace(prefs.FavoriteMovements) ? "" : $"- Favorites: {prefs.FavoriteMovements}",
+                    string.IsNullOrWhiteSpace(prefs.UserGoals) ? "" : $"- Goals: {prefs.UserGoals}")
+                .AddSection("Available Movement Bases (slim JSON)", mbJson)
+                .AddSection("Available Equipments (slim JSON)", eqJson)
+                .AddSection("If the user asked for changes (optional)", userFeedback ?? "(none)")
+                .AddSection("Output Schema (copy exactly)",
+        @"{
+        ""Summary"": ""string"",
+        ""Microcycle"": [
+            { ""Day"": ""Monday"", ""Focus"": ""string"", ""MainLifts"": [""string""], ""Accessories"": [""string""] }
+        ],
+        ""AccessoryHighlights"": [""string""]
+        }")
+                .AddSection("Instructions",
+                    "Construct a Mon–Sun plan consistent with DaysPerWeek and PreferredDays.",
+                    "Respect weekly Squat/Bench/Deadlift counts.",
+                    "Name main lifts plainly (e.g., \"Primary Squat\", \"Secondary Bench\") — no sets/reps.",
+                    "Accessories should be movement names present or obvious from movement base names. Keep it short.",
+                    "Return only the JSON. No backticks, no commentary.");
+            return b;
+        }
 
         public static PromptBuilder FirstWeek(string programId) =>
             new PromptBuilder()
@@ -88,9 +132,9 @@ namespace lionheart.Model.Prompt
                     "- GetTrainingProgramAsync(programId)",
                     "- GetMovementBasesAsync()",
                     "- GetEquipmentsAsync()",
-                    "- WebSearchAsync(query: \"powerlifting programming guidelines\")",
-                    "When calling WebSearchAsync, always include a query parameter describing what information you need. Example: { \"query\": \"how to program a powerlifting program for a light weight experienced male\" }",
-                    "Wait for results. Use ONLY returned UUIDs.",
+                   // "- WebSearchAsync(query: \"powerlifting programming guidelines\")",
+                 //   "When calling WebSearchAsync, always include a query parameter describing what information you need. Example: { \"query\": \"how to program a powerlifting program for a light weight experienced male\" }",
+                  //  "Wait for results. Use ONLY returned UUIDs.",
 
                     // WEEKDAY ANCHORING
                     "Weekday Anchoring:",
@@ -116,6 +160,9 @@ namespace lionheart.Model.Prompt
                     "- Minimum 4 sets total for Squat, Bench, and Deadlift.",
                     "- Main lift sets: exactly 1 top set (1–3 reps) at RPE 6–8 + 3-4 back-off sets (same lift) at RPE 6–7.",
                     "- Accessories: 3-6 accessory movements (not main lifts), each with 2–4 sets at RPE 8–9 (5–10 reps).",
+                    "- Don't repeat the same accessory movement more then twice in a week",
+                    "- Don't put the same accessory on consecutive days",
+                    "- Ensure all muscle groups are hit (chest, Lats, Traps, rear delts, front delts, side delts, quads, glutes, hamstrings, triceps, biceps)",
                     "- movementBaseID from GetMovementBasesAsync.",
                     "- movementModifier { name, equipmentID, equipment (object), duration } from GetEquipmentsAsync.",
                     "- weightUnit is 'Kilograms' or 'Pounds'.",

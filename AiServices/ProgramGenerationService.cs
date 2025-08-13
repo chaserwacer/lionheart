@@ -15,6 +15,9 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using OpenAI.Responses;
+using lionheart.Services;
+using System.Linq;
+
 
 namespace lionheart.Services.AI
 {
@@ -29,18 +32,32 @@ namespace lionheart.Services.AI
         #pragma warning disable OPENAI001
         private readonly OpenAIResponseClient _responses; // built-in tools live here
 
+        private readonly IMovementService _movementService;
+        private readonly ITrainingProgramService _trainingProgramService;
+
 
         public ProgramGenerationService(
             IConfiguration config,
             IToolCallExecutor toolCallExecutor,
             IMemoryCache cache,
-            ILogger<ProgramGenerationService> logger)
+            ILogger<ProgramGenerationService> logger,
+            IMovementService movementService,
+            ITrainingProgramService trainingProgramService)
         {
             _chatClient = new ChatClient(model: "gpt-4o", apiKey: config["OpenAI:ApiKey"]);
             _responses = new OpenAIResponseClient(model: "gpt-4o-mini", apiKey: config["OpenAI:ApiKey"]); // 4o-mini is cheap+fast
             _toolCallExecutor = toolCallExecutor;
             _cache = cache;
             _logger = logger;
+            _movementService = movementService;
+            _trainingProgramService = trainingProgramService;
+        }
+        private static string? ExtractUserAdjustments(string? goals)
+        {
+            if (string.IsNullOrWhiteSpace(goals)) return null;
+            var marker = "User Adjustments:";
+            var idx = goals.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            return idx < 0 ? null : goals[(idx + marker.Length)..].Trim();
         }
 
         private List<ChatMessage> GetOrInitConversation(IdentityUser user)
@@ -59,36 +76,126 @@ namespace lionheart.Services.AI
                     - THEN, create sessions with populated movements in a single CreateTrainingSessionWeekAsync(request) call per week.
                     - Use only UUIDs returned by tools for movementBaseID/equipmentID. Never guess IDs.
                     - Never generate raw JSON unless explicitly asked; call tools with proper arguments.
-                    - Never create sessions without 3–5 movements or without a main lift with a top set + back-offs.
+                    - Never create sessions without 4+ movements or without a main lift with a top set + back-offs.
 
                     CONSTRAINTS
                     - Obey user frequency goals exactly (per-week S/B/D counts).
                     - Weight units: 'Kilograms' or 'Pounds' only.
                     - Follow the programming guidelines exactly.
-                    - Search the web for powerlifting programming information every time before creating sessions using WebSearchAsync Tool(make sure to always include a query parameter describing what information you need)."),
+                   "),
                     new SystemChatMessage(TrainingProgrammingReference.Text),
-                    
+
                 };
             })!;
         }
 
+        private async Task<(List<MovementBaseSlimDTO> bases, List<EquipmentSlimDTO> eqs)>
+            GetSlimMovementAndEquipmentAsync(IdentityUser user)
+        {
+            var basesRes = await _movementService.GetMovementBasesAsync(user);
+            var eqsRes   = await _movementService.GetEquipmentsAsync(user);
+            if (!basesRes.IsSuccess) throw new Exception(string.Join("; ", basesRes.Errors));
+            if (!eqsRes.IsSuccess)   throw new Exception(string.Join("; ", eqsRes.Errors));
+
+            var basesSlim = basesRes.Value.Select(mb => new MovementBaseSlimDTO
+            {
+                MovementBaseID = mb.MovementBaseID,
+                Name = mb.Name
+            }).ToList();
+
+            var eqSlim = eqsRes.Value.Select(eq => new EquipmentSlimDTO
+            {
+                EquipmentID = eq.EquipmentID,
+                Name = eq.Name
+            }).ToList();
+
+            return (basesSlim, eqSlim);
+        }
+
         public async Task<Result<string>> GeneratePreferencesAsync(IdentityUser user, ProgramPreferencesDTO dto)
         {
-            var messages = GetOrInitConversation(user);
-            messages.Add(new UserChatMessage(PromptBuilder.Preferences(dto).Build()));
-            return await RunAiLoopAsync(messages, OpenAiToolRetriever.GetTrainingProgramPopulationTools(), user);
+            try
+            {
+                // Keep memory: reuse the cached conversation
+                var messages = GetOrInitConversation(user);
+
+                // Manual fetch (no AI tools)
+                var (basesSlim, eqSlim) = await GetSlimMovementAndEquipmentAsync(user);
+
+                // Step-specific override: NO tools, JSON only, outline only.
+                messages.Add(new SystemChatMessage(
+                    "STEP=PreferencesOutline. For THIS step only: do NOT call tools. " +
+                    "If the prompt contains a section starting with 'User Adjustments:', treat those items as HARD CONSTRAINTS and apply them LITERALLY (e.g., 'move Secondary Deadlift to Monday' means it must appear on Monday). " +
+                    "Return ONLY JSON for the outline. No sets/reps. No RPE."));
+
+
+                var feedback = ExtractUserAdjustments(dto.UserGoals);
+                messages.Add(new UserChatMessage(
+                    PromptBuilder.PreferencesOutline(dto, basesSlim, eqSlim, feedback).Build()));
+
+                // No tools exposed here
+                var options = new ChatCompletionOptions();
+
+
+                var result = await _chatClient.CompleteChatAsync(messages, options);
+                var completion = result.Value;
+
+                if (completion.FinishReason != ChatFinishReason.Stop)
+                    return Result<string>.Error($"AI did not return a normal message: {completion.FinishReason}");
+
+                var raw = completion.Content[0].Text?.Trim();
+
+                if (string.IsNullOrWhiteSpace(raw))
+                    return Result<string>.Error("Empty outline response.");
+
+                // Defensive: slice the first/last JSON braces in case the model adds fluff
+                var first = raw.IndexOf('{');
+                var last  = raw.LastIndexOf('}');
+                var json  = (first >= 0 && last > first) ? raw.Substring(first, last - first + 1) : raw;
+
+                // Append assistant to conversation so the outline is *remembered*
+                messages.Add(new AssistantChatMessage(completion));
+
+                // Cache updated conversation (keeps memory across steps)
+                var cacheKey = $"{ConversationCacheKeyPrefix}{user.Id}";
+                _cache.Set(cacheKey, messages, new MemoryCacheEntryOptions
+                {
+                    SlidingExpiration = TimeSpan.FromMinutes(30)
+                });
+
+                // Optional: also cache the approved outline separately for Week 1
+                _cache.Set($"{cacheKey}_ApprovedOutlineJson", json,
+                    new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromMinutes(30) });
+
+                return Result<string>.Success(json);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GeneratePreferencesAsync failed.");
+                return Result<string>.Error(ex.Message);
+            }
         }
+
 
         public async Task<Result<string>> GenerateFirstWeekAsync(IdentityUser user, FirstWeekGenerationDTO dto)
         {
+            var cacheKey = $"{ConversationCacheKeyPrefix}{user.Id}";
             var messages = GetOrInitConversation(user);
+                var outlineJson = _cache.Get<string>($"{cacheKey}_ApprovedOutlineJson");
+
+                if (!string.IsNullOrWhiteSpace(outlineJson))
+                {
+                    // Add a step-specific anchor so the AI adheres to the plan it presented
+                    messages.Add(new SystemChatMessage(
+                        "Approved Outline JSON (DO NOT DEVIATE): " + outlineJson));
+                }
             messages.Add(new UserChatMessage(PromptBuilder.FirstWeek(dto.TrainingProgramID).Build()));
             return await RunAiLoopAsync(messages, OpenAiToolRetriever.GetTrainingProgramPopulationTools(), user);
         }
 
         public async Task<Result<string>> GenerateRemainingWeeksAsync(IdentityUser user, RemainingWeeksGenerationDTO dto)
-        {
-            var messages = GetOrInitConversation(user);
+        {  
+          var messages = GetOrInitConversation(user);
             messages.Add(new UserChatMessage(PromptBuilder.RemainingWeeks(dto.TrainingProgramID).Build()));
             return await RunAiLoopAsync(messages, OpenAiToolRetriever.GetTrainingProgramPopulationTools(), user);
         }

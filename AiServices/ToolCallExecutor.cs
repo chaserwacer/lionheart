@@ -150,7 +150,7 @@ public class ToolCallExecutor : IToolCallExecutor
     /// <returns></returns>
     private async Task<Result<ToolChatMessage>> ExecuteWebSearchAsync(ChatToolCall tc)
     {
-        var fallback = "powerlifting week 1 programming: top set + back-offs, accessory volumes, S/B/D frequencies, current best practices";
+        var fallback = "Search the web for powerlifting programming guidelines.";
 
         var query = GetSafeQueryOrDefault(tc, fallback);
 
