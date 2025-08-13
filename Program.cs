@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using lionheart.Converters;
 using OpenAI.Chat;
+using OpenAI.Responses;
+
 
 
 
@@ -71,6 +73,12 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 builder.Services.AddSingleton<ChatClient>(provider =>
     new ChatClient(model: "gpt-5", apiKey: configuration["OpenAI:ApiKey"])
 );
+#pragma warning disable OPENAI001 // experimental/subject-to-change warning from the SDK
+builder.Services.AddSingleton(sp =>
+    new OpenAIResponseClient("gpt-4o-mini", configuration["OpenAI:ApiKey"])
+);
+#pragma warning restore OPENAI001
+
 
 builder.Services
   .AddControllers()

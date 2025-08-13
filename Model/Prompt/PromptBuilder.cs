@@ -69,7 +69,9 @@ namespace lionheart.Model.Prompt
 
             builder.AddSection("Instruction",
                 "Acknowledge these preferences in 3–5 lines and say you’re ready to fetch data/tools when instructed.",
-                "Do NOT call tools yet. Do NOT propose sets/reps here.");
+                "Do NOT call tools yet. Do NOT propose sets/reps here.",
+                "Search the web for powerlifting programming information.",
+                "Review the Training Programming Reference document now.");
 
 
             return builder;
@@ -86,6 +88,8 @@ namespace lionheart.Model.Prompt
                     "- GetTrainingProgramAsync(programId)",
                     "- GetMovementBasesAsync()",
                     "- GetEquipmentsAsync()",
+                    "- WebSearchAsync(query: \"powerlifting programming guidelines\")",
+                    "When calling WebSearchAsync, always include a query parameter describing what information you need. Example: { \"query\": \"how to program a powerlifting program for a light weight experienced male\" }",
                     "Wait for results. Use ONLY returned UUIDs.",
 
                     // WEEKDAY ANCHORING
@@ -95,7 +99,7 @@ namespace lionheart.Model.Prompt
                     "• Do not schedule weekends unless preferredDays included them.",
 
                     // STEP 2 — creation (single call)
-                    "Step 2 — Immediately create ALL Week-1 sessions in ONE call:",
+                    "Step 2 — Create ALL Week-1 sessions in ONE call:",
                     "Call the function EXACTLY in this shape:",
                     "CreateTrainingSessionWeekAsync({",
                     "  \"request\": {",
@@ -103,18 +107,24 @@ namespace lionheart.Model.Prompt
                     "    \"sessions\": [ /* fully populated sessions */ ]",
                     "  }",
                     "})",
-                    "Do not ask for confirmation. Do not narrate. Do not call other tools in this step.",
+                    
 
                     // STRUCTURE & DATA RULES
-                    "Each session must have:",
-                    "- 3–5 total movements.",
-                    "- The FIRST movement as the main lift (Squat, Bench, or Deadlift).",
+                    "Each session must have (HARD REQUIREMENTS):",
+                    "- 4–5 total movements.",
+                    "- The FIRST movement is the main lift (Squat, Bench, or Deadlift).",
+                    "- Minimum 4 sets total for Squat, Bench, and Deadlift.",
+                    "- Main lift sets: exactly 1 top set (1–3 reps) at RPE 6–8 + 3-4 back-off sets (same lift) at RPE 6–7.",
+                    "- Accessories: 3-6 accessory movements (not main lifts), each with 2–4 sets at RPE 8–9 (5–10 reps).",
                     "- movementBaseID from GetMovementBasesAsync.",
                     "- movementModifier { name, equipmentID, equipment (object), duration } from GetEquipmentsAsync.",
                     "- weightUnit is 'Kilograms' or 'Pounds'.",
-                    "- sets: 2–5 with recommendedReps, recommendedWeight, recommendedRPE.",
-                    "- No guessed IDs. Use only tool-returned UUIDs.",
-                    "- No empty movement arrays."
+                    "- sets specify recommendedReps, recommendedWeight, recommendedRPE.",
+                    "- No guessed IDs; only tool-returned UUIDs.",
+                    "- No empty movement arrays.",
+
+                    "Do not ask for confirmation. Do not narrate. Do not call other tools in this step."
+
                 )
                 .AddSection("Reference",
                     "Refer to the 'TrainingProgrammingReference' document for:",
@@ -124,11 +134,22 @@ namespace lionheart.Model.Prompt
                     "• Accessory programming rules.",
                     "• Implementation reminders (IDs, equipment, weekday consistency)."
                 )
-                .AddSection("Pre-submit checklist",
-                    "• Week 1 dates align to the chosen weekdays.",
-                    "• One CreateTrainingSessionWeekAsync call made with all sessions populated.",
-                    "• Only tool-returned UUIDs used."
+                .AddSection("Pre-submit checklist (the following MUST be true before you call CreateTrainingSessionWeekAsync):",
+                            "• Each session has 4–5 movements.",
+                            "• Main lift per session has 1 top set + 3–4 back-offs (same lift).",
+                            "• Each session includes 3-6 accessories, each 2–4 sets @ RPE 8–9.",
+                            "• Weekday pattern locked; dates valid.",
+                             "• Only tool-returned UUIDs used; full equipment object included.",
+                            "IF ANY ITEM FAILS: revise the plan and DO NOT call the creation tool yet."
+
+                            
+                )
+                 .AddSection("Call CreateTrainingSessionWeekAsync NOW",
+                             "• Use the validated session data to call CreateTrainingSessionWeekAsync.",
+                             "• Include all necessary parameters and ensure data integrity.",
+                             "• Handle any errors or issues that arise during the call."
                 );
+
 
         public static PromptBuilder RemainingWeeks(string programId) =>
             new PromptBuilder()

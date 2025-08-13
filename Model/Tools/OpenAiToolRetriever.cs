@@ -14,39 +14,46 @@ namespace Model.Tools
     public static class OpenAiToolRetriever
     {
 
-private static JsonObject BuildMovementModifierSchema()
-{
-    return new JsonObject
-    {
-        ["type"] = "object",
-        ["properties"] = new JsonObject
+        private static JsonObject BuildMovementModifierSchema()
         {
-            ["name"] = new JsonObject {
-                ["type"] = "string",
-                ["description"] = "Modifier label, e.g., 'Competition', 'Paused', 'Tempo'. Use 'Competition' when no special modifier."
-            },
-            ["equipmentID"] = new JsonObject {
-                ["type"] = "string", ["format"] = "uuid"
-            },
-            // FULL equipment object (matches your entity's required fields)
-            ["equipment"] = new JsonObject {
+            return new JsonObject
+            {
                 ["type"] = "object",
                 ["properties"] = new JsonObject
                 {
-                    ["equipmentID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
-                    ["name"]        = new JsonObject { ["type"] = "string" },
-                    ["userID"]      = new JsonObject { ["type"] = "string", ["format"] = "uuid" }
+                    ["name"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Modifier label, e.g., 'Competition', 'Paused', 'Tempo'. Use 'Competition' when no special modifier."
+                    },
+                    ["equipmentID"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["format"] = "uuid"
+                    },
+                    // FULL equipment object (matches your entity's required fields)
+                    ["equipment"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["equipmentID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                            ["name"] = new JsonObject { ["type"] = "string" },
+                            ["userID"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" }
+                        },
+                        ["required"] = new JsonArray("equipmentID", "name", "userID")
+                    },
+                    ["duration"] = new JsonObject
+                    {
+                        ["type"] = "integer",
+                        ["description"] = "Modifier duration in seconds (e.g., pause or tempo count). Use 0 when not applicable."
+                    }
                 },
-                ["required"] = new JsonArray("equipmentID", "name", "userID")
-            },
-            ["duration"] = new JsonObject {
-                ["type"] = "integer",
-                ["description"] = "Modifier duration in seconds (e.g., pause or tempo count). Use 0 when not applicable."
-            }
-        },
-        ["required"] = new JsonArray("name", "equipmentID", "equipment", "duration")
-    };
-}
+                ["required"] = new JsonArray("name", "equipmentID", "equipment", "duration")
+            };
+        }
+
+
 
 
 
@@ -58,6 +65,19 @@ private static JsonObject BuildMovementModifierSchema()
         {
             var tools = new List<ChatTool>
             {
+                ChatTool.CreateFunctionTool(
+                    functionName: "WebSearchAsync",
+                    functionDescription: "Search the web for fresh information and return a concise summary with citations.",
+                    functionParameters: BinaryData.FromString("""
+                    {
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string", "description": "The web search query." }
+                    },
+                    "required": ["query"]
+                    }
+                    """)
+                ),
                 // Create Training Program
                 ChatTool.CreateFunctionTool(
                     functionName: "CreateTrainingProgramAsync",

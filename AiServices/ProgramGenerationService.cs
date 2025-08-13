@@ -14,6 +14,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using System.Text;
+using OpenAI.Responses;
 
 namespace lionheart.Services.AI
 {
@@ -25,6 +26,10 @@ namespace lionheart.Services.AI
         private readonly IMemoryCache _cache;
         private readonly ILogger<ProgramGenerationService> _logger;
 
+        #pragma warning disable OPENAI001
+        private readonly OpenAIResponseClient _responses; // built-in tools live here
+
+
         public ProgramGenerationService(
             IConfiguration config,
             IToolCallExecutor toolCallExecutor,
@@ -32,6 +37,7 @@ namespace lionheart.Services.AI
             ILogger<ProgramGenerationService> logger)
         {
             _chatClient = new ChatClient(model: "gpt-4o", apiKey: config["OpenAI:ApiKey"]);
+            _responses = new OpenAIResponseClient(model: "gpt-4o-mini", apiKey: config["OpenAI:ApiKey"]); // 4o-mini is cheap+fast
             _toolCallExecutor = toolCallExecutor;
             _cache = cache;
             _logger = logger;
@@ -58,10 +64,12 @@ namespace lionheart.Services.AI
                     CONSTRAINTS
                     - Obey user frequency goals exactly (per-week S/B/D counts).
                     - Weight units: 'Kilograms' or 'Pounds' only.
-                    - Follow the programming guidelines exactly."),
-                    new SystemChatMessage(TrainingProgrammingReference.Text)
+                    - Follow the programming guidelines exactly.
+                    - Search the web for powerlifting programming information every time before creating sessions using WebSearchAsync Tool(make sure to always include a query parameter describing what information you need)."),
+                    new SystemChatMessage(TrainingProgrammingReference.Text),
+                    
                 };
-            });
+            })!;
         }
 
         public async Task<Result<string>> GeneratePreferencesAsync(IdentityUser user, ProgramPreferencesDTO dto)
