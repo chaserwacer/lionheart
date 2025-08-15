@@ -1,4 +1,5 @@
 using System.Text;
+using FluentValidation.Validators;
 using lionheart.Model.DTOs;
 
 namespace lionheart.Model.Prompt
@@ -36,47 +37,54 @@ namespace lionheart.Model.Prompt
 
         private record PromptSection(string Title, string[] Lines);
 
-        // --- Static prompt templates ---
 
-        public static PromptBuilder Preferences(ProgramPreferencesDTO dto)
+        public static PromptBuilder PowerliftingPreferencesOutline(
+            PowerliftingPreferencesDTO prefs,
+            IEnumerable<MovementBaseSlimDTO> movementBases,
+            IEnumerable<EquipmentSlimDTO> equipments,
+            string? userFeedback = null)
         {
-            var builder = new PromptBuilder()
-                .AddSection("Context",
-                    "You are assisting with a training program that has already been created.",
-                    "You are not creating sessions yet.",
-                    "You are not calling any tools yet.",
-                    "Simply confirm your understanding of the preferences and wait for the next instruction.");
+            // NOTE: this step is OUTLINE ONLY. No sets/reps, no tool calls.
+            var mbJson = System.Text.Json.JsonSerializer.Serialize(movementBases);
+            var eqJson = System.Text.Json.JsonSerializer.Serialize(equipments);
 
-            builder.AddSection("User Preferences",
-                $"- Days per week: {dto.DaysPerWeek}",
-                $"- Preferred training days: {dto.PreferredDays}");
-
-            builder.AddSection("Lift Frequency",
-                $"- Weekly lift goals → Squat: {dto.SquatDays}, Bench: {dto.BenchDays}, Deadlift: {dto.DeadliftDays}");
-
-            if (!string.IsNullOrWhiteSpace(dto.FavoriteMovements))
-            {
-                builder.AddSection("Favorites",
-                    $"- Favorite movements: {dto.FavoriteMovements}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(dto.UserGoals))
-            {
-                builder.AddSection("User Goals",
-                    $"The user provided the following high-level notes about their needs:",
-                    $"{dto.UserGoals}");
-            }
-
-            builder.AddSection("Instruction",
-                "Acknowledge these preferences in 3–5 lines and say you’re ready to fetch data/tools when instructed.",
-                "Do NOT call tools yet. Do NOT propose sets/reps here.");
-
-
-            return builder;
+            var b = new PromptBuilder()
+                .AddSection("Role",
+                    "You are Lionheart, a powerlifting coach-engine.",
+                    "TASK: Propose a weekly microcycle outline consistent with the user's preferences.",
+                    "Review the Training Programming Reference document now.",
+                    "HARD RULES:",
+                    "- Do NOT call tools. You have all the data you need inline.",
+                    "- Do NOT produce sets/reps or RPE here.",
+                    "- Output must be PURE JSON matching the schema below, and nothing else.",
+                    "- Minimum number of movements in a week is 18.")
+                .AddSection("User Preferences",
+                    $"- Days per week: {prefs.DaysPerWeek}",
+                    $"- Preferred days: {prefs.PreferredDays}",
+                    $"- Weekly lift goals ⇒ Squat: {prefs.SquatDays}, Bench: {prefs.BenchDays}, Deadlift: {prefs.DeadliftDays}",
+                    string.IsNullOrWhiteSpace(prefs.FavoriteMovements) ? "" : $"- Favorites: {prefs.FavoriteMovements}",
+                    string.IsNullOrWhiteSpace(prefs.UserGoals) ? "" : $"- Goals: {prefs.UserGoals}")
+                .AddSection("Available Movement Bases (slim JSON)", mbJson)
+                .AddSection("Available Equipments (slim JSON)", eqJson)
+                .AddSection("If the user asked for changes (optional)", userFeedback ?? "(none)")
+                .AddSection("Output Schema (copy exactly)",
+        @"{
+        ""Summary"": ""string"",
+        ""Microcycle"": [
+            { ""Day"": ""Monday"", ""Focus"": ""string"", ""MainLifts"": [""string""], ""Accessories"": [""string""] }
+        ],
+        ""AccessoryHighlights"": [""string""]
+        }")
+                .AddSection("Instructions",
+                    "Construct a Mon–Sun plan consistent with DaysPerWeek and PreferredDays.",
+                    "Respect weekly Squat/Bench/Deadlift counts.",
+                    "Name main lifts plainly (e.g., \"Primary Squat\", \"Secondary Bench\") — no sets/reps.",
+                    "Accessories should be movement names present or obvious from movement base names. Keep it short.",
+                    "Return only the JSON. No backticks, no commentary.");
+            return b;
         }
 
-
-        public static PromptBuilder FirstWeek(string programId) =>
+        public static PromptBuilder PowerliftingFirstWeek(string programId) =>
             new PromptBuilder()
                 .AddSection("Phase 2: Create Week 1",
                     $"Target Program: {programId}",
@@ -86,7 +94,9 @@ namespace lionheart.Model.Prompt
                     "- GetTrainingProgramAsync(programId)",
                     "- GetMovementBasesAsync()",
                     "- GetEquipmentsAsync()",
-                    "Wait for results. Use ONLY returned UUIDs.",
+                   // "- WebSearchAsync(query: \"powerlifting programming guidelines\")",
+                 //   "When calling WebSearchAsync, always include a query parameter describing what information you need. Example: { \"query\": \"how to program a powerlifting program for a light weight experienced male\" }",
+                  //  "Wait for results. Use ONLY returned UUIDs.",
 
                     // WEEKDAY ANCHORING
                     "Weekday Anchoring:",
@@ -95,7 +105,7 @@ namespace lionheart.Model.Prompt
                     "• Do not schedule weekends unless preferredDays included them.",
 
                     // STEP 2 — creation (single call)
-                    "Step 2 — Immediately create ALL Week-1 sessions in ONE call:",
+                    "Step 2 — Create ALL Week-1 sessions in ONE call:",
                     "Call the function EXACTLY in this shape:",
                     "CreateTrainingSessionWeekAsync({",
                     "  \"request\": {",
@@ -103,18 +113,27 @@ namespace lionheart.Model.Prompt
                     "    \"sessions\": [ /* fully populated sessions */ ]",
                     "  }",
                     "})",
-                    "Do not ask for confirmation. Do not narrate. Do not call other tools in this step.",
+                    
 
                     // STRUCTURE & DATA RULES
-                    "Each session must have:",
-                    "- 3–5 total movements.",
-                    "- The FIRST movement as the main lift (Squat, Bench, or Deadlift).",
+                    "Each session must have (HARD REQUIREMENTS):",
+                    "- 4–5 total movements.",
+                    "- The FIRST movement is the main lift (Squat, Bench, or Deadlift).",
+                    "- Minimum 4 sets total for Squat, Bench, and Deadlift.",
+                    "- Main lift sets: exactly 1 top set (1–3 reps) at RPE 6–8 + 3-4 back-off sets (same lift) at RPE 6–7.",
+                    "- Accessories: 3-6 accessory movements (not main lifts), each with 2–4 sets at RPE 8–9 (5–10 reps).",
+                    "- Don't repeat the same accessory movement more then twice in a week",
+                    "- Don't put the same accessory on consecutive days",
+                    "- Ensure all muscle groups are hit (chest, Lats, Traps, rear delts, front delts, side delts, quads, glutes, hamstrings, triceps, biceps)",
                     "- movementBaseID from GetMovementBasesAsync.",
                     "- movementModifier { name, equipmentID, equipment (object), duration } from GetEquipmentsAsync.",
                     "- weightUnit is 'Kilograms' or 'Pounds'.",
-                    "- sets: 2–5 with recommendedReps, recommendedWeight, recommendedRPE.",
-                    "- No guessed IDs. Use only tool-returned UUIDs.",
-                    "- No empty movement arrays."
+                    "- sets specify recommendedReps, recommendedWeight, recommendedRPE.",
+                    "- No guessed IDs; only tool-returned UUIDs.",
+                    "- No empty movement arrays.",
+
+                    "Do not ask for confirmation. Do not narrate. Do not call other tools in this step."
+
                 )
                 .AddSection("Reference",
                     "Refer to the 'TrainingProgrammingReference' document for:",
@@ -124,13 +143,24 @@ namespace lionheart.Model.Prompt
                     "• Accessory programming rules.",
                     "• Implementation reminders (IDs, equipment, weekday consistency)."
                 )
-                .AddSection("Pre-submit checklist",
-                    "• Week 1 dates align to the chosen weekdays.",
-                    "• One CreateTrainingSessionWeekAsync call made with all sessions populated.",
-                    "• Only tool-returned UUIDs used."
+                .AddSection("Pre-submit checklist (the following MUST be true before you call CreateTrainingSessionWeekAsync):",
+                            "• Each session has 4–5 movements.",
+                            "• Main lift per session has 1 top set + 3–4 back-offs (same lift).",
+                            "• Each session includes 3-6 accessories, each 2–4 sets @ RPE 8–9.",
+                            "• Weekday pattern locked; dates valid.",
+                             "• Only tool-returned UUIDs used; full equipment object included.",
+                            "IF ANY ITEM FAILS: revise the plan and DO NOT call the creation tool yet."
+
+                            
+                )
+                 .AddSection("Call CreateTrainingSessionWeekAsync NOW",
+                             "• Use the validated session data to call CreateTrainingSessionWeekAsync.",
+                             "• Include all necessary parameters and ensure data integrity.",
+                             "• Handle any errors or issues that arise during the call."
                 );
 
-        public static PromptBuilder RemainingWeeks(string programId) =>
+
+        public static PromptBuilder PowerliftingRemainingWeeks(string programId) =>
             new PromptBuilder()
                 .AddSection("Phase 3: Create Weeks 2 and 3",
                     $"Call GetTrainingProgramAsync('{programId}') to read Week 1 (sessions, dates, frequencies, weekday template).",
@@ -161,6 +191,135 @@ namespace lionheart.Model.Prompt
                     "• Two CreateTrainingSessionWeekAsync calls made (one per week).",
                     "• All sessions fully populated and follow reference rules."
                 );
+                
+                public static PromptBuilder BodybuildingPreferencesOutline(
+                    BodybuildingPreferencesDTO prefs,
+                    IEnumerable<MovementBaseSlimDTO> movementBases,
+                    IEnumerable<EquipmentSlimDTO> equipments,
+                    string? userFeedback = null)
+                {
+                    var mbJson = System.Text.Json.JsonSerializer.Serialize(movementBases);
+                    var eqJson = System.Text.Json.JsonSerializer.Serialize(equipments);
+
+                    return new PromptBuilder()
+                        .AddSection("Role",
+                            "You are Lionheart, a hypertrophy-focused bodybuilding coach-engine.",
+                            "TASK: Propose a weekly microcycle outline consistent with the user's preferences for BODYBUILDING.",
+                            "HARD RULES:",
+                            "- Do NOT call tools. You have all the data you need inline.",
+                            "- Minimum of 18 movements per week.",
+                            "- Do NOT produce sets/reps or RPE here.",
+                            "- Output must be PURE JSON matching the schema below, and nothing else.",
+                            "- Treat any section labeled 'User Adjustments:' as HARD constraints; apply them literally.")
+                        .AddSection("User Preferences",
+                            $"- Days per week: {prefs.DaysPerWeek}",
+                            $"- Preferred days: {prefs.PreferredDays}",
+                            prefs.WeakPoints?.Count > 0 ? $"- Weak points: {string.Join(", ", prefs.WeakPoints)}" : "",
+                            string.IsNullOrWhiteSpace(prefs.Bodyweight) ? "" : $"- Bodyweight: {prefs.Bodyweight}",
+                            prefs.YearsOfExperience is null ? "" : $"- Years of experience: {prefs.YearsOfExperience}",
+                            string.IsNullOrWhiteSpace(prefs.FavoriteMovements) ? "" : $"- Favorites: {prefs.FavoriteMovements}",
+                            string.IsNullOrWhiteSpace(prefs.UserGoals) ? "" : $"- Goals: {prefs.UserGoals}")
+                        .AddSection("Available Movement Bases (slim JSON)", mbJson)
+                        .AddSection("Available Equipments (slim JSON)", eqJson)
+                        .AddSection("If the user asked for changes (optional)", userFeedback ?? "(none)")
+                        .AddSection("Output Schema (copy exactly)",
+                @"{
+                ""Summary"": ""string"",
+                ""Microcycle"": [
+                    { ""Day"": ""Monday"", ""Focus"": ""string"", ""MainLifts"": [""string""], ""Accessories"": [""string""] }
+                ],
+                ""AccessoryHighlights"": [""string""]
+                }")
+                        .AddSection("Instructions",
+                            "Design for hypertrophy: choose a split that fits days/week (e.g., Upper/Lower x2, Push/Pull/Legs, or Full Body x3).",
+                            "MainLifts = key compounds (e.g., High-Bar Squat, Incline Bench, RDL, Weighted Pull-ups).",
+                            "Accessories = isolation/machine work (e.g., Leg Extension, Cable Fly, Lateral Raise).",
+                            "Name movements plainly; no sets/reps.",
+                            "Return only the JSON. No backticks, no commentary.");
+                }
+
+                public static PromptBuilder BodybuildingFirstWeek(string programId) =>
+                    new PromptBuilder()
+                        .AddSection("Phase 2: Create Week 1 (Bodybuilding)",
+                            $"Target Program: {programId}",
+
+                            // STEP 1 — info tools (parallel)
+                            "Step 1 — Fetch in parallel:",
+                            "- GetTrainingProgramAsync(programId)",
+                            "- GetMovementBasesAsync()",
+                            "- GetEquipmentsAsync()",
+                            "Use ONLY the movementBaseID values and Equipment OBJECTS returned by these tools. Do NOT fabricate or reuse cached/slim lists. Do NOT add fields.",
+
+                            // WEEKDAY ANCHORING
+                            "Weekday Anchoring:",
+                            "• Choose exact training weekdays for Week 1 using the user's preferredDays if provided. If not provided, infer a clean pattern (e.g., 4-day Upper/Lower split or Push/Pull/Legs + Upper) within the program date range.",
+                            "• Each session’s DATE must align to those weekdays. These weekday choices become the template for ALL future weeks (same days each week).",
+                            "• Do not schedule weekends unless preferredDays included them.",
+
+                            // STEP 2 — creation (single call)
+                            "Step 2 — Create ALL Week-1 sessions in ONE call:",
+                            "Call the function EXACTLY in this shape:",
+                            "CreateTrainingSessionWeekAsync({",
+                            "  \"request\": {",
+                            "    \"trainingProgramID\": \"<programId>\",",
+                            "    \"sessions\": [ /* fully populated sessions */ ]",
+                            "  }",
+                            "})",
+
+                            // STRUCTURE & DATA RULES (Hypertrophy)
+                            "Each session must have (HARD REQUIREMENTS):",
+                            "- 4–6 total movements.",
+                            "- Compounds first (as MainLifts), then accessories.",
+                            "- For each movement: 3–4 sets; 6–15 reps typical; RPE 8–9.",
+                            "- Balance weekly sets across major muscle groups (chest, back (lats+upper back), delts (front/side/rear), quads, hamstrings, glutes, arms).",
+                            "- Don't repeat the same accessory more than twice in a week.",
+                            "- Avoid placing the same accessory on consecutive days.",
+                            "- movementBaseID from GetMovementBasesAsync.",
+                            "- movementModifier { name, equipmentID, equipment (object), duration } from GetEquipmentsAsync.",
+                            "- weightUnit is 'Kilograms' or 'Pounds'.",
+                            "- sets specify recommendedReps, recommendedWeight, recommendedRPE.",
+                            "- No guessed IDs; only tool-returned UUIDs.",
+                            "- No empty movement arrays.",
+
+                            "Do not ask for confirmation. Do not narrate. Only call the creation tool when the checklist passes.")
+                        .AddSection("Pre-submit checklist (MUST be true before calling CreateTrainingSessionWeekAsync):",
+                            "• Each session has 4–6 movements.",
+                            "• Compounds lead each session; accessories follow.",
+                            "• Each movement includes 3–4 sets in the 6–15 rep range at RPE 8–9.",
+                            "• Weekly volume distribution across muscle groups is reasonable.",
+                            "• Weekday pattern locked; dates valid.",
+                            "• For every movement: movementModifier.equipmentID is from GetEquipmentsAsync.",
+                            "• For every movement: movementModifier.equipment (object) is exactly the tool-returned object for that equipmentID (unchanged).",
+                            "IF ANY ITEM FAILS: revise the plan and DO NOT call the creation tool yet.")
+                        .AddSection("Call CreateTrainingSessionWeekAsync NOW",
+                            "• Use the validated session data to call CreateTrainingSessionWeekAsync.",
+                            "• Include all necessary parameters and ensure data integrity.",
+                            "• Handle any errors or issues that arise during the call.");
+
+                public static PromptBuilder BodybuildingRemainingWeeks(string programId) =>
+                    new PromptBuilder()
+                        .AddSection("Phase 3: Create Weeks 2 and 3 (Bodybuilding)",
+                            $"Call GetTrainingProgramAsync('{programId}') to read Week 1 (sessions, dates, weekday template).",
+                            "Create Week 2 and Week 3 with exactly the same number of sessions as Week 1.",
+                            "Make ONE CreateTrainingSessionWeekAsync(request) call per week (two total calls).")
+                        .AddSection("Weekday Lock + Dates",
+                            "• Preserve the Week-1 weekday template exactly.",
+                            "• Week 2 = Week 1 date + 7 days.",
+                            "• Week 3 = Week 1 date + 14 days.",
+                            "• No shifting to other weekdays.")
+                        .AddSection("Structure & Progression (Hypertrophy)",
+                            "• Continue sessionNumber sequentially; keep chronological order.",
+                            "• Regenerate all UUIDs for sessions/movements/sets.",
+                            "• Keep weightUnit consistent.",
+                            "• Progress by modestly adjusting reps/sets/RPE (e.g., +1 set on a lagging muscle group; or +1–2 reps on accessories; or small RPE bump where recovery allows).",
+                            "• You may rotate variations (grip/angle/stance/machine) to distribute joint stress while keeping intent (e.g., Incline DB Press ↔ Incline Machine Press).",
+                            "• Use only tool-returned UUIDs for IDs and include full equipment object.")
+                        .AddSection("Pre-submit checklist",
+                            "• Weekday pattern matches Week 1.",
+                            "• Two CreateTrainingSessionWeekAsync calls made (one per week).",
+                            "• Volume stays in hypertrophy range; distribution remains balanced.",
+                            "• All sessions fully populated and follow reference rules.");
+
 
 
 
@@ -184,7 +343,7 @@ namespace lionheart.Model.Prompt
                     "- The users context may not include all fields for each day. (oura ring may not have data for every day, etc.)",
                     "- The oura ring data has some unique structuring. Many of the values are stored as integers, representing a percentage from [0,100].",
                     "- Example: `sleepScore` is an integer from 0 to 100, where higher is better. Deep sleep is also [0,100], where the number represents the percentage of the night spent in deep sleep.",
-                    
+
                     "### Your Responsibilities:",
                     "1. Ingest and interpret the full `userContext` holistically.",
                     "2. Identify the current state, highlighting any abnormal signals (e.g., elevated temperature, declining HRV, sleep disruption, or increased fatigue).",

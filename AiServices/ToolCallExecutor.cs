@@ -12,6 +12,12 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json; // if not already at top
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
+using OpenAI.Responses;          // OpenAIResponseClient, OpenAIResponse, ResponseItem, ...
+using System.Linq;               // FirstOrDefault (when reading message content safely)
+using System.Text;
+
+
+
 
 
 /// <summary>
@@ -28,6 +34,8 @@ public class ToolCallExecutor : IToolCallExecutor
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IWellnessService _wellnessService;
     private readonly IActivityService _activityService;
+    #pragma warning disable OPENAI001
+    private readonly OpenAIResponseClient _responses;
 
     // Static base options shared across clones
     private static readonly JsonSerializerOptions _baseJsonOptions = new JsonSerializerOptions
@@ -43,6 +51,8 @@ public class ToolCallExecutor : IToolCallExecutor
         clone.Converters.Add(new DateOnlyJsonConverter("yyyy-MM-dd"));
         return clone;
     }
+    private class WebSearchArgs { public string Query { get; set; } = ""; }
+
 
     public ToolCallExecutor(
         ITrainingSessionService trainingSessionService,
@@ -51,7 +61,8 @@ public class ToolCallExecutor : IToolCallExecutor
         ITrainingProgramService trainingProgramService,
         IOuraService ouraService,
         IActivityService activityService,
-        IWellnessService wellnessService)
+        IWellnessService wellnessService,
+        OpenAIResponseClient responses)
     {
         _trainingSessionService = trainingSessionService;
         _movementService = movementService;
@@ -60,6 +71,7 @@ public class ToolCallExecutor : IToolCallExecutor
         _ouraService = ouraService;
         _activityService = activityService;
         _wellnessService = wellnessService;
+        _responses = responses;
 
         // ✅ Clone base options with DateOnly support
         _jsonOptions = CloneWithDateOnlySupport(_baseJsonOptions);
@@ -77,7 +89,7 @@ public class ToolCallExecutor : IToolCallExecutor
         var results = new List<Result<ToolChatMessage>>();
 
         // ✅ List of tool functions safe to call in parallel
-        var parallelizable = new[] { "GetMovementBasesAsync", "GetEquipmentsAsync", "GetTrainingProgramAsync" };
+        var parallelizable = new[] { "GetMovementBasesAsync", "GetEquipmentsAsync", "GetTrainingProgramAsync", "WebSearchAsync" };
 
         var parallelCalls = toolCalls.Where(tc => parallelizable.Contains(tc.FunctionName)).ToList();
         var sequentialCalls = toolCalls.Where(tc => !parallelizable.Contains(tc.FunctionName)).ToList();
@@ -132,6 +144,70 @@ public class ToolCallExecutor : IToolCallExecutor
     }
 
     /// <summary>
+    /// Executes a web search tool call.
+    /// </summary>
+    /// <param name="tc"></param>
+    /// <returns></returns>
+    private async Task<Result<ToolChatMessage>> ExecuteWebSearchAsync(ChatToolCall tc)
+    {
+        var fallback = "Search the web for powerlifting programming guidelines.";
+
+        var query = GetSafeQueryOrDefault(tc, fallback);
+
+        OpenAIResponse response = await _responses.CreateResponseAsync(
+            userInputText: query,
+            new ResponseCreationOptions
+            {
+                Tools = { ResponseTool.CreateWebSearchTool() }
+            }
+        );
+        var sb = new StringBuilder();
+        foreach (ResponseItem item in response.OutputItems)
+        {
+
+            if (item is WebSearchCallResponseItem ws)
+            {
+                // Optional: diagnostic line
+                sb.AppendLine($"[web_search:{ws.Status}] {ws.Id}");
+            }
+            else if (item is MessageResponseItem msg)
+            {
+                var text = msg.Content?.FirstOrDefault()?.Text;
+                if (!string.IsNullOrWhiteSpace(text))
+                    sb.AppendLine(text);
+            }
+        }
+
+        return Result<ToolChatMessage>.Success(
+            new ToolChatMessage(toolCallId: tc.Id, content: sb.ToString().Trim())
+        );
+    }
+
+        private static string GetSafeQueryOrDefault(ChatToolCall tc, string defaultQuery)
+        {
+            try
+            {
+                var funcArgsStr = tc.FunctionArguments.ToString();
+                if (string.IsNullOrWhiteSpace(funcArgsStr) || funcArgsStr.Trim() == "{}")
+                    return defaultQuery;
+
+                using var doc = JsonDocument.Parse(tc.FunctionArguments);
+                if (doc.RootElement.TryGetProperty("query", out var qProp))
+                {
+                    var q = qProp.GetString();
+                    return string.IsNullOrWhiteSpace(q) ? defaultQuery : q!;
+                }
+                return defaultQuery;
+            }
+            catch
+            {
+                return defaultQuery;
+            }
+        }
+
+
+
+    /// <summary>
     /// Private helper method.
     /// Executes a single tool call based on its function name and arguments.
     /// It handles various tool functions related to training sessions, movements, and set entries.
@@ -148,6 +224,9 @@ public class ToolCallExecutor : IToolCallExecutor
         {
             switch (fn)
             {
+                case "WebSearchAsync":
+                    return await ExecuteWebSearchAsync(toolCall);
+
                 case "CreateTrainingSessionWeekAsync":
                     {
                         var request = args?["request"]?.Deserialize<CreateTrainingSessionWeekRequest>(_jsonOptions);
