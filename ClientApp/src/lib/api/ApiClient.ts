@@ -7785,11 +7785,10 @@ export interface IProblemDetails {
 export class ProgramPreferencesDTO implements IProgramPreferencesDTO {
     daysPerWeek!: number;
     preferredDays!: string;
-    squatDays?: number;
-    benchDays?: number;
-    deadliftDays?: number;
     favoriteMovements?: string | undefined;
     userGoals?: string | undefined;
+
+    [key: string]: any;
 
     constructor(data?: IProgramPreferencesDTO) {
         if (data) {
@@ -7802,11 +7801,12 @@ export class ProgramPreferencesDTO implements IProgramPreferencesDTO {
 
     init(_data?: any) {
         if (_data) {
+            for (var property in _data) {
+                if (_data.hasOwnProperty(property))
+                    this[property] = _data[property];
+            }
             this.daysPerWeek = _data["daysPerWeek"];
             this.preferredDays = _data["preferredDays"];
-            this.squatDays = _data["squatDays"];
-            this.benchDays = _data["benchDays"];
-            this.deadliftDays = _data["deadliftDays"];
             this.favoriteMovements = _data["favoriteMovements"];
             this.userGoals = _data["userGoals"];
         }
@@ -7821,11 +7821,12 @@ export class ProgramPreferencesDTO implements IProgramPreferencesDTO {
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
+        for (var property in this) {
+            if (this.hasOwnProperty(property))
+                data[property] = this[property];
+        }
         data["daysPerWeek"] = this.daysPerWeek;
         data["preferredDays"] = this.preferredDays;
-        data["squatDays"] = this.squatDays;
-        data["benchDays"] = this.benchDays;
-        data["deadliftDays"] = this.deadliftDays;
         data["favoriteMovements"] = this.favoriteMovements;
         data["userGoals"] = this.userGoals;
         return data;
@@ -7835,11 +7836,10 @@ export class ProgramPreferencesDTO implements IProgramPreferencesDTO {
 export interface IProgramPreferencesDTO {
     daysPerWeek: number;
     preferredDays: string;
-    squatDays?: number;
-    benchDays?: number;
-    deadliftDays?: number;
     favoriteMovements?: string | undefined;
     userGoals?: string | undefined;
+
+    [key: string]: any;
 }
 
 export class ReadinessData implements IReadinessData {

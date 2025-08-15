@@ -1,30 +1,25 @@
 using System.ComponentModel.DataAnnotations;
 using lionheart.Model.TrainingProgram;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 
 namespace lionheart.Model.DTOs
 {
     public class ProgramPreferencesDTO
     {
-        [Required]
-        [Range(1, 7)]
+        [Required, Range(1, 7)]
         public required int DaysPerWeek { get; init; }
 
         [Required]
         public required string PreferredDays { get; init; } = string.Empty;
 
-        [Range(0, 7)]
-        public int SquatDays { get; init; }
-
-        [Range(0, 7)]
-        public int BenchDays { get; init; }
-
-        [Range(0, 7)]
-        public int DeadliftDays { get; init; }
-
         public string FavoriteMovements { get; init; } = string.Empty;
         public string? UserGoals { get; set; }
 
+        // Keep the endpoint stable; carry sport-specific keys here.
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? Extra { get; init; }
     }
 
     public class FirstWeekGenerationDTO
@@ -91,7 +86,7 @@ namespace lionheart.Model.DTOs
         [Required]
         public required List<CreateTrainingSessionWithMovementsDTO> Sessions { get; init; }
     }
-        public class PreferencesOutlineRequest
+    public class PreferencesOutlineRequest
     {
         // existing user inputs
         public required ProgramPreferencesDTO Preferences { get; init; }
@@ -125,5 +120,113 @@ namespace lionheart.Model.DTOs
         public required Guid EquipmentID { get; init; }
         public required string Name { get; init; }
     }
+    
+
+
+     public class PowerliftingPreferencesDTO : ProgramPreferencesDTO
+    {
+        public int SquatDays { get; init; }
+        public int BenchDays { get; init; }
+        public int DeadliftDays { get; init; }
+
+        public static PowerliftingPreferencesDTO FromBase(ProgramPreferencesDTO dto)
+        {
+            return new PowerliftingPreferencesDTO
+            {
+                DaysPerWeek       = dto.DaysPerWeek,
+                PreferredDays     = dto.PreferredDays,
+                FavoriteMovements = dto.FavoriteMovements,
+                UserGoals         = dto.UserGoals,
+                Extra             = dto.Extra,
+
+                // tolerant parsing from Extra (number or string)
+                SquatDays    = GetInt(dto.Extra, "squatDays")    ?? 0,
+                BenchDays    = GetInt(dto.Extra, "benchDays")    ?? 0,
+                DeadliftDays = GetInt(dto.Extra, "deadliftDays") ?? 0,
+            };
+        }
+
+        private static int? GetInt(Dictionary<string, JsonElement>? extra, string key)
+        {
+            if (extra is null) return null;
+            if (!extra.TryGetValue(key, out var el)) return null;
+            if (el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var n)) return n;
+            if (el.ValueKind == JsonValueKind.String && int.TryParse(el.GetString(), out var m)) return m;
+            return null;
+        }
+    }
+
+    public class BodybuildingPreferencesDTO : ProgramPreferencesDTO
+    {
+        public List<string> WeakPoints      { get; init; } = new();
+        public string?      Bodyweight      { get; init; } // "172 lbs" or "78 kg"
+        public int?         YearsOfExperience { get; init; }
+
+        public static BodybuildingPreferencesDTO FromBase(ProgramPreferencesDTO dto)
+        {
+            return new BodybuildingPreferencesDTO
+            {
+                DaysPerWeek       = dto.DaysPerWeek,
+                PreferredDays     = dto.PreferredDays,
+                FavoriteMovements = dto.FavoriteMovements,
+                UserGoals         = dto.UserGoals,
+                Extra             = dto.Extra,
+
+                WeakPoints        = GetWeakPoints(dto.Extra),
+                Bodyweight        = GetString(dto.Extra, "bodyweight"),
+                YearsOfExperience = GetInt(dto.Extra, "yearsOfExperience"),
+            };
+        }
+
+        private static List<string> GetWeakPoints(Dictionary<string, JsonElement>? extra)
+        {
+            var list = new List<string>();
+            if (extra is null) return list;
+            if (!extra.TryGetValue("weakPoints", out var el)) return list;
+
+            if (el.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in el.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.String)
+                    {
+                        var s = item.GetString();
+                        if (!string.IsNullOrWhiteSpace(s)) list.Add(s.Trim());
+                    }
+                }
+            }
+            else if (el.ValueKind == JsonValueKind.String)
+            {
+                var s = el.GetString();
+                if (!string.IsNullOrWhiteSpace(s))
+                {
+                    list = s.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(x => x.Trim())
+                            .Where(x => x.Length > 0)
+                            .ToList();
+                }
+            }
+            return list;
+        }
+
+        private static string? GetString(Dictionary<string, JsonElement>? extra, string key)
+        {
+            if (extra is null) return null;
+            if (!extra.TryGetValue(key, out var el)) return null;
+            return el.ValueKind == JsonValueKind.String ? el.GetString() : null;
+        }
+
+        private static int? GetInt(Dictionary<string, JsonElement>? extra, string key)
+        {
+            if (extra is null) return null;
+            if (!extra.TryGetValue(key, out var el)) return null;
+            if (el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var n)) return n;
+            if (el.ValueKind == JsonValueKind.String && int.TryParse(el.GetString(), out var m)) return m;
+            return null;
+        }
+    }
 }
+
+
+
 

@@ -27,9 +27,9 @@ namespace lionheart.Services.AI
       - Templates (examples; pick one that matches user frequency and preferred weekdays):
 
       1) 3-day S/B/D split (Mon/Wed/Fri):
-        Day 1 (Mon): Squat — Top set (1–3 reps), 2–4 back-offs; Secondary: Bench (moderate); Accessories 3–4 @ RPE 8–9.
-        Day 2 (Wed): Bench — Heavier exposure; Secondary: Squat (tech/volume) or lower-back-sparing hinge; Accessories.
-        Day 3 (Fri): Deadlift — Top set (1–3), 2–4 back-offs; Secondary: Bench (skill/volume); Accessories.
+        Day 1 (Mon): Primary Squat — Top Set (1–3 reps), back-offs (3-4 sets, 3-6 reps); Secondary: Deadlift (Paused); Accessories 4-5 @ RPE 8–9.
+        Day 2 (Wed): Primary Bench — Top Set (1–3 reps), back-offs (3-4 sets, 3-6 reps); Secondary: Squat (Tempo); Accessories 4-5 @ RPE 8–9.
+        Day 3 (Fri): Primary Deadlift — Top set (1–3), 2–4 back-offs; Secondary: Bench (skill/volume); Accessories 4-5 @ RPE 8–9.
 
       2) 4-day S/B/D split (Mon/Tue/Thu/Sat):
         Day 1: Squat (strength) + Bench (skill)
@@ -43,7 +43,7 @@ namespace lionheart.Services.AI
       Main Lift Structure (per session)
       - First movement = main lift of the day.
       - Include one Top Set (1–3 reps; highest RPE of the day for that lift).
-      - Then 2–4 back-off sets at reduced load (match or slightly increase reps for volume).
+      - Then 3-4 back-off sets at reduced load (match or slightly increase reps for volume).
       - Accessories 3–4 at RPE 8–9 (8–10 reps typical; 2–4 sets).
 
       C) VARIATIONS: WHAT / WHY / WHEN (Use as movementModifier)
@@ -88,11 +88,12 @@ namespace lionheart.Services.AI
       D) ACCESSORY PROGRAMMING (General Rules)
       - Choose 3–6 accessories that support the main lift or address weak links; RPE 8–9 unless stated.
       - Keep in mind the number of sessions in a week when determining how many accessories per session.
+      - 2 Sessions a week - 6 accessories per session, 3 x week - 5 accessories per session, 4 x week - 4 accessories per session.
       - Lifters should be getting at least 6 sets a week per muscle group.
       - Sets/Reps: 2–4 sets × 5-10 reps
       - Keep accessories joint-friendly; avoid hammering the same joint patterns on consecutive days.
 
-      Accessory Examples (specifically requested):
+      Accessory Examples):
       1) Tricep Pushdown
         - Goal: triceps strength for bench lockout and pressing density.
         - Prescription: 2–4 sets × 8-10 reps @ RPE 8–9.

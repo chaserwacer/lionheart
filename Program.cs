@@ -64,6 +64,8 @@ builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 builder.Services.AddTransient<IAnalyzeUserService, AnalyzeUserService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
