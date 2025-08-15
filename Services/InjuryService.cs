@@ -1,11 +1,8 @@
-using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Model.DTOs;
 using lionheart.Model.Injury;
-using lionheart.Model.Mappers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ModelContextProtocol.Server;
 using lionheart.Data;
 
 
@@ -20,65 +17,62 @@ public class InjuryService : IInjuryService
         _context = context;
     }
 
-
     public async Task<Result<InjuryDTO>> CreateInjuryAsync(IdentityUser user, CreateInjuryRequest request)
     {
-        var userId = Guid.Parse(user.Id);
         var injury = new Injury
         {
             InjuryID = Guid.NewGuid(),
-            UserID = userId,
-            Category = request.Category,
+            UserID = Guid.Parse(user.Id),
+            Name = request.Name,
+            Notes = request.Notes,
             InjuryDate = request.InjuryDate,
-            IsResolved = false,
+            IsActive = true,
             InjuryEvents = new()
         };
-
         _context.Injuries.Add(injury);
         await _context.SaveChangesAsync();
-
         return Result<InjuryDTO>.Created(injury.ToDTO());
     }
-    public async Task<Result<InjuryDTO>> AddInjuryEventAsync(
+    public async Task<Result<InjuryDTO>> UpdateInjuryAsync(IdentityUser user, UpdateInjuryRequest request)
+    {
+        var userId = Guid.Parse(user.Id);
+        var injury = await _context.Injuries
+            .Include(i => i.InjuryEvents)
+            .FirstOrDefaultAsync(i => i.UserID == userId && i.InjuryID == request.InjuryID);
+        if (injury is null) return Result<InjuryDTO>.NotFound("Injury not found");
+        injury.Name = request.Name;
+        injury.Notes = request.Notes;
+        injury.IsActive = request.IsActive;
+        await _context.SaveChangesAsync();
+        return Result<InjuryDTO>.Success(injury.ToDTO());
+    }
+    public async Task<Result<InjuryDTO>> CreateInjuryEventAsync(
         IdentityUser user,
-        Guid injuryId,
         CreateInjuryEventRequest request)
     {
         var userId = Guid.Parse(user.Id);
-
-        // 1) Verify the injury exists and belongs to the user
-        var injury = await _context.Injuries
-        .FirstOrDefaultAsync(i => i.InjuryID == injuryId && i.UserID == userId);
-        if (injury is null)
-            return Result<InjuryDTO>.NotFound("Injury not found");
-
-        // 2) (Optional) Verify the session exists
-        var session = await _context.TrainingSessions
-        .FindAsync(request.TrainingSessionID);
-        if (session is null)
-            return Result<InjuryDTO>.Error("Training session not found");
-
-        // 3) Create the event, explicitly set the FK
+        var injury = await _context.Injuries.FirstOrDefaultAsync(i => i.InjuryID == request.InjuryID && i.UserID == userId);
+        if (injury is null) return Result<InjuryDTO>.NotFound("Injury not found");
+        if (request.TrainingSessionID is Guid tsId && tsId != Guid.Empty)
+        {
+            var ownsSession = await _context.TrainingSessions
+                .Include(ts => ts.TrainingProgram)
+                .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.TrainingProgram!.UserID == userId);
+            if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
+        }
         var newEvent = new InjuryEvent
         {
-            InjuryID = injuryId,
-            TrainingSessionID = request.TrainingSessionID,
+            InjuryEventID = Guid.NewGuid(),
+            InjuryID = injury.InjuryID,
+            TrainingSessionID = request.TrainingSessionID ?? Guid.Empty,
             Notes = request.Notes,
             PainLevel = request.PainLevel,
             InjuryType = request.InjuryType,
             CreationTime = DateTime.UtcNow
         };
-
-        // 4) Add the event directly to its DbSet
         await _context.InjuryEvents.AddAsync(newEvent);
         await _context.SaveChangesAsync();
-
-        // 5) Re-load the injury (including its events) so we return up-to-date data
-        var updatedInjury = await _context.Injuries
-            .Where(i => i.InjuryID == injuryId)
-            .Include(i => i.InjuryEvents)
-            .FirstAsync();
-
+        var updatedInjury = await _context.Injuries.Include(i => i.InjuryEvents).FirstAsync(i => i.InjuryID == injury.InjuryID);
         return Result<InjuryDTO>.Success(updatedInjury.ToDTO());
     }
 
@@ -89,41 +83,63 @@ public class InjuryService : IInjuryService
             .Where(i => i.UserID == userId)
             .Include(i => i.InjuryEvents)
             .ToListAsync();
-
-        return Result<List<InjuryDTO>>.Success(injuries.Select(i => i.ToDTO()).ToList());
-    }
-
-    [McpServerTool, Description("Mark an injury as resolved.")]
-    public async Task<Result> MarkInjuryResolvedAsync(IdentityUser user, Guid injuryId)
-    {
-        var userId = Guid.Parse(user.Id);
-        var injury = await _context.Injuries
-            .FirstOrDefaultAsync(i => i.InjuryID == injuryId && i.UserID == userId);
-
-        if (injury is null)
-            return Result.NotFound("Injury not found");
-
-        injury.IsResolved = true;
-        await _context.SaveChangesAsync();
-
-        return Result.Success();
+        var ordered = injuries
+            .OrderByDescending(i => i.InjuryEvents.Count > 0 ? i.InjuryEvents.Max(ie => ie.CreationTime) : i.InjuryDate.ToDateTime(TimeOnly.MinValue))
+            .Select(i => i.ToDTO())
+            .ToList();
+        return Result<List<InjuryDTO>>.Success(ordered);
     }
 
     public async Task<Result> DeleteInjuryAsync(IdentityUser user, Guid injuryId)
     {
         var userId = Guid.Parse(user.Id);
-
         var injury = await _context.Injuries
             .Include(i => i.InjuryEvents)
             .FirstOrDefaultAsync(i => i.InjuryID == injuryId && i.UserID == userId);
-
-        if (injury is null)
-            return Result.NotFound("Injury not found");
-
+        if (injury is null) return Result.NotFound("Injury not found");
         _context.InjuryEvents.RemoveRange(injury.InjuryEvents);
         _context.Injuries.Remove(injury);
         await _context.SaveChangesAsync();
-
         return Result.Success();
+    }
+
+    public async Task<Result> DeleteInjuryEventAsync(IdentityUser user, Guid injuryEventId)
+    {
+        var userId = Guid.Parse(user.Id);
+        var injuryEvent = await _context.InjuryEvents
+            .Include(ie => ie.Injury)
+            .FirstOrDefaultAsync(ie => ie.InjuryEventID == injuryEventId);
+        if (injuryEvent is null) return Result.NotFound("Injury event not found");
+        if (injuryEvent.Injury.UserID != userId) return Result.Unauthorized("You do not have permission to delete this injury event");
+        _context.InjuryEvents.Remove(injuryEvent);
+        await _context.SaveChangesAsync();
+        return Result.Success();
+    }
+
+    public async Task<Result<InjuryDTO>> UpdateInjuryEventAsync(IdentityUser user, UpdateInjuryEventRequest request)
+    {
+        var userId = Guid.Parse(user.Id);
+        var injuryEvent = await _context.InjuryEvents
+            .Include(ie => ie.Injury)
+            .FirstOrDefaultAsync(ie => ie.InjuryEventID == request.InjuryEventID);
+        if (injuryEvent is null) return Result<InjuryDTO>.NotFound("Injury event not found");
+        if (injuryEvent.Injury.UserID != userId) return Result<InjuryDTO>.Unauthorized();
+        injuryEvent.PainLevel = request.PainLevel;
+        injuryEvent.InjuryType = request.InjuryType;
+        injuryEvent.Notes = request.Notes;
+        if (request.TrainingSessionID.HasValue && request.TrainingSessionID.Value != Guid.Empty)
+        {
+            var tsId = request.TrainingSessionID.Value;
+            var ownsSession = await _context.TrainingSessions
+                .Include(ts => ts.TrainingProgram)
+                .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.TrainingProgram!.UserID == userId);
+            if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
+            injuryEvent.TrainingSessionID = tsId;
+        }
+        await _context.SaveChangesAsync();
+        var parent = await _context.Injuries
+            .Include(i => i.InjuryEvents)
+            .FirstAsync(i => i.InjuryID == injuryEvent.InjuryID);
+        return Result<InjuryDTO>.Success(parent.ToDTO());
     }
 }

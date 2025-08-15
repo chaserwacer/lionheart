@@ -162,12 +162,13 @@ namespace lionheart.Services.AI
             ChatCompletionOptions options,
             IdentityUser user, ChatConversation chatConversation)
         {
-                // Ensure stable chronological order before sending to OpenAI
-                var messages = new List<ChatMessage>();
-                foreach (var message in chatConversation.Messages.OrderBy(m => m.CreationTime))
-                {
+            // Ensure stable chronological order before sending to OpenAI
+            var messages = new List<ChatMessage>();
+            foreach (var message in chatConversation.Messages.OrderBy(m => m.CreationTime))
+            {
+                if (!(message.ChatMessage is ToolChatMessage))
                     messages.Add(message.ChatMessage);
-                }
+            }
             bool requiresAction;
             var numberFailedToolCalls = 0;
 
@@ -246,16 +247,16 @@ namespace lionheart.Services.AI
                                 }
                                 messages.Add(result.ToolChatMessage);
                                 // persist tool message into conversation
-                                // var toolMsgReq = new AddChatMessageRequest
-                                // {
-                                //     ChatConversationId = chatConversation.ChatConversationId,
-                                //     ChatMessage = result.ToolChatMessage,
-                                // };
-                                // var saveToolMsg = await _chatConversationService.AddChatMessageAsync(user, toolMsgReq);
-                                // if (!saveToolMsg.IsSuccess)
-                                // {
-                                //     return Result<string>.Error("Failed to save tool message: " + string.Join(", ", saveToolMsg.Errors));
-                                // }
+                                var toolMsgReq = new AddChatMessageRequest
+                                {
+                                    ChatConversationId = chatConversation.ChatConversationId,
+                                    ChatMessage = result.ToolChatMessage,
+                                };
+                                var saveToolMsg = await _chatConversationService.AddChatMessageAsync(user, toolMsgReq);
+                                if (!saveToolMsg.IsSuccess)
+                                {
+                                    return Result<string>.Error("Failed to save tool message: " + string.Join(", ", saveToolMsg.Errors));
+                                }
                             }
 
                             requiresAction = true;

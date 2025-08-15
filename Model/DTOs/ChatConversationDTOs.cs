@@ -26,6 +26,7 @@ public class ChatMessageItemDTO
     public required DateTime CreationTime { get; set; } = DateTime.UtcNow;
     [Required]
     public required ChatMessageRole ChatMessageRole { get; set; }
+    
 }
 
 public class CreateChatConversationRequest

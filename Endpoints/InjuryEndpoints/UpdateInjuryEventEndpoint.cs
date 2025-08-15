@@ -9,31 +9,29 @@ using Ardalis.Filters;
 namespace lionheart.Endpoints.InjuryEndpoints;
 
 [ValidateModel]
-public class CreateInjuryEventEndpoint : EndpointBaseAsync
-    .WithRequest<CreateInjuryEventRequest>
+public class UpdateInjuryEventEndpoint : EndpointBaseAsync
+    .WithRequest<UpdateInjuryEventRequest>
     .WithActionResult<InjuryDTO>
 {
     private readonly IInjuryService _injuryService;
     private readonly UserManager<IdentityUser> _userManager;
 
-    public CreateInjuryEventEndpoint(IInjuryService injuryService, UserManager<IdentityUser> userManager)
+    public UpdateInjuryEventEndpoint(IInjuryService injuryService, UserManager<IdentityUser> userManager)
     {
         _injuryService = injuryService;
         _userManager = userManager;
     }
 
-    // Keep route for backward compatibility
-    [HttpPost("api/injury/add-event")]
+    [HttpPut("api/injury/event")]
     [ProducesResponseType(typeof(InjuryDTO), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public override async Task<ActionResult<InjuryDTO>> HandleAsync(
-        [FromBody] CreateInjuryEventRequest request,
-        CancellationToken cancellationToken = default)
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public override async Task<ActionResult<InjuryDTO>> HandleAsync([FromBody] UpdateInjuryEventRequest request, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user is null) return Unauthorized();
 
-        var result = await _injuryService.CreateInjuryEventAsync(user, request);
+        var result = await _injuryService.UpdateInjuryEventAsync(user, request);
         return this.ToActionResult(result);
     }
 }

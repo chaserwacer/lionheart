@@ -68,66 +68,6 @@ export class AddActivityEndpointClient {
     }
 }
 
-export class AddInjuryEventEndpointClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * @param body (optional) 
-     * @return OK
-     */
-    addEvent(body: AddInjuryEventWrapper | undefined): Promise<InjuryDTO> {
-        let url_ = this.baseUrl + "/api/injury/add-event";
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(body);
-
-        let options_: RequestInit = {
-            body: content_,
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "text/plain"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processAddEvent(_response);
-        });
-    }
-
-    protected processAddEvent(response: Response): Promise<InjuryDTO> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result200 = InjuryDTO.fromJS(resultData200);
-            return result200;
-            });
-        } else if (status === 401) {
-            return response.text().then((_responseText) => {
-            let result401: any = null;
-            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result401 = ProblemDetails.fromJS(resultData401);
-            return throwException("Unauthorized", status, _responseText, _headers, result401);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<InjuryDTO>(null as any);
-    }
-}
-
 export class AddLiftActivityEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -820,6 +760,66 @@ export class CreateInjuryEndpointClient {
     }
 }
 
+export class CreateInjuryEventEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    addEvent(body: CreateInjuryEventRequest | undefined): Promise<InjuryDTO> {
+        let url_ = this.baseUrl + "/api/injury/add-event";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAddEvent(_response);
+        });
+    }
+
+    protected processAddEvent(response: Response): Promise<InjuryDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = InjuryDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjuryDTO>(null as any);
+    }
+}
+
 export class CreateMovementBaseEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1442,6 +1442,67 @@ export class DeleteInjuryEndpointClient {
     }
 
     protected processDelete2(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class DeleteInjuryEventEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return No Content
+     */
+    eventDELETE(injuryEventId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/injury/event/{injuryEventId}";
+        if (injuryEventId === undefined || injuryEventId === null)
+            throw new Error("The parameter 'injuryEventId' must be defined.");
+        url_ = url_.replace("{injuryEventId}", encodeURIComponent("" + injuryEventId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEventDELETE(_response);
+        });
+    }
+
+    protected processEventDELETE(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -3728,60 +3789,6 @@ export class LogoutUserEndpointClient {
     }
 }
 
-export class MarkInjuryResolvedEndpointClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * @return OK
-     */
-    resolve(injuryId: string): Promise<void> {
-        let url_ = this.baseUrl + "/api/injury/{injuryId}/resolve";
-        if (injuryId === undefined || injuryId === null)
-            throw new Error("The parameter 'injuryId' must be defined.");
-        url_ = url_.replace("{injuryId}", encodeURIComponent("" + injuryId));
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "PUT",
-            headers: {
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processResolve(_response);
-        });
-    }
-
-    protected processResolve(response: Response): Promise<void> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            return;
-            });
-        } else if (status === 401) {
-            return response.text().then((_responseText) => {
-            let result401: any = null;
-            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result401 = ProblemDetails.fromJS(resultData401);
-            return throwException("Unauthorized", status, _responseText, _headers, result401);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<void>(null as any);
-    }
-}
-
 export class ModifyTrainingSessionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3967,7 +3974,7 @@ export class SyncOuraApiEndpointClient {
     }
 }
 
-export class UpdateMovementEndpointClient {
+export class UpdateInjuryEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -3981,8 +3988,8 @@ export class UpdateMovementEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    update(body: UpdateMovementRequest | undefined): Promise<Movement> {
-        let url_ = this.baseUrl + "/api/movement/update";
+    update(body: UpdateInjuryRequest | undefined): Promise<InjuryDTO> {
+        let url_ = this.baseUrl + "/api/injury/update";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(body);
@@ -4001,7 +4008,134 @@ export class UpdateMovementEndpointClient {
         });
     }
 
-    protected processUpdate(response: Response): Promise<Movement> {
+    protected processUpdate(response: Response): Promise<InjuryDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = InjuryDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjuryDTO>(null as any);
+    }
+}
+
+export class UpdateInjuryEventEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    eventPUT(body: UpdateInjuryEventRequest | undefined): Promise<InjuryDTO> {
+        let url_ = this.baseUrl + "/api/injury/event";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEventPUT(_response);
+        });
+    }
+
+    protected processEventPUT(response: Response): Promise<InjuryDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = InjuryDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjuryDTO>(null as any);
+    }
+}
+
+export class UpdateMovementEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    update2(body: UpdateMovementRequest | undefined): Promise<Movement> {
+        let url_ = this.baseUrl + "/api/movement/update";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdate2(_response);
+        });
+    }
+
+    protected processUpdate2(response: Response): Promise<Movement> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -4178,7 +4312,7 @@ export class UpdateSetEntryEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    update2(body: UpdateSetEntryRequest | undefined): Promise<SetEntryDTO> {
+    update3(body: UpdateSetEntryRequest | undefined): Promise<SetEntryDTO> {
         let url_ = this.baseUrl + "/api/set-entry/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -4194,11 +4328,11 @@ export class UpdateSetEntryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdate2(_response);
+            return this.processUpdate3(_response);
         });
     }
 
-    protected processUpdate2(response: Response): Promise<SetEntryDTO> {
+    protected processUpdate3(response: Response): Promise<SetEntryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -4245,7 +4379,7 @@ export class UpdateTrainingProgramEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    update3(body: UpdateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
+    update4(body: UpdateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -4261,11 +4395,11 @@ export class UpdateTrainingProgramEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdate3(_response);
+            return this.processUpdate4(_response);
         });
     }
 
-    protected processUpdate3(response: Response): Promise<TrainingProgramDTO> {
+    protected processUpdate4(response: Response): Promise<TrainingProgramDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -4312,7 +4446,7 @@ export class UpdateTrainingSessionEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    update4(body: UpdateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
+    update5(body: UpdateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/training-session/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -4328,11 +4462,11 @@ export class UpdateTrainingSessionEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdate4(_response);
+            return this.processUpdate5(_response);
         });
     }
 
-    protected processUpdate4(response: Response): Promise<TrainingSessionDTO> {
+    protected processUpdate5(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -4619,49 +4753,6 @@ export interface IActivityTypeRatioDto {
     numberLifts?: number;
     numberRunWalks?: number;
     numberRides?: number;
-}
-
-export class AddInjuryEventWrapper implements IAddInjuryEventWrapper {
-    injuryId!: string;
-    request!: CreateInjuryEventRequest;
-
-    constructor(data?: IAddInjuryEventWrapper) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-        if (!data) {
-            this.request = new CreateInjuryEventRequest();
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.injuryId = _data["injuryId"];
-            this.request = _data["request"] ? CreateInjuryEventRequest.fromJS(_data["request"]) : new CreateInjuryEventRequest();
-        }
-    }
-
-    static fromJS(data: any): AddInjuryEventWrapper {
-        data = typeof data === 'object' ? data : {};
-        let result = new AddInjuryEventWrapper();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["injuryId"] = this.injuryId;
-        data["request"] = this.request ? this.request.toJSON() : <any>undefined;
-        return data;
-    }
-}
-
-export interface IAddInjuryEventWrapper {
-    injuryId: string;
-    request: CreateInjuryEventRequest;
 }
 
 export class ApiAccessToken implements IApiAccessToken {
@@ -5416,10 +5507,11 @@ export interface ICreateEquipmentRequest {
 }
 
 export class CreateInjuryEventRequest implements ICreateInjuryEventRequest {
-    trainingSessionID!: string;
-    notes?: string | undefined;
-    painLevel?: number;
-    injuryType?: InjuryEventType;
+    trainingSessionID?: string | undefined;
+    injuryID!: string;
+    notes!: string;
+    painLevel!: number;
+    injuryType!: InjuryEventType;
 
     constructor(data?: ICreateInjuryEventRequest) {
         if (data) {
@@ -5433,6 +5525,7 @@ export class CreateInjuryEventRequest implements ICreateInjuryEventRequest {
     init(_data?: any) {
         if (_data) {
             this.trainingSessionID = _data["trainingSessionID"];
+            this.injuryID = _data["injuryID"];
             this.notes = _data["notes"];
             this.painLevel = _data["painLevel"];
             this.injuryType = _data["injuryType"];
@@ -5449,6 +5542,7 @@ export class CreateInjuryEventRequest implements ICreateInjuryEventRequest {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["trainingSessionID"] = this.trainingSessionID;
+        data["injuryID"] = this.injuryID;
         data["notes"] = this.notes;
         data["painLevel"] = this.painLevel;
         data["injuryType"] = this.injuryType;
@@ -5457,15 +5551,17 @@ export class CreateInjuryEventRequest implements ICreateInjuryEventRequest {
 }
 
 export interface ICreateInjuryEventRequest {
-    trainingSessionID: string;
-    notes?: string | undefined;
-    painLevel?: number;
-    injuryType?: InjuryEventType;
+    trainingSessionID?: string | undefined;
+    injuryID: string;
+    notes: string;
+    painLevel: number;
+    injuryType: InjuryEventType;
 }
 
 export class CreateInjuryRequest implements ICreateInjuryRequest {
-    category!: string;
+    name!: string;
     injuryDate!: Date;
+    notes!: string;
 
     constructor(data?: ICreateInjuryRequest) {
         if (data) {
@@ -5478,8 +5574,9 @@ export class CreateInjuryRequest implements ICreateInjuryRequest {
 
     init(_data?: any) {
         if (_data) {
-            this.category = _data["category"];
+            this.name = _data["name"];
             this.injuryDate = _data["injuryDate"] ? new Date(_data["injuryDate"].toString()) : <any>undefined;
+            this.notes = _data["notes"];
         }
     }
 
@@ -5492,15 +5589,17 @@ export class CreateInjuryRequest implements ICreateInjuryRequest {
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["category"] = this.category;
+        data["name"] = this.name;
         data["injuryDate"] = this.injuryDate ? formatDate(this.injuryDate) : <any>undefined;
+        data["notes"] = this.notes;
         return data;
     }
 }
 
 export interface ICreateInjuryRequest {
-    category: string;
+    name: string;
     injuryDate: Date;
+    notes: string;
 }
 
 export class CreateLiftRequest implements ICreateLiftRequest {
@@ -6777,9 +6876,10 @@ export interface IInfoResponse {
 export class Injury implements IInjury {
     injuryID?: string;
     userID!: string;
-    category!: string;
+    name!: string;
+    notes!: string;
     injuryDate!: Date;
-    isResolved?: boolean;
+    isActive?: boolean;
     injuryEvents?: InjuryEvent[] | undefined;
 
     constructor(data?: IInjury) {
@@ -6795,9 +6895,10 @@ export class Injury implements IInjury {
         if (_data) {
             this.injuryID = _data["injuryID"];
             this.userID = _data["userID"];
-            this.category = _data["category"];
+            this.name = _data["name"];
+            this.notes = _data["notes"];
             this.injuryDate = _data["injuryDate"] ? new Date(_data["injuryDate"].toString()) : <any>undefined;
-            this.isResolved = _data["isResolved"];
+            this.isActive = _data["isActive"];
             if (Array.isArray(_data["injuryEvents"])) {
                 this.injuryEvents = [] as any;
                 for (let item of _data["injuryEvents"])
@@ -6817,9 +6918,10 @@ export class Injury implements IInjury {
         data = typeof data === 'object' ? data : {};
         data["injuryID"] = this.injuryID;
         data["userID"] = this.userID;
-        data["category"] = this.category;
+        data["name"] = this.name;
+        data["notes"] = this.notes;
         data["injuryDate"] = this.injuryDate ? formatDate(this.injuryDate) : <any>undefined;
-        data["isResolved"] = this.isResolved;
+        data["isActive"] = this.isActive;
         if (Array.isArray(this.injuryEvents)) {
             data["injuryEvents"] = [];
             for (let item of this.injuryEvents)
@@ -6832,17 +6934,19 @@ export class Injury implements IInjury {
 export interface IInjury {
     injuryID?: string;
     userID: string;
-    category: string;
+    name: string;
+    notes: string;
     injuryDate: Date;
-    isResolved?: boolean;
+    isActive?: boolean;
     injuryEvents?: InjuryEvent[] | undefined;
 }
 
 export class InjuryDTO implements IInjuryDTO {
     injuryID!: string;
-    category!: string;
+    name!: string;
+    notes!: string;
     injuryDate!: Date;
-    isResolved!: boolean;
+    isActive!: boolean;
     injuryEvents!: InjuryEventDTO[];
 
     constructor(data?: IInjuryDTO) {
@@ -6860,9 +6964,10 @@ export class InjuryDTO implements IInjuryDTO {
     init(_data?: any) {
         if (_data) {
             this.injuryID = _data["injuryID"];
-            this.category = _data["category"];
+            this.name = _data["name"];
+            this.notes = _data["notes"];
             this.injuryDate = _data["injuryDate"] ? new Date(_data["injuryDate"].toString()) : <any>undefined;
-            this.isResolved = _data["isResolved"];
+            this.isActive = _data["isActive"];
             if (Array.isArray(_data["injuryEvents"])) {
                 this.injuryEvents = [] as any;
                 for (let item of _data["injuryEvents"])
@@ -6881,9 +6986,10 @@ export class InjuryDTO implements IInjuryDTO {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["injuryID"] = this.injuryID;
-        data["category"] = this.category;
+        data["name"] = this.name;
+        data["notes"] = this.notes;
         data["injuryDate"] = this.injuryDate ? formatDate(this.injuryDate) : <any>undefined;
-        data["isResolved"] = this.isResolved;
+        data["isActive"] = this.isActive;
         if (Array.isArray(this.injuryEvents)) {
             data["injuryEvents"] = [];
             for (let item of this.injuryEvents)
@@ -6895,9 +7001,10 @@ export class InjuryDTO implements IInjuryDTO {
 
 export interface IInjuryDTO {
     injuryID: string;
-    category: string;
+    name: string;
+    notes: string;
     injuryDate: Date;
-    isResolved: boolean;
+    isActive: boolean;
     injuryEvents: InjuryEventDTO[];
 }
 
@@ -6966,6 +7073,7 @@ export interface IInjuryEvent {
 }
 
 export class InjuryEventDTO implements IInjuryEventDTO {
+    injuryEventID!: string;
     trainingSessionID?: string | undefined;
     notes!: string;
     painLevel!: number;
@@ -6983,6 +7091,7 @@ export class InjuryEventDTO implements IInjuryEventDTO {
 
     init(_data?: any) {
         if (_data) {
+            this.injuryEventID = _data["injuryEventID"];
             this.trainingSessionID = _data["trainingSessionID"];
             this.notes = _data["notes"];
             this.painLevel = _data["painLevel"];
@@ -7000,6 +7109,7 @@ export class InjuryEventDTO implements IInjuryEventDTO {
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
+        data["injuryEventID"] = this.injuryEventID;
         data["trainingSessionID"] = this.trainingSessionID;
         data["notes"] = this.notes;
         data["painLevel"] = this.painLevel;
@@ -7010,6 +7120,7 @@ export class InjuryEventDTO implements IInjuryEventDTO {
 }
 
 export interface IInjuryEventDTO {
+    injuryEventID: string;
     trainingSessionID?: string | undefined;
     notes: string;
     painLevel: number;
@@ -7020,7 +7131,6 @@ export interface IInjuryEventDTO {
 export enum InjuryEventType {
     _0 = 0,
     _1 = 1,
-    _2 = 2,
 }
 
 export class LiftDetails implements ILiftDetails {
@@ -8939,6 +9049,106 @@ export class UpdateChatConversationRequest implements IUpdateChatConversationReq
 export interface IUpdateChatConversationRequest {
     chatConversationId: string;
     name: string;
+}
+
+export class UpdateInjuryEventRequest implements IUpdateInjuryEventRequest {
+    trainingSessionID?: string | undefined;
+    injuryEventID!: string;
+    painLevel!: number;
+    injuryType!: InjuryEventType;
+    notes!: string;
+
+    constructor(data?: IUpdateInjuryEventRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.injuryEventID = _data["injuryEventID"];
+            this.painLevel = _data["painLevel"];
+            this.injuryType = _data["injuryType"];
+            this.notes = _data["notes"];
+        }
+    }
+
+    static fromJS(data: any): UpdateInjuryEventRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateInjuryEventRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["injuryEventID"] = this.injuryEventID;
+        data["painLevel"] = this.painLevel;
+        data["injuryType"] = this.injuryType;
+        data["notes"] = this.notes;
+        return data;
+    }
+}
+
+export interface IUpdateInjuryEventRequest {
+    trainingSessionID?: string | undefined;
+    injuryEventID: string;
+    painLevel: number;
+    injuryType: InjuryEventType;
+    notes: string;
+}
+
+export class UpdateInjuryRequest implements IUpdateInjuryRequest {
+    injuryID!: string;
+    name!: string;
+    notes!: string;
+    isActive!: boolean;
+
+    constructor(data?: IUpdateInjuryRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.injuryID = _data["injuryID"];
+            this.name = _data["name"];
+            this.notes = _data["notes"];
+            this.isActive = _data["isActive"];
+        }
+    }
+
+    static fromJS(data: any): UpdateInjuryRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateInjuryRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["injuryID"] = this.injuryID;
+        data["name"] = this.name;
+        data["notes"] = this.notes;
+        data["isActive"] = this.isActive;
+        return data;
+    }
+}
+
+export interface IUpdateInjuryRequest {
+    injuryID: string;
+    name: string;
+    notes: string;
+    isActive: boolean;
 }
 
 export class UpdateMovementOrderRequest implements IUpdateMovementOrderRequest {
