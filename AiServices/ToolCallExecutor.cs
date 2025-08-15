@@ -7,7 +7,6 @@ using System.Text.Json;
 using lionheart.Services;
 using lionheart.Model.DTOs;
 using Ardalis.Result;
-using lionheart.Converters;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json; // if not already at top
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +16,12 @@ using System.Linq;               // FirstOrDefault (when reading message content
 using System.Text;
 
 
-
+public interface IToolCallExecutor
+{
+    Task<List<Result<ToolChatMessage>>> ExecuteToolCallsAsync(IReadOnlyList<ChatToolCall> toolCalls, IdentityUser user);
+    Task<List<ToolCallResponse>> ExecuteModifyTrainingSessionToolCallsAsync(IReadOnlyList<ChatToolCall> toolCalls, IdentityUser user);
+    Task<List<ToolCallResponse>> ExecuteChatToolCallsAsync(IReadOnlyList<ChatToolCall> toolCalls, IdentityUser user);
+}
 
 
 /// <summary>

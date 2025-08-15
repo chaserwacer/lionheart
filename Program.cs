@@ -11,7 +11,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using lionheart.Converters;
 using OpenAI.Chat;
 using OpenAI.Responses;
 
@@ -62,7 +61,6 @@ builder.Services.AddTransient<IToolCallExecutor, ToolCallExecutor>();
 builder.Services.AddTransient<IModifyTrainingSessionService, ModifyTrainingSessionService>();
 builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
-builder.Services.AddTransient<IAnalyzeUserService, AnalyzeUserService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
 builder.Services.AddHttpContextAccessor();
 

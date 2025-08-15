@@ -19,6 +19,13 @@ using ModelContextProtocol.Protocol;
 
 namespace lionheart.Services.AI
 {
+     public interface IProgramGenerationService
+    {
+
+        Task<Result<string>> GeneratePreferencesAsync(IdentityUser user, ProgramPreferencesDTO dto);
+        Task<Result<string>> GenerateFirstWeekAsync(IdentityUser user, FirstWeekGenerationDTO dto);
+        Task<Result<string>> GenerateRemainingWeeksAsync(IdentityUser user, RemainingWeeksGenerationDTO dto);
+    }
     public class ProgramGenerationService : IProgramGenerationService
     {
         private const string ConversationCacheKeyPrefix = "ProgramGenConversation_";
