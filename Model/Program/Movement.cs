@@ -23,7 +23,7 @@ public class Movement
     public Guid MovementBaseID { get; set; }
     public MovementBase MovementBase { get; set; } = new();
     public required MovementModifier MovementModifier { get; set; }
-    public required IMovementData MovementData { get; set; } 
+    public required IMovementData MovementData { get; set; }
     public string Notes { get; set; } = string.Empty;
     public bool IsCompleted { get; set; } = false;
     public required int Ordering { get; set; }
@@ -85,23 +85,47 @@ public class DistanceTimeMovementData : IMovementData
     public required Movement Movement { get; set; }
     public required List<DTSetEntry> IntervalEntrys { get; set; } = new();
 
+
 }
 
 public class DTSetEntry
 {
-    
+    public required Guid DTSetEntryID { get; init; }
+    [ForeignKey("Movement")]
+    public Guid MovementID { get; init; }
+    public Movement Movement { get; set; } = null!;
     public required double RecommendedDistance { get; set; }
     public required double ActualDistance { get; set; }
-    public required DistanceUnit DistanceUnit { get; set; }
 
+    public required TimeSpan IntervalDuration { get; set; }
+    public required TimeSpan TargetPace { get; set; }
+    public required TimeSpan ActualPace { get; set; }
 
-    public required TimeSpan IntervalDuration { get; set; }  
-    
     public required TimeSpan RecommendedDuration { get; set; }
     public required TimeSpan ActualDuration { get; set; }
 
     public required TimeSpan RecommendedRest { get; set; }
     public required TimeSpan ActualRest { get; set; }
+    public required IntervalType IntervalType { get; set; }
+    public required DistanceUnit DistanceUnit { get; set; }
+}
+
+public enum IntervalType
+{
+    // ────────────── Continuous Work (no rest tracked) ──────────────
+    ContinuousDistance,       // e.g., "5km easy run" – distance only
+    ContinuousTime,           // e.g., "30:00 tempo run" – time only
+    ContinuousDistanceAndTime,// e.g., "1000m swim @ 1:45/100" – both distance & time targets
+
+    // ────────────── Fixed Rest Repeats ──────────────
+    RepetitionDistance,       // e.g., "10×200m w/30s rest" – distance only
+    RepetitionTime,           // e.g., "8×2:00 @Z3 w/1:00 rest" – time only
+    RepetitionDistanceAndTime,// e.g., "6×400m @1:40 w/1:00 rest" – both distance & time targets
+
+    // ────────────── Send-Off / On-the-Clock Sets ──────────────
+    IntervalDistance,          // e.g., "10×50m ON :50" – distance only
+    IntervalTime,              // e.g., "8×1:00 ON 1:30" – time only
+    IntervalDistanceAndTime    // e.g., "5×100m @1:20 ON 2:00" – both distance & time targets
 }
 
 public enum DistanceUnit
@@ -135,12 +159,13 @@ public class MovementModifier
     public required Guid EquipmentID { get; set; }
     [ForeignKey("EquipmentID")]
     [Required]
-    public required Equipment Equipment { get; set; } 
+    public required Equipment Equipment { get; set; }
 }
 
 public class Equipment
 {
-    [Key][Required]
+    [Key]
+    [Required]
     public required Guid EquipmentID { get; init; }
     [Required]
     public required string Name { get; set; } = string.Empty;
