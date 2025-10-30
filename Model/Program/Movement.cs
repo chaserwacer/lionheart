@@ -22,12 +22,11 @@ public class Movement
     [ForeignKey("MovementBase")]
     public Guid MovementBaseID { get; set; }
     public MovementBase MovementBase { get; set; } = new();
-    public required MovementModifier MovementModifier { get; set; } 
-
-    public List<SetEntry> Sets { get; set; } = [];
+    public required MovementModifier MovementModifier { get; set; }
+    public required IMovementData MovementData { get; set; } 
     public string Notes { get; set; } = string.Empty;
     public bool IsCompleted { get; set; } = false;
-    public required int Ordering { get; set; } 
+    public required int Ordering { get; set; }
     public WeightUnit WeightUnit { get; set; }
 
     public MovementDTO ToDTO()
@@ -46,8 +45,73 @@ public class Movement
             WeightUnit = WeightUnit
         };
     }
-    
+
 }
+
+public interface IMovementData
+{
+    [Required]
+    public Guid MovementDataID { get; init; }
+    [Required]
+    public Guid MovementID { get; init; }
+    [Required]
+    public Movement Movement { get; set; }
+
+}
+
+public enum WeightUnit
+{
+    Kilograms,
+    Pounds
+};
+
+public class LiftMovementData : IMovementData
+{
+    [Key]
+    public required Guid MovementDataID { get; init; }
+    [ForeignKey("Movement")]
+    public required Guid MovementID { get; init; }
+    public required Movement Movement { get; set; }
+    public required List<SetEntry> Sets { get; set; } = new();
+    public required WeightUnit WeightUnit { get; set; }
+}
+
+public class DistanceTimeMovementData : IMovementData
+{
+    [Key]
+    public required Guid MovementDataID { get; init; }
+    [ForeignKey("Movement")]
+    public required Guid MovementID { get; init; }
+    public required Movement Movement { get; set; }
+    public required List<DTSetEntry> IntervalEntrys { get; set; } = new();
+
+}
+
+public class DTSetEntry
+{
+    
+    public required double RecommendedDistance { get; set; }
+    public required double ActualDistance { get; set; }
+    public required DistanceUnit DistanceUnit { get; set; }
+
+
+    public required TimeSpan IntervalDuration { get; set; }  
+    
+    public required TimeSpan RecommendedDuration { get; set; }
+    public required TimeSpan ActualDuration { get; set; }
+
+    public required TimeSpan RecommendedRest { get; set; }
+    public required TimeSpan ActualRest { get; set; }
+}
+
+public enum DistanceUnit
+{
+    Meters,
+    Yards,
+    Miles,
+    Kilometers
+}
+
 
 /// <summary>
 /// Represents a base movement. A base movement is a general type of exercise.
@@ -61,8 +125,7 @@ public class MovementBase
 }
 /// <summary>
 /// Represents the modifcation of a <see cref="MovementBase"/>.
-/// This can include equipment used, modifications[pause, tempo], the duration of the modification,
-/// and any other relevant details that affect the movement.
+/// This tells you how to perform the movement.
 /// </summary>
 public class MovementModifier
 {
@@ -73,8 +136,6 @@ public class MovementModifier
     [ForeignKey("EquipmentID")]
     [Required]
     public required Equipment Equipment { get; set; } 
-    [Required]
-    public required int Duration { get; set; }
 }
 
 public class Equipment
@@ -120,8 +181,3 @@ public class SetEntry
     }
 }
 
-public enum WeightUnit
-{
-    Kilograms,
-    Pounds
-}
