@@ -194,7 +194,7 @@ public class TrainingSessionService : ITrainingSessionService
 
                 foreach (var sDto in mDto.Sets)
                 {
-                    newMovement.Sets.Add(new SetEntry
+                    newMovement.Sets.Add(new LiftSetEntry
                     {
                         SetEntryID = Guid.NewGuid(),
                         RecommendedReps = sDto.RecommendedReps,
@@ -330,7 +330,7 @@ public class TrainingSessionService : ITrainingSessionService
 
             foreach (var sDto in mDto.Sets)
             {
-                var newSet = new SetEntry
+                var newSet = new LiftSetEntry
                 {
                     SetEntryID = Guid.NewGuid(),
                     MovementID = newMovement.MovementID, // ← explicit FK
@@ -427,12 +427,12 @@ public class TrainingSessionService : ITrainingSessionService
                 IsCompleted = false,
                 Ordering = movement.Ordering,
                 WeightUnit = movement.WeightUnit,
-                Sets = new List<SetEntry>()
+                Sets = new List<LiftSetEntry>()
             };
 
             foreach (var set in movement.Sets)
             {
-                var newSet = new SetEntry
+                var newSet = new LiftSetEntry
                 {
                     SetEntryID = Guid.NewGuid(),
                     MovementID = newMovement.MovementID,

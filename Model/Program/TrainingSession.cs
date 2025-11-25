@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using DKNet.EfCore.DtoGenerator;
 using lionheart.Model.DTOs;
 
 namespace lionheart.Model.TrainingProgram;
@@ -21,19 +22,14 @@ public class TrainingSession
     public DateTime CreationTime { get; set; }
     public string Notes { get; set; } = string.Empty;
 
-    public TrainingSessionDTO ToDTO(double sessionNumber)
-    {
-        return new TrainingSessionDTO
-        {
-            TrainingSessionID = TrainingSessionID,
-            Date = Date,
-            Status = Status,
-            Movements = Movements.Select(m => m.ToDTO()).ToList(),
-            SessionNumber = sessionNumber,
-            TrainingProgramID = TrainingProgramID,
-            Notes = Notes
-        };
-    }
+    [GenerateDto(typeof(TrainingSession),
+                 Exclude = new[] { "TrainingProgram" })]
+    public partial record TrainingSessionDTO;
+    [GenerateDto(typeof(TrainingSession),
+                 Include = new[] { "Date", "TrainingProgramID", "Notes" })]
+    public partial record CreateTrainingSessionRequest;
+    [GenerateDto(typeof(TrainingSession),Exclude = new[] { "TrainingProgram", "CreationTime" , "Movements"})]
+    public partial record UpdateTrainingSessionRequest;
 }
 public enum TrainingSessionStatus
 {

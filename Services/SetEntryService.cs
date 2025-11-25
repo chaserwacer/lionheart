@@ -41,7 +41,7 @@ public class SetEntryService : ISetEntryService
             return Result<SetEntryDTO>.NotFound("Movement not found or access denied.");
         }
 
-        var setEntry = new SetEntry
+        var setEntry = new LiftSetEntry
         {
             SetEntryID = Guid.NewGuid(),
             MovementID = request.MovementID,

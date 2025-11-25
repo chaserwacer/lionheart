@@ -1,3 +1,4 @@
+using DKNet.EfCore.DtoGenerator;
 using lionheart.Model.DTOs;
 using lionheart.WellBeing;
 using System.ComponentModel.DataAnnotations;
@@ -23,48 +24,16 @@ public class TrainingProgram
     public DateOnly EndDate { get; set; }
     public bool IsCompleted { get; set; } = false;
     public List<TrainingSession> TrainingSessions { get; set; } = [];
-    /// <summary>
-    /// Hold label tags for the program. [Ex: "Powerlifting", "Hypertrophy", "Endurance"]
-    /// In the future, this may need to be beefed up and use some sort of more concrete tagging system.
-    /// </summary>
     public List<string> Tags { get; set; } = [];
+    [GenerateDto(typeof(TrainingProgram),
+                 Exclude = new[] { "UserID" })]
+    public partial class TrainingProgramDTO;
 
-    public TrainingProgramDTO ToDTO()
-    {
-        var orderedSessions = TrainingSessions
-            .OrderBy(s => s.Date)
-            .ThenBy(s => s.CreationTime)
-            .ToList();
+    [GenerateDto(typeof(TrainingProgram),
+                 Include = new[] { "TrainingProgramID", "Title", "StartDate", "EndDate", "Tags" })]
+    public partial class CreateTrainingProgramRequest;
+    [GenerateDto(typeof(TrainingProgram),
+    Exclude = new[] { "UserID", "TrainingSessions", "NextTrainingSessionDate"})]
+    public partial class UpdateTrainingProgramRequest;
 
-        int sessionIndex = 1;
-        var sessions = new List<TrainingSessionDTO>();
-
-        foreach (var group in orderedSessions.GroupBy(s => s.Date))
-        {
-            var sameDaySessions = group.OrderBy(s => s.CreationTime).ToList();
-            var sessionCounterTracker = sameDaySessions.Count;
-            for (int i = 0; i < sessionCounterTracker; i++)
-            {
-
-                var sessionNumberStr = $"{sessionIndex}.{i:D2}";
-                var sessionNumber = double.Parse(sessionNumberStr);
-
-                sessions.Add(sameDaySessions[i].ToDTO(sessionNumber));
-            }
-            sessionIndex++;
-        }
-
-
-        return new TrainingProgramDTO
-        {
-            TrainingProgramID = TrainingProgramID,
-            Title = Title,
-            StartDate = StartDate,
-            NextTrainingSessionDate = NextTrainingSessionDate,
-            EndDate = EndDate,
-            TrainingSessions = sessions,
-            Tags = Tags,
-            IsCompleted = IsCompleted
-        };
-    }
 }

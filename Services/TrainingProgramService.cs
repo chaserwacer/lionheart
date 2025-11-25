@@ -195,10 +195,10 @@ public class TrainingProgramService : ITrainingProgramService
                     TrainingSessionID = newSession.TrainingSessionID
                 };
 
-                var setEntries = new List<SetEntry>();
+                var setEntries = new List<LiftSetEntry>();
                 foreach (var sDto in movementDTO.Sets)
                 {
-                    var newSet = new SetEntry
+                    var newSet = new LiftSetEntry
                     {
                         SetEntryID = Guid.NewGuid(),
                         MovementID = newMovement.MovementID,

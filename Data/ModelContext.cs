@@ -28,7 +28,7 @@ namespace lionheart.Data
         public DbSet<MovementBase> MovementBases { get; set; }
         public DbSet<Equipment> Equipments { get; set; }
         public DbSet<Movement> Movements { get; set; }
-        public DbSet<SetEntry> SetEntries { get; set; }
+        public DbSet<LiftSetEntry> SetEntries { get; set; }
         public DbSet<Injury> Injuries { get; set; }
         public DbSet<InjuryEvent> InjuryEvents { get; set; }
         public DbSet<ChatConversation> ChatConversations { get; set; }
@@ -148,9 +148,9 @@ namespace lionheart.Data
                 .HasForeignKey(e => e.UserID);
 
             // Set Entries
-            modelBuilder.Entity<SetEntry>()
+            modelBuilder.Entity<ISetEntry>()
                 .HasKey(s => s.SetEntryID);
-            modelBuilder.Entity<SetEntry>()
+            modelBuilder.Entity<ISetEntry>()
                 .HasOne<Movement>(m => m.Movement)
                 .WithMany(m => m.Sets)
                 .HasForeignKey(s => s.MovementID);
