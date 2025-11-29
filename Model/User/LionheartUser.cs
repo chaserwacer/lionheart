@@ -2,6 +2,7 @@ using lionheart.ActivityTracking;
 using lionheart.Model.Injury;
 using lionheart.Model.Oura;
 using lionheart.Model.TrainingProgram;
+using lionheart.Model.Report;
 using Microsoft.AspNetCore.Identity;
 namespace lionheart.WellBeing;
 
@@ -27,4 +28,5 @@ public class LionheartUser
     public List<Equipment> Equipments { get; set; } = [];
     public List<Injury> Injuries { get; set; } = [];
     public List<ChatConversation> ChatConversations { get; set; } = [];
+    public List<Report> Reports { get; set; } = [];
 }

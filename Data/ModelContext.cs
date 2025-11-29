@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using lionheart.Model.Oura;
 using lionheart.Model.TrainingProgram;
 using lionheart.Model.Injury;
+using lionheart.Model.Report;
 
 namespace lionheart.Data
 {
@@ -33,6 +34,7 @@ namespace lionheart.Data
         public DbSet<InjuryEvent> InjuryEvents { get; set; }
         public DbSet<ChatConversation> ChatConversations { get; set; }
         public DbSet<ChatMessageItem> ChatMessageItems { get; set; }
+        public DbSet<Report> Reports { get; set; }
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -200,6 +202,16 @@ namespace lionheart.Data
             // Index for ordering and fast queries by conversation
             modelBuilder.Entity<ChatMessageItem>()
                 .HasIndex(m => new { m.ChatConversationID, m.CreationTime });
+
+            // Reports
+            modelBuilder.Entity<Report>()
+                .HasKey(r => r.ReportID);
+            modelBuilder.Entity<Report>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.Reports)
+                .HasForeignKey(r => r.UserID);
+            modelBuilder.Entity<Report>()
+                .HasIndex(r => new { r.UserID, r.ReportDate, r.Type });
 
         }
     }
