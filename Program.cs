@@ -62,6 +62,8 @@ builder.Services.AddTransient<IModifyTrainingSessionService, ModifyTrainingSessi
 builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IReportGenerationService, ReportGenerationService>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
