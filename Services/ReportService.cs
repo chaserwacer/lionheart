@@ -467,7 +467,12 @@ public class ReportService : IReportService
             {
                 var totalMovements = completed.Sum(s => s.Movements.Count);
                 context.TrainingCompletedToday = $"{completed.Count} session(s), {totalMovements} total movements";
-                context.HadGoodTrainingSession = true; // This could be more sophisticated
+                
+                // Determine if it was a good session based on completion rate and performance
+                var allMovementsCompleted = completed.All(s => 
+                    s.Movements.Count > 0 && s.Movements.All(m => m.IsCompleted));
+                var hasMultipleMovements = totalMovements >= 3;
+                context.HadGoodTrainingSession = allMovementsCompleted && hasMultipleMovements;
             }
         }
 
@@ -537,7 +542,9 @@ public class ReportService : IReportService
                 .OrderByDescending(s => s.ActualWeight!.Value * s.ActualReps!.Value)
                 .FirstOrDefault();
 
-            if (bestSet is not null && bestSet.ActualWeight > bestSet.RecommendedWeight * 1.1)
+            if (bestSet is not null && 
+                bestSet.RecommendedWeight.HasValue && 
+                bestSet.ActualWeight > bestSet.RecommendedWeight.Value * 1.1)
             {
                 context.PersonalRecords.Add(new PersonalRecord
                 {
