@@ -3,14 +3,13 @@ using System.ComponentModel.DataAnnotations.Schema;
 using DKNet.EfCore.DtoGenerator;
 using lionheart.Model.TrainingProgram;
 
-
-
+namespace lionheart.Model.TrainingProgram.SetEntry;
 
 public class DTSetEntry : ISetEntry
 {
     public required Guid SetEntryID { get; init; }
     public required Guid MovementID { get; init; }
-    public required Movement Movement { get; set; } = null!;
+    public Movement Movement { get; set; } = null!;
     public required double RecommendedDistance { get; set; }
     public required double ActualDistance { get; set; }
 
@@ -26,16 +25,20 @@ public class DTSetEntry : ISetEntry
     public required IntervalType IntervalType { get; set; }
     public required DistanceUnit DistanceUnit { get; set; }
     public required double ActualRPE { get; set; }
-    [GenerateDto(typeof(DTSetEntry),
-        Exclude = new[] { "Movement" })]
-    public partial record DTSetEntryDTO;
-    [GenerateDto(typeof(DTSetEntry),
-        Exclude = new[] { "DTSetEntryID", "Movement" })]
-    public partial record CreateDTSetEntryRequest;
-    [GenerateDto(typeof(DTSetEntry),
-        Exclude = new[] { "Movement" })]
-    public partial record UpdateDTSetEntryRequest;
+
+
+  
 }
+
+[GenerateDto(typeof(DTSetEntry),
+     Exclude = new[] { "Movement" })]
+public partial record DTSetEntryDTO;
+[GenerateDto(typeof(DTSetEntry),
+    Exclude = new[] { "DTSetEntryID", "Movement" })]
+public partial record CreateDTSetEntryRequest;
+[GenerateDto(typeof(DTSetEntry),
+    Exclude = new[] { "Movement" })]
+public partial record UpdateDTSetEntryRequest;
 
 public enum IntervalType
 {

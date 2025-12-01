@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using lionheart.Model.Oura;
 using lionheart.Model.TrainingProgram;
 using lionheart.Model.Injury;
+using lionheart.Model.TrainingProgram.SetEntry;
 
 namespace lionheart.Data
 {

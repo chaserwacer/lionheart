@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using DKNet.EfCore.DtoGenerator;
 using lionheart.Model.TrainingProgram;
-
+namespace lionheart.Model.TrainingProgram.SetEntry;
 
 /// <summary>
 /// Represents a set entry within a <see cref="Movement"/>.

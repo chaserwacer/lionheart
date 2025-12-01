@@ -4,10 +4,24 @@ using lionheart.Data;
 using lionheart.Model.DTOs;
 using lionheart.Model.TrainingProgram;
 using lionheart.Services;
+using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
 
+public interface IMovementService
+{
+    Task<Result<List<MovementDTO>>> GetMovementsAsync(IdentityUser user, Guid sessionId);
+    Task<Result<MovementDTO>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request);
+    Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request);
+    Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId);
+    Task<Result<List<MovementBase>>> GetMovementBasesAsync(IdentityUser user);
+    Task<Result<MovementBase>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request);
+    Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId);
+    Task<Result<Equipment>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request);
+    Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId);
+    Task<Result<List<Equipment>>> GetEquipmentsAsync(IdentityUser user);
+}
 [McpServerToolType]
 public class MovementService : IMovementService
 {
@@ -38,11 +52,11 @@ public class MovementService : IMovementService
             .Where(m => m.TrainingSessionID == sessionId)
             .Include(m => m.MovementBase)
             .Include(m => m.Sets)
-            .Include(m => m.MovementModifier.Equipment)
+            .Include(m => m.MovementModifier).ThenInclude(mm => mm.Equipment)
             .OrderBy(m => m.Ordering)
             .ToListAsync();
 
-        return Result<List<MovementDTO>>.Success(movements.Select(m => m.ToDTO()).ToList());
+        return Result<List<MovementDTO>>.Success([.. movements.Select(m => m.Adapt<MovementDTO>())]);
     }
 
 
@@ -89,18 +103,17 @@ public class MovementService : IMovementService
                 Name = request.MovementModifier.Name,
                 EquipmentID = equipment.EquipmentID,
                 Equipment = equipment,
-                Duration = request.MovementModifier.Duration
             },
             IsCompleted = false,
             MovementBase = movementBase,
             Ordering = maxOrdering + 1,
-            WeightUnit = request.WeightUnit
+            Sets = []
         };
         var x = movement.MovementBaseID;
         _context.Movements.Add(movement);
         await _context.SaveChangesAsync();
 
-        return Result<MovementDTO>.Created(movement.ToDTO());
+        return Result<MovementDTO>.Created(movement.Adapt<MovementDTO>());
     }
 
     [McpServerTool, Description("Update an existing movement.")]
@@ -144,13 +157,11 @@ public class MovementService : IMovementService
             Name = request.MovementModifier.Name,
             EquipmentID = equipment.EquipmentID,
             Equipment = equipment,
-            Duration = request.MovementModifier.Duration
         };
         movement.IsCompleted = request.IsCompleted;
-        movement.WeightUnit = request.WeightUnit;
 
         await _context.SaveChangesAsync();
-        return Result<MovementDTO>.Success(movement.ToDTO());
+        return Result<MovementDTO>.Success(movement.Adapt<MovementDTO>());
     }
 
     [McpServerTool, Description("Delete a movement.")]
@@ -203,6 +214,8 @@ public class MovementService : IMovementService
         var movementBase = new MovementBase
         {
             MovementBaseID = Guid.NewGuid(),
+            MuscleGroups = request.MuscleGroups,
+            Description = request.Description,
             Name = request.Name,
             UserID = userGuid
         };
@@ -212,63 +225,6 @@ public class MovementService : IMovementService
         return Result<MovementBase>.Created(movementBase);
     }
 
-    [McpServerTool, Description("Update completion status of all movements in a session.")]
-    public async Task<Result> UpdateMovementsCompletion(IdentityUser user, UpdateMovementsCompletionRequest request)
-    {
-        var userGuid = Guid.Parse(user.Id);
-
-        // Verify user owns the training session
-        var session = await _context.TrainingSessions
-            .Include(ts => ts.TrainingProgram)
-            .Include(ts => ts.Movements)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
-                           ts.TrainingProgram!.UserID == userGuid);
-
-        if (session is null)
-        {
-            return Result.NotFound("Training session not found or access denied.");
-        }
-
-        // Update completion status for each movement
-        foreach (var movement in session.Movements)
-        {
-            movement.IsCompleted = request.Complete;
-        }
-
-        await _context.SaveChangesAsync();
-        return Result.Success();
-    }
-
-    [McpServerTool, Description("Reorder movements in a training session.")]
-    public async Task<Result> UpdateMovementOrder(IdentityUser user, UpdateMovementOrderRequest request)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        var session = await _context.TrainingSessions
-            .Include(ts => ts.TrainingProgram)
-            .Include(ts => ts.Movements)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
-                                   ts.TrainingProgram!.UserID == userGuid);
-        if (session is null)
-            return Result.NotFound("Training session not found or access denied.");
-
-        var sessionMovements = session.Movements.ToDictionary(m => m.MovementID);
-        var requestIds = request.Movements.Select(m => m.MovementID).ToHashSet();
-
-        // Validate all session movements are present in the request and vice versa
-        if (!(new HashSet<Guid>(sessionMovements.Keys)).SetEquals(requestIds))
-            return Result.Invalid(new List<ValidationError> {
-            new ValidationError { ErrorMessage = "Movement IDs don't match exactly with session movements." }
-        });
-
-        // Update ordering
-        foreach (var update in request.Movements)
-        {
-            sessionMovements[update.MovementID].Ordering = update.Ordering;
-        }
-
-        await _context.SaveChangesAsync();
-        return Result.Success();
-    }
 
     [McpServerTool, Description("Delete a movement base for a user.")]
     public async Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)

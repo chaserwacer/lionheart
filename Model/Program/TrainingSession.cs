@@ -12,25 +12,27 @@ namespace lionheart.Model.TrainingProgram;
 public class TrainingSession
 {
     [Key]
-    public Guid TrainingSessionID { get; init; }
+    public required Guid TrainingSessionID { get; init; }
     [ForeignKey(nameof(TrainingProgram))]
-    public Guid TrainingProgramID { get; init; }
+    public required Guid TrainingProgramID { get; init; }
     public TrainingProgram TrainingProgram { get; init; } = null!;
-    public DateOnly Date { get; set; }
-    public TrainingSessionStatus Status { get; set; } = TrainingSessionStatus.Planned;
-    public List<Movement> Movements { get; set; } = [];
-    public DateTime CreationTime { get; set; }
-    public string Notes { get; set; } = string.Empty;
+    public required DateOnly Date { get; set; }
+    public required TrainingSessionStatus Status { get; set; } = TrainingSessionStatus.Planned;
+    public required List<Movement> Movements { get; set; } = [];
+    public required DateTime CreationTime { get; set; }
+    public required string Notes { get; set; } = string.Empty;
 
-    [GenerateDto(typeof(TrainingSession),
-                 Exclude = new[] { "TrainingProgram" })]
-    public partial record TrainingSessionDTO;
-    [GenerateDto(typeof(TrainingSession),
-                 Include = new[] { "Date", "TrainingProgramID", "Notes" })]
-    public partial record CreateTrainingSessionRequest;
-    [GenerateDto(typeof(TrainingSession),Exclude = new[] { "TrainingProgram", "CreationTime" , "Movements"})]
-    public partial record UpdateTrainingSessionRequest;
+
 }
+[GenerateDto(typeof(TrainingSession),
+                 Exclude = new[] { "TrainingProgram" })]
+public partial record TrainingSessionDTO;
+[GenerateDto(typeof(TrainingSession),
+             Include = new[] { "Date", "TrainingProgramID", "Notes" })]
+public partial record CreateTrainingSessionRequest;
+[GenerateDto(typeof(TrainingSession), Exclude = new[] { "TrainingProgram", "CreationTime", "Movements" })]
+public partial record UpdateTrainingSessionRequest;
+
 public enum TrainingSessionStatus
 {
     Planned,

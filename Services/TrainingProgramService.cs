@@ -6,8 +6,53 @@ using lionheart.Model.TrainingProgram;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
+using Mapster;
 
 namespace lionheart.Services;
+
+public interface ITrainingProgramService
+{
+    /// <summary>
+    /// Get all programs for a user.
+    /// </summary>
+    /// <param name="user">The user whose programs to retrieve.</param>
+    /// <returns>A result containing a list of programs.</returns>
+    Task<Result<List<TrainingProgramDTO>>> GetTrainingProgramsAsync(IdentityUser user);
+
+    /// <summary>
+    /// Get a specific program by ID for a user.
+    /// </summary>
+    /// <param name="user">The user who owns the program.</param>
+    /// <param name="programId">The program ID to retrieve.</param>
+    /// <returns>A result containing the program.</returns>
+    Task<Result<TrainingProgramDTO>> GetTrainingProgramAsync(IdentityUser user, Guid programId);
+
+    /// <summary>
+    /// Create a new training program for a user.
+    /// </summary>
+    /// <param name="user">The user to create the program for.</param>
+    /// <param name="request">The program creation request.</param>
+    /// <returns>A result containing the created program.</returns>
+    Task<Result<TrainingProgramDTO>> CreateTrainingProgramAsync(IdentityUser user, CreateTrainingProgramRequest request);
+
+    /// <summary>
+    /// Update an existing training program.
+    /// </summary>
+    /// <param name="user">The user who owns the program.</param>
+    /// <param name="request">The program update request.</param>
+    /// <returns>A result containing the updated program.</returns>
+    Task<Result<TrainingProgramDTO>> UpdateTrainingProgramAsync(IdentityUser user, UpdateTrainingProgramRequest request);
+
+    /// <summary>
+    /// Delete a training program.
+    /// </summary>
+    /// <param name="user">The user who owns the program.</param>
+    /// <param name="programId">The program ID to delete.</param>
+    /// <returns>A result indicating success or failure.</returns>
+    Task<Result> DeleteTrainingProgramAsync(IdentityUser user, Guid programId);
+
+    
+}
 
 /// <summary>
 /// Service for managing <see cref="TrainingProgram"/>s.
@@ -28,44 +73,28 @@ public class TrainingProgramService : ITrainingProgramService
         var userGuid = Guid.Parse(user.Id);
         var trainingPrograms = await _context.TrainingPrograms
             .Where(p => p.UserID == userGuid)
-            .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.MovementBase)
-            .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.Sets)
-            .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.MovementModifier.Equipment)
             .OrderBy(p => p.StartDate)
+            .ProjectToType<TrainingProgramDTO>()
             .ToListAsync();
 
-        return Result<List<TrainingProgramDTO>>.Success(trainingPrograms.Select(p => p.ToDTO()).ToList());
+        return Result<List<TrainingProgramDTO>>.Success(trainingPrograms);
     }
 
     [McpServerTool, Description("Get a specific program by ID for the current user.")]
     public async Task<Result<TrainingProgramDTO>> GetTrainingProgramAsync(IdentityUser user, Guid TrainingprogramId)
     {
         var userGuid = Guid.Parse(user.Id);
-        var trainingProgram = await _context.TrainingPrograms
+        var trainingProgramDto = await _context.TrainingPrograms
             .Where(p => p.TrainingProgramID == TrainingprogramId && p.UserID == userGuid)
-            .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.MovementBase)
-            .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.Sets)
-            .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.MovementModifier.Equipment)
+            .ProjectToType<TrainingProgramDTO>()
             .FirstOrDefaultAsync();
 
-        if (trainingProgram is null)
+        if (trainingProgramDto is null)
         {
             return Result<TrainingProgramDTO>.NotFound("TrainingProgram not found.");
         }
 
-        return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
+        return Result<TrainingProgramDTO>.Success(trainingProgramDto);
     }
 
     [McpServerTool, Description("Create a new training program.")]
@@ -75,10 +104,10 @@ public class TrainingProgramService : ITrainingProgramService
         var startDate = request.StartDate;
         var endDate = request.EndDate;
 
-
         var trainingProgram = new TrainingProgram
         {
             TrainingProgramID = Guid.NewGuid(),
+            TrainingSessions = [],
             UserID = userGuid,
             Title = request.Title,
             StartDate = startDate,
@@ -89,7 +118,7 @@ public class TrainingProgramService : ITrainingProgramService
 
         _context.TrainingPrograms.Add(trainingProgram);
         await _context.SaveChangesAsync();
-        return Result<TrainingProgramDTO>.Created(trainingProgram.ToDTO());
+        return Result<TrainingProgramDTO>.Created(trainingProgram.Adapt<TrainingProgramDTO>());
     }
 
     [McpServerTool, Description("Update an existing training program.")]
@@ -105,18 +134,13 @@ public class TrainingProgramService : ITrainingProgramService
         }
 
         trainingProgram.Title = request.Title;
-
         trainingProgram.StartDate = request.StartDate;
-
-
         trainingProgram.EndDate = request.EndDate;
         trainingProgram.IsCompleted = request.IsCompleted;
-
         trainingProgram.Tags = request.Tags;
 
-
         await _context.SaveChangesAsync();
-        return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
+        return Result<TrainingProgramDTO>.Success(trainingProgram.Adapt<TrainingProgramDTO>());
     }
 
     [McpServerTool, Description("Delete a training program.")]
@@ -137,105 +161,4 @@ public class TrainingProgramService : ITrainingProgramService
     }
 
    
-    /// <summary>
-    ///  Creates a training program from a JSON string.
-    /// </summary>
-    /// <param name="user"></param>
-    /// <param name="trainingProgramDTO"></param>
-    /// <returns></returns>
-    public async Task<Result<TrainingProgramDTO>> CreateTrainingProgramFromJSON(IdentityUser user, TrainingProgramDTO trainingProgramDTO)
-    {
-        // 1) Prevent duplicate program
-        if (await _context.TrainingPrograms
-            .AnyAsync(p => p.TrainingProgramID == trainingProgramDTO.TrainingProgramID))
-            return Result<TrainingProgramDTO>.Error("TrainingProgramID already exists.");
-
-        // 2) Create the program entity with the correct properties
-        var userGuid = Guid.Parse(user.Id);
-        var newProgram = new TrainingProgram
-        {
-            TrainingProgramID = Guid.NewGuid(),
-            UserID = userGuid,                     // ← make this change
-            Title = trainingProgramDTO.Title,
-            StartDate = trainingProgramDTO.StartDate,
-            EndDate = trainingProgramDTO.EndDate,
-            Tags = trainingProgramDTO.Tags
-        };
-
-        // 3) Create each session WITHOUT SessionNumber on the entity
-        foreach (var sessionDto in trainingProgramDTO.TrainingSessions)
-        {
-            var newSession = new TrainingSession
-            {
-                TrainingSessionID = Guid.NewGuid(),
-                TrainingProgramID = newProgram.TrainingProgramID,
-                Date = sessionDto.Date,
-                Status = sessionDto.Status
-                // no SessionNumber property on the entity
-            };
-
-            // int movementOrder = 0;
-            foreach (var movementDTO in sessionDto.Movements)
-            {
-                var movementBase = await _context.MovementBases.FindAsync(movementDTO.MovementBaseID);
-                if (movementBase is null)
-                {
-                    return Result<TrainingProgramDTO>.Error($"Movement Base with ID: '{movementDTO.MovementBaseID}' not found.");
-                }
-                int count = 0;
-                var newMovement = new Movement
-                {
-                    MovementID = System.Guid.NewGuid(),
-                    MovementBase = movementBase,
-                    MovementModifier = movementDTO.MovementModifier,
-                    IsCompleted = movementDTO.IsCompleted,
-                    MovementBaseID = movementDTO.MovementBaseID,
-                    Notes = movementDTO.Notes,
-                    Ordering = count++,
-                    TrainingSessionID = newSession.TrainingSessionID
-                };
-
-                var setEntries = new List<LiftSetEntry>();
-                foreach (var sDto in movementDTO.Sets)
-                {
-                    var newSet = new LiftSetEntry
-                    {
-                        SetEntryID = Guid.NewGuid(),
-                        MovementID = newMovement.MovementID,
-                        RecommendedReps = sDto.RecommendedReps,
-                        RecommendedWeight = sDto.RecommendedWeight,
-                        RecommendedRPE = sDto.RecommendedRPE,
-                        ActualReps = sDto.ActualReps,
-                        ActualWeight = sDto.ActualWeight,
-                        ActualRPE = sDto.ActualRPE
-                    };
-                    newMovement.Sets.Add(newSet);
-                }
-
-                newSession.Movements.Add(newMovement);
-            }
-
-            newProgram.TrainingSessions.Add(newSession);
-        }
-
-        // 4) Persist and reload with nav‐props
-        await _context.TrainingPrograms.AddAsync(newProgram);
-        await _context.SaveChangesAsync();
-
-        var programWithNav = await _context.TrainingPrograms
-            .AsNoTracking()
-            .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.MovementBase)
-            .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements)
-                .ThenInclude(m => m.MovementModifier)
-            .Include(p => p.TrainingSessions)
-            .ThenInclude(ts => ts.Movements)
-                .ThenInclude(m => m.Sets)
-            .FirstAsync(p => p.TrainingProgramID == newProgram.TrainingProgramID);
-
-        // 5) Map back to DTO (this is where SessionNumber is applied)
-        return Result<TrainingProgramDTO>.Created(programWithNav.ToDTO());
-    }
 }

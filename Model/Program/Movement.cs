@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using DKNet.EfCore.DtoGenerator;
+using lionheart.Model.TrainingProgram.SetEntry;
 
 namespace lionheart.Model.TrainingProgram;
 
@@ -16,32 +17,29 @@ namespace lionheart.Model.TrainingProgram;
 public class Movement
 {
     [Key]
-    public Guid MovementID { get; init; }
+    public required Guid MovementID { get; init; }
     [ForeignKey("TrainingSession")]
-    public Guid TrainingSessionID { get; init; }
+    public required Guid TrainingSessionID { get; init; }
     public TrainingSession TrainingSession { get; set; } = null!;
     [ForeignKey("MovementBase")]
-    public Guid MovementBaseID { get; set; }
-    public MovementBase MovementBase { get; set; } = new();
+    public required Guid MovementBaseID { get; set; }
+    public required MovementBase MovementBase { get; set; }
     public required MovementModifier MovementModifier { get; set; }
     public required List<ISetEntry> Sets { get; set; }
-    public string Notes { get; set; } = string.Empty;
-    public bool IsCompleted { get; set; } = false;
+    public required string Notes { get; set; } = string.Empty;
+    public required bool IsCompleted { get; set; } = false;
     public required int Ordering { get; set; }
-    [GenerateDto(typeof(Movement),
-             Include = new[] { "TrainingSessionID", "MovementBaseID", "MovementModifier", "Notes" })]
-    public partial record CreateMovementRequest;
-    [GenerateDto(typeof(Movement),
-                 Include = new[] { "MovementID", "MovementBaseID", "MovementModifier", "Notes", "IsCompleted" })]
-    public partial record UpdateMovementRequest;
-    [GenerateDto(typeof(Movement),
-                Exclude = new[] { "TrainingSession" })]
-    public partial record MovementDTO;
-
-
-
 
 }
+[GenerateDto(typeof(Movement),
+          Include = new[] { "TrainingSessionID", "MovementBaseID", "MovementModifier", "Notes" })]
+public partial record CreateMovementRequest;
+[GenerateDto(typeof(Movement),
+             Include = new[] { "MovementID", "MovementBaseID", "MovementModifier", "Notes", "IsCompleted" })]
+public partial record UpdateMovementRequest;
+[GenerateDto(typeof(Movement),
+            Exclude = new[] { "TrainingSession" })]
+public partial record MovementDTO;
 
 
 /// <summary>
@@ -50,21 +48,24 @@ public class Movement
 public class MovementBase
 {
     [Key]
-    public Guid MovementBaseID { get; init; }
-    public string Name { get; set; } = string.Empty;
-    public Guid UserID { get; init; }
-    public string Description { get; set; } = string.Empty;
-    public List<MuscleGroup> MuscleGroups { get; set; } = new();
-    [GenerateDto(typeof(MovementBase),
-                 Include = new[] { "Name", "Description", "MuscleGroups" })]
-    public partial record CreateMovementBaseRequest;
-    [GenerateDto(typeof(MovementBase),
-                 Exclude = new[] { "UserID" })]
-    public partial record MovementBaseDTO;
-    [GenerateDto(typeof(MovementBase),
-                 Include = new[] { "MovementBaseID", "Name", "Description", "MuscleGroups" })]
-    public partial record UpdateMovementBaseRequest;
+    public required Guid MovementBaseID { get; init; }
+    public required string Name { get; set; } = string.Empty;
+    public required Guid UserID { get; init; }
+    public required string Description { get; set; } = string.Empty;
+    public required List<MuscleGroup> MuscleGroups { get; set; } = new();
+
+
 }
+
+[GenerateDto(typeof(MovementBase),
+                 Include = new[] { "Name", "Description", "MuscleGroups" })]
+public partial record CreateMovementBaseRequest;
+[GenerateDto(typeof(MovementBase),
+             Exclude = new[] { "UserID" })]
+public partial record MovementBaseDTO;
+[GenerateDto(typeof(MovementBase),
+             Include = new[] { "MovementBaseID", "Name", "Description", "MuscleGroups" })]
+public partial record UpdateMovementBaseRequest;
 
 public enum MuscleGroup
 {
