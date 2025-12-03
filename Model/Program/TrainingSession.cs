@@ -24,6 +24,7 @@ public class TrainingSession
 
 
 }
+
 public record TrainingSessionDTO(
     Guid TrainingSessionID,
     Guid TrainingProgramID,
