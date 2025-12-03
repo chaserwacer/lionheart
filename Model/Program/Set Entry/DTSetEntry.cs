@@ -30,15 +30,56 @@ public class DTSetEntry : ISetEntry
   
 }
 
-[GenerateDto(typeof(DTSetEntry),
-     Exclude = new[] { "Movement" })]
-public partial record DTSetEntryDTO;
-[GenerateDto(typeof(DTSetEntry),
-    Exclude = new[] { "DTSetEntryID", "Movement" })]
-public partial record CreateDTSetEntryRequest;
-[GenerateDto(typeof(DTSetEntry),
-    Exclude = new[] { "Movement" })]
-public partial record UpdateDTSetEntryRequest;
+// Hardcoded DTOs replacing DKNet.EfCore.DtoGenerator usage
+public record DTSetEntryDTO(
+    Guid SetEntryID,
+    Guid MovementID,
+    double RecommendedDistance,
+    double ActualDistance,
+    TimeSpan IntervalDuration,
+    TimeSpan TargetPace,
+    TimeSpan ActualPace,
+    TimeSpan RecommendedDuration,
+    TimeSpan ActualDuration,
+    TimeSpan RecommendedRest,
+    TimeSpan ActualRest,
+    IntervalType IntervalType,
+    DistanceUnit DistanceUnit,
+    double ActualRPE
+) : ISetEntryDTO;
+
+public record CreateDTSetEntryRequest(
+    Guid MovementID,
+    double RecommendedDistance,
+    double ActualDistance,
+    TimeSpan IntervalDuration,
+    TimeSpan TargetPace,
+    TimeSpan ActualPace,
+    TimeSpan RecommendedDuration,
+    TimeSpan ActualDuration,
+    TimeSpan RecommendedRest,
+    TimeSpan ActualRest,
+    IntervalType IntervalType,
+    DistanceUnit DistanceUnit,
+    double ActualRPE
+) : ICreateSetEntryRequest;
+
+public record UpdateDTSetEntryRequest(
+    Guid SetEntryID,
+    Guid MovementID,
+    double RecommendedDistance,
+    double ActualDistance,
+    TimeSpan IntervalDuration,
+    TimeSpan TargetPace,
+    TimeSpan ActualPace,
+    TimeSpan RecommendedDuration,
+    TimeSpan ActualDuration,
+    TimeSpan RecommendedRest,
+    TimeSpan ActualRest,
+    IntervalType IntervalType,
+    DistanceUnit DistanceUnit,
+    double ActualRPE
+) : IUpdateSetEntryRequest;
 
 public enum IntervalType
 {

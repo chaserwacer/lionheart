@@ -24,14 +24,28 @@ public class TrainingSession
 
 
 }
-[GenerateDto(typeof(TrainingSession),
-                 Exclude = new[] { "TrainingProgram" })]
-public partial record TrainingSessionDTO;
-[GenerateDto(typeof(TrainingSession),
-             Include = new[] { "Date", "TrainingProgramID", "Notes" })]
-public partial record CreateTrainingSessionRequest;
-[GenerateDto(typeof(TrainingSession), Exclude = new[] { "TrainingProgram", "CreationTime", "Movements" })]
-public partial record UpdateTrainingSessionRequest;
+public record TrainingSessionDTO(
+    Guid TrainingSessionID,
+    Guid TrainingProgramID,
+    DateOnly Date,
+    TrainingSessionStatus Status,
+    List<Movement> Movements,
+    DateTime CreationTime,
+    string Notes
+);
+public record CreateTrainingSessionRequest(
+    DateOnly Date,
+    Guid TrainingProgramID,
+    string Notes
+);
+public record UpdateTrainingSessionRequest(
+    Guid TrainingSessionID,
+    Guid TrainingProgramID,
+    DateOnly Date,
+    TrainingSessionStatus Status,
+    DateTime CreationTime,
+    string Notes
+);
 
 public enum TrainingSessionStatus
 {

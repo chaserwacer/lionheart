@@ -29,13 +29,29 @@ public class TrainingProgram
 
 
 }
-[GenerateDto(typeof(TrainingProgram),
-                Exclude = new[] { "UserID" })]
-public partial record TrainingProgramDTO;
+public record TrainingProgramDTO(
+    Guid TrainingProgramID,
+    string Title,
+    DateOnly StartDate,
+    DateOnly NextTrainingSessionDate,
+    DateOnly EndDate,
+    bool IsCompleted,
+    List<TrainingSession> TrainingSessions,
+    List<string> Tags
+);
 
-[GenerateDto(typeof(TrainingProgram),
-             Include = new[] { "TrainingProgramID", "Title", "StartDate", "EndDate", "Tags" })]
-public partial record CreateTrainingProgramRequest;
-[GenerateDto(typeof(TrainingProgram),
-Exclude = new[] { "UserID", "TrainingSessions", "NextTrainingSessionDate" })]
-public partial record UpdateTrainingProgramRequest;
+public record CreateTrainingProgramRequest(
+    Guid TrainingProgramID,
+    string Title,
+    DateOnly StartDate,
+    DateOnly EndDate,
+    List<string> Tags
+);
+public record UpdateTrainingProgramRequest(
+    Guid TrainingProgramID,
+    string Title,
+    DateOnly StartDate,
+    DateOnly EndDate,
+    bool IsCompleted,
+    List<string> Tags
+);

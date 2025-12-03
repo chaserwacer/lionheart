@@ -3,6 +3,7 @@ using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.DTOs;
 using lionheart.Model.TrainingProgram;
+using lionheart.Model.TrainingProgram.SetEntry;
 using lionheart.Services;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
@@ -51,7 +52,8 @@ public class MovementService : IMovementService
         var movements = await _context.Movements
             .Where(m => m.TrainingSessionID == sessionId)
             .Include(m => m.MovementBase)
-            .Include(m => m.Sets)
+            .Include(m => m.LiftSets)
+            .Include(m => m.DistanceTimeSets)
             .Include(m => m.MovementModifier).ThenInclude(mm => mm.Equipment)
             .OrderBy(m => m.Ordering)
             .ToListAsync();
@@ -107,7 +109,8 @@ public class MovementService : IMovementService
             IsCompleted = false,
             MovementBase = movementBase,
             Ordering = maxOrdering + 1,
-            Sets = []
+            LiftSets = new List<LiftSetEntry>(),
+            DistanceTimeSets = new List<DTSetEntry>()
         };
         var x = movement.MovementBaseID;
         _context.Movements.Add(movement);

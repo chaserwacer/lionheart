@@ -53,16 +53,18 @@ builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();
 builder.Services.AddTransient<IWellnessService, WellnessService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
-builder.Services.AddScoped<IProgramGenerationService, ProgramGenerationService>();
+// builder.Services.AddScoped<IProgramGenerationService, ProgramGenerationService>();
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
-builder.Services.AddTransient<ISetEntryService, SetEntryService>();
-builder.Services.AddTransient<IToolCallExecutor, ToolCallExecutor>();
-builder.Services.AddTransient<IModifyTrainingSessionService, ModifyTrainingSessionService>();
-builder.Services.AddTransient<IChatService, ChatService>();
+// builder.Services.AddTransient<ISetEntryService, SetEntryService>();
+// builder.Services.AddTransient<IToolCallExecutor, ToolCallExecutor>();
+// builder.Services.AddTransient<IModifyTrainingSessionService, ModifyTrainingSessionService>();
+// builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
-builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<ISetEntryService, LiftSetEntryService>();
+builder.Services.AddTransient<ISetEntryService, DTSetEntryService>();
+
 
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {

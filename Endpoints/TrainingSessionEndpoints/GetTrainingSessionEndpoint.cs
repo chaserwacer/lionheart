@@ -6,12 +6,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
+using lionheart.Model.TrainingProgram;
 
 namespace lionheart.Endpoints.TrainingSessionEndpoints
 {
     [ValidateModel]
     public class GetTrainingSessionEndpoint : EndpointBaseAsync
-        .WithoutRequest
+        .WithRequest<Guid>  
         .WithActionResult<TrainingSessionDTO>
     {
         private readonly ITrainingSessionService _trainingSessionService;
@@ -28,7 +29,7 @@ namespace lionheart.Endpoints.TrainingSessionEndpoints
         [ProducesResponseType<TrainingSessionDTO>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public override async Task<ActionResult<TrainingSessionDTO>> HandleAsync(CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<TrainingSessionDTO>> HandleAsync([FromRoute] Guid trainingSessionId, CancellationToken cancellationToken = default)
         {
             // Get route values from HttpContext
             if (!Guid.TryParse(HttpContext.Request.RouteValues["programId"]?.ToString(), out var programId) ||
@@ -40,13 +41,8 @@ namespace lionheart.Endpoints.TrainingSessionEndpoints
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-            var request = new GetTrainingSessionRequest
-            {
-                TrainingProgramID = programId,
-                TrainingSessionID = sessionId
-            };
 
-            return this.ToActionResult(await _trainingSessionService.GetTrainingSessionAsync(user, request));
+            return this.ToActionResult(await _trainingSessionService.GetTrainingSessionAsync(user, trainingSessionId));
         }
     }
 }

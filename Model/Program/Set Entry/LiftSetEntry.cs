@@ -21,16 +21,41 @@ public class LiftSetEntry : ISetEntry
     public double ActualWeight { get; set; }
     public double ActualRPE { get; set; }
     public required WeightUnit WeightUnit { get; set; }
-    [GenerateDto(typeof(LiftSetEntry),
-        Exclude = new[] { "Movement" })]
-    public partial record LiftSetEntryDTO;
-    [GenerateDto(typeof(LiftSetEntry),
-        Exclude = new[] { "SetEntryID", "Movement"})]
-    public partial record CreateLiftSetEntryRequest;
-    [GenerateDto(typeof(LiftSetEntry),
-        Exclude = new[] { "Movement"})]
-    public partial record UpdateLiftSetEntryRequest;
 }
+public record LiftSetEntryDTO(
+    Guid SetEntryID,
+    Guid MovementID,
+    int RecommendedReps,
+    double RecommendedWeight,
+    double RecommendedRPE,
+    int ActualReps,
+    double ActualWeight,
+    double ActualRPE,
+    WeightUnit WeightUnit
+) : ISetEntryDTO;
+
+public record CreateLiftSetEntryRequest(
+    Guid MovementID,
+    int RecommendedReps,
+    double RecommendedWeight,
+    double RecommendedRPE,
+    int ActualReps,
+    double ActualWeight,
+    double ActualRPE,
+    WeightUnit WeightUnit
+) : ICreateSetEntryRequest;
+
+public record UpdateLiftSetEntryRequest(
+    Guid SetEntryID,
+    Guid MovementID,
+    int RecommendedReps,
+    double RecommendedWeight,
+    double RecommendedRPE,
+    int ActualReps,
+    double ActualWeight,
+    double ActualRPE,
+    WeightUnit WeightUnit
+) : IUpdateSetEntryRequest;
 
 public enum WeightUnit
 {

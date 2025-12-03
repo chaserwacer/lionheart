@@ -6,27 +6,26 @@ namespace lionheart.Model.TrainingProgram.SetEntry;
 
 public interface ISetEntry
 {
-   public Guid MovementID { get; init; }
-   public Movement Movement { get; set; }
-   public Guid SetEntryID { get; init; }
-   public double ActualRPE { get; set; }
+   // public Guid MovementID { get; init; }
+   // public Movement Movement { get; set; }
+   // public Guid SetEntryID { get; init; }
+   // public double ActualRPE { get; set; }
    
 }
 
 public interface ISetEntryDTO
 {
-   public Guid MovementID { get; init; }
-   public Guid SetEntryID { get; init; }
-   public double ActualRPE { get; set; }
+   // public Guid MovementID { get; init; }
+   // public Guid SetEntryID { get; init; }
+   // public double ActualRPE { get; init; }
 }
 
 public interface ICreateSetEntryRequest
 {
-   public Guid MovementID { get; init; }
-   public double ActualRPE { get; set; }
+   // public Guid MovementID { get; init; }
 }
+
 public interface IUpdateSetEntryRequest
 {
-   public Guid SetEntryID { get; init; }
-   public double ActualRPE { get; set; }
+   // public Guid SetEntryID { get; init; }
 }

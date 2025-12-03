@@ -25,21 +25,37 @@ public class Movement
     public required Guid MovementBaseID { get; set; }
     public required MovementBase MovementBase { get; set; }
     public required MovementModifier MovementModifier { get; set; }
-    public required List<ISetEntry> Sets { get; set; }
+    public required List<LiftSetEntry> LiftSets { get; set; }
+    public required List<DTSetEntry> DistanceTimeSets { get; set; }
     public required string Notes { get; set; } = string.Empty;
     public required bool IsCompleted { get; set; } = false;
     public required int Ordering { get; set; }
 
 }
-[GenerateDto(typeof(Movement),
-          Include = new[] { "TrainingSessionID", "MovementBaseID", "MovementModifier", "Notes" })]
-public partial record CreateMovementRequest;
-[GenerateDto(typeof(Movement),
-             Include = new[] { "MovementID", "MovementBaseID", "MovementModifier", "Notes", "IsCompleted" })]
-public partial record UpdateMovementRequest;
-[GenerateDto(typeof(Movement),
-            Exclude = new[] { "TrainingSession" })]
-public partial record MovementDTO;
+public record CreateMovementRequest(
+    Guid TrainingSessionID,
+    Guid MovementBaseID,
+    MovementModifier MovementModifier,
+    string Notes
+);
+public record UpdateMovementRequest(
+    Guid MovementID,
+    Guid MovementBaseID,
+    MovementModifier MovementModifier,
+    string Notes,
+    bool IsCompleted
+);
+public record MovementDTO(
+    Guid MovementID,
+    Guid TrainingSessionID,
+    Guid MovementBaseID,
+    MovementBase MovementBase,
+    MovementModifier MovementModifier,
+    List<ISetEntry> Sets,
+    string Notes,
+    bool IsCompleted,
+    int Ordering
+);
 
 
 /// <summary>
@@ -57,15 +73,23 @@ public class MovementBase
 
 }
 
-[GenerateDto(typeof(MovementBase),
-                 Include = new[] { "Name", "Description", "MuscleGroups" })]
-public partial record CreateMovementBaseRequest;
-[GenerateDto(typeof(MovementBase),
-             Exclude = new[] { "UserID" })]
-public partial record MovementBaseDTO;
-[GenerateDto(typeof(MovementBase),
-             Include = new[] { "MovementBaseID", "Name", "Description", "MuscleGroups" })]
-public partial record UpdateMovementBaseRequest;
+public record CreateMovementBaseRequest(
+    string Name,
+    string Description,
+    List<MuscleGroup> MuscleGroups
+);
+public record MovementBaseDTO(
+    Guid MovementBaseID,
+    string Name,
+    string Description,
+    List<MuscleGroup> MuscleGroups
+);
+public record UpdateMovementBaseRequest(
+    Guid MovementBaseID,
+    string Name,
+    string Description,
+    List<MuscleGroup> MuscleGroups
+);
 
 public enum MuscleGroup
 {
@@ -112,8 +136,8 @@ public class Equipment
     public required string Name { get; set; } = string.Empty;
     [Required]
     public required Guid UserID { get; init; }
-    [GenerateDto(typeof(Equipment),
-                Include = new[] { "Name" })
-       ]
-    public partial record CreateEquipmentRequest;
+
 }
+public record CreateEquipmentRequest(
+    string Name
+);

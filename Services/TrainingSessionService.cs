@@ -91,7 +91,7 @@ public class TrainingSessionService : ITrainingSessionService
             .ProjectToType<TrainingSessionDTO>()
             .ToListAsync();
         return Result<List<TrainingSessionDTO>>.Success(sessions);
-        
+
     }
 
 
@@ -101,8 +101,10 @@ public class TrainingSessionService : ITrainingSessionService
         var userGuid = Guid.Parse(user.Id);
         var session = await _context.TrainingSessions
             .Include(ts => ts.TrainingProgram)
+             .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
+                .ThenInclude(m => m.LiftSets)
             .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.Sets)
+                .ThenInclude(m => m.DistanceTimeSets)
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.MovementBase)
             .Include(ts => ts.Movements)
@@ -196,7 +198,9 @@ public class TrainingSessionService : ITrainingSessionService
             .AsNoTracking()
             .Include(ts => ts.TrainingProgram)
             .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.Sets)
+                .ThenInclude(m => m.LiftSets)
+            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
+                .ThenInclude(m => m.DistanceTimeSets)
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.MovementBase)
             .Include(ts => ts.Movements)
@@ -238,7 +242,9 @@ public class TrainingSessionService : ITrainingSessionService
         var userGuid = Guid.Parse(user.Id);
         var originalSession = await _context.TrainingSessions
             .Include(ts => ts.Movements)
-                .ThenInclude(m => m.Sets)
+                .ThenInclude(m => m.LiftSets)
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.DistanceTimeSets)
             .Include(ts => ts.TrainingProgram)
             .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID && ts.TrainingProgram!.UserID == userGuid);
 
@@ -287,56 +293,50 @@ public class TrainingSessionService : ITrainingSessionService
                 Notes = movement.Notes,
                 IsCompleted = false,
                 Ordering = movement.Ordering,
-                Sets = new List<ISetEntry>()
+                LiftSets = new List<LiftSetEntry>(),
+                DistanceTimeSets = new List<DTSetEntry>()
             };
 
-            foreach (var set in movement.Sets)
+            foreach (var set in movement.LiftSets)
             {
-                ISetEntry newSet;
-                
-                if (set is LiftSetEntry liftSet)
+
+
+                newMovement.LiftSets.Add(new LiftSetEntry
                 {
-                    newSet = new LiftSetEntry
-                    {
-                        SetEntryID = Guid.NewGuid(),
-                        MovementID = newMovement.MovementID,
-                        Movement = newMovement,
-                        RecommendedReps = liftSet.RecommendedReps,
-                        RecommendedWeight = liftSet.RecommendedWeight,
-                        RecommendedRPE = liftSet.RecommendedRPE,
-                        ActualReps = liftSet.ActualReps,
-                        ActualWeight = liftSet.ActualWeight,
-                        ActualRPE = liftSet.ActualRPE,
-                        WeightUnit = liftSet.WeightUnit
-                    };
-                }
-                else if (set is DTSetEntry dtSet)
+                    SetEntryID = Guid.NewGuid(),
+                    MovementID = newMovement.MovementID,
+                    Movement = newMovement,
+                    RecommendedReps = set.RecommendedReps,
+                    RecommendedWeight = set.RecommendedWeight,
+                    RecommendedRPE = set.RecommendedRPE,
+                    ActualReps = set.ActualReps,
+                    ActualWeight = set.ActualWeight,
+                    ActualRPE = set.ActualRPE,
+                    WeightUnit = set.WeightUnit
+                });
+            }
+
+            foreach (var dtSet in movement.DistanceTimeSets)
+            {
+                newMovement.DistanceTimeSets.Add(new DTSetEntry
                 {
-                    newSet = new DTSetEntry
-                    {
-                        SetEntryID = Guid.NewGuid(),
-                        MovementID = newMovement.MovementID,
-                        Movement = newMovement,
-                        RecommendedDistance = dtSet.RecommendedDistance,
-                        ActualDistance = dtSet.ActualDistance,
-                        IntervalDuration = dtSet.IntervalDuration,
-                        TargetPace = dtSet.TargetPace,
-                        ActualPace = dtSet.ActualPace,
-                        RecommendedDuration = dtSet.RecommendedDuration,
-                        ActualDuration = dtSet.ActualDuration,
-                        RecommendedRest = dtSet.RecommendedRest,
-                        ActualRest = dtSet.ActualRest,
-                        IntervalType = dtSet.IntervalType,
-                        DistanceUnit = dtSet.DistanceUnit,
-                        ActualRPE = dtSet.ActualRPE
-                    };
-                }
-                else
-                {
-                    return Result<TrainingSessionDTO>.Error($"Unknown set entry type: {set.GetType().Name}");
-                }
-                
-                newMovement.Sets.Add(newSet);
+                    SetEntryID = Guid.NewGuid(),
+                    MovementID = newMovement.MovementID,
+                    Movement = newMovement,
+                    RecommendedDistance = dtSet.RecommendedDistance,
+                    ActualDistance = dtSet.ActualDistance,
+                    IntervalDuration = dtSet.IntervalDuration,
+                    TargetPace = dtSet.TargetPace,
+                    ActualPace = dtSet.ActualPace,
+                    RecommendedDuration = dtSet.RecommendedDuration,
+                    ActualDuration = dtSet.ActualDuration,
+                    RecommendedRest = dtSet.RecommendedRest,
+                    ActualRest = dtSet.ActualRest,
+                    IntervalType = dtSet.IntervalType,
+                    DistanceUnit = dtSet.DistanceUnit,
+                    ActualRPE = dtSet.ActualRPE
+
+                });
             }
             newSession.Movements.Add(newMovement);
         }
