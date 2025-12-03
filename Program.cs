@@ -4,17 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
-using ModelContextProtocol.Server;
-using System.ComponentModel;
-using lionheart.Services.AI;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using OpenAI.Chat;
-using OpenAI.Responses;
-
-
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,15 +26,11 @@ services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
-///////////////////MCP Server Setup////////////////////
 builder.Services
     .AddMcpServer()
     .WithHttpTransport()
-    // .WithPrompts<StringFormatPrompt>()
-    // .WithPrompts<TemplateServerPrompt>()
     .WithToolsFromAssembly();
-//builder.Services.AddSingleton<TemplateServerPrompt>();  //TODO: Validate this works [provides templates accessible via server??]
-/////////////////////////////////////////////////////
+
 
 builder.Services.AddMemoryCache();
 builder.Services.AddTransient<IUserService, UserService>();
@@ -53,13 +38,8 @@ builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();
 builder.Services.AddTransient<IWellnessService, WellnessService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
-// builder.Services.AddScoped<IProgramGenerationService, ProgramGenerationService>();
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
-// builder.Services.AddTransient<ISetEntryService, SetEntryService>();
-// builder.Services.AddTransient<IToolCallExecutor, ToolCallExecutor>();
-// builder.Services.AddTransient<IModifyTrainingSessionService, ModifyTrainingSessionService>();
-// builder.Services.AddTransient<IChatService, ChatService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<ISetEntryService, LiftSetEntryService>();
@@ -71,25 +51,16 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
 
-// TODO: Validate whether this is fine as singleton, or if it should be scoped or transient
-builder.Services.AddSingleton<ChatClient>(provider =>
-    new ChatClient(model: "gpt-5", apiKey: configuration["OpenAI:ApiKey"])
-);
-#pragma warning disable OPENAI001 // experimental/subject-to-change warning from the SDK
-builder.Services.AddSingleton(sp =>
-    new OpenAIResponseClient("gpt-4o-mini", configuration["OpenAI:ApiKey"])
-);
-#pragma warning restore OPENAI001
 
 
 builder.Services
   .AddControllers()
   .AddJsonOptions(opts =>
   {
-    // if you're on .NET 7+, this is built-in,
-    // otherwise pull in a custom converter like below.
-    opts.JsonSerializerOptions.Converters.Add(
-      new DateOnlyJsonConverter("yyyy-MM-dd"));
+      // if you're on .NET 7+, this is built-in,
+      // otherwise pull in a custom converter like below.
+      opts.JsonSerializerOptions.Converters.Add(
+        new DateOnlyJsonConverter("yyyy-MM-dd"));
   });
 
 builder.Services.AddControllers()
@@ -104,7 +75,7 @@ builder.Services.AddSwaggerGen(); // <-- Add this
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole(options =>
 {
-    options.LogToStandardErrorThreshold = LogLevel.Information; // ✅ stdout clean, logs go to stderr
+    options.LogToStandardErrorThreshold = LogLevel.Information;
 });
 
 
@@ -156,47 +127,28 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseHttpsRedirection();
-// /app.UseStaticFiles();
 
 app.MapControllers();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller}/{action=Index}/{id?}");
 
-// app.MapFallbackToFile("about", "about.html");
-// app.MapFallbackToFile("index.html");
-
 // Only run TypeScript generation in non-test environments
 if (!app.Environment.IsEnvironment("Testing"))
 {
-    #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
     Task.Run(async () =>
         {
             Thread.Sleep(2000); // wait for the server to start
             await new TsClientGenerator().SimpleGenerate("http://localhost:7025/swagger/v1/swagger.json");
         });
-    #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 }
 
 app.MapMcp();
 
 app.Run();
 
-public partial class Program { }
-[McpServerToolType]
-public class MCPGUY
-{
-    [McpServerTool, Description("Reverse")]
-    public static string Reverse(string input)
-    {
-        if (string.IsNullOrEmpty(input))
-            return input;
-
-        char[] charArray = input.ToCharArray();
-        Array.Reverse(charArray);
-        return new string(charArray);
-    }
-}
 
 
 
