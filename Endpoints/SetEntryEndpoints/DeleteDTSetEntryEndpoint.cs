@@ -1,5 +1,4 @@
 using Ardalis.ApiEndpoints;
-using Ardalis.Result;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,21 +8,21 @@ using Ardalis.Filters;
 namespace lionheart.Endpoints.SetEntryEndpoints
 {
     [ValidateModel]
-    public class DeleteSetEntryEndpoint : EndpointBaseAsync
+    public class DeleteDTSetEntryEndpoint : EndpointBaseAsync
         .WithRequest<Guid>
         .WithActionResult
     {
-        private readonly ISetEntryService _setEntryService;
+        private readonly IDTSetEntryService _dtSetEntryService;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public DeleteSetEntryEndpoint(ISetEntryService setEntryService, UserManager<IdentityUser> userManager)
+        public DeleteDTSetEntryEndpoint(IDTSetEntryService dtSetEntryService, UserManager<IdentityUser> userManager)
         {
-            _setEntryService = setEntryService;
+            _dtSetEntryService = dtSetEntryService;
             _userManager = userManager;
         }
 
-        [HttpDelete("api/set-entry/delete/{setEntryId}")]
-        [EndpointDescription("Delete a set entry by ID.")]
+        [HttpDelete("api/dt-set-entry/delete/{setEntryId}")]
+        [EndpointDescription("Delete a distance/time set entry by ID.")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -32,7 +31,7 @@ namespace lionheart.Endpoints.SetEntryEndpoints
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-            return this.ToActionResult(await _setEntryService.DeleteSetEntryAsync(user, setEntryId));
+            return this.ToActionResult(await _dtSetEntryService.DeleteDTSetEntryAsync(user, setEntryId));
         }
     }
 }

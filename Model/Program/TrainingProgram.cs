@@ -1,4 +1,3 @@
-using DKNet.EfCore.DtoGenerator;
 using lionheart.Model.DTOs;
 using lionheart.WellBeing;
 using System.ComponentModel.DataAnnotations;
@@ -29,16 +28,32 @@ public class TrainingProgram
 
 
 }
-public record TrainingProgramDTO(
-    Guid TrainingProgramID,
-    string Title,
-    DateOnly StartDate,
-    DateOnly NextTrainingSessionDate,
-    DateOnly EndDate,
-    bool IsCompleted,
-    List<TrainingSession> TrainingSessions,
-    List<string> Tags
-);
+public record TrainingProgramDTO
+{
+    [Required]
+    public Guid TrainingProgramID { get; init; }
+    
+    [Required]
+    public string Title { get; init; } = string.Empty;
+    
+    [Required]
+    public DateOnly StartDate { get; init; }
+    
+    [Required]
+    public DateOnly NextTrainingSessionDate { get; init; }
+    
+    [Required]
+    public DateOnly EndDate { get; init; }
+    
+    [Required]
+    public bool IsCompleted { get; init; }
+    
+    [Required]
+    public List<TrainingSessionDTO> TrainingSessions { get; init; } = [];
+    
+    [Required]
+    public List<string> Tags { get; init; } = [];
+}
 
 public record CreateTrainingProgramRequest(
     Guid TrainingProgramID,

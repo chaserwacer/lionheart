@@ -74,10 +74,9 @@ public class TrainingProgramService : ITrainingProgramService
         var trainingPrograms = await _context.TrainingPrograms
             .Where(p => p.UserID == userGuid)
             .OrderBy(p => p.StartDate)
-            .ProjectToType<TrainingProgramDTO>()
             .ToListAsync();
 
-        return Result<List<TrainingProgramDTO>>.Success(trainingPrograms);
+        return Result<List<TrainingProgramDTO>>.Success(trainingPrograms.Adapt<List<TrainingProgramDTO>>());
     }
 
     [McpServerTool, Description("Get a specific program by ID for the current user.")]

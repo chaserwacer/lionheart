@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using DKNet.EfCore.DtoGenerator;
 using lionheart.Model.TrainingProgram.SetEntry;
 
 namespace lionheart.Model.TrainingProgram;
@@ -51,7 +50,7 @@ public record MovementDTO(
     Guid MovementBaseID,
     MovementBase MovementBase,
     MovementModifier MovementModifier,
-    List<ISetEntry> Sets,
+    List<ISetEntryDTO> Sets,
     string Notes,
     bool IsCompleted,
     int Ordering

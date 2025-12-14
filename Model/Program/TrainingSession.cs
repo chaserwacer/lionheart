@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using DKNet.EfCore.DtoGenerator;
 using lionheart.Model.DTOs;
 
 namespace lionheart.Model.TrainingProgram;
@@ -26,12 +25,19 @@ public class TrainingSession
 }
 
 public record TrainingSessionDTO(
+    [Required]
     Guid TrainingSessionID,
+    [Required]
     Guid TrainingProgramID,
+    [Required]
     DateOnly Date,
+    [Required]
     TrainingSessionStatus Status,
-    List<Movement> Movements,
+    [Required]
+    List<MovementDTO> Movements,
+    [Required]
     DateTime CreationTime,
+    [Required]
     string Notes
 );
 public record CreateTrainingSessionRequest(

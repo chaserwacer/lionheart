@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
-using lionheart.Model.DTOs;
 using lionheart.Model.TrainingProgram;
 using lionheart.Model.TrainingProgram.SetEntry;
 using Microsoft.AspNetCore.Identity;
@@ -16,7 +15,7 @@ namespace lionheart.Services;
 /// Handles business logic and ensures users can only access their own data.
 /// </summary>
 [McpServerToolType]
-public class DTSetEntryService : ISetEntryService
+public class DTSetEntryService : IDTSetEntryService
 {
     private readonly ModelContext _context;
 
@@ -26,104 +25,86 @@ public class DTSetEntryService : ISetEntryService
     }
 
     [McpServerTool, Description("Add a distance/time set entry to a movement.")]
-    public async Task<Result<ISetEntryDTO>> CreateSetEntryAsync(IdentityUser user, ICreateSetEntryRequest request)
+    public async Task<Result<DTSetEntryDTO>> CreateDTSetEntryAsync(IdentityUser user, CreateDTSetEntryRequest request)
     {
-        if (request is not CreateDTSetEntryRequest dtRequest)
-        {
-            return Result<ISetEntryDTO>.Invalid(new List<ValidationError> 
-            { 
-                new() { ErrorMessage = "Request must be a CreateDTSetEntryRequest" } 
-            });
-        }
-
         var userGuid = Guid.Parse(user.Id);
         
         // Verify user owns the movement
         var movement = await _context.Movements
             .Include(m => m.TrainingSession)
             .ThenInclude(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(m => m.MovementID == dtRequest.MovementID && 
+            .FirstOrDefaultAsync(m => m.MovementID == request.MovementID && 
                                     m.TrainingSession.TrainingProgram!.UserID == userGuid);
 
         if (movement == null)
         {
-            return Result<ISetEntryDTO>.NotFound("Movement not found or access denied.");
+            return Result<DTSetEntryDTO>.NotFound("Movement not found or access denied.");
         }
 
         var setEntry = new DTSetEntry
         {
             SetEntryID = Guid.NewGuid(),
-            MovementID = dtRequest.MovementID,
+            MovementID = request.MovementID,
             Movement = movement,
-            RecommendedDistance = dtRequest.RecommendedDistance,
-            ActualDistance = dtRequest.ActualDistance,
-            IntervalDuration = dtRequest.IntervalDuration,
-            TargetPace = dtRequest.TargetPace,
-            ActualPace = dtRequest.ActualPace,
-            RecommendedDuration = dtRequest.RecommendedDuration,
-            ActualDuration = dtRequest.ActualDuration,
-            RecommendedRest = dtRequest.RecommendedRest,
-            ActualRest = dtRequest.ActualRest,
-            IntervalType = dtRequest.IntervalType,
-            DistanceUnit = dtRequest.DistanceUnit,
-            ActualRPE = dtRequest.ActualRPE
+            RecommendedDistance = request.RecommendedDistance,
+            ActualDistance = request.ActualDistance,
+            IntervalDuration = request.IntervalDuration,
+            TargetPace = request.TargetPace,
+            ActualPace = request.ActualPace,
+            RecommendedDuration = request.RecommendedDuration,
+            ActualDuration = request.ActualDuration,
+            RecommendedRest = request.RecommendedRest,
+            ActualRest = request.ActualRest,
+            IntervalType = request.IntervalType,
+            DistanceUnit = request.DistanceUnit,
+            ActualRPE = request.ActualRPE
         };
 
-        _context.SetEntries.Add(setEntry);
+        _context.DTSetEntries.Add(setEntry);
         await _context.SaveChangesAsync();
         
-        return Result<ISetEntryDTO>.Created(setEntry.Adapt<DTSetEntryDTO>());
+        return Result<DTSetEntryDTO>.Created(setEntry.Adapt<DTSetEntryDTO>());
     }
 
     [McpServerTool, Description("Update an existing distance/time set entry.")]
-    public async Task<Result<ISetEntryDTO>> UpdateSetEntryAsync(IdentityUser user, IUpdateSetEntryRequest request)
+    public async Task<Result<DTSetEntryDTO>> UpdateDTSetEntryAsync(IdentityUser user, UpdateDTSetEntryRequest request)
     {
-        if (request is not UpdateDTSetEntryRequest dtRequest)
-        {
-            return Result<ISetEntryDTO>.Invalid(new List<ValidationError> 
-            { 
-                new() { ErrorMessage = "Request must be an UpdateDTSetEntryRequest" } 
-            });
-        }
-
         var userGuid = Guid.Parse(user.Id);
-        var setEntry = await _context.SetEntries
-            .OfType<DTSetEntry>()
+        var setEntry = await _context.DTSetEntries
             .Include(se => se.Movement)
             .ThenInclude(m => m.TrainingSession)
             .ThenInclude(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(se => se.SetEntryID == dtRequest.SetEntryID);
+            .FirstOrDefaultAsync(se => se.SetEntryID == request.SetEntryID);
 
         if (setEntry == null || setEntry.Movement.TrainingSession.TrainingProgram!.UserID != userGuid)
         {
-            return Result<ISetEntryDTO>.NotFound("Set entry not found or access denied.");
+            return Result<DTSetEntryDTO>.NotFound("Set entry not found or access denied.");
         }
 
         // Update values
-        setEntry.RecommendedDistance = dtRequest.RecommendedDistance;
-        setEntry.ActualDistance = dtRequest.ActualDistance;
-        setEntry.IntervalDuration = dtRequest.IntervalDuration;
-        setEntry.TargetPace = dtRequest.TargetPace;
-        setEntry.ActualPace = dtRequest.ActualPace;
-        setEntry.RecommendedDuration = dtRequest.RecommendedDuration;
-        setEntry.ActualDuration = dtRequest.ActualDuration;
-        setEntry.RecommendedRest = dtRequest.RecommendedRest;
-        setEntry.ActualRest = dtRequest.ActualRest;
-        setEntry.IntervalType = dtRequest.IntervalType;
-        setEntry.DistanceUnit = dtRequest.DistanceUnit;
-        setEntry.ActualRPE = dtRequest.ActualRPE;
+        setEntry.RecommendedDistance = request.RecommendedDistance;
+        setEntry.ActualDistance = request.ActualDistance;
+        setEntry.IntervalDuration = request.IntervalDuration;
+        setEntry.TargetPace = request.TargetPace;
+        setEntry.ActualPace = request.ActualPace;
+        setEntry.RecommendedDuration = request.RecommendedDuration;
+        setEntry.ActualDuration = request.ActualDuration;
+        setEntry.RecommendedRest = request.RecommendedRest;
+        setEntry.ActualRest = request.ActualRest;
+        setEntry.IntervalType = request.IntervalType;
+        setEntry.DistanceUnit = request.DistanceUnit;
+        setEntry.ActualRPE = request.ActualRPE;
 
         await _context.SaveChangesAsync();
         
-        return Result<ISetEntryDTO>.Success(setEntry.Adapt<DTSetEntryDTO>());
+        return Result<DTSetEntryDTO>.Success(setEntry.Adapt<DTSetEntryDTO>());
     }
 
     [McpServerTool, Description("Delete a distance/time set entry.")]
-    public async Task<Result> DeleteSetEntryAsync(IdentityUser user, Guid setEntryId)
+    public async Task<Result> DeleteDTSetEntryAsync(IdentityUser user, Guid setEntryId)
     {
         var userGuid = Guid.Parse(user.Id);
-        var setEntry = await _context.SetEntries
-            .OfType<DTSetEntry>()
+        var setEntry = await _context.DTSetEntries
             .Include(se => se.Movement)
             .ThenInclude(m => m.TrainingSession)
             .ThenInclude(ts => ts.TrainingProgram)
@@ -134,7 +115,7 @@ public class DTSetEntryService : ISetEntryService
             return Result.NotFound("Set entry not found or access denied.");
         }
 
-        _context.SetEntries.Remove(setEntry);
+        _context.DTSetEntries.Remove(setEntry);
         await _context.SaveChangesAsync();
         return Result.NoContent();
     }

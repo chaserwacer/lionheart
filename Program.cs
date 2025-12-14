@@ -4,9 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
+using lionheart.Configuration;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Mapster
+MapsterConfiguration.Configure();
 var services = builder.Services;
 
 
@@ -41,9 +45,10 @@ builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>()
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
+
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddTransient<ISetEntryService, LiftSetEntryService>();
-builder.Services.AddTransient<ISetEntryService, DTSetEntryService>();
+builder.Services.AddTransient<ILiftSetEntryService, LiftSetEntryService>();
+builder.Services.AddTransient<IDTSetEntryService, DTSetEntryService>();
 
 
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>

@@ -29,10 +29,10 @@
 
   <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" Version="9.5.0" />
 
-  <PackageReference Include="DKNet.EfCore.DtoGenerator" Version="10.0.5">
+  <!-- <PackageReference Include="DKNet.EfCore.DtoGenerator" Version="10.0.5">
     <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     <PrivateAssets>all</PrivateAssets>
-  </PackageReference>
+  </PackageReference> -->
 
   <PackageReference Include="FluentAssertions" Version="8.3.0" />
 
