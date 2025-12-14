@@ -50,7 +50,8 @@ public record MovementDTO(
     Guid MovementBaseID,
     MovementBase MovementBase,
     MovementModifier MovementModifier,
-    List<ISetEntryDTO> Sets,
+    List<LiftSetEntryDTO> LiftSets,
+    List<DTSetEntryDTO> DistanceTimeSets,
     string Notes,
     bool IsCompleted,
     int Ordering
