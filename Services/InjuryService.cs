@@ -4,6 +4,7 @@ using lionheart.Model.Injury;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Data;
+using Mapster;
 
 
 namespace lionheart.Services;
@@ -31,7 +32,7 @@ public class InjuryService : IInjuryService
         };
         _context.Injuries.Add(injury);
         await _context.SaveChangesAsync();
-        return Result<InjuryDTO>.Created(injury.ToDTO());
+        return Result<InjuryDTO>.Created(injury.Adapt<InjuryDTO>());
     }
     public async Task<Result<InjuryDTO>> UpdateInjuryAsync(IdentityUser user, UpdateInjuryRequest request)
     {
@@ -44,7 +45,7 @@ public class InjuryService : IInjuryService
         injury.Notes = request.Notes;
         injury.IsActive = request.IsActive;
         await _context.SaveChangesAsync();
-        return Result<InjuryDTO>.Success(injury.ToDTO());
+        return Result<InjuryDTO>.Success(injury.Adapt<InjuryDTO>());
     }
     public async Task<Result<InjuryDTO>> CreateInjuryEventAsync(
         IdentityUser user,
@@ -60,6 +61,15 @@ public class InjuryService : IInjuryService
                 .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.TrainingProgram!.UserID == userId);
             if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
         }
+        foreach(var movementId in request.MovementIDs)
+        {
+            var ownsMovement = await _context.Movements
+                .Include(m => m.TrainingSession)
+                .ThenInclude(ts => ts.TrainingProgram)
+                .AnyAsync(m => m.MovementID == movementId && m.TrainingSession!.TrainingProgram!.UserID == userId);
+            if (!ownsMovement) return Result<InjuryDTO>.Unauthorized("One or more movements not found or access denied");
+        }
+
         var newEvent = new InjuryEvent
         {
             InjuryEventID = Guid.NewGuid(),
@@ -68,12 +78,13 @@ public class InjuryService : IInjuryService
             Notes = request.Notes,
             PainLevel = request.PainLevel,
             InjuryType = request.InjuryType,
-            CreationTime = DateTime.UtcNow
+            CreationTime = DateTime.UtcNow,
+            MovementIDs = request.MovementIDs
         };
         await _context.InjuryEvents.AddAsync(newEvent);
         await _context.SaveChangesAsync();
         var updatedInjury = await _context.Injuries.Include(i => i.InjuryEvents).FirstAsync(i => i.InjuryID == injury.InjuryID);
-        return Result<InjuryDTO>.Success(updatedInjury.ToDTO());
+        return Result<InjuryDTO>.Success(updatedInjury.Adapt<InjuryDTO>());
     }
 
     public async Task<Result<List<InjuryDTO>>> GetUserInjuriesAsync(IdentityUser user)
@@ -85,7 +96,7 @@ public class InjuryService : IInjuryService
             .ToListAsync();
         var ordered = injuries
             .OrderByDescending(i => i.InjuryEvents.Count > 0 ? i.InjuryEvents.Max(ie => ie.CreationTime) : i.InjuryDate.ToDateTime(TimeOnly.MinValue))
-            .Select(i => i.ToDTO())
+            .Select(i => i.Adapt<InjuryDTO>())
             .ToList();
         return Result<List<InjuryDTO>>.Success(ordered);
     }
@@ -136,10 +147,20 @@ public class InjuryService : IInjuryService
             if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
             injuryEvent.TrainingSessionID = tsId;
         }
+        injuryEvent.MovementIDs.Clear();
+        foreach (var movementId in request.MovementIDs)
+        {
+            var ownsMovement = await _context.Movements
+                .Include(m => m.TrainingSession)
+                .ThenInclude(ts => ts.TrainingProgram)
+                .AnyAsync(m => m.MovementID == movementId && m.TrainingSession!.TrainingProgram!.UserID == userId);
+            if (!ownsMovement) continue;
+            injuryEvent.MovementIDs.Add(movementId);
+        }
         await _context.SaveChangesAsync();
         var parent = await _context.Injuries
             .Include(i => i.InjuryEvents)
             .FirstAsync(i => i.InjuryID == injuryEvent.InjuryID);
-        return Result<InjuryDTO>.Success(parent.ToDTO());
+        return Result<InjuryDTO>.Success(parent.Adapt<InjuryDTO>());
     }
 }
