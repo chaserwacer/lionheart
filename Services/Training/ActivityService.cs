@@ -31,17 +31,27 @@ namespace lionheart.Services
         public async Task<Result<ActivityDTO>> AddActivityAsync(IdentityUser user, CreateActivityRequest activityRequest)
         {
             var userId = Guid.Parse(user.Id);
+            var activityID = Guid.NewGuid();
             var activity = new Activity
             {
-                ActivityID = Guid.NewGuid(),
+                ActivityID = activityID,
                 UserID = userId,
                 DateTime = activityRequest.DateTime,
                 TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
                 Name =  activityRequest.Name,
                 UserSummary = activityRequest.UserSummary,
-                PerceivedEffortRatings = activityRequest.PerceivedEffortRatings,
-                ActivityDetails = activityRequest.ActivityDetails
+                PerceivedEffortRatings = new ActivityPerceivedEffortRatings
+                {
+                    ActivityID = activityID,
+                    PerceivedEffortRatings = new PerceivedEffortRatings
+                    {
+                        AccumulatedFatigue = activityRequest.PerceivedEffortRatings?.PerceivedEffortRatings.AccumulatedFatigue,
+                        DifficultyRating = activityRequest.PerceivedEffortRatings?.PerceivedEffortRatings.DifficultyRating,
+                        EngagementRating = activityRequest.PerceivedEffortRatings?.PerceivedEffortRatings.EngagementRating,
+                        ExternalVariablesRating = activityRequest.PerceivedEffortRatings?.PerceivedEffortRatings.ExternalVariablesRating
+                    }
+                }
             };
             await _context.Activities.AddAsync(activity);
             await _context.SaveChangesAsync();
@@ -102,23 +112,16 @@ namespace lionheart.Services
             activity.UserSummary = activityRequest.UserSummary;
             if (activityRequest.PerceivedEffortRatings != null)
             {
-                activity.PerceivedEffortRatings = new PerceivedEffortRatings
+                activity.PerceivedEffortRatings = new ActivityPerceivedEffortRatings
                 {
-                    AccumulatedFatigue = activityRequest.PerceivedEffortRatings.AccumulatedFatigue,
-                    DifficultyRating = activityRequest.PerceivedEffortRatings.DifficultyRating,
-                    EngagementRating = activityRequest.PerceivedEffortRatings.EngagementRating,
-                    ExternalVariablesRating = activityRequest.PerceivedEffortRatings.ExternalVariablesRating
-                };
-            }
-            if (activityRequest.ActivityDetails != null)
-            {
-                activity.ActivityDetails = new ActivityDetails
-                {
-                    Distance = activityRequest.ActivityDetails.Distance,
-                    ElevationGain = activityRequest.ActivityDetails.ElevationGain,
-                    AveragePower = activityRequest.ActivityDetails.AveragePower,
-                    AverageSpeed = activityRequest.ActivityDetails.AverageSpeed,
-                    Type = activityRequest.ActivityDetails.Type
+                    ActivityID = activity.ActivityID,
+                    PerceivedEffortRatings = new PerceivedEffortRatings
+                    {
+                        AccumulatedFatigue = activityRequest.PerceivedEffortRatings.PerceivedEffortRatings.AccumulatedFatigue,
+                        DifficultyRating = activityRequest.PerceivedEffortRatings.PerceivedEffortRatings.DifficultyRating,
+                        EngagementRating = activityRequest.PerceivedEffortRatings.PerceivedEffortRatings.EngagementRating,
+                        ExternalVariablesRating = activityRequest.PerceivedEffortRatings.PerceivedEffortRatings.ExternalVariablesRating
+                    }
                 };
             }
             

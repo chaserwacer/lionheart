@@ -25,6 +25,7 @@ namespace lionheart.Data
         public DbSet<TrainingSession> TrainingSessions { get; set; }
         public DbSet<MovementBase> MovementBases { get; set; }
         public DbSet<Equipment> Equipments { get; set; }
+        public DbSet<MuscleGroup> MuscleGroups { get; set;}
         public DbSet<Movement> Movements { get; set; }
         public DbSet<LiftSetEntry> LiftSetEntries { get; set; }
         public DbSet<DTSetEntry> DTSetEntries { get; set; }
@@ -85,9 +86,13 @@ namespace lionheart.Data
                 .HasOne<LionheartUser>()
                 .WithMany(u => u.Activities)
                 .HasForeignKey(a => a.UserID);
-      
+
             modelBuilder.Entity<Activity>()
-                .OwnsOne(a => a.ActivityDetails);            
+                .HasOne<ActivityPerceivedEffortRatings>(a => a.PerceivedEffortRatings)
+                .WithOne()
+                .HasForeignKey<ActivityPerceivedEffortRatings>(p => p.ActivityID)
+                .IsRequired(false);
+                       
 
             // Training Programs
             modelBuilder.Entity<TrainingProgram>()
@@ -105,8 +110,12 @@ namespace lionheart.Data
                 .WithMany(p => p.TrainingSessions)
                 .HasForeignKey(s => s.TrainingProgramID)
                 .IsRequired(false);
+            
             modelBuilder.Entity<TrainingSession>()
-                .OwnsOne(s => s.PerceivedEffortRatings);
+                .HasOne<TrainingSessionPerceivedEffortRatings>(s => s.PerceivedEffortRatings)
+                .WithOne()
+                .HasForeignKey<TrainingSessionPerceivedEffortRatings>(p => p.TrainingSessionID)
+                .IsRequired(false);
 
             // Movements + Movement Bases + Movement Modifiers         
             modelBuilder.Entity<Movement>()
@@ -137,6 +146,13 @@ namespace lionheart.Data
                     .HasOne<LionheartUser>()
                     .WithMany(u => u.MovementBases)
                     .HasForeignKey(m => m.UserID);
+
+            modelBuilder.Entity<MovementBase>()
+                .OwnsMany(m => m.TrainedMuscles);
+
+            modelBuilder.Entity<MuscleGroup>()
+                .HasKey(m => m.MuscleGroupID);
+            
             modelBuilder.Entity<Equipment>()
                 .HasKey(e => e.EquipmentID);
             modelBuilder.Entity<Equipment>()

@@ -75,7 +75,7 @@
 
 <PackageReference Include="NSwag.Core" Version="14.4.0" />
 
-<PackageReference Include="OpenAI" Version="2.3.0" />
+<PackageReference Include="OpenAI" Version="2.8.0" />
 
 <PackageReference Include="Scalar.AspNetCore" Version="2.4.8" />
 

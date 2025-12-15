@@ -14,17 +14,13 @@ namespace lionheart.ActivityTracking
         public int CaloriesBurned { get; set; }
         public string Name { get; set; } = string.Empty;
         public string UserSummary { get; set; } = string.Empty;
-        public PerceivedEffortRatings? PerceivedEffortRatings { get; set; }
-        public ActivityDetails? ActivityDetails { get; set; }
+        public ActivityPerceivedEffortRatings? PerceivedEffortRatings { get; set; }
     }
-    [Owned]
-    public class ActivityDetails
+    public class ActivityPerceivedEffortRatings
     {
-        public double? Distance { get; set; }
-        public int? ElevationGain { get; set; }
-        public int? AveragePower { get; set; }
-        public double? AverageSpeed { get; set; }
-        public string? Type { get; set; } = string.Empty; // Ex: Mtb Trail Ride
+        [Key]
+        public required Guid ActivityID { get; init; }
+        public required PerceivedEffortRatings PerceivedEffortRatings { get; set; }
     }
 
     public record ActivityDTO(
@@ -35,8 +31,7 @@ namespace lionheart.ActivityTracking
         int CaloriesBurned,
         string Name,
         string UserSummary,
-        PerceivedEffortRatings? PerceivedEffortRatings,
-        ActivityDetails? ActivityDetails
+        ActivityPerceivedEffortRatings? PerceivedEffortRatings
     );
     public record CreateActivityRequest(
         Guid UserID,
@@ -45,8 +40,7 @@ namespace lionheart.ActivityTracking
         int CaloriesBurned,
         string Name,
         string UserSummary,
-        PerceivedEffortRatings? PerceivedEffortRatings,
-        ActivityDetails? ActivityDetails
+        ActivityPerceivedEffortRatings? PerceivedEffortRatings
     );
     public record UpdateActivityRequest(
         Guid ActivityID,
@@ -56,7 +50,6 @@ namespace lionheart.ActivityTracking
         int CaloriesBurned,
         string Name,
         string UserSummary,
-        PerceivedEffortRatings? PerceivedEffortRatings,
-        ActivityDetails? ActivityDetails
+        ActivityPerceivedEffortRatings? PerceivedEffortRatings
     );
 }

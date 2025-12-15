@@ -40,7 +40,7 @@ namespace lionheart.Services.Training
             var movementBase = new MovementBase
             {
                 MovementBaseID = Guid.NewGuid(),
-                MuscleGroups = request.MuscleGroups,
+                TrainedMuscles = request.TrainedMuscles,
                 Description = request.Description,
                 Name = request.Name,
                 UserID = userGuid
@@ -94,7 +94,7 @@ namespace lionheart.Services.Training
             }
             movementBase.Name = request.Name;
             movementBase.Description = request.Description;
-            movementBase.MuscleGroups = request.MuscleGroups;
+            movementBase.TrainedMuscles = request.TrainedMuscles;
             await _context.SaveChangesAsync();
             return Result<MovementBaseDTO>.Success(movementBase.Adapt<MovementBaseDTO>());
         }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
+using OpenAI.Chat;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,10 +28,14 @@ services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
-builder.Services
-    .AddMcpServer()
-    .WithHttpTransport()
-    .WithToolsFromAssembly();
+// builder.Services
+//     .AddMcpServer()
+//     .WithHttpTransport()
+//     .WithToolsFromAssembly();
+
+builder.Services.AddSingleton(provider =>
+    new ChatClient(model: "gpt-5.2", apiKey: configuration["OpenAI:ApiKey"])
+);
 
 
 builder.Services.AddMemoryCache();

@@ -182,13 +182,24 @@ public class TrainingSessionService : ITrainingSessionService
         session.Date = request.Date;
         session.Status = request.Status;
         session.Notes = request.Notes;
-        session.PerceivedEffortRatings = new PerceivedEffortRatings
+        if (request.PerceivedEffortRatings is not null)
         {
-            AccumulatedFatigue = request.PerceivedEffortRatings?.AccumulatedFatigue,
-            DifficultyRating = request.PerceivedEffortRatings?.DifficultyRating,
-            EngagementRating = request.PerceivedEffortRatings?.EngagementRating,
-            ExternalVariablesRating = request.PerceivedEffortRatings?.ExternalVariablesRating
-        };
+            session.PerceivedEffortRatings = new TrainingSessionPerceivedEffortRatings
+            {
+                TrainingSessionID = session.TrainingSessionID,
+                PerceivedEffortRatings = new PerceivedEffortRatings
+                {
+                    AccumulatedFatigue = request.PerceivedEffortRatings.PerceivedEffortRatings.AccumulatedFatigue,
+                    DifficultyRating = request.PerceivedEffortRatings.PerceivedEffortRatings.DifficultyRating,
+                    EngagementRating = request.PerceivedEffortRatings.PerceivedEffortRatings.EngagementRating,
+                    ExternalVariablesRating = request.PerceivedEffortRatings.PerceivedEffortRatings.ExternalVariablesRating
+                }
+            };
+        }
+        else
+        {
+            session.PerceivedEffortRatings = null;
+        }
         await _context.SaveChangesAsync();
         return Result<TrainingSessionDTO>.Success(session.Adapt<TrainingSessionDTO>());
     }
