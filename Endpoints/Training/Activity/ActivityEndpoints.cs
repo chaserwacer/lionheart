@@ -105,11 +105,11 @@ namespace lionheart.Endpoints.Training.Activity
             _userManager = userManager;
         }
 
-        [HttpGet("api/activity/get-user-activities/{userId}")]
+        [HttpGet("api/activity/get-user-activities")]
         [EndpointDescription("Get all activities for a specific user.")]
         [ProducesResponseType<List<ActivityDTO>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public override async Task<ActionResult<List<ActivityDTO>>> HandleAsync([FromBody] DateRangeRequest request, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<List<ActivityDTO>>> HandleAsync([FromQuery] DateRangeRequest request, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
