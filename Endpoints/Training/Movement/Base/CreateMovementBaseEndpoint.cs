@@ -7,34 +7,35 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
+using lionheart.Services.Training;
 
-namespace lionheart.Endpoints.MovementEndpoints
+namespace lionheart.Endpoints.Training.Movement
 {
     [ValidateModel]
     public class CreateMovementBaseEndpoint : EndpointBaseAsync
         .WithRequest<CreateMovementBaseRequest>
-        .WithActionResult<MovementBase>
+        .WithActionResult<MovementBaseDTO>
     {
-        private readonly IMovementService _movementService;
+        private readonly IMovementBaseService _movementBaseService;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public CreateMovementBaseEndpoint(IMovementService movementService, UserManager<IdentityUser> userManager)
+        public CreateMovementBaseEndpoint(IMovementBaseService movementBaseService, UserManager<IdentityUser> userManager)
         {
-            _movementService = movementService;
+            _movementBaseService = movementBaseService;
             _userManager = userManager;
         }
 
         [HttpPost("api/movement-base/create")]
         [EndpointDescription("Create a new movement base.")]
-        [ProducesResponseType<MovementBase>(StatusCodes.Status201Created)]
+        [ProducesResponseType<MovementBaseDTO>(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
-        public override async Task<ActionResult<MovementBase>> HandleAsync([FromBody] CreateMovementBaseRequest request, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<MovementBaseDTO>> HandleAsync([FromBody] CreateMovementBaseRequest request, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-            return this.ToActionResult(await _movementService.CreateMovementBaseAsync(user, request));
+            return this.ToActionResult(await _movementBaseService.CreateMovementBaseAsync(user, request));
         }
     }
 }

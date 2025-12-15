@@ -20,7 +20,7 @@ namespace lionheart.Data
         public DbSet<WellnessState> WellnessStates { get; set; }
         public DbSet<Activity> Activities { get; set; }
         public DbSet<ApiAccessToken> ApiAccessTokens { get; set; }
-        public DbSet<DailyOuraData> DailyOuraInfos { get; set; }
+        public DbSet<DailyOuraData> DailyOuraDatas { get; set; }
         public DbSet<TrainingProgram> TrainingPrograms { get; set; }
         public DbSet<TrainingSession> TrainingSessions { get; set; }
         public DbSet<MovementBase> MovementBases { get; set; }
@@ -85,6 +85,9 @@ namespace lionheart.Data
                 .HasOne<LionheartUser>()
                 .WithMany(u => u.Activities)
                 .HasForeignKey(a => a.UserID);
+      
+            modelBuilder.Entity<Activity>()
+                .OwnsOne(a => a.ActivityDetails);            
 
             // Training Programs
             modelBuilder.Entity<TrainingProgram>()
@@ -102,6 +105,8 @@ namespace lionheart.Data
                 .WithMany(p => p.TrainingSessions)
                 .HasForeignKey(s => s.TrainingProgramID)
                 .IsRequired(false);
+            modelBuilder.Entity<TrainingSession>()
+                .OwnsOne(s => s.PerceivedEffortRatings);
 
             // Movements + Movement Bases + Movement Modifiers         
             modelBuilder.Entity<Movement>()

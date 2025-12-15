@@ -5,20 +5,21 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
+using lionheart.Services.Training;
 
-namespace lionheart.Endpoints.MovementEndpoints
+namespace lionheart.Endpoints.Training.Movement
 {
     [ValidateModel]
     public class DeleteMovementBaseEndpoint : EndpointBaseAsync
         .WithRequest<Guid>
         .WithActionResult
     {
-        private readonly IMovementService _movementService;
+        private readonly IMovementBaseService _movementBaseService;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public DeleteMovementBaseEndpoint(IMovementService movementService, UserManager<IdentityUser> userManager)
+        public DeleteMovementBaseEndpoint(IMovementBaseService movementBaseService, UserManager<IdentityUser> userManager)
         {
-            _movementService = movementService;
+            _movementBaseService = movementBaseService;
             _userManager = userManager;
         }
 
@@ -33,8 +34,8 @@ namespace lionheart.Endpoints.MovementEndpoints
             var user = await _userManager.GetUserAsync(User);
             if (user is null) return Unauthorized("User is not recognized or no longer exists.");
 
-            return this.ToActionResult(
-                await _movementService.DeleteMovementBaseAsync(user, movementBaseId)
+            return this.ToActionResult  (
+                await _movementBaseService.DeleteMovementBaseAsync(user, movementBaseId)
             );
         }
     }

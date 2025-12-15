@@ -8,36 +8,37 @@ using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
+using lionheart.Services.Training;
 
-namespace lionheart.Endpoints.MovementEndpoints
+namespace lionheart.Endpoints.Training.Movement
 {
     [ValidateModel]
     [McpServerToolType]
-    
+
     public class GetMovementBasesEndpoint : EndpointBaseAsync
         .WithoutRequest
-        .WithActionResult<List<MovementBase>>
+        .WithActionResult<List<MovementBaseDTO>>
     {
-        private readonly IMovementService _movementService;
+        private readonly IMovementBaseService _movementBaseService;
         private readonly UserManager<IdentityUser> _userManager;
-        
-        public GetMovementBasesEndpoint(IMovementService movementService, UserManager<IdentityUser> userManager)
+
+        public GetMovementBasesEndpoint(IMovementBaseService movementBaseService, UserManager<IdentityUser> userManager)
         {
-            _movementService = movementService;
+            _movementBaseService = movementBaseService;
             _userManager = userManager;
         }
 
         [HttpGet("api/movement-base/get-all")]
         [EndpointDescription("Get all available movement bases.")]
-        [ProducesResponseType<List<MovementBase>>(StatusCodes.Status200OK)]
+        [ProducesResponseType<List<MovementBaseDTO>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [McpServerTool, Description("Get all available movement bases.")]
-        public override async Task<ActionResult<List<MovementBase>>> HandleAsync(CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<List<MovementBaseDTO>>> HandleAsync(CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-            return this.ToActionResult(await _movementService.GetMovementBasesAsync(user));
+            return this.ToActionResult(await _movementBaseService.GetMovementBasesAsync(user));
         }
     }
 }

@@ -77,7 +77,7 @@ namespace lionheart.Services
         public async Task<Result<ActivityDTO>> GetActivityAsync(IdentityUser user, Guid activityID)
         {
           var userId = Guid.Parse(user.Id);
-          var acitivtity = _context.Activities.AsNoTracking()
+          var acitivtity = await _context.Activities.AsNoTracking()
                 .FirstOrDefaultAsync(a => a.ActivityID == activityID && a.UserID == userId);
             if (acitivtity == null)
             {

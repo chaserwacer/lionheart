@@ -35,7 +35,7 @@ namespace lionheart.Services
         public async Task<Result<DailyOuraDataDTO>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date)
         {
             var userGuid  = Guid.Parse(user.Id);
-            var dto = await _context.DailyOuraInfos.FirstOrDefaultAsync(x => x.UserID == userGuid && x.Date == date) ?? null;
+            var dto = await _context.DailyOuraDatas.FirstOrDefaultAsync(x => x.UserID == userGuid && x.Date == date) ?? null;
 
             
             if (dto is not null)
@@ -124,7 +124,7 @@ namespace lionheart.Services
             // Get Dto objects representing the ouraInfos from the past 'daysPrior'
             var startDate = dateRange.StartDate;
             var endDate = dateRange.EndDate;
-            var OuraStateInfoObjects = await _context.DailyOuraInfos.Where(o => o.Date >= startDate && o.Date <= endDate && o.UserID == userGuid).
+            var OuraStateInfoObjects = await _context.DailyOuraDatas.Where(o => o.Date >= startDate && o.Date <= endDate && o.UserID == userGuid).
             Select(o => new DailyOuraInfoDto(
                 o.ObjectID,
                 o.Date,
@@ -321,7 +321,7 @@ namespace lionheart.Services
                 // Add or update database
                 if (OuraStateInfoObjects.Any(o => o.Date == dailyOuraInfo.Date))
                 {
-                    var existingState = await _context.DailyOuraInfos.FirstOrDefaultAsync(w => w.Date == dailyOuraInfo.Date && w.UserID == userGuid);
+                    var existingState = await _context.DailyOuraDatas.FirstOrDefaultAsync(w => w.Date == dailyOuraInfo.Date && w.UserID == userGuid);
                     if (existingState != null)
                     {
                         existingState.SyncDate = dailyOuraInfo.SyncDate;
@@ -338,7 +338,7 @@ namespace lionheart.Services
                     }
                     else
                     {
-                        _context.DailyOuraInfos.Add(dailyOuraInfo);
+                        _context.DailyOuraDatas.Add(dailyOuraInfo);
                         await _context.SaveChangesAsync();
                       
                     }
@@ -347,7 +347,7 @@ namespace lionheart.Services
                 }
                 else
                 {
-                    _context.DailyOuraInfos.Add(dailyOuraInfo);
+                    _context.DailyOuraDatas.Add(dailyOuraInfo);
                     await _context.SaveChangesAsync();
                     
                 }
@@ -435,7 +435,7 @@ namespace lionheart.Services
             var end = dateRange.EndDate;
 
             // Query persisted entries
-            var entities = await _context.DailyOuraInfos
+            var entities = await _context.DailyOuraDatas
                 .Where(x => x.UserID == userGuid
                          && x.Date >= start
                          && x.Date <= end)
@@ -460,7 +460,7 @@ namespace lionheart.Services
         {
             var userGuid = Guid.Parse(user.Id);
 
-            var dailyOuraInfos = await _context.DailyOuraInfos
+            var dailyOuraInfos = await _context.DailyOuraDatas
                 .AsNoTracking()
                 .Where(x => x.UserID == userGuid && x.Date >= dateRange.StartDate && x.Date <= dateRange.EndDate)
                 .Select(dto => new DailyOuraDataDTO

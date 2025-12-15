@@ -16,9 +16,6 @@ public interface IMovementService
     Task<Result<MovementDTO>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request);
     Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request);
     Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId);
-    Task<Result<List<MovementBase>>> GetMovementBasesAsync(IdentityUser user);
-    Task<Result<MovementBase>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request);
-    Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId);
     Task<Result<EquipmentDTO>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request);
     Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId);
     Task<Result<List<EquipmentDTO>>> GetEquipmentsAsync(IdentityUser user);
@@ -186,65 +183,8 @@ public class MovementService : IMovementService
         return Result.NoContent();
     }
 
-    public async Task<Result<List<MovementBase>>> GetMovementBasesAsync(IdentityUser user)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        var movementBases = await _context.MovementBases
-            .Where(mb => mb.UserID == userGuid) // include global/shared
-            .OrderBy(mb => mb.Name)
-            .ToListAsync();
-        return Result<List<MovementBase>>.Success(movementBases);
-    }
-
-    public async Task<Result<MovementBase>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        // Check if movement base with this name already exists for this user
-        var existingBase = await _context.MovementBases
-            .FirstOrDefaultAsync(mb => mb.Name.ToLower() == request.Name.ToLower() && mb.UserID == userGuid);
-
-        if (existingBase != null)
-        {
-            return Result<MovementBase>.Conflict("A movement base with this name already exists for this user.");
-        }
-
-        var movementBase = new MovementBase
-        {
-            MovementBaseID = Guid.NewGuid(),
-            MuscleGroups = request.MuscleGroups,
-            Description = request.Description,
-            Name = request.Name,
-            UserID = userGuid
-        };
-
-        _context.MovementBases.Add(movementBase);
-        await _context.SaveChangesAsync();
-        return Result<MovementBase>.Created(movementBase);
-    }
 
 
-    public async Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        // Verify the base exists and belongs to the user
-        var movementBase = await _context.MovementBases.FirstOrDefaultAsync(mb => mb.MovementBaseID == movementBaseId && mb.UserID == userGuid);
-        if (movementBase == null)
-        {
-            return Result.NotFound("Movement base not found or not owned by user.");
-        }
-
-        // Prevent deleting a base that’s in use
-        var inUse = await _context.Movements.AnyAsync(m => m.MovementBaseID == movementBaseId);
-        if (inUse)
-        {
-            return Result.Conflict("Cannot delete movement base while it has associated movements.");
-        }
-
-        // Remove and save
-        _context.MovementBases.Remove(movementBase);
-        await _context.SaveChangesAsync();
-        return Result.NoContent();
-    }
 
     public async Task<Result<EquipmentDTO>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request)
     {

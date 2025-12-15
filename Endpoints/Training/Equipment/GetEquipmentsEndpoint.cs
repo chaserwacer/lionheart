@@ -8,7 +8,7 @@ using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
 using lionheart.Model.Training;
 
-namespace lionheart.Endpoints.MovementEndpoints
+namespace lionheart.Endpoints.Training.Equipment
 {
     [ValidateModel]
     public class GetEquipmentsEndpoint : EndpointBaseAsync

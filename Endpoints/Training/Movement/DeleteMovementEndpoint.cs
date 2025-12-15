@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
 
-namespace lionheart.Endpoints.MovementEndpoints
+namespace lionheart.Endpoints.Training.Movement
 {
     [ValidateModel]
     public class DeleteMovementEndpoint : EndpointBaseAsync

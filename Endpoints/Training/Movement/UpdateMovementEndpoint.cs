@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
 
-namespace lionheart.Endpoints.MovementEndpoints
+namespace lionheart.Endpoints.Training.Movement
 {
     [ValidateModel]
     public class UpdateMovementEndpoint : EndpointBaseAsync
@@ -26,7 +26,7 @@ namespace lionheart.Endpoints.MovementEndpoints
 
         [HttpPut("api/movement/update")]
         [EndpointDescription("Update an existing movement.")]
-        [ProducesResponseType<Movement>(StatusCodes.Status200OK)]
+        [ProducesResponseType<MovementDTO>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public override async Task<ActionResult<MovementDTO>> HandleAsync([FromBody] UpdateMovementRequest request, CancellationToken cancellationToken = default)

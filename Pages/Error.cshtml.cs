@@ -2,24 +2,25 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace lionheart.Pages;
-
-[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-public class ErrorModel : PageModel
+namespace lionheart.Pages
 {
-    private readonly ILogger<ErrorModel> _logger;
-
-    public ErrorModel(ILogger<ErrorModel> logger)
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public class ErrorModel : PageModel
     {
-        _logger = logger;
-    }
+        private readonly ILogger<ErrorModel> _logger;
 
-    public string? RequestId { get; set; }
+        public ErrorModel(ILogger<ErrorModel> logger)
+        {
+            _logger = logger;
+        }
 
-    public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+        public string? RequestId { get; set; }
 
-    public void OnGet()
-    {
-        RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
+        public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+        public void OnGet()
+        {
+            RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier;
+        }
     }
 }

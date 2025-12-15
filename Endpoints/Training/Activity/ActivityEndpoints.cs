@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
 
-namespace lionheart.Endpoints.ActivityEndpoints
+namespace lionheart.Endpoints.Training.Activity
 {
     [ValidateModel]
     public class AddActivityEndpoint : EndpointBaseAsync
