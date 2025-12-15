@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using lionheart.Model.TrainingProgram.SetEntry;
+using lionheart.Model.Training.SetEntry;
 using Microsoft.AspNetCore.Identity;
 
 namespace lionheart.Services;

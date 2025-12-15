@@ -1,14 +1,14 @@
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.DTOs;
-using lionheart.Model.TrainingProgram;
+using lionheart.Model.Training;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
 using lionheart.Services;
 using System.ComponentModel;
 using Mapster;
-using lionheart.Model.TrainingProgram.SetEntry;
+using lionheart.Model.Training.SetEntry;
 
 public interface ITrainingSessionService
 {
@@ -65,11 +65,9 @@ public interface ITrainingSessionService
     Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
 }
 
-[McpServerToolType]
 public class TrainingSessionService : ITrainingSessionService
 {
     private readonly ModelContext _context;
-
 
 
     public TrainingSessionService(ModelContext context)
@@ -78,7 +76,6 @@ public class TrainingSessionService : ITrainingSessionService
     }
 
 
-    [McpServerTool, Description("Get all training sessions for a program.")]
     public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, Guid programId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -94,8 +91,6 @@ public class TrainingSessionService : ITrainingSessionService
 
     }
 
-
-    [McpServerTool, Description("Get a specific training session by ID.")]
     public async Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -119,51 +114,41 @@ public class TrainingSessionService : ITrainingSessionService
     }
 
 
-    [McpServerTool, Description("Create a new training session.")]
     public async Task<Result<TrainingSessionDTO>> CreateTrainingSessionAsync(IdentityUser user, CreateTrainingSessionRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
-
-        // Verify user owns the training program
-        var program = await _context.TrainingPrograms
-            .FirstOrDefaultAsync(tp => tp.TrainingProgramID == request.TrainingProgramID &&
-                                      tp.UserID == userGuid);
-
-        if (program is null)
-        {
-            return Result<TrainingSessionDTO>.NotFound("Training program not found or access denied.");
-        }
-
-
         var date = request.Date;
         var session = new TrainingSession
         {
             TrainingSessionID = Guid.NewGuid(),
             Movements = new List<Movement>(),
-            TrainingProgramID = request.TrainingProgramID,
             Status = TrainingSessionStatus.Planned,
             Date = date,
-            CreationTime = DateTime.UtcNow, // <-- Set creation time
-            Notes = string.Empty
+            CreationTime = DateTime.UtcNow, 
+            Notes = string.Empty,
+            PerceivedEffortRatings = request.PerceivedEffortRatings
         };
+
+        if (request.TrainingProgramID is not null && request.TrainingProgramID != Guid.Empty)
+        {
+            var program = await _context.TrainingPrograms
+            .FirstOrDefaultAsync(tp => tp.TrainingProgramID == request.TrainingProgramID &&
+                                      tp.UserID == userGuid);
+
+            if (program is null)
+            {
+                return Result<TrainingSessionDTO>.NotFound("Training program not found or access denied.");
+            }
+            session.TrainingProgramID = program.TrainingProgramID;
+        }
 
         _context.TrainingSessions.Add(session);
         await _context.SaveChangesAsync();
-
-        // Calculate session number for the newly created session
-        var sessionNumber = await _context.TrainingSessions
-            .Where(ts => ts.TrainingProgramID == request.TrainingProgramID &&
-                        ts.Date <= date)
-            .OrderBy(ts => ts.Date)
-            .ThenBy(ts => ts.CreationTime)
-            .CountAsync(ts => ts.Date < date ||
-                            (ts.Date == date && ts.TrainingSessionID.CompareTo(session.TrainingSessionID) <= 0));
 
         return Result<TrainingSessionDTO>.Created(session.Adapt<TrainingSessionDTO>());
     }
 
 
-    [McpServerTool, Description("Update an existing training session.")]
     public async Task<Result<TrainingSessionDTO>> UpdateTrainingSessionAsync(IdentityUser user, UpdateTrainingSessionRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -177,46 +162,38 @@ public class TrainingSessionService : ITrainingSessionService
         {
             return Result<TrainingSessionDTO>.NotFound("Training session not found or access denied.");
         }
+        
+        if (request.TrainingProgramID is not null && request.TrainingProgramID != Guid.Empty)
+        {
+            var program = await _context.TrainingPrograms
+            .FirstOrDefaultAsync(tp => tp.TrainingProgramID == request.TrainingProgramID &&
+                                      tp.UserID == userGuid);
 
+            if (program is null)
+            {
+                return Result<TrainingSessionDTO>.NotFound("Training program not found or access denied.");
+            }
+            session.TrainingProgramID = program.TrainingProgramID;
+        }
+        else
+        {
+            session.TrainingProgramID = null;
+        }
         session.Date = request.Date;
         session.Status = request.Status;
         session.Notes = request.Notes;
-
-        await _context.SaveChangesAsync();
-
-        // Recalculate session number after update
-        var sessionNumber = await _context.TrainingSessions
-            .Where(ts => ts.TrainingProgramID == session.TrainingProgramID &&
-                        ts.Date <= session.Date)
-            .OrderBy(ts => ts.Date)
-            .ThenBy(ts => ts.TrainingSessionID)
-            .CountAsync(ts => ts.Date < session.Date ||
-                            (ts.Date == session.Date && ts.TrainingSessionID.CompareTo(session.TrainingSessionID) <= 0));
-
-        // Reload the session with all navigation properties
-        var hydratedSession = await _context.TrainingSessions
-            .AsNoTracking()
-            .Include(ts => ts.TrainingProgram)
-            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.LiftSets)
-            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
-                .ThenInclude(m => m.DistanceTimeSets)
-            .Include(ts => ts.Movements)
-                .ThenInclude(m => m.MovementBase)
-            .Include(ts => ts.Movements)
-                .ThenInclude(m => m.MovementModifier.Equipment)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == session.TrainingSessionID);
-
-        if (hydratedSession is null)
+        session.PerceivedEffortRatings = new PerceivedEffortRatings
         {
-            return Result<TrainingSessionDTO>.NotFound("Training session not found after update.");
-        }
-
-        return Result<TrainingSessionDTO>.Success(hydratedSession.Adapt<TrainingSessionDTO>());
+            AccumulatedFatigue = request.PerceivedEffortRatings?.AccumulatedFatigue,
+            DifficultyRating = request.PerceivedEffortRatings?.DifficultyRating,
+            EngagementRating = request.PerceivedEffortRatings?.EngagementRating,
+            ExternalVariablesRating = request.PerceivedEffortRatings?.ExternalVariablesRating
+        };
+        await _context.SaveChangesAsync();
+        return Result<TrainingSessionDTO>.Success(session.Adapt<TrainingSessionDTO>());
     }
 
 
-    [McpServerTool, Description("Delete a training session.")]
     public async Task<Result> DeleteTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -236,7 +213,6 @@ public class TrainingSessionService : ITrainingSessionService
     }
 
 
-    [McpServerTool, Description("Duplicate an existing training session.")]
     public async Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
     {
         var userGuid = Guid.Parse(user.Id);

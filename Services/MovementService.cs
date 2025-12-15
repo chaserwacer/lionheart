@@ -2,8 +2,8 @@ using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.DTOs;
-using lionheart.Model.TrainingProgram;
-using lionheart.Model.TrainingProgram.SetEntry;
+using lionheart.Model.Training;
+using lionheart.Model.Training.SetEntry;
 using lionheart.Services;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
@@ -22,8 +22,8 @@ public interface IMovementService
     Task<Result<EquipmentDTO>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request);
     Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId);
     Task<Result<List<EquipmentDTO>>> GetEquipmentsAsync(IdentityUser user);
+    Task<Result<EquipmentDTO>> UpdateEquipmentAsync(IdentityUser user, UpdateEquipmentRequest request);
 }
-[McpServerToolType]
 public class MovementService : IMovementService
 {
     private readonly ModelContext _context;
@@ -33,7 +33,6 @@ public class MovementService : IMovementService
         _context = context;
     }
 
-    [McpServerTool, Description("Get all movements for a specific training session.")]
     public async Task<Result<List<MovementDTO>>> GetMovementsAsync(IdentityUser user, Guid sessionId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -62,7 +61,6 @@ public class MovementService : IMovementService
     }
 
 
-    [McpServerTool, Description("Create a new movement within a training session.")]
     public async Task<Result<MovementDTO>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -119,7 +117,6 @@ public class MovementService : IMovementService
         return Result<MovementDTO>.Created(movement.Adapt<MovementDTO>());
     }
 
-    [McpServerTool, Description("Update an existing movement.")]
     public async Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -167,7 +164,6 @@ public class MovementService : IMovementService
         return Result<MovementDTO>.Success(movement.Adapt<MovementDTO>());
     }
 
-    [McpServerTool, Description("Delete a movement.")]
     public async Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -190,7 +186,6 @@ public class MovementService : IMovementService
         return Result.NoContent();
     }
 
-    [McpServerTool, Description("Gets all movement bases available for creating movements for a user.")]
     public async Task<Result<List<MovementBase>>> GetMovementBasesAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -201,7 +196,6 @@ public class MovementService : IMovementService
         return Result<List<MovementBase>>.Success(movementBases);
     }
 
-    [McpServerTool, Description("Create a new movement base for a user.")]
     public async Task<Result<MovementBase>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -229,7 +223,6 @@ public class MovementService : IMovementService
     }
 
 
-    [McpServerTool, Description("Delete a movement base for a user.")]
     public async Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)
     {
         var userGuid = Guid.Parse(user.Id);

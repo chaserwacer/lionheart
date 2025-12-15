@@ -1,7 +1,7 @@
 using lionheart.ActivityTracking;
 using lionheart.Model.Injury;
 using lionheart.Model.Oura;
-using lionheart.Model.TrainingProgram;
+using lionheart.Model.Training;
 using Microsoft.AspNetCore.Identity;
 namespace lionheart.WellBeing;
 
@@ -21,7 +21,7 @@ public class LionheartUser
     public List<WellnessState> WellnessStates { get; set; } = [];
     public List<Activity> Activities { get; set; } = [];
     public List<ApiAccessToken> ApiAccessTokens { get; set; } = [];
-    public List<DailyOuraInfo> DailyOuraInfos { get; set; } = [];
+    public List<DailyOuraData> DailyOuraInfos { get; set; } = [];
     public List<TrainingProgram> TrainingPrograms { get; set; } = [];
     public List<MovementBase> MovementBases { get; set; } = [];
     public List<Equipment> Equipments { get; set; } = [];

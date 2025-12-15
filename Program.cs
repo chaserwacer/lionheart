@@ -4,13 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
-using lionheart.Configuration;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Mapster
-MapsterConfiguration.Configure();
 var services = builder.Services;
 
 

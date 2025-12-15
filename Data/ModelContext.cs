@@ -4,10 +4,9 @@ using lionheart.ActivityTracking;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using lionheart.Model.Oura;
-using lionheart.Model.TrainingProgram;
+using lionheart.Model.Training;
 using lionheart.Model.Injury;
-using lionheart.Model.TrainingProgram.SetEntry;
-using lionheart.Model.Report;
+using lionheart.Model.Training.SetEntry;
 
 namespace lionheart.Data
 {
@@ -20,11 +19,8 @@ namespace lionheart.Data
         public DbSet<LionheartUser> LionheartUsers { get; set; }
         public DbSet<WellnessState> WellnessStates { get; set; }
         public DbSet<Activity> Activities { get; set; }
-        public DbSet<RunWalkDetails> RunWalkDetails { get; set; }
-        public DbSet<RideDetails> RideDetails { get; set; }
-        public DbSet<LiftDetails> LiftDetails { get; set; }
         public DbSet<ApiAccessToken> ApiAccessTokens { get; set; }
-        public DbSet<DailyOuraInfo> DailyOuraInfos { get; set; }
+        public DbSet<DailyOuraData> DailyOuraInfos { get; set; }
         public DbSet<TrainingProgram> TrainingPrograms { get; set; }
         public DbSet<TrainingSession> TrainingSessions { get; set; }
         public DbSet<MovementBase> MovementBases { get; set; }
@@ -36,11 +32,7 @@ namespace lionheart.Data
         public DbSet<InjuryEvent> InjuryEvents { get; set; }
         public DbSet<ChatConversation> ChatConversations { get; set; }
         public DbSet<ChatMessageItem> ChatMessageItems { get; set; }
-        public DbSet<SessionReport> SessionReports { get; set; }
-        public DbSet<SetEntryInsight> SetEntryInsights { get; set; }
-        public DbSet<PersonalRecord> PersonalRecords { get; set; }
-        public DbSet<DailyRundown> DailyRundowns { get; set; }
-        public DbSet<NightlyBreakdown> NightlyBreakdowns { get; set; }
+
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -94,15 +86,6 @@ namespace lionheart.Data
                 .WithMany(u => u.Activities)
                 .HasForeignKey(a => a.UserID);
 
-            modelBuilder.Entity<RunWalkDetails>()
-                .HasKey(d => d.ActivityID);
-
-            modelBuilder.Entity<RideDetails>()
-                .HasKey(d => d.ActivityID);
-
-            modelBuilder.Entity<LiftDetails>()
-                .HasKey(d => d.ActivityID);
-
             // Training Programs
             modelBuilder.Entity<TrainingProgram>()
                 .HasKey(p => p.TrainingProgramID);
@@ -115,9 +98,10 @@ namespace lionheart.Data
             modelBuilder.Entity<TrainingSession>()
                 .HasKey(s => s.TrainingSessionID);
             modelBuilder.Entity<TrainingSession>()
-                .HasOne<TrainingProgram>(t => t.TrainingProgram)
+                .HasOne<TrainingProgram>(s => s.TrainingProgram)
                 .WithMany(p => p.TrainingSessions)
-                .HasForeignKey(s => s.TrainingProgramID);
+                .HasForeignKey(s => s.TrainingProgramID)
+                .IsRequired(false);
 
             // Movements + Movement Bases + Movement Modifiers         
             modelBuilder.Entity<Movement>()
@@ -179,21 +163,21 @@ namespace lionheart.Data
                 .HasForeignKey(a => a.UserID);
 
             // Daily Oura Info
-            modelBuilder.Entity<DailyOuraInfo>()
+            modelBuilder.Entity<DailyOuraData>()
                 .HasKey(a => a.ObjectID);
 
-            modelBuilder.Entity<DailyOuraInfo>()
+            modelBuilder.Entity<DailyOuraData>()
                 .HasOne<LionheartUser>()
                 .WithMany(u => u.DailyOuraInfos)
                 .HasForeignKey(a => a.UserID);
 
-            modelBuilder.Entity<DailyOuraInfo>()
+            modelBuilder.Entity<DailyOuraData>()
                 .OwnsOne(o => o.ReadinessData);
-            modelBuilder.Entity<DailyOuraInfo>()
+            modelBuilder.Entity<DailyOuraData>()
                 .OwnsOne(o => o.ResilienceData);
-            modelBuilder.Entity<DailyOuraInfo>()
+            modelBuilder.Entity<DailyOuraData>()
                 .OwnsOne(o => o.SleepData);
-            modelBuilder.Entity<DailyOuraInfo>()
+            modelBuilder.Entity<DailyOuraData>()
                 .OwnsOne(o => o.ActivityData);
 
 
@@ -216,126 +200,7 @@ namespace lionheart.Data
             modelBuilder.Entity<ChatMessageItem>()
                 .HasIndex(m => new { m.ChatConversationID, m.CreationTime });
 
-            // Session Reports
-            modelBuilder.Entity<SessionReport>()
-                .HasKey(sr => sr.SessionReportID);
-
-            modelBuilder.Entity<SessionReport>()
-                .HasOne<LionheartUser>(sr => sr.User)
-                .WithMany()
-                .HasForeignKey(sr => sr.UserID)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<SessionReport>()
-                .HasOne<TrainingSession>(sr => sr.TrainingSession)
-                .WithMany()
-                .HasForeignKey(sr => sr.TrainingSessionID)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<SessionReport>()
-                .OwnsOne(sr => sr.ExternalFactorsSummary);
-
-            modelBuilder.Entity<SessionReport>()
-                .OwnsOne(sr => sr.SessionMetrics);
-
-            modelBuilder.Entity<SessionReport>()
-                .HasMany(sr => sr.SetEntryInsights)
-                .WithOne(sei => sei.SessionReport)
-                .HasForeignKey(sei => sei.SessionReportID)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<SessionReport>()
-                .HasMany(sr => sr.PersonalRecords)
-                .WithOne(pr => pr.SessionReport)
-                .HasForeignKey(pr => pr.SessionReportID)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Set Entry Insights
-            modelBuilder.Entity<SetEntryInsight>()
-                .HasKey(sei => sei.SetEntryInsightID);
-
-            // Personal Records
-            modelBuilder.Entity<PersonalRecord>()
-                .HasKey(pr => pr.PersonalRecordID);
-
-            // Indexes for performance
-            modelBuilder.Entity<SessionReport>()
-                .HasIndex(sr => new { sr.UserID, sr.SessionDate });
-
-            modelBuilder.Entity<SessionReport>()
-                .HasIndex(sr => sr.TrainingSessionID)
-                .IsUnique();
-
-            // Daily Rundowns
-            modelBuilder.Entity<DailyRundown>()
-                .HasKey(dr => dr.DailyRundownID);
-
-            modelBuilder.Entity<DailyRundown>()
-                .HasOne<LionheartUser>(dr => dr.User)
-                .WithMany()
-                .HasForeignKey(dr => dr.UserID)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<DailyRundown>()
-                .OwnsOne(dr => dr.ReadinessAssessment);
-
-            modelBuilder.Entity<DailyRundown>()
-                .OwnsOne(dr => dr.SleepAnalysis);
-
-            modelBuilder.Entity<DailyRundown>()
-                .OwnsOne(dr => dr.TrainingLoadAssessment);
-
-            modelBuilder.Entity<DailyRundown>()
-                .OwnsOne(dr => dr.HealthTrends);
-
-            modelBuilder.Entity<DailyRundown>()
-                .OwnsOne(dr => dr.InjuryRiskAssessment, ira =>
-                {
-                    ira.OwnsMany(i => i.ActiveInjuries);
-                });
-
-            modelBuilder.Entity<DailyRundown>()
-                .OwnsOne(dr => dr.TrainingProgramGuidance);
-
-            modelBuilder.Entity<DailyRundown>()
-                .OwnsOne(dr => dr.DailyPredictions);
-
-            modelBuilder.Entity<DailyRundown>()
-                .HasIndex(dr => new { dr.UserID, dr.ReportDate })
-                .IsUnique();
-
-            // Nightly Breakdowns
-            modelBuilder.Entity<NightlyBreakdown>()
-                .HasKey(nb => nb.NightlyBreakdownID);
-
-            modelBuilder.Entity<NightlyBreakdown>()
-                .HasOne<LionheartUser>(nb => nb.User)
-                .WithMany()
-                .HasForeignKey(nb => nb.UserID)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<NightlyBreakdown>()
-                .OwnsOne(nb => nb.DaySummary);
-
-            modelBuilder.Entity<NightlyBreakdown>()
-                .OwnsOne(nb => nb.TrainingDayReview);
-
-            modelBuilder.Entity<NightlyBreakdown>()
-                .OwnsOne(nb => nb.ActivityDaySummary);
-
-            modelBuilder.Entity<NightlyBreakdown>()
-                .OwnsOne(nb => nb.WellnessReview);
-
-            modelBuilder.Entity<NightlyBreakdown>()
-                .OwnsOne(nb => nb.RecoveryRecommendations);
-
-            modelBuilder.Entity<NightlyBreakdown>()
-                .OwnsOne(nb => nb.TomorrowOutlook);
-
-            modelBuilder.Entity<NightlyBreakdown>()
-                .HasIndex(nb => new { nb.UserID, nb.ReportDate })
-                .IsUnique();
-
+        
         }
     }
 }

@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
-using lionheart.Model.TrainingProgram;
-using lionheart.Model.TrainingProgram.SetEntry;
+using lionheart.Model.Training;
+using lionheart.Model.Training.SetEntry;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;

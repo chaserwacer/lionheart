@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using lionheart.Model.TrainingProgram;
+using lionheart.Model.Training;
 using Parlot.Fluent;
 
 namespace lionheart.Model.Injury;

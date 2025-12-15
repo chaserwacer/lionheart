@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
+using lionheart.Model.Injury;
 
 namespace lionheart.Endpoints.InjuryEndpoints;
 

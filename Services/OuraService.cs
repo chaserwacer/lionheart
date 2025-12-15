@@ -302,7 +302,7 @@ namespace lionheart.Services
 
 
                 // Build Database Object
-                DailyOuraInfo dailyOuraInfo = new()
+                DailyOuraData dailyOuraInfo = new()
                 {
                     ObjectID = Guid.NewGuid(),
                     UserID = userGuid,
