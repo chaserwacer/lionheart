@@ -12,6 +12,7 @@ namespace lionheart.Services.Training
         Task<Result<MovementBaseDTO>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request);
         Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId);
         Task<Result<MovementBaseDTO>> UpdateMovementBaseAsync(IdentityUser user, UpdateMovementBaseRequest request);
+        Task<Result<List<MuscleGroup>>> GetAllMuscleGroupsAsync();
     }
     public class MovementBaseService : IMovementBaseService
     {
@@ -82,6 +83,12 @@ namespace lionheart.Services.Training
                 .OrderBy(mb => mb.Name)
                 .ToListAsync();
             return Result<List<MovementBaseDTO>>.Success(movementBases.Adapt<List<MovementBaseDTO>>());
+        }
+
+        public async Task<Result<List<MuscleGroup>>> GetAllMuscleGroupsAsync()
+        {
+            var muscleGroups = await _context.MuscleGroups.ToListAsync();
+            return Result<List<MuscleGroup>>.Success(muscleGroups);
         }
 
         public async Task<Result<MovementBaseDTO>> UpdateMovementBaseAsync(IdentityUser user, UpdateMovementBaseRequest request)
