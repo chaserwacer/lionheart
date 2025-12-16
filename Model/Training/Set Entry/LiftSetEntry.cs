@@ -8,14 +8,14 @@ namespace lionheart.Model.Training.SetEntry
     /// Represents a set entry within a <see cref="Movement"/>.
     /// A set entry contains the recommended and actual reps, weight, and RPE (Rate of Perceived Exertion).
     /// </summary>
-    public class LiftSetEntry 
+    public class LiftSetEntry
     {
         public Guid SetEntryID { get; init; }
         public Guid MovementID { get; init; }
         public Movement Movement { get; set; } = null!;
-        public int RecommendedReps { get; set; }
-        public double RecommendedWeight { get; set; }
-        public double RecommendedRPE { get; set; }
+        public int? RecommendedReps { get; set; }
+        public double? RecommendedWeight { get; set; }
+        public double? RecommendedRPE { get; set; }
         public int ActualReps { get; set; }
         public double ActualWeight { get; set; }
         public double ActualRPE { get; set; }
@@ -24,9 +24,9 @@ namespace lionheart.Model.Training.SetEntry
     public record LiftSetEntryDTO(
         Guid SetEntryID,
         Guid MovementID,
-        int RecommendedReps,
-        double RecommendedWeight,
-        double RecommendedRPE,
+        int? RecommendedReps,
+        double? RecommendedWeight,
+        double? RecommendedRPE,
         int ActualReps,
         double ActualWeight,
         double ActualRPE,
@@ -35,21 +35,21 @@ namespace lionheart.Model.Training.SetEntry
 
     public record CreateLiftSetEntryRequest(
         Guid MovementID,
-        int RecommendedReps,
-        double RecommendedWeight,
-        double RecommendedRPE,
+        int? RecommendedReps,
+        double? RecommendedWeight,
+        double? RecommendedRPE,
         int ActualReps,
         double ActualWeight,
         double ActualRPE,
         WeightUnit WeightUnit
-    ) ;
+    );
 
     public record UpdateLiftSetEntryRequest(
         Guid SetEntryID,
         Guid MovementID,
-        int RecommendedReps,
-        double RecommendedWeight,
-        double RecommendedRPE,
+        int? RecommendedReps,
+        double? RecommendedWeight,
+        double? RecommendedRPE,
         int ActualReps,
         double ActualWeight,
         double ActualRPE,

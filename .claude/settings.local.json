@@ -6,7 +6,8 @@
       "Bash(npm run build:*)",
       "Bash(grep:*)",
       "Bash(npm run check:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(dotnet ef migrations add:*)"
     ],
     "deny": [],
     "ask": []
