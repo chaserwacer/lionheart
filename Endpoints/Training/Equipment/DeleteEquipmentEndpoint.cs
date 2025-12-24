@@ -13,12 +13,12 @@ namespace lionheart.Endpoints.Training.Equipment
         .WithRequest<Guid>
         .WithActionResult
     {
-        private readonly IMovementService _movementService;
+        private readonly IEquipmentService _equipmentService;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public DeleteEquipmentEndpoint(IMovementService movementService, UserManager<IdentityUser> userManager)
+        public DeleteEquipmentEndpoint(IEquipmentService equipmentService, UserManager<IdentityUser> userManager)
         {
-            _movementService = movementService;
+            _equipmentService = equipmentService;
             _userManager = userManager;
         }
 
@@ -34,7 +34,7 @@ namespace lionheart.Endpoints.Training.Equipment
             if (user is null) return Unauthorized("User is not recognized or no longer exists.");
 
             return this.ToActionResult(
-                await _movementService.DeleteEquipmentAsync(user, equipmentId)
+                await _equipmentService.DeleteEquipmentAsync(user, equipmentId)
             );
         }
     }

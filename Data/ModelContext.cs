@@ -128,7 +128,7 @@ namespace lionheart.Data
             modelBuilder.Entity<MovementBase>()
                 .HasKey(m => m.MovementBaseID);
             modelBuilder.Entity<Movement>()
-                .OwnsOne(m => m.MovementModifier)
+                .OwnsOne(m => m.MovementData)
                 .HasOne(m => m.Equipment)
                 .WithMany()
                 .HasForeignKey(m => m.EquipmentID)
@@ -136,9 +136,17 @@ namespace lionheart.Data
 
 
             modelBuilder.Entity<Movement>()
-                .HasOne<MovementBase>(m => m.MovementBase)
+                .OwnsOne(m => m.MovementData)
+                .HasOne(md => md.MovementBase)
                 .WithMany()
-                .HasForeignKey(m => m.MovementBaseID)
+                .HasForeignKey(md => md.MovementBaseID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Movement>()
+                .OwnsOne(m => m.MovementData)
+                .HasOne(md => md.MovementModifier)
+                .WithMany()
+                .HasForeignKey(md => md.MovementModifierID)
                 .OnDelete(DeleteBehavior.Restrict);
 
 

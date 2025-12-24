@@ -16,10 +16,6 @@ public interface IMovementService
     Task<Result<MovementDTO>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request);
     Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request);
     Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId);
-    Task<Result<EquipmentDTO>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request);
-    Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId);
-    Task<Result<List<EquipmentDTO>>> GetEquipmentsAsync(IdentityUser user);
-    Task<Result<EquipmentDTO>> UpdateEquipmentAsync(IdentityUser user, UpdateEquipmentRequest request);
 }
 public class MovementService : IMovementService
 {
@@ -47,10 +43,11 @@ public class MovementService : IMovementService
 
         var movements = await _context.Movements
             .Where(m => m.TrainingSessionID == sessionId)
-            .Include(m => m.MovementBase)
             .Include(m => m.LiftSets)
             .Include(m => m.DistanceTimeSets)
-            .Include(m => m.MovementModifier).ThenInclude(mm => mm.Equipment)
+            .Include(m => m.MovementData).ThenInclude(md => md.Equipment)
+            .Include(m => m.MovementData).ThenInclude(md => md.MovementBase)
+            .Include(m => m.MovementData).ThenInclude(md => md.MovementModifier)
             .OrderBy(m => m.Ordering)
             .ToListAsync();
 
@@ -74,40 +71,59 @@ public class MovementService : IMovementService
         }
 
         // Verify movement base exists
-        var movementBase = await _context.MovementBases.FindAsync(request.MovementBaseID);
+        var movementBase = await _context.MovementBases.FindAsync(request.MovementData.MovementBaseID);
 
         if (movementBase is null)
         {
             return Result<MovementDTO>.NotFound("Movement base not found.");
         }
 
-        var equipment = await _context.Equipments.FindAsync(request.MovementModifier.EquipmentID);
+        var equipment = await _context.Equipments.FindAsync(request.MovementData.EquipmentID);
         if (equipment == null)
         {
             return Result<MovementDTO>.NotFound("Equipment not found.");
         }
 
-        var orderings = await _context.Movements.Select(m => (int?)m.Ordering).ToListAsync();
+        // Verify movement modifier if provided
+        MovementModifier? movementModifier = null;
+        if (request.MovementData.MovementModifierID.HasValue)
+        {
+            movementModifier = await _context.Set<MovementModifier>()
+                .FirstOrDefaultAsync(mm => mm.MovementModifierID == request.MovementData.MovementModifierID.Value && mm.UserID == userGuid);
+            if (movementModifier == null)
+            {
+                return Result<MovementDTO>.NotFound("Movement modifier not found.");
+            }
+        }
+
+        var orderings = await _context.Movements
+            .Where(m => m.TrainingSessionID == request.TrainingSessionID)
+            .Select(m => (int?)m.Ordering)
+            .ToListAsync();
         var maxOrdering = orderings.Count > 0 && orderings.Any(o => o.HasValue) ? orderings.Max() ?? -1 : -1;
+
         var movement = new Movement
         {
             MovementID = Guid.NewGuid(),
             TrainingSessionID = request.TrainingSessionID,
-            MovementBaseID = request.MovementBaseID,
             Notes = request.Notes,
-            MovementModifier = new MovementModifier
+            MovementData = new MovementData
             {
-                Name = request.MovementModifier.Name,
+                MovementDataID = Guid.NewGuid(),
+                UserID = userGuid,
                 EquipmentID = equipment.EquipmentID,
                 Equipment = equipment,
+                MovementBaseID = movementBase.MovementBaseID,
+                MovementBase = movementBase,
+                MovementModifierID = movementModifier?.MovementModifierID,
+                MovementModifier = movementModifier
             },
             IsCompleted = false,
-            MovementBase = movementBase,
             Ordering = maxOrdering + 1,
             LiftSets = new List<LiftSetEntry>(),
             DistanceTimeSets = new List<DTSetEntry>()
         };
-        var x = movement.MovementBaseID;
+
         _context.Movements.Add(movement);
         await _context.SaveChangesAsync();
 
@@ -120,9 +136,8 @@ public class MovementService : IMovementService
         var movement = await _context.Movements
             .Include(m => m.TrainingSession)
             .ThenInclude(ts => ts.TrainingProgram)
+            .Include(m => m.MovementData)
             .FirstOrDefaultAsync(m => m.MovementID == request.MovementID);
-
-
 
         if (movement == null)
         {
@@ -134,26 +149,42 @@ public class MovementService : IMovementService
         }
 
         // Verify movement base exists if being updated
-        var movementBase = await _context.MovementBases.FindAsync(request.MovementBaseID);
+        var movementBase = await _context.MovementBases.FindAsync(request.MovementData.MovementBaseID);
 
         if (movementBase == null)
         {
             return Result<MovementDTO>.NotFound("Movement base not found.");
         }
 
-        var equipment = await _context.Equipments.FindAsync(request.MovementModifier.EquipmentID);
+        var equipment = await _context.Equipments.FindAsync(request.MovementData.EquipmentID);
         if (equipment == null)
         {
             return Result<MovementDTO>.NotFound("Equipment not found.");
         }
-    
-        movement.MovementBaseID = request.MovementBaseID;
-        movement.Notes = request.Notes;
-        movement.MovementModifier = new MovementModifier
+
+        // Verify movement modifier if provided
+        MovementModifier? movementModifier = null;
+        if (request.MovementData.MovementModifierID.HasValue)
         {
-            Name = request.MovementModifier.Name,
+            movementModifier = await _context.Set<MovementModifier>()
+                .FirstOrDefaultAsync(mm => mm.MovementModifierID == request.MovementData.MovementModifierID.Value && mm.UserID == userGuid);
+            if (movementModifier == null)
+            {
+                return Result<MovementDTO>.NotFound("Movement modifier not found.");
+            }
+        }
+
+        movement.Notes = request.Notes;
+        movement.MovementData = new MovementData
+        {
+            MovementDataID = Guid.NewGuid(),
+            UserID = userGuid,
             EquipmentID = equipment.EquipmentID,
             Equipment = equipment,
+            MovementBaseID = movementBase.MovementBaseID,
+            MovementBase = movementBase,
+            MovementModifierID = movementModifier?.MovementModifierID,
+            MovementModifier = movementModifier
         };
         movement.IsCompleted = request.IsCompleted;
 
@@ -182,94 +213,4 @@ public class MovementService : IMovementService
         await _context.SaveChangesAsync();
         return Result.NoContent();
     }
-
-
-
-
-    public async Task<Result<EquipmentDTO>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        // Check if equipment with this name already exists for this user
-        var existingEquipment = await _context.Equipments
-            .FirstOrDefaultAsync(e => e.Name.ToLower() == request.Name.ToLower() && e.UserID == userGuid);
-
-        if (existingEquipment != null)
-        {
-            return Result<EquipmentDTO>.Conflict("An equipment with this name already exists for this user.");
-        }
-
-        var equipment = new Equipment
-        {
-            EquipmentID = Guid.NewGuid(),
-            Name = request.Name,
-            UserID = userGuid,
-            Enabled = true  
-        };
-
-        _context.Equipments.Add(equipment);
-        await _context.SaveChangesAsync();
-        return Result<EquipmentDTO>.Created(equipment.Adapt<EquipmentDTO>());
-    }
-    public async Task<Result<EquipmentDTO>> UpdateEquipmentAsync(IdentityUser user, UpdateEquipmentRequest request)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        var equipment = await _context.Equipments
-            .FirstOrDefaultAsync(e => e.EquipmentID == request.EquipmentID && e.UserID == userGuid);
-
-        if (equipment == null)
-        {
-            return Result.NotFound("Equipment not found or not owned by user.");
-        }
-
-        // Check for name conflicts
-        var nameConflict = await _context.Equipments
-            .AnyAsync(e => e.Name.Equals(request.Name, StringComparison.CurrentCultureIgnoreCase) && e.UserID == userGuid && e.EquipmentID != request.EquipmentID);
-
-        if (nameConflict)
-        {
-            return Result.Conflict("An equipment with this name already exists for this user.");
-        }
-
-        equipment.Name = request.Name;
-        equipment.Enabled = request.Enabled;
-
-        await _context.SaveChangesAsync();
-        return Result<EquipmentDTO>.Success(equipment.Adapt<EquipmentDTO>());
-    }
-
-    public async Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        // Verify the equipment exists and belongs to the user
-        var equipment = await _context.Equipments.FirstOrDefaultAsync(e => e.EquipmentID == equipmentId && e.UserID == userGuid);
-        if (equipment == null)
-        {
-            return Result.NotFound("Equipment not found or not owned by user.");
-        }
-
-         // Prevent deleting a equipment that’s in use
-        var inUse = await _context.Movements.AnyAsync(m => m.MovementModifier.EquipmentID == equipmentId);
-        if (inUse)
-        {
-            return Result.Conflict("Cannot delete equipment while it has associated movements.");
-        }
-
-        // Remove and save
-        _context.Equipments.Remove(equipment);
-        await _context.SaveChangesAsync();
-        return Result.NoContent();
-    }
-
-    public async Task<Result<List<EquipmentDTO>>> GetEquipmentsAsync(IdentityUser user)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        var equipments = await _context.Equipments
-            .Where(e => e.UserID == userGuid)
-            .OrderBy(e => e.Name)
-            .ToListAsync();
-        return Result<List<EquipmentDTO>>.Success(equipments.Adapt<List<EquipmentDTO>>());
-    }
-
-
-
 }

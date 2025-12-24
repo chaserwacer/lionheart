@@ -46,6 +46,7 @@ builder.Services.AddTransient<IWellnessService, WellnessService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
+builder.Services.AddTransient<IEquipmentService, EquipmentService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 
 builder.Services.AddHttpContextAccessor();

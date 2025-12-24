@@ -15,12 +15,12 @@ namespace lionheart.Endpoints.Training.Equipment
         .WithoutRequest
         .WithActionResult<List<EquipmentDTO>>
     {
-        private readonly IMovementService _movementService;
+        private readonly IEquipmentService _equipmentService;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public GetEquipmentsEndpoint(IMovementService movementService, UserManager<IdentityUser> userManager)
+        public GetEquipmentsEndpoint(IEquipmentService equipmentService, UserManager<IdentityUser> userManager)
         {
-            _movementService = movementService;
+            _equipmentService = equipmentService;
             _userManager = userManager;
         }
 
@@ -33,7 +33,7 @@ namespace lionheart.Endpoints.Training.Equipment
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-            return this.ToActionResult(await _movementService.GetEquipmentsAsync(user));
+            return this.ToActionResult(await _equipmentService.GetEquipmentsAsync(user));
         }
     }
 }

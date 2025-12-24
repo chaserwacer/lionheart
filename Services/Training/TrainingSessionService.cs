@@ -101,9 +101,8 @@ public class TrainingSessionService : ITrainingSessionService
             .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.DistanceTimeSets)
             .Include(ts => ts.Movements)
-                .ThenInclude(m => m.MovementBase)
-            .Include(ts => ts.Movements)
-                .ThenInclude(m => m.MovementModifier.Equipment)
+                .ThenInclude(m => m.MovementData)
+                .ThenInclude(md => md.Equipment)
             .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID &&
                                       ts.TrainingProgram!.UserID == userGuid);
         if (session is null)
@@ -232,6 +231,9 @@ public class TrainingSessionService : ITrainingSessionService
                 .ThenInclude(m => m.LiftSets)
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.DistanceTimeSets)
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.MovementData)
+                .ThenInclude(md => md.MovementModifier)
             .Include(ts => ts.TrainingProgram)
             .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID && ts.TrainingProgram!.UserID == userGuid);
 
@@ -253,30 +255,33 @@ public class TrainingSessionService : ITrainingSessionService
 
         foreach (var movement in originalSession.Movements)
         {
-            var equipment = await _context.Equipments.FindAsync(movement.MovementModifier.EquipmentID);
+            var equipment = await _context.Equipments.FindAsync(movement.MovementData.EquipmentID);
             if (equipment is null)
             {
-                return Result<TrainingSessionDTO>.Error($"EquipmentID {movement.MovementModifier.EquipmentID} not found.");
+                return Result<TrainingSessionDTO>.Error($"EquipmentID {movement.MovementData.EquipmentID} not found.");
             }
-            var newMovementModififer = new MovementModifier()
-            {
-                Name = movement.MovementModifier.Name,
-                EquipmentID = movement.MovementModifier.EquipmentID,
-                Equipment = equipment,
-            };
-            var movementBase = await _context.MovementBases.FindAsync(movement.MovementBaseID);
+            var movementBase = await _context.MovementBases.FindAsync(movement.MovementData.MovementBaseID);
             if (movementBase is null)
             {
-                return Result<TrainingSessionDTO>.Error($"MovementBaseID {movement.MovementBaseID} not found.");
+                return Result<TrainingSessionDTO>.Error($"MovementBaseID {movement.MovementData.MovementBaseID} not found.");
             }
+            var newMovementData = new MovementData()
+            {
+                MovementDataID = Guid.NewGuid(),
+                UserID = movement.MovementData.UserID,
+                EquipmentID = movement.MovementData.EquipmentID,
+                Equipment = equipment,
+                MovementBaseID = movementBase.MovementBaseID,
+                MovementBase = movementBase,
+                MovementModifierID = movement.MovementData.MovementModifierID,
+                MovementModifier = movement.MovementData.MovementModifier
+            };
             var newMovement = new Movement
             {
                 MovementID = Guid.NewGuid(),
                 TrainingSessionID = newSession.TrainingSessionID,
                 TrainingSession = newSession,
-                MovementBaseID = movementBase.MovementBaseID,
-                MovementBase = movementBase,
-                MovementModifier = newMovementModififer,
+                MovementData = newMovementData,
                 Notes = movement.Notes,
                 IsCompleted = false,
                 Ordering = movement.Ordering,

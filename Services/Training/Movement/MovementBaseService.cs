@@ -63,7 +63,7 @@ namespace lionheart.Services.Training
             }
 
             // Prevent deleting a base that’s in use
-            var inUse = await _context.Movements.AnyAsync(m => m.MovementBaseID == movementBaseId);
+            var inUse = await _context.Movements.AnyAsync(m => m.MovementData.MovementBaseID == movementBaseId);
             if (inUse)
             {
                 return Result.Conflict("Cannot delete movement base while it has associated movements.");
