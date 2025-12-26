@@ -46,12 +46,14 @@ builder.Services.AddTransient<IWellnessService, WellnessService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
+builder.Services.AddTransient<IMovementDataService, MovementDataService>();
 builder.Services.AddTransient<IEquipmentService, EquipmentService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<ILiftSetEntryService, LiftSetEntryService>();
 builder.Services.AddTransient<IDTSetEntryService, DTSetEntryService>();
+builder.Services.AddTransient<IPersonalRecordService, PersonalRecordService>();
 
 
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
@@ -144,16 +146,16 @@ app.MapControllerRoute(
 // Only run TypeScript generation in non-test environments
 if (!app.Environment.IsEnvironment("Testing"))
 {
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+#pragma warning disable CS4014 
     Task.Run(async () =>
         {
             Thread.Sleep(2000); // wait for the server to start
             await new TsClientGenerator().SimpleGenerate("http://localhost:7025/swagger/v1/swagger.json");
         });
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+#pragma warning restore CS4014 
 }
 
-app.MapMcp();
+// app.MapMcp();
 
 app.Run();
 

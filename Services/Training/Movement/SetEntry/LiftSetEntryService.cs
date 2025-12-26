@@ -13,27 +13,30 @@ namespace lionheart.Services
     /// <summary>
     /// Service for managing lifting set entries within movements.
     /// Handles business logic and ensures users can only access their own data.
+    /// Integrates with PersonalRecordService for PR tracking.
     /// </summary>
     [McpServerToolType]
     public class LiftSetEntryService : ILiftSetEntryService
     {
         private readonly ModelContext _context;
+        private readonly IPersonalRecordService _personalRecordService;
 
-        public LiftSetEntryService(ModelContext context)
+        public LiftSetEntryService(ModelContext context, IPersonalRecordService personalRecordService)
         {
             _context = context;
+            _personalRecordService = personalRecordService;
         }
 
         [McpServerTool, Description("Add a lifting set entry to a movement.")]
         public async Task<Result<LiftSetEntryDTO>> CreateLiftSetEntryAsync(IdentityUser user, CreateLiftSetEntryRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
-        
+
             // Verify user owns the movement
             var movement = await _context.Movements
                 .Include(m => m.TrainingSession)
                 .ThenInclude(ts => ts.TrainingProgram)
-                .FirstOrDefaultAsync(m => m.MovementID == request.MovementID && 
+                .FirstOrDefaultAsync(m => m.MovementID == request.MovementID &&
                                         m.TrainingSession.TrainingProgram!.UserID == userGuid);
 
             if (movement == null)
@@ -57,7 +60,13 @@ namespace lionheart.Services
 
             _context.LiftSetEntries.Add(setEntry);
             await _context.SaveChangesAsync();
-        
+
+            // Check for PRs if the training session is already completed
+            if (movement.TrainingSession.Status == TrainingSessionStatus.Completed)
+            {
+                await _personalRecordService.SubmitAttemptAsync(user, setEntry, forceCheck: true);
+            }
+
             return Result<LiftSetEntryDTO>.Created(setEntry.Adapt<LiftSetEntryDTO>());
         }
 
@@ -76,6 +85,11 @@ namespace lionheart.Services
                 return Result<LiftSetEntryDTO>.NotFound("Set entry not found or access denied.");
             }
 
+            // Store old values for PR revert check
+            var oldWeight = setEntry.ActualWeight;
+            var oldReps = setEntry.ActualReps;
+            var isSessionCompleted = setEntry.Movement.TrainingSession.Status == TrainingSessionStatus.Completed;
+
             // Update values
             setEntry.RecommendedReps = request.RecommendedReps;
             setEntry.RecommendedWeight = request.RecommendedWeight;
@@ -86,7 +100,20 @@ namespace lionheart.Services
             setEntry.WeightUnit = request.WeightUnit;
 
             await _context.SaveChangesAsync();
-        
+
+            // Handle PR checking for completed sessions
+            if (isSessionCompleted)
+            {
+                // Check if values decreased - if so, check if we need to revert any PRs
+                if (request.ActualWeight < oldWeight || (request.ActualWeight * request.ActualReps) < (oldWeight * oldReps))
+                {
+                    await _personalRecordService.CheckAndRevertPRIfNeededAsync(user, setEntry, oldWeight, oldReps);
+                }
+
+                // Check for new PRs with updated values
+                await _personalRecordService.SubmitAttemptAsync(user, setEntry, forceCheck: true);
+            }
+
             return Result<LiftSetEntryDTO>.Success(setEntry.Adapt<LiftSetEntryDTO>());
         }
 

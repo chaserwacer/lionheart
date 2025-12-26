@@ -68,11 +68,12 @@ public interface ITrainingSessionService
 public class TrainingSessionService : ITrainingSessionService
 {
     private readonly ModelContext _context;
+    private readonly IPersonalRecordService _personalRecordService;
 
-
-    public TrainingSessionService(ModelContext context)
+    public TrainingSessionService(ModelContext context, IPersonalRecordService personalRecordService)
     {
         _context = context;
+        _personalRecordService = personalRecordService;
     }
 
 
@@ -161,7 +162,11 @@ public class TrainingSessionService : ITrainingSessionService
         {
             return Result<TrainingSessionDTO>.NotFound("Training session not found or access denied.");
         }
-        
+
+        // Track if status is changing to Completed for PR processing
+        var wasNotCompleted = session.Status != TrainingSessionStatus.Completed;
+        var becomingCompleted = request.Status == TrainingSessionStatus.Completed;
+
         if (request.TrainingProgramID is not null && request.TrainingProgramID != Guid.Empty)
         {
             var program = await _context.TrainingPrograms
@@ -200,6 +205,13 @@ public class TrainingSessionService : ITrainingSessionService
             session.PerceivedEffortRatings = null;
         }
         await _context.SaveChangesAsync();
+
+        // Process PRs when session is marked as Completed
+        if (wasNotCompleted && becomingCompleted)
+        {
+            await _personalRecordService.ProcessTrainingSessionAsync(user, session.TrainingSessionID);
+        }
+
         return Result<TrainingSessionDTO>.Success(session.Adapt<TrainingSessionDTO>());
     }
 
@@ -233,7 +245,6 @@ public class TrainingSessionService : ITrainingSessionService
                 .ThenInclude(m => m.DistanceTimeSets)
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.MovementData)
-                .ThenInclude(md => md.MovementModifier)
             .Include(ts => ts.TrainingProgram)
             .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID && ts.TrainingProgram!.UserID == userGuid);
 
@@ -248,51 +259,30 @@ public class TrainingSessionService : ITrainingSessionService
             TrainingProgram = originalSession.TrainingProgram,
             Date = originalSession.Date,
             Status = TrainingSessionStatus.Planned,
-            Movements = new List<Movement>(),
+            Movements = [],
             CreationTime = DateTime.UtcNow,
             Notes = originalSession.Notes
         };
 
         foreach (var movement in originalSession.Movements)
         {
-            var equipment = await _context.Equipments.FindAsync(movement.MovementData.EquipmentID);
-            if (equipment is null)
-            {
-                return Result<TrainingSessionDTO>.Error($"EquipmentID {movement.MovementData.EquipmentID} not found.");
-            }
-            var movementBase = await _context.MovementBases.FindAsync(movement.MovementData.MovementBaseID);
-            if (movementBase is null)
-            {
-                return Result<TrainingSessionDTO>.Error($"MovementBaseID {movement.MovementData.MovementBaseID} not found.");
-            }
-            var newMovementData = new MovementData()
-            {
-                MovementDataID = Guid.NewGuid(),
-                UserID = movement.MovementData.UserID,
-                EquipmentID = movement.MovementData.EquipmentID,
-                Equipment = equipment,
-                MovementBaseID = movementBase.MovementBaseID,
-                MovementBase = movementBase,
-                MovementModifierID = movement.MovementData.MovementModifierID,
-                MovementModifier = movement.MovementData.MovementModifier
-            };
+            // Reuse the same MovementData since it's now a shared reference
             var newMovement = new Movement
             {
                 MovementID = Guid.NewGuid(),
                 TrainingSessionID = newSession.TrainingSessionID,
                 TrainingSession = newSession,
-                MovementData = newMovementData,
+                MovementDataID = movement.MovementDataID,
+                MovementData = movement.MovementData,
                 Notes = movement.Notes,
                 IsCompleted = false,
                 Ordering = movement.Ordering,
-                LiftSets = new List<LiftSetEntry>(),
-                DistanceTimeSets = new List<DTSetEntry>()
+                LiftSets = [],
+                DistanceTimeSets = []
             };
 
             foreach (var set in movement.LiftSets)
             {
-
-
                 newMovement.LiftSets.Add(new LiftSetEntry
                 {
                     SetEntryID = Guid.NewGuid(),
@@ -327,7 +317,6 @@ public class TrainingSessionService : ITrainingSessionService
                     IntervalType = dtSet.IntervalType,
                     DistanceUnit = dtSet.DistanceUnit,
                     ActualRPE = dtSet.ActualRPE
-
                 });
             }
             newSession.Movements.Add(newMovement);

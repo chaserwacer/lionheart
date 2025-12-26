@@ -516,7 +516,7 @@ export class CreateMovementBaseEndpointClient {
     }
 }
 
-export class CreateMovementEndpointClient {
+export class CreateMovementDataEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -530,8 +530,8 @@ export class CreateMovementEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create6(body: CreateMovementRequest | undefined): Promise<MovementDTO> {
-        let url_ = this.baseUrl + "/api/movement/create";
+    create6(body: CreateMovementDataRequest | undefined): Promise<MovementDataDTO> {
+        let url_ = this.baseUrl + "/api/movement-data/create";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(body);
@@ -550,7 +550,81 @@ export class CreateMovementEndpointClient {
         });
     }
 
-    protected processCreate6(response: Response): Promise<MovementDTO> {
+    protected processCreate6(response: Response): Promise<MovementDataDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = MovementDataDTO.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ProblemDetails.fromJS(resultData409);
+            return throwException("Conflict", status, _responseText, _headers, result409);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MovementDataDTO>(null as any);
+    }
+}
+
+export class CreateMovementEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    create7(body: CreateMovementRequest | undefined): Promise<MovementDTO> {
+        let url_ = this.baseUrl + "/api/movement/create";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreate7(_response);
+        });
+    }
+
+    protected processCreate7(response: Response): Promise<MovementDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -657,7 +731,7 @@ export class CreateTrainingProgramEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create7(body: CreateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
+    create8(body: CreateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -673,11 +747,11 @@ export class CreateTrainingProgramEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate7(_response);
+            return this.processCreate8(_response);
         });
     }
 
-    protected processCreate7(response: Response): Promise<TrainingProgramDTO> {
+    protected processCreate8(response: Response): Promise<TrainingProgramDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -717,7 +791,7 @@ export class CreateTrainingSessionEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create8(body: CreateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
+    create9(body: CreateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/training-session/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -733,11 +807,11 @@ export class CreateTrainingSessionEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate8(_response);
+            return this.processCreate9(_response);
         });
     }
 
-    protected processCreate8(response: Response): Promise<TrainingSessionDTO> {
+    protected processCreate9(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -1471,23 +1545,23 @@ export class GetActivitiesEndpointClient {
     }
 
     /**
-     * @param body (optional) 
      * @return OK
      */
-    getUserActivities(userId: string, body: DateRangeRequest | undefined): Promise<ActivityDTO[]> {
-        let url_ = this.baseUrl + "/api/activity/get-user-activities/{userId}";
-        if (userId === undefined || userId === null)
-            throw new Error("The parameter 'userId' must be defined.");
-        url_ = url_.replace("{userId}", encodeURIComponent("" + userId));
+    getUserActivities(startDate: Date, endDate: Date): Promise<ActivityDTO[]> {
+        let url_ = this.baseUrl + "/api/activity/get-user-activities?";
+        if (startDate === undefined || startDate === null)
+            throw new Error("The parameter 'startDate' must be defined and cannot be null.");
+        else
+            url_ += "StartDate=" + encodeURIComponent(startDate ? "" + startDate.toISOString() : "") + "&";
+        if (endDate === undefined || endDate === null)
+            throw new Error("The parameter 'endDate' must be defined and cannot be null.");
+        else
+            url_ += "EndDate=" + encodeURIComponent(endDate ? "" + endDate.toISOString() : "") + "&";
         url_ = url_.replace(/[?&]$/, "");
 
-        const content_ = JSON.stringify(body);
-
         let options_: RequestInit = {
-            body: content_,
             method: "GET",
             headers: {
-                "Content-Type": "application/json",
                 "Accept": "text/plain"
             }
         };
@@ -1588,6 +1662,68 @@ export class GetActivityEndpointClient {
     }
 }
 
+export class GetAllMuscleGroupsAsyncClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    getAll(): Promise<MuscleGroup[]> {
+        let url_ = this.baseUrl + "/api/muscle-groups/get-all";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAll(_response);
+        });
+    }
+
+    protected processGetAll(response: Response): Promise<MuscleGroup[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(MuscleGroup.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MuscleGroup[]>(null as any);
+    }
+}
+
 export class GetDailyOuraDataEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1661,7 +1797,7 @@ export class GetEquipmentsEndpointClient {
     /**
      * @return OK
      */
-    getAll(): Promise<EquipmentDTO[]> {
+    getAll2(): Promise<EquipmentDTO[]> {
         let url_ = this.baseUrl + "/api/equipment/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -1673,11 +1809,11 @@ export class GetEquipmentsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll(_response);
+            return this.processGetAll2(_response);
         });
     }
 
-    protected processGetAll(response: Response): Promise<EquipmentDTO[]> {
+    protected processGetAll2(response: Response): Promise<EquipmentDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1723,7 +1859,7 @@ export class GetMovementBasesEndpointClient {
     /**
      * @return OK
      */
-    getAll2(): Promise<MovementBaseDTO[]> {
+    getAll3(): Promise<MovementBaseDTO[]> {
         let url_ = this.baseUrl + "/api/movement-base/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -1735,11 +1871,11 @@ export class GetMovementBasesEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll2(_response);
+            return this.processGetAll3(_response);
         });
     }
 
-    protected processGetAll2(response: Response): Promise<MovementBaseDTO[]> {
+    protected processGetAll3(response: Response): Promise<MovementBaseDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1772,6 +1908,133 @@ export class GetMovementBasesEndpointClient {
     }
 }
 
+export class GetMovementDataEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    movementData(movementDataId: string): Promise<MovementDataDTO> {
+        let url_ = this.baseUrl + "/api/movement-data/{movementDataId}";
+        if (movementDataId === undefined || movementDataId === null)
+            throw new Error("The parameter 'movementDataId' must be defined.");
+        url_ = url_.replace("{movementDataId}", encodeURIComponent("" + movementDataId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processMovementData(_response);
+        });
+    }
+
+    protected processMovementData(response: Response): Promise<MovementDataDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = MovementDataDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MovementDataDTO>(null as any);
+    }
+}
+
+export class GetMovementDatasEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    movementDatas(): Promise<MovementDataDTO[]> {
+        let url_ = this.baseUrl + "/api/movement-datas";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processMovementDatas(_response);
+        });
+    }
+
+    protected processMovementDatas(response: Response): Promise<MovementDataDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(MovementDataDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MovementDataDTO[]>(null as any);
+    }
+}
+
 export class GetMovementsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1785,7 +2048,7 @@ export class GetMovementsEndpointClient {
     /**
      * @return OK
      */
-    getAll3(sessionID: string): Promise<MovementDTO[]> {
+    getAll4(sessionID: string): Promise<MovementDTO[]> {
         let url_ = this.baseUrl + "/api/movement/get-all/{sessionId}";
         if (sessionID === undefined || sessionID === null)
             throw new Error("The parameter 'sessionID' must be defined.");
@@ -1800,11 +2063,11 @@ export class GetMovementsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll3(_response);
+            return this.processGetAll4(_response);
         });
     }
 
-    protected processGetAll3(response: Response): Promise<MovementDTO[]> {
+    protected processGetAll4(response: Response): Promise<MovementDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1841,6 +2104,265 @@ export class GetMovementsEndpointClient {
             });
         }
         return Promise.resolve<MovementDTO[]>(null as any);
+    }
+}
+
+export class GetPersonalRecordsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    personalRecords(): Promise<PersonalRecordDTO[]> {
+        let url_ = this.baseUrl + "/api/personal-records";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPersonalRecords(_response);
+        });
+    }
+
+    protected processPersonalRecords(response: Response): Promise<PersonalRecordDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(PersonalRecordDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PersonalRecordDTO[]>(null as any);
+    }
+}
+
+export class GetPRHistoryEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param pRType (optional) 
+     * @return OK
+     */
+    history(movementDataId: string, pRType: PersonalRecordType | undefined): Promise<PersonalRecordDTO[]> {
+        let url_ = this.baseUrl + "/api/personal-records/history/{movementDataId}?";
+        if (movementDataId === undefined || movementDataId === null)
+            throw new Error("The parameter 'movementDataId' must be defined.");
+        url_ = url_.replace("{MovementDataId}", encodeURIComponent("" + movementDataId));
+        if (pRType === null)
+            throw new Error("The parameter 'pRType' cannot be null.");
+        else if (pRType !== undefined)
+            url_ += "PRType=" + encodeURIComponent("" + pRType) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processHistory(_response);
+        });
+    }
+
+    protected processHistory(response: Response): Promise<PersonalRecordDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(PersonalRecordDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PersonalRecordDTO[]>(null as any);
+    }
+}
+
+export class GetPRSummariesEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    summaries(): Promise<MovementDataPRSummary[]> {
+        let url_ = this.baseUrl + "/api/personal-records/summaries";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processSummaries(_response);
+        });
+    }
+
+    protected processSummaries(response: Response): Promise<MovementDataPRSummary[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(MovementDataPRSummary.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MovementDataPRSummary[]>(null as any);
+    }
+}
+
+export class GetPRSummaryForMovementDataEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    summary(movementDataId: string): Promise<MovementDataPRSummary> {
+        let url_ = this.baseUrl + "/api/personal-records/summary/{movementDataId}";
+        if (movementDataId === undefined || movementDataId === null)
+            throw new Error("The parameter 'movementDataId' must be defined.");
+        url_ = url_.replace("{movementDataId}", encodeURIComponent("" + movementDataId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processSummary(_response);
+        });
+    }
+
+    protected processSummary(response: Response): Promise<MovementDataPRSummary> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = MovementDataPRSummary.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MovementDataPRSummary>(null as any);
     }
 }
 
@@ -1922,7 +2444,7 @@ export class GetTrainingProgramsEndpointClient {
     /**
      * @return OK
      */
-    getAll4(): Promise<TrainingProgramDTO[]> {
+    getAll5(): Promise<TrainingProgramDTO[]> {
         let url_ = this.baseUrl + "/api/training-program/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -1934,11 +2456,11 @@ export class GetTrainingProgramsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll4(_response);
+            return this.processGetAll5(_response);
         });
     }
 
-    protected processGetAll4(response: Response): Promise<TrainingProgramDTO[]> {
+    protected processGetAll5(response: Response): Promise<TrainingProgramDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2052,7 +2574,7 @@ export class GetTrainingSessionsEndpointClient {
     /**
      * @return OK
      */
-    getAll5(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
+    getAll6(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
         let url_ = this.baseUrl + "/api/training-session/get-all/{trainingProgramId}";
         if (trainingProgramId === undefined || trainingProgramId === null)
             throw new Error("The parameter 'trainingProgramId' must be defined.");
@@ -2067,11 +2589,11 @@ export class GetTrainingSessionsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll5(_response);
+            return this.processGetAll6(_response);
         });
     }
 
-    protected processGetAll5(response: Response): Promise<TrainingSessionDTO[]> {
+    protected processGetAll6(response: Response): Promise<TrainingSessionDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2909,6 +3431,75 @@ export class LogoutUserEndpointClient {
     }
 }
 
+export class RevertPREndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    revert(personalRecordId: string): Promise<PersonalRecordDTO> {
+        let url_ = this.baseUrl + "/api/personal-records/revert/{personalRecordId}";
+        if (personalRecordId === undefined || personalRecordId === null)
+            throw new Error("The parameter 'personalRecordId' must be defined.");
+        url_ = url_.replace("{personalRecordId}", encodeURIComponent("" + personalRecordId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRevert(_response);
+        });
+    }
+
+    protected processRevert(response: Response): Promise<PersonalRecordDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = PersonalRecordDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 204) {
+            return response.text().then((_responseText) => {
+            return throwException("No Content", status, _responseText, _headers);
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PersonalRecordDTO>(null as any);
+    }
+}
+
 export class SetPersonalApiAccessTokenEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3612,8 +4203,7 @@ export class Activity implements IActivity {
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
-    activityDetails?: ActivityDetails;
+    perceivedEffortRatings?: ActivityPerceivedEffortRatings;
 
     constructor(data?: IActivity) {
         if (data) {
@@ -3633,8 +4223,7 @@ export class Activity implements IActivity {
             this.caloriesBurned = _data["caloriesBurned"];
             this.name = _data["name"];
             this.userSummary = _data["userSummary"];
-            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
-            this.activityDetails = _data["activityDetails"] ? ActivityDetails.fromJS(_data["activityDetails"]) : <any>undefined;
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? ActivityPerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
         }
     }
 
@@ -3655,7 +4244,6 @@ export class Activity implements IActivity {
         data["name"] = this.name;
         data["userSummary"] = this.userSummary;
         data["perceivedEffortRatings"] = this.perceivedEffortRatings ? this.perceivedEffortRatings.toJSON() : <any>undefined;
-        data["activityDetails"] = this.activityDetails ? this.activityDetails.toJSON() : <any>undefined;
         return data;
     }
 }
@@ -3668,8 +4256,7 @@ export interface IActivity {
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
-    activityDetails?: ActivityDetails;
+    perceivedEffortRatings?: ActivityPerceivedEffortRatings;
 }
 
 export class ActivityDTO implements IActivityDTO {
@@ -3680,8 +4267,7 @@ export class ActivityDTO implements IActivityDTO {
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
-    activityDetails?: ActivityDetails;
+    perceivedEffortRatings?: ActivityPerceivedEffortRatings;
 
     constructor(data?: IActivityDTO) {
         if (data) {
@@ -3701,8 +4287,7 @@ export class ActivityDTO implements IActivityDTO {
             this.caloriesBurned = _data["caloriesBurned"];
             this.name = _data["name"];
             this.userSummary = _data["userSummary"];
-            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
-            this.activityDetails = _data["activityDetails"] ? ActivityDetails.fromJS(_data["activityDetails"]) : <any>undefined;
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? ActivityPerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
         }
     }
 
@@ -3723,7 +4308,6 @@ export class ActivityDTO implements IActivityDTO {
         data["name"] = this.name;
         data["userSummary"] = this.userSummary;
         data["perceivedEffortRatings"] = this.perceivedEffortRatings ? this.perceivedEffortRatings.toJSON() : <any>undefined;
-        data["activityDetails"] = this.activityDetails ? this.activityDetails.toJSON() : <any>undefined;
         return data;
     }
 }
@@ -3736,8 +4320,7 @@ export interface IActivityDTO {
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
-    activityDetails?: ActivityDetails;
+    perceivedEffortRatings?: ActivityPerceivedEffortRatings;
 }
 
 export class ActivityData implements IActivityData {
@@ -3816,56 +4399,47 @@ export interface IActivityData {
     trainingVolume?: number;
 }
 
-export class ActivityDetails implements IActivityDetails {
-    distance?: number | undefined;
-    elevationGain?: number | undefined;
-    averagePower?: number | undefined;
-    averageSpeed?: number | undefined;
-    type?: string | undefined;
+export class ActivityPerceivedEffortRatings implements IActivityPerceivedEffortRatings {
+    activityID!: string;
+    perceivedEffortRatings!: PerceivedEffortRatings;
 
-    constructor(data?: IActivityDetails) {
+    constructor(data?: IActivityPerceivedEffortRatings) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
         }
+        if (!data) {
+            this.perceivedEffortRatings = new PerceivedEffortRatings();
+        }
     }
 
     init(_data?: any) {
         if (_data) {
-            this.distance = _data["distance"];
-            this.elevationGain = _data["elevationGain"];
-            this.averagePower = _data["averagePower"];
-            this.averageSpeed = _data["averageSpeed"];
-            this.type = _data["type"];
+            this.activityID = _data["activityID"];
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : new PerceivedEffortRatings();
         }
     }
 
-    static fromJS(data: any): ActivityDetails {
+    static fromJS(data: any): ActivityPerceivedEffortRatings {
         data = typeof data === 'object' ? data : {};
-        let result = new ActivityDetails();
+        let result = new ActivityPerceivedEffortRatings();
         result.init(data);
         return result;
     }
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["distance"] = this.distance;
-        data["elevationGain"] = this.elevationGain;
-        data["averagePower"] = this.averagePower;
-        data["averageSpeed"] = this.averageSpeed;
-        data["type"] = this.type;
+        data["activityID"] = this.activityID;
+        data["perceivedEffortRatings"] = this.perceivedEffortRatings ? this.perceivedEffortRatings.toJSON() : <any>undefined;
         return data;
     }
 }
 
-export interface IActivityDetails {
-    distance?: number | undefined;
-    elevationGain?: number | undefined;
-    averagePower?: number | undefined;
-    averageSpeed?: number | undefined;
-    type?: string | undefined;
+export interface IActivityPerceivedEffortRatings {
+    activityID: string;
+    perceivedEffortRatings: PerceivedEffortRatings;
 }
 
 export class ApiAccessToken implements IApiAccessToken {
@@ -4332,8 +4906,7 @@ export class CreateActivityRequest implements ICreateActivityRequest {
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
-    activityDetails?: ActivityDetails;
+    perceivedEffortRatings?: ActivityPerceivedEffortRatings;
 
     constructor(data?: ICreateActivityRequest) {
         if (data) {
@@ -4352,8 +4925,7 @@ export class CreateActivityRequest implements ICreateActivityRequest {
             this.caloriesBurned = _data["caloriesBurned"];
             this.name = _data["name"];
             this.userSummary = _data["userSummary"];
-            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
-            this.activityDetails = _data["activityDetails"] ? ActivityDetails.fromJS(_data["activityDetails"]) : <any>undefined;
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? ActivityPerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
         }
     }
 
@@ -4373,7 +4945,6 @@ export class CreateActivityRequest implements ICreateActivityRequest {
         data["name"] = this.name;
         data["userSummary"] = this.userSummary;
         data["perceivedEffortRatings"] = this.perceivedEffortRatings ? this.perceivedEffortRatings.toJSON() : <any>undefined;
-        data["activityDetails"] = this.activityDetails ? this.activityDetails.toJSON() : <any>undefined;
         return data;
     }
 }
@@ -4385,8 +4956,7 @@ export interface ICreateActivityRequest {
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
-    activityDetails?: ActivityDetails;
+    perceivedEffortRatings?: ActivityPerceivedEffortRatings;
 }
 
 export class CreateDTSetEntryRequest implements ICreateDTSetEntryRequest {
@@ -4622,9 +5192,9 @@ export interface ICreateInjuryRequest {
 
 export class CreateLiftSetEntryRequest implements ICreateLiftSetEntryRequest {
     movementID?: string;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
     actualReps?: number;
     actualWeight?: number;
     actualRPE?: number;
@@ -4675,9 +5245,9 @@ export class CreateLiftSetEntryRequest implements ICreateLiftSetEntryRequest {
 
 export interface ICreateLiftSetEntryRequest {
     movementID?: string;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
     actualReps?: number;
     actualWeight?: number;
     actualRPE?: number;
@@ -4687,7 +5257,7 @@ export interface ICreateLiftSetEntryRequest {
 export class CreateMovementBaseRequest implements ICreateMovementBaseRequest {
     name?: string | undefined;
     description?: string | undefined;
-    muscleGroups?: MuscleGroup[] | undefined;
+    trainedMuscles?: TrainedMuscle[] | undefined;
 
     constructor(data?: ICreateMovementBaseRequest) {
         if (data) {
@@ -4702,10 +5272,10 @@ export class CreateMovementBaseRequest implements ICreateMovementBaseRequest {
         if (_data) {
             this.name = _data["name"];
             this.description = _data["description"];
-            if (Array.isArray(_data["muscleGroups"])) {
-                this.muscleGroups = [] as any;
-                for (let item of _data["muscleGroups"])
-                    this.muscleGroups!.push(item);
+            if (Array.isArray(_data["trainedMuscles"])) {
+                this.trainedMuscles = [] as any;
+                for (let item of _data["trainedMuscles"])
+                    this.trainedMuscles!.push(TrainedMuscle.fromJS(item));
             }
         }
     }
@@ -4721,10 +5291,10 @@ export class CreateMovementBaseRequest implements ICreateMovementBaseRequest {
         data = typeof data === 'object' ? data : {};
         data["name"] = this.name;
         data["description"] = this.description;
-        if (Array.isArray(this.muscleGroups)) {
-            data["muscleGroups"] = [];
-            for (let item of this.muscleGroups)
-                data["muscleGroups"].push(item);
+        if (Array.isArray(this.trainedMuscles)) {
+            data["trainedMuscles"] = [];
+            for (let item of this.trainedMuscles)
+                data["trainedMuscles"].push(item ? item.toJSON() : <any>undefined);
         }
         return data;
     }
@@ -4733,13 +5303,56 @@ export class CreateMovementBaseRequest implements ICreateMovementBaseRequest {
 export interface ICreateMovementBaseRequest {
     name?: string | undefined;
     description?: string | undefined;
-    muscleGroups?: MuscleGroup[] | undefined;
+    trainedMuscles?: TrainedMuscle[] | undefined;
+}
+
+export class CreateMovementDataRequest implements ICreateMovementDataRequest {
+    equipmentID?: string;
+    movementBaseID?: string;
+    movementModifierID?: string | undefined;
+
+    constructor(data?: ICreateMovementDataRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.equipmentID = _data["equipmentID"];
+            this.movementBaseID = _data["movementBaseID"];
+            this.movementModifierID = _data["movementModifierID"];
+        }
+    }
+
+    static fromJS(data: any): CreateMovementDataRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateMovementDataRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["equipmentID"] = this.equipmentID;
+        data["movementBaseID"] = this.movementBaseID;
+        data["movementModifierID"] = this.movementModifierID;
+        return data;
+    }
+}
+
+export interface ICreateMovementDataRequest {
+    equipmentID?: string;
+    movementBaseID?: string;
+    movementModifierID?: string | undefined;
 }
 
 export class CreateMovementRequest implements ICreateMovementRequest {
     trainingSessionID?: string;
-    movementBaseID?: string;
-    movementModifier?: MovementModifier;
+    movementData?: CreateMovementDataRequest;
     notes?: string | undefined;
 
     constructor(data?: ICreateMovementRequest) {
@@ -4754,8 +5367,7 @@ export class CreateMovementRequest implements ICreateMovementRequest {
     init(_data?: any) {
         if (_data) {
             this.trainingSessionID = _data["trainingSessionID"];
-            this.movementBaseID = _data["movementBaseID"];
-            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : <any>undefined;
+            this.movementData = _data["movementData"] ? CreateMovementDataRequest.fromJS(_data["movementData"]) : <any>undefined;
             this.notes = _data["notes"];
         }
     }
@@ -4770,8 +5382,7 @@ export class CreateMovementRequest implements ICreateMovementRequest {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["trainingSessionID"] = this.trainingSessionID;
-        data["movementBaseID"] = this.movementBaseID;
-        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        data["movementData"] = this.movementData ? this.movementData.toJSON() : <any>undefined;
         data["notes"] = this.notes;
         return data;
     }
@@ -4779,8 +5390,7 @@ export class CreateMovementRequest implements ICreateMovementRequest {
 
 export interface ICreateMovementRequest {
     trainingSessionID?: string;
-    movementBaseID?: string;
-    movementModifier?: MovementModifier;
+    movementData?: CreateMovementDataRequest;
     notes?: string | undefined;
 }
 
@@ -4932,7 +5542,7 @@ export class CreateTrainingSessionRequest implements ICreateTrainingSessionReque
     date?: Date;
     trainingProgramID?: string | undefined;
     notes?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
+    perceivedEffortRatings?: TrainingSessionPerceivedEffortRatings;
 
     constructor(data?: ICreateTrainingSessionRequest) {
         if (data) {
@@ -4948,7 +5558,7 @@ export class CreateTrainingSessionRequest implements ICreateTrainingSessionReque
             this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
             this.trainingProgramID = _data["trainingProgramID"];
             this.notes = _data["notes"];
-            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? TrainingSessionPerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
         }
     }
 
@@ -4973,7 +5583,7 @@ export interface ICreateTrainingSessionRequest {
     date?: Date;
     trainingProgramID?: string | undefined;
     notes?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
+    perceivedEffortRatings?: TrainingSessionPerceivedEffortRatings;
 }
 
 export class CreateWellnessStateRequest implements ICreateWellnessStateRequest {
@@ -6081,9 +6691,9 @@ export class LiftSetEntry implements ILiftSetEntry {
     setEntryID?: string;
     movementID?: string;
     movement?: Movement;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
     actualReps?: number;
     actualWeight?: number;
     actualRPE?: number;
@@ -6140,9 +6750,9 @@ export interface ILiftSetEntry {
     setEntryID?: string;
     movementID?: string;
     movement?: Movement;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
     actualReps?: number;
     actualWeight?: number;
     actualRPE?: number;
@@ -6152,9 +6762,9 @@ export interface ILiftSetEntry {
 export class LiftSetEntryDTO implements ILiftSetEntryDTO {
     setEntryID?: string;
     movementID?: string;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
     actualReps?: number;
     actualWeight?: number;
     actualRPE?: number;
@@ -6208,9 +6818,9 @@ export class LiftSetEntryDTO implements ILiftSetEntryDTO {
 export interface ILiftSetEntryDTO {
     setEntryID?: string;
     movementID?: string;
-    recommendedReps?: number;
-    recommendedWeight?: number;
-    recommendedRPE?: number;
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
     actualReps?: number;
     actualWeight?: number;
     actualRPE?: number;
@@ -6229,7 +6839,10 @@ export class LionheartUser implements ILionheartUser {
     dailyOuraInfos?: DailyOuraData[] | undefined;
     trainingPrograms?: TrainingProgram[] | undefined;
     movementBases?: MovementBase[] | undefined;
+    movementDatas?: MovementData[] | undefined;
+    movementModifiers?: MovementModifier[] | undefined;
     equipments?: Equipment[] | undefined;
+    personalRecords?: PersonalRecord[] | undefined;
     injuries?: Injury[] | undefined;
     chatConversations?: ChatConversation[] | undefined;
 
@@ -6279,10 +6892,25 @@ export class LionheartUser implements ILionheartUser {
                 for (let item of _data["movementBases"])
                     this.movementBases!.push(MovementBase.fromJS(item));
             }
+            if (Array.isArray(_data["movementDatas"])) {
+                this.movementDatas = [] as any;
+                for (let item of _data["movementDatas"])
+                    this.movementDatas!.push(MovementData.fromJS(item));
+            }
+            if (Array.isArray(_data["movementModifiers"])) {
+                this.movementModifiers = [] as any;
+                for (let item of _data["movementModifiers"])
+                    this.movementModifiers!.push(MovementModifier.fromJS(item));
+            }
             if (Array.isArray(_data["equipments"])) {
                 this.equipments = [] as any;
                 for (let item of _data["equipments"])
                     this.equipments!.push(Equipment.fromJS(item));
+            }
+            if (Array.isArray(_data["personalRecords"])) {
+                this.personalRecords = [] as any;
+                for (let item of _data["personalRecords"])
+                    this.personalRecords!.push(PersonalRecord.fromJS(item));
             }
             if (Array.isArray(_data["injuries"])) {
                 this.injuries = [] as any;
@@ -6341,10 +6969,25 @@ export class LionheartUser implements ILionheartUser {
             for (let item of this.movementBases)
                 data["movementBases"].push(item ? item.toJSON() : <any>undefined);
         }
+        if (Array.isArray(this.movementDatas)) {
+            data["movementDatas"] = [];
+            for (let item of this.movementDatas)
+                data["movementDatas"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.movementModifiers)) {
+            data["movementModifiers"] = [];
+            for (let item of this.movementModifiers)
+                data["movementModifiers"].push(item ? item.toJSON() : <any>undefined);
+        }
         if (Array.isArray(this.equipments)) {
             data["equipments"] = [];
             for (let item of this.equipments)
                 data["equipments"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.personalRecords)) {
+            data["personalRecords"] = [];
+            for (let item of this.personalRecords)
+                data["personalRecords"].push(item ? item.toJSON() : <any>undefined);
         }
         if (Array.isArray(this.injuries)) {
             data["injuries"] = [];
@@ -6372,7 +7015,10 @@ export interface ILionheartUser {
     dailyOuraInfos?: DailyOuraData[] | undefined;
     trainingPrograms?: TrainingProgram[] | undefined;
     movementBases?: MovementBase[] | undefined;
+    movementDatas?: MovementData[] | undefined;
+    movementModifiers?: MovementModifier[] | undefined;
     equipments?: Equipment[] | undefined;
+    personalRecords?: PersonalRecord[] | undefined;
     injuries?: Injury[] | undefined;
     chatConversations?: ChatConversation[] | undefined;
 }
@@ -6429,9 +7075,8 @@ export class Movement implements IMovement {
     movementID!: string;
     trainingSessionID!: string;
     trainingSession?: TrainingSession;
-    movementBaseID!: string;
-    movementBase!: MovementBase;
-    movementModifier!: MovementModifier;
+    movementDataID!: string;
+    movementData?: MovementData;
     liftSets!: LiftSetEntry[] | undefined;
     distanceTimeSets!: DTSetEntry[] | undefined;
     notes!: string | undefined;
@@ -6445,10 +7090,6 @@ export class Movement implements IMovement {
                     (<any>this)[property] = (<any>data)[property];
             }
         }
-        if (!data) {
-            this.movementBase = new MovementBase();
-            this.movementModifier = new MovementModifier();
-        }
     }
 
     init(_data?: any) {
@@ -6456,9 +7097,8 @@ export class Movement implements IMovement {
             this.movementID = _data["movementID"];
             this.trainingSessionID = _data["trainingSessionID"];
             this.trainingSession = _data["trainingSession"] ? TrainingSession.fromJS(_data["trainingSession"]) : <any>undefined;
-            this.movementBaseID = _data["movementBaseID"];
-            this.movementBase = _data["movementBase"] ? MovementBase.fromJS(_data["movementBase"]) : new MovementBase();
-            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : new MovementModifier();
+            this.movementDataID = _data["movementDataID"];
+            this.movementData = _data["movementData"] ? MovementData.fromJS(_data["movementData"]) : <any>undefined;
             if (Array.isArray(_data["liftSets"])) {
                 this.liftSets = [] as any;
                 for (let item of _data["liftSets"])
@@ -6487,9 +7127,8 @@ export class Movement implements IMovement {
         data["movementID"] = this.movementID;
         data["trainingSessionID"] = this.trainingSessionID;
         data["trainingSession"] = this.trainingSession ? this.trainingSession.toJSON() : <any>undefined;
-        data["movementBaseID"] = this.movementBaseID;
-        data["movementBase"] = this.movementBase ? this.movementBase.toJSON() : <any>undefined;
-        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        data["movementDataID"] = this.movementDataID;
+        data["movementData"] = this.movementData ? this.movementData.toJSON() : <any>undefined;
         if (Array.isArray(this.liftSets)) {
             data["liftSets"] = [];
             for (let item of this.liftSets)
@@ -6511,9 +7150,8 @@ export interface IMovement {
     movementID: string;
     trainingSessionID: string;
     trainingSession?: TrainingSession;
-    movementBaseID: string;
-    movementBase: MovementBase;
-    movementModifier: MovementModifier;
+    movementDataID: string;
+    movementData?: MovementData;
     liftSets: LiftSetEntry[] | undefined;
     distanceTimeSets: DTSetEntry[] | undefined;
     notes: string | undefined;
@@ -6526,7 +7164,7 @@ export class MovementBase implements IMovementBase {
     name!: string | undefined;
     userID!: string;
     description!: string | undefined;
-    muscleGroups!: MuscleGroup[] | undefined;
+    trainedMuscles!: TrainedMuscle[] | undefined;
 
     constructor(data?: IMovementBase) {
         if (data) {
@@ -6543,10 +7181,10 @@ export class MovementBase implements IMovementBase {
             this.name = _data["name"];
             this.userID = _data["userID"];
             this.description = _data["description"];
-            if (Array.isArray(_data["muscleGroups"])) {
-                this.muscleGroups = [] as any;
-                for (let item of _data["muscleGroups"])
-                    this.muscleGroups!.push(item);
+            if (Array.isArray(_data["trainedMuscles"])) {
+                this.trainedMuscles = [] as any;
+                for (let item of _data["trainedMuscles"])
+                    this.trainedMuscles!.push(TrainedMuscle.fromJS(item));
             }
         }
     }
@@ -6564,10 +7202,10 @@ export class MovementBase implements IMovementBase {
         data["name"] = this.name;
         data["userID"] = this.userID;
         data["description"] = this.description;
-        if (Array.isArray(this.muscleGroups)) {
-            data["muscleGroups"] = [];
-            for (let item of this.muscleGroups)
-                data["muscleGroups"].push(item);
+        if (Array.isArray(this.trainedMuscles)) {
+            data["trainedMuscles"] = [];
+            for (let item of this.trainedMuscles)
+                data["trainedMuscles"].push(item ? item.toJSON() : <any>undefined);
         }
         return data;
     }
@@ -6578,14 +7216,14 @@ export interface IMovementBase {
     name: string | undefined;
     userID: string;
     description: string | undefined;
-    muscleGroups: MuscleGroup[] | undefined;
+    trainedMuscles: TrainedMuscle[] | undefined;
 }
 
 export class MovementBaseDTO implements IMovementBaseDTO {
     movementBaseID?: string;
     name?: string | undefined;
     description?: string | undefined;
-    muscleGroups?: MuscleGroup[] | undefined;
+    trainedMuscles?: TrainedMuscle[] | undefined;
 
     constructor(data?: IMovementBaseDTO) {
         if (data) {
@@ -6601,10 +7239,10 @@ export class MovementBaseDTO implements IMovementBaseDTO {
             this.movementBaseID = _data["movementBaseID"];
             this.name = _data["name"];
             this.description = _data["description"];
-            if (Array.isArray(_data["muscleGroups"])) {
-                this.muscleGroups = [] as any;
-                for (let item of _data["muscleGroups"])
-                    this.muscleGroups!.push(item);
+            if (Array.isArray(_data["trainedMuscles"])) {
+                this.trainedMuscles = [] as any;
+                for (let item of _data["trainedMuscles"])
+                    this.trainedMuscles!.push(TrainedMuscle.fromJS(item));
             }
         }
     }
@@ -6621,10 +7259,10 @@ export class MovementBaseDTO implements IMovementBaseDTO {
         data["movementBaseID"] = this.movementBaseID;
         data["name"] = this.name;
         data["description"] = this.description;
-        if (Array.isArray(this.muscleGroups)) {
-            data["muscleGroups"] = [];
-            for (let item of this.muscleGroups)
-                data["muscleGroups"].push(item);
+        if (Array.isArray(this.trainedMuscles)) {
+            data["trainedMuscles"] = [];
+            for (let item of this.trainedMuscles)
+                data["trainedMuscles"].push(item ? item.toJSON() : <any>undefined);
         }
         return data;
     }
@@ -6634,15 +7272,14 @@ export interface IMovementBaseDTO {
     movementBaseID?: string;
     name?: string | undefined;
     description?: string | undefined;
-    muscleGroups?: MuscleGroup[] | undefined;
+    trainedMuscles?: TrainedMuscle[] | undefined;
 }
 
 export class MovementDTO implements IMovementDTO {
     movementID?: string;
     trainingSessionID?: string;
-    movementBaseID?: string;
-    movementBase?: MovementBaseDTO;
-    movementModifier?: MovementModifier;
+    movementDataID?: string;
+    movementData?: MovementDataDTO;
     liftSets?: LiftSetEntryDTO[] | undefined;
     distanceTimeSets?: DTSetEntryDTO[] | undefined;
     notes?: string | undefined;
@@ -6662,9 +7299,8 @@ export class MovementDTO implements IMovementDTO {
         if (_data) {
             this.movementID = _data["movementID"];
             this.trainingSessionID = _data["trainingSessionID"];
-            this.movementBaseID = _data["movementBaseID"];
-            this.movementBase = _data["movementBase"] ? MovementBaseDTO.fromJS(_data["movementBase"]) : <any>undefined;
-            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : <any>undefined;
+            this.movementDataID = _data["movementDataID"];
+            this.movementData = _data["movementData"] ? MovementDataDTO.fromJS(_data["movementData"]) : <any>undefined;
             if (Array.isArray(_data["liftSets"])) {
                 this.liftSets = [] as any;
                 for (let item of _data["liftSets"])
@@ -6692,9 +7328,8 @@ export class MovementDTO implements IMovementDTO {
         data = typeof data === 'object' ? data : {};
         data["movementID"] = this.movementID;
         data["trainingSessionID"] = this.trainingSessionID;
-        data["movementBaseID"] = this.movementBaseID;
-        data["movementBase"] = this.movementBase ? this.movementBase.toJSON() : <any>undefined;
-        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        data["movementDataID"] = this.movementDataID;
+        data["movementData"] = this.movementData ? this.movementData.toJSON() : <any>undefined;
         if (Array.isArray(this.liftSets)) {
             data["liftSets"] = [];
             for (let item of this.liftSets)
@@ -6715,9 +7350,8 @@ export class MovementDTO implements IMovementDTO {
 export interface IMovementDTO {
     movementID?: string;
     trainingSessionID?: string;
-    movementBaseID?: string;
-    movementBase?: MovementBaseDTO;
-    movementModifier?: MovementModifier;
+    movementDataID?: string;
+    movementData?: MovementDataDTO;
     liftSets?: LiftSetEntryDTO[] | undefined;
     distanceTimeSets?: DTSetEntryDTO[] | undefined;
     notes?: string | undefined;
@@ -6725,12 +7359,18 @@ export interface IMovementDTO {
     ordering?: number;
 }
 
-export class MovementModifier implements IMovementModifier {
-    name!: string;
+export class MovementData implements IMovementData {
+    movementDataID!: string;
+    userID!: string;
     equipmentID!: string;
     equipment!: Equipment;
+    movementBaseID!: string;
+    movementBase!: MovementBase;
+    movementModifierID?: string | undefined;
+    movementModifier?: MovementModifier;
+    createdAt?: Date;
 
-    constructor(data?: IMovementModifier) {
+    constructor(data?: IMovementData) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -6739,14 +7379,189 @@ export class MovementModifier implements IMovementModifier {
         }
         if (!data) {
             this.equipment = new Equipment();
+            this.movementBase = new MovementBase();
         }
     }
 
     init(_data?: any) {
         if (_data) {
-            this.name = _data["name"];
+            this.movementDataID = _data["movementDataID"];
+            this.userID = _data["userID"];
             this.equipmentID = _data["equipmentID"];
             this.equipment = _data["equipment"] ? Equipment.fromJS(_data["equipment"]) : new Equipment();
+            this.movementBaseID = _data["movementBaseID"];
+            this.movementBase = _data["movementBase"] ? MovementBase.fromJS(_data["movementBase"]) : new MovementBase();
+            this.movementModifierID = _data["movementModifierID"];
+            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : <any>undefined;
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): MovementData {
+        data = typeof data === 'object' ? data : {};
+        let result = new MovementData();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementDataID"] = this.movementDataID;
+        data["userID"] = this.userID;
+        data["equipmentID"] = this.equipmentID;
+        data["equipment"] = this.equipment ? this.equipment.toJSON() : <any>undefined;
+        data["movementBaseID"] = this.movementBaseID;
+        data["movementBase"] = this.movementBase ? this.movementBase.toJSON() : <any>undefined;
+        data["movementModifierID"] = this.movementModifierID;
+        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IMovementData {
+    movementDataID: string;
+    userID: string;
+    equipmentID: string;
+    equipment: Equipment;
+    movementBaseID: string;
+    movementBase: MovementBase;
+    movementModifierID?: string | undefined;
+    movementModifier?: MovementModifier;
+    createdAt?: Date;
+}
+
+export class MovementDataDTO implements IMovementDataDTO {
+    movementDataID?: string;
+    equipmentID?: string;
+    equipment?: EquipmentDTO;
+    movementBaseID?: string;
+    movementBase?: MovementBaseDTO;
+    movementModifierID?: string | undefined;
+    movementModifier?: MovementModifierDTO;
+
+    constructor(data?: IMovementDataDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementDataID = _data["movementDataID"];
+            this.equipmentID = _data["equipmentID"];
+            this.equipment = _data["equipment"] ? EquipmentDTO.fromJS(_data["equipment"]) : <any>undefined;
+            this.movementBaseID = _data["movementBaseID"];
+            this.movementBase = _data["movementBase"] ? MovementBaseDTO.fromJS(_data["movementBase"]) : <any>undefined;
+            this.movementModifierID = _data["movementModifierID"];
+            this.movementModifier = _data["movementModifier"] ? MovementModifierDTO.fromJS(_data["movementModifier"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): MovementDataDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new MovementDataDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementDataID"] = this.movementDataID;
+        data["equipmentID"] = this.equipmentID;
+        data["equipment"] = this.equipment ? this.equipment.toJSON() : <any>undefined;
+        data["movementBaseID"] = this.movementBaseID;
+        data["movementBase"] = this.movementBase ? this.movementBase.toJSON() : <any>undefined;
+        data["movementModifierID"] = this.movementModifierID;
+        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IMovementDataDTO {
+    movementDataID?: string;
+    equipmentID?: string;
+    equipment?: EquipmentDTO;
+    movementBaseID?: string;
+    movementBase?: MovementBaseDTO;
+    movementModifierID?: string | undefined;
+    movementModifier?: MovementModifierDTO;
+}
+
+export class MovementDataPRSummary implements IMovementDataPRSummary {
+    movementDataID?: string;
+    movementData?: MovementDataDTO;
+    strengthPR?: PersonalRecordDTO;
+    volumePR?: PersonalRecordDTO;
+    lastPRDate?: Date | undefined;
+
+    constructor(data?: IMovementDataPRSummary) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementDataID = _data["movementDataID"];
+            this.movementData = _data["movementData"] ? MovementDataDTO.fromJS(_data["movementData"]) : <any>undefined;
+            this.strengthPR = _data["strengthPR"] ? PersonalRecordDTO.fromJS(_data["strengthPR"]) : <any>undefined;
+            this.volumePR = _data["volumePR"] ? PersonalRecordDTO.fromJS(_data["volumePR"]) : <any>undefined;
+            this.lastPRDate = _data["lastPRDate"] ? new Date(_data["lastPRDate"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): MovementDataPRSummary {
+        data = typeof data === 'object' ? data : {};
+        let result = new MovementDataPRSummary();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementDataID"] = this.movementDataID;
+        data["movementData"] = this.movementData ? this.movementData.toJSON() : <any>undefined;
+        data["strengthPR"] = this.strengthPR ? this.strengthPR.toJSON() : <any>undefined;
+        data["volumePR"] = this.volumePR ? this.volumePR.toJSON() : <any>undefined;
+        data["lastPRDate"] = this.lastPRDate ? this.lastPRDate.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IMovementDataPRSummary {
+    movementDataID?: string;
+    movementData?: MovementDataDTO;
+    strengthPR?: PersonalRecordDTO;
+    volumePR?: PersonalRecordDTO;
+    lastPRDate?: Date | undefined;
+}
+
+export class MovementModifier implements IMovementModifier {
+    movementModifierID!: string;
+    name!: string;
+    userID!: string;
+
+    constructor(data?: IMovementModifier) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementModifierID = _data["movementModifierID"];
+            this.name = _data["name"];
+            this.userID = _data["userID"];
         }
     }
 
@@ -6759,37 +7574,97 @@ export class MovementModifier implements IMovementModifier {
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
+        data["movementModifierID"] = this.movementModifierID;
         data["name"] = this.name;
-        data["equipmentID"] = this.equipmentID;
-        data["equipment"] = this.equipment ? this.equipment.toJSON() : <any>undefined;
+        data["userID"] = this.userID;
         return data;
     }
 }
 
 export interface IMovementModifier {
+    movementModifierID: string;
     name: string;
-    equipmentID: string;
-    equipment: Equipment;
+    userID: string;
 }
 
-export enum MuscleGroup {
-    _0 = 0,
-    _1 = 1,
-    _2 = 2,
-    _3 = 3,
-    _4 = 4,
-    _5 = 5,
-    _6 = 6,
-    _7 = 7,
-    _8 = 8,
-    _9 = 9,
-    _10 = 10,
-    _11 = 11,
-    _12 = 12,
-    _13 = 13,
-    _14 = 14,
-    _15 = 15,
-    _16 = 16,
+export class MovementModifierDTO implements IMovementModifierDTO {
+    movementModifierID?: string;
+    name?: string | undefined;
+
+    constructor(data?: IMovementModifierDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementModifierID = _data["movementModifierID"];
+            this.name = _data["name"];
+        }
+    }
+
+    static fromJS(data: any): MovementModifierDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new MovementModifierDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementModifierID"] = this.movementModifierID;
+        data["name"] = this.name;
+        return data;
+    }
+}
+
+export interface IMovementModifierDTO {
+    movementModifierID?: string;
+    name?: string | undefined;
+}
+
+export class MuscleGroup implements IMuscleGroup {
+    muscleGroupID!: string;
+    name!: string | undefined;
+
+    constructor(data?: IMuscleGroup) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.muscleGroupID = _data["muscleGroupID"];
+            this.name = _data["name"];
+        }
+    }
+
+    static fromJS(data: any): MuscleGroup {
+        data = typeof data === 'object' ? data : {};
+        let result = new MuscleGroup();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["muscleGroupID"] = this.muscleGroupID;
+        data["name"] = this.name;
+        return data;
+    }
+}
+
+export interface IMuscleGroup {
+    muscleGroupID: string;
+    name: string | undefined;
 }
 
 export class PerceivedEffortRatings implements IPerceivedEffortRatings {
@@ -6838,6 +7713,198 @@ export interface IPerceivedEffortRatings {
     difficultyRating?: number | undefined;
     engagementRating?: number | undefined;
     externalVariablesRating?: number | undefined;
+}
+
+export class PersonalRecord implements IPersonalRecord {
+    personalRecordID!: string;
+    userID!: string;
+    movementDataID!: string;
+    movementData!: MovementData;
+    prType!: PersonalRecordType;
+    weight!: number;
+    weightUnit!: WeightUnit;
+    reps!: number;
+    readonly volume?: number;
+    createdAt!: Date;
+    previousPRCreatedAt?: Date | undefined;
+    previousPersonalRecordID?: string | undefined;
+    previousPersonalRecord?: PersonalRecord;
+    sourceLiftSetEntryID?: string | undefined;
+    sourceLiftSetEntry?: LiftSetEntry;
+    isActive!: boolean;
+
+    constructor(data?: IPersonalRecord) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+        if (!data) {
+            this.movementData = new MovementData();
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.personalRecordID = _data["personalRecordID"];
+            this.userID = _data["userID"];
+            this.movementDataID = _data["movementDataID"];
+            this.movementData = _data["movementData"] ? MovementData.fromJS(_data["movementData"]) : new MovementData();
+            this.prType = _data["prType"];
+            this.weight = _data["weight"];
+            this.weightUnit = _data["weightUnit"];
+            this.reps = _data["reps"];
+            (<any>this).volume = _data["volume"];
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : <any>undefined;
+            this.previousPRCreatedAt = _data["previousPRCreatedAt"] ? new Date(_data["previousPRCreatedAt"].toString()) : <any>undefined;
+            this.previousPersonalRecordID = _data["previousPersonalRecordID"];
+            this.previousPersonalRecord = _data["previousPersonalRecord"] ? PersonalRecord.fromJS(_data["previousPersonalRecord"]) : <any>undefined;
+            this.sourceLiftSetEntryID = _data["sourceLiftSetEntryID"];
+            this.sourceLiftSetEntry = _data["sourceLiftSetEntry"] ? LiftSetEntry.fromJS(_data["sourceLiftSetEntry"]) : <any>undefined;
+            this.isActive = _data["isActive"];
+        }
+    }
+
+    static fromJS(data: any): PersonalRecord {
+        data = typeof data === 'object' ? data : {};
+        let result = new PersonalRecord();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["personalRecordID"] = this.personalRecordID;
+        data["userID"] = this.userID;
+        data["movementDataID"] = this.movementDataID;
+        data["movementData"] = this.movementData ? this.movementData.toJSON() : <any>undefined;
+        data["prType"] = this.prType;
+        data["weight"] = this.weight;
+        data["weightUnit"] = this.weightUnit;
+        data["reps"] = this.reps;
+        data["volume"] = this.volume;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : <any>undefined;
+        data["previousPRCreatedAt"] = this.previousPRCreatedAt ? this.previousPRCreatedAt.toISOString() : <any>undefined;
+        data["previousPersonalRecordID"] = this.previousPersonalRecordID;
+        data["previousPersonalRecord"] = this.previousPersonalRecord ? this.previousPersonalRecord.toJSON() : <any>undefined;
+        data["sourceLiftSetEntryID"] = this.sourceLiftSetEntryID;
+        data["sourceLiftSetEntry"] = this.sourceLiftSetEntry ? this.sourceLiftSetEntry.toJSON() : <any>undefined;
+        data["isActive"] = this.isActive;
+        return data;
+    }
+}
+
+export interface IPersonalRecord {
+    personalRecordID: string;
+    userID: string;
+    movementDataID: string;
+    movementData: MovementData;
+    prType: PersonalRecordType;
+    weight: number;
+    weightUnit: WeightUnit;
+    reps: number;
+    volume?: number;
+    createdAt: Date;
+    previousPRCreatedAt?: Date | undefined;
+    previousPersonalRecordID?: string | undefined;
+    previousPersonalRecord?: PersonalRecord;
+    sourceLiftSetEntryID?: string | undefined;
+    sourceLiftSetEntry?: LiftSetEntry;
+    isActive: boolean;
+}
+
+export class PersonalRecordDTO implements IPersonalRecordDTO {
+    personalRecordID?: string;
+    userID?: string;
+    movementDataID?: string;
+    movementData?: MovementDataDTO;
+    prType?: PersonalRecordType;
+    weight?: number;
+    weightUnit?: WeightUnit;
+    reps?: number;
+    volume?: number;
+    createdAt?: Date;
+    previousPRCreatedAt?: Date | undefined;
+    previousPersonalRecordID?: string | undefined;
+    sourceLiftSetEntryID?: string | undefined;
+    isActive?: boolean;
+
+    constructor(data?: IPersonalRecordDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.personalRecordID = _data["personalRecordID"];
+            this.userID = _data["userID"];
+            this.movementDataID = _data["movementDataID"];
+            this.movementData = _data["movementData"] ? MovementDataDTO.fromJS(_data["movementData"]) : <any>undefined;
+            this.prType = _data["prType"];
+            this.weight = _data["weight"];
+            this.weightUnit = _data["weightUnit"];
+            this.reps = _data["reps"];
+            this.volume = _data["volume"];
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : <any>undefined;
+            this.previousPRCreatedAt = _data["previousPRCreatedAt"] ? new Date(_data["previousPRCreatedAt"].toString()) : <any>undefined;
+            this.previousPersonalRecordID = _data["previousPersonalRecordID"];
+            this.sourceLiftSetEntryID = _data["sourceLiftSetEntryID"];
+            this.isActive = _data["isActive"];
+        }
+    }
+
+    static fromJS(data: any): PersonalRecordDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new PersonalRecordDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["personalRecordID"] = this.personalRecordID;
+        data["userID"] = this.userID;
+        data["movementDataID"] = this.movementDataID;
+        data["movementData"] = this.movementData ? this.movementData.toJSON() : <any>undefined;
+        data["prType"] = this.prType;
+        data["weight"] = this.weight;
+        data["weightUnit"] = this.weightUnit;
+        data["reps"] = this.reps;
+        data["volume"] = this.volume;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : <any>undefined;
+        data["previousPRCreatedAt"] = this.previousPRCreatedAt ? this.previousPRCreatedAt.toISOString() : <any>undefined;
+        data["previousPersonalRecordID"] = this.previousPersonalRecordID;
+        data["sourceLiftSetEntryID"] = this.sourceLiftSetEntryID;
+        data["isActive"] = this.isActive;
+        return data;
+    }
+}
+
+export interface IPersonalRecordDTO {
+    personalRecordID?: string;
+    userID?: string;
+    movementDataID?: string;
+    movementData?: MovementDataDTO;
+    prType?: PersonalRecordType;
+    weight?: number;
+    weightUnit?: WeightUnit;
+    reps?: number;
+    volume?: number;
+    createdAt?: Date;
+    previousPRCreatedAt?: Date | undefined;
+    previousPersonalRecordID?: string | undefined;
+    sourceLiftSetEntryID?: string | undefined;
+    isActive?: boolean;
+}
+
+export enum PersonalRecordType {
+    _0 = 0,
+    _1 = 1,
 }
 
 export class ProblemDetails implements IProblemDetails {
@@ -7244,6 +8311,46 @@ export interface ISleepData {
     totalSleep?: number;
 }
 
+export class TrainedMuscle implements ITrainedMuscle {
+    muscleGroupID!: string;
+    contributionPercentage?: number;
+
+    constructor(data?: ITrainedMuscle) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.muscleGroupID = _data["muscleGroupID"];
+            this.contributionPercentage = _data["contributionPercentage"];
+        }
+    }
+
+    static fromJS(data: any): TrainedMuscle {
+        data = typeof data === 'object' ? data : {};
+        let result = new TrainedMuscle();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["muscleGroupID"] = this.muscleGroupID;
+        data["contributionPercentage"] = this.contributionPercentage;
+        return data;
+    }
+}
+
+export interface ITrainedMuscle {
+    muscleGroupID: string;
+    contributionPercentage?: number;
+}
+
 export class TrainingProgram implements ITrainingProgram {
     trainingProgramID!: string;
     userID!: string;
@@ -7421,7 +8528,7 @@ export class TrainingSession implements ITrainingSession {
     movements!: Movement[] | undefined;
     creationTime!: Date;
     notes!: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
+    perceivedEffortRatings?: TrainingSessionPerceivedEffortRatings;
 
     constructor(data?: ITrainingSession) {
         if (data) {
@@ -7446,7 +8553,7 @@ export class TrainingSession implements ITrainingSession {
             }
             this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
             this.notes = _data["notes"];
-            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? TrainingSessionPerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
         }
     }
 
@@ -7485,7 +8592,7 @@ export interface ITrainingSession {
     movements: Movement[] | undefined;
     creationTime: Date;
     notes: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
+    perceivedEffortRatings?: TrainingSessionPerceivedEffortRatings;
 }
 
 export class TrainingSessionDTO implements ITrainingSessionDTO {
@@ -7496,7 +8603,7 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
     movements?: MovementDTO[] | undefined;
     creationTime?: Date;
     notes?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
+    perceivedEffortRatings?: TrainingSessionPerceivedEffortRatings;
 
     constructor(data?: ITrainingSessionDTO) {
         if (data) {
@@ -7520,7 +8627,7 @@ export class TrainingSessionDTO implements ITrainingSessionDTO {
             }
             this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
             this.notes = _data["notes"];
-            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? TrainingSessionPerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
         }
     }
 
@@ -7557,7 +8664,50 @@ export interface ITrainingSessionDTO {
     movements?: MovementDTO[] | undefined;
     creationTime?: Date;
     notes?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
+    perceivedEffortRatings?: TrainingSessionPerceivedEffortRatings;
+}
+
+export class TrainingSessionPerceivedEffortRatings implements ITrainingSessionPerceivedEffortRatings {
+    trainingSessionID!: string;
+    perceivedEffortRatings!: PerceivedEffortRatings;
+
+    constructor(data?: ITrainingSessionPerceivedEffortRatings) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+        if (!data) {
+            this.perceivedEffortRatings = new PerceivedEffortRatings();
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingSessionID = _data["trainingSessionID"];
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : new PerceivedEffortRatings();
+        }
+    }
+
+    static fromJS(data: any): TrainingSessionPerceivedEffortRatings {
+        data = typeof data === 'object' ? data : {};
+        let result = new TrainingSessionPerceivedEffortRatings();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingSessionID"] = this.trainingSessionID;
+        data["perceivedEffortRatings"] = this.perceivedEffortRatings ? this.perceivedEffortRatings.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface ITrainingSessionPerceivedEffortRatings {
+    trainingSessionID: string;
+    perceivedEffortRatings: PerceivedEffortRatings;
 }
 
 export enum TrainingSessionStatus {
@@ -7688,8 +8838,7 @@ export class UpdateActivityRequest implements IUpdateActivityRequest {
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
-    activityDetails?: ActivityDetails;
+    perceivedEffortRatings?: ActivityPerceivedEffortRatings;
 
     constructor(data?: IUpdateActivityRequest) {
         if (data) {
@@ -7709,8 +8858,7 @@ export class UpdateActivityRequest implements IUpdateActivityRequest {
             this.caloriesBurned = _data["caloriesBurned"];
             this.name = _data["name"];
             this.userSummary = _data["userSummary"];
-            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
-            this.activityDetails = _data["activityDetails"] ? ActivityDetails.fromJS(_data["activityDetails"]) : <any>undefined;
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? ActivityPerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
         }
     }
 
@@ -7731,7 +8879,6 @@ export class UpdateActivityRequest implements IUpdateActivityRequest {
         data["name"] = this.name;
         data["userSummary"] = this.userSummary;
         data["perceivedEffortRatings"] = this.perceivedEffortRatings ? this.perceivedEffortRatings.toJSON() : <any>undefined;
-        data["activityDetails"] = this.activityDetails ? this.activityDetails.toJSON() : <any>undefined;
         return data;
     }
 }
@@ -7744,8 +8891,7 @@ export interface IUpdateActivityRequest {
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
-    activityDetails?: ActivityDetails;
+    perceivedEffortRatings?: ActivityPerceivedEffortRatings;
 }
 
 export class UpdateDTSetEntryRequest implements IUpdateDTSetEntryRequest {
@@ -7997,8 +9143,7 @@ export interface IUpdateInjuryRequest {
 
 export class UpdateMovementRequest implements IUpdateMovementRequest {
     movementID?: string;
-    movementBaseID?: string;
-    movementModifier?: MovementModifier;
+    movementData?: CreateMovementDataRequest;
     notes?: string | undefined;
     isCompleted?: boolean;
 
@@ -8014,8 +9159,7 @@ export class UpdateMovementRequest implements IUpdateMovementRequest {
     init(_data?: any) {
         if (_data) {
             this.movementID = _data["movementID"];
-            this.movementBaseID = _data["movementBaseID"];
-            this.movementModifier = _data["movementModifier"] ? MovementModifier.fromJS(_data["movementModifier"]) : <any>undefined;
+            this.movementData = _data["movementData"] ? CreateMovementDataRequest.fromJS(_data["movementData"]) : <any>undefined;
             this.notes = _data["notes"];
             this.isCompleted = _data["isCompleted"];
         }
@@ -8031,8 +9175,7 @@ export class UpdateMovementRequest implements IUpdateMovementRequest {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["movementID"] = this.movementID;
-        data["movementBaseID"] = this.movementBaseID;
-        data["movementModifier"] = this.movementModifier ? this.movementModifier.toJSON() : <any>undefined;
+        data["movementData"] = this.movementData ? this.movementData.toJSON() : <any>undefined;
         data["notes"] = this.notes;
         data["isCompleted"] = this.isCompleted;
         return data;
@@ -8041,8 +9184,7 @@ export class UpdateMovementRequest implements IUpdateMovementRequest {
 
 export interface IUpdateMovementRequest {
     movementID?: string;
-    movementBaseID?: string;
-    movementModifier?: MovementModifier;
+    movementData?: CreateMovementDataRequest;
     notes?: string | undefined;
     isCompleted?: boolean;
 }
@@ -8117,7 +9259,7 @@ export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionReque
     date?: Date;
     status?: TrainingSessionStatus;
     notes?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
+    perceivedEffortRatings?: TrainingSessionPerceivedEffortRatings;
 
     constructor(data?: IUpdateTrainingSessionRequest) {
         if (data) {
@@ -8135,7 +9277,7 @@ export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionReque
             this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
             this.status = _data["status"];
             this.notes = _data["notes"];
-            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? PerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
+            this.perceivedEffortRatings = _data["perceivedEffortRatings"] ? TrainingSessionPerceivedEffortRatings.fromJS(_data["perceivedEffortRatings"]) : <any>undefined;
         }
     }
 
@@ -8164,7 +9306,7 @@ export interface IUpdateTrainingSessionRequest {
     date?: Date;
     status?: TrainingSessionStatus;
     notes?: string | undefined;
-    perceivedEffortRatings?: PerceivedEffortRatings;
+    perceivedEffortRatings?: TrainingSessionPerceivedEffortRatings;
 }
 
 export enum WeightUnit {

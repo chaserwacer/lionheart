@@ -27,8 +27,11 @@ namespace lionheart.Data
         public DbSet<Equipment> Equipments { get; set; }
         public DbSet<MuscleGroup> MuscleGroups { get; set;}
         public DbSet<Movement> Movements { get; set; }
+        public DbSet<MovementData> MovementDatas { get; set; }
+        public DbSet<MovementModifier> MovementModifiers { get; set; }
         public DbSet<LiftSetEntry> LiftSetEntries { get; set; }
         public DbSet<DTSetEntry> DTSetEntries { get; set; }
+        public DbSet<PersonalRecord> PersonalRecords { get; set; }
         public DbSet<Injury> Injuries { get; set; }
         public DbSet<InjuryEvent> InjuryEvents { get; set; }
         public DbSet<ChatConversation> ChatConversations { get; set; }
@@ -117,50 +120,76 @@ namespace lionheart.Data
                 .HasForeignKey<TrainingSessionPerceivedEffortRatings>(p => p.TrainingSessionID)
                 .IsRequired(false);
 
-            // Movements + Movement Bases + Movement Modifiers         
+            // Movements + Movement Bases + Movement Modifiers + MovementData
             modelBuilder.Entity<Movement>()
-            .HasKey(m => m.MovementID);
+                .HasKey(m => m.MovementID);
             modelBuilder.Entity<Movement>()
                 .HasOne<TrainingSession>(t => t.TrainingSession)
                 .WithMany(s => s.Movements)
                 .HasForeignKey(m => m.TrainingSessionID);
 
-            modelBuilder.Entity<MovementBase>()
-                .HasKey(m => m.MovementBaseID);
-            modelBuilder.Entity<Movement>()
-                .OwnsOne(m => m.MovementData)
-                .HasOne(m => m.Equipment)
+            // MovementData is now a separate table referenced by Movement via FK
+            modelBuilder.Entity<MovementData>()
+                .HasKey(md => md.MovementDataID);
+
+            modelBuilder.Entity<MovementData>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.MovementDatas)
+                .HasForeignKey(md => md.UserID);
+
+            modelBuilder.Entity<MovementData>()
+                .HasOne(md => md.Equipment)
                 .WithMany()
-                .HasForeignKey(m => m.EquipmentID)
+                .HasForeignKey(md => md.EquipmentID)
                 .OnDelete(DeleteBehavior.Restrict);
 
-
-            modelBuilder.Entity<Movement>()
-                .OwnsOne(m => m.MovementData)
+            modelBuilder.Entity<MovementData>()
                 .HasOne(md => md.MovementBase)
                 .WithMany()
                 .HasForeignKey(md => md.MovementBaseID)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Movement>()
-                .OwnsOne(m => m.MovementData)
+            modelBuilder.Entity<MovementData>()
                 .HasOne(md => md.MovementModifier)
                 .WithMany()
                 .HasForeignKey(md => md.MovementModifierID)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Unique index to prevent duplicate MovementData combinations per user
+            modelBuilder.Entity<MovementData>()
+                .HasIndex(md => new { md.UserID, md.EquipmentID, md.MovementBaseID, md.MovementModifierID })
+                .IsUnique();
+
+            // Movement references MovementData via FK
+            modelBuilder.Entity<Movement>()
+                .HasOne(m => m.MovementData)
+                .WithMany()
+                .HasForeignKey(m => m.MovementDataID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // MovementModifier configuration
+            modelBuilder.Entity<MovementModifier>()
+                .HasKey(mm => mm.MovementModifierID);
+
+            modelBuilder.Entity<MovementModifier>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.MovementModifiers)
+                .HasForeignKey(mm => mm.UserID);
 
             modelBuilder.Entity<MovementBase>()
-                    .HasOne<LionheartUser>()
-                    .WithMany(u => u.MovementBases)
-                    .HasForeignKey(m => m.UserID);
+                .HasKey(m => m.MovementBaseID);
+
+            modelBuilder.Entity<MovementBase>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.MovementBases)
+                .HasForeignKey(m => m.UserID);
 
             modelBuilder.Entity<MovementBase>()
                 .OwnsMany(m => m.TrainedMuscles);
 
             modelBuilder.Entity<MuscleGroup>()
                 .HasKey(m => m.MuscleGroupID);
-            
+
             modelBuilder.Entity<Equipment>()
                 .HasKey(e => e.EquipmentID);
             modelBuilder.Entity<Equipment>()
@@ -182,6 +211,37 @@ namespace lionheart.Data
                 .HasOne<Movement>(s => s.Movement)
                 .WithMany(m => m.DistanceTimeSets)
                 .HasForeignKey(s => s.MovementID);
+
+            // Personal Records
+            modelBuilder.Entity<PersonalRecord>()
+                .HasKey(pr => pr.PersonalRecordID);
+
+            modelBuilder.Entity<PersonalRecord>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.PersonalRecords)
+                .HasForeignKey(pr => pr.UserID);
+
+            modelBuilder.Entity<PersonalRecord>()
+                .HasOne(pr => pr.MovementData)
+                .WithMany()
+                .HasForeignKey(pr => pr.MovementDataID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<PersonalRecord>()
+                .HasOne(pr => pr.PreviousPersonalRecord)
+                .WithMany()
+                .HasForeignKey(pr => pr.PreviousPersonalRecordID)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<PersonalRecord>()
+                .HasOne(pr => pr.SourceLiftSetEntry)
+                .WithMany()
+                .HasForeignKey(pr => pr.SourceLiftSetEntryID)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Index for fast lookup of active PRs by user and movement data
+            modelBuilder.Entity<PersonalRecord>()
+                .HasIndex(pr => new { pr.UserID, pr.MovementDataID, pr.PRType, pr.IsActive });
 
             // Access Tokens
             modelBuilder.Entity<ApiAccessToken>()

@@ -24,7 +24,10 @@ namespace lionheart.WellBeing
         public List<DailyOuraData> DailyOuraInfos { get; set; } = [];
         public List<TrainingProgram> TrainingPrograms { get; set; } = [];
         public List<MovementBase> MovementBases { get; set; } = [];
+        public List<MovementData> MovementDatas { get; set; } = [];
+        public List<MovementModifier> MovementModifiers { get; set; } = [];
         public List<Equipment> Equipments { get; set; } = [];
+        public List<PersonalRecord> PersonalRecords { get; set; } = [];
         public List<Injury> Injuries { get; set; } = [];
         public List<ChatConversation> ChatConversations { get; set; } = [];
     }

@@ -20,10 +20,35 @@ public interface IMovementService
 public class MovementService : IMovementService
 {
     private readonly ModelContext _context;
+    private readonly IMovementDataService _movementDataService;
 
-    public MovementService(ModelContext context)
+    public MovementService(ModelContext context, IMovementDataService movementDataService)
     {
         _context = context;
+        _movementDataService = movementDataService;
+    }
+
+    /// <summary>
+    /// Finds an existing MovementData that matches the given parameters, or creates a new one.
+    /// This ensures MovementData is reused for identical movement configurations.
+    /// </summary>
+    private async Task<MovementDataDTO> FindOrCreateMovementDataAsync(
+        IdentityUser user,
+        Guid equipmentId,
+        Guid movementBaseId,
+        Guid? movementModifierId,
+        Equipment equipment,
+        MovementBase movementBase,
+        MovementModifier? movementModifier)
+    {
+        return await _movementDataService.FindOrCreateMovementDataAsync(
+            user,
+            new CreateMovementDataRequest(
+                EquipmentID: equipmentId,
+                MovementBaseID: movementBaseId,
+                MovementModifierID: movementModifierId
+            )
+        );
     }
 
     public async Task<Result<List<MovementDTO>>> GetMovementsAsync(IdentityUser user, Guid sessionId)
@@ -88,13 +113,23 @@ public class MovementService : IMovementService
         MovementModifier? movementModifier = null;
         if (request.MovementData.MovementModifierID.HasValue)
         {
-            movementModifier = await _context.Set<MovementModifier>()
+            movementModifier = await _context.MovementModifiers
                 .FirstOrDefaultAsync(mm => mm.MovementModifierID == request.MovementData.MovementModifierID.Value && mm.UserID == userGuid);
             if (movementModifier == null)
             {
                 return Result<MovementDTO>.NotFound("Movement modifier not found.");
             }
         }
+
+        // Find or create MovementData
+        var movementData = await FindOrCreateMovementDataAsync(
+            user,
+            equipment.EquipmentID,
+            movementBase.MovementBaseID,
+            movementModifier?.MovementModifierID,
+            equipment,
+            movementBase,
+            movementModifier);
 
         var orderings = await _context.Movements
             .Where(m => m.TrainingSessionID == request.TrainingSessionID)
@@ -107,17 +142,7 @@ public class MovementService : IMovementService
             MovementID = Guid.NewGuid(),
             TrainingSessionID = request.TrainingSessionID,
             Notes = request.Notes,
-            MovementData = new MovementData
-            {
-                MovementDataID = Guid.NewGuid(),
-                UserID = userGuid,
-                EquipmentID = equipment.EquipmentID,
-                Equipment = equipment,
-                MovementBaseID = movementBase.MovementBaseID,
-                MovementBase = movementBase,
-                MovementModifierID = movementModifier?.MovementModifierID,
-                MovementModifier = movementModifier
-            },
+            MovementDataID = movementData.MovementDataID,
             IsCompleted = false,
             Ordering = maxOrdering + 1,
             LiftSets = new List<LiftSetEntry>(),
@@ -166,7 +191,7 @@ public class MovementService : IMovementService
         MovementModifier? movementModifier = null;
         if (request.MovementData.MovementModifierID.HasValue)
         {
-            movementModifier = await _context.Set<MovementModifier>()
+            movementModifier = await _context.MovementModifiers
                 .FirstOrDefaultAsync(mm => mm.MovementModifierID == request.MovementData.MovementModifierID.Value && mm.UserID == userGuid);
             if (movementModifier == null)
             {
@@ -174,18 +199,20 @@ public class MovementService : IMovementService
             }
         }
 
+        // Find or create MovementData
+        var movementData = await FindOrCreateMovementDataAsync(
+            user,
+            equipment.EquipmentID,
+            movementBase.MovementBaseID,
+            movementModifier?.MovementModifierID,
+            equipment,
+            movementBase,
+            movementModifier);
+
         movement.Notes = request.Notes;
-        movement.MovementData = new MovementData
-        {
-            MovementDataID = Guid.NewGuid(),
-            UserID = userGuid,
-            EquipmentID = equipment.EquipmentID,
-            Equipment = equipment,
-            MovementBaseID = movementBase.MovementBaseID,
-            MovementBase = movementBase,
-            MovementModifierID = movementModifier?.MovementModifierID,
-            MovementModifier = movementModifier
-        };
+        movement.MovementDataID = movementData.MovementDataID;
+        // TODO: CHECK if we need to update navigation property too
+        // movement.MovementData = movementData;
         movement.IsCompleted = request.IsCompleted;
 
         await _context.SaveChangesAsync();
