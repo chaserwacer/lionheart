@@ -22,7 +22,7 @@ export class AddActivityEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    addActivity(body: CreateActivityRequest | undefined): Promise<ActivityDTO> {
+    post(body: CreateActivityRequest | undefined): Promise<ActivityDTO> {
         let url_ = this.baseUrl + "/api/activity/add-activity";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -38,11 +38,11 @@ export class AddActivityEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processAddActivity(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processAddActivity(response: Response): Promise<ActivityDTO> {
+    protected processPost(response: Response): Promise<ActivityDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -82,7 +82,7 @@ export class AddWellnessStateEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    add(body: CreateWellnessStateRequest | undefined): Promise<Activity> {
+    post(body: CreateWellnessStateRequest | undefined): Promise<Activity> {
         let url_ = this.baseUrl + "/api/wellness/add";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -98,11 +98,11 @@ export class AddWellnessStateEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processAdd(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processAdd(response: Response): Promise<Activity> {
+    protected processPost(response: Response): Promise<Activity> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -142,7 +142,7 @@ export class CreateDTSetEntryEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create(body: CreateDTSetEntryRequest | undefined): Promise<DTSetEntryDTO> {
+    post(body: CreateDTSetEntryRequest | undefined): Promise<DTSetEntryDTO> {
         let url_ = this.baseUrl + "/api/dt-set-entry/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -158,11 +158,11 @@ export class CreateDTSetEntryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreate(response: Response): Promise<DTSetEntryDTO> {
+    protected processPost(response: Response): Promise<DTSetEntryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -209,7 +209,7 @@ export class CreateEquipmentEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create2(body: CreateEquipmentRequest | undefined): Promise<EquipmentDTO> {
+    post(body: CreateEquipmentRequest | undefined): Promise<EquipmentDTO> {
         let url_ = this.baseUrl + "/api/equipment/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -225,11 +225,11 @@ export class CreateEquipmentEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate2(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreate2(response: Response): Promise<EquipmentDTO> {
+    protected processPost(response: Response): Promise<EquipmentDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -276,7 +276,7 @@ export class CreateInjuryEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create3(body: CreateInjuryRequest | undefined): Promise<InjuryDTO> {
+    post(body: CreateInjuryRequest | undefined): Promise<InjuryDTO> {
         let url_ = this.baseUrl + "/api/injury/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -292,11 +292,11 @@ export class CreateInjuryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate3(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreate3(response: Response): Promise<InjuryDTO> {
+    protected processPost(response: Response): Promise<InjuryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -336,7 +336,7 @@ export class CreateInjuryEventEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    addEvent(body: CreateInjuryEventRequest | undefined): Promise<InjuryDTO> {
+    post(body: CreateInjuryEventRequest | undefined): Promise<InjuryDTO> {
         let url_ = this.baseUrl + "/api/injury/add-event";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -352,11 +352,11 @@ export class CreateInjuryEventEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processAddEvent(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processAddEvent(response: Response): Promise<InjuryDTO> {
+    protected processPost(response: Response): Promise<InjuryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -396,7 +396,7 @@ export class CreateLiftSetEntryEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create4(body: CreateLiftSetEntryRequest | undefined): Promise<LiftSetEntryDTO> {
+    post(body: CreateLiftSetEntryRequest | undefined): Promise<LiftSetEntryDTO> {
         let url_ = this.baseUrl + "/api/lift-set-entry/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -412,11 +412,11 @@ export class CreateLiftSetEntryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate4(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreate4(response: Response): Promise<LiftSetEntryDTO> {
+    protected processPost(response: Response): Promise<LiftSetEntryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -463,7 +463,7 @@ export class CreateMovementBaseEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create5(body: CreateMovementBaseRequest | undefined): Promise<MovementBaseDTO> {
+    post(body: CreateMovementBaseRequest | undefined): Promise<MovementBaseDTO> {
         let url_ = this.baseUrl + "/api/movement-base/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -479,11 +479,11 @@ export class CreateMovementBaseEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate5(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreate5(response: Response): Promise<MovementBaseDTO> {
+    protected processPost(response: Response): Promise<MovementBaseDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -530,7 +530,7 @@ export class CreateMovementDataEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create6(body: CreateMovementDataRequest | undefined): Promise<MovementDataDTO> {
+    post(body: CreateMovementDataRequest | undefined): Promise<MovementDataDTO> {
         let url_ = this.baseUrl + "/api/movement-data/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -546,11 +546,11 @@ export class CreateMovementDataEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate6(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreate6(response: Response): Promise<MovementDataDTO> {
+    protected processPost(response: Response): Promise<MovementDataDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -604,7 +604,7 @@ export class CreateMovementEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create7(body: CreateMovementRequest | undefined): Promise<MovementDTO> {
+    post(body: CreateMovementRequest | undefined): Promise<MovementDTO> {
         let url_ = this.baseUrl + "/api/movement/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -620,11 +620,11 @@ export class CreateMovementEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate7(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreate7(response: Response): Promise<MovementDTO> {
+    protected processPost(response: Response): Promise<MovementDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -671,7 +671,7 @@ export class CreateProfileEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    createProfile(body: CreateProfileRequest | undefined): Promise<LionheartUser> {
+    post(body: CreateProfileRequest | undefined): Promise<LionheartUser> {
         let url_ = this.baseUrl + "/api/user/create-profile";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -687,11 +687,11 @@ export class CreateProfileEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreateProfile(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreateProfile(response: Response): Promise<LionheartUser> {
+    protected processPost(response: Response): Promise<LionheartUser> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -731,7 +731,7 @@ export class CreateTrainingProgramEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create8(body: CreateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
+    post(body: CreateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -747,11 +747,11 @@ export class CreateTrainingProgramEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate8(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreate8(response: Response): Promise<TrainingProgramDTO> {
+    protected processPost(response: Response): Promise<TrainingProgramDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -791,7 +791,7 @@ export class CreateTrainingSessionEndpointClient {
      * @param body (optional) 
      * @return Created
      */
-    create9(body: CreateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
+    post(body: CreateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/training-session/create";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -807,11 +807,11 @@ export class CreateTrainingSessionEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreate9(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processCreate9(response: Response): Promise<TrainingSessionDTO> {
+    protected processPost(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -858,7 +858,7 @@ export class DeleteActivityEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    deleteActivity(body: string | undefined): Promise<boolean> {
+    delete(body: string | undefined): Promise<boolean> {
         let url_ = this.baseUrl + "/api/activity/delete-activity";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -874,11 +874,11 @@ export class DeleteActivityEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDeleteActivity(_response);
+            return this.processDelete(_response);
         });
     }
 
-    protected processDeleteActivity(response: Response): Promise<boolean> {
+    protected processDelete(response: Response): Promise<boolean> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -980,7 +980,7 @@ export class DeleteEquipmentEndpointClient {
     /**
      * @return No Content
      */
-    delete2(equipmentId: string): Promise<void> {
+    delete(equipmentId: string): Promise<void> {
         let url_ = this.baseUrl + "/api/equipment/delete/{equipmentId}";
         if (equipmentId === undefined || equipmentId === null)
             throw new Error("The parameter 'equipmentId' must be defined.");
@@ -994,11 +994,11 @@ export class DeleteEquipmentEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDelete2(_response);
+            return this.processDelete(_response);
         });
     }
 
-    protected processDelete2(response: Response): Promise<void> {
+    protected processDelete(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -1048,7 +1048,7 @@ export class DeleteInjuryEndpointClient {
     /**
      * @return No Content
      */
-    delete3(injuryId: string): Promise<void> {
+    delete(injuryId: string): Promise<void> {
         let url_ = this.baseUrl + "/api/injury/delete/{injuryId}";
         if (injuryId === undefined || injuryId === null)
             throw new Error("The parameter 'injuryId' must be defined.");
@@ -1062,11 +1062,11 @@ export class DeleteInjuryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDelete3(_response);
+            return this.processDelete(_response);
         });
     }
 
-    protected processDelete3(response: Response): Promise<void> {
+    protected processDelete(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -1109,7 +1109,7 @@ export class DeleteInjuryEventEndpointClient {
     /**
      * @return No Content
      */
-    eventDELETE(injuryEventId: string): Promise<void> {
+    delete(injuryEventId: string): Promise<void> {
         let url_ = this.baseUrl + "/api/injury/event/{injuryEventId}";
         if (injuryEventId === undefined || injuryEventId === null)
             throw new Error("The parameter 'injuryEventId' must be defined.");
@@ -1123,11 +1123,11 @@ export class DeleteInjuryEventEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processEventDELETE(_response);
+            return this.processDelete(_response);
         });
     }
 
-    protected processEventDELETE(response: Response): Promise<void> {
+    protected processDelete(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -1170,7 +1170,7 @@ export class DeleteLiftSetEntryEndpointClient {
     /**
      * @return No Content
      */
-    delete4(setEntryId: string): Promise<void> {
+    delete(setEntryId: string): Promise<void> {
         let url_ = this.baseUrl + "/api/lift-set-entry/delete/{setEntryId}";
         if (setEntryId === undefined || setEntryId === null)
             throw new Error("The parameter 'setEntryId' must be defined.");
@@ -1184,11 +1184,11 @@ export class DeleteLiftSetEntryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDelete4(_response);
+            return this.processDelete(_response);
         });
     }
 
-    protected processDelete4(response: Response): Promise<void> {
+    protected processDelete(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -1231,7 +1231,7 @@ export class DeleteMovementBaseEndpointClient {
     /**
      * @return No Content
      */
-    delete5(movementBaseId: string): Promise<void> {
+    delete(movementBaseId: string): Promise<void> {
         let url_ = this.baseUrl + "/api/movement-base/delete/{movementBaseId}";
         if (movementBaseId === undefined || movementBaseId === null)
             throw new Error("The parameter 'movementBaseId' must be defined.");
@@ -1245,11 +1245,11 @@ export class DeleteMovementBaseEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDelete5(_response);
+            return this.processDelete(_response);
         });
     }
 
-    protected processDelete5(response: Response): Promise<void> {
+    protected processDelete(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -1299,7 +1299,7 @@ export class DeleteMovementEndpointClient {
     /**
      * @return No Content
      */
-    delete6(movementId: string): Promise<void> {
+    delete(movementId: string): Promise<void> {
         let url_ = this.baseUrl + "/api/movement/delete/{movementId}";
         if (movementId === undefined || movementId === null)
             throw new Error("The parameter 'movementId' must be defined.");
@@ -1313,11 +1313,11 @@ export class DeleteMovementEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDelete6(_response);
+            return this.processDelete(_response);
         });
     }
 
-    protected processDelete6(response: Response): Promise<void> {
+    protected processDelete(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -1360,7 +1360,7 @@ export class DeleteTrainingProgramEndpointClient {
     /**
      * @return No Content
      */
-    delete7(programId: string): Promise<void> {
+    delete(programId: string): Promise<void> {
         let url_ = this.baseUrl + "/api/training-program/delete/{programId}";
         if (programId === undefined || programId === null)
             throw new Error("The parameter 'programId' must be defined.");
@@ -1374,11 +1374,11 @@ export class DeleteTrainingProgramEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDelete7(_response);
+            return this.processDelete(_response);
         });
     }
 
-    protected processDelete7(response: Response): Promise<void> {
+    protected processDelete(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -1421,7 +1421,7 @@ export class DeleteTrainingSessionEndpointClient {
     /**
      * @return No Content
      */
-    delete8(trainingSessionId: string): Promise<void> {
+    delete(trainingSessionId: string): Promise<void> {
         let url_ = this.baseUrl + "/api/training-session/delete/{trainingSessionId}";
         if (trainingSessionId === undefined || trainingSessionId === null)
             throw new Error("The parameter 'trainingSessionId' must be defined.");
@@ -1435,11 +1435,11 @@ export class DeleteTrainingSessionEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDelete8(_response);
+            return this.processDelete(_response);
         });
     }
 
-    protected processDelete8(response: Response): Promise<void> {
+    protected processDelete(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -1482,7 +1482,7 @@ export class DuplicateTrainingSessionEndpointClient {
     /**
      * @return OK
      */
-    duplicate(trainingSessionId: string): Promise<TrainingSessionDTO> {
+    post(trainingSessionId: string): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/training-session/duplicate/{trainingSessionId}";
         if (trainingSessionId === undefined || trainingSessionId === null)
             throw new Error("The parameter 'trainingSessionId' must be defined.");
@@ -1497,11 +1497,11 @@ export class DuplicateTrainingSessionEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDuplicate(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processDuplicate(response: Response): Promise<TrainingSessionDTO> {
+    protected processPost(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1547,7 +1547,7 @@ export class GetActivitiesEndpointClient {
     /**
      * @return OK
      */
-    getUserActivities(startDate: Date, endDate: Date): Promise<ActivityDTO[]> {
+    get(startDate: Date, endDate: Date): Promise<ActivityDTO[]> {
         let url_ = this.baseUrl + "/api/activity/get-user-activities?";
         if (startDate === undefined || startDate === null)
             throw new Error("The parameter 'startDate' must be defined and cannot be null.");
@@ -1567,11 +1567,11 @@ export class GetActivitiesEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetUserActivities(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetUserActivities(response: Response): Promise<ActivityDTO[]> {
+    protected processGet(response: Response): Promise<ActivityDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1617,7 +1617,7 @@ export class GetActivityEndpointClient {
     /**
      * @return OK
      */
-    getActivity(activityId: string): Promise<ActivityDTO> {
+    get(activityId: string): Promise<ActivityDTO> {
         let url_ = this.baseUrl + "/api/activity/get-activity/{activityId}";
         if (activityId === undefined || activityId === null)
             throw new Error("The parameter 'activityId' must be defined.");
@@ -1632,11 +1632,11 @@ export class GetActivityEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetActivity(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetActivity(response: Response): Promise<ActivityDTO> {
+    protected processGet(response: Response): Promise<ActivityDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1675,7 +1675,7 @@ export class GetAllMuscleGroupsAsyncClient {
     /**
      * @return OK
      */
-    getAll(): Promise<MuscleGroup[]> {
+    get(): Promise<MuscleGroup[]> {
         let url_ = this.baseUrl + "/api/muscle-groups/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -1687,11 +1687,11 @@ export class GetAllMuscleGroupsAsyncClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetAll(response: Response): Promise<MuscleGroup[]> {
+    protected processGet(response: Response): Promise<MuscleGroup[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1738,7 +1738,7 @@ export class GetDailyOuraDataEndpointClient {
      * @param request (optional) 
      * @return OK
      */
-    getDailyOuraData(request: Date | undefined): Promise<DailyOuraDataDTO> {
+    get(request: Date | undefined): Promise<DailyOuraDataDTO> {
         let url_ = this.baseUrl + "/api/oura/get-daily-oura-data?";
         if (request === null)
             throw new Error("The parameter 'request' cannot be null.");
@@ -1754,11 +1754,11 @@ export class GetDailyOuraDataEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetDailyOuraData(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetDailyOuraData(response: Response): Promise<DailyOuraDataDTO> {
+    protected processGet(response: Response): Promise<DailyOuraDataDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1797,7 +1797,7 @@ export class GetEquipmentsEndpointClient {
     /**
      * @return OK
      */
-    getAll2(): Promise<EquipmentDTO[]> {
+    get(): Promise<EquipmentDTO[]> {
         let url_ = this.baseUrl + "/api/equipment/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -1809,11 +1809,11 @@ export class GetEquipmentsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll2(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetAll2(response: Response): Promise<EquipmentDTO[]> {
+    protected processGet(response: Response): Promise<EquipmentDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1859,7 +1859,7 @@ export class GetMovementBasesEndpointClient {
     /**
      * @return OK
      */
-    getAll3(): Promise<MovementBaseDTO[]> {
+    get(): Promise<MovementBaseDTO[]> {
         let url_ = this.baseUrl + "/api/movement-base/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -1871,11 +1871,11 @@ export class GetMovementBasesEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll3(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetAll3(response: Response): Promise<MovementBaseDTO[]> {
+    protected processGet(response: Response): Promise<MovementBaseDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1921,7 +1921,7 @@ export class GetMovementDataEndpointClient {
     /**
      * @return OK
      */
-    movementData(movementDataId: string): Promise<MovementDataDTO> {
+    get(movementDataId: string): Promise<MovementDataDTO> {
         let url_ = this.baseUrl + "/api/movement-data/{movementDataId}";
         if (movementDataId === undefined || movementDataId === null)
             throw new Error("The parameter 'movementDataId' must be defined.");
@@ -1936,11 +1936,11 @@ export class GetMovementDataEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processMovementData(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processMovementData(response: Response): Promise<MovementDataDTO> {
+    protected processGet(response: Response): Promise<MovementDataDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -1986,7 +1986,7 @@ export class GetMovementDatasEndpointClient {
     /**
      * @return OK
      */
-    movementDatas(): Promise<MovementDataDTO[]> {
+    get(): Promise<MovementDataDTO[]> {
         let url_ = this.baseUrl + "/api/movement-datas";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -1998,11 +1998,11 @@ export class GetMovementDatasEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processMovementDatas(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processMovementDatas(response: Response): Promise<MovementDataDTO[]> {
+    protected processGet(response: Response): Promise<MovementDataDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2048,7 +2048,7 @@ export class GetMovementsEndpointClient {
     /**
      * @return OK
      */
-    getAll4(sessionID: string): Promise<MovementDTO[]> {
+    get(sessionID: string): Promise<MovementDTO[]> {
         let url_ = this.baseUrl + "/api/movement/get-all/{sessionId}";
         if (sessionID === undefined || sessionID === null)
             throw new Error("The parameter 'sessionID' must be defined.");
@@ -2063,11 +2063,11 @@ export class GetMovementsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll4(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetAll4(response: Response): Promise<MovementDTO[]> {
+    protected processGet(response: Response): Promise<MovementDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2120,7 +2120,7 @@ export class GetPersonalRecordsEndpointClient {
     /**
      * @return OK
      */
-    personalRecords(): Promise<PersonalRecordDTO[]> {
+    get(): Promise<PersonalRecordDTO[]> {
         let url_ = this.baseUrl + "/api/personal-records";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2132,11 +2132,11 @@ export class GetPersonalRecordsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processPersonalRecords(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processPersonalRecords(response: Response): Promise<PersonalRecordDTO[]> {
+    protected processGet(response: Response): Promise<PersonalRecordDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2183,7 +2183,7 @@ export class GetPRHistoryEndpointClient {
      * @param pRType (optional) 
      * @return OK
      */
-    history(movementDataId: string, pRType: PersonalRecordType | undefined): Promise<PersonalRecordDTO[]> {
+    get(movementDataId: string, pRType: PersonalRecordType | undefined): Promise<PersonalRecordDTO[]> {
         let url_ = this.baseUrl + "/api/personal-records/history/{movementDataId}?";
         if (movementDataId === undefined || movementDataId === null)
             throw new Error("The parameter 'movementDataId' must be defined.");
@@ -2202,11 +2202,11 @@ export class GetPRHistoryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processHistory(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processHistory(response: Response): Promise<PersonalRecordDTO[]> {
+    protected processGet(response: Response): Promise<PersonalRecordDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2252,7 +2252,7 @@ export class GetPRSummariesEndpointClient {
     /**
      * @return OK
      */
-    summaries(): Promise<MovementDataPRSummary[]> {
+    get(): Promise<MovementDataPRSummary[]> {
         let url_ = this.baseUrl + "/api/personal-records/summaries";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2264,11 +2264,11 @@ export class GetPRSummariesEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processSummaries(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processSummaries(response: Response): Promise<MovementDataPRSummary[]> {
+    protected processGet(response: Response): Promise<MovementDataPRSummary[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2314,7 +2314,7 @@ export class GetPRSummaryForMovementDataEndpointClient {
     /**
      * @return OK
      */
-    summary(movementDataId: string): Promise<MovementDataPRSummary> {
+    get(movementDataId: string): Promise<MovementDataPRSummary> {
         let url_ = this.baseUrl + "/api/personal-records/summary/{movementDataId}";
         if (movementDataId === undefined || movementDataId === null)
             throw new Error("The parameter 'movementDataId' must be defined.");
@@ -2329,11 +2329,11 @@ export class GetPRSummaryForMovementDataEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processSummary(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processSummary(response: Response): Promise<MovementDataPRSummary> {
+    protected processGet(response: Response): Promise<MovementDataPRSummary> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2444,7 +2444,7 @@ export class GetTrainingProgramsEndpointClient {
     /**
      * @return OK
      */
-    getAll5(): Promise<TrainingProgramDTO[]> {
+    get(): Promise<TrainingProgramDTO[]> {
         let url_ = this.baseUrl + "/api/training-program/get-all";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2456,11 +2456,11 @@ export class GetTrainingProgramsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll5(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetAll5(response: Response): Promise<TrainingProgramDTO[]> {
+    protected processGet(response: Response): Promise<TrainingProgramDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2506,7 +2506,7 @@ export class GetTrainingSessionEndpointClient {
     /**
      * @return OK
      */
-    get2(sessionId: string, programId: string): Promise<TrainingSessionDTO> {
+    get(sessionId: string, programId: string): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/training-session/get/{programId}/{sessionId}";
         if (sessionId === undefined || sessionId === null)
             throw new Error("The parameter 'sessionId' must be defined.");
@@ -2524,11 +2524,11 @@ export class GetTrainingSessionEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGet2(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGet2(response: Response): Promise<TrainingSessionDTO> {
+    protected processGet(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2574,7 +2574,7 @@ export class GetTrainingSessionsEndpointClient {
     /**
      * @return OK
      */
-    getAll6(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
+    get(trainingProgramId: string): Promise<TrainingSessionDTO[]> {
         let url_ = this.baseUrl + "/api/training-session/get-all/{trainingProgramId}";
         if (trainingProgramId === undefined || trainingProgramId === null)
             throw new Error("The parameter 'trainingProgramId' must be defined.");
@@ -2589,11 +2589,11 @@ export class GetTrainingSessionsEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetAll6(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetAll6(response: Response): Promise<TrainingSessionDTO[]> {
+    protected processGet(response: Response): Promise<TrainingSessionDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2646,7 +2646,7 @@ export class GetUserInjuriesEndpointClient {
     /**
      * @return OK
      */
-    getUserInjuries(): Promise<InjuryDTO[]> {
+    get(): Promise<InjuryDTO[]> {
         let url_ = this.baseUrl + "/api/injury/get-user-injuries";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2658,11 +2658,11 @@ export class GetUserInjuriesEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetUserInjuries(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetUserInjuries(response: Response): Promise<InjuryDTO[]> {
+    protected processGet(response: Response): Promise<InjuryDTO[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2709,7 +2709,7 @@ export class GetWellnessStateEndpointClient {
      * @param date (optional) 
      * @return OK
      */
-    get3(date: Date | undefined): Promise<WellnessState> {
+    get(date: Date | undefined): Promise<WellnessState> {
         let url_ = this.baseUrl + "/api/wellness/get?";
         if (date === null)
             throw new Error("The parameter 'date' cannot be null.");
@@ -2725,11 +2725,11 @@ export class GetWellnessStateEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGet3(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGet3(response: Response): Promise<WellnessState> {
+    protected processGet(response: Response): Promise<WellnessState> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2768,7 +2768,7 @@ export class GetWellnessStatesEndpointClient {
     /**
      * @return OK
      */
-    getRange(startDate: Date, endDate: Date): Promise<WellnessState[]> {
+    get(startDate: Date, endDate: Date): Promise<WellnessState[]> {
         let url_ = this.baseUrl + "/api/wellness/get-range?";
         if (startDate === undefined || startDate === null)
             throw new Error("The parameter 'startDate' must be defined and cannot be null.");
@@ -2788,11 +2788,11 @@ export class GetWellnessStatesEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetRange(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processGetRange(response: Response): Promise<WellnessState[]> {
+    protected processGet(response: Response): Promise<WellnessState[]> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -2845,7 +2845,7 @@ export class HasCreatedProfileEndpointClient {
     /**
      * @return OK
      */
-    hasCreatedProfile(): Promise<BootUserDTO> {
+    get(): Promise<BootUserDTO> {
         let url_ = this.baseUrl + "/api/user/has-created-profile";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2857,11 +2857,11 @@ export class HasCreatedProfileEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processHasCreatedProfile(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processHasCreatedProfile(response: Response): Promise<BootUserDTO> {
+    protected processGet(response: Response): Promise<BootUserDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -3378,7 +3378,7 @@ export class LogoutUserEndpointClient {
      * @param request (optional) 
      * @return No Content
      */
-    logout(request: any | undefined): Promise<BootUserDTO> {
+    get(request: any | undefined): Promise<BootUserDTO> {
         let url_ = this.baseUrl + "/api/user/logout?";
         if (request === null)
             throw new Error("The parameter 'request' cannot be null.");
@@ -3394,11 +3394,11 @@ export class LogoutUserEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processLogout(_response);
+            return this.processGet(_response);
         });
     }
 
-    protected processLogout(response: Response): Promise<BootUserDTO> {
+    protected processGet(response: Response): Promise<BootUserDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -3444,7 +3444,7 @@ export class RevertPREndpointClient {
     /**
      * @return OK
      */
-    revert(personalRecordId: string): Promise<PersonalRecordDTO> {
+    post(personalRecordId: string): Promise<PersonalRecordDTO> {
         let url_ = this.baseUrl + "/api/personal-records/revert/{personalRecordId}";
         if (personalRecordId === undefined || personalRecordId === null)
             throw new Error("The parameter 'personalRecordId' must be defined.");
@@ -3459,11 +3459,11 @@ export class RevertPREndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processRevert(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processRevert(response: Response): Promise<PersonalRecordDTO> {
+    protected processPost(response: Response): Promise<PersonalRecordDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -3514,7 +3514,7 @@ export class SetPersonalApiAccessTokenEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    setPersonalApiAccessToken(body: CreatePersonalApiAccessTokenRequest | undefined): Promise<boolean> {
+    post(body: CreatePersonalApiAccessTokenRequest | undefined): Promise<boolean> {
         let url_ = this.baseUrl + "/api/user/set-personal-api-access-token";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3530,11 +3530,11 @@ export class SetPersonalApiAccessTokenEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processSetPersonalApiAccessToken(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processSetPersonalApiAccessToken(response: Response): Promise<boolean> {
+    protected processPost(response: Response): Promise<boolean> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 201) {
@@ -3583,7 +3583,7 @@ export class SyncOuraApiEndpointClient {
      * @param body (optional) 
      * @return No Content
      */
-    sync(body: DateRangeRequest | undefined): Promise<void> {
+    post(body: DateRangeRequest | undefined): Promise<void> {
         let url_ = this.baseUrl + "/api/oura/sync";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3598,11 +3598,11 @@ export class SyncOuraApiEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processSync(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processSync(response: Response): Promise<void> {
+    protected processPost(response: Response): Promise<void> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 204) {
@@ -3639,7 +3639,7 @@ export class UpdateActivityEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    updateActivity(body: UpdateActivityRequest | undefined): Promise<ActivityDTO> {
+    put(body: UpdateActivityRequest | undefined): Promise<ActivityDTO> {
         let url_ = this.baseUrl + "/api/activity/update-activity";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3655,11 +3655,11 @@ export class UpdateActivityEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdateActivity(_response);
+            return this.processPut(_response);
         });
     }
 
-    protected processUpdateActivity(response: Response): Promise<ActivityDTO> {
+    protected processPut(response: Response): Promise<ActivityDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -3699,7 +3699,7 @@ export class UpdateDTSetEntryEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    updatePUT(body: UpdateDTSetEntryRequest | undefined): Promise<DTSetEntryDTO> {
+    put(body: UpdateDTSetEntryRequest | undefined): Promise<DTSetEntryDTO> {
         let url_ = this.baseUrl + "/api/dt-set-entry/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3715,11 +3715,11 @@ export class UpdateDTSetEntryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdatePUT(_response);
+            return this.processPut(_response);
         });
     }
 
-    protected processUpdatePUT(response: Response): Promise<DTSetEntryDTO> {
+    protected processPut(response: Response): Promise<DTSetEntryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -3766,7 +3766,7 @@ export class UpdateEquipmentEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    updatePOST(body: UpdateEquipmentRequest | undefined): Promise<EquipmentDTO> {
+    post(body: UpdateEquipmentRequest | undefined): Promise<EquipmentDTO> {
         let url_ = this.baseUrl + "/api/equipment/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3782,11 +3782,11 @@ export class UpdateEquipmentEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdatePOST(_response);
+            return this.processPost(_response);
         });
     }
 
-    protected processUpdatePOST(response: Response): Promise<EquipmentDTO> {
+    protected processPost(response: Response): Promise<EquipmentDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -3833,7 +3833,7 @@ export class UpdateInjuryEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    updatePUT2(body: UpdateInjuryRequest | undefined): Promise<InjuryDTO> {
+    put(body: UpdateInjuryRequest | undefined): Promise<InjuryDTO> {
         let url_ = this.baseUrl + "/api/injury/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3849,11 +3849,11 @@ export class UpdateInjuryEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdatePUT2(_response);
+            return this.processPut(_response);
         });
     }
 
-    protected processUpdatePUT2(response: Response): Promise<InjuryDTO> {
+    protected processPut(response: Response): Promise<InjuryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -3893,7 +3893,7 @@ export class UpdateInjuryEventEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    eventPUT(body: UpdateInjuryEventRequest | undefined): Promise<InjuryDTO> {
+    put(body: UpdateInjuryEventRequest | undefined): Promise<InjuryDTO> {
         let url_ = this.baseUrl + "/api/injury/event";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3909,11 +3909,11 @@ export class UpdateInjuryEventEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processEventPUT(_response);
+            return this.processPut(_response);
         });
     }
 
-    protected processEventPUT(response: Response): Promise<InjuryDTO> {
+    protected processPut(response: Response): Promise<InjuryDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -3960,7 +3960,7 @@ export class UpdateMovementEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    updatePUT3(body: UpdateMovementRequest | undefined): Promise<MovementDTO> {
+    put(body: UpdateMovementRequest | undefined): Promise<MovementDTO> {
         let url_ = this.baseUrl + "/api/movement/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -3976,11 +3976,11 @@ export class UpdateMovementEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdatePUT3(_response);
+            return this.processPut(_response);
         });
     }
 
-    protected processUpdatePUT3(response: Response): Promise<MovementDTO> {
+    protected processPut(response: Response): Promise<MovementDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -4027,7 +4027,7 @@ export class UpdateTrainingProgramEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    updatePUT4(body: UpdateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
+    put(body: UpdateTrainingProgramRequest | undefined): Promise<TrainingProgramDTO> {
         let url_ = this.baseUrl + "/api/training-program/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -4043,11 +4043,11 @@ export class UpdateTrainingProgramEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdatePUT4(_response);
+            return this.processPut(_response);
         });
     }
 
-    protected processUpdatePUT4(response: Response): Promise<TrainingProgramDTO> {
+    protected processPut(response: Response): Promise<TrainingProgramDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {
@@ -4094,7 +4094,7 @@ export class UpdateTrainingSessionEndpointClient {
      * @param body (optional) 
      * @return OK
      */
-    updatePUT5(body: UpdateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
+    put(body: UpdateTrainingSessionRequest | undefined): Promise<TrainingSessionDTO> {
         let url_ = this.baseUrl + "/api/training-session/update";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -4110,11 +4110,11 @@ export class UpdateTrainingSessionEndpointClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdatePUT5(_response);
+            return this.processPut(_response);
         });
     }
 
-    protected processUpdatePUT5(response: Response): Promise<TrainingSessionDTO> {
+    protected processPut(response: Response): Promise<TrainingSessionDTO> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
         if (status === 200) {

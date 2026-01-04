@@ -24,7 +24,7 @@ namespace lionheart.Endpoints.UserEndpoints
             _userManager = userManager;
         }
 
-        [HttpGet("api/user/logout")]
+        [HttpPost("api/user/logout")]
         [EndpointDescription("Logout user from the application.")]
         [ProducesResponseType<BootUserDTO>(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

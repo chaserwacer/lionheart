@@ -27,8 +27,23 @@ public class SafeOperationNameGenerator : IOperationNameGenerator
 
     public string GetOperationName(NSwag.OpenApiDocument document, string path, string httpMethod, NSwag.OpenApiOperation operation)
     {
+        // Get the client name to check for conflicts
+        var clientName = GetClientName(document, path, httpMethod, operation);
+        
+        // Count how many operations in this client use the same HTTP method
+        var operationsInClient = document.Operations
+            .Where(op => GetClientName(document, op.Path, op.Method, op.Operation) == clientName)
+            .Count(op => op.Method.Equals(httpMethod, StringComparison.InvariantCultureIgnoreCase));
+
+        // If there's only one operation with this HTTP method in this client, use the method name
+        if (operationsInClient == 1)
+        {
+            return httpMethod.ToLowerInvariant();
+        }
+
+        // Otherwise, use the operation ID (with safety check for leading digits)
         var operationName = operation.OperationId;
-        if (char.IsDigit(operationName[0]))
+        if (!string.IsNullOrEmpty(operationName) && char.IsDigit(operationName[0]))
         {
             operationName = "_" + operationName;
         }

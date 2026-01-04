@@ -44,6 +44,7 @@ public class TsClientGenerator
         var settings = new TypeScriptClientGeneratorSettings
         {
             ClassName = "{controller}ClientBase",
+            OperationNameGenerator = new SafeOperationNameGenerator()
         };
 
         // generate the final client class for each controller, including the parameterless constructor
