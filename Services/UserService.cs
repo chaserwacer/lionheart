@@ -20,15 +20,25 @@ using System.ComponentModel;
 namespace lionheart.Services
 {
     /// <summary>
-    /// The UserService class acts on the service layer to handle business logic and interactions with the database, after being called upon via the UserController.
-    /// This class is the most hectic in terms of the different things it 'does'. It handles profile creation, which is a process that meshes with 
-    /// account creation via ASP.Net Identity User services. A user first registers through ASP.Net to create an Identity User (those code methods are outsourced), and then must create their actual 
-    /// user profile/LionheartUser profile (with display name, etc.). A LionheartUser contains that identity user. See model context for more details. 
-    /// This class also handles creating/editing user WellnessStates, as well as adding the personal access token for Oura.  
-    /// 
-    /// TODO: This class is to be taken and manipulated such that it only contains user centered methods, with those other methods moving to their own service class and then their own controller class. 
+    /// User service interface for managing user profiles and personal API access tokens.
     /// </summary>
-    [McpServerToolType]
+    public interface IUserService
+    {
+        /// <summary>
+        /// Check the status of the user's profile creation.
+        /// </summary>
+        Task<Result<BootUserDTO>> HasCreatedProfileAsync(IdentityUser user);
+        /// <summary>
+        /// Create a new profile for the user.
+        /// </summary>
+        Task<Result<LionheartUser>> CreateProfileAsync(IdentityUser user, CreateProfileRequest req);
+        /// <summary>
+        /// Set a personal access token for a given application. Creates a token for a given application if it does not yet exist, 
+        /// updates it if it already exists.
+        /// </summary>
+        Task<Result<bool>> SetPersonalApiAccessToken(IdentityUser user, CreatePersonalApiAccessTokenRequest req);
+    }
+
     public class UserService : IUserService
     {
         private readonly ModelContext _context;
@@ -75,7 +85,6 @@ namespace lionheart.Services
             var bootUserDto = new BootUserDTO(name, hasCreatedProfile);
 
             return Result<BootUserDTO>.Success(bootUserDto);
-
         }
 
         public async Task<Result<bool>> SetPersonalApiAccessToken(IdentityUser user, CreatePersonalApiAccessTokenRequest req)
@@ -105,10 +114,8 @@ namespace lionheart.Services
                 await _context.SaveChangesAsync();
                 return Result<bool>.Created(true);
             }
-
         }
 
-        [McpServerTool, Description("Get Identity User by ID")]
         public async Task<IdentityUser?> GetIdentityUserAsync(string userID)
         {
             if (string.IsNullOrEmpty(userID))
@@ -117,13 +124,7 @@ namespace lionheart.Services
             }
 
             var identityUser = await _context.Users.FindAsync(userID);
-
-
-
             return identityUser;
         }
-
-
-
     }
 }

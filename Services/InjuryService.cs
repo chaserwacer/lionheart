@@ -9,6 +9,17 @@ using Mapster;
 
 namespace lionheart.Services
 {
+    public interface IInjuryService
+    {
+        Task<Result<InjuryDTO>> CreateInjuryAsync(IdentityUser user, CreateInjuryRequest request);
+        Task<Result<InjuryDTO>> UpdateInjuryAsync(IdentityUser user, UpdateInjuryRequest request);
+        Task<Result> DeleteInjuryAsync(IdentityUser user, Guid injuryId);
+        Task<Result<InjuryDTO>> CreateInjuryEventAsync(IdentityUser user, CreateInjuryEventRequest request);
+        Task<Result<InjuryDTO>> UpdateInjuryEventAsync(IdentityUser user, UpdateInjuryEventRequest request);
+        Task<Result> DeleteInjuryEventAsync(IdentityUser user, Guid injuryEventId);
+        Task<Result<List<InjuryDTO>>> GetUserInjuriesAsync(IdentityUser user);
+    }
+
     public class InjuryService : IInjuryService
     {
         private readonly ModelContext _context;
@@ -61,7 +72,7 @@ namespace lionheart.Services
                     .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.TrainingProgram!.UserID == userId);
                 if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
             }
-            foreach(var movementId in request.MovementIDs)
+            foreach (var movementId in request.MovementIDs)
             {
                 var ownsMovement = await _context.Movements
                     .Include(m => m.TrainingSession)

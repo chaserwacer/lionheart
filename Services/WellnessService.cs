@@ -20,9 +20,28 @@ using System.Threading.Tasks;
 namespace lionheart.Services
 {
     /// <summary>
-    /// Service for managing wellness states.
+    /// Wellness service interface for managing wellness states.
     /// </summary>
-    [McpServerToolType]
+    public interface IWellnessService
+    {
+        /// <summary>
+        /// Fetch the <see cref="WellnessState"/> for <paramref name="user"/> on a specific <paramref name="date"/>.
+        /// If no wellness state exists for that date, a blank one will be returned with default values. 
+        /// </summary>
+        Task<Result<WellnessState>> GetWellnessStateAsync(IdentityUser user, DateOnly date);
+
+        /// <summary>
+        /// Select all <see cref="WellnessState"/>s for the <paramref name="user"/> within the specified <paramref name="dateRange"/>.
+        /// </summary>
+        Task<Result<List<WellnessState>>> GetWellnessStatesAsync(IdentityUser user, DateRangeRequest dateRange);
+
+        /// <summary>
+        /// Add a new <see cref="WellnessState"/> for the <paramref name="user"/>.
+        /// If a wellness state already exists for the date, it will be overwritten.
+        /// </summary>
+        Task<Result<WellnessState>> AddWellnessStateAsync(IdentityUser user, CreateWellnessStateRequest req);
+    }
+
     public class WellnessService : IWellnessService
     {
         private readonly ModelContext _context;
@@ -79,47 +98,6 @@ namespace lionheart.Services
                 return Result<WellnessState>.Created(wellnessState);
             }
         }
-        [McpServerTool, Description("Gets the wellness state for the user from the given range")]
-        public async Task<List<WellnessState>> GetWellnessStatesMCP(string userID, DateRangeRequest dateRange)
-        {
-            var userGuid = Guid.Parse(userID);
-            DateOnly startDate = dateRange.StartDate;
-            DateOnly endDate = dateRange.EndDate;
-
-            var states = await _context.WellnessStates
-                .Where(w => w.Date >= startDate && w.Date <= endDate && w.UserID == userGuid)
-                .ToListAsync();
-
-            return states.OrderBy(w => w.Date).ToList();
-        }
-        [McpServerTool, Description("Adds or updates a wellness state for the user for the given date")]
-        public async Task<Result<WellnessState>> AddWellnessStateMCPV(string userID, CreateWellnessStateRequest req)
-        {
-            var userGuid = Guid.Parse(userID);
-            DateOnly selectedDate = DateOnly.ParseExact(req.Date, "yyyy-MM-dd");
-
-            // Check if already exists
-            var existingState = await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == selectedDate && w.UserID == userGuid);
-            if (existingState != null)
-            {
-                existingState.EnergyScore = req.Energy;
-                existingState.MoodScore = req.Mood;
-                existingState.StressScore = req.Stress;
-                existingState.MotivationScore = req.Motivation;
-                double total = (double)(req.Mood + req.Energy + req.Motivation + (6 - req.Stress));
-                int decimalPlaces = 2;
-                int numComponents = 4;
-                existingState.OverallScore = Math.Round(total / numComponents, decimalPlaces);
-                await _context.SaveChangesAsync();
-                return Result<WellnessState>.Success(existingState);
-            }
-            else
-            {
-                WellnessState wellnessState = new WellnessState(userGuid, req.Motivation, req.Stress, req.Mood, req.Energy, selectedDate);
-                _context.WellnessStates.Add(wellnessState);
-                await _context.SaveChangesAsync();
-                return Result<WellnessState>.Created(wellnessState);
-            }
-        }
+        
     }
 }

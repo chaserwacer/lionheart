@@ -28,10 +28,6 @@ services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
-// builder.Services
-//     .AddMcpServer()
-//     .WithHttpTransport()
-//     .WithToolsFromAssembly();
 
 builder.Services.AddSingleton(provider =>
     new ChatClient(model: "gpt-5.2", apiKey: configuration["OpenAI:ApiKey"])
@@ -120,7 +116,6 @@ app.UseExceptionHandler(errorApp =>
         var exceptionFeature = context.Features.Get<IExceptionHandlerPathFeature>();
         var exception = exceptionFeature?.Error;
 
-        // Optional: log it
         // logger.LogError(exception, "Unhandled exception");
 
         var errorResponse = new
@@ -154,8 +149,6 @@ if (!app.Environment.IsEnvironment("Testing"))
         });
 #pragma warning restore CS4014 
 }
-
-// app.MapMcp();
 
 app.Run();
 

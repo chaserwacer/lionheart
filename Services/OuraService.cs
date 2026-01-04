@@ -12,13 +12,29 @@ using Ardalis.Result;
 
 namespace lionheart.Services
 {
+    public interface IOuraService
+    {
+        /// <summary>
+        /// Synchronize Oura data for a user within a specified date range.
+        /// </summary>
+        Task<Result> SyncOuraAPI(IdentityUser user, DateRangeRequest dateRange);
+        /// <summary>
+        /// Get the daily Oura information for a user on a specific date.
+        /// </summary>
+        Task<Result<DailyOuraDataDTO>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date);
+        /// <summary>
+        /// Get the daily Oura information for a user within a specified date range.
+        /// </summary>
+        Task<Result<List<DailyOuraDataDTO>>> GetDailyOuraInfosAsync(IdentityUser user, DateRangeRequest dateRange);
+    }
     /// <summary>
-    /// OuraService handles business logic and persistence of daily oura info. Daily Oura Infos are objects containing data from a users 
-    /// Oura Ring, which is obtained via the Our Ring OpenAPI.
-    /// 
-    /// Daily Oura Infos are crafted via combining pieces of four of the different packages that are available via the OpenAPI. This meaning that
-    /// Daily Oura Infos are objects I have structured and created via selecting peices of different things I can acquire from Oura. 
+    /// OuraService handles fetching, conversion, and storage of Oura Ring data for users.
     /// </summary>
+    /// <remarks>
+    /// This service interacts with the Oura Ring API.
+    /// Data is fetched and deserialzed into objects mirroring structure defined in their Open API documentation.
+    /// Those objects are then converted into custom representation <see cref="DailyOuraData"/> objects for storage in the database.
+    /// </remarks>
     public class OuraService : IOuraService
     {
         private readonly ModelContext _context;
@@ -34,10 +50,10 @@ namespace lionheart.Services
 
         public async Task<Result<DailyOuraDataDTO>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date)
         {
-            var userGuid  = Guid.Parse(user.Id);
+            var userGuid = Guid.Parse(user.Id);
             var dto = await _context.DailyOuraDatas.FirstOrDefaultAsync(x => x.UserID == userGuid && x.Date == date) ?? null;
 
-            
+
             if (dto is not null)
             {
                 return Result<DailyOuraDataDTO>.Success(new DailyOuraDataDTO()
@@ -175,7 +191,7 @@ namespace lionheart.Services
             while (currentDate <= endDate)
             {
 
-                
+
                 // Build pieces of Daily Oura object via creating its subobjects, who contain pieces of each of the different documents I acquired from Oura.
                 var activityDocument = activityDocuments.FirstOrDefault(d => d.Day == currentDate);
                 if (activityDocument != null)
@@ -340,16 +356,16 @@ namespace lionheart.Services
                     {
                         _context.DailyOuraDatas.Add(dailyOuraInfo);
                         await _context.SaveChangesAsync();
-                      
+
                     }
                     // If the while loop is never entered, return false to indicate nothing was synced
-                   
+
                 }
                 else
                 {
                     _context.DailyOuraDatas.Add(dailyOuraInfo);
                     await _context.SaveChangesAsync();
-                    
+
                 }
                 currentDate = currentDate.AddDays(1);
             }

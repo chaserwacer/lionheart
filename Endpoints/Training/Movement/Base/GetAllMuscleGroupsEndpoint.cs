@@ -13,7 +13,6 @@ using lionheart.Services.Training;
 namespace lionheart.Endpoints.Training.Movement
 {
     [ValidateModel]
-    [McpServerToolType]
 
     public class GetAllMuscleGroupsAsync : EndpointBaseAsync
         .WithoutRequest
@@ -32,7 +31,6 @@ namespace lionheart.Endpoints.Training.Movement
         [EndpointDescription("Get all available muscle groups.")]
         [ProducesResponseType<List<MuscleGroup>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [McpServerTool, Description("Get all available muscle groups.")]
         public override async Task<ActionResult<List<MuscleGroup>>> HandleAsync(CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);

@@ -14,7 +14,6 @@ namespace lionheart.Services
     /// Service for managing distance/time set entries within movements.
     /// Handles business logic and ensures users can only access their own data.
     /// </summary>
-    [McpServerToolType]
     public class DTSetEntryService : IDTSetEntryService
     {
         private readonly ModelContext _context;
@@ -24,7 +23,6 @@ namespace lionheart.Services
             _context = context;
         }
 
-        [McpServerTool, Description("Add a distance/time set entry to a movement.")]
         public async Task<Result<DTSetEntryDTO>> CreateDTSetEntryAsync(IdentityUser user, CreateDTSetEntryRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
@@ -66,7 +64,6 @@ namespace lionheart.Services
             return Result<DTSetEntryDTO>.Created(setEntry.Adapt<DTSetEntryDTO>());
         }
 
-        [McpServerTool, Description("Update an existing distance/time set entry.")]
         public async Task<Result<DTSetEntryDTO>> UpdateDTSetEntryAsync(IdentityUser user, UpdateDTSetEntryRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
@@ -100,7 +97,6 @@ namespace lionheart.Services
             return Result<DTSetEntryDTO>.Success(setEntry.Adapt<DTSetEntryDTO>());
         }
 
-        [McpServerTool, Description("Delete a distance/time set entry.")]
         public async Task<Result> DeleteDTSetEntryAsync(IdentityUser user, Guid setEntryId)
         {
             var userGuid = Guid.Parse(user.Id);

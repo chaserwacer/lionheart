@@ -15,7 +15,6 @@ namespace lionheart.Services
     /// Handles business logic and ensures users can only access their own data.
     /// Integrates with PersonalRecordService for PR tracking.
     /// </summary>
-    [McpServerToolType]
     public class LiftSetEntryService : ILiftSetEntryService
     {
         private readonly ModelContext _context;
@@ -27,7 +26,6 @@ namespace lionheart.Services
             _personalRecordService = personalRecordService;
         }
 
-        [McpServerTool, Description("Add a lifting set entry to a movement.")]
         public async Task<Result<LiftSetEntryDTO>> CreateLiftSetEntryAsync(IdentityUser user, CreateLiftSetEntryRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
@@ -70,7 +68,6 @@ namespace lionheart.Services
             return Result<LiftSetEntryDTO>.Created(setEntry.Adapt<LiftSetEntryDTO>());
         }
 
-        [McpServerTool, Description("Update an existing lifting set entry.")]
         public async Task<Result<LiftSetEntryDTO>> UpdateLiftSetEntryAsync(IdentityUser user, UpdateLiftSetEntryRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
@@ -117,7 +114,6 @@ namespace lionheart.Services
             return Result<LiftSetEntryDTO>.Success(setEntry.Adapt<LiftSetEntryDTO>());
         }
 
-        [McpServerTool, Description("Delete a lifting set entry.")]
         public async Task<Result> DeleteLiftSetEntryAsync(IdentityUser user, Guid setEntryId)
         {
             var userGuid = Guid.Parse(user.Id);

@@ -13,8 +13,6 @@ using lionheart.Services.Training;
 namespace lionheart.Endpoints.Training.Movement
 {
     [ValidateModel]
-    [McpServerToolType]
-
     public class GetMovementBasesEndpoint : EndpointBaseAsync
         .WithoutRequest
         .WithActionResult<List<MovementBaseDTO>>
@@ -32,7 +30,6 @@ namespace lionheart.Endpoints.Training.Movement
         [EndpointDescription("Get all available movement bases.")]
         [ProducesResponseType<List<MovementBaseDTO>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [McpServerTool, Description("Get all available movement bases.")]
         public override async Task<ActionResult<List<MovementBaseDTO>>> HandleAsync(CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
