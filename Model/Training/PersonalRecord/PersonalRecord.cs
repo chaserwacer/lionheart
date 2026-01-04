@@ -6,7 +6,7 @@ namespace lionheart.Model.Training;
 
 /// <summary>
 /// Represents a Personal Record (PR) for a user.
-/// A PR is tracked for each unique MovementData .
+/// A PR is tracked for each unique <see cref="MovementData"/>.
 /// </summary>
 public class PersonalRecord
 {

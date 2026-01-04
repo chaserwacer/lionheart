@@ -4,17 +4,22 @@ namespace lionheart.WellBeing
 {
 
     /// <summary>
-    /// Class to represent a users state of well-being on a given day. 
-    ///  Well-being is represented via a list of integer scores for things like motivation, mood, etc. 
+    /// Represents the wellness state of a user on a specific date.
+    /// This includes various scores related to motivation, stress, mood, and energy,
+    /// as well as an overall wellness score calculated from these individual scores.
     /// </summary>
-    public class WellnessState{
+    /// <remarks>
+    /// This metric is usable as a perceived wellness indicator for the user.
+    /// </remarks>
+    public class WellnessState
+    {
         public Guid StateID { get; init; }
-        public Guid UserID {get; init;}
-        public DateOnly Date {get; init;}
+        public Guid UserID { get; init; }
+        public DateOnly Date { get; init; }
         public int MotivationScore { get; set; }
         public int StressScore { get; set; }
         public int MoodScore { get; set; }
-        public int EnergyScore {get; set; }
+        public int EnergyScore { get; set; }
         public double OverallScore { get; set; }
 
 
@@ -22,8 +27,8 @@ namespace lionheart.WellBeing
         {
             this.UserID = userID;
             this.MotivationScore = motivationScore;
-            this.StressScore = stressScore;  
-            this.MoodScore = moodScore; 
+            this.StressScore = stressScore;
+            this.MoodScore = moodScore;
             this.EnergyScore = energyScore;
             double avg = (double)(moodScore + energyScore + motivationScore + (6 - stressScore)) / 4;
             int decimalPlaces = 2;
@@ -32,7 +37,5 @@ namespace lionheart.WellBeing
             this.Date = date;
         }
 
-    }// end WellBeingState
-
-
+    }
 }

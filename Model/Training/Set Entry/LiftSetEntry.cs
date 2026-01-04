@@ -4,10 +4,12 @@ using System.ComponentModel.DataAnnotations.Schema;
 using lionheart.Model.Training;
 namespace lionheart.Model.Training.SetEntry
 {
-    /// <summary>
-    /// Represents a set entry within a <see cref="Movement"/>.
-    /// A set entry contains the recommended and actual reps, weight, and RPE (Rate of Perceived Exertion).
+    //// <summary>
+    /// Represents an occurence of a <see cref="Movement"/> being performed in a lifting/repetition/weight based manner.
     /// </summary>
+    /// <remarks>
+    /// Lifting sets can contain optional recommended values for reps, weight, and RPE. This allows for preprogramming of workouts.
+    /// </remarks>
     public class LiftSetEntry
     {
         public Guid SetEntryID { get; init; }

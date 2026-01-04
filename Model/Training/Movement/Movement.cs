@@ -5,10 +5,9 @@ using lionheart.Model.Training.SetEntry;
 namespace lionheart.Model.Training
 {
     /// <summary>
-    /// Represents a thing that a user does in a training session.
-    /// The movement performed is defined by <see cref="MovementData"/>
+    /// Representation of a movement performed during a <see cref="TrainingSession"/>.
+    /// Contains references to objects that define the movement, and define performed occurrences (sets) of the movement.
     /// </summary>
-
     public class Movement
     {
         [Key]
@@ -21,17 +20,22 @@ namespace lionheart.Model.Training
         [Required]
         public required Guid MovementDataID { get; set; }
 
+        /// <summary>
+        /// Definition data for the movement being performed.
+        /// </summary>
         /// <remarks>
         /// <see cref="MovementData"/> is referenced by FK.
         /// If a matching MovementData doesn't exist, it should be created first, then referenced.
         /// </remarks>
         [ForeignKey("MovementDataID")]
         public MovementData MovementData { get; set; } = null!;
-
         public required List<LiftSetEntry> LiftSets { get; set; }
         public required List<DTSetEntry> DistanceTimeSets { get; set; }
         public required string Notes { get; set; } = string.Empty;
         public required bool IsCompleted { get; set; } = false;
+        /// <summary>
+        /// Movement ordering within the <see cref="TrainingSession"/>.
+        /// </summary>
         public required int Ordering { get; set; }
     }
 

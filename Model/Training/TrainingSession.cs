@@ -4,27 +4,31 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace lionheart.Model.Training
 {
+    /// <summary>
+    /// Representation of a training session, which is a collection of <see cref="Movement"/>s performed by a user on a specific date.
+    /// </summary>
+    /// <remarks>
+    /// A training session can be part of a <see cref="TrainingProgram"/> or standalone.
+    /// </remarks>
     public class TrainingSession
     {
         [Key]
         [Required]
-        public required Guid TrainingSessionID { get; init; }   
+        public required Guid TrainingSessionID { get; init; }
         [ForeignKey(nameof(TrainingProgram))]
         public Guid? TrainingProgramID { get; set; }
-        public TrainingProgram? TrainingProgram { get; set; } // A training session may be standalone, or part of a program
+        /// <summary>
+        /// Optional reference to the training program this session is part of.
+        /// </summary>
+        public TrainingProgram? TrainingProgram { get; set; }
         public required DateOnly Date { get; set; }
         public required TrainingSessionStatus Status { get; set; } = TrainingSessionStatus.Planned;
         public required List<Movement> Movements { get; set; } = [];
         public required DateTime CreationTime { get; init; }
         public required string Notes { get; set; } = string.Empty;
-        public TrainingSessionPerceivedEffortRatings? PerceivedEffortRatings { get; set; }
+        public PerceivedEffortRatings? PerceivedEffortRatings { get; set; }
     }
-    public class TrainingSessionPerceivedEffortRatings
-    {
-        [Key]
-        public required Guid TrainingSessionID { get; init; }
-        public required PerceivedEffortRatings PerceivedEffortRatings { get; set; }
-    }
+
     public record TrainingSessionDTO(
         [Required]
         Guid TrainingSessionID,
@@ -39,13 +43,13 @@ namespace lionheart.Model.Training
         DateTime CreationTime,
         [Required]
         string Notes,
-        TrainingSessionPerceivedEffortRatings? PerceivedEffortRatings
+        PerceivedEffortRatings? PerceivedEffortRatings
     );
     public record CreateTrainingSessionRequest(
         DateOnly Date,
         Guid? TrainingProgramID,
         string Notes,
-        TrainingSessionPerceivedEffortRatings? PerceivedEffortRatings
+        PerceivedEffortRatings? PerceivedEffortRatings
     );
     public record UpdateTrainingSessionRequest(
         Guid TrainingSessionID,
@@ -53,12 +57,12 @@ namespace lionheart.Model.Training
         DateOnly Date,
         TrainingSessionStatus Status,
         string Notes,
-        TrainingSessionPerceivedEffortRatings? PerceivedEffortRatings
+        PerceivedEffortRatings? PerceivedEffortRatings
     );
     public enum TrainingSessionStatus
     {
         Planned,
-        InProgress,
+        Active,
         Completed,
         Skipped,
         AIModified
@@ -66,4 +70,3 @@ namespace lionheart.Model.Training
 }
 
 
-   

@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace lionheart.Model.Training
 {
     /// <summary>
-    /// Represents a unique combination of MovementBase + Equipment + optional Modifier.
-    /// This defnes the specific movement being performed in a training session, as well as how it is performed
+    /// Definition of a movement performed. 
+    /// This includes what the movement is ( <see cref="MovementBase"/>), the equipment used ( <see cref="Equipment"/>), and an optional modifier ( <see cref="MovementModifier"/>).
     /// </summary>
     public class MovementData
     {
@@ -57,7 +57,12 @@ namespace lionheart.Model.Training
             return HashCode.Combine(UserID, EquipmentID, MovementBaseID, MovementModifierID);
         }
     }
-
+    /// <summary>
+    /// Modifier that can be applied to a movement to specify a variation.
+    /// </summary>
+    /// <remarks>
+    /// Example usage: "Incline", "Paused", "Wide Grip"
+    /// </remarks>
     public class MovementModifier
     {
         [Required]

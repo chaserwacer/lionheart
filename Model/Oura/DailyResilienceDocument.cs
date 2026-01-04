@@ -3,6 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace lionheart.Model.Oura.Dto
 {
+    /// <summary>
+    /// Object representing daily resilience data document retrieved from Oura Ring API. This mirrors the structure of the Oura API response.
+    /// </summary>
     public record OuraDailyResilienceDocument
     {
         [JsonPropertyName("id")]

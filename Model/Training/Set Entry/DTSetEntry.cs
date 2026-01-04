@@ -4,6 +4,12 @@ using lionheart.Model.Training;
 
 namespace lionheart.Model.Training.SetEntry
 {
+    /// <summary>
+    /// Represents an occurence of a <see cref="Movement"/> being performed in some distance/time based manner.
+    /// </summary>
+    /// <remarks>
+    /// TODO: Update class to encapsulate metrics into recommended vs actual groupings.
+    /// </remarks>
     public class DTSetEntry
     {
         public required Guid SetEntryID { get; init; }
@@ -29,7 +35,6 @@ namespace lionheart.Model.Training.SetEntry
   
     }
 
-    // Hardcoded DTOs replacing DKNet.EfCore.DtoGenerator usage
     public record DTSetEntryDTO(
         Guid SetEntryID,
         Guid MovementID,

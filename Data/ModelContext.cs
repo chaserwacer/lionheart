@@ -91,9 +91,8 @@ namespace lionheart.Data
                 .HasForeignKey(a => a.UserID);
 
             modelBuilder.Entity<Activity>()
-                .HasOne<ActivityPerceivedEffortRatings>(a => a.PerceivedEffortRatings)
+                .HasOne<PerceivedEffortRatings>(a => a.PerceivedEffortRatings)
                 .WithOne()
-                .HasForeignKey<ActivityPerceivedEffortRatings>(p => p.ActivityID)
                 .IsRequired(false);
                        
 
@@ -115,9 +114,8 @@ namespace lionheart.Data
                 .IsRequired(false);
             
             modelBuilder.Entity<TrainingSession>()
-                .HasOne<TrainingSessionPerceivedEffortRatings>(s => s.PerceivedEffortRatings)
+                .HasOne<PerceivedEffortRatings>(s => s.PerceivedEffortRatings)
                 .WithOne()
-                .HasForeignKey<TrainingSessionPerceivedEffortRatings>(p => p.TrainingSessionID)
                 .IsRequired(false);
 
             // Movements + Movement Bases + Movement Modifiers + MovementData

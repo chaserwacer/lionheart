@@ -6,9 +6,7 @@ using Microsoft.AspNetCore.Identity;
 namespace lionheart.WellBeing
 {
     /// <summary>
-    /// Class to represent a user. This user has some basic properties, such as age and name. The class contains an Identity User, which is an object
-    /// it is associated with. Identity Users are users created via the outsourced ASP.NET authentication process. A user then holds a list of their 
-    /// wellness states, activites, etc. 
+    /// Represents a user in the Lionheart application.
     /// </summary>
     public class LionheartUser
     {

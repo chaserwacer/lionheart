@@ -124,7 +124,7 @@ public class TrainingSessionService : ITrainingSessionService
             Movements = new List<Movement>(),
             Status = TrainingSessionStatus.Planned,
             Date = date,
-            CreationTime = DateTime.UtcNow, 
+            CreationTime = DateTime.UtcNow,
             Notes = string.Empty,
             PerceivedEffortRatings = request.PerceivedEffortRatings
         };
@@ -188,16 +188,12 @@ public class TrainingSessionService : ITrainingSessionService
         session.Notes = request.Notes;
         if (request.PerceivedEffortRatings is not null)
         {
-            session.PerceivedEffortRatings = new TrainingSessionPerceivedEffortRatings
+            session.PerceivedEffortRatings = new PerceivedEffortRatings
             {
-                TrainingSessionID = session.TrainingSessionID,
-                PerceivedEffortRatings = new PerceivedEffortRatings
-                {
-                    AccumulatedFatigue = request.PerceivedEffortRatings.PerceivedEffortRatings.AccumulatedFatigue,
-                    DifficultyRating = request.PerceivedEffortRatings.PerceivedEffortRatings.DifficultyRating,
-                    EngagementRating = request.PerceivedEffortRatings.PerceivedEffortRatings.EngagementRating,
-                    ExternalVariablesRating = request.PerceivedEffortRatings.PerceivedEffortRatings.ExternalVariablesRating
-                }
+                AccumulatedFatigue = request.PerceivedEffortRatings.AccumulatedFatigue,
+                DifficultyRating = request.PerceivedEffortRatings.DifficultyRating,
+                EngagementRating = request.PerceivedEffortRatings.EngagementRating,
+                ExternalVariablesRating = request.PerceivedEffortRatings.ExternalVariablesRating
             };
         }
         else

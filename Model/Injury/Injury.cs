@@ -5,6 +5,9 @@ using Parlot.Fluent;
 
 namespace lionheart.Model.Injury
 {
+    /// <summary>
+    /// Representation of an injury sustained by a user.
+    /// </summary>
     public class Injury
     {
         [Key]
@@ -28,6 +31,13 @@ namespace lionheart.Model.Injury
    
     }
 
+    /// <summary>
+    /// Representation of an event related to an <see cref="Injury"/> , defined by <see cref="InjuryEventType"/>.
+    /// </summary>
+    /// <remarks>
+    /// Injury events are used to track occurences of experiencing or treating an injury.
+    /// Injury events can be linked to optional <see cref="TrainingSession"/>s and <see cref="Movement"/>s to provide context.
+    /// </remarks>
     public class InjuryEvent
     {
         [Key]
@@ -37,8 +47,7 @@ namespace lionheart.Model.Injury
         public Guid InjuryID { get; set; }
         public Injury Injury { get; set; } = null!;
 
-        [Required]
-        public Guid TrainingSessionID { get; set; }
+        public Guid? TrainingSessionID { get; set; }
 
         public string Notes { get; set; } = string.Empty;
 

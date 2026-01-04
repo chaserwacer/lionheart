@@ -39,19 +39,16 @@ namespace lionheart.Services
                 DateTime = activityRequest.DateTime,
                 TimeInMinutes = activityRequest.TimeInMinutes,
                 CaloriesBurned = activityRequest.CaloriesBurned,
-                Name =  activityRequest.Name,
+                Name = activityRequest.Name,
                 UserSummary = activityRequest.UserSummary,
-                PerceivedEffortRatings = new ActivityPerceivedEffortRatings
+                PerceivedEffortRatings = new PerceivedEffortRatings
                 {
-                    ActivityID = activityID,
-                    PerceivedEffortRatings = new PerceivedEffortRatings
-                    {
-                        AccumulatedFatigue = activityRequest.PerceivedEffortRatings?.PerceivedEffortRatings.AccumulatedFatigue,
-                        DifficultyRating = activityRequest.PerceivedEffortRatings?.PerceivedEffortRatings.DifficultyRating,
-                        EngagementRating = activityRequest.PerceivedEffortRatings?.PerceivedEffortRatings.EngagementRating,
-                        ExternalVariablesRating = activityRequest.PerceivedEffortRatings?.PerceivedEffortRatings.ExternalVariablesRating
-                    }
+                    AccumulatedFatigue = activityRequest.PerceivedEffortRatings?.AccumulatedFatigue,
+                    DifficultyRating = activityRequest.PerceivedEffortRatings?.DifficultyRating,
+                    EngagementRating = activityRequest.PerceivedEffortRatings?.EngagementRating,
+                    ExternalVariablesRating = activityRequest.PerceivedEffortRatings?.ExternalVariablesRating
                 }
+
             };
             await _context.Activities.AddAsync(activity);
             await _context.SaveChangesAsync();
@@ -86,9 +83,9 @@ namespace lionheart.Services
 
         public async Task<Result<ActivityDTO>> GetActivityAsync(IdentityUser user, Guid activityID)
         {
-          var userId = Guid.Parse(user.Id);
-          var acitivtity = await _context.Activities.AsNoTracking()
-                .FirstOrDefaultAsync(a => a.ActivityID == activityID && a.UserID == userId);
+            var userId = Guid.Parse(user.Id);
+            var acitivtity = await _context.Activities.AsNoTracking()
+                  .FirstOrDefaultAsync(a => a.ActivityID == activityID && a.UserID == userId);
             if (acitivtity == null)
             {
                 return Result.NotFound("Activity with ID not found for the user.");
@@ -105,26 +102,22 @@ namespace lionheart.Services
             {
                 return Result.NotFound("Activity with ID not found for the user.");
             }
-            activity.DateTime =  activityRequest.DateTime;
-            activity.TimeInMinutes = activityRequest.TimeInMinutes; 
+            activity.DateTime = activityRequest.DateTime;
+            activity.TimeInMinutes = activityRequest.TimeInMinutes;
             activity.CaloriesBurned = activityRequest.CaloriesBurned;
             activity.Name = activityRequest.Name;
             activity.UserSummary = activityRequest.UserSummary;
             if (activityRequest.PerceivedEffortRatings != null)
             {
-                activity.PerceivedEffortRatings = new ActivityPerceivedEffortRatings
-                {
-                    ActivityID = activity.ActivityID,
-                    PerceivedEffortRatings = new PerceivedEffortRatings
+                activity.PerceivedEffortRatings = new PerceivedEffortRatings
                     {
-                        AccumulatedFatigue = activityRequest.PerceivedEffortRatings.PerceivedEffortRatings.AccumulatedFatigue,
-                        DifficultyRating = activityRequest.PerceivedEffortRatings.PerceivedEffortRatings.DifficultyRating,
-                        EngagementRating = activityRequest.PerceivedEffortRatings.PerceivedEffortRatings.EngagementRating,
-                        ExternalVariablesRating = activityRequest.PerceivedEffortRatings.PerceivedEffortRatings.ExternalVariablesRating
-                    }
+                        AccumulatedFatigue = activityRequest.PerceivedEffortRatings.AccumulatedFatigue,
+                        DifficultyRating = activityRequest.PerceivedEffortRatings.DifficultyRating,
+                        EngagementRating = activityRequest.PerceivedEffortRatings.EngagementRating,
+                        ExternalVariablesRating = activityRequest.PerceivedEffortRatings.ExternalVariablesRating
                 };
             }
-            
+
             await _context.SaveChangesAsync();
             return Result.Success(activity.Adapt<ActivityDTO>());
         }

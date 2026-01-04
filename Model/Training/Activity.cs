@@ -4,9 +4,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace lionheart.ActivityTracking
 {
+    /// <summary>
+    /// Representation of some activity performed by a user.
+    /// </summary>
+    /// <remarks>
+    /// Useful as a complement to <see cref="TrainingSession"/>s, this allows the tracking of general activities with less structure.
+    /// This enables the tracking of less conventional acitivites [ex: yardwork, concert] that still contribute to health, fatigue, etc.
+    /// </remarks>
     public class Activity
     {
-        // Base Data
         public Guid ActivityID { get; init; }
         public Guid UserID { get; init; }
         public DateTime DateTime { get; set; }
@@ -14,14 +20,9 @@ namespace lionheart.ActivityTracking
         public int CaloriesBurned { get; set; }
         public string Name { get; set; } = string.Empty;
         public string UserSummary { get; set; } = string.Empty;
-        public ActivityPerceivedEffortRatings? PerceivedEffortRatings { get; set; }
+        public PerceivedEffortRatings? PerceivedEffortRatings { get; set; }
     }
-    public class ActivityPerceivedEffortRatings
-    {
-        [Key]
-        public required Guid ActivityID { get; init; }
-        public required PerceivedEffortRatings PerceivedEffortRatings { get; set; }
-    }
+
 
     public record ActivityDTO(
         Guid ActivityID,
@@ -31,7 +32,7 @@ namespace lionheart.ActivityTracking
         int CaloriesBurned,
         string Name,
         string UserSummary,
-        ActivityPerceivedEffortRatings? PerceivedEffortRatings
+        PerceivedEffortRatings? PerceivedEffortRatings
     );
     public record CreateActivityRequest(
         Guid UserID,
@@ -40,7 +41,7 @@ namespace lionheart.ActivityTracking
         int CaloriesBurned,
         string Name,
         string UserSummary,
-        ActivityPerceivedEffortRatings? PerceivedEffortRatings
+        PerceivedEffortRatings? PerceivedEffortRatings
     );
     public record UpdateActivityRequest(
         Guid ActivityID,
@@ -50,6 +51,6 @@ namespace lionheart.ActivityTracking
         int CaloriesBurned,
         string Name,
         string UserSummary,
-        ActivityPerceivedEffortRatings? PerceivedEffortRatings
+        PerceivedEffortRatings? PerceivedEffortRatings
     );
 }

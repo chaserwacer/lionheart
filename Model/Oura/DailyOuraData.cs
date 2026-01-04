@@ -1,9 +1,11 @@
 namespace lionheart.Model.Oura
 {
     /// <summary>
-    /// Class for holding all of the Oura Data (that I choose to store) for a user for a given date. This is made up of several subobjects who
-    /// split this data into a format mirroring that of Oura's structure. 
+    /// Object containing a panel of Oura Ring data for a user for a given date.
     /// </summary>
+    /// <remarks>
+    /// This class is a subset of the information retrevied from Oura Ring API [modified for lionheart use].
+    /// </remarks>
     public class DailyOuraData
     {
         public Guid ObjectID { get; init; }
@@ -16,12 +18,30 @@ namespace lionheart.Model.Oura
         public required SleepData SleepData {get; set; }
         public required ReadinessData ReadinessData { get; set; }
 
+        /// <summary>
+        /// Raw JSON data from Oura API for activity data.
+        /// </summary>
         public string ActivityJson { get; set; } = string.Empty;
+        /// <summary>
+        /// Raw JSON data from Oura API for resilience data.
+        /// </summary>
         public string ResilienceJson { get; set; } = string.Empty;
+        /// <summary>
+        /// Raw JSON data from Oura API for sleep data.
+        /// </summary>
         public string SleepJson { get; set; } = string.Empty;
+        /// <summary>
+        /// Raw JSON data from Oura API for readiness data.
+        /// </summary>
         public string ReadinessJson { get; set; } = string.Empty;
     }
 
+    /// <summary>
+    /// Panel of sleep data retrieved from Oura Ring API for a given day.
+    /// </summary>
+    /// <remarks>
+    /// This class is a subset of the information retrevied from Oura Ring API [modified for lionheart use].
+    /// </remarks>
     public class SleepData{
         public int SleepScore { get; set; }
         public int DeepSleep { get; set; }   
@@ -32,6 +52,13 @@ namespace lionheart.Model.Oura
         public int Timing { get; set; }      
         public int TotalSleep { get; set; }  
     }
+    
+    /// <summary>
+    /// Panel of activity data retrieved from Oura Ring API for a given day.
+    /// </summary>
+    /// <remarks>
+    /// This class is a subset of the information retrevied from Oura Ring API [modified for lionheart use].
+    /// </remarks>
     public class ActivityData
     {
         public int ActivityScore { get; set; }
@@ -46,6 +73,12 @@ namespace lionheart.Model.Oura
         public int TrainingFrequency { get; set; }
         public int TrainingVolume { get; set; }
     }
+    /// <summary>
+    /// Panel of resilience data retrieved from Oura Ring API for a given day.
+    /// </summary>
+    /// <remarks>
+    /// This class is a subset of the information retrevied from Oura Ring API [modified for lionheart use].
+    /// </remarks>
     public class ResilienceData
     {
         public double SleepRecovery { get; set; }
@@ -53,6 +86,12 @@ namespace lionheart.Model.Oura
         public double Stress { get; set; }
         public string ResilienceLevel { get; set; } = string.Empty;
     }
+    /// <summary>
+    /// Panel of readiness data retrieved from Oura Ring API for a given day.
+    /// </summary>
+    /// <remarks>
+    /// This class is a subset of the information retrevied from Oura Ring API [modified for lionheart use].
+    /// </remarks>
     public class ReadinessData
     {
         public int ReadinessScore { get; set; }

@@ -74,7 +74,7 @@ namespace lionheart.Services
             {
                 InjuryEventID = Guid.NewGuid(),
                 InjuryID = injury.InjuryID,
-                TrainingSessionID = request.TrainingSessionID ?? Guid.Empty,
+                TrainingSessionID = request.TrainingSessionID,
                 Notes = request.Notes,
                 PainLevel = request.PainLevel,
                 InjuryType = request.InjuryType,
