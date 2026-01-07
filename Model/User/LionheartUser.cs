@@ -21,6 +21,7 @@ namespace lionheart.WellBeing
         public List<ApiAccessToken> ApiAccessTokens { get; set; } = [];
         public List<DailyOuraData> DailyOuraInfos { get; set; } = [];
         public List<TrainingProgram> TrainingPrograms { get; set; } = [];
+        public List<TrainingSession> TrainingSessions { get; set; } = [];
         public List<MovementBase> MovementBases { get; set; } = [];
         public List<MovementData> MovementDatas { get; set; } = [];
         public List<MovementModifier> MovementModifiers { get; set; } = [];

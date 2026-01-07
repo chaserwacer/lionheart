@@ -2,66 +2,55 @@ using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.DTOs;
 using lionheart.Model.Training;
+using lionheart.Model.Training.SetEntry;
+using lionheart.Services;
+using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ModelContextProtocol.Server;
-using lionheart.Services;
-using System.ComponentModel;
-using Mapster;
-using lionheart.Model.Training.SetEntry;
 
 public interface ITrainingSessionService
 {
     /// <summary>
     /// Get all training sessions for a specific program.
     /// </summary>
-    /// <param name="user">The user who owns the program.</param>
-    /// <param name="trainingProgramID">The program ID to get sessions for.</param>
-    /// <returns>A result containing a list of training sessions.</returns>
+    /// <remarks>
+    /// This does not include child entities. Use <see cref="GetTrainingSessionAsync"/> for that.
+    /// </remarks>
     Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, Guid trainingProgramID);
 
     /// <summary>
-    /// Get a specific training session by ID.
+    /// Get all training sessions within <see cref="DateRangeRequest"/> regardless of program association. 
     /// </summary>
-    /// <param name="user">The user who owns the session.</param>
-    /// <param name="trainingSessionID">The session ID to retrieve.</param>
-    /// <returns>A result containing the training session.</returns>
+    /// <remarks>
+    /// This does not include child entities. Use <see cref="GetTrainingSessionAsync"/> for that.
+    /// </remarks>
+    Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, DateRangeRequest dateRange);
+
+    /// <summary>
+    /// Get a specific training session by ID, including its child entities.
+    /// </summary>
     Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
 
     /// <summary>
-    /// Create a new training session within a program.
+    /// Create a new training session.
     /// </summary>
-    /// <param name="user">The user to create the session for.</param>
-    /// <param name="programId">The program ID to add the session to.</param>
-    /// <param name="request">The session creation request.</param>
-    /// <returns>A result containing the created session.</returns>
     Task<Result<TrainingSessionDTO>> CreateTrainingSessionAsync(IdentityUser user, CreateTrainingSessionRequest request);
 
     /// <summary>
     /// Update an existing training session.
     /// </summary>
-    /// <param name="user">The user who owns the session.</param>
-    /// <param name="sessionId">The session ID to update.</param>
-    /// <param name="request">The session update request.</param>
-    /// <returns>A result containing the updated session.</returns>
     Task<Result<TrainingSessionDTO>> UpdateTrainingSessionAsync(IdentityUser user, UpdateTrainingSessionRequest request);
 
 
     /// <summary>
     /// Delete a training session.
     /// </summary>
-    /// <param name="user">The user who owns the session.</param>
-    /// <param name="sessionId">The session ID to delete.</param>
-    /// <returns>A result indicating success or failure.</returns>
     Task<Result> DeleteTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
 
 
     /// <summary>
-    /// Duplicate a training session, including all movements and set entries.
+    /// Duplicate a training session, deep copying its child entities.
     /// </summary>
-    /// <param name="user">The user who owns the session.</param>
-    /// <param name="trainingSessionID">The session ID to duplicate.</param>
-    /// <returns>A result containing the duplicated training session.</returns>
     Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
 }
 
@@ -81,31 +70,33 @@ public class TrainingSessionService : ITrainingSessionService
     {
         var userGuid = Guid.Parse(user.Id);
         var sessions = await _context.TrainingSessions
-            .Include(ts => ts.TrainingProgram)
-            .Where(ts => ts.TrainingProgramID == programId &&
-                         ts.TrainingProgram!.UserID == userGuid)
+            .Where(ts => ts.TrainingProgramID == programId && ts.UserID == userGuid)
             .OrderBy(ts => ts.Date)
             .ThenBy(ts => ts.CreationTime)
             .ProjectToType<TrainingSessionDTO>()
             .ToListAsync();
         return Result<List<TrainingSessionDTO>>.Success(sessions);
-
     }
 
     public async Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
     {
         var userGuid = Guid.Parse(user.Id);
         var session = await _context.TrainingSessions
-            .Include(ts => ts.TrainingProgram)
-             .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
+            .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.LiftSets)
             .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.DistanceTimeSets)
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.MovementData)
                 .ThenInclude(md => md.Equipment)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID &&
-                                      ts.TrainingProgram!.UserID == userGuid);
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.MovementData)
+                .ThenInclude(md => md.MovementBase)
+            .Include(ts => ts.Movements)
+                .ThenInclude(m => m.MovementData)
+                .ThenInclude(md => md.MovementModifier)
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID && ts.UserID == userGuid);
+
         if (session is null)
         {
             return Result<TrainingSessionDTO>.NotFound("Training session not found or access denied.");
@@ -113,27 +104,39 @@ public class TrainingSessionService : ITrainingSessionService
         return Result<TrainingSessionDTO>.Success(session.Adapt<TrainingSessionDTO>());
     }
 
+    public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, DateRangeRequest dateRange)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        var sessions = await _context.TrainingSessions
+            .Where(ts => ts.UserID == userGuid && ts.Date >= dateRange.StartDate && ts.Date <= dateRange.EndDate)
+            .OrderBy(ts => ts.Date)
+            .ThenBy(ts => ts.CreationTime)
+            .ToListAsync();
+
+        return Result<List<TrainingSessionDTO>>.Success(sessions.Adapt<List<TrainingSessionDTO>>());
+    }
+
+
 
     public async Task<Result<TrainingSessionDTO>> CreateTrainingSessionAsync(IdentityUser user, CreateTrainingSessionRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
-        var date = request.Date;
         var session = new TrainingSession
         {
             TrainingSessionID = Guid.NewGuid(),
-            Movements = new List<Movement>(),
+            UserID = userGuid,
+            Movements = [],
             Status = TrainingSessionStatus.Planned,
-            Date = date,
+            Date = request.Date,
             CreationTime = DateTime.UtcNow,
-            Notes = string.Empty,
+            Notes = request.Notes,
             PerceivedEffortRatings = request.PerceivedEffortRatings
         };
 
         if (request.TrainingProgramID is not null && request.TrainingProgramID != Guid.Empty)
         {
             var program = await _context.TrainingPrograms
-            .FirstOrDefaultAsync(tp => tp.TrainingProgramID == request.TrainingProgramID &&
-                                      tp.UserID == userGuid);
+                .FirstOrDefaultAsync(tp => tp.TrainingProgramID == request.TrainingProgramID && tp.UserID == userGuid);
 
             if (program is null)
             {
@@ -144,7 +147,6 @@ public class TrainingSessionService : ITrainingSessionService
 
         _context.TrainingSessions.Add(session);
         await _context.SaveChangesAsync();
-
         return Result<TrainingSessionDTO>.Created(session.Adapt<TrainingSessionDTO>());
     }
 
@@ -153,25 +155,20 @@ public class TrainingSessionService : ITrainingSessionService
     {
         var userGuid = Guid.Parse(user.Id);
         var session = await _context.TrainingSessions
-            .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts =>
-                ts.TrainingSessionID == request.TrainingSessionID &&
-                ts.TrainingProgram!.UserID == userGuid);
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID && ts.UserID == userGuid);
 
         if (session is null)
         {
             return Result<TrainingSessionDTO>.NotFound("Training session not found or access denied.");
         }
 
-        // Track if status is changing to Completed for PR processing
         var wasNotCompleted = session.Status != TrainingSessionStatus.Completed;
         var becomingCompleted = request.Status == TrainingSessionStatus.Completed;
 
         if (request.TrainingProgramID is not null && request.TrainingProgramID != Guid.Empty)
         {
             var program = await _context.TrainingPrograms
-            .FirstOrDefaultAsync(tp => tp.TrainingProgramID == request.TrainingProgramID &&
-                                      tp.UserID == userGuid);
+                .FirstOrDefaultAsync(tp => tp.TrainingProgramID == request.TrainingProgramID && tp.UserID == userGuid);
 
             if (program is null)
             {
@@ -183,26 +180,23 @@ public class TrainingSessionService : ITrainingSessionService
         {
             session.TrainingProgramID = null;
         }
+
         session.Date = request.Date;
         session.Status = request.Status;
         session.Notes = request.Notes;
-        if (request.PerceivedEffortRatings is not null)
-        {
-            session.PerceivedEffortRatings = new PerceivedEffortRatings
+        session.PerceivedEffortRatings = request.PerceivedEffortRatings is not null
+            ? new PerceivedEffortRatings
             {
+                RecordedAt = request.PerceivedEffortRatings.RecordedAt,
                 AccumulatedFatigue = request.PerceivedEffortRatings.AccumulatedFatigue,
                 DifficultyRating = request.PerceivedEffortRatings.DifficultyRating,
                 EngagementRating = request.PerceivedEffortRatings.EngagementRating,
                 ExternalVariablesRating = request.PerceivedEffortRatings.ExternalVariablesRating
-            };
-        }
-        else
-        {
-            session.PerceivedEffortRatings = null;
-        }
+            }
+            : null;
+
         await _context.SaveChangesAsync();
 
-        // Process PRs when session is marked as Completed
         if (wasNotCompleted && becomingCompleted)
         {
             await _personalRecordService.ProcessTrainingSessionAsync(user, session.TrainingSessionID);
@@ -216,13 +210,11 @@ public class TrainingSessionService : ITrainingSessionService
     {
         var userGuid = Guid.Parse(user.Id);
         var session = await _context.TrainingSessions
-            .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID &&
-                                      ts.TrainingProgram!.UserID == userGuid);
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID && ts.UserID == userGuid);
 
         if (session is null)
         {
-            return Result.NotFound("Training session not found or access denied.");
+            return Result.NotFound("Training session not found.");
         }
 
         _context.TrainingSessions.Remove(session);
@@ -230,7 +222,7 @@ public class TrainingSessionService : ITrainingSessionService
         return Result.NoContent();
     }
 
-
+    //TODO: Better seperate dup logic via having children clone themselves
     public async Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -239,20 +231,19 @@ public class TrainingSessionService : ITrainingSessionService
                 .ThenInclude(m => m.LiftSets)
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.DistanceTimeSets)
-            .Include(ts => ts.Movements)
-                .ThenInclude(m => m.MovementData)
-            .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID && ts.TrainingProgram!.UserID == userGuid);
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionID && ts.UserID == userGuid);
 
-        if (originalSession == null)
-            return Result.NotFound();
+        if (originalSession is null)
+        {
+            return Result<TrainingSessionDTO>.NotFound("Training session not found or access denied.");
+        }
 
-        // Create new session
+        var newSessionId = Guid.NewGuid();
         var newSession = new TrainingSession
         {
-            TrainingSessionID = Guid.NewGuid(),
+            TrainingSessionID = newSessionId,
+            UserID = userGuid,
             TrainingProgramID = originalSession.TrainingProgramID,
-            TrainingProgram = originalSession.TrainingProgram,
             Date = originalSession.Date,
             Status = TrainingSessionStatus.Planned,
             Movements = [],
@@ -262,14 +253,12 @@ public class TrainingSessionService : ITrainingSessionService
 
         foreach (var movement in originalSession.Movements)
         {
-            // Reuse the same MovementData since it's now a shared reference
+            var newMovementId = Guid.NewGuid();
             var newMovement = new Movement
             {
-                MovementID = Guid.NewGuid(),
-                TrainingSessionID = newSession.TrainingSessionID,
-                TrainingSession = newSession,
+                MovementID = newMovementId,
+                TrainingSessionID = newSessionId,
                 MovementDataID = movement.MovementDataID,
-                MovementData = movement.MovementData,
                 Notes = movement.Notes,
                 IsCompleted = false,
                 Ordering = movement.Ordering,
@@ -282,14 +271,13 @@ public class TrainingSessionService : ITrainingSessionService
                 newMovement.LiftSets.Add(new LiftSetEntry
                 {
                     SetEntryID = Guid.NewGuid(),
-                    MovementID = newMovement.MovementID,
-                    Movement = newMovement,
+                    MovementID = newMovementId,
                     RecommendedReps = set.RecommendedReps,
                     RecommendedWeight = set.RecommendedWeight,
                     RecommendedRPE = set.RecommendedRPE,
-                    ActualReps = set.ActualReps,
-                    ActualWeight = set.ActualWeight,
-                    ActualRPE = set.ActualRPE,
+                    ActualReps = 0,
+                    ActualWeight = 0,
+                    ActualRPE = 0,
                     WeightUnit = set.WeightUnit
                 });
             }
@@ -299,20 +287,19 @@ public class TrainingSessionService : ITrainingSessionService
                 newMovement.DistanceTimeSets.Add(new DTSetEntry
                 {
                     SetEntryID = Guid.NewGuid(),
-                    MovementID = newMovement.MovementID,
-                    Movement = newMovement,
+                    MovementID = newMovementId,
                     RecommendedDistance = dtSet.RecommendedDistance,
-                    ActualDistance = dtSet.ActualDistance,
+                    ActualDistance = 0,
                     IntervalDuration = dtSet.IntervalDuration,
                     TargetPace = dtSet.TargetPace,
-                    ActualPace = dtSet.ActualPace,
+                    ActualPace = TimeSpan.Zero,
                     RecommendedDuration = dtSet.RecommendedDuration,
-                    ActualDuration = dtSet.ActualDuration,
+                    ActualDuration = TimeSpan.Zero,
                     RecommendedRest = dtSet.RecommendedRest,
-                    ActualRest = dtSet.ActualRest,
+                    ActualRest = TimeSpan.Zero,
                     IntervalType = dtSet.IntervalType,
                     DistanceUnit = dtSet.DistanceUnit,
-                    ActualRPE = dtSet.ActualRPE
+                    ActualRPE = 0
                 });
             }
             newSession.Movements.Add(newMovement);
@@ -321,7 +308,8 @@ public class TrainingSessionService : ITrainingSessionService
         _context.TrainingSessions.Add(newSession);
         await _context.SaveChangesAsync();
 
-        return Result<TrainingSessionDTO>.Success(newSession.Adapt<TrainingSessionDTO>());
+        return await GetTrainingSessionAsync(user, newSessionId);
     }
+
 
 }

@@ -1,14 +1,11 @@
-using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
-using lionheart.Model.DTOs;
 using lionheart.Model.Training;
 using lionheart.Model.Training.SetEntry;
 using lionheart.Services;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ModelContextProtocol.Server;
 
 public interface IMovementService
 {
@@ -55,11 +52,8 @@ public class MovementService : IMovementService
     {
         var userGuid = Guid.Parse(user.Id);
 
-        // Verify user owns the training session
         var session = await _context.TrainingSessions
-            .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == sessionId &&
-                                     ts.TrainingProgram!.UserID == userGuid);
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == sessionId && ts.UserID == userGuid);
 
         if (session is null)
         {
@@ -84,11 +78,8 @@ public class MovementService : IMovementService
     {
         var userGuid = Guid.Parse(user.Id);
 
-        // Verify user owns the training session
         var session = await _context.TrainingSessions
-            .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
-                                     ts.TrainingProgram!.UserID == userGuid);
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID && ts.UserID == userGuid);
 
         if (session is null)
         {
@@ -160,17 +151,17 @@ public class MovementService : IMovementService
         var userGuid = Guid.Parse(user.Id);
         var movement = await _context.Movements
             .Include(m => m.TrainingSession)
-            .ThenInclude(ts => ts.TrainingProgram)
             .Include(m => m.MovementData)
             .FirstOrDefaultAsync(m => m.MovementID == request.MovementID);
 
-        if (movement == null)
+        if (movement is null)
         {
             return Result<MovementDTO>.NotFound("Movement not found.");
         }
-        else if (movement.TrainingSession.TrainingProgram!.UserID != userGuid)
+
+        if (movement.TrainingSession.UserID != userGuid)
         {
-            return Result<MovementDTO>.Unauthorized("You do not have permission to update this movement.");
+            return Result<MovementDTO>.Unauthorized();
         }
 
         // Verify movement base exists if being updated
@@ -224,16 +215,16 @@ public class MovementService : IMovementService
         var userGuid = Guid.Parse(user.Id);
         var movement = await _context.Movements
             .Include(m => m.TrainingSession)
-            .ThenInclude(ts => ts.TrainingProgram)
             .FirstOrDefaultAsync(m => m.MovementID == movementId);
 
-        if (movement == null)
+        if (movement is null)
         {
             return Result.NotFound("Movement not found.");
         }
-        else if (movement.TrainingSession.TrainingProgram!.UserID != userGuid)
+
+        if (movement.TrainingSession.UserID != userGuid)
         {
-            return Result.Unauthorized("You do not have permission to update this movement.");
+            return Result.Unauthorized();
         }
 
         _context.Movements.Remove(movement);

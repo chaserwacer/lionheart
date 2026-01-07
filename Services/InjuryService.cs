@@ -68,16 +68,14 @@ namespace lionheart.Services
             if (request.TrainingSessionID is Guid tsId && tsId != Guid.Empty)
             {
                 var ownsSession = await _context.TrainingSessions
-                    .Include(ts => ts.TrainingProgram)
-                    .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.TrainingProgram!.UserID == userId);
+                    .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.UserID == userId);
                 if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
             }
             foreach (var movementId in request.MovementIDs)
             {
                 var ownsMovement = await _context.Movements
                     .Include(m => m.TrainingSession)
-                    .ThenInclude(ts => ts.TrainingProgram)
-                    .AnyAsync(m => m.MovementID == movementId && m.TrainingSession!.TrainingProgram!.UserID == userId);
+                    .AnyAsync(m => m.MovementID == movementId && m.TrainingSession.UserID == userId);
                 if (!ownsMovement) return Result<InjuryDTO>.Unauthorized("One or more movements not found or access denied");
             }
 
@@ -153,8 +151,7 @@ namespace lionheart.Services
             {
                 var tsId = request.TrainingSessionID.Value;
                 var ownsSession = await _context.TrainingSessions
-                    .Include(ts => ts.TrainingProgram)
-                    .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.TrainingProgram!.UserID == userId);
+                    .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.UserID == userId);
                 if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
                 injuryEvent.TrainingSessionID = tsId;
             }
@@ -163,8 +160,7 @@ namespace lionheart.Services
             {
                 var ownsMovement = await _context.Movements
                     .Include(m => m.TrainingSession)
-                    .ThenInclude(ts => ts.TrainingProgram)
-                    .AnyAsync(m => m.MovementID == movementId && m.TrainingSession!.TrainingProgram!.UserID == userId);
+                    .AnyAsync(m => m.MovementID == movementId && m.TrainingSession.UserID == userId);
                 if (!ownsMovement) continue;
                 injuryEvent.MovementIDs.Add(movementId);
             }

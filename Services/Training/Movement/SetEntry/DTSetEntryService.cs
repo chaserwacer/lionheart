@@ -1,19 +1,12 @@
-using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
-using lionheart.Model.Training;
 using lionheart.Model.Training.SetEntry;
+using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ModelContextProtocol.Server;
-using Mapster;
 
 namespace lionheart.Services
 {
-    /// <summary>
-    /// Service for managing distance/time set entries within movements.
-    /// Handles business logic and ensures users can only access their own data.
-    /// </summary>
     public class DTSetEntryService : IDTSetEntryService
     {
         private readonly ModelContext _context;
@@ -26,15 +19,12 @@ namespace lionheart.Services
         public async Task<Result<DTSetEntryDTO>> CreateDTSetEntryAsync(IdentityUser user, CreateDTSetEntryRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
-        
-            // Verify user owns the movement
+
             var movement = await _context.Movements
                 .Include(m => m.TrainingSession)
-                .ThenInclude(ts => ts.TrainingProgram)
-                .FirstOrDefaultAsync(m => m.MovementID == request.MovementID && 
-                                        m.TrainingSession.TrainingProgram!.UserID == userGuid);
+                .FirstOrDefaultAsync(m => m.MovementID == request.MovementID && m.TrainingSession.UserID == userGuid);
 
-            if (movement == null)
+            if (movement is null)
             {
                 return Result<DTSetEntryDTO>.NotFound("Movement not found or access denied.");
             }
@@ -60,7 +50,7 @@ namespace lionheart.Services
 
             _context.DTSetEntries.Add(setEntry);
             await _context.SaveChangesAsync();
-        
+
             return Result<DTSetEntryDTO>.Created(setEntry.Adapt<DTSetEntryDTO>());
         }
 
@@ -70,15 +60,13 @@ namespace lionheart.Services
             var setEntry = await _context.DTSetEntries
                 .Include(se => se.Movement)
                 .ThenInclude(m => m.TrainingSession)
-                .ThenInclude(ts => ts.TrainingProgram)
                 .FirstOrDefaultAsync(se => se.SetEntryID == request.SetEntryID);
 
-            if (setEntry == null || setEntry.Movement.TrainingSession.TrainingProgram!.UserID != userGuid)
+            if (setEntry is null || setEntry.Movement.TrainingSession.UserID != userGuid)
             {
                 return Result<DTSetEntryDTO>.NotFound("Set entry not found or access denied.");
             }
 
-            // Update values
             setEntry.RecommendedDistance = request.RecommendedDistance;
             setEntry.ActualDistance = request.ActualDistance;
             setEntry.IntervalDuration = request.IntervalDuration;
@@ -93,7 +81,7 @@ namespace lionheart.Services
             setEntry.ActualRPE = request.ActualRPE;
 
             await _context.SaveChangesAsync();
-        
+
             return Result<DTSetEntryDTO>.Success(setEntry.Adapt<DTSetEntryDTO>());
         }
 
@@ -103,10 +91,9 @@ namespace lionheart.Services
             var setEntry = await _context.DTSetEntries
                 .Include(se => se.Movement)
                 .ThenInclude(m => m.TrainingSession)
-                .ThenInclude(ts => ts.TrainingProgram)
                 .FirstOrDefaultAsync(se => se.SetEntryID == setEntryId);
 
-            if (setEntry == null || setEntry.Movement.TrainingSession.TrainingProgram!.UserID != userGuid)
+            if (setEntry is null || setEntry.Movement.TrainingSession.UserID != userGuid)
             {
                 return Result.NotFound("Set entry not found or access denied.");
             }

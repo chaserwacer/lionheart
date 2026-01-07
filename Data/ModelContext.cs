@@ -112,6 +112,11 @@ namespace lionheart.Data
                 .WithMany(p => p.TrainingSessions)
                 .HasForeignKey(s => s.TrainingProgramID)
                 .IsRequired(false);
+
+            modelBuilder.Entity<TrainingSession>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.TrainingSessions)
+                .HasForeignKey(s => s.UserID);
             
             modelBuilder.Entity<TrainingSession>()
                 .HasOne<PerceivedEffortRatings>(s => s.PerceivedEffortRatings)

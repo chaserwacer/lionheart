@@ -1,12 +1,10 @@
-using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.Training;
 using lionheart.Model.Training.SetEntry;
+using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ModelContextProtocol.Server;
-using Mapster;
 
 namespace lionheart.Services
 {
@@ -30,14 +28,11 @@ namespace lionheart.Services
         {
             var userGuid = Guid.Parse(user.Id);
 
-            // Verify user owns the movement
             var movement = await _context.Movements
                 .Include(m => m.TrainingSession)
-                .ThenInclude(ts => ts.TrainingProgram)
-                .FirstOrDefaultAsync(m => m.MovementID == request.MovementID &&
-                                        m.TrainingSession.TrainingProgram!.UserID == userGuid);
+                .FirstOrDefaultAsync(m => m.MovementID == request.MovementID && m.TrainingSession.UserID == userGuid);
 
-            if (movement == null)
+            if (movement is null)
             {
                 return Result<LiftSetEntryDTO>.NotFound("Movement not found or access denied.");
             }
@@ -74,10 +69,9 @@ namespace lionheart.Services
             var setEntry = await _context.LiftSetEntries
                 .Include(se => se.Movement)
                 .ThenInclude(m => m.TrainingSession)
-                .ThenInclude(ts => ts.TrainingProgram)
                 .FirstOrDefaultAsync(se => se.SetEntryID == request.SetEntryID);
 
-            if (setEntry == null || setEntry.Movement.TrainingSession.TrainingProgram!.UserID != userGuid)
+            if (setEntry is null || setEntry.Movement.TrainingSession.UserID != userGuid)
             {
                 return Result<LiftSetEntryDTO>.NotFound("Set entry not found or access denied.");
             }
@@ -120,10 +114,9 @@ namespace lionheart.Services
             var setEntry = await _context.LiftSetEntries
                 .Include(se => se.Movement)
                 .ThenInclude(m => m.TrainingSession)
-                .ThenInclude(ts => ts.TrainingProgram)
                 .FirstOrDefaultAsync(se => se.SetEntryID == setEntryId);
 
-            if (setEntry == null || setEntry.Movement.TrainingSession.TrainingProgram!.UserID != userGuid)
+            if (setEntry is null || setEntry.Movement.TrainingSession.UserID != userGuid)
             {
                 return Result.NotFound("Set entry not found or access denied.");
             }

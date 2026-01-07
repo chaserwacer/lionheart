@@ -15,6 +15,8 @@ namespace lionheart.Model.Training
         [Key]
         [Required]
         public required Guid TrainingSessionID { get; init; }
+        [Required]
+        public required Guid UserID { get; init; }
         [ForeignKey(nameof(TrainingProgram))]
         public Guid? TrainingProgramID { get; set; }
         /// <summary>
@@ -26,6 +28,9 @@ namespace lionheart.Model.Training
         public required List<Movement> Movements { get; set; } = [];
         public required DateTime CreationTime { get; init; }
         public required string Notes { get; set; } = string.Empty;
+        /// <summary>
+        /// Optional perceived effort ratings for the session.
+        /// </summary>
         public PerceivedEffortRatings? PerceivedEffortRatings { get; set; }
     }
 
@@ -45,12 +50,22 @@ namespace lionheart.Model.Training
         string Notes,
         PerceivedEffortRatings? PerceivedEffortRatings
     );
+    /// <summary>
+    /// Request to create a new training session.
+    /// </summary>
+    /// <param name="TrainingProgramID">Optional training program ID to associate the session with.</param>
+    /// <param name="PerceivedEffortRatings">Optional perceived effort ratings for the session.</param>
     public record CreateTrainingSessionRequest(
         DateOnly Date,
         Guid? TrainingProgramID,
         string Notes,
         PerceivedEffortRatings? PerceivedEffortRatings
     );
+    /// <summary>
+    /// Request to update an existing training session.
+    /// </summary>
+    /// <param name="TrainingProgramID">Optional training program ID to associate the session with.</param>
+    /// <param name="PerceivedEffortRatings">Optional perceived effort ratings for the session.</param>
     public record UpdateTrainingSessionRequest(
         Guid TrainingSessionID,
         Guid? TrainingProgramID,
@@ -59,6 +74,9 @@ namespace lionheart.Model.Training
         string Notes,
         PerceivedEffortRatings? PerceivedEffortRatings
     );
+    /// <summary>
+    /// Enum representing the status of a training session.
+    /// </summary>
     public enum TrainingSessionStatus
     {
         Planned,

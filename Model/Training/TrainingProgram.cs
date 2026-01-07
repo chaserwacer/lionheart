@@ -15,7 +15,6 @@ namespace lionheart.Model.Training
         public required Guid UserID { get; init; }
         public required string Title { get; set; } = string.Empty;
         public required DateOnly StartDate { get; set; }
-        public DateOnly NextTrainingSessionDate { get; set; }
         public required DateOnly EndDate { get; set; }
         public required bool IsCompleted { get; set; } = false;
         public required List<TrainingSession> TrainingSessions { get; set; } = [];
@@ -31,9 +30,6 @@ namespace lionheart.Model.Training
     
         [Required]
         public DateOnly StartDate { get; init; }
-    
-        [Required]
-        public DateOnly NextTrainingSessionDate { get; init; }
     
         [Required]
         public DateOnly EndDate { get; init; }

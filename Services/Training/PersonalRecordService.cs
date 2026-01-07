@@ -293,10 +293,9 @@ public class PersonalRecordService : IPersonalRecordService
                 .ThenInclude(m => m.LiftSets)
             .Include(ts => ts.Movements)
                 .ThenInclude(m => m.MovementData)
-            .Include(ts => ts.TrainingProgram)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionId && ts.TrainingProgram!.UserID == userGuid);
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionId && ts.UserID == userGuid);
 
-        if (session == null)
+        if (session is null)
         {
             return Result<List<PRAttemptResult>>.NotFound("Training session not found.");
         }
