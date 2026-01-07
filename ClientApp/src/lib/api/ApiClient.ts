@@ -3946,6 +3946,73 @@ export class UpdateInjuryEventEndpointClient {
     }
 }
 
+export class UpdateLiftSetEntryEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    put(body: UpdateLiftSetEntryRequest | undefined): Promise<LiftSetEntryDTO> {
+        let url_ = this.baseUrl + "/api/lift-set-entry/update";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPut(_response);
+        });
+    }
+
+    protected processPut(response: Response): Promise<LiftSetEntryDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = LiftSetEntryDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<LiftSetEntryDTO>(null as any);
+    }
+}
+
 export class UpdateMovementBaseEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -7699,6 +7766,7 @@ export interface IMuscleGroup {
 }
 
 export class PerceivedEffortRatings implements IPerceivedEffortRatings {
+    recordedAt!: Date;
     accumulatedFatigue?: number | undefined;
     difficultyRating?: number | undefined;
     engagementRating?: number | undefined;
@@ -7715,6 +7783,7 @@ export class PerceivedEffortRatings implements IPerceivedEffortRatings {
 
     init(_data?: any) {
         if (_data) {
+            this.recordedAt = _data["recordedAt"] ? new Date(_data["recordedAt"].toString()) : <any>undefined;
             this.accumulatedFatigue = _data["accumulatedFatigue"];
             this.difficultyRating = _data["difficultyRating"];
             this.engagementRating = _data["engagementRating"];
@@ -7731,6 +7800,7 @@ export class PerceivedEffortRatings implements IPerceivedEffortRatings {
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
+        data["recordedAt"] = this.recordedAt ? this.recordedAt.toISOString() : <any>undefined;
         data["accumulatedFatigue"] = this.accumulatedFatigue;
         data["difficultyRating"] = this.difficultyRating;
         data["engagementRating"] = this.engagementRating;
@@ -7740,6 +7810,7 @@ export class PerceivedEffortRatings implements IPerceivedEffortRatings {
 }
 
 export interface IPerceivedEffortRatings {
+    recordedAt: Date;
     accumulatedFatigue?: number | undefined;
     difficultyRating?: number | undefined;
     engagementRating?: number | undefined;
@@ -9127,6 +9198,74 @@ export interface IUpdateInjuryRequest {
     name: string;
     notes: string;
     isActive: boolean;
+}
+
+export class UpdateLiftSetEntryRequest implements IUpdateLiftSetEntryRequest {
+    setEntryID?: string;
+    movementID?: string;
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
+    actualReps?: number;
+    actualWeight?: number;
+    actualRPE?: number;
+    weightUnit?: WeightUnit;
+
+    constructor(data?: IUpdateLiftSetEntryRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.setEntryID = _data["setEntryID"];
+            this.movementID = _data["movementID"];
+            this.recommendedReps = _data["recommendedReps"];
+            this.recommendedWeight = _data["recommendedWeight"];
+            this.recommendedRPE = _data["recommendedRPE"];
+            this.actualReps = _data["actualReps"];
+            this.actualWeight = _data["actualWeight"];
+            this.actualRPE = _data["actualRPE"];
+            this.weightUnit = _data["weightUnit"];
+        }
+    }
+
+    static fromJS(data: any): UpdateLiftSetEntryRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateLiftSetEntryRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["setEntryID"] = this.setEntryID;
+        data["movementID"] = this.movementID;
+        data["recommendedReps"] = this.recommendedReps;
+        data["recommendedWeight"] = this.recommendedWeight;
+        data["recommendedRPE"] = this.recommendedRPE;
+        data["actualReps"] = this.actualReps;
+        data["actualWeight"] = this.actualWeight;
+        data["actualRPE"] = this.actualRPE;
+        data["weightUnit"] = this.weightUnit;
+        return data;
+    }
+}
+
+export interface IUpdateLiftSetEntryRequest {
+    setEntryID?: string;
+    movementID?: string;
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
+    actualReps?: number;
+    actualWeight?: number;
+    actualRPE?: number;
+    weightUnit?: WeightUnit;
 }
 
 export class UpdateMovementBaseRequest implements IUpdateMovementBaseRequest {

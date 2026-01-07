@@ -43,6 +43,7 @@ namespace lionheart.Services
                 UserSummary = activityRequest.UserSummary,
                 PerceivedEffortRatings = new PerceivedEffortRatings
                 {
+                    RecordedAt = DateTime.UtcNow,
                     AccumulatedFatigue = activityRequest.PerceivedEffortRatings?.AccumulatedFatigue,
                     DifficultyRating = activityRequest.PerceivedEffortRatings?.DifficultyRating,
                     EngagementRating = activityRequest.PerceivedEffortRatings?.EngagementRating,
@@ -111,6 +112,7 @@ namespace lionheart.Services
             {
                 activity.PerceivedEffortRatings = new PerceivedEffortRatings
                     {
+                        RecordedAt = DateTime.UtcNow,
                         AccumulatedFatigue = activityRequest.PerceivedEffortRatings.AccumulatedFatigue,
                         DifficultyRating = activityRequest.PerceivedEffortRatings.DifficultyRating,
                         EngagementRating = activityRequest.PerceivedEffortRatings.EngagementRating,

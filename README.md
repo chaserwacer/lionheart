@@ -1,11 +1,68 @@
 # Project Lionheart
-Lionheart is a fully fleshed out personal/individual software development project. It is an application that will allow a user to hold and analyze all of their athletic training data. This includes storing and analyzing users wellbeing(wellness), physical activities, stress, sleep, etc. Users are able to sync their Oura Ring data via providing a personal access token.
-This project is being developed with the following technologies: C#, Sveltekit, .NET framework, ASP.NET, TailwindCSS, DaisyUI, Microsoft SQLite. <br>
-The project uses ASP.NET authentication, which stores user authentication info in browser cookies. The user has multiple options in terms of different items/objects they can store, such as activities and wellness states. API methods are called via a vite proxy, who then persist data to a SQLite database. A TailwindCSS and DaisyUI crafted front-end encourages versatility, allowing for things like users choosing different color themes for the site on the go. I have also implemented usage of the Oura Ring OpenAPI, allowing users to sync their ring data via connecting with a personal access token.
-This project has allowed me to explore a vast number of software development facets. Working full stack, constantly switching from front end to backend, has allowed me to get a taste of work I hope to do in the future. This has resulted in lots of practical experience and displayed proficiency and understanding of these different topics. The project has allowed me to improve upon skills learned from my past internship at Lattice Ventures. I look forward to continue developing this application and eventually making it available publicly. <br><br>
-This project is still being worked on - it is not fully polished or complete. 
-## Database
-I have added my database files to my .gitignore as I do not want to make any future data public. If you are interested in seeing the structure or seeing the data 'in action' please reach out to me. 
-## Demo
-![Demo Images](ClientApp/static/LionheartAdGithub.pdf)
 
+## Overview
+Project Lionheart is a comprehensive athletic training data management platform designed to centralize, contextualize, and analyze the full spectrum of data that influences athletic performance. Unlike traditional fitness applications that focus narrowly on isolated activities or metrics, Lionheart is built around a holistic model of the athlete—capturing training, lifestyle, recovery, and subjective experience in a unified system.
+
+**Athletic performance cannot be meaningfully understood when data is fragmented**. By aggregating diverse data sources into a single, extensible platform, Lionheart enables athletes to view their performance in context.
+
+---
+
+## Design Philosophy
+
+Lionheart is guided by the following principles:
+
+### 1. Holistic Athlete Modeling
+
+### 2. Aggregation of Measured *and* Perceived Metrics
+
+### 3. Data Input Flexibility
+
+### 4. Contextual Intelligence
+
+---
+
+## Motivation
+
+The development of Project Lionheart originated from a practical limitation encountered in real-world training: **data fragmentation**.
+
+Modern athletes often rely on numerous tools—strength training logs, activity trackers, wearable devices, injury notes, and subjective journaling—each siloed in its own application. While these tools may excel individually, they fail collectively.
+
+Lionheart was created to solve this problem by offering a unified platform where all relevant data can coexist, be explored cohesively, and be interpreted intelligently.
+
+---
+
+## Intelligent Analysis & AI Integration
+
+A long-term objective of Project Lionheart is to enable intelligent analysis through large language models that can reason over the full context of an athlete’s data. By maintaining clean, structured, and semantically meaningful data models, Lionheart creates an environment in which machine intelligence can interpret training, recovery, lifestyle stressors, and subjective experience as parts of a unified system.
+
+Large language models are uniquely well-suited to this problem domain. Athletic performance is inherently contextual and nonlinear—fatigue, readiness, and adaptation emerge from the interaction of many variables across time. Lionheart’s architecture is designed to allow LLMs to reason about these relationships holistically.
+
+---
+
+## Technology Stack
+
+- **Backend**: C#, .NET, Entity Framework Core  
+- **Database**: SQLite  
+- **Frontend**: SvelteKit  
+- **Styling**: Tailwind CSS, DaisyUI  
+
+---
+
+## Project Vision
+
+Project Lionheart aims to become more than a training log—it is intended to function as an **athletic intelligence platform**. By combining comprehensive data aggregation with modern software architecture and AI-driven analysis, Lionheart seeks to empower athletes to better understand their bodies, their training, and the complex interactions that drive performance.
+
+The ultimate goal is not just better tracking, but **better insight**.
+
+## Looking Ahead 
+
+The more data Lionheart can agtgregate only increases the possibilities for this application. Incorporating a system enabling users to define custom data items for storage and analysis would encourge more personalized data models. Developing an intelligent natural language input system would simplify and encourage more data input from users. Currently, the project has been centered around athletic training and performance. In the future, this could change. With more data input centered around wellbeing and mental health, the reach of the application could grow. With systems supporting medication/supplementation tracking and monitoring, combined with the ability to provide data access to medical professionals, Lionheart could become an even more powerful tool. 
+
+
+## Disclaimer 
+
+Project Lionheart is intended for educational, informational, and exploratory purposes only. The platform is designed to assist users in organizing, visualizing, and reflecting on athletic training, lifestyle, and performance-related data, but it does not provide medical, diagnostic, or therapeutic advice.
+
+Any insights, analyses, recommendations, or interpretations generated by the system—including those produced through automated or AI-assisted processes—are not a substitute for professional medical advice, diagnosis, or treatment. Users should not rely on Project Lionheart to make medical decisions or to diagnose, treat, or prevent any injury, illness, or health condition.
+
+Always seek the guidance of a qualified healthcare professional, sports medicine specialist, or other licensed practitioner with any questions regarding physical health, injury management, recovery, or training decisions. Use of Project Lionheart is at the user’s own discretion and risk.

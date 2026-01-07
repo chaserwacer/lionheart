@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 [Owned]
 public record PerceivedEffortRatings
 {
+    /// <summary>
+    /// Timestamp when ratings were recorded. Serves as existence marker.
+    /// </summary>
+    public required DateTime RecordedAt { get; set; } = DateTime.UtcNow;
     public int? AccumulatedFatigue { get; set; }
     public int? DifficultyRating { get; set; }
     public int? EngagementRating { get; set; }
