@@ -28,6 +28,7 @@ namespace lionheart.Endpoints.UserEndpoints
         [EndpointDescription("Create a new profile for the user.")]
         [ProducesResponseType<LionheartUser>(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
         public override async Task<ActionResult<LionheartUser>> HandleAsync([FromBody] CreateProfileRequest request, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);

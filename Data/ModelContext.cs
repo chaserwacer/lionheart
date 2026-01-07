@@ -275,7 +275,7 @@ namespace lionheart.Data
 
             // Chat Conversations
             modelBuilder.Entity<ChatConversation>()
-                .HasKey(c => c.ChatConversationId);
+                .HasKey(c => c.ChatConversationID);
             modelBuilder.Entity<ChatConversation>()
                 .HasOne<LionheartUser>()
                 .WithMany(u => u.ChatConversations)

@@ -26,6 +26,8 @@ namespace lionheart.Endpoints.InjuryEndpoints
     	[HttpPut("api/injury/update")]
     	[ProducesResponseType(typeof(InjuryDTO), StatusCodes.Status200OK)]
     	[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
     	public override async Task<ActionResult<InjuryDTO>> HandleAsync(
     		[FromBody] UpdateInjuryRequest request,
     		CancellationToken cancellationToken = default)

@@ -11,14 +11,14 @@ using lionheart.Model.Injury;
 namespace lionheart.Endpoints.InjuryEndpoints
 {
     [ValidateModel]
-    public class GetUserInjuriesEndpoint : EndpointBaseAsync
+    public class GetInjuriesEndpoint : EndpointBaseAsync
         .WithoutRequest
         .WithActionResult<List<InjuryDTO>>
     {
         private readonly IInjuryService _injuryService;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public GetUserInjuriesEndpoint(IInjuryService injuryService, UserManager<IdentityUser> userManager)
+        public GetInjuriesEndpoint(IInjuryService injuryService, UserManager<IdentityUser> userManager)
         {
             _injuryService = injuryService;
             _userManager = userManager;
