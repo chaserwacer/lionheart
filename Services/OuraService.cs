@@ -7,8 +7,8 @@ using lionheart.Model.Oura;
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
-using lionheart.Model.DTOs;
 using Ardalis.Result;
+using lionheart.Model.Request;
 
 namespace lionheart.Services
 {

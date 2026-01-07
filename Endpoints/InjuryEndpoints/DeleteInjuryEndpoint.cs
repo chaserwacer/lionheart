@@ -1,11 +1,9 @@
 using Ardalis.ApiEndpoints;
-using Ardalis.Result;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
-using System.ComponentModel;
 
 namespace lionheart.Endpoints.InjuryEndpoints
 {

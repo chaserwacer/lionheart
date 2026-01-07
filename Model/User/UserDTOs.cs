@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-namespace lionheart.Model.DTOs
+namespace lionheart.Model.User
 {
     /// <summary>
     /// Dto for handling a user and their state of profile creation

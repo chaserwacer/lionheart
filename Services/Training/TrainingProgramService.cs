@@ -1,11 +1,8 @@
-using System.ComponentModel;
 using Ardalis.Result;
 using lionheart.Data;
-using lionheart.Model.DTOs;
 using lionheart.Model.Training;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ModelContextProtocol.Server;
 using Mapster;
 
 namespace lionheart.Services

@@ -1,5 +1,4 @@
 using Ardalis.ApiEndpoints;
-using Ardalis.Result;
 using lionheart.WellBeing;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;

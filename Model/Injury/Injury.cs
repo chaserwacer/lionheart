@@ -1,9 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using lionheart.Model.Training;
-using Parlot.Fluent;
 
-namespace lionheart.Model.Injury
+namespace lionheart.Model.InjuryManagement
 {
     /// <summary>
     /// Representation of an injury sustained by a user.

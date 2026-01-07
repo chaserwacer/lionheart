@@ -1,12 +1,10 @@
 using lionheart.Data;
-using lionheart.WellBeing;
 using lionheart.ActivityTracking;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using lionheart.Model.DTOs;
 using Ardalis.Result;
 using Mapster;
-using lionheart.Model.Training;
+using lionheart.Model.Request;
 
 namespace lionheart.Services
 {

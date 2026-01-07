@@ -1,7 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using lionheart.Model.Training;
-
 namespace lionheart.Model.Training.SetEntry
 {
     /// <summary>

@@ -1,5 +1,3 @@
-
-using Microsoft.OpenApi.Models;
 using NJsonSchema;
 using NSwag.CodeGeneration.OperationNameGenerators;
 

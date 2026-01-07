@@ -1,6 +1,4 @@
-using System.ComponentModel.DataAnnotations;
 using lionheart.Model.Training;
-using Microsoft.EntityFrameworkCore;
 
 namespace lionheart.ActivityTracking
 {

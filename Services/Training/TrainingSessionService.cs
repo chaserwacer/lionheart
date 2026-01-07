@@ -1,12 +1,12 @@
 using Ardalis.Result;
 using lionheart.Data;
-using lionheart.Model.DTOs;
 using lionheart.Model.Training;
 using lionheart.Model.Training.SetEntry;
 using lionheart.Services;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using lionheart.Model.Request;
 
 public interface ITrainingSessionService
 {

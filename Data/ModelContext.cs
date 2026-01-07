@@ -5,8 +5,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using lionheart.Model.Oura;
 using lionheart.Model.Training;
-using lionheart.Model.Injury;
+using lionheart.Model.InjuryManagement;
 using lionheart.Model.Training.SetEntry;
+using lionheart.Model.User;
 
 namespace lionheart.Data
 {
@@ -34,9 +35,6 @@ namespace lionheart.Data
         public DbSet<PersonalRecord> PersonalRecords { get; set; }
         public DbSet<Injury> Injuries { get; set; }
         public DbSet<InjuryEvent> InjuryEvents { get; set; }
-        public DbSet<ChatConversation> ChatConversations { get; set; }
-        public DbSet<ChatMessageItem> ChatMessageItems { get; set; }
-
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -273,24 +271,7 @@ namespace lionheart.Data
                 .OwnsOne(o => o.ActivityData);
 
 
-            // Chat Conversations
-            modelBuilder.Entity<ChatConversation>()
-                .HasKey(c => c.ChatConversationID);
-            modelBuilder.Entity<ChatConversation>()
-                .HasOne<LionheartUser>()
-                .WithMany(u => u.ChatConversations)
-                .HasForeignKey(c => c.UserID);
-            modelBuilder.Entity<ChatMessageItem>()
-                .HasKey(m => m.ChatMessageItemID);
-            modelBuilder.Entity<ChatMessageItem>()
-                .HasOne<ChatConversation>(c => c.ChatConversation)
-                .WithMany(c => c.Messages)
-                .HasForeignKey(m => m.ChatConversationID)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Index for ordering and fast queries by conversation
-            modelBuilder.Entity<ChatMessageItem>()
-                .HasIndex(m => new { m.ChatConversationID, m.CreationTime });
+            
 
         
         }

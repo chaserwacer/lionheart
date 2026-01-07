@@ -1,10 +1,8 @@
 using Ardalis.ApiEndpoints;
-using Ardalis.Result;
 using lionheart.Services;
-using lionheart.Model.DTOs;
+using lionheart.Model.User;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Ardalis.Result.AspNetCore;
 using Ardalis.Filters;
 using Microsoft.AspNetCore.Authentication;
 

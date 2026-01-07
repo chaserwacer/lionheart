@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-namespace lionheart.Model.DTOs
+namespace lionheart.Model.Request
 {
     /// <summary>
     /// Date Range Request DTO, with validation for start and end dates.

@@ -1,6 +1,5 @@
 using Ardalis.Result;
-using lionheart.Model.DTOs;
-using lionheart.Model.Injury;
+using lionheart.Model.InjuryManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Data;

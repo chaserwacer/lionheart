@@ -1,4 +1,4 @@
-namespace lionheart.WellBeing
+namespace lionheart.Model.User
 {
     /// <summary>
     /// Class for holding an API Access token. It contains a private key (ObjectID), as well as a UserID key to associate it with a user. 

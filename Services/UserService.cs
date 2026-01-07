@@ -1,22 +1,7 @@
 using lionheart.Data;
-using lionheart.WellBeing;
-using Microsoft.AspNetCore.Http.HttpResults;
+using lionheart.Model.User;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.OpenApi.Extensions;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Threading.Tasks;
-
-using lionheart.Model.DTOs;
 using Ardalis.Result;
-using ModelContextProtocol.Server;
-using System.ComponentModel;
 namespace lionheart.Services
 {
     /// <summary>

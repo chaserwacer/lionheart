@@ -1,6 +1,5 @@
 using Ardalis.Result;
 using lionheart.Data;
-using lionheart.Model.Training;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

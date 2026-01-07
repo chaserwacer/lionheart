@@ -1,9 +1,11 @@
 using lionheart.ActivityTracking;
-using lionheart.Model.Injury;
+using lionheart.Model.Chat;
+using lionheart.Model.InjuryManagement;
 using lionheart.Model.Oura;
 using lionheart.Model.Training;
+using lionheart.WellBeing;
 using Microsoft.AspNetCore.Identity;
-namespace lionheart.WellBeing
+namespace lionheart.Model.User
 {
     /// <summary>
     /// Represents a user in the Lionheart application.

@@ -1,7 +1,4 @@
-using lionheart.Model.DTOs;
-using lionheart.WellBeing;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace lionheart.Model.Training
 {
