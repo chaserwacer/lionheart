@@ -127,11 +127,13 @@ namespace lionheart.Services
             }
             if (request.DateRange is not null)
             {
+                var startDate = DateOnly.FromDateTime(request.DateRange.StartDate);
+                var endDate = DateOnly.FromDateTime(request.DateRange.EndDate);
 
-                query = query.Where(i => i.InjuryDate >= request.DateRange.StartDate);
+                query = query.Where(i => i.InjuryDate >= startDate);
 
 
-                query = query.Where(i => i.InjuryDate <= request.DateRange.EndDate);
+                query = query.Where(i => i.InjuryDate <= endDate);
 
             }
             var injuries = await query.ToListAsync();

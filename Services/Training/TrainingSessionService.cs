@@ -108,8 +108,10 @@ public class TrainingSessionService : ITrainingSessionService
     public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, DateRangeRequest dateRange)
     {
         var userGuid = Guid.Parse(user.Id);
+        var startDate = DateOnly.FromDateTime(dateRange.StartDate);
+        var endDate = DateOnly.FromDateTime(dateRange.EndDate);
         var sessions = await _context.TrainingSessions
-            .Where(ts => ts.UserID == userGuid && ts.Date >= dateRange.StartDate && ts.Date <= dateRange.EndDate)
+            .Where(ts => ts.UserID == userGuid && ts.Date >= startDate && ts.Date <= endDate)
             .OrderBy(ts => ts.Date)
             .ThenBy(ts => ts.CreationTime)
             .ToListAsync();
@@ -128,7 +130,7 @@ public class TrainingSessionService : ITrainingSessionService
             UserID = userGuid,
             Movements = [],
             Status = TrainingSessionStatus.Planned,
-            Date = request.Date,
+            Date = DateOnly.FromDateTime(request.Date),
             CreationTime = DateTime.UtcNow,
             Notes = request.Notes,
             PerceivedEffortRatings = request.PerceivedEffortRatings
@@ -182,7 +184,7 @@ public class TrainingSessionService : ITrainingSessionService
             session.TrainingProgramID = null;
         }
 
-        session.Date = request.Date;
+        session.Date = DateOnly.FromDateTime(request.Date);
         session.Status = request.Status;
         session.Notes = request.Notes;
         session.PerceivedEffortRatings = request.PerceivedEffortRatings is not null

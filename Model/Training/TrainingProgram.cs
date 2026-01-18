@@ -44,15 +44,15 @@ namespace lionheart.Model.Training
     public record CreateTrainingProgramRequest(
         [Required] Guid TrainingProgramID,
         [Required] string Title,
-        [Required] DateOnly StartDate,
-        [Required] DateOnly EndDate,
+        [Required] DateTime StartDate,
+        [Required] DateTime EndDate,
         List<string> Tags
     );
     public record UpdateTrainingProgramRequest(
         [Required] Guid TrainingProgramID,
         [Required] string Title,
-        [Required] DateOnly StartDate,
-        [Required] DateOnly EndDate,
+        [Required] DateTime StartDate,
+        [Required] DateTime EndDate,
         [Required] bool IsCompleted,
         List<string> Tags
     );

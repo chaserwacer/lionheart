@@ -72,8 +72,8 @@ namespace lionheart.Services
         public async Task<Result<List<ActivityDTO>>> GetActivitiesAsync(IdentityUser user, DateRangeRequest dateRange)
         {
             var userId = Guid.Parse(user.Id);
-            DateTime startDate = dateRange.StartDate.ToDateTime(TimeOnly.MinValue);
-            DateTime endDate = dateRange.EndDate.ToDateTime(TimeOnly.MaxValue);
+            DateTime startDate = dateRange.StartDate.Date;
+            DateTime endDate = dateRange.EndDate.Date.AddDays(1).AddTicks(-1);
             var activities = await _context.Activities
                 .AsNoTracking()
                 .Where(a => a.UserID == userId && a.DateTime >= startDate && a.DateTime <= endDate)

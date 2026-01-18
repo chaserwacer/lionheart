@@ -140,8 +140,8 @@ namespace lionheart.Services
 
 
             // Get Dto objects representing the ouraInfos from the past 'daysPrior'
-            var startDate = dateRange.StartDate;
-            var endDate = dateRange.EndDate;
+            var startDate = DateOnly.FromDateTime(dateRange.StartDate);
+            var endDate = DateOnly.FromDateTime(dateRange.EndDate);
             var OuraStateInfoObjects = await _context.DailyOuraDatas.Where(o => o.Date >= startDate && o.Date <= endDate && o.UserID == userGuid).
             Select(o => new DailyOuraInfoDto(
                 o.ObjectID,
@@ -450,8 +450,8 @@ namespace lionheart.Services
             DateRangeRequest dateRange)
         {
             var userGuid = Guid.Parse(user.Id);
-            var start = dateRange.StartDate;
-            var end = dateRange.EndDate;
+            var start = DateOnly.FromDateTime(dateRange.StartDate);
+            var end = DateOnly.FromDateTime(dateRange.EndDate);
 
             // Query persisted entries
             var entities = await _context.DailyOuraDatas
@@ -478,10 +478,12 @@ namespace lionheart.Services
         public async Task<Result<List<DailyOuraDataDTO>>> GetDailyOuraInfosAsync(IdentityUser user, DateRangeRequest dateRange)
         {
             var userGuid = Guid.Parse(user.Id);
+            var startDate = DateOnly.FromDateTime(dateRange.StartDate);
+            var endDate = DateOnly.FromDateTime(dateRange.EndDate);
 
             var dailyOuraInfos = await _context.DailyOuraDatas
                 .AsNoTracking()
-                .Where(x => x.UserID == userGuid && x.Date >= dateRange.StartDate && x.Date <= dateRange.EndDate)
+                .Where(x => x.UserID == userGuid && x.Date >= startDate && x.Date <= endDate)
                 .Select(dto => new DailyOuraDataDTO
                 {
                     ObjectID = dto.ObjectID,

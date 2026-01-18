@@ -7,10 +7,10 @@ namespace lionheart.Model.Request
     public record DateRangeRequest : IValidatableObject
     {
         [Required]
-        public required DateOnly StartDate { get; init; }
+        public required DateTime StartDate { get; init; }
 
         [Required]
-        public required DateOnly EndDate { get; init; }
+        public required DateTime EndDate { get; init; }
 
         /// <summary>
         /// Validates that the StartDate is not after the EndDate.

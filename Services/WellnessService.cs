@@ -50,8 +50,8 @@ namespace lionheart.Services
         public async Task<Result<List<WellnessState>>> GetWellnessStatesAsync(IdentityUser user, DateRangeRequest dateRange)
         {
             var userGuid = Guid.Parse(user.Id);
-            DateOnly startDate = dateRange.StartDate;
-            DateOnly endDate = dateRange.EndDate;
+            DateOnly startDate = DateOnly.FromDateTime(dateRange.StartDate);
+            DateOnly endDate = DateOnly.FromDateTime(dateRange.EndDate);
 
             var states = await _context.WellnessStates
                 .Where(w => w.Date >= startDate && w.Date <= endDate && w.UserID == userGuid)

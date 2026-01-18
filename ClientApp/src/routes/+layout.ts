@@ -1,5 +1,4 @@
 import { bootUserDto, fetchBootUserDto } from '$lib/stores/stores';
-import { fetchTodaysWellnessState } from '$lib/stores/stores'
 
 export const ssr = false;
 export const prerender = true;

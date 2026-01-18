@@ -95,8 +95,8 @@ namespace lionheart.Services
         public async Task<Result<TrainingProgramDTO>> CreateTrainingProgramAsync(IdentityUser user, CreateTrainingProgramRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
-            var startDate = request.StartDate;
-            var endDate = request.EndDate;
+            var startDate = DateOnly.FromDateTime(request.StartDate);
+            var endDate = DateOnly.FromDateTime(request.EndDate);
 
             var trainingProgram = new TrainingProgram
             {
@@ -127,8 +127,8 @@ namespace lionheart.Services
             }
 
             trainingProgram.Title = request.Title;
-            trainingProgram.StartDate = request.StartDate;
-            trainingProgram.EndDate = request.EndDate;
+            trainingProgram.StartDate = DateOnly.FromDateTime(request.StartDate);
+            trainingProgram.EndDate = DateOnly.FromDateTime(request.EndDate);
             trainingProgram.IsCompleted = request.IsCompleted;
             trainingProgram.Tags = request.Tags;
 

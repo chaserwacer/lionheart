@@ -2046,6 +2046,73 @@ export class GetDailyOuraDataEndpointClient {
     }
 }
 
+export class GetDailyOuraDataRangeEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    post(body: DateRangeRequest | undefined): Promise<DailyOuraDataDTO[]> {
+        let url_ = this.baseUrl + "/api/oura/get-daily-oura-data-range";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPost(_response);
+        });
+    }
+
+    protected processPost(response: Response): Promise<DailyOuraDataDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(DailyOuraDataDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DailyOuraDataDTO[]>(null as any);
+    }
+}
+
 export class GetEquipmentsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5801,8 +5868,8 @@ export class CreateTrainingProgramRequest implements ICreateTrainingProgramReque
         data = typeof data === 'object' ? data : {};
         data["trainingProgramID"] = this.trainingProgramID;
         data["title"] = this.title;
-        data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
-        data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
+        data["startDate"] = this.startDate ? this.startDate.toISOString() : <any>undefined;
+        data["endDate"] = this.endDate ? this.endDate.toISOString() : <any>undefined;
         if (Array.isArray(this.tags)) {
             data["tags"] = [];
             for (let item of this.tags)
@@ -5853,7 +5920,7 @@ export class CreateTrainingSessionRequest implements ICreateTrainingSessionReque
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["date"] = this.date ? formatDate(this.date) : <any>undefined;
+        data["date"] = this.date ? this.date.toISOString() : <any>undefined;
         data["trainingProgramID"] = this.trainingProgramID;
         data["notes"] = this.notes;
         data["perceivedEffortRatings"] = this.perceivedEffortRatings ? this.perceivedEffortRatings.toJSON() : <any>undefined;
@@ -6271,8 +6338,8 @@ export class DateRangeRequest implements IDateRangeRequest {
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
-        data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
+        data["startDate"] = this.startDate ? this.startDate.toISOString() : <any>undefined;
+        data["endDate"] = this.endDate ? this.endDate.toISOString() : <any>undefined;
         return data;
     }
 }
@@ -10090,8 +10157,8 @@ export class UpdateTrainingProgramRequest implements IUpdateTrainingProgramReque
         data = typeof data === 'object' ? data : {};
         data["trainingProgramID"] = this.trainingProgramID;
         data["title"] = this.title;
-        data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
-        data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
+        data["startDate"] = this.startDate ? this.startDate.toISOString() : <any>undefined;
+        data["endDate"] = this.endDate ? this.endDate.toISOString() : <any>undefined;
         data["isCompleted"] = this.isCompleted;
         if (Array.isArray(this.tags)) {
             data["tags"] = [];
@@ -10150,7 +10217,7 @@ export class UpdateTrainingSessionRequest implements IUpdateTrainingSessionReque
         data = typeof data === 'object' ? data : {};
         data["trainingSessionID"] = this.trainingSessionID;
         data["trainingProgramID"] = this.trainingProgramID;
-        data["date"] = this.date ? formatDate(this.date) : <any>undefined;
+        data["date"] = this.date ? this.date.toISOString() : <any>undefined;
         data["status"] = this.status;
         data["notes"] = this.notes;
         data["perceivedEffortRatings"] = this.perceivedEffortRatings ? this.perceivedEffortRatings.toJSON() : <any>undefined;

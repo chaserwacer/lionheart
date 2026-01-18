@@ -56,7 +56,7 @@ namespace lionheart.Model.Training
     /// <param name="TrainingProgramID">Optional training program ID to associate the session with.</param>
     /// <param name="PerceivedEffortRatings">Optional perceived effort ratings for the session.</param>
     public record CreateTrainingSessionRequest(
-        [Required]DateOnly Date,
+        [Required]DateTime Date,
         Guid? TrainingProgramID,
         string Notes,
         PerceivedEffortRatings? PerceivedEffortRatings
@@ -69,7 +69,7 @@ namespace lionheart.Model.Training
     public record UpdateTrainingSessionRequest(
         [Required]Guid TrainingSessionID,
         Guid? TrainingProgramID,
-        [Required]DateOnly Date,
+        [Required]DateTime Date,
         [Required]TrainingSessionStatus Status,
         string Notes,
         PerceivedEffortRatings? PerceivedEffortRatings

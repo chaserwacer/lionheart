@@ -10,7 +10,7 @@ namespace lionheart.Endpoints.WellnessEndpoints
 {
     [ValidateModel]
     public class GetWellnessStateEndpoint : EndpointBaseAsync
-        .WithRequest<DateOnly>
+        .WithRequest<DateTime>
         .WithActionResult<WellnessState>
     {
         private readonly IWellnessService _wellnessService;
@@ -26,12 +26,12 @@ namespace lionheart.Endpoints.WellnessEndpoints
         [EndpointDescription("Fetch the WellnessState for the user on a specific date.")]
         [ProducesResponseType<WellnessState>(StatusCodes.Status200OK)]
         [ProducesResponseType<WellnessState>(StatusCodes.Status401Unauthorized)]
-        public override async Task<ActionResult<WellnessState>> HandleAsync([FromQuery] DateOnly date, CancellationToken cancellationToken = default)
+        public override async Task<ActionResult<WellnessState>> HandleAsync([FromQuery] DateTime date, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-            return this.ToActionResult(await _wellnessService.GetWellnessStateAsync(user, date));
+            return this.ToActionResult(await _wellnessService.GetWellnessStateAsync(user, DateOnly.FromDateTime(date)));
         }
     }
 }

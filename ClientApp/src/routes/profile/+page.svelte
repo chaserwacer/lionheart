@@ -85,11 +85,10 @@
 <div class="mx-auto ">
   <div class="max-w-2xl mx-auto space-y-6">
     <!-- Header Card -->
-    <div class="card bg-base-100 shadow-xl">
+    <div class="card bg-base-100 shadow-editorial-lg border border-base-300">
       <div class="card-body items-center text-center">
-        
-        <h1 class="card-title text-2xl sm:text-3xl">Welcome, {$bootUserDto.name}</h1>
-        <p class="text-base-content/70">Manage your profile settings</p>
+        <h1 class="text-3xl sm:text-4xl font-display font-black tracking-tight mb-2">Welcome, {$bootUserDto.name}</h1>
+        <p class="text-base-content/60 text-sm uppercase tracking-wider font-bold">Manage your profile settings</p>
       </div>
     </div>
 
@@ -104,40 +103,18 @@
       </div>
     {/if}
 
-    <!-- Theme Settings Card -->
-    <div class="card bg-base-100 shadow-xl">
-      <div class="card-body">
-        <h2 class="card-title text-lg">
-          
-          Appearance
-        </h2>
-        <p class="text-sm text-base-content/70 mb-4">Customize how Lionheart looks for you</p>
-        
-        <div class="label">
-          <span class="label-text font-bold">Theme Selector</span>
-        </div>
-        <select
-          class="select select-primary bg-primary text-primary-content"
-          data-choose-theme
-        >
-          {#each themes as theme}
-            <option value={theme.value}>{theme.label}</option>
-          {/each}
-        </select>
-      </div>
-    </div>
+    
 
     <!-- API Integration Card -->
-    <div class="card bg-base-100 shadow-xl">
+    <div class="card bg-base-100 shadow-editorial-lg border border-base-300">
       <div class="card-body">
-        <h2 class="card-title text-lg">
-         
+        <h2 class="text-xl font-bold uppercase tracking-wider mb-1">
           Integrations
         </h2>
-        <p class="text-sm text-base-content/70 mb-4">Connect external services</p>
+        <p class="text-xs text-base-content/60 mb-6 uppercase tracking-wider font-bold">Connect external services</p>
 
-        <button class="btn btn-primary w-full sm:w-auto" on:click={showApiModal}>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <button class="btn btn-primary w-full sm:w-auto text-xs font-bold uppercase tracking-wider" on:click={showApiModal}>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
           Add API Access Token
@@ -146,16 +123,15 @@
     </div>
 
     <!-- Account Actions Card -->
-    <div class="card bg-base-100 shadow-xl">
+    <div class="card bg-base-100 shadow-editorial-lg border border-base-300">
       <div class="card-body">
-        <h2 class="card-title text-lg">
-        
+        <h2 class="text-xl font-bold uppercase tracking-wider mb-1">
           Account
         </h2>
-        <p class="text-sm text-base-content/70 mb-4">Manage your account settings</p>
+        <p class="text-xs text-base-content/60 mb-6 uppercase tracking-wider font-bold">Manage your account settings</p>
 
-        <button class="btn btn-outline btn-error w-full sm:w-auto" on:click={logout}>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <button class="btn btn-outline btn-error w-full sm:w-auto text-xs font-bold uppercase tracking-wider" on:click={logout}>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
           Logout
@@ -171,8 +147,8 @@
     <div class="modal-box w-11/12 max-w-md">
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" on:click={closeApiModal}>✕</button>
 
-      <h3 class="font-bold text-lg mb-2">Add API Access Token</h3>
-      <p class="text-sm text-base-content/70 mb-6">
+      <h3 class="text-xl font-bold uppercase tracking-wider mb-2">Add API Access Token</h3>
+      <p class="text-xs text-base-content/60 mb-6 uppercase tracking-wider font-bold">
         Connect external services by adding your personal access tokens.
         See the API provider's documentation for token generation.
       </p>
@@ -180,7 +156,7 @@
       <form on:submit|preventDefault={addPersonalApiAccessToken}>
         <div class="form-control w-full mb-4">
           <label class="label" for="app-name">
-            <span class="label-text font-medium">Application</span>
+            <span class="label-text text-xs font-bold uppercase tracking-wider">Application</span>
           </label>
           <select
             id="app-name"
@@ -195,7 +171,7 @@
 
         <div class="form-control w-full mb-6">
           <label class="label" for="access-token">
-            <span class="label-text font-medium">Access Token</span>
+            <span class="label-text text-xs font-bold uppercase tracking-wider">Access Token</span>
           </label>
           <input
             id="access-token"
@@ -208,8 +184,8 @@
         </div>
 
         <div class="modal-action space-x-4">
-          <button type="button" class="btn btn-outline p-2" on:click={closeApiModal}>Cancel</button>
-          <button type="submit" class="btn btn-primary p-2">Save Token</button>
+          <button type="button" class="btn btn-outline text-xs font-bold uppercase tracking-wider" on:click={closeApiModal}>Cancel</button>
+          <button type="submit" class="btn btn-primary text-xs font-bold uppercase tracking-wider">Save Token</button>
         </div>
       </form>
     </div>
