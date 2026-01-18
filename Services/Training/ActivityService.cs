@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Ardalis.Result;
 using Mapster;
 using lionheart.Model.Request;
+using Model.Chat.Tools;
 
 namespace lionheart.Services
 {
@@ -16,7 +17,7 @@ namespace lionheart.Services
         Task<Result<ActivityDTO>> UpdateActivityAsync(IdentityUser user, UpdateActivityRequest activityRequest);
         Task<Result> DeleteActivityAsync(IdentityUser user, Guid activityID);
     }
-
+    [ToolProvider]
     public class ActivityService : IActivityService
     {
         private readonly ModelContext _context;
@@ -67,7 +68,7 @@ namespace lionheart.Services
             await _context.SaveChangesAsync();
             return Result.Success();
         }
-
+        [Tool(Name = "GetActivities", Description = "Get activities for user within date range.")]
         public async Task<Result<List<ActivityDTO>>> GetActivitiesAsync(IdentityUser user, DateRangeRequest dateRange)
         {
             var userId = Guid.Parse(user.Id);

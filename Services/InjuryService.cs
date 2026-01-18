@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Data;
 using Mapster;
+using Model.Chat.Tools;
 
 
 namespace lionheart.Services
@@ -18,7 +19,7 @@ namespace lionheart.Services
         Task<Result> DeleteInjuryEventAsync(IdentityUser user, Guid injuryEventId);
         Task<Result<List<InjuryDTO>>> GetUserInjuriesAsync(IdentityUser user);
     }
-
+    [ToolProvider]
     public class InjuryService : IInjuryService
     {
         private readonly ModelContext _context;
@@ -94,7 +95,7 @@ namespace lionheart.Services
             var updatedInjury = await _context.Injuries.Include(i => i.InjuryEvents).FirstAsync(i => i.InjuryID == injury.InjuryID);
             return Result<InjuryDTO>.Success(updatedInjury.Adapt<InjuryDTO>());
         }
-
+        [Tool(Name = "GetAllUserInjuries", Description = "Get all injuries for user.")]
         public async Task<Result<List<InjuryDTO>>> GetUserInjuriesAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
@@ -102,6 +103,38 @@ namespace lionheart.Services
                 .Where(i => i.UserID == userId)
                 .Include(i => i.InjuryEvents)
                 .ToListAsync();
+            var ordered = injuries
+                .OrderByDescending(i => i.InjuryEvents.Count > 0 ? i.InjuryEvents.Max(ie => ie.CreationTime) : i.InjuryDate.ToDateTime(TimeOnly.MinValue))
+                .Select(i => i.Adapt<InjuryDTO>())
+                .ToList();
+            return Result<List<InjuryDTO>>.Success(ordered);
+        }
+        [Tool(Name = "GetUserInjuries", Description = "Get user injuries with filters.")]
+        public async Task<Result<List<InjuryDTO>>> GetUserInjuriesAsync(IdentityUser user, GetInjuryRequest request)
+        {
+            var userId = Guid.Parse(user.Id);
+            var query = _context.Injuries
+                .Where(i => i.UserID == userId)
+                .Include(i => i.InjuryEvents)
+                .AsQueryable();
+            if (request.InjuryID.HasValue)
+            {
+                query = query.Where(i => i.InjuryID == request.InjuryID.Value);
+            }
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(i => i.IsActive == request.IsActive.Value);
+            }
+            if (request.DateRange is not null)
+            {
+
+                query = query.Where(i => i.InjuryDate >= request.DateRange.StartDate);
+
+
+                query = query.Where(i => i.InjuryDate <= request.DateRange.EndDate);
+
+            }
+            var injuries = await query.ToListAsync();
             var ordered = injuries
                 .OrderByDescending(i => i.InjuryEvents.Count > 0 ? i.InjuryEvents.Max(ie => ie.CreationTime) : i.InjuryDate.ToDateTime(TimeOnly.MinValue))
                 .Select(i => i.Adapt<InjuryDTO>())

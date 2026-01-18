@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace lionheart.Model.Training.SetEntry
 {
     /// <summary>
@@ -49,36 +51,36 @@ namespace lionheart.Model.Training.SetEntry
     );
 
     public record CreateDTSetEntryRequest(
-        Guid MovementID,
+        [Required]Guid MovementID,
         double RecommendedDistance,
-        double ActualDistance,
-        TimeSpan IntervalDuration,
+        [Required]double ActualDistance,
+        [Required]TimeSpan IntervalDuration,
         TimeSpan TargetPace,
-        TimeSpan ActualPace,
+        [Required]TimeSpan ActualPace,
         TimeSpan RecommendedDuration,
-        TimeSpan ActualDuration,
+        [Required]TimeSpan ActualDuration,
         TimeSpan RecommendedRest,
-        TimeSpan ActualRest,
-        IntervalType IntervalType,
-        DistanceUnit DistanceUnit,
-        double ActualRPE
+        [Required]TimeSpan ActualRest,
+        [Required]IntervalType IntervalType,
+        [Required]DistanceUnit DistanceUnit,
+        [Required]double ActualRPE
     );
 
     public record UpdateDTSetEntryRequest(
-        Guid SetEntryID,
-        Guid MovementID,
+        [Required]Guid SetEntryID,
+        [Required]Guid MovementID,
         double RecommendedDistance,
-        double ActualDistance,
-        TimeSpan IntervalDuration,
+        [Required]double ActualDistance,
+        [Required]TimeSpan IntervalDuration,
         TimeSpan TargetPace,
-        TimeSpan ActualPace,
+        [Required]TimeSpan ActualPace,
         TimeSpan RecommendedDuration,
-        TimeSpan ActualDuration,
+        [Required]TimeSpan ActualDuration,
         TimeSpan RecommendedRest,
-        TimeSpan ActualRest,
-        IntervalType IntervalType,
-        DistanceUnit DistanceUnit,
-        double ActualRPE
+        [Required]TimeSpan ActualRest,
+        [Required]IntervalType IntervalType,
+        [Required]DistanceUnit DistanceUnit,
+        [Required]double ActualRPE
     );
 
     public enum IntervalType

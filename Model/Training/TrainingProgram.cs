@@ -21,39 +21,39 @@ namespace lionheart.Model.Training
     {
         [Required]
         public Guid TrainingProgramID { get; init; }
-    
+
         [Required]
         public string Title { get; init; } = string.Empty;
-    
+
         [Required]
         public DateOnly StartDate { get; init; }
-    
+
         [Required]
         public DateOnly EndDate { get; init; }
-    
+
         [Required]
         public bool IsCompleted { get; init; }
-    
+
         [Required]
         public List<TrainingSessionDTO> TrainingSessions { get; init; } = [];
-    
+
         [Required]
         public List<string> Tags { get; init; } = [];
     }
 
     public record CreateTrainingProgramRequest(
-        Guid TrainingProgramID,
-        string Title,
-        DateOnly StartDate,
-        DateOnly EndDate,
+        [Required] Guid TrainingProgramID,
+        [Required] string Title,
+        [Required] DateOnly StartDate,
+        [Required] DateOnly EndDate,
         List<string> Tags
     );
     public record UpdateTrainingProgramRequest(
-        Guid TrainingProgramID,
-        string Title,
-        DateOnly StartDate,
-        DateOnly EndDate,
-        bool IsCompleted,
+        [Required] Guid TrainingProgramID,
+        [Required] string Title,
+        [Required] DateOnly StartDate,
+        [Required] DateOnly EndDate,
+        [Required] bool IsCompleted,
         List<string> Tags
     );
 }

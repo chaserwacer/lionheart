@@ -24,7 +24,7 @@ namespace lionheart.Model.Training
 
     }
     public record CreateEquipmentRequest(
-        string Name
+        [Required]string Name
     );
     public record EquipmentDTO(
         Guid EquipmentID,
@@ -32,9 +32,9 @@ namespace lionheart.Model.Training
         bool Enabled
     );
     public record UpdateEquipmentRequest(
-        Guid EquipmentID,
-        string Name,
-        bool Enabled
+        [Required]Guid EquipmentID,
+        [Required]string Name,
+        [Required]bool Enabled
     );
 
 }

@@ -9,6 +9,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Ardalis.Result;
 using lionheart.Model.Request;
+using Model.Chat.Tools;
 
 namespace lionheart.Services
 {
@@ -35,6 +36,7 @@ namespace lionheart.Services
     /// Data is fetched and deserialzed into objects mirroring structure defined in their Open API documentation.
     /// Those objects are then converted into custom representation <see cref="DailyOuraData"/> objects for storage in the database.
     /// </remarks>
+    [ToolProvider]
     public class OuraService : IOuraService
     {
         private readonly ModelContext _context;
@@ -442,6 +444,7 @@ namespace lionheart.Services
         /// <summary>
         /// Retrieves a list of DailyOuraDataDTO for the specified date range.
         /// </summary>
+        [Tool(Name = "GetDailyOuraDataRange", Description = "Get daily Oura data for a user within a specified date range.")]
         public async Task<List<DailyOuraDataDTO>> GetDailyOuraInfoRangeAsync(
             IdentityUser user,
             DateRangeRequest dateRange)

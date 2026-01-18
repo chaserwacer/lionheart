@@ -4,6 +4,7 @@ using lionheart.Model.Training;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Mapster;
+using Model.Chat.Tools;
 
 namespace lionheart.Services
 {
@@ -54,6 +55,7 @@ namespace lionheart.Services
     /// <summary>
     /// Service for managing <see cref="TrainingProgram"/>s.
     /// </summary>
+    [ToolProvider]
     public class TrainingProgramService : ITrainingProgramService
     {
         private readonly ModelContext _context;
@@ -62,7 +64,7 @@ namespace lionheart.Services
         {
             _context = context;
         }
-
+        [Tool(Name ="GetTrainingPrograms", Description = "Get all training programs for a user.")]
         public async Task<Result<List<TrainingProgramDTO>>> GetTrainingProgramsAsync(IdentityUser user)
         {
             var userGuid = Guid.Parse(user.Id);
@@ -73,7 +75,7 @@ namespace lionheart.Services
 
             return Result<List<TrainingProgramDTO>>.Success(trainingPrograms.Adapt<List<TrainingProgramDTO>>());
         }
-
+        
         public async Task<Result<TrainingProgramDTO>> GetTrainingProgramAsync(IdentityUser user, Guid TrainingprogramId)
         {
             var userGuid = Guid.Parse(user.Id);

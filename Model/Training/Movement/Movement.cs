@@ -40,15 +40,15 @@ namespace lionheart.Model.Training
     }
 
     public record CreateMovementRequest(
-        Guid TrainingSessionID,
-        CreateMovementDataRequest MovementData,
-        string Notes
+        [Required]Guid TrainingSessionID,
+        [Required]CreateMovementDataRequest MovementData,
+        [Required]string Notes
     );
     public record UpdateMovementRequest(
-        Guid MovementID,
-        CreateMovementDataRequest MovementData,
-        string Notes,
-        bool IsCompleted
+        [Required]Guid MovementID,
+        [Required]CreateMovementDataRequest MovementData,
+        [Required]string Notes,
+        [Required]bool IsCompleted
     );
     public record MovementDTO(
         Guid MovementID,

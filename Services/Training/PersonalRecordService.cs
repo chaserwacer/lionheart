@@ -5,6 +5,7 @@ using lionheart.Model.Training.SetEntry;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Model.Chat.Tools;
 
 namespace lionheart.Services;
 
@@ -55,7 +56,7 @@ public interface IPersonalRecordService
     /// </summary>
     Task<Result> CheckAndRevertPRIfNeededAsync(IdentityUser user, LiftSetEntry setEntry, double oldWeight, int oldReps);
 }
-
+[ToolProvider]
 public class PersonalRecordService : IPersonalRecordService
 {
     private readonly ModelContext _context;
@@ -64,7 +65,7 @@ public class PersonalRecordService : IPersonalRecordService
     {
         _context = context;
     }
-
+    [Tool(Name = "GetPersonalRecords", Description = "Get all active personal records for the user.")]
     public async Task<Result<List<PersonalRecordDTO>>> GetPersonalRecordsAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -81,7 +82,7 @@ public class PersonalRecordService : IPersonalRecordService
 
         return Result<List<PersonalRecordDTO>>.Success(records.Adapt<List<PersonalRecordDTO>>());
     }
-
+    [Tool(Name = "GetPRSummaryForMovementData", Description = "Get PR summary for a specific MovementData.")]
     public async Task<Result<MovementDataPRSummary>> GetPRSummaryForMovementDataAsync(IdentityUser user, Guid movementDataId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -123,7 +124,6 @@ public class PersonalRecordService : IPersonalRecordService
             lastPRDate
         ));
     }
-
     public async Task<Result<List<MovementDataPRSummary>>> GetAllPRSummariesAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);

@@ -4,17 +4,12 @@
   import {
     bootUserDto,
     fetchBootUserDto,
-    type WellnessState,
     pageUpdate,
     wellnessStateDate,
   } from "$lib/stores/stores.js";
-  import ActivityTracker from "$lib/components/ActivityTracker.svelte";
-  import WellnessTracker from "$lib/components/WellnessTracker.svelte";
+ 
   import { writable } from "svelte/store";
-  import Layout from "./+layout.svelte";
-  import ActivityViewer from "$lib/components/SingleActivityViewer.svelte";
-  import Chart from "chart.js/auto";
-  import type { Line } from "svelte-chartjs";
+
   import type { Activity, MuscleSetsDto } from "$lib/stores/activityStore.js";
   import {
     fetchActivities,
@@ -22,7 +17,6 @@
     fetchActivityRatio,
     fetchWeeklyMuscleSetsDto,
   } from "$lib/stores/activityStore.js";
-  import SingleActivityViewer from "$lib/components/SingleActivityViewer.svelte";
   import { syncOuraData, GetDailyOuraInfo } from "$lib/stores/ouraStore.js";
   import {
     GetTrainingProgramsEndpointClient,
@@ -30,7 +24,6 @@
     TrainingSessionDTO,
     TrainingSessionStatus,
   } from "$lib/api/ApiClient";
-  import TrainingProgramViewer from "$lib/components/TrainingProgramViewer.svelte";
 
   let program: TrainingProgramDTO | undefined;
   let sessions: TrainingSessionDTO[] = [];
@@ -247,7 +240,7 @@
   async function loadSessions() {
     const client = new GetTrainingProgramsEndpointClient(baseUrl);
     try {
-      const all = await client.getAll4();
+      const all = await client.get();
       if (all.length === 0) return;
       // take first program
       sessions = (all[0].trainingSessions ?? [])
@@ -268,7 +261,7 @@
   async function loadPrograms() {
     const client = new GetTrainingProgramsEndpointClient(baseUrl);
     try {
-      const all = await client.getAll4();
+      const all = await client.get();
       programs = all;
       activeProgram = programs.find((p) => !p.isCompleted) ?? null;
     } catch (e) {
@@ -476,7 +469,7 @@
           {#each $activities as activity}
             <h1 class="text-2xl font-bold text-center">Activity Viewer</h1>
             <div class="divider divider-primary m-0"></div>
-            <SingleActivityViewer {activity} />
+            {activity.name}
           {/each}
         </div>
         <label class="modal-backdrop" for="my_modal_7">Close</label>
@@ -572,21 +565,7 @@
     </div>
     
   </div>
-  <div class="flex items-center md:items-start">
-      <div
-        class="card bg-primary text-primary-content rounded-lg m-4 hover:shadow-xl w-full max-w-5xl"
-      >
-        <div class="overflow-x-auto">
-          {#if activeProgram}
-            <TrainingProgramViewer program={activeProgram} {loadPrograms} />
-          {:else}
-            <div class="p-4 text-center text-lg">
-              No active training program found.
-            </div>
-          {/if}
-        </div>
-      </div>
-    </div>
+
 </div>
 
 

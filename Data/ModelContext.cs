@@ -8,6 +8,7 @@ using lionheart.Model.Training;
 using lionheart.Model.InjuryManagement;
 using lionheart.Model.Training.SetEntry;
 using lionheart.Model.User;
+using lionheart.Model.Chat;
 
 namespace lionheart.Data
 {
@@ -35,6 +36,11 @@ namespace lionheart.Data
         public DbSet<PersonalRecord> PersonalRecords { get; set; }
         public DbSet<Injury> Injuries { get; set; }
         public DbSet<InjuryEvent> InjuryEvents { get; set; }
+        public DbSet<LHChatConversation> ChatConversations { get; set; }
+        public DbSet<LHUserChatMessage> UserChatMessages { get; set; }
+        public DbSet<LHModelChatMessage> ModelChatMessages { get; set; }
+        public DbSet<LHSystemChatMessage> SystemChatMessages { get; set; }
+        public DbSet<LHToolChatMessage> ToolChatMessages { get; set; }
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -270,6 +276,45 @@ namespace lionheart.Data
             modelBuilder.Entity<DailyOuraData>()
                 .OwnsOne(o => o.ActivityData);
 
+            // Chat Conversations
+            modelBuilder.Entity<LHChatConversation>()
+                .HasKey(c => c.ChatConversationID);
+
+            modelBuilder.Entity<LHChatConversation>()
+                .HasOne(c => c.ChatSystemMessage)
+                .WithOne(m => m.ChatConversation)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LHChatConversation>()
+                .HasMany(c => c.UserMessages)
+                .WithOne(m => m.ChatConversation)
+                .HasForeignKey(m => m.ChatConversationID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LHChatConversation>()
+                .HasMany(c => c.ModelMessages)
+                .WithOne(m => m.ChatConversation)
+                .HasForeignKey(m => m.ChatConversationID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LHChatConversation>()
+                .HasMany(c => c.ToolMessages)
+                .WithOne(m => m.ChatConversation)
+                .HasForeignKey(m => m.ChatConversationID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Chat Messages
+            modelBuilder.Entity<LHUserChatMessage>()
+                .HasKey(m => m.ChatMessageItemID);
+
+            modelBuilder.Entity<LHModelChatMessage>()
+                .HasKey(m => m.ChatMessageItemID);
+
+            modelBuilder.Entity<LHSystemChatMessage>()
+                .HasKey(m => m.ChatMessageItemID);
+
+            modelBuilder.Entity<LHToolChatMessage>()
+                .HasKey(m => m.ChatMessageItemID);
 
             
 

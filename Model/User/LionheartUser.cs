@@ -30,6 +30,6 @@ namespace lionheart.Model.User
         public List<Equipment> Equipments { get; set; } = [];
         public List<PersonalRecord> PersonalRecords { get; set; } = [];
         public List<Injury> Injuries { get; set; } = [];
-        public List<ChatConversation> ChatConversations { get; set; } = [];
+        public List<LHChatConversation> ChatConversations { get; set; } = [];
     }
 }

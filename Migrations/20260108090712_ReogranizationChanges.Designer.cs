@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using lionheart.Data;
 
@@ -10,9 +11,11 @@ using lionheart.Data;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(ModelContext))]
-    partial class ModelContextModelSnapshot : ModelSnapshot
+    [Migration("20260108090712_ReogranizationChanges")]
+    partial class ReogranizationChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.6");
@@ -222,21 +225,6 @@ namespace lionheart.Migrations
                     b.ToTable("MuscleGroups");
                 });
 
-            modelBuilder.Entity("OpenAI.Chat.ChatToolCall", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("LHModelChatMessageChatMessageItemID")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LHModelChatMessageChatMessageItemID");
-
-                    b.ToTable("ChatToolCall");
-                });
-
             modelBuilder.Entity("lionheart.ActivityTracking.Activity", b =>
                 {
                     b.Property<Guid>("ActivityID")
@@ -270,7 +258,7 @@ namespace lionheart.Migrations
                     b.ToTable("Activities");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>
+            modelBuilder.Entity("lionheart.Model.Chat.ChatConversation", b =>
                 {
                     b.Property<Guid>("ChatConversationID")
                         .ValueGeneratedOnAdd()
@@ -285,6 +273,10 @@ namespace lionheart.Migrations
                     b.Property<Guid?>("LionheartUserUserID")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ModelName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -296,10 +288,10 @@ namespace lionheart.Migrations
 
                     b.HasIndex("LionheartUserUserID");
 
-                    b.ToTable("ChatConversations");
+                    b.ToTable("ChatConversation");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Chat.LHModelChatMessage", b =>
+            modelBuilder.Entity("lionheart.Model.Chat.LionheartUserChatMessage", b =>
                 {
                     b.Property<Guid>("ChatMessageItemID")
                         .ValueGeneratedOnAdd()
@@ -309,6 +301,7 @@ namespace lionheart.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Content")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreationTime")
@@ -321,10 +314,10 @@ namespace lionheart.Migrations
 
                     b.HasIndex("ChatConversationID");
 
-                    b.ToTable("ModelChatMessages");
+                    b.ToTable("LionheartUserChatMessage");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Chat.LHSystemChatMessage", b =>
+            modelBuilder.Entity("lionheart.Model.Chat.ModelChatMessage", b =>
                 {
                     b.Property<Guid>("ChatMessageItemID")
                         .ValueGeneratedOnAdd()
@@ -334,6 +327,33 @@ namespace lionheart.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TokenCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ChatMessageItemID");
+
+                    b.HasIndex("ChatConversationID");
+
+                    b.ToTable("ModelChatMessage");
+                });
+
+            modelBuilder.Entity("lionheart.Model.Chat.ModelSystemChatMessage", b =>
+                {
+                    b.Property<Guid>("ChatMessageItemID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ChatConversationID")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreationTime")
@@ -347,61 +367,7 @@ namespace lionheart.Migrations
                     b.HasIndex("ChatConversationID")
                         .IsUnique();
 
-                    b.ToTable("SystemChatMessages");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Chat.LHToolChatMessage", b =>
-                {
-                    b.Property<Guid>("ChatMessageItemID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ChatConversationID")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Content")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreationTime")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TokenCount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ToolCallID")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("ChatMessageItemID");
-
-                    b.HasIndex("ChatConversationID");
-
-                    b.ToTable("ToolChatMessages");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Chat.LHUserChatMessage", b =>
-                {
-                    b.Property<Guid>("ChatMessageItemID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ChatConversationID")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Content")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreationTime")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TokenCount")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("ChatMessageItemID");
-
-                    b.HasIndex("ChatConversationID");
-
-                    b.ToTable("UserChatMessages");
+                    b.ToTable("ModelSystemChatMessage");
                 });
 
             modelBuilder.Entity("lionheart.Model.InjuryManagement.Injury", b =>
@@ -943,13 +909,6 @@ namespace lionheart.Migrations
                     b.Navigation("TrainedMuscles");
                 });
 
-            modelBuilder.Entity("OpenAI.Chat.ChatToolCall", b =>
-                {
-                    b.HasOne("lionheart.Model.Chat.LHModelChatMessage", null)
-                        .WithMany("ToolCalls")
-                        .HasForeignKey("LHModelChatMessageChatMessageItemID");
-                });
-
             modelBuilder.Entity("lionheart.ActivityTracking.Activity", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
@@ -989,16 +948,27 @@ namespace lionheart.Migrations
                     b.Navigation("PerceivedEffortRatings");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>
+            modelBuilder.Entity("lionheart.Model.Chat.ChatConversation", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany("ChatConversations")
                         .HasForeignKey("LionheartUserUserID");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Chat.LHModelChatMessage", b =>
+            modelBuilder.Entity("lionheart.Model.Chat.LionheartUserChatMessage", b =>
                 {
-                    b.HasOne("lionheart.Model.Chat.LHChatConversation", "ChatConversation")
+                    b.HasOne("lionheart.Model.Chat.ChatConversation", "ChatConversation")
+                        .WithMany("UserMessages")
+                        .HasForeignKey("ChatConversationID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatConversation");
+                });
+
+            modelBuilder.Entity("lionheart.Model.Chat.ModelChatMessage", b =>
+                {
+                    b.HasOne("lionheart.Model.Chat.ChatConversation", "ChatConversation")
                         .WithMany("ModelMessages")
                         .HasForeignKey("ChatConversationID")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1007,33 +977,11 @@ namespace lionheart.Migrations
                     b.Navigation("ChatConversation");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Chat.LHSystemChatMessage", b =>
+            modelBuilder.Entity("lionheart.Model.Chat.ModelSystemChatMessage", b =>
                 {
-                    b.HasOne("lionheart.Model.Chat.LHChatConversation", "ChatConversation")
+                    b.HasOne("lionheart.Model.Chat.ChatConversation", "ChatConversation")
                         .WithOne("ChatSystemMessage")
-                        .HasForeignKey("lionheart.Model.Chat.LHSystemChatMessage", "ChatConversationID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ChatConversation");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Chat.LHToolChatMessage", b =>
-                {
-                    b.HasOne("lionheart.Model.Chat.LHChatConversation", "ChatConversation")
-                        .WithMany("ToolMessages")
-                        .HasForeignKey("ChatConversationID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ChatConversation");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Chat.LHUserChatMessage", b =>
-                {
-                    b.HasOne("lionheart.Model.Chat.LHChatConversation", "ChatConversation")
-                        .WithMany("UserMessages")
-                        .HasForeignKey("ChatConversationID")
+                        .HasForeignKey("lionheart.Model.Chat.ModelSystemChatMessage", "ChatConversationID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1436,21 +1384,14 @@ namespace lionheart.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>
+            modelBuilder.Entity("lionheart.Model.Chat.ChatConversation", b =>
                 {
                     b.Navigation("ChatSystemMessage")
                         .IsRequired();
 
                     b.Navigation("ModelMessages");
 
-                    b.Navigation("ToolMessages");
-
                     b.Navigation("UserMessages");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Chat.LHModelChatMessage", b =>
-                {
-                    b.Navigation("ToolCalls");
                 });
 
             modelBuilder.Entity("lionheart.Model.InjuryManagement.Injury", b =>

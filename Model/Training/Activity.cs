@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using lionheart.Model.Training;
 
 namespace lionheart.ActivityTracking
@@ -24,7 +25,6 @@ namespace lionheart.ActivityTracking
 
     public record ActivityDTO(
         Guid ActivityID,
-        Guid UserID,
         DateTime DateTime,
         int TimeInMinutes,
         int CaloriesBurned,
@@ -33,8 +33,7 @@ namespace lionheart.ActivityTracking
         PerceivedEffortRatings? PerceivedEffortRatings
     );
     public record CreateActivityRequest(
-        Guid UserID,
-        DateTime DateTime,
+        [Required]DateTime DateTime,
         int TimeInMinutes,
         int CaloriesBurned,
         string Name,
@@ -42,8 +41,7 @@ namespace lionheart.ActivityTracking
         PerceivedEffortRatings? PerceivedEffortRatings
     );
     public record UpdateActivityRequest(
-        Guid ActivityID,
-        Guid UserID,
+        [Required]Guid ActivityID,
         DateTime DateTime,
         int TimeInMinutes,
         int CaloriesBurned,

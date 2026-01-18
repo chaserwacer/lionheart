@@ -5,6 +5,10 @@ using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
 using OpenAI.Chat;
+using Model.Chat.Tools;
+using lionheart.Services.Chat;
+using Services.Chat;
+using Model.Tools;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,8 +37,18 @@ builder.Services.AddSingleton(provider =>
     new ChatClient(model: "gpt-5.2", apiKey: configuration["OpenAI:ApiKey"])
 );
 
+builder.Services
+  .AddControllers()
+  .AddJsonOptions(opts =>
+  {
+
+      opts.JsonSerializerOptions.Converters.Add(
+        new DateOnlyJsonConverter("yyyy-MM-dd"));
+  });
 
 builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();
@@ -45,11 +59,27 @@ builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<IMovementDataService, MovementDataService>();
 builder.Services.AddTransient<IEquipmentService, EquipmentService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
-
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<ILiftSetEntryService, LiftSetEntryService>();
 builder.Services.AddTransient<IDTSetEntryService, DTSetEntryService>();
 builder.Services.AddTransient<IPersonalRecordService, PersonalRecordService>();
+builder.Services.AddTransient<IChatMessageService, ChatMessageService>();
+builder.Services.AddTransient<ChatCompletionService, ChatCompletionService>();
+builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
+
+
+builder.Services.AddSingleton<ToolRegistry>(sp =>
+{
+    return ToolRegistryBuilder.Build(builder.Services).GetAwaiter().GetResult();
+});
+
+builder.Services.AddSingleton(sp =>
+{
+    var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+    options.Converters.Add(new DateOnlyJsonConverter("yyyy-MM-dd"));
+    return options;
+});
+
+builder.Services.AddSingleton<ChatToolCallExecutor>();
 
 
 builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
@@ -59,15 +89,7 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 
 
 
-builder.Services
-  .AddControllers()
-  .AddJsonOptions(opts =>
-  {
-      // if you're on .NET 7+, this is built-in,
-      // otherwise pull in a custom converter like below.
-      opts.JsonSerializerOptions.Converters.Add(
-        new DateOnlyJsonConverter("yyyy-MM-dd"));
-  });
+
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

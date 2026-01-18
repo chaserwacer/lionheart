@@ -40,9 +40,9 @@ public class MuscleGroup
 
 
 public record CreateMovementBaseRequest(
-    string Name,
-    string Description,
-    List<TrainedMuscle> TrainedMuscles
+    [Required]string Name,
+    [Required]string Description,
+    [Required]List<TrainedMuscle> TrainedMuscles
 );
 public record MovementBaseDTO(
     Guid MovementBaseID,
@@ -51,8 +51,8 @@ public record MovementBaseDTO(
     List<TrainedMuscle> TrainedMuscles
 );
 public record UpdateMovementBaseRequest(
-    Guid MovementBaseID,
-    string Name,
-    string Description,
-    List<TrainedMuscle> TrainedMuscles
+    [Required]Guid MovementBaseID,
+    [Required]string Name,
+    [Required]string Description,
+    [Required]List<TrainedMuscle> TrainedMuscles
 );

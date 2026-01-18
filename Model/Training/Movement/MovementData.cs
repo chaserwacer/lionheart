@@ -89,8 +89,8 @@ namespace lionheart.Model.Training
     );
 
     public record CreateMovementDataRequest(
-        Guid EquipmentID,
-        Guid MovementBaseID,
+        [Required]Guid EquipmentID,
+        [Required]Guid MovementBaseID,
         Guid? MovementModifierID
     );
 

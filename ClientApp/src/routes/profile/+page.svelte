@@ -8,6 +8,13 @@
   let personalApiAccessToken = "";
   let showAccessTokenAdded = false;
   let showApiAccessModal = false;
+  let currentTheme = "";
+
+  const themes = [
+    { value: "bumblebee", label: "Bumblebee" },
+    { value: "black", label: "Black" },
+    { value: "caramellatte", label: "Caramellatte" }
+  ];
 
   function showApiModal() {
     showApiAccessModal = true;
@@ -37,8 +44,6 @@
   }
 
   async function addPersonalApiAccessToken() {
-    // Old: /api/user/addpersonalapiaccesstoken?applicationName=...&accessToken=...
-    // New endpoint: POST /api/user/set-personal-api-access-token with body { applicationName, accessToken }
     try {
       const url = "/api/user/set-personal-api-access-token";
       const body = {
@@ -66,7 +71,9 @@
   }
 
   onMount(() => {
-    themeChange(false); // False parameter is required for Svelte
+    // Get the current theme from the document
+    // currentTheme = document.documentElement.getAttribute("data-theme") || "bumblebee";
+    themeChange(false);
     showAccessTokenAdded = false;
   });
 </script>
@@ -74,102 +81,38 @@
 <svelte:head>
   <title>Profile</title>
 </svelte:head>
-<div class="flex justify-center md:text-left p-5 text-center w-5/6 mx-auto">
-  <article class="prose lg:prose-xl">
-    <h1>Lionheart Profile</h1>
-    <h4>Welcome, {$bootUserDto.name}, to Project Lionheart.</h4>
-    <p>
-      Lionheart is an application for storing and analyzing all of a users
-      training data. Lionheart is being developed to be able to store anything
-      relevant to training, in the attempt to create a hub where all of
-      your data can live. This will then allow an athlete to analyze trends and
-      data while remaining in one place, as opposed to having to navigate from
-      app to app. <br />
-      Lionheart allows users to track conventionally uncommon 'activities', because 
-      we know that everything you do affects the way you feel. For example, a hard day
-      working in the yard, is trackable with lionheart. And you should want to track that 
-      activity, because its effects are likely more physically and psychologically taxing
-      than some of the regular workouts you might do. 
 
-      <br /><br />
-      The home page will be your one-stop-shop viewing location for all of your training
-      data. Select a date at the top to view all associated data.
-    </p>
+<div class="mx-auto ">
+  <div class="max-w-2xl mx-auto space-y-6">
+    <!-- Header Card -->
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body items-center text-center">
+        
+        <h1 class="card-title text-2xl sm:text-3xl">Welcome, {$bootUserDto.name}</h1>
+        <p class="text-base-content/70">Manage your profile settings</p>
+      </div>
+    </div>
 
-    <div class="divider"></div>
-    <h2 class="">Info Management</h2>
+    <!-- Success Alert -->
     {#if showAccessTokenAdded}
       <div role="alert" class="alert alert-success">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6 shrink-0 stroke-current"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>Personal Access Token Added Succesfully</span>
+        <span>Personal Access Token added successfully!</span>
+        <button class="btn btn-sm btn-ghost" on:click={() => showAccessTokenAdded = false}>✕</button>
       </div>
     {/if}
-    <p>Lionheart User Info:</p>
 
-    <div class="flex flex-col justify-center items-center md:items-start">
-      <button class="btn btn-primary w-60" on:click={logout}>Logout</button>
-      <button class="btn btn-primary w-60 mt-6" on:click={showApiModal}
-        >Add Personal Api Access Token</button
-      >
-
-      {#if showApiAccessModal}
-        <div class="modal modal-open" role="dialog">
-          <div class="modal-box text-sm">
-            <h3 class="">Personal API Access Token Tracker</h3>
-            <p class="">
-              Users may add personal access tokens for supported API
-              integrations here. Please see given API's page for details on
-              generating the token.
-            </p>
-            <form on:submit={addPersonalApiAccessToken}>
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text">Application Name</span><br />
-                  <select
-                    class="select w-40 select-bordered"
-                    bind:value={applicationName}
-                    required
-                  >
-                    <option>oura</option>
-                  </select>
-                </label>
-              </div>
-
-              <div class="mt-6 form-control">
-                <label class="label">
-                  <span class="label-text">Token</span><br >
-                  <input type="text " placeholder="EFJEF93N02HBDX" class="input input-bordered " required bind:value={personalApiAccessToken}/>
-                </label>
-
-              </div>
-
-              <div class="modal-action justify-items-end">
-                <button type="submit" class="btn btn-outline">Submit</button>
-                <button
-                  type="button"
-                  class="btn btn-outline"
-                  on:click={closeApiModal}>Close</button
-                >
-              </div>
-            </form>
-           
-          </div>
-        </div>
-      {/if}
-
-      <label class="form-control w-60">
+    <!-- Theme Settings Card -->
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h2 class="card-title text-lg">
+          
+          Appearance
+        </h2>
+        <p class="text-sm text-base-content/70 mb-4">Customize how Lionheart looks for you</p>
+        
         <div class="label">
           <span class="label-text font-bold">Theme Selector</span>
         </div>
@@ -177,66 +120,106 @@
           class="select select-primary bg-primary text-primary-content"
           data-choose-theme
         >
-          <option value="lofi">Light Mode</option>
-          <option value="black">Dark Mode</option>
-          <option value="coffee">lion-gold</option>
-          
-          <option value="forest">greenbean</option>
-          <option value="nord">Blue</option>
-          <option value="business">Business</option>
-          <!-- <option value=""></option>
-        <option value=""></option> -->
+          {#each themes as theme}
+            <option value={theme.value}>{theme.label}</option>
+          {/each}
         </select>
-      </label>
+      </div>
     </div>
-  </article>
+
+    <!-- API Integration Card -->
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h2 class="card-title text-lg">
+         
+          Integrations
+        </h2>
+        <p class="text-sm text-base-content/70 mb-4">Connect external services</p>
+
+        <button class="btn btn-primary w-full sm:w-auto" on:click={showApiModal}>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Add API Access Token
+        </button>
+      </div>
+    </div>
+
+    <!-- Account Actions Card -->
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h2 class="card-title text-lg">
+        
+          Account
+        </h2>
+        <p class="text-sm text-base-content/70 mb-4">Manage your account settings</p>
+
+        <button class="btn btn-outline btn-error w-full sm:w-auto" on:click={logout}>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Logout
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- <div class="flex flex-col items-center text-center space-y-5 pt-10">
-  <div class="">
-    
-  </div>
-  <div class="space-x-2 space-y-2">
-    <button
-      class="btn btn-secondary"
-      data-set-theme="default"
-      data-act-class="btn-active">Default</button
-    >
-    <button
-      class="btn btn-secondary"
-      data-set-theme="autumn"
-      data-act-class="btn-active">Autumn</button
-    >
-    <button
-      class="btn btn-secondary"
-      data-set-theme="lofi"
-      data-act-class="btn-active">White</button
-    >
-    <button
-      class="btn btn-secondary"
-      data-set-theme="nord"
-      data-act-class="btn-active">Blue</button
-    >
-    <button
-      class="btn btn-secondary"
-      data-set-theme="black"
-      data-act-class="btn-active">Black</button
-    >
-    <button
-      class="btn btn-secondary"
-      data-set-theme="retro"
-      data-act-class="btn-active">Retro</button
-    >
-     <button class="btn btn-secondary" data-set-theme="light" data-act-class="btn-active">Light</button> -->
-<!-- <button class="btn btn-secondary" data-set-theme="dark" data-act-class="btn-active">Dark</button> -->
-<!-- <button -->
-<!-- class="btn btn-secondary"
-      data-set-theme="valentine"
-      data-act-class="btn-active">Valentine</button
-    > -->
-<!-- <button class="btn btn-secondary" data-set-theme="aqua" data-act-class="btn-active">Aqua</button> -->
-<!-- <button class="btn btn-secondary" data-set-theme="forest" data-act-class="btn-active">Forest</button> -->
-<!-- <button class="btn btn-secondary" data-set-theme="synthwave" data-act-class="btn-active">Synthwave</button> -->
-<!-- </div> -->
+<!-- API Access Token Modal -->
+{#if showApiAccessModal}
+  <div class="modal modal-open">
+    <div class="modal-box w-11/12 max-w-md">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" on:click={closeApiModal}>✕</button>
 
-<!-- </div> -->
+      <h3 class="font-bold text-lg mb-2">Add API Access Token</h3>
+      <p class="text-sm text-base-content/70 mb-6">
+        Connect external services by adding your personal access tokens.
+        See the API provider's documentation for token generation.
+      </p>
+
+      <form on:submit|preventDefault={addPersonalApiAccessToken}>
+        <div class="form-control w-full mb-4">
+          <label class="label" for="app-name">
+            <span class="label-text font-medium">Application</span>
+          </label>
+          <select
+            id="app-name"
+            class="select select-bordered w-full"
+            bind:value={applicationName}
+            required
+          >
+            <option value="" disabled>Select an application</option>
+            <option value="oura">Oura</option>
+          </select>
+        </div>
+
+        <div class="form-control w-full mb-6">
+          <label class="label" for="access-token">
+            <span class="label-text font-medium">Access Token</span>
+          </label>
+          <input
+            id="access-token"
+            type="text"
+            placeholder="Enter your access token"
+            class="input input-bordered w-full"
+            required
+            bind:value={personalApiAccessToken}
+          />
+        </div>
+
+        <div class="modal-action space-x-4">
+          <button type="button" class="btn btn-outline p-2" on:click={closeApiModal}>Cancel</button>
+          <button type="submit" class="btn btn-primary p-2">Save Token</button>
+        </div>
+      </form>
+    </div>
+    <div
+      class="modal-backdrop bg-base-300/80"
+      role="button"
+      tabindex="0"
+      aria-label="Close modal"
+      on:click={closeApiModal}
+      on:keydown={(e) => (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') && closeApiModal()}
+    ></div>
+  </div>
+{/if}

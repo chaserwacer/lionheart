@@ -7,6 +7,7 @@ using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Model.Request;
+using Model.Chat.Tools;
 
 public interface ITrainingSessionService
 {
@@ -53,7 +54,7 @@ public interface ITrainingSessionService
     /// </summary>
     Task<Result<TrainingSessionDTO>> DuplicateTrainingSessionAsync(IdentityUser user, Guid trainingSessionID);
 }
-
+[ToolProvider]
 public class TrainingSessionService : ITrainingSessionService
 {
     private readonly ModelContext _context;
@@ -65,7 +66,7 @@ public class TrainingSessionService : ITrainingSessionService
         _personalRecordService = personalRecordService;
     }
 
-
+    [Tool(Name ="GetTrainingSessionsByProgram", Description = "Get all training sessions for a specific training program.")]
     public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, Guid programId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -77,7 +78,7 @@ public class TrainingSessionService : ITrainingSessionService
             .ToListAsync();
         return Result<List<TrainingSessionDTO>>.Success(sessions);
     }
-
+    [Tool(Name ="GetTrainingSessionByID", Description = "Get a specific training session by ID.")]
     public async Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -103,7 +104,7 @@ public class TrainingSessionService : ITrainingSessionService
         }
         return Result<TrainingSessionDTO>.Success(session.Adapt<TrainingSessionDTO>());
     }
-
+    [Tool(Name ="GetTrainingSessionsByDateRange", Description = "Get all training sessions within a specified date range.")]
     public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, DateRangeRequest dateRange)
     {
         var userGuid = Guid.Parse(user.Id);

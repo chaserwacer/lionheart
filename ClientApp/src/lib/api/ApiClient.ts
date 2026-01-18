@@ -128,6 +128,66 @@ export class AddWellnessStateEndpointClient {
     }
 }
 
+export class CreateChatConversationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    post(body: CreateChatConversationRequest | undefined): Promise<LHChatConversationDTO> {
+        let url_ = this.baseUrl + "/api/chat/conversation/create";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPost(_response);
+        });
+    }
+
+    protected processPost(response: Response): Promise<LHChatConversationDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = LHChatConversationDTO.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<LHChatConversationDTO>(null as any);
+    }
+}
+
 export class CreateDTSetEntryEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -372,6 +432,13 @@ export class CreateInjuryEventEndpointClient {
             let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
             result401 = ProblemDetails.fromJS(resultData401);
             return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
             });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
@@ -708,6 +775,13 @@ export class CreateProfileEndpointClient {
             result401 = ProblemDetails.fromJS(resultData401);
             return throwException("Unauthorized", status, _responseText, _headers, result401);
             });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ProblemDetails.fromJS(resultData409);
+            return throwException("Conflict", status, _responseText, _headers, result409);
+            });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
@@ -903,6 +977,132 @@ export class DeleteActivityEndpointClient {
             });
         }
         return Promise.resolve<boolean>(null as any);
+    }
+}
+
+export class DeleteChatConversationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return No Content
+     */
+    delete(conversationId: string): Promise<void> {
+        let url_ = this.baseUrl + "/api/chat/conversation/{conversationId}";
+        if (conversationId === undefined || conversationId === null)
+            throw new Error("The parameter 'conversationId' must be defined.");
+        url_ = url_.replace("{conversationId}", encodeURIComponent("" + conversationId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDelete(_response);
+        });
+    }
+
+    protected processDelete(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class GetChatConversationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(conversationId: string): Promise<LHChatConversationDTO> {
+        let url_ = this.baseUrl + "/api/chat/conversation/{conversationId}";
+        if (conversationId === undefined || conversationId === null)
+            throw new Error("The parameter 'conversationId' must be defined.");
+        url_ = url_.replace("{conversationId}", encodeURIComponent("" + conversationId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<LHChatConversationDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = LHChatConversationDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<LHChatConversationDTO>(null as any);
     }
 }
 
@@ -1662,6 +1862,68 @@ export class GetActivityEndpointClient {
     }
 }
 
+export class GetAllChatConversationsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(): Promise<LHChatConversationDTO[]> {
+        let url_ = this.baseUrl + "/api/chat/conversations";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<LHChatConversationDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(LHChatConversationDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<LHChatConversationDTO[]>(null as any);
+    }
+}
+
 export class GetAllMuscleGroupsAsyncClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1843,6 +2105,68 @@ export class GetEquipmentsEndpointClient {
             });
         }
         return Promise.resolve<EquipmentDTO[]>(null as any);
+    }
+}
+
+export class GetInjuriesEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(): Promise<InjuryDTO[]> {
+        let url_ = this.baseUrl + "/api/injury/get-user-injuries";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<InjuryDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(InjuryDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<InjuryDTO[]>(null as any);
     }
 }
 
@@ -2633,68 +2957,6 @@ export class GetTrainingSessionsEndpointClient {
     }
 }
 
-export class GetUserInjuriesEndpointClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * @return OK
-     */
-    get(): Promise<InjuryDTO[]> {
-        let url_ = this.baseUrl + "/api/injury/get-user-injuries";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            headers: {
-                "Accept": "text/plain"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGet(_response);
-        });
-    }
-
-    protected processGet(response: Response): Promise<InjuryDTO[]> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            if (Array.isArray(resultData200)) {
-                result200 = [] as any;
-                for (let item of resultData200)
-                    result200!.push(InjuryDTO.fromJS(item));
-            }
-            else {
-                result200 = <any>null;
-            }
-            return result200;
-            });
-        } else if (status === 401) {
-            return response.text().then((_responseText) => {
-            let result401: any = null;
-            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result401 = ProblemDetails.fromJS(resultData401);
-            return throwException("Unauthorized", status, _responseText, _headers, result401);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<InjuryDTO[]>(null as any);
-    }
-}
-
 export class GetWellnessStateEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3408,6 +3670,59 @@ export class LogoutUserEndpointClient {
             result204 = BootUserDTO.fromJS(resultData204);
             return result204;
             });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<BootUserDTO>(null as any);
+    }
+}
+
+export class ProcessUserChatMessageEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    post(body: AddChatMessageRequest | undefined): Promise<LHChatMessageDTO> {
+        let url_ = this.baseUrl + "/api/chat/message/process";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPost(_response);
+        });
+    }
+
+    protected processPost(response: Response): Promise<LHChatMessageDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = LHChatMessageDTO.fromJS(resultData200);
+            return result200;
+            });
         } else if (status === 401) {
             return response.text().then((_responseText) => {
             let result401: any = null;
@@ -3415,19 +3730,19 @@ export class LogoutUserEndpointClient {
             result401 = ProblemDetails.fromJS(resultData401);
             return throwException("Unauthorized", status, _responseText, _headers, result401);
             });
-        } else if (status === 409) {
+        } else if (status === 404) {
             return response.text().then((_responseText) => {
-            let result409: any = null;
-            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result409 = ProblemDetails.fromJS(resultData409);
-            return throwException("Conflict", status, _responseText, _headers, result409);
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
             });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<BootUserDTO>(null as any);
+        return Promise.resolve<LHChatMessageDTO>(null as any);
     }
 }
 
@@ -3685,6 +4000,73 @@ export class UpdateActivityEndpointClient {
     }
 }
 
+export class UpdateChatConversationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    put(body: UpdateChatConversationRequest | undefined): Promise<LHChatConversationDTO> {
+        let url_ = this.baseUrl + "/api/chat/conversation/update";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPut(_response);
+        });
+    }
+
+    protected processPut(response: Response): Promise<LHChatConversationDTO> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = LHChatConversationDTO.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<LHChatConversationDTO>(null as any);
+    }
+}
+
 export class UpdateDTSetEntryEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3869,6 +4251,13 @@ export class UpdateInjuryEndpointClient {
             let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
             result401 = ProblemDetails.fromJS(resultData401);
             return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
             });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
@@ -4402,7 +4791,6 @@ export interface IActivity {
 
 export class ActivityDTO implements IActivityDTO {
     activityID?: string;
-    userID?: string;
     dateTime?: Date;
     timeInMinutes?: number;
     caloriesBurned?: number;
@@ -4422,7 +4810,6 @@ export class ActivityDTO implements IActivityDTO {
     init(_data?: any) {
         if (_data) {
             this.activityID = _data["activityID"];
-            this.userID = _data["userID"];
             this.dateTime = _data["dateTime"] ? new Date(_data["dateTime"].toString()) : <any>undefined;
             this.timeInMinutes = _data["timeInMinutes"];
             this.caloriesBurned = _data["caloriesBurned"];
@@ -4442,7 +4829,6 @@ export class ActivityDTO implements IActivityDTO {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["activityID"] = this.activityID;
-        data["userID"] = this.userID;
         data["dateTime"] = this.dateTime ? this.dateTime.toISOString() : <any>undefined;
         data["timeInMinutes"] = this.timeInMinutes;
         data["caloriesBurned"] = this.caloriesBurned;
@@ -4455,7 +4841,6 @@ export class ActivityDTO implements IActivityDTO {
 
 export interface IActivityDTO {
     activityID?: string;
-    userID?: string;
     dateTime?: Date;
     timeInMinutes?: number;
     caloriesBurned?: number;
@@ -4538,6 +4923,46 @@ export interface IActivityData {
     stayActive?: number;
     trainingFrequency?: number;
     trainingVolume?: number;
+}
+
+export class AddChatMessageRequest implements IAddChatMessageRequest {
+    chatConversationID!: string;
+    content!: string | undefined;
+
+    constructor(data?: IAddChatMessageRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatConversationID = _data["chatConversationID"];
+            this.content = _data["content"];
+        }
+    }
+
+    static fromJS(data: any): AddChatMessageRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new AddChatMessageRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatConversationID"] = this.chatConversationID;
+        data["content"] = this.content;
+        return data;
+    }
+}
+
+export interface IAddChatMessageRequest {
+    chatConversationID: string;
+    content: string | undefined;
 }
 
 export class ApiAccessToken implements IApiAccessToken {
@@ -4672,186 +5097,13 @@ export interface IBootUserDTO {
     hasCreatedProfile?: boolean;
 }
 
-export class ChatConversation implements IChatConversation {
-    chatConversationId?: string;
-    userID?: string;
-    createdAt?: Date;
-    name?: string | undefined;
-    messages?: ChatMessageItem[] | undefined;
+export class ChatToolCall implements IChatToolCall {
+    kind?: ChatToolCallKind;
+    readonly functionName?: string | undefined;
+    functionArguments?: BinaryData;
+    id?: string | undefined;
 
-    constructor(data?: IChatConversation) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.chatConversationId = _data["chatConversationId"];
-            this.userID = _data["userID"];
-            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : <any>undefined;
-            this.name = _data["name"];
-            if (Array.isArray(_data["messages"])) {
-                this.messages = [] as any;
-                for (let item of _data["messages"])
-                    this.messages!.push(ChatMessageItem.fromJS(item));
-            }
-        }
-    }
-
-    static fromJS(data: any): ChatConversation {
-        data = typeof data === 'object' ? data : {};
-        let result = new ChatConversation();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["chatConversationId"] = this.chatConversationId;
-        data["userID"] = this.userID;
-        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : <any>undefined;
-        data["name"] = this.name;
-        if (Array.isArray(this.messages)) {
-            data["messages"] = [];
-            for (let item of this.messages)
-                data["messages"].push(item ? item.toJSON() : <any>undefined);
-        }
-        return data;
-    }
-}
-
-export interface IChatConversation {
-    chatConversationId?: string;
-    userID?: string;
-    createdAt?: Date;
-    name?: string | undefined;
-    messages?: ChatMessageItem[] | undefined;
-}
-
-export class ChatImageDetailLevel implements IChatImageDetailLevel {
-
-    constructor(data?: IChatImageDetailLevel) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-    }
-
-    static fromJS(data: any): ChatImageDetailLevel {
-        data = typeof data === 'object' ? data : {};
-        let result = new ChatImageDetailLevel();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        return data;
-    }
-}
-
-export interface IChatImageDetailLevel {
-}
-
-export class ChatInputAudioFormat implements IChatInputAudioFormat {
-
-    constructor(data?: IChatInputAudioFormat) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-    }
-
-    static fromJS(data: any): ChatInputAudioFormat {
-        data = typeof data === 'object' ? data : {};
-        let result = new ChatInputAudioFormat();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        return data;
-    }
-}
-
-export interface IChatInputAudioFormat {
-}
-
-export class ChatMessage implements IChatMessage {
-    readonly content?: ChatMessageContentPart[] | undefined;
-
-    constructor(data?: IChatMessage) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            if (Array.isArray(_data["content"])) {
-                (<any>this).content = [] as any;
-                for (let item of _data["content"])
-                    (<any>this).content!.push(ChatMessageContentPart.fromJS(item));
-            }
-        }
-    }
-
-    static fromJS(data: any): ChatMessage {
-        data = typeof data === 'object' ? data : {};
-        let result = new ChatMessage();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        if (Array.isArray(this.content)) {
-            data["content"] = [];
-            for (let item of this.content)
-                data["content"].push(item ? item.toJSON() : <any>undefined);
-        }
-        return data;
-    }
-}
-
-export interface IChatMessage {
-    content?: ChatMessageContentPart[] | undefined;
-}
-
-export class ChatMessageContentPart implements IChatMessageContentPart {
-    kind?: ChatMessageContentPartKind;
-    readonly text?: string | undefined;
-    readonly imageUri?: string | undefined;
-    imageBytes?: BinaryData;
-    readonly imageBytesMediaType?: string | undefined;
-    inputAudioBytes?: BinaryData;
-    inputAudioFormat?: ChatInputAudioFormat;
-    readonly fileId?: string | undefined;
-    fileBytes?: BinaryData;
-    readonly fileBytesMediaType?: string | undefined;
-    readonly filename?: string | undefined;
-    imageDetailLevel?: ChatImageDetailLevel;
-    readonly refusal?: string | undefined;
-
-    constructor(data?: IChatMessageContentPart) {
+    constructor(data?: IChatToolCall) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -4863,24 +5115,15 @@ export class ChatMessageContentPart implements IChatMessageContentPart {
     init(_data?: any) {
         if (_data) {
             this.kind = _data["kind"];
-            (<any>this).text = _data["text"];
-            (<any>this).imageUri = _data["imageUri"];
-            this.imageBytes = _data["imageBytes"] ? BinaryData.fromJS(_data["imageBytes"]) : <any>undefined;
-            (<any>this).imageBytesMediaType = _data["imageBytesMediaType"];
-            this.inputAudioBytes = _data["inputAudioBytes"] ? BinaryData.fromJS(_data["inputAudioBytes"]) : <any>undefined;
-            this.inputAudioFormat = _data["inputAudioFormat"] ? ChatInputAudioFormat.fromJS(_data["inputAudioFormat"]) : <any>undefined;
-            (<any>this).fileId = _data["fileId"];
-            this.fileBytes = _data["fileBytes"] ? BinaryData.fromJS(_data["fileBytes"]) : <any>undefined;
-            (<any>this).fileBytesMediaType = _data["fileBytesMediaType"];
-            (<any>this).filename = _data["filename"];
-            this.imageDetailLevel = _data["imageDetailLevel"] ? ChatImageDetailLevel.fromJS(_data["imageDetailLevel"]) : <any>undefined;
-            (<any>this).refusal = _data["refusal"];
+            (<any>this).functionName = _data["functionName"];
+            this.functionArguments = _data["functionArguments"] ? BinaryData.fromJS(_data["functionArguments"]) : <any>undefined;
+            this.id = _data["id"];
         }
     }
 
-    static fromJS(data: any): ChatMessageContentPart {
+    static fromJS(data: any): ChatToolCall {
         data = typeof data === 'object' ? data : {};
-        let result = new ChatMessageContentPart();
+        let result = new ChatToolCall();
         result.init(data);
         return result;
     }
@@ -4888,117 +5131,25 @@ export class ChatMessageContentPart implements IChatMessageContentPart {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["kind"] = this.kind;
-        data["text"] = this.text;
-        data["imageUri"] = this.imageUri;
-        data["imageBytes"] = this.imageBytes ? this.imageBytes.toJSON() : <any>undefined;
-        data["imageBytesMediaType"] = this.imageBytesMediaType;
-        data["inputAudioBytes"] = this.inputAudioBytes ? this.inputAudioBytes.toJSON() : <any>undefined;
-        data["inputAudioFormat"] = this.inputAudioFormat ? this.inputAudioFormat.toJSON() : <any>undefined;
-        data["fileId"] = this.fileId;
-        data["fileBytes"] = this.fileBytes ? this.fileBytes.toJSON() : <any>undefined;
-        data["fileBytesMediaType"] = this.fileBytesMediaType;
-        data["filename"] = this.filename;
-        data["imageDetailLevel"] = this.imageDetailLevel ? this.imageDetailLevel.toJSON() : <any>undefined;
-        data["refusal"] = this.refusal;
+        data["functionName"] = this.functionName;
+        data["functionArguments"] = this.functionArguments ? this.functionArguments.toJSON() : <any>undefined;
+        data["id"] = this.id;
         return data;
     }
 }
 
-export interface IChatMessageContentPart {
-    kind?: ChatMessageContentPartKind;
-    text?: string | undefined;
-    imageUri?: string | undefined;
-    imageBytes?: BinaryData;
-    imageBytesMediaType?: string | undefined;
-    inputAudioBytes?: BinaryData;
-    inputAudioFormat?: ChatInputAudioFormat;
-    fileId?: string | undefined;
-    fileBytes?: BinaryData;
-    fileBytesMediaType?: string | undefined;
-    filename?: string | undefined;
-    imageDetailLevel?: ChatImageDetailLevel;
-    refusal?: string | undefined;
+export interface IChatToolCall {
+    kind?: ChatToolCallKind;
+    functionName?: string | undefined;
+    functionArguments?: BinaryData;
+    id?: string | undefined;
 }
 
-export enum ChatMessageContentPartKind {
+export enum ChatToolCallKind {
     _0 = 0,
-    _1 = 1,
-    _2 = 2,
-    _3 = 3,
-    _4 = 4,
-}
-
-export class ChatMessageItem implements IChatMessageItem {
-    chatMessageItemID?: string;
-    chatConversationID?: string;
-    chatConversation?: ChatConversation;
-    chatMessageJson!: string | undefined;
-    chatMessageRole!: ChatMessageRole;
-    chatMessage?: ChatMessage;
-    creationTime?: Date;
-
-    constructor(data?: IChatMessageItem) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.chatMessageItemID = _data["chatMessageItemID"];
-            this.chatConversationID = _data["chatConversationID"];
-            this.chatConversation = _data["chatConversation"] ? ChatConversation.fromJS(_data["chatConversation"]) : <any>undefined;
-            this.chatMessageJson = _data["chatMessageJson"];
-            this.chatMessageRole = _data["chatMessageRole"];
-            this.chatMessage = _data["chatMessage"] ? ChatMessage.fromJS(_data["chatMessage"]) : <any>undefined;
-            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
-        }
-    }
-
-    static fromJS(data: any): ChatMessageItem {
-        data = typeof data === 'object' ? data : {};
-        let result = new ChatMessageItem();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["chatMessageItemID"] = this.chatMessageItemID;
-        data["chatConversationID"] = this.chatConversationID;
-        data["chatConversation"] = this.chatConversation ? this.chatConversation.toJSON() : <any>undefined;
-        data["chatMessageJson"] = this.chatMessageJson;
-        data["chatMessageRole"] = this.chatMessageRole;
-        data["chatMessage"] = this.chatMessage ? this.chatMessage.toJSON() : <any>undefined;
-        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
-        return data;
-    }
-}
-
-export interface IChatMessageItem {
-    chatMessageItemID?: string;
-    chatConversationID?: string;
-    chatConversation?: ChatConversation;
-    chatMessageJson: string | undefined;
-    chatMessageRole: ChatMessageRole;
-    chatMessage?: ChatMessage;
-    creationTime?: Date;
-}
-
-export enum ChatMessageRole {
-    _0 = 0,
-    _1 = 1,
-    _2 = 2,
-    _3 = 3,
-    _4 = 4,
-    _5 = 5,
 }
 
 export class CreateActivityRequest implements ICreateActivityRequest {
-    userID?: string;
     dateTime?: Date;
     timeInMinutes?: number;
     caloriesBurned?: number;
@@ -5017,7 +5168,6 @@ export class CreateActivityRequest implements ICreateActivityRequest {
 
     init(_data?: any) {
         if (_data) {
-            this.userID = _data["userID"];
             this.dateTime = _data["dateTime"] ? new Date(_data["dateTime"].toString()) : <any>undefined;
             this.timeInMinutes = _data["timeInMinutes"];
             this.caloriesBurned = _data["caloriesBurned"];
@@ -5036,7 +5186,6 @@ export class CreateActivityRequest implements ICreateActivityRequest {
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["userID"] = this.userID;
         data["dateTime"] = this.dateTime ? this.dateTime.toISOString() : <any>undefined;
         data["timeInMinutes"] = this.timeInMinutes;
         data["caloriesBurned"] = this.caloriesBurned;
@@ -5048,13 +5197,48 @@ export class CreateActivityRequest implements ICreateActivityRequest {
 }
 
 export interface ICreateActivityRequest {
-    userID?: string;
     dateTime?: Date;
     timeInMinutes?: number;
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
     perceivedEffortRatings?: PerceivedEffortRatings;
+}
+
+export class CreateChatConversationRequest implements ICreateChatConversationRequest {
+    name!: string | undefined;
+
+    constructor(data?: ICreateChatConversationRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.name = _data["name"];
+        }
+    }
+
+    static fromJS(data: any): CreateChatConversationRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateChatConversationRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["name"] = this.name;
+        return data;
+    }
+}
+
+export interface ICreateChatConversationRequest {
+    name: string | undefined;
 }
 
 export class CreateDTSetEntryRequest implements ICreateDTSetEntryRequest {
@@ -6785,6 +6969,453 @@ export enum IntervalType {
     _8 = 8,
 }
 
+export class LHChatConversation implements ILHChatConversation {
+    chatConversationID!: string;
+    userID!: string;
+    createdAt!: Date;
+    lastUpdate!: Date;
+    name!: string | undefined;
+    chatSystemMessage!: LHSystemChatMessage;
+    modelMessages!: LHModelChatMessage[] | undefined;
+    userMessages!: LHUserChatMessage[] | undefined;
+    toolMessages!: LHToolChatMessage[] | undefined;
+
+    constructor(data?: ILHChatConversation) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+        if (!data) {
+            this.chatSystemMessage = new LHSystemChatMessage();
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatConversationID = _data["chatConversationID"];
+            this.userID = _data["userID"];
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : <any>undefined;
+            this.lastUpdate = _data["lastUpdate"] ? new Date(_data["lastUpdate"].toString()) : <any>undefined;
+            this.name = _data["name"];
+            this.chatSystemMessage = _data["chatSystemMessage"] ? LHSystemChatMessage.fromJS(_data["chatSystemMessage"]) : new LHSystemChatMessage();
+            if (Array.isArray(_data["modelMessages"])) {
+                this.modelMessages = [] as any;
+                for (let item of _data["modelMessages"])
+                    this.modelMessages!.push(LHModelChatMessage.fromJS(item));
+            }
+            if (Array.isArray(_data["userMessages"])) {
+                this.userMessages = [] as any;
+                for (let item of _data["userMessages"])
+                    this.userMessages!.push(LHUserChatMessage.fromJS(item));
+            }
+            if (Array.isArray(_data["toolMessages"])) {
+                this.toolMessages = [] as any;
+                for (let item of _data["toolMessages"])
+                    this.toolMessages!.push(LHToolChatMessage.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): LHChatConversation {
+        data = typeof data === 'object' ? data : {};
+        let result = new LHChatConversation();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatConversationID"] = this.chatConversationID;
+        data["userID"] = this.userID;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : <any>undefined;
+        data["lastUpdate"] = this.lastUpdate ? this.lastUpdate.toISOString() : <any>undefined;
+        data["name"] = this.name;
+        data["chatSystemMessage"] = this.chatSystemMessage ? this.chatSystemMessage.toJSON() : <any>undefined;
+        if (Array.isArray(this.modelMessages)) {
+            data["modelMessages"] = [];
+            for (let item of this.modelMessages)
+                data["modelMessages"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.userMessages)) {
+            data["userMessages"] = [];
+            for (let item of this.userMessages)
+                data["userMessages"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.toolMessages)) {
+            data["toolMessages"] = [];
+            for (let item of this.toolMessages)
+                data["toolMessages"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface ILHChatConversation {
+    chatConversationID: string;
+    userID: string;
+    createdAt: Date;
+    lastUpdate: Date;
+    name: string | undefined;
+    chatSystemMessage: LHSystemChatMessage;
+    modelMessages: LHModelChatMessage[] | undefined;
+    userMessages: LHUserChatMessage[] | undefined;
+    toolMessages: LHToolChatMessage[] | undefined;
+}
+
+export class LHChatConversationDTO implements ILHChatConversationDTO {
+    chatConversationID!: string;
+    createdAt!: Date;
+    lastUpdate!: Date;
+    name!: string | undefined;
+    messages!: LHChatMessageDTO[] | undefined;
+
+    constructor(data?: ILHChatConversationDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatConversationID = _data["chatConversationID"];
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : <any>undefined;
+            this.lastUpdate = _data["lastUpdate"] ? new Date(_data["lastUpdate"].toString()) : <any>undefined;
+            this.name = _data["name"];
+            if (Array.isArray(_data["messages"])) {
+                this.messages = [] as any;
+                for (let item of _data["messages"])
+                    this.messages!.push(LHChatMessageDTO.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): LHChatConversationDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new LHChatConversationDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatConversationID"] = this.chatConversationID;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : <any>undefined;
+        data["lastUpdate"] = this.lastUpdate ? this.lastUpdate.toISOString() : <any>undefined;
+        data["name"] = this.name;
+        if (Array.isArray(this.messages)) {
+            data["messages"] = [];
+            for (let item of this.messages)
+                data["messages"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface ILHChatConversationDTO {
+    chatConversationID: string;
+    createdAt: Date;
+    lastUpdate: Date;
+    name: string | undefined;
+    messages: LHChatMessageDTO[] | undefined;
+}
+
+export class LHChatMessageDTO implements ILHChatMessageDTO {
+    chatMessageItemID?: string;
+    chatConversationID?: string;
+    creationTime?: Date;
+    tokenCount?: number;
+    content?: string | undefined;
+
+    constructor(data?: ILHChatMessageDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatMessageItemID = _data["chatMessageItemID"];
+            this.chatConversationID = _data["chatConversationID"];
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+            this.tokenCount = _data["tokenCount"];
+            this.content = _data["content"];
+        }
+    }
+
+    static fromJS(data: any): LHChatMessageDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new LHChatMessageDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatMessageItemID"] = this.chatMessageItemID;
+        data["chatConversationID"] = this.chatConversationID;
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        data["tokenCount"] = this.tokenCount;
+        data["content"] = this.content;
+        return data;
+    }
+}
+
+export interface ILHChatMessageDTO {
+    chatMessageItemID?: string;
+    chatConversationID?: string;
+    creationTime?: Date;
+    tokenCount?: number;
+    content?: string | undefined;
+}
+
+export class LHModelChatMessage implements ILHModelChatMessage {
+    chatMessageItemID!: string;
+    chatConversationID!: string;
+    chatConversation?: LHChatConversation;
+    creationTime!: Date;
+    tokenCount!: number;
+    content!: string | undefined;
+    toolCalls?: ChatToolCall[] | undefined;
+
+    constructor(data?: ILHModelChatMessage) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatMessageItemID = _data["chatMessageItemID"];
+            this.chatConversationID = _data["chatConversationID"];
+            this.chatConversation = _data["chatConversation"] ? LHChatConversation.fromJS(_data["chatConversation"]) : <any>undefined;
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+            this.tokenCount = _data["tokenCount"];
+            this.content = _data["content"];
+            if (Array.isArray(_data["toolCalls"])) {
+                this.toolCalls = [] as any;
+                for (let item of _data["toolCalls"])
+                    this.toolCalls!.push(ChatToolCall.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): LHModelChatMessage {
+        data = typeof data === 'object' ? data : {};
+        let result = new LHModelChatMessage();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatMessageItemID"] = this.chatMessageItemID;
+        data["chatConversationID"] = this.chatConversationID;
+        data["chatConversation"] = this.chatConversation ? this.chatConversation.toJSON() : <any>undefined;
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        data["tokenCount"] = this.tokenCount;
+        data["content"] = this.content;
+        if (Array.isArray(this.toolCalls)) {
+            data["toolCalls"] = [];
+            for (let item of this.toolCalls)
+                data["toolCalls"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface ILHModelChatMessage {
+    chatMessageItemID: string;
+    chatConversationID: string;
+    chatConversation?: LHChatConversation;
+    creationTime: Date;
+    tokenCount: number;
+    content: string | undefined;
+    toolCalls?: ChatToolCall[] | undefined;
+}
+
+export class LHSystemChatMessage implements ILHSystemChatMessage {
+    chatMessageItemID!: string;
+    chatConversationID!: string;
+    chatConversation?: LHChatConversation;
+    creationTime!: Date;
+    tokenCount!: number;
+    content!: string | undefined;
+
+    constructor(data?: ILHSystemChatMessage) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatMessageItemID = _data["chatMessageItemID"];
+            this.chatConversationID = _data["chatConversationID"];
+            this.chatConversation = _data["chatConversation"] ? LHChatConversation.fromJS(_data["chatConversation"]) : <any>undefined;
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+            this.tokenCount = _data["tokenCount"];
+            this.content = _data["content"];
+        }
+    }
+
+    static fromJS(data: any): LHSystemChatMessage {
+        data = typeof data === 'object' ? data : {};
+        let result = new LHSystemChatMessage();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatMessageItemID"] = this.chatMessageItemID;
+        data["chatConversationID"] = this.chatConversationID;
+        data["chatConversation"] = this.chatConversation ? this.chatConversation.toJSON() : <any>undefined;
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        data["tokenCount"] = this.tokenCount;
+        data["content"] = this.content;
+        return data;
+    }
+}
+
+export interface ILHSystemChatMessage {
+    chatMessageItemID: string;
+    chatConversationID: string;
+    chatConversation?: LHChatConversation;
+    creationTime: Date;
+    tokenCount: number;
+    content: string | undefined;
+}
+
+export class LHToolChatMessage implements ILHToolChatMessage {
+    chatMessageItemID!: string;
+    chatConversationID!: string;
+    chatConversation?: LHChatConversation;
+    creationTime!: Date;
+    tokenCount!: number;
+    content!: string | undefined;
+    toolCallID!: string | undefined;
+
+    constructor(data?: ILHToolChatMessage) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatMessageItemID = _data["chatMessageItemID"];
+            this.chatConversationID = _data["chatConversationID"];
+            this.chatConversation = _data["chatConversation"] ? LHChatConversation.fromJS(_data["chatConversation"]) : <any>undefined;
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+            this.tokenCount = _data["tokenCount"];
+            this.content = _data["content"];
+            this.toolCallID = _data["toolCallID"];
+        }
+    }
+
+    static fromJS(data: any): LHToolChatMessage {
+        data = typeof data === 'object' ? data : {};
+        let result = new LHToolChatMessage();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatMessageItemID"] = this.chatMessageItemID;
+        data["chatConversationID"] = this.chatConversationID;
+        data["chatConversation"] = this.chatConversation ? this.chatConversation.toJSON() : <any>undefined;
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        data["tokenCount"] = this.tokenCount;
+        data["content"] = this.content;
+        data["toolCallID"] = this.toolCallID;
+        return data;
+    }
+}
+
+export interface ILHToolChatMessage {
+    chatMessageItemID: string;
+    chatConversationID: string;
+    chatConversation?: LHChatConversation;
+    creationTime: Date;
+    tokenCount: number;
+    content: string | undefined;
+    toolCallID: string | undefined;
+}
+
+export class LHUserChatMessage implements ILHUserChatMessage {
+    chatMessageItemID!: string;
+    chatConversationID!: string;
+    chatConversation?: LHChatConversation;
+    creationTime!: Date;
+    tokenCount!: number;
+    content!: string | undefined;
+
+    constructor(data?: ILHUserChatMessage) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatMessageItemID = _data["chatMessageItemID"];
+            this.chatConversationID = _data["chatConversationID"];
+            this.chatConversation = _data["chatConversation"] ? LHChatConversation.fromJS(_data["chatConversation"]) : <any>undefined;
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+            this.tokenCount = _data["tokenCount"];
+            this.content = _data["content"];
+        }
+    }
+
+    static fromJS(data: any): LHUserChatMessage {
+        data = typeof data === 'object' ? data : {};
+        let result = new LHUserChatMessage();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatMessageItemID"] = this.chatMessageItemID;
+        data["chatConversationID"] = this.chatConversationID;
+        data["chatConversation"] = this.chatConversation ? this.chatConversation.toJSON() : <any>undefined;
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        data["tokenCount"] = this.tokenCount;
+        data["content"] = this.content;
+        return data;
+    }
+}
+
+export interface ILHUserChatMessage {
+    chatMessageItemID: string;
+    chatConversationID: string;
+    chatConversation?: LHChatConversation;
+    creationTime: Date;
+    tokenCount: number;
+    content: string | undefined;
+}
+
 export class LiftSetEntry implements ILiftSetEntry {
     setEntryID?: string;
     movementID?: string;
@@ -6936,13 +7567,14 @@ export class LionheartUser implements ILionheartUser {
     apiAccessTokens?: ApiAccessToken[] | undefined;
     dailyOuraInfos?: DailyOuraData[] | undefined;
     trainingPrograms?: TrainingProgram[] | undefined;
+    trainingSessions?: TrainingSession[] | undefined;
     movementBases?: MovementBase[] | undefined;
     movementDatas?: MovementData[] | undefined;
     movementModifiers?: MovementModifier[] | undefined;
     equipments?: Equipment[] | undefined;
     personalRecords?: PersonalRecord[] | undefined;
     injuries?: Injury[] | undefined;
-    chatConversations?: ChatConversation[] | undefined;
+    chatConversations?: LHChatConversation[] | undefined;
 
     constructor(data?: ILionheartUser) {
         if (data) {
@@ -6985,6 +7617,11 @@ export class LionheartUser implements ILionheartUser {
                 for (let item of _data["trainingPrograms"])
                     this.trainingPrograms!.push(TrainingProgram.fromJS(item));
             }
+            if (Array.isArray(_data["trainingSessions"])) {
+                this.trainingSessions = [] as any;
+                for (let item of _data["trainingSessions"])
+                    this.trainingSessions!.push(TrainingSession.fromJS(item));
+            }
             if (Array.isArray(_data["movementBases"])) {
                 this.movementBases = [] as any;
                 for (let item of _data["movementBases"])
@@ -7018,7 +7655,7 @@ export class LionheartUser implements ILionheartUser {
             if (Array.isArray(_data["chatConversations"])) {
                 this.chatConversations = [] as any;
                 for (let item of _data["chatConversations"])
-                    this.chatConversations!.push(ChatConversation.fromJS(item));
+                    this.chatConversations!.push(LHChatConversation.fromJS(item));
             }
         }
     }
@@ -7061,6 +7698,11 @@ export class LionheartUser implements ILionheartUser {
             data["trainingPrograms"] = [];
             for (let item of this.trainingPrograms)
                 data["trainingPrograms"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.trainingSessions)) {
+            data["trainingSessions"] = [];
+            for (let item of this.trainingSessions)
+                data["trainingSessions"].push(item ? item.toJSON() : <any>undefined);
         }
         if (Array.isArray(this.movementBases)) {
             data["movementBases"] = [];
@@ -7112,13 +7754,14 @@ export interface ILionheartUser {
     apiAccessTokens?: ApiAccessToken[] | undefined;
     dailyOuraInfos?: DailyOuraData[] | undefined;
     trainingPrograms?: TrainingProgram[] | undefined;
+    trainingSessions?: TrainingSession[] | undefined;
     movementBases?: MovementBase[] | undefined;
     movementDatas?: MovementData[] | undefined;
     movementModifiers?: MovementModifier[] | undefined;
     equipments?: Equipment[] | undefined;
     personalRecords?: PersonalRecord[] | undefined;
     injuries?: Injury[] | undefined;
-    chatConversations?: ChatConversation[] | undefined;
+    chatConversations?: LHChatConversation[] | undefined;
 }
 
 export class LoginRequest implements ILoginRequest {
@@ -8458,7 +9101,6 @@ export class TrainingProgram implements ITrainingProgram {
     userID!: string;
     title!: string | undefined;
     startDate!: Date;
-    nextTrainingSessionDate?: Date;
     endDate!: Date;
     isCompleted!: boolean;
     trainingSessions!: TrainingSession[] | undefined;
@@ -8479,7 +9121,6 @@ export class TrainingProgram implements ITrainingProgram {
             this.userID = _data["userID"];
             this.title = _data["title"];
             this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
-            this.nextTrainingSessionDate = _data["nextTrainingSessionDate"] ? new Date(_data["nextTrainingSessionDate"].toString()) : <any>undefined;
             this.endDate = _data["endDate"] ? new Date(_data["endDate"].toString()) : <any>undefined;
             this.isCompleted = _data["isCompleted"];
             if (Array.isArray(_data["trainingSessions"])) {
@@ -8508,7 +9149,6 @@ export class TrainingProgram implements ITrainingProgram {
         data["userID"] = this.userID;
         data["title"] = this.title;
         data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
-        data["nextTrainingSessionDate"] = this.nextTrainingSessionDate ? formatDate(this.nextTrainingSessionDate) : <any>undefined;
         data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
         data["isCompleted"] = this.isCompleted;
         if (Array.isArray(this.trainingSessions)) {
@@ -8530,7 +9170,6 @@ export interface ITrainingProgram {
     userID: string;
     title: string | undefined;
     startDate: Date;
-    nextTrainingSessionDate?: Date;
     endDate: Date;
     isCompleted: boolean;
     trainingSessions: TrainingSession[] | undefined;
@@ -8541,7 +9180,6 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
     trainingProgramID!: string;
     title!: string;
     startDate!: Date;
-    nextTrainingSessionDate!: Date;
     endDate!: Date;
     isCompleted!: boolean;
     trainingSessions!: TrainingSessionDTO[];
@@ -8565,7 +9203,6 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
             this.trainingProgramID = _data["trainingProgramID"];
             this.title = _data["title"];
             this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
-            this.nextTrainingSessionDate = _data["nextTrainingSessionDate"] ? new Date(_data["nextTrainingSessionDate"].toString()) : <any>undefined;
             this.endDate = _data["endDate"] ? new Date(_data["endDate"].toString()) : <any>undefined;
             this.isCompleted = _data["isCompleted"];
             if (Array.isArray(_data["trainingSessions"])) {
@@ -8593,7 +9230,6 @@ export class TrainingProgramDTO implements ITrainingProgramDTO {
         data["trainingProgramID"] = this.trainingProgramID;
         data["title"] = this.title;
         data["startDate"] = this.startDate ? formatDate(this.startDate) : <any>undefined;
-        data["nextTrainingSessionDate"] = this.nextTrainingSessionDate ? formatDate(this.nextTrainingSessionDate) : <any>undefined;
         data["endDate"] = this.endDate ? formatDate(this.endDate) : <any>undefined;
         data["isCompleted"] = this.isCompleted;
         if (Array.isArray(this.trainingSessions)) {
@@ -8614,7 +9250,6 @@ export interface ITrainingProgramDTO {
     trainingProgramID: string;
     title: string;
     startDate: Date;
-    nextTrainingSessionDate: Date;
     endDate: Date;
     isCompleted: boolean;
     trainingSessions: TrainingSessionDTO[];
@@ -8623,6 +9258,7 @@ export interface ITrainingProgramDTO {
 
 export class TrainingSession implements ITrainingSession {
     trainingSessionID!: string;
+    userID!: string;
     trainingProgramID?: string | undefined;
     trainingProgram?: TrainingProgram;
     date!: Date;
@@ -8644,6 +9280,7 @@ export class TrainingSession implements ITrainingSession {
     init(_data?: any) {
         if (_data) {
             this.trainingSessionID = _data["trainingSessionID"];
+            this.userID = _data["userID"];
             this.trainingProgramID = _data["trainingProgramID"];
             this.trainingProgram = _data["trainingProgram"] ? TrainingProgram.fromJS(_data["trainingProgram"]) : <any>undefined;
             this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
@@ -8669,6 +9306,7 @@ export class TrainingSession implements ITrainingSession {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["trainingSessionID"] = this.trainingSessionID;
+        data["userID"] = this.userID;
         data["trainingProgramID"] = this.trainingProgramID;
         data["trainingProgram"] = this.trainingProgram ? this.trainingProgram.toJSON() : <any>undefined;
         data["date"] = this.date ? formatDate(this.date) : <any>undefined;
@@ -8687,6 +9325,7 @@ export class TrainingSession implements ITrainingSession {
 
 export interface ITrainingSession {
     trainingSessionID: string;
+    userID: string;
     trainingProgramID?: string | undefined;
     trainingProgram?: TrainingProgram;
     date: Date;
@@ -8891,7 +9530,6 @@ export interface ITwoFactorResponse {
 
 export class UpdateActivityRequest implements IUpdateActivityRequest {
     activityID?: string;
-    userID?: string;
     dateTime?: Date;
     timeInMinutes?: number;
     caloriesBurned?: number;
@@ -8911,7 +9549,6 @@ export class UpdateActivityRequest implements IUpdateActivityRequest {
     init(_data?: any) {
         if (_data) {
             this.activityID = _data["activityID"];
-            this.userID = _data["userID"];
             this.dateTime = _data["dateTime"] ? new Date(_data["dateTime"].toString()) : <any>undefined;
             this.timeInMinutes = _data["timeInMinutes"];
             this.caloriesBurned = _data["caloriesBurned"];
@@ -8931,7 +9568,6 @@ export class UpdateActivityRequest implements IUpdateActivityRequest {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["activityID"] = this.activityID;
-        data["userID"] = this.userID;
         data["dateTime"] = this.dateTime ? this.dateTime.toISOString() : <any>undefined;
         data["timeInMinutes"] = this.timeInMinutes;
         data["caloriesBurned"] = this.caloriesBurned;
@@ -8944,13 +9580,52 @@ export class UpdateActivityRequest implements IUpdateActivityRequest {
 
 export interface IUpdateActivityRequest {
     activityID?: string;
-    userID?: string;
     dateTime?: Date;
     timeInMinutes?: number;
     caloriesBurned?: number;
     name?: string | undefined;
     userSummary?: string | undefined;
     perceivedEffortRatings?: PerceivedEffortRatings;
+}
+
+export class UpdateChatConversationRequest implements IUpdateChatConversationRequest {
+    chatConversationID!: string;
+    name!: string | undefined;
+
+    constructor(data?: IUpdateChatConversationRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatConversationID = _data["chatConversationID"];
+            this.name = _data["name"];
+        }
+    }
+
+    static fromJS(data: any): UpdateChatConversationRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateChatConversationRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatConversationID"] = this.chatConversationID;
+        data["name"] = this.name;
+        return data;
+    }
+}
+
+export interface IUpdateChatConversationRequest {
+    chatConversationID: string;
+    name: string | undefined;
 }
 
 export class UpdateDTSetEntryRequest implements IUpdateDTSetEntryRequest {

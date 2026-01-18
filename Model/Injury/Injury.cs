@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using lionheart.Model.Request;
 using lionheart.Model.Training;
 
 namespace lionheart.Model.InjuryManagement
@@ -152,6 +153,13 @@ namespace lionheart.Model.InjuryManagement
         public string Notes { get; set; } = string.Empty;
         [Required]
         public required List<Guid> MovementIDs { get; set; } = new();
+    }
+
+    public class GetInjuryRequest
+    {
+        public Guid? InjuryID { get; set; }
+        public DateRangeRequest? DateRange { get; set; }
+        public bool? IsActive { get; set; }
     }
 
 

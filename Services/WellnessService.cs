@@ -4,6 +4,7 @@ using lionheart.Model.Request;
 using lionheart.WellBeing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Model.Chat.Tools;
 
 namespace lionheart.Services
 {
@@ -29,7 +30,7 @@ namespace lionheart.Services
         /// </summary>
         Task<Result<WellnessState>> AddWellnessStateAsync(IdentityUser user, CreateWellnessStateRequest req);
     }
-
+    [ToolProvider]
     public class WellnessService : IWellnessService
     {
         private readonly ModelContext _context;
@@ -45,6 +46,7 @@ namespace lionheart.Services
             var state = await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == date && w.UserID == userGuid) ?? new WellnessState(userGuid, 1, 1, 1, 1, date) { OverallScore = -1 };
             return Result<WellnessState>.Success(state);
         }
+        [Tool(Name = "GetWellnessStates", Description = "Get wellness states for user within date range.")]
         public async Task<Result<List<WellnessState>>> GetWellnessStatesAsync(IdentityUser user, DateRangeRequest dateRange)
         {
             var userGuid = Guid.Parse(user.Id);

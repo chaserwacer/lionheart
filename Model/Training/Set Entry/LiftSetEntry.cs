@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace lionheart.Model.Training.SetEntry
 {
     //// <summary>
@@ -32,26 +34,26 @@ namespace lionheart.Model.Training.SetEntry
     );
 
     public record CreateLiftSetEntryRequest(
-        Guid MovementID,
+        [Required]Guid MovementID,
         int? RecommendedReps,
         double? RecommendedWeight,
         double? RecommendedRPE,
-        int ActualReps,
-        double ActualWeight,
-        double ActualRPE,
-        WeightUnit WeightUnit
+        [Required]int ActualReps,
+        [Required]double ActualWeight,
+        [Required]double ActualRPE,
+        [Required]WeightUnit WeightUnit
     );
 
     public record UpdateLiftSetEntryRequest(
-        Guid SetEntryID,
-        Guid MovementID,
+        [Required]Guid SetEntryID,
+        [Required]Guid MovementID,
         int? RecommendedReps,
         double? RecommendedWeight,
         double? RecommendedRPE,
-        int ActualReps,
-        double ActualWeight,
-        double ActualRPE,
-        WeightUnit WeightUnit
+        [Required]int ActualReps,
+        [Required]double ActualWeight,
+        [Required]double ActualRPE,
+        [Required]WeightUnit WeightUnit
     );
 
     public enum WeightUnit
