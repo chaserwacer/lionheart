@@ -42,7 +42,7 @@ namespace lionheart.WellBeing
     public class CreateWellnessStateRequest
     {
         [Required]
-        public required string Date { get; init; }
+        public required DateTime Date { get; init; }
 
         [Required]
         [Range(1, 5)]

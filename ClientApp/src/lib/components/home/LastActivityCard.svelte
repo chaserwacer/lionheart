@@ -94,6 +94,7 @@
           >{lastActivity.timeInMinutes}</span
         >
       </div>
+      
       <div class="flex flex-col gap-1">
         <span
           class="text-xs font-bold uppercase tracking-wider text-base-content/50"
@@ -125,24 +126,7 @@
     <div class="p-6 pb-4 border-b border-base-200">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div
-            class="w-12 h-12 rounded-2xl bg-warning/10 flex items-center justify-center"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="w-6 h-6 text-warning"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
-              />
-            </svg>
-          </div>
+          
           <div>
             <h3 class="font-semibold text-lg">
               {lastActivity?.name || "Activity"}

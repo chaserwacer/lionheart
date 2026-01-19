@@ -73,7 +73,6 @@
   onMount(() => {
     // Get the current theme from the document
     // currentTheme = document.documentElement.getAttribute("data-theme") || "bumblebee";
-    themeChange(false);
     showAccessTokenAdded = false;
   });
 </script>
@@ -113,8 +112,8 @@
         </h2>
         <p class="text-xs text-base-content/60 mb-6 uppercase tracking-wider font-bold">Connect external services</p>
 
-        <button class="btn btn-primary w-full sm:w-auto text-xs font-bold uppercase tracking-wider" on:click={showApiModal}>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <button class="btn btn-primary w-full sm:w-auto px-5 gap-2 rounded-xl" on:click={showApiModal}>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
           Add API Access Token
@@ -130,8 +129,8 @@
         </h2>
         <p class="text-xs text-base-content/60 mb-6 uppercase tracking-wider font-bold">Manage your account settings</p>
 
-        <button class="btn btn-outline btn-error w-full sm:w-auto text-xs font-bold uppercase tracking-wider" on:click={logout}>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <button class="btn btn-outline btn-error w-full sm:w-auto px-5 gap-2 rounded-xl" on:click={logout}>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
           Logout
@@ -183,9 +182,9 @@
           />
         </div>
 
-        <div class="modal-action space-x-4">
-          <button type="button" class="btn btn-outline text-xs font-bold uppercase tracking-wider" on:click={closeApiModal}>Cancel</button>
-          <button type="submit" class="btn btn-primary text-xs font-bold uppercase tracking-wider">Save Token</button>
+        <div class="modal-action">
+          <button type="button" class="btn btn-outline px-5 rounded-xl" on:click={closeApiModal}>Cancel</button>
+          <button type="submit" class="btn btn-primary px-5 rounded-xl">Save Token</button>
         </div>
       </form>
     </div>

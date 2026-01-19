@@ -78,11 +78,25 @@
                   Training
                 </a>
                 <a
+                  href="/activities"
+                  class="px-5 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-200
+                         {currentPath === '/activities' ? 'text-base-content border-b-2 border-base-content' : 'text-base-content/60 hover:text-base-content border-b-2 border-transparent'}"
+                >
+                  Activities
+                </a>
+                <a
                   href="/injuries"
                   class="px-5 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-200
                          {currentPath === '/injuries' ? 'text-base-content border-b-2 border-base-content' : 'text-base-content/60 hover:text-base-content border-b-2 border-transparent'}"
                 >
                   Injuries
+                </a>
+                <a
+                  href="/wellness"
+                  class="px-5 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-200
+                         {currentPath === '/wellness' ? 'text-base-content border-b-2 border-base-content' : 'text-base-content/60 hover:text-base-content border-b-2 border-transparent'}"
+                >
+                  Wellness
                 </a>
                 <a
                   href="/oura"
@@ -163,11 +177,27 @@
             </button>
 
             <button
+              on:click={() => navigateTo('/activities')}
+              class="px-4 py-3 text-sm font-bold uppercase tracking-wider text-left transition-all duration-200 rounded-lg
+                     {currentPath === '/activities' ? 'text-base-content bg-base-200/60' : 'text-base-content/60 hover:text-base-content hover:bg-base-200/40'}"
+            >
+              Activities
+            </button>
+
+            <button
               on:click={() => navigateTo('/injuries')}
               class="px-4 py-3 text-sm font-bold uppercase tracking-wider text-left transition-all duration-200 rounded-lg
                      {currentPath === '/injuries' ? 'text-base-content bg-base-200/60' : 'text-base-content/60 hover:text-base-content hover:bg-base-200/40'}"
             >
               Injuries
+            </button>
+
+            <button
+              on:click={() => navigateTo('/wellness')}
+              class="px-4 py-3 text-sm font-bold uppercase tracking-wider text-left transition-all duration-200 rounded-lg
+                     {currentPath === '/wellness' ? 'text-base-content bg-base-200/60' : 'text-base-content/60 hover:text-base-content hover:bg-base-200/40'}"
+            >
+              Wellness
             </button>
 
             <button

@@ -5527,7 +5527,7 @@ export class CreateInjuryRequest implements ICreateInjuryRequest {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["name"] = this.name;
-        data["injuryDate"] = this.injuryDate ? formatDate(this.injuryDate) : <any>undefined;
+        data["injuryDate"] = this.injuryDate ? this.injuryDate.toISOString() : <any>undefined;
         data["notes"] = this.notes;
         return data;
     }
@@ -5936,7 +5936,7 @@ export interface ICreateTrainingSessionRequest {
 }
 
 export class CreateWellnessStateRequest implements ICreateWellnessStateRequest {
-    date!: string;
+    date!: Date;
     energy!: number;
     motivation!: number;
     mood!: number;
@@ -5953,7 +5953,7 @@ export class CreateWellnessStateRequest implements ICreateWellnessStateRequest {
 
     init(_data?: any) {
         if (_data) {
-            this.date = _data["date"];
+            this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
             this.energy = _data["energy"];
             this.motivation = _data["motivation"];
             this.mood = _data["mood"];
@@ -5970,7 +5970,7 @@ export class CreateWellnessStateRequest implements ICreateWellnessStateRequest {
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["date"] = this.date;
+        data["date"] = this.date ? this.date.toISOString() : <any>undefined;
         data["energy"] = this.energy;
         data["motivation"] = this.motivation;
         data["mood"] = this.mood;
@@ -5980,7 +5980,7 @@ export class CreateWellnessStateRequest implements ICreateWellnessStateRequest {
 }
 
 export interface ICreateWellnessStateRequest {
-    date: string;
+    date: Date;
     energy: number;
     motivation: number;
     mood: number;

@@ -94,7 +94,7 @@
         try {
             const request = new CreateInjuryRequest({
                 name: newInjury.name,
-                injuryDate: newInjury.injuryDate as any,
+                injuryDate: new Date(newInjury.injuryDate),
                 notes: newInjury.notes
             });
             
@@ -266,6 +266,7 @@
             month: "short",
             day: "numeric",
             year: "numeric",
+            timeZone: "UTC"
         });
     }
 
@@ -278,7 +279,8 @@
             year: "numeric",
             hour: "numeric",
             minute: "2-digit",
-            hour12: true
+            hour12: true,
+            timeZone: "UTC"
         });
     }
 
@@ -344,7 +346,7 @@
                 
                 <button
                     on:click={openCreateInjuryModal}
-                    class="btn btn-primary rounded-xl font-bold uppercase tracking-wider"
+                    class="btn btn-primary px-5 rounded-xl gap-2"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -405,7 +407,7 @@
             {#if !searchQuery && filterActive === "all"}
                 <button
                     on:click={openCreateInjuryModal}
-                    class="btn btn-primary rounded-xl font-bold uppercase tracking-wider mx-auto"
+                    class="btn btn-primary px-6 rounded-xl mx-auto"
                 >
                     Create First Injury
                 </button>
@@ -465,13 +467,13 @@
                     <div class="flex gap-2">
                         <button
                             on:click={() => openViewInjuryModal(injury)}
-                            class="btn btn-sm btn-outline rounded-xl flex-1 font-bold uppercase"
+                            class="btn btn-sm btn-outline rounded-xl flex-1"
                         >
                             View
                         </button>
                         <button
                             on:click={() => openAddEventModal(injury)}
-                            class="btn btn-sm btn-primary rounded-xl flex-1 font-bold uppercase"
+                            class="btn btn-sm btn-primary rounded-xl flex-1"
                         >
                             Add Event
                         </button>
@@ -547,8 +549,8 @@
                 </div>
 
                 <div class="modal-action">
-                    <button type="button" class="btn btn-outline rounded-xl" on:click={closeCreateInjuryModal}>Cancel</button>
-                    <button type="submit" class="btn btn-primary rounded-xl font-bold uppercase">Create Injury</button>
+                    <button type="button" class="btn btn-outline px-5 rounded-xl" on:click={closeCreateInjuryModal}>Cancel</button>
+                    <button type="submit" class="btn btn-primary px-5 rounded-xl">Create Injury</button>
                 </div>
             </form>
         </div>
@@ -623,8 +625,8 @@
                 </div>
 
                 <div class="modal-action">
-                    <button type="button" class="btn btn-outline rounded-xl" on:click={closeAddEventModal}>Cancel</button>
-                    <button type="submit" class="btn btn-primary rounded-xl font-bold uppercase">Add Event</button>
+                    <button type="button" class="btn btn-outline px-5 rounded-xl" on:click={closeAddEventModal}>Cancel</button>
+                    <button type="submit" class="btn btn-primary px-5 rounded-xl">Add Event</button>
                 </div>
             </form>
         </div>
@@ -682,8 +684,8 @@
                 </div>
 
                 <div class="modal-action">
-                    <button type="button" class="btn btn-outline rounded-xl" on:click={closeEditInjuryModal}>Cancel</button>
-                    <button type="submit" class="btn btn-primary rounded-xl font-bold uppercase">Save Changes</button>
+                    <button type="button" class="btn btn-outline px-5 rounded-xl" on:click={closeEditInjuryModal}>Cancel</button>
+                    <button type="submit" class="btn btn-primary px-5 rounded-xl">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -723,26 +725,9 @@
                 
                 {#if selectedInjury.injuryEvents.length === 0}
                     <div class="text-center py-8 text-base-content/50">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="1.5"
-                            stroke="currentColor"
-                            class="w-12 h-12 mx-auto mb-2"
-                        >
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
+                       
                         <p>No events recorded yet</p>
-                        <button
-                            on:click={() => {
-                                closeViewInjuryModal();
-                                if (selectedInjury) openAddEventModal(selectedInjury);
-                            }}
-                            class="btn btn-sm btn-primary rounded-xl mt-4 font-bold uppercase"
-                        >
-                            Add First Event
-                        </button>
+                        
                     </div>
                 {:else}
                     <div class="space-y-4 max-h-96 overflow-y-auto pr-2">
@@ -789,14 +774,15 @@
             <div class="modal-action">
                 <button
                     on:click={() => {
+                        const injury = selectedInjury;
                         closeViewInjuryModal();
-                        if (selectedInjury) openAddEventModal(selectedInjury);
+                        if (injury) openAddEventModal(injury);
                     }}
-                    class="btn btn-primary rounded-xl font-bold uppercase"
+                    class="btn btn-primary px-5 rounded-xl"
                 >
                     Add Event
                 </button>
-                <button class="btn btn-outline rounded-xl" on:click={closeViewInjuryModal}>Close</button>
+                <button class="btn btn-outline px-5 rounded-xl" on:click={closeViewInjuryModal}>Close</button>
             </div>
         </div>
         <div class="modal-backdrop bg-base-300/80" on:click={closeViewInjuryModal} on:keydown={(e) => e.key === 'Escape' && closeViewInjuryModal()} role="button" tabindex="0" aria-label="Close modal"></div>

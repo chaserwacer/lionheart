@@ -37,7 +37,7 @@ namespace lionheart.Services
                 UserID = Guid.Parse(user.Id),
                 Name = request.Name,
                 Notes = request.Notes,
-                InjuryDate = request.InjuryDate,
+                InjuryDate = DateOnly.FromDateTime(request.InjuryDate),
                 IsActive = true,
                 InjuryEvents = new()
             };

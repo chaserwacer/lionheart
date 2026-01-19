@@ -63,7 +63,7 @@ namespace lionheart.Services
         public async Task<Result<WellnessState>> AddWellnessStateAsync(IdentityUser user, CreateWellnessStateRequest req)
         {
             var userGuid = Guid.Parse(user.Id);
-            DateOnly selectedDate = DateOnly.ParseExact(req.Date, "yyyy-MM-dd");
+            DateOnly selectedDate  = DateOnly.FromDateTime(req.Date);
 
             // Check if already exists
             var existingState = await _context.WellnessStates.FirstOrDefaultAsync(w => w.Date == selectedDate && w.UserID == userGuid);

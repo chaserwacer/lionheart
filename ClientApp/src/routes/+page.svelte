@@ -191,7 +191,7 @@
               selectedDate = new Date().toDateString();
               updatePageInfo();
             }}
-            class="btn btn-ghost btn-sm text-xs font-bold uppercase tracking-wider border-2 border-base-content/10"
+            class="btn btn-ghost btn-sm border-2 border-base-content/10 px-4"
             class:hidden={selectedDate === new Date().toDateString()}
           >
             Today

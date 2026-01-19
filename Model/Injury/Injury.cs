@@ -115,7 +115,7 @@ namespace lionheart.Model.InjuryManagement
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        public DateOnly InjuryDate { get; set; }
+        public DateTime InjuryDate { get; set; }
         [Required(AllowEmptyStrings = true)]
         public string Notes { get; set; } = string.Empty;
     }

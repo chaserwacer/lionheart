@@ -197,7 +197,7 @@
                 <button
                     on:click={loadHistoricalData}
                     disabled={loading}
-                    class="btn btn-primary p-2 rounded-xl font-bold uppercase"
+                    class="btn btn-primary px-5 rounded-xl gap-2"
                 >
                     {#if loading}
                         <span class="loading loading-spinner loading-sm"></span>
@@ -208,11 +208,10 @@
                 <button
                     on:click={syncOuraData}
                     disabled={syncing}
-                    class="btn btn-accent rounded-xl font-bold uppercase tracking-wider"
+                    class="btn btn-accent px-5 rounded-xl gap-2"
                 >
                     {#if syncing}
-                        <span class="loading loading-spinner p-2 loading-sm"
-                        ></span>
+                        <span class="loading loading-spinner loading-sm"></span>
                     {/if}
                     Sync
                 </button>
@@ -268,7 +267,7 @@
             </p>
             <button
                 on:click={syncOuraData}
-                class="btn btn-primary rounded-xl font-bold uppercase tracking-wider mx-auto"
+                class="btn btn-primary px-6 rounded-xl mx-auto"
             >
                 Sync Data Now
             </button>
