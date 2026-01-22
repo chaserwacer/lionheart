@@ -44,6 +44,10 @@ public class ChatMessageService : IChatMessageService
         var userId = Guid.Parse(user.Id);
 
         var storedConversation = await _context.ChatConversations
+        .Include(c => c.ChatSystemMessage)
+                .Include(c => c.UserMessages)
+                .Include(c => c.ModelMessages)
+                .Include(c => c.ToolMessages)
             .FirstOrDefaultAsync(c => c.ChatConversationID == request.ChatConversationID && c.UserID == userId);
 
         if (storedConversation == null)
@@ -77,7 +81,7 @@ public class ChatMessageService : IChatMessageService
         {
             ChatConversationID = request.ChatConversationID,
             Messages = responseMessage.Value.CompletionGeneratedMessages
-        }); 
+        });
         if (storageResult.IsError())
         {
             return Result.Error(storageResult.Errors.ToString());

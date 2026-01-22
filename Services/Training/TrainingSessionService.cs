@@ -71,6 +71,7 @@ public class TrainingSessionService : ITrainingSessionService
     {
         var userGuid = Guid.Parse(user.Id);
         var sessions = await _context.TrainingSessions
+            .AsNoTracking()
             .Where(ts => ts.TrainingProgramID == programId && ts.UserID == userGuid)
             .OrderBy(ts => ts.Date)
             .ThenBy(ts => ts.CreationTime)
@@ -83,6 +84,7 @@ public class TrainingSessionService : ITrainingSessionService
     {
         var userGuid = Guid.Parse(user.Id);
         var session = await _context.TrainingSessions
+            .AsNoTracking()
             .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
                 .ThenInclude(m => m.LiftSets)
             .Include(ts => ts.Movements.OrderBy(m => m.Ordering))
@@ -111,6 +113,7 @@ public class TrainingSessionService : ITrainingSessionService
         var startDate = DateOnly.FromDateTime(dateRange.StartDate);
         var endDate = DateOnly.FromDateTime(dateRange.EndDate);
         var sessions = await _context.TrainingSessions
+            .AsNoTracking()
             .Where(ts => ts.UserID == userGuid && ts.Date >= startDate && ts.Date <= endDate)
             .OrderBy(ts => ts.Date)
             .ThenBy(ts => ts.CreationTime)

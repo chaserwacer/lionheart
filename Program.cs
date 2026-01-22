@@ -9,6 +9,7 @@ using Model.Chat.Tools;
 using lionheart.Services.Chat;
 using Services.Chat;
 using Model.Tools;
+using lionheart.Services.Training;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,14 +34,15 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
 
+var openAiApiKey = configuration["OpenAI:ApiKey"];
 builder.Services.AddSingleton(provider =>
-    new ChatClient(model: "gpt-5.2", apiKey: configuration["OpenAI:ApiKey"])
+    new ChatClient(model: "gpt-5.2", apiKey: openAiApiKey)
 );
 
 builder.Services
   .AddControllers()
   .AddJsonOptions(opts =>
-  {
+  { 
 
       opts.JsonSerializerOptions.Converters.Add(
         new DateOnlyJsonConverter("yyyy-MM-dd"));
@@ -57,6 +59,7 @@ builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>()
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<IMovementDataService, MovementDataService>();
+builder.Services.AddTransient<IMovementBaseService, MovementBaseService>();
 builder.Services.AddTransient<IEquipmentService, EquipmentService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 builder.Services.AddTransient<ILiftSetEntryService, LiftSetEntryService>();
