@@ -5606,7 +5606,7 @@ export interface ICreateLiftSetEntryRequest {
 export class CreateMovementBaseRequest implements ICreateMovementBaseRequest {
     name?: string | undefined;
     description?: string | undefined;
-    trainedMuscles?: TrainedMuscle[] | undefined;
+    muscleGroups?: MuscleGroup[] | undefined;
 
     constructor(data?: ICreateMovementBaseRequest) {
         if (data) {
@@ -5621,10 +5621,10 @@ export class CreateMovementBaseRequest implements ICreateMovementBaseRequest {
         if (_data) {
             this.name = _data["name"];
             this.description = _data["description"];
-            if (Array.isArray(_data["trainedMuscles"])) {
-                this.trainedMuscles = [] as any;
-                for (let item of _data["trainedMuscles"])
-                    this.trainedMuscles!.push(TrainedMuscle.fromJS(item));
+            if (Array.isArray(_data["muscleGroups"])) {
+                this.muscleGroups = [] as any;
+                for (let item of _data["muscleGroups"])
+                    this.muscleGroups!.push(MuscleGroup.fromJS(item));
             }
         }
     }
@@ -5640,10 +5640,10 @@ export class CreateMovementBaseRequest implements ICreateMovementBaseRequest {
         data = typeof data === 'object' ? data : {};
         data["name"] = this.name;
         data["description"] = this.description;
-        if (Array.isArray(this.trainedMuscles)) {
-            data["trainedMuscles"] = [];
-            for (let item of this.trainedMuscles)
-                data["trainedMuscles"].push(item ? item.toJSON() : <any>undefined);
+        if (Array.isArray(this.muscleGroups)) {
+            data["muscleGroups"] = [];
+            for (let item of this.muscleGroups)
+                data["muscleGroups"].push(item ? item.toJSON() : <any>undefined);
         }
         return data;
     }
@@ -5652,7 +5652,7 @@ export class CreateMovementBaseRequest implements ICreateMovementBaseRequest {
 export interface ICreateMovementBaseRequest {
     name?: string | undefined;
     description?: string | undefined;
-    trainedMuscles?: TrainedMuscle[] | undefined;
+    muscleGroups?: MuscleGroup[] | undefined;
 }
 
 export class CreateMovementDataRequest implements ICreateMovementDataRequest {
@@ -7972,7 +7972,7 @@ export class MovementBase implements IMovementBase {
     name!: string | undefined;
     userID!: string;
     description!: string | undefined;
-    trainedMuscles!: TrainedMuscle[] | undefined;
+    muscleGroups!: MuscleGroup[] | undefined;
 
     constructor(data?: IMovementBase) {
         if (data) {
@@ -7989,10 +7989,10 @@ export class MovementBase implements IMovementBase {
             this.name = _data["name"];
             this.userID = _data["userID"];
             this.description = _data["description"];
-            if (Array.isArray(_data["trainedMuscles"])) {
-                this.trainedMuscles = [] as any;
-                for (let item of _data["trainedMuscles"])
-                    this.trainedMuscles!.push(TrainedMuscle.fromJS(item));
+            if (Array.isArray(_data["muscleGroups"])) {
+                this.muscleGroups = [] as any;
+                for (let item of _data["muscleGroups"])
+                    this.muscleGroups!.push(MuscleGroup.fromJS(item));
             }
         }
     }
@@ -8010,10 +8010,10 @@ export class MovementBase implements IMovementBase {
         data["name"] = this.name;
         data["userID"] = this.userID;
         data["description"] = this.description;
-        if (Array.isArray(this.trainedMuscles)) {
-            data["trainedMuscles"] = [];
-            for (let item of this.trainedMuscles)
-                data["trainedMuscles"].push(item ? item.toJSON() : <any>undefined);
+        if (Array.isArray(this.muscleGroups)) {
+            data["muscleGroups"] = [];
+            for (let item of this.muscleGroups)
+                data["muscleGroups"].push(item ? item.toJSON() : <any>undefined);
         }
         return data;
     }
@@ -8024,14 +8024,14 @@ export interface IMovementBase {
     name: string | undefined;
     userID: string;
     description: string | undefined;
-    trainedMuscles: TrainedMuscle[] | undefined;
+    muscleGroups: MuscleGroup[] | undefined;
 }
 
 export class MovementBaseDTO implements IMovementBaseDTO {
     movementBaseID?: string;
     name?: string | undefined;
     description?: string | undefined;
-    trainedMuscles?: TrainedMuscle[] | undefined;
+    muscleGroups?: MuscleGroup[] | undefined;
 
     constructor(data?: IMovementBaseDTO) {
         if (data) {
@@ -8047,10 +8047,10 @@ export class MovementBaseDTO implements IMovementBaseDTO {
             this.movementBaseID = _data["movementBaseID"];
             this.name = _data["name"];
             this.description = _data["description"];
-            if (Array.isArray(_data["trainedMuscles"])) {
-                this.trainedMuscles = [] as any;
-                for (let item of _data["trainedMuscles"])
-                    this.trainedMuscles!.push(TrainedMuscle.fromJS(item));
+            if (Array.isArray(_data["muscleGroups"])) {
+                this.muscleGroups = [] as any;
+                for (let item of _data["muscleGroups"])
+                    this.muscleGroups!.push(MuscleGroup.fromJS(item));
             }
         }
     }
@@ -8067,10 +8067,10 @@ export class MovementBaseDTO implements IMovementBaseDTO {
         data["movementBaseID"] = this.movementBaseID;
         data["name"] = this.name;
         data["description"] = this.description;
-        if (Array.isArray(this.trainedMuscles)) {
-            data["trainedMuscles"] = [];
-            for (let item of this.trainedMuscles)
-                data["trainedMuscles"].push(item ? item.toJSON() : <any>undefined);
+        if (Array.isArray(this.muscleGroups)) {
+            data["muscleGroups"] = [];
+            for (let item of this.muscleGroups)
+                data["muscleGroups"].push(item ? item.toJSON() : <any>undefined);
         }
         return data;
     }
@@ -8080,7 +8080,7 @@ export interface IMovementBaseDTO {
     movementBaseID?: string;
     name?: string | undefined;
     description?: string | undefined;
-    trainedMuscles?: TrainedMuscle[] | undefined;
+    muscleGroups?: MuscleGroup[] | undefined;
 }
 
 export class MovementDTO implements IMovementDTO {
@@ -9123,46 +9123,6 @@ export interface ISleepData {
     totalSleep?: number;
 }
 
-export class TrainedMuscle implements ITrainedMuscle {
-    muscleGroupID!: string;
-    contributionPercentage?: number;
-
-    constructor(data?: ITrainedMuscle) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.muscleGroupID = _data["muscleGroupID"];
-            this.contributionPercentage = _data["contributionPercentage"];
-        }
-    }
-
-    static fromJS(data: any): TrainedMuscle {
-        data = typeof data === 'object' ? data : {};
-        let result = new TrainedMuscle();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["muscleGroupID"] = this.muscleGroupID;
-        data["contributionPercentage"] = this.contributionPercentage;
-        return data;
-    }
-}
-
-export interface ITrainedMuscle {
-    muscleGroupID: string;
-    contributionPercentage?: number;
-}
-
 export class TrainingProgram implements ITrainingProgram {
     trainingProgramID!: string;
     userID!: string;
@@ -10014,7 +9974,7 @@ export class UpdateMovementBaseRequest implements IUpdateMovementBaseRequest {
     movementBaseID?: string;
     name?: string | undefined;
     description?: string | undefined;
-    trainedMuscles?: TrainedMuscle[] | undefined;
+    muscleGroups?: MuscleGroup[] | undefined;
 
     constructor(data?: IUpdateMovementBaseRequest) {
         if (data) {
@@ -10030,10 +9990,10 @@ export class UpdateMovementBaseRequest implements IUpdateMovementBaseRequest {
             this.movementBaseID = _data["movementBaseID"];
             this.name = _data["name"];
             this.description = _data["description"];
-            if (Array.isArray(_data["trainedMuscles"])) {
-                this.trainedMuscles = [] as any;
-                for (let item of _data["trainedMuscles"])
-                    this.trainedMuscles!.push(TrainedMuscle.fromJS(item));
+            if (Array.isArray(_data["muscleGroups"])) {
+                this.muscleGroups = [] as any;
+                for (let item of _data["muscleGroups"])
+                    this.muscleGroups!.push(MuscleGroup.fromJS(item));
             }
         }
     }
@@ -10050,10 +10010,10 @@ export class UpdateMovementBaseRequest implements IUpdateMovementBaseRequest {
         data["movementBaseID"] = this.movementBaseID;
         data["name"] = this.name;
         data["description"] = this.description;
-        if (Array.isArray(this.trainedMuscles)) {
-            data["trainedMuscles"] = [];
-            for (let item of this.trainedMuscles)
-                data["trainedMuscles"].push(item ? item.toJSON() : <any>undefined);
+        if (Array.isArray(this.muscleGroups)) {
+            data["muscleGroups"] = [];
+            for (let item of this.muscleGroups)
+                data["muscleGroups"].push(item ? item.toJSON() : <any>undefined);
         }
         return data;
     }
@@ -10063,7 +10023,7 @@ export interface IUpdateMovementBaseRequest {
     movementBaseID?: string;
     name?: string | undefined;
     description?: string | undefined;
-    trainedMuscles?: TrainedMuscle[] | undefined;
+    muscleGroups?: MuscleGroup[] | undefined;
 }
 
 export class UpdateMovementRequest implements IUpdateMovementRequest {

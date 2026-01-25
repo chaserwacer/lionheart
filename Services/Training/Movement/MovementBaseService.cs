@@ -40,11 +40,7 @@ namespace lionheart.Services.Training
             var movementBase = new MovementBase
             {
                 MovementBaseID = Guid.NewGuid(),
-                TrainedMuscles = request.TrainedMuscles.Select(tm => new TrainedMuscle
-                {
-                    MuscleGroupID = tm.MuscleGroupID,
-                    ContributionPercentage = tm.ContributionPercentage
-                }).ToList(),
+                MuscleGroups = request.MuscleGroups,
                 Description = request.Description,
                 Name = request.Name,
                 UserID = userGuid
@@ -82,7 +78,7 @@ namespace lionheart.Services.Training
         {
             var userGuid = Guid.Parse(user.Id);
             var movementBases = await _context.MovementBases
-                .Where(mb => mb.UserID == userGuid) 
+                .Where(mb => mb.UserID == userGuid)
                 .OrderBy(mb => mb.Name)
                 .ToListAsync();
             return Result<List<MovementBaseDTO>>.Success(movementBases.Adapt<List<MovementBaseDTO>>());
@@ -98,7 +94,7 @@ namespace lionheart.Services.Training
         {
             var userGuid = Guid.Parse(user.Id);
             var movementBase = await _context.MovementBases
-                .Include(mb => mb.TrainedMuscles)
+                .Include(mb => mb.MuscleGroups)
                 .FirstOrDefaultAsync(mb => mb.MovementBaseID == request.MovementBaseID && mb.UserID == userGuid);
             if (movementBase == null)
             {
@@ -106,20 +102,15 @@ namespace lionheart.Services.Training
             }
             movementBase.Name = request.Name;
             movementBase.Description = request.Description;
-            
+
             // Clear and recreate owned entities to properly handle EF Core tracking
-            movementBase.TrainedMuscles.Clear();
-            foreach (var tm in request.TrainedMuscles)
+            movementBase.MuscleGroups = request.MuscleGroups;
+
             {
-                movementBase.TrainedMuscles.Add(new TrainedMuscle
-                {
-                    MuscleGroupID = tm.MuscleGroupID,
-                    ContributionPercentage = tm.ContributionPercentage
-                });
+
+                await _context.SaveChangesAsync();
+                return Result<MovementBaseDTO>.Success(movementBase.Adapt<MovementBaseDTO>());
             }
-            
-            await _context.SaveChangesAsync();
-            return Result<MovementBaseDTO>.Success(movementBase.Adapt<MovementBaseDTO>());
         }
     }
 }
