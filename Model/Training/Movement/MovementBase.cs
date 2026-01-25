@@ -18,7 +18,6 @@ public class MovementBase
 /// <summary>
 /// Representation of a muscle group trained by a movement.
 /// </summary>
-[Owned]
 public class TrainedMuscle
 {
     public required Guid MuscleGroupID { get; set; }
@@ -41,7 +40,7 @@ public class MuscleGroup
 
 public record CreateMovementBaseRequest(
     [Required]string Name,
-    [Required]string Description,
+    [Required(AllowEmptyStrings = true)]string Description,
     [Required]List<TrainedMuscle> TrainedMuscles
 );
 public record MovementBaseDTO(
@@ -53,6 +52,6 @@ public record MovementBaseDTO(
 public record UpdateMovementBaseRequest(
     [Required]Guid MovementBaseID,
     [Required]string Name,
-    [Required]string Description,
+    [Required(AllowEmptyStrings = true)]string Description,
     [Required]List<TrainedMuscle> TrainedMuscles
 );

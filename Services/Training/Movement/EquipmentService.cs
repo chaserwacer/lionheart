@@ -44,7 +44,7 @@ public class EquipmentService : IEquipmentService
 
         _context.Equipments.Add(equipment);
         await _context.SaveChangesAsync();
-        return Result<EquipmentDTO>.Created(equipment.Adapt<EquipmentDTO>());
+        return Result<EquipmentDTO>.Created(equipment.AdaptToDTO());
     }
 
     public async Task<Result<EquipmentDTO>> UpdateEquipmentAsync(IdentityUser user, UpdateEquipmentRequest request)
@@ -59,8 +59,9 @@ public class EquipmentService : IEquipmentService
         }
 
         // Check for name conflicts
+        var normalizedName = request.Name.Trim().ToLower();
         var nameConflict = await _context.Equipments
-            .AnyAsync(e => e.Name.Equals(request.Name, StringComparison.CurrentCultureIgnoreCase) && e.UserID == userGuid && e.EquipmentID != request.EquipmentID);
+            .AnyAsync(e => e.UserID == userGuid && e.EquipmentID != request.EquipmentID && e.Name.ToLower() == normalizedName);
 
         if (nameConflict)
         {
@@ -71,7 +72,7 @@ public class EquipmentService : IEquipmentService
         equipment.Enabled = request.Enabled;
 
         await _context.SaveChangesAsync();
-        return Result<EquipmentDTO>.Success(equipment.Adapt<EquipmentDTO>());
+        return Result<EquipmentDTO>.Success(equipment.AdaptToDTO());
     }
 
     public async Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId)
@@ -104,6 +105,6 @@ public class EquipmentService : IEquipmentService
             .Where(e => e.UserID == userGuid)
             .OrderBy(e => e.Name)
             .ToListAsync();
-        return Result<List<EquipmentDTO>>.Success(equipments.Adapt<List<EquipmentDTO>>());
+        return Result<List<EquipmentDTO>>.Success(equipments.Select(e => e.AdaptToDTO()).ToList());
     }
 }

@@ -40,7 +40,11 @@ namespace lionheart.Services.Training
             var movementBase = new MovementBase
             {
                 MovementBaseID = Guid.NewGuid(),
-                TrainedMuscles = request.TrainedMuscles,
+                TrainedMuscles = request.TrainedMuscles.Select(tm => new TrainedMuscle
+                {
+                    MuscleGroupID = tm.MuscleGroupID,
+                    ContributionPercentage = tm.ContributionPercentage
+                }).ToList(),
                 Description = request.Description,
                 Name = request.Name,
                 UserID = userGuid
@@ -93,14 +97,27 @@ namespace lionheart.Services.Training
         public async Task<Result<MovementBaseDTO>> UpdateMovementBaseAsync(IdentityUser user, UpdateMovementBaseRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
-            var movementBase = await _context.MovementBases.FirstAsync(mb => mb.MovementBaseID == request.MovementBaseID && mb.UserID == userGuid);
+            var movementBase = await _context.MovementBases
+                .Include(mb => mb.TrainedMuscles)
+                .FirstOrDefaultAsync(mb => mb.MovementBaseID == request.MovementBaseID && mb.UserID == userGuid);
             if (movementBase == null)
             {
                 return Result<MovementBaseDTO>.NotFound("Movement base not found or not owned by user.");
             }
             movementBase.Name = request.Name;
             movementBase.Description = request.Description;
-            movementBase.TrainedMuscles = request.TrainedMuscles;
+            
+            // Clear and recreate owned entities to properly handle EF Core tracking
+            movementBase.TrainedMuscles.Clear();
+            foreach (var tm in request.TrainedMuscles)
+            {
+                movementBase.TrainedMuscles.Add(new TrainedMuscle
+                {
+                    MuscleGroupID = tm.MuscleGroupID,
+                    ContributionPercentage = tm.ContributionPercentage
+                });
+            }
+            
             await _context.SaveChangesAsync();
             return Result<MovementBaseDTO>.Success(movementBase.Adapt<MovementBaseDTO>());
         }

@@ -15,9 +15,7 @@ Lionheart is guided by the following principles:
 
 ### 2. Aggregation of Measured *and* Perceived Metrics
 
-### 3. Data Input Flexibility
-
-### 4. Contextual Intelligence
+### 3. Contextual Intelligence
 
 ---
 

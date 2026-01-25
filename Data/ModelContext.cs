@@ -191,8 +191,7 @@ namespace lionheart.Data
                 .WithMany(u => u.MovementBases)
                 .HasForeignKey(m => m.UserID);
 
-            modelBuilder.Entity<MovementBase>()
-                .OwnsMany(m => m.TrainedMuscles);
+
 
             modelBuilder.Entity<MuscleGroup>()
                 .HasKey(m => m.MuscleGroupID);

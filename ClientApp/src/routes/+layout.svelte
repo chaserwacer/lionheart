@@ -106,6 +106,13 @@
                   Oura
                 </a>
                 <a
+                  href="/chat"
+                  class="px-5 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-200
+                         {currentPath === '/chat' ? 'text-base-content border-b-2 border-base-content' : 'text-base-content/60 hover:text-base-content border-b-2 border-transparent'}"
+                >
+                  Chat
+                </a>
+                <a
                   href="/profile"
                   class="px-5 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-200
                          {currentPath === '/profile' ? 'text-base-content border-b-2 border-base-content' : 'text-base-content/60 hover:text-base-content border-b-2 border-transparent'}"
@@ -206,6 +213,14 @@
                      {currentPath === '/oura' ? 'text-base-content bg-base-200/60' : 'text-base-content/60 hover:text-base-content hover:bg-base-200/40'}"
             >
               Oura
+            </button>
+
+            <button
+              on:click={() => navigateTo('/chat')}
+              class="px-4 py-3 text-sm font-bold uppercase tracking-wider text-left transition-all duration-200 rounded-lg
+                     {currentPath === '/chat' ? 'text-base-content bg-base-200/60' : 'text-base-content/60 hover:text-base-content hover:bg-base-200/40'}"
+            >
+              Chat
             </button>
 
             <button
