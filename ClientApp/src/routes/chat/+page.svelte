@@ -281,6 +281,8 @@
 <svelte:head>
     <title>{$currentChatConversation?.name ?? "Chat"} - Lionheart</title>
 </svelte:head>
+<div class= "max-w-6xl mx-auto border border-base-content/10 rounded-2xl overflow-hidden">
+    
 
 <!-- Conversations Modal -->
 {#if conversationsModalOpen}
@@ -704,4 +706,5 @@
             </div>
         </div>
     </main>
+</div>
 </div>
