@@ -13,6 +13,7 @@
         LHChatMessageDTO,
         type LHChatConversationDTO,
     } from "$lib/api/ApiClient";
+    import { marked } from "marked";
 
     const baseUrl = "";
 
@@ -260,18 +261,10 @@
         }, 50);
     }
 
-    function escapeHtml(str: string): string {
-        return str
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-    }
-
     function formatMessage(text: string | undefined): string {
         if (!text) return "";
-        return escapeHtml(text).replace(/\n/g, "<br>");
+        // Use marked to parse markdown and render as HTML
+        return marked.parse(text, { async: false }) as string;
     }
 
     function isUserMessage(message: LHChatMessageDTO, index: number): boolean {
