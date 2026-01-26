@@ -135,7 +135,7 @@ public class TrainingSessionService : ITrainingSessionService
             Status = TrainingSessionStatus.Planned,
             Date = DateOnly.FromDateTime(request.Date),
             CreationTime = DateTime.UtcNow,
-            Notes = request.Notes,
+            Notes = request.Notes ?? string.Empty,
             PerceivedEffortRatings = request.PerceivedEffortRatings
         };
 

@@ -48,11 +48,38 @@ namespace lionheart.Model.Chat
             allMessages.Sort((x, y) => x.CreationTime.CompareTo(y.CreationTime));
             return allMessages;
         }
+        public List<LHChatMessage> GetUserModelMessagesInChronologicalOrder()
+        {
+            var allMessages = new List<LHChatMessage>();
+            allMessages.AddRange(UserMessages);
+            allMessages.AddRange(ModelMessages);
+            allMessages.Sort((x, y) => x.CreationTime.CompareTo(y.CreationTime));
+            return allMessages;
+        }
 
-        
+        public LHChatConversationDTO ToDTO()
+        {
+
+            var messages = new List<LHChatMessageDTO>();
+            foreach (var msg in GetUserModelMessagesInChronologicalOrder())
+            {
+                messages.Add(new LHChatMessageDTO(msg));
+            }
+
+            return new LHChatConversationDTO
+            {
+                ChatConversationID = ChatConversationID,
+                CreatedAt = CreatedAt,
+                LastUpdate = LastUpdate,
+                Name = Name,
+                Messages = messages
+            };
+
+
+        }
+
 
     }
-
 
     /// <summary>
     /// Represent a base lionheart chat message.
@@ -102,12 +129,12 @@ namespace lionheart.Model.Chat
         public IEnumerable<ChatToolCall> ToolCalls { get; init; } = new List<ChatToolCall>();
         public override ChatMessage ToChatMessage()
         {
-            var assistantMessage = new AssistantChatMessage(Content);
-            foreach (var toolCall in ToolCalls)
+            if (ToolCalls is not null && ToolCalls.Any())
             {
-                assistantMessage.ToolCalls.Add(toolCall);
+                return new AssistantChatMessage(ToolCalls);
             }
-            return assistantMessage;
+            return new AssistantChatMessage(Content);
+            
         }
     }
 

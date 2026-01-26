@@ -47,6 +47,7 @@ public class ChatMessageService : IChatMessageService
         .Include(c => c.ChatSystemMessage)
                 .Include(c => c.UserMessages)
                 .Include(c => c.ModelMessages)
+                // .ThenInclude(m => m.ToolCalls)
                 .Include(c => c.ToolMessages)
             .FirstOrDefaultAsync(c => c.ChatConversationID == request.ChatConversationID && c.UserID == userId);
 

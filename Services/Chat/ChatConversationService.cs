@@ -70,7 +70,7 @@ namespace lionheart.Services.Chat
             _context.ChatConversations.Add(conversation);
             await _context.SaveChangesAsync();
 
-            return Result.Success(conversation.Adapt<LHChatConversationDTO>());
+            return Result<LHChatConversationDTO>.Created(conversation.ToDTO());
         }
 
         public async Task<Result> DeleteChatConversationAsync(IdentityUser user, Guid chatConversationId)
@@ -109,6 +109,7 @@ namespace lionheart.Services.Chat
                 .Include(c => c.ChatSystemMessage)
                 .Include(c => c.UserMessages)
                 .Include(c => c.ModelMessages)
+                // .ThenInclude(m => m.ToolCalls)
                 .Include(c => c.ToolMessages)
                 .FirstOrDefaultAsync(c => c.ChatConversationID == conversationId && c.UserID == userId);
 
@@ -117,7 +118,7 @@ namespace lionheart.Services.Chat
                 return Result.NotFound("Conversation not found.");
             }
 
-            return Result.Success(conversation.Adapt<LHChatConversationDTO>());
+            return Result.Success(conversation.ToDTO());
         }
 
         public async Task<Result<LHChatConversationDTO>> UpdateChatConversationAsync(IdentityUser user, UpdateChatConversationRequest request)
@@ -136,7 +137,7 @@ namespace lionheart.Services.Chat
 
             await _context.SaveChangesAsync();
 
-            return Result.Success(conversation.Adapt<LHChatConversationDTO>());
+            return Result.Success(conversation.ToDTO());
         }
 
         
