@@ -36,7 +36,7 @@ namespace lionheart.Model.Chat
         /// Messages sent by the user. 
         /// </summary>
         public required List<LHUserChatMessage> UserMessages { get; set; }
-        public required List<LHToolChatMessage> ToolMessages { get; set; }
+        public required List<LHChatToolCallResult> ToolMessages { get; set; }
 
 
         public List<LHChatMessage> GetAllNonSystemMessagesInChronologicalOrder()
@@ -126,15 +126,11 @@ namespace lionheart.Model.Chat
     /// </summary>
     public class LHModelChatMessage : LHChatMessage
     {
-        public IEnumerable<ChatToolCall> ToolCalls { get; init; } = new List<ChatToolCall>();
         public override ChatMessage ToChatMessage()
         {
-            if (ToolCalls is not null && ToolCalls.Any())
-            {
-                return new AssistantChatMessage(ToolCalls);
-            }
+
             return new AssistantChatMessage(Content);
-            
+
         }
     }
 
@@ -149,13 +145,21 @@ namespace lionheart.Model.Chat
         }
     }
 
-    public class LHToolChatMessage : LHChatMessage
+    /// <summary> 
+    /// Represents the stored result from a tool call made by the AI model.
+    /// </summary>
+    public class LHChatToolCallResult : LHChatMessage
     {
-        public required string ToolCallID { get; set; }
-
+        /// <summary>
+        /// Wrapped via <see cref="AssistantChatMessage"/> instead of <see cref="ToolChatMessage"/>,  
+        /// because we are only storing the result of the tool call, not the tool call request itself.
+        /// Open AI throws errors if we try to pass tool call messages back into the chat completion without the tool call request.
+        /// We avoid this to minimize token usage.
+        /// </summary>
+        /// <returns></returns>
         public override ChatMessage ToChatMessage()
         {
-            return new ToolChatMessage(ToolCallID, Content);
+            return new AssistantChatMessage(Content);
         }
     }
 

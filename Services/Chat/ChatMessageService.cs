@@ -47,7 +47,6 @@ public class ChatMessageService : IChatMessageService
         .Include(c => c.ChatSystemMessage)
                 .Include(c => c.UserMessages)
                 .Include(c => c.ModelMessages)
-                // .ThenInclude(m => m.ToolCalls)
                 .Include(c => c.ToolMessages)
             .FirstOrDefaultAsync(c => c.ChatConversationID == request.ChatConversationID && c.UserID == userId);
 
@@ -128,7 +127,7 @@ public class ChatMessageService : IChatMessageService
                     _context.ModelChatMessages.Add(modelMessage);
                     storedMessages.Add(new LHChatMessageDTO(modelMessage));
                     break;
-                case LHToolChatMessage toolMessage:
+                case LHChatToolCallResult toolMessage:
                     _context.ToolChatMessages.Add(toolMessage);
                     storedMessages.Add(new LHChatMessageDTO(toolMessage));
                     break;

@@ -77,16 +77,9 @@ namespace Services.Chat
 
 
                             // add assistant message with tool calls to the conversation history.
+                            // dont save this for persistence.
                             messages.Add(new AssistantChatMessage(completion));
-                            // newlyGeneratedMessages.Add(new LHModelChatMessage{
-                            //     ChatMessageItemID = Guid.NewGuid(),
-                            //     ChatConversationID = request.Conversation.ChatConversationID,
-                            //     CreationTime = DateTime.UtcNow,
-                            //     TokenCount = completion.Usage.OutputTokenCount,
-                            //     Content = string.Join("", completion.Content.Select(c => c.Text)),
-                            //     // ToolCalls = completion.ToolCalls
-                            // });
-
+                     
                             // add a new tool message for each tool call that is resolved.
                             foreach (ChatToolCall toolCall in completion.ToolCalls)
                             {
@@ -94,7 +87,7 @@ namespace Services.Chat
                                 if (toolCallResult.IsSuccess)
                                 {
                                     messages.Add(toolCallResult.Value);
-                                    newlyGeneratedMessages.Add(new LHModelChatMessage{
+                                    newlyGeneratedMessages.Add(new LHChatToolCallResult{
                                         ChatMessageItemID =  Guid.NewGuid(),
                                         ChatConversationID = request.Conversation.ChatConversationID,
                                         CreationTime = DateTime.UtcNow,

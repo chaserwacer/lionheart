@@ -64,7 +64,7 @@ namespace lionheart.Services.Chat
                 ChatSystemMessage = systemMessage,
                 ModelMessages = new List<LHModelChatMessage>(),
                 UserMessages = new List<LHUserChatMessage>(),
-                ToolMessages = new List<LHToolChatMessage>()
+                ToolMessages = new List<LHChatToolCallResult>()
             };
 
             _context.ChatConversations.Add(conversation);
@@ -109,7 +109,6 @@ namespace lionheart.Services.Chat
                 .Include(c => c.ChatSystemMessage)
                 .Include(c => c.UserMessages)
                 .Include(c => c.ModelMessages)
-                // .ThenInclude(m => m.ToolCalls)
                 .Include(c => c.ToolMessages)
                 .FirstOrDefaultAsync(c => c.ChatConversationID == conversationId && c.UserID == userId);
 

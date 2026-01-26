@@ -5080,50 +5080,6 @@ export interface IApiAccessToken {
     personalAccessToken?: string | undefined;
 }
 
-export class BinaryData implements IBinaryData {
-    readonly length?: number;
-    readonly isEmpty?: boolean;
-    readonly mediaType?: string | undefined;
-
-    constructor(data?: IBinaryData) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            (<any>this).length = _data["length"];
-            (<any>this).isEmpty = _data["isEmpty"];
-            (<any>this).mediaType = _data["mediaType"];
-        }
-    }
-
-    static fromJS(data: any): BinaryData {
-        data = typeof data === 'object' ? data : {};
-        let result = new BinaryData();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["length"] = this.length;
-        data["isEmpty"] = this.isEmpty;
-        data["mediaType"] = this.mediaType;
-        return data;
-    }
-}
-
-export interface IBinaryData {
-    length?: number;
-    isEmpty?: boolean;
-    mediaType?: string | undefined;
-}
-
 export class BootUserDTO implements IBootUserDTO {
     name?: string | undefined;
     hasCreatedProfile?: boolean;
@@ -5162,58 +5118,6 @@ export class BootUserDTO implements IBootUserDTO {
 export interface IBootUserDTO {
     name?: string | undefined;
     hasCreatedProfile?: boolean;
-}
-
-export class ChatToolCall implements IChatToolCall {
-    kind?: ChatToolCallKind;
-    readonly functionName?: string | undefined;
-    functionArguments?: BinaryData;
-    id?: string | undefined;
-
-    constructor(data?: IChatToolCall) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.kind = _data["kind"];
-            (<any>this).functionName = _data["functionName"];
-            this.functionArguments = _data["functionArguments"] ? BinaryData.fromJS(_data["functionArguments"]) : <any>undefined;
-            this.id = _data["id"];
-        }
-    }
-
-    static fromJS(data: any): ChatToolCall {
-        data = typeof data === 'object' ? data : {};
-        let result = new ChatToolCall();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["kind"] = this.kind;
-        data["functionName"] = this.functionName;
-        data["functionArguments"] = this.functionArguments ? this.functionArguments.toJSON() : <any>undefined;
-        data["id"] = this.id;
-        return data;
-    }
-}
-
-export interface IChatToolCall {
-    kind?: ChatToolCallKind;
-    functionName?: string | undefined;
-    functionArguments?: BinaryData;
-    id?: string | undefined;
-}
-
-export enum ChatToolCallKind {
-    _0 = 0,
 }
 
 export class CreateActivityRequest implements ICreateActivityRequest {
@@ -7045,7 +6949,7 @@ export class LHChatConversation implements ILHChatConversation {
     chatSystemMessage!: LHSystemChatMessage;
     modelMessages!: LHModelChatMessage[] | undefined;
     userMessages!: LHUserChatMessage[] | undefined;
-    toolMessages!: LHToolChatMessage[] | undefined;
+    toolMessages!: LHChatToolCallResult[] | undefined;
 
     constructor(data?: ILHChatConversation) {
         if (data) {
@@ -7080,7 +6984,7 @@ export class LHChatConversation implements ILHChatConversation {
             if (Array.isArray(_data["toolMessages"])) {
                 this.toolMessages = [] as any;
                 for (let item of _data["toolMessages"])
-                    this.toolMessages!.push(LHToolChatMessage.fromJS(item));
+                    this.toolMessages!.push(LHChatToolCallResult.fromJS(item));
             }
         }
     }
@@ -7128,7 +7032,7 @@ export interface ILHChatConversation {
     chatSystemMessage: LHSystemChatMessage;
     modelMessages: LHModelChatMessage[] | undefined;
     userMessages: LHUserChatMessage[] | undefined;
-    toolMessages: LHToolChatMessage[] | undefined;
+    toolMessages: LHChatToolCallResult[] | undefined;
 }
 
 export class LHChatConversationDTO implements ILHChatConversationDTO {
@@ -7243,6 +7147,62 @@ export interface ILHChatMessageDTO {
     content?: string | undefined;
 }
 
+export class LHChatToolCallResult implements ILHChatToolCallResult {
+    chatMessageItemID!: string;
+    chatConversationID!: string;
+    chatConversation?: LHChatConversation;
+    creationTime!: Date;
+    tokenCount!: number;
+    content!: string | undefined;
+
+    constructor(data?: ILHChatToolCallResult) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.chatMessageItemID = _data["chatMessageItemID"];
+            this.chatConversationID = _data["chatConversationID"];
+            this.chatConversation = _data["chatConversation"] ? LHChatConversation.fromJS(_data["chatConversation"]) : <any>undefined;
+            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
+            this.tokenCount = _data["tokenCount"];
+            this.content = _data["content"];
+        }
+    }
+
+    static fromJS(data: any): LHChatToolCallResult {
+        data = typeof data === 'object' ? data : {};
+        let result = new LHChatToolCallResult();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["chatMessageItemID"] = this.chatMessageItemID;
+        data["chatConversationID"] = this.chatConversationID;
+        data["chatConversation"] = this.chatConversation ? this.chatConversation.toJSON() : <any>undefined;
+        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
+        data["tokenCount"] = this.tokenCount;
+        data["content"] = this.content;
+        return data;
+    }
+}
+
+export interface ILHChatToolCallResult {
+    chatMessageItemID: string;
+    chatConversationID: string;
+    chatConversation?: LHChatConversation;
+    creationTime: Date;
+    tokenCount: number;
+    content: string | undefined;
+}
+
 export class LHModelChatMessage implements ILHModelChatMessage {
     chatMessageItemID!: string;
     chatConversationID!: string;
@@ -7250,7 +7210,6 @@ export class LHModelChatMessage implements ILHModelChatMessage {
     creationTime!: Date;
     tokenCount!: number;
     content!: string | undefined;
-    toolCalls?: ChatToolCall[] | undefined;
 
     constructor(data?: ILHModelChatMessage) {
         if (data) {
@@ -7269,11 +7228,6 @@ export class LHModelChatMessage implements ILHModelChatMessage {
             this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
             this.tokenCount = _data["tokenCount"];
             this.content = _data["content"];
-            if (Array.isArray(_data["toolCalls"])) {
-                this.toolCalls = [] as any;
-                for (let item of _data["toolCalls"])
-                    this.toolCalls!.push(ChatToolCall.fromJS(item));
-            }
         }
     }
 
@@ -7292,11 +7246,6 @@ export class LHModelChatMessage implements ILHModelChatMessage {
         data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
         data["tokenCount"] = this.tokenCount;
         data["content"] = this.content;
-        if (Array.isArray(this.toolCalls)) {
-            data["toolCalls"] = [];
-            for (let item of this.toolCalls)
-                data["toolCalls"].push(item ? item.toJSON() : <any>undefined);
-        }
         return data;
     }
 }
@@ -7308,7 +7257,6 @@ export interface ILHModelChatMessage {
     creationTime: Date;
     tokenCount: number;
     content: string | undefined;
-    toolCalls?: ChatToolCall[] | undefined;
 }
 
 export class LHSystemChatMessage implements ILHSystemChatMessage {
@@ -7365,66 +7313,6 @@ export interface ILHSystemChatMessage {
     creationTime: Date;
     tokenCount: number;
     content: string | undefined;
-}
-
-export class LHToolChatMessage implements ILHToolChatMessage {
-    chatMessageItemID!: string;
-    chatConversationID!: string;
-    chatConversation?: LHChatConversation;
-    creationTime!: Date;
-    tokenCount!: number;
-    content!: string | undefined;
-    toolCallID!: string | undefined;
-
-    constructor(data?: ILHToolChatMessage) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.chatMessageItemID = _data["chatMessageItemID"];
-            this.chatConversationID = _data["chatConversationID"];
-            this.chatConversation = _data["chatConversation"] ? LHChatConversation.fromJS(_data["chatConversation"]) : <any>undefined;
-            this.creationTime = _data["creationTime"] ? new Date(_data["creationTime"].toString()) : <any>undefined;
-            this.tokenCount = _data["tokenCount"];
-            this.content = _data["content"];
-            this.toolCallID = _data["toolCallID"];
-        }
-    }
-
-    static fromJS(data: any): LHToolChatMessage {
-        data = typeof data === 'object' ? data : {};
-        let result = new LHToolChatMessage();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["chatMessageItemID"] = this.chatMessageItemID;
-        data["chatConversationID"] = this.chatConversationID;
-        data["chatConversation"] = this.chatConversation ? this.chatConversation.toJSON() : <any>undefined;
-        data["creationTime"] = this.creationTime ? this.creationTime.toISOString() : <any>undefined;
-        data["tokenCount"] = this.tokenCount;
-        data["content"] = this.content;
-        data["toolCallID"] = this.toolCallID;
-        return data;
-    }
-}
-
-export interface ILHToolChatMessage {
-    chatMessageItemID: string;
-    chatConversationID: string;
-    chatConversation?: LHChatConversation;
-    creationTime: Date;
-    tokenCount: number;
-    content: string | undefined;
-    toolCallID: string | undefined;
 }
 
 export class LHUserChatMessage implements ILHUserChatMessage {
