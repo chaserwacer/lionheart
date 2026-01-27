@@ -36,7 +36,7 @@
 
   const baseUrl = "";
   let lastUpdatePage = $pageUpdate;
-  let selectedDate = new Date().toISOString().slice(0, 10);
+  let selectedDate =new Date().toDateString();
 
   // Create stores
   const wellnessState = writable<WellnessState>(new WellnessState());
