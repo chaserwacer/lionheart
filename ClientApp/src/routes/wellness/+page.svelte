@@ -63,7 +63,7 @@
             console.error(err);
         } finally {
             loading = false;
-        }
+        } 
     }
 
     async function loadTodaysWellness() {
