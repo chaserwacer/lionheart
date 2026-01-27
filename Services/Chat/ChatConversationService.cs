@@ -16,6 +16,7 @@ namespace lionheart.Services.Chat
         Task<Result<LHChatConversationDTO>> CreateChatConversationAsync(IdentityUser user, CreateChatConversationRequest request);
         Task<Result<LHChatConversationDTO>> GetChatConversationAsync(IdentityUser user, Guid conversationId);
         Task<Result<List<LHChatConversationDTO>>> GetAllChatConversationsAsync(IdentityUser user);
+        Task<Result<LHChatConversationDTO>> GetMostRecentChatConversationAsync(IdentityUser user);
         Task<Result<LHChatConversationDTO>> UpdateChatConversationAsync(IdentityUser user, UpdateChatConversationRequest request);
         Task<Result> DeleteChatConversationAsync(IdentityUser user, Guid chatConversationId);
     }
@@ -118,6 +119,24 @@ namespace lionheart.Services.Chat
             }
 
             return Result.Success(conversation.ToDTO());
+        }
+
+        public async Task<Result<LHChatConversationDTO>> GetMostRecentChatConversationAsync(IdentityUser user)
+        {
+            var userId = Guid.Parse(user.Id);
+            var conversation = await _context.ChatConversations
+                .Where(c => c.UserID == userId)
+                .OrderByDescending(c => c.LastUpdate)
+                .Include(c => c.UserMessages)
+                .Include(c => c.ModelMessages)
+                .FirstOrDefaultAsync();
+            if (conversation == null)
+            {
+                return Result.NotFound("No conversations found.");
+            }
+            return Result.Success(conversation.ToDTO());
+
+
         }
 
         public async Task<Result<LHChatConversationDTO>> UpdateChatConversationAsync(IdentityUser user, UpdateChatConversationRequest request)

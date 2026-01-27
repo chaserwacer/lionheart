@@ -1,6 +1,6 @@
 namespace lionheart.Model.Chat
 {
-     public record LHChatConversationDTO
+    public record LHChatConversationDTO
     {
         public required Guid ChatConversationID { get; init; }
         public required DateTime CreatedAt { get; init; }
@@ -8,16 +8,16 @@ namespace lionheart.Model.Chat
         public required string Name { get; init; }
         public required List<LHChatMessageDTO> Messages { get; init; }
     }
-    
+
     public class LHChatMessageDTO
     {
         public Guid ChatMessageItemID { get; init; }
         public Guid ChatConversationID { get; init; }
         public DateTime CreationTime { get; init; }
         public int TokenCount { get; init; }
-        public string? Content { get; init; } 
+        public string? Content { get; init; }
 
-        public LHChatMessageDTO(LHChatMessage chatMessage) 
+        public LHChatMessageDTO(LHChatMessage chatMessage)
         {
             ChatMessageItemID = chatMessage.ChatMessageItemID;
             ChatConversationID = chatMessage.ChatConversationID;
@@ -49,5 +49,5 @@ namespace lionheart.Model.Chat
         public required List<LHChatMessage> Messages { get; init; }
     }
 
-
+    
 }

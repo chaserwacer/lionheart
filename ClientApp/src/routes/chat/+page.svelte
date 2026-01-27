@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { page } from "$app/stores";
     import { get, writable } from "svelte/store";
     import { fetchBootUserDto, bootUserDto } from "$lib/stores/stores";
     import {
@@ -20,6 +21,8 @@
     let newMessage = "";
     let loading = false;
     let chatContainer: HTMLElement;
+
+    let lastPrefill: string | null = null;
 
     // Chat conversations (using stores for proper reactivity)
     const conversations = writable<LHChatConversationDTO[]>([]);
@@ -276,6 +279,14 @@
         await fetchBootUserDto(fetch);
         await loadConversations();
     });
+
+    $: {
+        const prefill = $page.url.searchParams.get("prefill");
+        if (prefill && prefill !== lastPrefill) {
+            newMessage = prefill;
+            lastPrefill = prefill;
+        }
+    }
 </script>
 
 <svelte:head>
