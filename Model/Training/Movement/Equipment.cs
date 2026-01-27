@@ -21,12 +21,15 @@ namespace lionheart.Model.Training
         /// </summary>
         [Required]
         public bool Enabled { get; set; } = true;
-        public EquipmentDTO AdaptToDTO() =>
-            new EquipmentDTO(
-                EquipmentID: this.EquipmentID,
-                Name: this.Name,
-                Enabled: this.Enabled
+        public EquipmentDTO ToDTO()
+        {
+            return new EquipmentDTO(
+                EquipmentID: EquipmentID,
+                Name: Name,
+                Enabled: Enabled
             );
+        }
+
 
     }
     public record CreateEquipmentRequest(

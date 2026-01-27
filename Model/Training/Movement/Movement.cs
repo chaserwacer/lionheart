@@ -37,6 +37,22 @@ namespace lionheart.Model.Training
         /// Movement ordering within the <see cref="TrainingSession"/>.
         /// </summary>
         public required int Ordering { get; set; }
+
+        public MovementDTO ToDTO()
+        {
+            return new MovementDTO(
+                MovementID: MovementID,
+                TrainingSessionID: TrainingSessionID,
+                MovementDataID: MovementDataID,
+                MovementData: MovementData.ToDTO(),
+                LiftSets: LiftSets.Select(s => s.ToDTO()).ToList(),
+                DistanceTimeSets: DistanceTimeSets.Select(s => s.ToDTO()).ToList(),
+                Notes: Notes,
+                IsCompleted: IsCompleted,
+                Ordering: Ordering
+            );
+        }
+
     }
 
     public record CreateMovementRequest(
@@ -61,4 +77,16 @@ namespace lionheart.Model.Training
         bool IsCompleted,
         int Ordering
     );
+
+    public class MovementOrderUpdate
+    {
+        public Guid MovementID { get; set; }
+        public int Ordering { get; set; }
+    }
+
+    public class UpdateMovementOrderRequest
+    {
+        public Guid TrainingSessionID { get; set; }
+        public List<MovementOrderUpdate> Movements { get; set; } = new();
+    }
 }

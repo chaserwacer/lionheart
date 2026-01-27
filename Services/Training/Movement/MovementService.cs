@@ -13,6 +13,8 @@ public interface IMovementService
     Task<Result<MovementDTO>> CreateMovementAsync(IdentityUser user, CreateMovementRequest request);
     Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request);
     Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId);
+    Task<Result> UpdateMovementOrder(IdentityUser user, UpdateMovementOrderRequest request);
+
 }
 public class MovementService : IMovementService
 {
@@ -230,5 +232,35 @@ public class MovementService : IMovementService
         _context.Movements.Remove(movement);
         await _context.SaveChangesAsync();
         return Result.NoContent();
+    }
+
+    public async Task<Result> UpdateMovementOrder(IdentityUser user, UpdateMovementOrderRequest request)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        var session = await _context.TrainingSessions
+            .Include(ts => ts.TrainingProgram)
+            .Include(ts => ts.Movements)
+            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == request.TrainingSessionID &&
+                                   ts.TrainingProgram!.UserID == userGuid);
+        if (session is null)
+            return Result.NotFound("Training session not found or access denied.");
+
+        var sessionMovements = session.Movements.ToDictionary(m => m.MovementID);
+        var requestIds = request.Movements.Select(m => m.MovementID).ToHashSet();
+
+        // Validate all session movements are present in the request and vice versa
+        if (!(new HashSet<Guid>(sessionMovements.Keys)).SetEquals(requestIds))
+            return Result.Invalid(new List<ValidationError> {
+            new ValidationError { ErrorMessage = "Movement IDs don't match exactly with session movements." }
+        });
+
+        // Update ordering
+        foreach (var update in request.Movements)
+        {
+            sessionMovements[update.MovementID].Ordering = update.Ordering;
+        }
+
+        await _context.SaveChangesAsync();
+        return Result.Success();
     }
 }

@@ -14,6 +14,17 @@ public class MovementBase
     public required string Description { get; set; } = string.Empty;
     public required List<MuscleGroup> MuscleGroups { get; set; } = new();
 
+    public MovementBaseDTO ToDTO()
+    {
+        return new MovementBaseDTO(
+            MovementBaseID: MovementBaseID,
+            Name: Name,
+            Description: Description,
+            MuscleGroups: MuscleGroups
+        );
+    }
+
+
 }
 
 public class MuscleGroup

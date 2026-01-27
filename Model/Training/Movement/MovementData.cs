@@ -56,6 +56,21 @@ namespace lionheart.Model.Training
         {
             return HashCode.Combine(UserID, EquipmentID, MovementBaseID, MovementModifierID);
         }
+
+        public MovementDataDTO ToDTO()
+        {
+            return new MovementDataDTO(
+                MovementDataID: MovementDataID,
+                EquipmentID: EquipmentID,
+                Equipment: Equipment.ToDTO(),
+                MovementBaseID: MovementBaseID,
+                MovementBase: MovementBase.ToDTO(),
+                MovementModifierID: MovementModifierID,
+                MovementModifier: MovementModifier?.ToDTO()
+            );
+        }
+
+
     }
     /// <summary>
     /// Modifier that can be applied to a movement to specify a variation.
@@ -71,6 +86,14 @@ namespace lionheart.Model.Training
         public required string Name { get; set; } = string.Empty;
         [Required]
         public required Guid UserID { get; init; }
+
+        public MovementModifierDTO ToDTO()
+        {
+            return new MovementModifierDTO(
+                MovementModifierID: MovementModifierID,
+                Name: Name
+            );
+        }
     }
 
     public record MovementDataDTO(

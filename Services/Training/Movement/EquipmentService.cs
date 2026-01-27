@@ -44,7 +44,7 @@ public class EquipmentService : IEquipmentService
 
         _context.Equipments.Add(equipment);
         await _context.SaveChangesAsync();
-        return Result<EquipmentDTO>.Created(equipment.AdaptToDTO());
+        return Result<EquipmentDTO>.Created(equipment.ToDTO());
     }
 
     public async Task<Result<EquipmentDTO>> UpdateEquipmentAsync(IdentityUser user, UpdateEquipmentRequest request)
@@ -72,7 +72,7 @@ public class EquipmentService : IEquipmentService
         equipment.Enabled = request.Enabled;
 
         await _context.SaveChangesAsync();
-        return Result<EquipmentDTO>.Success(equipment.AdaptToDTO());
+        return Result<EquipmentDTO>.Success(equipment.ToDTO());
     }
 
     public async Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId)
@@ -105,6 +105,6 @@ public class EquipmentService : IEquipmentService
             .Where(e => e.UserID == userGuid)
             .OrderBy(e => e.Name)
             .ToListAsync();
-        return Result<List<EquipmentDTO>>.Success(equipments.Select(e => e.AdaptToDTO()).ToList());
+        return Result<List<EquipmentDTO>>.Success(equipments.Select(e => e.ToDTO()).ToList());
     }
 }

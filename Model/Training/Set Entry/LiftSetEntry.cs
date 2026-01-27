@@ -20,6 +20,21 @@ namespace lionheart.Model.Training.SetEntry
         public double ActualWeight { get; set; }
         public double ActualRPE { get; set; }
         public required WeightUnit WeightUnit { get; set; }
+
+        public LiftSetEntryDTO ToDTO()
+        {
+            return new LiftSetEntryDTO(
+                SetEntryID: SetEntryID,
+                MovementID: MovementID,
+                RecommendedReps: RecommendedReps,
+                RecommendedWeight: RecommendedWeight,
+                RecommendedRPE: RecommendedRPE,
+                ActualReps: ActualReps,
+                ActualWeight: ActualWeight,
+                ActualRPE: ActualRPE,
+                WeightUnit: WeightUnit
+            );
+        }
     }
     public record LiftSetEntryDTO(
         Guid SetEntryID,

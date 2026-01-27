@@ -75,9 +75,8 @@ public class TrainingSessionService : ITrainingSessionService
             .Where(ts => ts.TrainingProgramID == programId && ts.UserID == userGuid)
             .OrderBy(ts => ts.Date)
             .ThenBy(ts => ts.CreationTime)
-            .ProjectToType<TrainingSessionDTO>()
-            .ToListAsync();
-        return Result<List<TrainingSessionDTO>>.Success(sessions);
+            .ToListAsync();   
+        return Result<List<TrainingSessionDTO>>.Success(sessions.Select(s => s.ToDTO()).ToList());
     }
     [Tool(Name ="GetTrainingSessionByID", Description = "Get a specific training session by ID.")]
     public async Task<Result<TrainingSessionDTO>> GetTrainingSessionAsync(IdentityUser user, Guid trainingSessionID)
@@ -117,6 +116,7 @@ public class TrainingSessionService : ITrainingSessionService
             .Where(ts => ts.UserID == userGuid && ts.Date >= startDate && ts.Date <= endDate)
             .OrderBy(ts => ts.Date)
             .ThenBy(ts => ts.CreationTime)
+            .Include(s => s.Movements)
             .ToListAsync();
 
         return Result<List<TrainingSessionDTO>>.Success(sessions.Adapt<List<TrainingSessionDTO>>());

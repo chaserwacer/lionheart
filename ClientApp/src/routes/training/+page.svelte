@@ -21,6 +21,10 @@
         type TrainingProgramDTO,
         type LiftSetEntryDTO,
     } from '$lib/api/ApiClient';
+      import CreateTrainingSessionModal from "$lib/components/modals/CreateTrainingSessionModal.svelte";
+    import CreateTrainingProgramModal from "$lib/components/modals/CreateTrainingProgramModal.svelte";
+
+
 
     // Modal states
     let createProgramModalOpen = false;
@@ -43,30 +47,14 @@
         await fetchAllTrainingData();
     });
 
-    function openCreateProgramModal() {
-        programForm = {
-            title: '',
-            startDate: new Date().toISOString().slice(0, 10),
-            endDate: '',
-            tagsCsv: ''
-        };
-        createProgramModalOpen = true;
+
+
+    function openProgramModal() {
+    (document.getElementById("create_program_modal") as HTMLDialogElement)?.showModal();
     }
 
-    function closeCreateProgramModal() {
-        createProgramModalOpen = false;
-    }
-
-    function openCreateSessionModal() {
-        sessionForm = {
-            date: new Date().toISOString().slice(0, 10),
-            notes: ''
-        };
-        createSessionModalOpen = true;
-    }
-
-    function closeCreateSessionModal() {
-        createSessionModalOpen = false;
+    function openSessionModal() {
+    (document.getElementById("create_session_modal") as HTMLDialogElement)?.showModal();
     }
 
     function goToSession(session: TrainingSessionDTO) {
@@ -143,13 +131,13 @@
                 <div class="flex items-center gap-2">
                     <button
                         class="btn btn-primary px-5 rounded-xl"
-                        on:click={openCreateSessionModal}
+                        on:click={openSessionModal}
                     >
                         New Session
                     </button>
                     <button
                         class="btn btn-outline px-5 rounded-xl"
-                        on:click={openCreateProgramModal}
+                        on:click={openProgramModal}
                     >
                         New Program
                     </button>
@@ -352,7 +340,7 @@
                         <p class="text-base-content/50 mb-4">No recent sessions</p>
                         <button
                             class="btn btn-primary px-6 rounded-xl mx-auto"
-                            on:click={openCreateSessionModal}
+                            on:click={openSessionModal}
                         >
                             Create Your First Session
                         </button>
@@ -458,153 +446,7 @@
     </div>
 </div>
 
-<!-- Create Program Modal -->
-{#if createProgramModalOpen}
-    <div class="modal modal-open">
-        <div class="modal-box max-w-2xl rounded-xl border-2 border-base-content/10">
-            <div class="flex justify-between items-center pb-4 border-b border-base-content/10">
-                <h3 class="text-2xl font-display font-black">Create Program</h3>
-                <button class="btn btn-sm btn-ghost btn-square rounded-xl" on:click={closeCreateProgramModal}>
-                    <span class="text-lg">&times;</span>
-                </button>
-            </div>
 
-            <div class="py-6 space-y-4">
-                <div class="form-control w-full">
-                    <label class="label" for="create-program-title">
-                        <span class="label-text font-bold uppercase text-xs tracking-wider">Title</span>
-                    </label>
-                    <input
-                        id="create-program-title"
-                        type="text"
-                        placeholder="e.g., Strength Block 1"
-                        class="input input-bordered w-full rounded-xl"
-                        bind:value={programForm.title}
-                    />
-                </div>
+<CreateTrainingProgramModal modalId="create_program_modal" />
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="form-control w-full">
-                        <label class="label" for="create-program-start">
-                            <span class="label-text font-bold uppercase text-xs tracking-wider">Start Date</span>
-                        </label>
-                        <input
-                            id="create-program-start"
-                            type="date"
-                            class="input input-bordered w-full rounded-xl"
-                            bind:value={programForm.startDate}
-                        />
-                    </div>
-
-                    <div class="form-control w-full">
-                        <label class="label" for="create-program-end">
-                            <span class="label-text font-bold uppercase text-xs tracking-wider">End Date</span>
-                        </label>
-                        <input
-                            id="create-program-end"
-                            type="date"
-                            class="input input-bordered w-full rounded-xl"
-                            bind:value={programForm.endDate}
-                        />
-                    </div>
-                </div>
-
-                <div class="form-control w-full">
-                    <label class="label" for="create-program-tags">
-                        <span class="label-text font-bold uppercase text-xs tracking-wider">Tags</span>
-                    </label>
-                    <input
-                        id="create-program-tags"
-                        type="text"
-                        placeholder="e.g., strength, hypertrophy (comma separated)"
-                        class="input input-bordered w-full rounded-xl"
-                        bind:value={programForm.tagsCsv}
-                    />
-                </div>
-            </div>
-
-            <div class="flex gap-4 pt-4 border-t border-base-content/10">
-                <button class="btn btn-ghost px-5 rounded-xl flex-1" on:click={closeCreateProgramModal}>
-                    Cancel
-                </button>
-                <button
-                    class="btn btn-primary px-5 rounded-xl flex-1"
-                    disabled={!programForm.title || !programForm.startDate || !programForm.endDate}
-                >
-                    Create Program
-                </button>
-            </div>
-        </div>
-        <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-        <div class="modal-backdrop bg-base-300/80" on:click={closeCreateProgramModal}></div>
-    </div>
-{/if}
-
-<!-- Create Session Modal -->
-{#if createSessionModalOpen}
-    <div class="modal modal-open">
-        <div class="modal-box max-w-2xl rounded-xl border-2 border-base-content/10">
-            <div class="flex justify-between items-center pb-4 border-b border-base-content/10">
-                <h3 class="text-2xl font-display font-black">Create Session</h3>
-                <button class="btn btn-sm btn-ghost btn-square rounded-xl" on:click={closeCreateSessionModal}>
-                    <span class="text-lg">&times;</span>
-                </button>
-            </div>
-
-            <div class="py-6 space-y-4">
-                <div class="form-control w-full">
-                    <label class="label" for="create-session-date">
-                        <span class="label-text font-bold uppercase text-xs tracking-wider">Date</span>
-                    </label>
-                    <input
-                        id="create-session-date"
-                        type="date"
-                        class="input input-bordered w-full rounded-xl"
-                        bind:value={sessionForm.date}
-                    />
-                </div>
-
-                <div class="form-control w-full">
-                    <label class="label" for="create-session-notes">
-                        <span class="label-text font-bold uppercase text-xs tracking-wider">Notes / Title</span>
-                    </label>
-                    <textarea
-                        id="create-session-notes"
-                        placeholder="e.g., Upper Body Push, Leg Day"
-                        class="textarea textarea-bordered w-full rounded-xl"
-                        rows="3"
-                        bind:value={sessionForm.notes}
-                    ></textarea>
-                </div>
-
-                {#if $programs.length > 0}
-                    <div class="form-control w-full">
-                        <label class="label" for="create-session-program">
-                            <span class="label-text font-bold uppercase text-xs tracking-wider">Program (Optional)</span>
-                        </label>
-                        <select id="create-session-program" class="select select-bordered w-full rounded-xl">
-                            <option value="">No program (standalone session)</option>
-                            {#each $programs as program}
-                                <option value={program.trainingProgramID}>{program.title || 'Untitled'}</option>
-                            {/each}
-                        </select>
-                    </div>
-                {/if}
-            </div>
-
-            <div class="flex gap-4 pt-4 border-t border-base-content/10">
-                <button class="btn btn-ghost px-5 rounded-xl flex-1" on:click={closeCreateSessionModal}>
-                    Cancel
-                </button>
-                <button
-                    class="btn btn-primary px-5 rounded-xl flex-1"
-                    disabled={!sessionForm.date}
-                >
-                    Create Session
-                </button>
-            </div>
-        </div>
-        <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-        <div class="modal-backdrop bg-base-300/80" on:click={closeCreateSessionModal}></div>
-    </div>
-{/if}
+<CreateTrainingSessionModal modalId="create_session_modal" />

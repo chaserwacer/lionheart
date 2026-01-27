@@ -32,6 +32,23 @@ namespace lionheart.Model.Training
         /// Optional perceived effort ratings for the session.
         /// </summary>
         public PerceivedEffortRatings? PerceivedEffortRatings { get; set; }
+
+        public TrainingSessionDTO ToDTO()
+        {
+            return new TrainingSessionDTO(
+                TrainingSessionID: TrainingSessionID,
+                TrainingProgramID: TrainingProgramID,
+                Date: Date,
+                Status: Status,
+                Movements: Movements
+                    .Select(m => m.ToDTO())
+                    .ToList(),
+                CreationTime: CreationTime,
+                Notes: Notes,
+                PerceivedEffortRatings: PerceivedEffortRatings
+            );
+        }
+
     }
 
     public record TrainingSessionDTO(

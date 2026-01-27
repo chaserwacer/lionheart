@@ -80,6 +80,7 @@ namespace lionheart.Services
         {
             var userGuid = Guid.Parse(user.Id);
             var trainingProgramDto = await _context.TrainingPrograms
+                .AsNoTracking()
                 .Where(p => p.TrainingProgramID == TrainingprogramId && p.UserID == userGuid)
                 .ProjectToType<TrainingProgramDTO>()
                 .FirstOrDefaultAsync();
@@ -151,7 +152,5 @@ namespace lionheart.Services
             await _context.SaveChangesAsync();
             return Result.NoContent();
         }
-
-   
     }
 }

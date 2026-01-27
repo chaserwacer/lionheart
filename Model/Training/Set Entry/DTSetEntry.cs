@@ -28,8 +28,25 @@ namespace lionheart.Model.Training.SetEntry
         public required IntervalType IntervalType { get; set; }
         public required DistanceUnit DistanceUnit { get; set; }
         public required double ActualRPE { get; set; }
-
-
+        public DTSetEntryDTO ToDTO()
+        {
+            return new DTSetEntryDTO(
+                SetEntryID: SetEntryID,
+                MovementID: MovementID,
+                RecommendedDistance: RecommendedDistance,
+                ActualDistance: ActualDistance,
+                IntervalDuration: IntervalDuration,
+                TargetPace: TargetPace,
+                ActualPace: ActualPace,
+                RecommendedDuration: RecommendedDuration,
+                ActualDuration: ActualDuration,
+                RecommendedRest: RecommendedRest,
+                ActualRest: ActualRest,
+                IntervalType: IntervalType,
+                DistanceUnit: DistanceUnit,
+                ActualRPE: ActualRPE
+            );
+        }
   
     }
 

@@ -4610,6 +4610,69 @@ export class UpdateMovementEndpointClient {
     }
 }
 
+export class UpdateMovementOrderEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    put(body: UpdateMovementOrderRequest | undefined): Promise<void> {
+        let url_ = this.baseUrl + "/api/movement/update-order";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPut(_response);
+        });
+    }
+
+    protected processPut(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
 export class UpdateTrainingProgramEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -8435,6 +8498,46 @@ export interface IMovementModifierDTO {
     name?: string | undefined;
 }
 
+export class MovementOrderUpdate implements IMovementOrderUpdate {
+    movementID?: string;
+    ordering?: number;
+
+    constructor(data?: IMovementOrderUpdate) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementID = _data["movementID"];
+            this.ordering = _data["ordering"];
+        }
+    }
+
+    static fromJS(data: any): MovementOrderUpdate {
+        data = typeof data === 'object' ? data : {};
+        let result = new MovementOrderUpdate();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementID"] = this.movementID;
+        data["ordering"] = this.ordering;
+        return data;
+    }
+}
+
+export interface IMovementOrderUpdate {
+    movementID?: string;
+    ordering?: number;
+}
+
 export class MuscleGroup implements IMuscleGroup {
     muscleGroupID!: string;
     name!: string | undefined;
@@ -10024,6 +10127,54 @@ export interface IUpdateMovementBaseRequest {
     name?: string | undefined;
     description?: string | undefined;
     muscleGroups?: MuscleGroup[] | undefined;
+}
+
+export class UpdateMovementOrderRequest implements IUpdateMovementOrderRequest {
+    trainingSessionID?: string;
+    movements?: MovementOrderUpdate[] | undefined;
+
+    constructor(data?: IUpdateMovementOrderRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.trainingSessionID = _data["trainingSessionID"];
+            if (Array.isArray(_data["movements"])) {
+                this.movements = [] as any;
+                for (let item of _data["movements"])
+                    this.movements!.push(MovementOrderUpdate.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): UpdateMovementOrderRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateMovementOrderRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["trainingSessionID"] = this.trainingSessionID;
+        if (Array.isArray(this.movements)) {
+            data["movements"] = [];
+            for (let item of this.movements)
+                data["movements"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IUpdateMovementOrderRequest {
+    trainingSessionID?: string;
+    movements?: MovementOrderUpdate[] | undefined;
 }
 
 export class UpdateMovementRequest implements IUpdateMovementRequest {
