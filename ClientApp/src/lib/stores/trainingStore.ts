@@ -22,7 +22,6 @@ import {
     type EquipmentDTO,
     type MovementBaseDTO,
     type MuscleGroup,
-    type ITrainedMuscle,
     TrainingSessionStatus,
 } from '$lib/api/ApiClient';
 
@@ -242,11 +241,11 @@ export async function deleteEquipment(equipmentID: string): Promise<boolean> {
 export async function createMovementBase(
     name: string,
     description?: string,
-    trainedMuscles?: ITrainedMuscle[]
+    muscleGroups?: MuscleGroup[]
 ): Promise<MovementBaseDTO | null> {
     try {
         const client = new CreateMovementBaseEndpointClient(baseUrl);
-        const request = CreateMovementBaseRequest.fromJS({ name, description, trainedMuscles });
+        const request = CreateMovementBaseRequest.fromJS({ name, description, muscleGroups });
         const result = await client.post(request);
         movementBases.update(items => [...items, result]);
         return result;
@@ -261,11 +260,11 @@ export async function updateMovementBase(
     movementBaseID: string,
     name: string,
     description?: string,
-    trainedMuscles?: ITrainedMuscle[]
+    muscleGroups?: MuscleGroup[]
 ): Promise<MovementBaseDTO | null> {
     try {
         const client = new UpdateMovementBaseEndpointClient(baseUrl);
-        const request = UpdateMovementBaseRequest.fromJS({ movementBaseID, name, description, trainedMuscles });
+        const request = UpdateMovementBaseRequest.fromJS({ movementBaseID, name, description, muscleGroups });
         const result = await client.post(request);
         movementBases.update(items =>
             items.map(item => item.movementBaseID === movementBaseID ? result : item)
