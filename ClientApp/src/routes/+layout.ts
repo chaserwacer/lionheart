@@ -6,4 +6,6 @@ export const prerender = true;
 export async function load({ fetch, params, url }) {
     await fetchBootUserDto(fetch)
 
+    //await fetchTodaysWellnessState(fetch)
+    
 }

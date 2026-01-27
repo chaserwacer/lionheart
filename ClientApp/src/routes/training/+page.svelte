@@ -103,6 +103,16 @@
         return vol.toString();
     }
 
+    function formatDate(date: any): string {
+        if (!date) return "N/A";
+        const d = new Date(date.toString());
+        return d.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            timeZone: "UTC"
+        });
+    }
+
     function getProgramProgress(program: TrainingProgramDTO | null): { completed: number; total: number } {
         if (!program?.trainingSessions) return { completed: 0, total: 0 };
         const completed = program.trainingSessions.filter(s => s.status === TrainingSessionStatus._2).length;
@@ -278,8 +288,8 @@
                                 {$activeProgram.title || 'Untitled Program'}
                             </p>
                             <p class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-2">
-                                {new Date($activeProgram.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} &ndash;
-                                {new Date($activeProgram.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                {formatDate($activeProgram.startDate)} &ndash;
+                                {formatDate($activeProgram.endDate)}
                             </p>
                         </div>
 
@@ -413,8 +423,8 @@
                                     <div class="flex-1 min-w-0">
                                         <h3 class="font-bold truncate">{program.title || 'Untitled Program'}</h3>
                                         <p class="text-xs font-mono uppercase tracking-widest text-base-content/50 mt-1">
-                                            {new Date(program.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} &ndash;
-                                            {new Date(program.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            {formatDate(program.startDate)} &ndash;
+                                            {formatDate(program.endDate)}
                                         </p>
                                     </div>
                                     {#if program.isCompleted}

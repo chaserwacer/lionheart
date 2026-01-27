@@ -40,7 +40,7 @@
   function formatDateDisplay(dateStr: string): string {
     if (dateStr.includes('-') && dateStr.length === 10) {
       const d = parseLocalDate(dateStr);
-      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
     }
     // Fallback for other formats - use UTC
     const d = new Date(dateStr);

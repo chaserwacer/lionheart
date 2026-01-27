@@ -58,7 +58,7 @@ namespace Services.Chat
                                 ChatConversationID = request.Conversation.ChatConversationID,
                                 CreationTime = DateTime.UtcNow,
                                 TokenCount = completion.Usage.OutputTokenCount,
-                                Content = completion.Content.ToString()
+                                Content = string.Join("", completion.Content.Select(c => c.Text))
                             });
                             return Result.Success(new ChatCompletionResponse
                             {
@@ -70,17 +70,16 @@ namespace Services.Chat
 
                     case ChatFinishReason.ToolCalls:
                         {
-                            // add assistant message with tool calls to the conversation history.
-                            messages.Add(new AssistantChatMessage(completion));
-                            newlyGeneratedMessages.Add(new LHModelChatMessage{
-                                ChatMessageItemID = Guid.NewGuid(),
-                                ChatConversationID = request.Conversation.ChatConversationID,
-                                CreationTime = DateTime.UtcNow,
-                                TokenCount = completion.Usage.OutputTokenCount,
-                                Content = completion.Content.ToString(),
-                                ToolCalls = completion.ToolCalls
-                            });
+                            /*
+                            In order to save token usage, we will only persist the data the model retreived from tool calls.
+                            This means we will not save the intermediate assistant messages that request tool calls.
+                            */
 
+
+                            // add assistant message with tool calls to the conversation history.
+                            // dont save this for persistence.
+                            messages.Add(new AssistantChatMessage(completion));
+                     
                             // add a new tool message for each tool call that is resolved.
                             foreach (ChatToolCall toolCall in completion.ToolCalls)
                             {
@@ -88,27 +87,18 @@ namespace Services.Chat
                                 if (toolCallResult.IsSuccess)
                                 {
                                     messages.Add(toolCallResult.Value);
-                                    newlyGeneratedMessages.Add(new LHToolChatMessage{
+                                    newlyGeneratedMessages.Add(new LHChatToolCallResult{
                                         ChatMessageItemID =  Guid.NewGuid(),
                                         ChatConversationID = request.Conversation.ChatConversationID,
                                         CreationTime = DateTime.UtcNow,
-                                        TokenCount = (toolCallResult.Value.Content?.ToString() ?? string.Empty).Length / 4,
-                                        Content = toolCallResult.Value.Content?.ToString(),
-                                        ToolCallID = toolCallResult.Value.ToolCallId
+                                        TokenCount = (toolCallResult.Value.Content?[0].Text ?? string.Empty).Length / 4,
+                                        Content = toolCallResult.Value.Content?[0].Text,
                                     });   
                                 }
                                 else
                                 {
                                     messages.Add(new ToolChatMessage(toolCall.Id, toolCallResult.Errors.ToString()));
-                                    var errorContent = toolCallResult.Errors.ToString() ?? "Unknown error during tool call.";
-                                    newlyGeneratedMessages.Add(new LHToolChatMessage{
-                                        ChatMessageItemID =  Guid.NewGuid(),
-                                        ChatConversationID = request.Conversation.ChatConversationID,
-                                        CreationTime = DateTime.UtcNow,
-                                        TokenCount = errorContent.Length / 4,
-                                        Content = errorContent,
-                                        ToolCallID = toolCallResult.Value.ToolCallId
-                                    });
+                                    
                                 }
                             }
 

@@ -29,13 +29,14 @@
   import LastSessionCard from "$lib/components/home/LastSessionCard.svelte";
   import LastActivityCard from "$lib/components/home/LastActivityCard.svelte";
   import InjuryOverviewCard from "$lib/components/home/InjuryOverviewCard.svelte";
+  import ChatPreviewCard from "$lib/components/home/ChatPreviewCard.svelte";
     import { theme } from "$lib/stores/themeStore";
 
 
 
   const baseUrl = "";
   let lastUpdatePage = $pageUpdate;
-  let selectedDate = new Date().toISOString().slice(0, 10);
+  let selectedDate =new Date().toDateString();
 
   // Create stores
   const wellnessState = writable<WellnessState>(new WellnessState());
@@ -227,6 +228,11 @@
 
       <!-- Injury Overview Card -->
       <InjuryOverviewCard {baseUrl} />
+
+      <!-- Chat Preview Card -->
+      <div class="md:col-span-2 lg:col-span-3">
+        <ChatPreviewCard />
+      </div>
     </div>
 
     

@@ -61,7 +61,7 @@ namespace Model.Tools
             object service;
             try
             {
-                service = scope.ServiceProvider.GetRequiredService(descriptor.ServiceType);
+                service = scope.ServiceProvider.GetRequiredService(descriptor.ServiceType.GetInterfaces().First());
             }
             catch (Exception ex)
             {
@@ -72,7 +72,7 @@ namespace Model.Tools
             try
             {
                 var functionArgsJson = toolCall.FunctionArguments?.ToString();
-                args = BindArguments(descriptor.MethodInfo, functionArgsJson, _jsonOptions);
+                args = BindArguments(descriptor.MethodInfo, functionArgsJson, user, _jsonOptions);
             }
             catch (ToolBindingException bex)
             {
@@ -106,7 +106,7 @@ namespace Model.Tools
             return new ToolChatMessage(toolCallId, json);
         }
 
-        private static object?[] BindArguments(MethodInfo method, string? functionArgsJson, JsonSerializerOptions jsonOptions)
+        private static object?[] BindArguments(MethodInfo method, string? functionArgsJson, IdentityUser? user, JsonSerializerOptions jsonOptions)
         {
             var parameters = method.GetParameters();
             if (parameters.Length == 0)
@@ -114,43 +114,73 @@ namespace Model.Tools
 
             var json = string.IsNullOrWhiteSpace(functionArgsJson) ? "{}" : functionArgsJson;
 
-            if (parameters.Length == 1)
+            // Filter out injectable parameters (like IdentityUser) for JSON binding
+            var jsonBindableParams = parameters.Where(p => !IsInjectableParameter(p.ParameterType)).ToArray();
+
+            // If only one JSON-bindable parameter, deserialize the entire JSON directly to that parameter
+            if (jsonBindableParams.Length == 1)
             {
-                var p = parameters[0];
-                var value = JsonSerializer.Deserialize(json, p.ParameterType, jsonOptions);
-                if (value is null && IsNonNullableValueType(p.ParameterType))
-                    throw new ToolBindingException($"Argument '{p.Name}' is required.", new { parameter = p.Name, type = p.ParameterType.FullName });
-                return [value];
+                var bound = new object?[parameters.Length];
+                for (var i = 0; i < parameters.Length; i++)
+                {
+                    var p = parameters[i];
+                    if (IsInjectableParameter(p.ParameterType))
+                    {
+                        bound[i] = GetInjectedValue(p.ParameterType, user);
+                    }
+                    else
+                    {
+                        // This is the single JSON-bindable parameter - deserialize entire JSON to it
+                        var value = JsonSerializer.Deserialize(json, p.ParameterType, jsonOptions);
+                        if (value is null && IsNonNullableValueType(p.ParameterType))
+                            throw new ToolBindingException($"Argument '{p.Name}' is required.", new { parameter = p.Name, type = p.ParameterType.FullName });
+                        bound[i] = value;
+                    }
+                }
+                return bound;
             }
 
-            JsonDocument doc;
-            try
+            // Multiple JSON-bindable parameters: parse JSON as object and bind by property name
+            JsonDocument? doc = null;
+            JsonElement root = default;
+
+            if (jsonBindableParams.Length > 1)
             {
-                doc = JsonDocument.Parse(json);
-            }
-            catch (JsonException je)
-            {
-                throw new ToolBindingException("Invalid JSON for tool arguments.", new { je.Message });
+                try
+                {
+                    doc = JsonDocument.Parse(json);
+                    root = doc.RootElement;
+                }
+                catch (JsonException je)
+                {
+                    throw new ToolBindingException("Invalid JSON for tool arguments.", new { je.Message });
+                }
+
+                if (root.ValueKind != JsonValueKind.Object)
+                    throw new ToolBindingException("Tool arguments must be a JSON object when multiple parameters are used.");
             }
 
-            if (doc.RootElement.ValueKind != JsonValueKind.Object)
-                throw new ToolBindingException("Tool arguments must be a JSON object when multiple parameters are used.");
-
-            var root = doc.RootElement;
-            var bound = new object?[parameters.Length];
+            var boundMulti = new object?[parameters.Length];
 
             for (var i = 0; i < parameters.Length; i++)
             {
                 var p = parameters[i];
                 var name = p.Name ?? $"arg{i}";
 
-                if (root.TryGetProperty(name, out var prop))
+                // Inject IdentityUser from context instead of JSON
+                if (IsInjectableParameter(p.ParameterType))
                 {
-                    bound[i] = prop.Deserialize(p.ParameterType, jsonOptions);
+                    boundMulti[i] = GetInjectedValue(p.ParameterType, user);
+                    continue;
+                }
+
+                if (doc is not null && root.TryGetProperty(name, out var prop))
+                {
+                    boundMulti[i] = prop.Deserialize(p.ParameterType, jsonOptions);
                 }
                 else if (p.HasDefaultValue)
                 {
-                    bound[i] = p.DefaultValue;
+                    boundMulti[i] = p.DefaultValue;
                 }
                 else if (IsNonNullableValueType(p.ParameterType))
                 {
@@ -158,11 +188,31 @@ namespace Model.Tools
                 }
                 else
                 {
-                    bound[i] = null;
+                    boundMulti[i] = null;
                 }
             }
 
-            return bound;
+            return boundMulti;
+        }
+
+        /// <summary>
+        /// Determines if a parameter type should be injected from context rather than deserialized from JSON.
+        /// </summary>
+        private static bool IsInjectableParameter(Type parameterType)
+        {
+            return parameterType == typeof(IdentityUser) 
+                || parameterType.IsAssignableTo(typeof(IdentityUser));
+        }
+
+        /// <summary>
+        /// Gets the injected value for a parameter type from the available context.
+        /// </summary>
+        private static object? GetInjectedValue(Type parameterType, IdentityUser? user)
+        {
+            if (parameterType == typeof(IdentityUser) || parameterType.IsAssignableTo(typeof(IdentityUser)))
+                return user;
+
+            return null;
         }
 
         private static List<ValidationError> ValidateArguments(object?[] args)

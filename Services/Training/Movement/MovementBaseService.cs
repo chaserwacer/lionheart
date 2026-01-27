@@ -103,7 +103,6 @@ namespace lionheart.Services.Training
             movementBase.Name = request.Name;
             movementBase.Description = request.Description;
 
-            // Clear and recreate owned entities to properly handle EF Core tracking
             movementBase.MuscleGroups = request.MuscleGroups;
 
             {

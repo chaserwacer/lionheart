@@ -35,12 +35,15 @@ namespace Model.Chat.Tools
         public async static Task<ToolRegistry> Build(IServiceCollection services)
         {
             var toolProviders = services
-                .Select(sd => sd.ServiceType)
-                .Where(st => st.GetCustomAttribute<ToolProviderAttribute>() is not null);
+                .Select(sd => sd.ImplementationType ?? sd.ServiceType)
+                .Distinct()
+                .Where(st => st is not null && st.GetCustomAttribute<ToolProviderAttribute>() is not null);
 
             var toolDescriptors = new List<ToolDescriptor>();
             foreach (var toolProvider in toolProviders)
             {
+                if (toolProvider.IsInterface || toolProvider.IsAbstract || toolProvider is null)
+                    continue;
                 var methods = toolProvider.GetMethods(BindingFlags.Public | BindingFlags.Instance)
                     .Where(m => m.GetCustomAttribute<ToolAttribute>() is not null);
 

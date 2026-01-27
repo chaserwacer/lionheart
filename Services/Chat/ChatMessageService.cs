@@ -127,7 +127,7 @@ public class ChatMessageService : IChatMessageService
                     _context.ModelChatMessages.Add(modelMessage);
                     storedMessages.Add(new LHChatMessageDTO(modelMessage));
                     break;
-                case LHToolChatMessage toolMessage:
+                case LHChatToolCallResult toolMessage:
                     _context.ToolChatMessages.Add(toolMessage);
                     storedMessages.Add(new LHChatMessageDTO(toolMessage));
                     break;

@@ -56,6 +56,17 @@
     }
   }
 
+  function formatDate(date: any): string {
+    if (!date) return "N/A";
+    const d = new Date(date.toString());
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC"
+    });
+  }
+
   function getScoreColor(score: number): string {
     if (score >= 85) return 'text-success';
     if (score >= 70) return 'text-warning';
@@ -117,7 +128,7 @@
           </div>
           <div>
             <h3 class="font-semibold text-lg">Oura Metrics</h3>
-            <p class="text-sm text-base-content/50">{dailyOuraData.date || 'Today'}</p>
+            <p class="text-sm text-base-content/50">{formatDate(dailyOuraData.date) || 'Today'}</p>
           </div>
         </div>
         <div class="flex gap-2">

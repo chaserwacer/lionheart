@@ -40,7 +40,7 @@ namespace lionheart.Data
         public DbSet<LHUserChatMessage> UserChatMessages { get; set; }
         public DbSet<LHModelChatMessage> ModelChatMessages { get; set; }
         public DbSet<LHSystemChatMessage> SystemChatMessages { get; set; }
-        public DbSet<LHToolChatMessage> ToolChatMessages { get; set; }
+        public DbSet<LHChatToolCallResult> ToolChatMessages { get; set; }
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -315,7 +315,7 @@ namespace lionheart.Data
             modelBuilder.Entity<LHSystemChatMessage>()
                 .HasKey(m => m.ChatMessageItemID);
 
-            modelBuilder.Entity<LHToolChatMessage>()
+            modelBuilder.Entity<LHChatToolCallResult>()
                 .HasKey(m => m.ChatMessageItemID);
 
             

@@ -68,7 +68,7 @@
 
     async function loadTodaysWellness() {
         try {
-            todaysWellness = await getWellnessStateClient.get(new Date());
+            todaysWellness = await getWellnessStateClient.get(new Date(new Date().toDateString()));
         } catch (err) {
             todaysWellness = null;
         }
@@ -164,6 +164,7 @@
                 month: "short",
                 day: "numeric",
                 year: "numeric",
+                timeZone: "UTC"
             });
         }
         // Fallback

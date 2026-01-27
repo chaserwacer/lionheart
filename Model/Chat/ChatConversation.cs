@@ -36,7 +36,7 @@ namespace lionheart.Model.Chat
         /// Messages sent by the user. 
         /// </summary>
         public required List<LHUserChatMessage> UserMessages { get; set; }
-        public required List<LHToolChatMessage> ToolMessages { get; set; }
+        public required List<LHChatToolCallResult> ToolMessages { get; set; }
 
 
         public List<LHChatMessage> GetAllNonSystemMessagesInChronologicalOrder()
@@ -48,11 +48,38 @@ namespace lionheart.Model.Chat
             allMessages.Sort((x, y) => x.CreationTime.CompareTo(y.CreationTime));
             return allMessages;
         }
+        public List<LHChatMessage> GetUserModelMessagesInChronologicalOrder()
+        {
+            var allMessages = new List<LHChatMessage>();
+            allMessages.AddRange(UserMessages);
+            allMessages.AddRange(ModelMessages);
+            allMessages.Sort((x, y) => x.CreationTime.CompareTo(y.CreationTime));
+            return allMessages;
+        }
 
-        
+        public LHChatConversationDTO ToDTO()
+        {
+
+            var messages = new List<LHChatMessageDTO>();
+            foreach (var msg in GetUserModelMessagesInChronologicalOrder())
+            {
+                messages.Add(new LHChatMessageDTO(msg));
+            }
+
+            return new LHChatConversationDTO
+            {
+                ChatConversationID = ChatConversationID,
+                CreatedAt = CreatedAt,
+                LastUpdate = LastUpdate,
+                Name = Name,
+                Messages = messages
+            };
+
+
+        }
+
 
     }
-
 
     /// <summary>
     /// Represent a base lionheart chat message.
@@ -99,15 +126,11 @@ namespace lionheart.Model.Chat
     /// </summary>
     public class LHModelChatMessage : LHChatMessage
     {
-        public IEnumerable<ChatToolCall> ToolCalls { get; init; } = new List<ChatToolCall>();
         public override ChatMessage ToChatMessage()
         {
-            var assistantMessage = new AssistantChatMessage(Content);
-            foreach (var toolCall in ToolCalls)
-            {
-                assistantMessage.ToolCalls.Add(toolCall);
-            }
-            return assistantMessage;
+
+            return new AssistantChatMessage(Content);
+
         }
     }
 
@@ -122,13 +145,21 @@ namespace lionheart.Model.Chat
         }
     }
 
-    public class LHToolChatMessage : LHChatMessage
+    /// <summary> 
+    /// Represents the stored result from a tool call made by the AI model.
+    /// </summary>
+    public class LHChatToolCallResult : LHChatMessage
     {
-        public required string ToolCallID { get; set; }
-
+        /// <summary>
+        /// Wrapped via <see cref="AssistantChatMessage"/> instead of <see cref="ToolChatMessage"/>,  
+        /// because we are only storing the result of the tool call, not the tool call request itself.
+        /// Open AI throws errors if we try to pass tool call messages back into the chat completion without the tool call request.
+        /// We avoid this to minimize token usage.
+        /// </summary>
+        /// <returns></returns>
         public override ChatMessage ToChatMessage()
         {
-            return new ToolChatMessage(ToolCallID, Content);
+            return new AssistantChatMessage(Content);
         }
     }
 
