@@ -13,6 +13,24 @@
     TrainingSessionDTO,
     TrainingSessionStatus,
     MovementDTO,
+    GetMovementBasesEndpointClient,
+    GetEquipmentsEndpointClient,
+    UpdateEquipmentEndpointClient,
+    UpdateEquipmentRequest,
+    MovementBaseDTO,
+    EquipmentDTO,
+    CreateMovementEndpointClient,
+    CreateMovementRequest,
+    CreateLiftSetEntryEndpointClient,
+    CreateLiftSetEntryRequest,
+    UpdateLiftSetEntryEndpointClient,
+    UpdateLiftSetEntryRequest,
+    CreateDTSetEntryEndpointClient,
+    CreateDTSetEntryRequest,
+    UpdateDTSetEntryEndpointClient,
+    UpdateDTSetEntryRequest,
+    UpdateMovementEndpointClient,
+    UpdateMovementRequest,
   } from "$lib/api/ApiClient";
 
   $: programId = $page.params.programId;
@@ -22,18 +40,26 @@
   $: notesText = sessionNotesText(session);
 
   const SESSION_STATUSES = [
-  TrainingSessionStatus._0,
-  TrainingSessionStatus._1,
-  TrainingSessionStatus._2,
-  TrainingSessionStatus._3,
-  TrainingSessionStatus._4
-];
+    TrainingSessionStatus._0,
+    TrainingSessionStatus._1,
+    TrainingSessionStatus._2,
+    TrainingSessionStatus._3,
+    TrainingSessionStatus._4,
+  ];
 
   let session: TrainingSessionDTO | null = null;
   let loading = true;
   let errorMsg = "";
-
+  let movementBases: MovementBaseDTO[] = [];
+  let equipments: EquipmentDTO[] = [];
   let isEditing = false;
+  let newMovementBaseId = "";
+  let newEquipmentId = "";
+  let newModifierId = ""; // optional (only if you expose modifiers)
+  let newMovementNotes = "";
+  let editingEquipmentId: string | null = null;
+  let equipDraftName = "";
+  let equipDraftEnabled = true;
 
   // drafts
   let draftDate = ""; // YYYY-MM-DD
@@ -47,6 +73,46 @@
   // drag state (swap-on-drop like your program page)
   let dragFromId: string | null = null;
   let dragOverId: string | null = null;
+
+  type MovementEdit = {
+    movementBaseId: string;
+    equipmentId: string;
+    modifierId: string | null;
+    notes: string;
+    isCompleted: boolean;
+  };
+  type LiftDraft = {
+    setEntryID?: string; // undefined => new
+    recommendedReps?: number | null;
+    recommendedWeight?: number | null;
+    recommendedRPE?: number | null;
+    actualReps: number;
+    actualWeight: number;
+    actualRPE: number;
+    weightUnit: any; // your client enum
+  };
+
+  type DtDraft = {
+    setEntryID?: string;
+    recommendedDistance?: number | null;
+    actualDistance: number;
+    intervalDuration: string; // "mm:ss" or "hh:mm:ss"
+    targetPace: string;
+    actualPace: string;
+    recommendedDuration: string;
+    actualDuration: string;
+    recommendedRest: string;
+    actualRest: string;
+    intervalType: any;
+    distanceUnit: any;
+    actualRPE: number;
+  };
+
+  let liftDrafts: Record<string, LiftDraft[]> = {}; // movementId -> list
+  let dtDrafts: Record<string, DtDraft[]> = {};
+  let deletedSetIds: Set<string> = new Set();
+
+  let movementEdits: Record<string, MovementEdit> = {};
 
   function goBack() {
     goto("/training");
@@ -69,7 +135,8 @@
   }
 
   function formatSessionDate(raw: any): string {
-    const d = raw instanceof Date ? raw : new Date(`${toIsoDateOnly(raw)}T12:00:00`);
+    const d =
+      raw instanceof Date ? raw : new Date(`${toIsoDateOnly(raw)}T12:00:00`);
     if (Number.isNaN(d.getTime())) return String(raw);
 
     const weekday = d.toLocaleDateString(undefined, { weekday: "long" });
@@ -78,21 +145,21 @@
     return `${weekday} ${day}/${month}`;
   }
   function statusLabel(s: TrainingSessionStatus): string {
-  switch (s) {
-    case TrainingSessionStatus._0:
-      return "Planned";
-    case TrainingSessionStatus._1:
-      return "Active";
-    case TrainingSessionStatus._2:
-      return "Completed";
-    case TrainingSessionStatus._3:
-      return "Skipped";
-    case TrainingSessionStatus._4:
-      return "AI Modified";
-    default:
-      return "Unknown";
+    switch (s) {
+      case TrainingSessionStatus._0:
+        return "Planned";
+      case TrainingSessionStatus._1:
+        return "Active";
+      case TrainingSessionStatus._2:
+        return "Completed";
+      case TrainingSessionStatus._3:
+        return "Skipped";
+      case TrainingSessionStatus._4:
+        return "AI Modified";
+      default:
+        return "Unknown";
+    }
   }
-}
 
   async function load() {
     loading = true;
@@ -102,12 +169,35 @@
     pendingOrderIds = null;
 
     try {
-      const client = new GetTrainingSessionEndpointClient();
-      session = await client.get(sessionId, programId);
+      const sessionClient = new GetTrainingSessionEndpointClient();
+      const basesClient = new GetMovementBasesEndpointClient();
+      const equipClient = new GetEquipmentsEndpointClient();
 
+      const [s, bases, eqs] = await Promise.all([
+        sessionClient.get(sessionId, programId),
+        basesClient.get(), // if yours needs params, adjust
+        equipClient.get(), // if yours needs params, adjust
+      ]);
+
+      session = s;
       movements = (session.movements ?? []) as any[];
+
+      movementBases = (bases ?? []) as any[];
+      equipments = (eqs ?? []) as any[];
+
+      // default add-movement draft
+      newMovementBaseId = movementBases[0]?.movementBaseID
+        ? String(movementBases[0].movementBaseID)
+        : "";
+      newEquipmentId = equipments[0]?.equipmentID
+        ? String(equipments[0].equipmentID)
+        : "";
     } catch (e: any) {
-      errorMsg = e?.body?.title || e?.body?.detail || e?.message || "Failed to load session.";
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to load session.";
     } finally {
       loading = false;
     }
@@ -124,6 +214,20 @@
 
     movements = (session.movements ?? []) as any[];
     pendingOrderIds = null;
+
+    movementEdits = {};
+    for (const mm of movements as any[]) {
+      const id = idOfMovement(mm);
+      if (!id) continue;
+
+      movementEdits[id] = {
+        movementBaseId: movementBaseId(mm),
+        equipmentId: movementEquipmentId(mm),
+        modifierId: movementModifierId(mm) || null,
+        notes: String((mm as any)?.notes ?? ""),
+        isCompleted: Boolean((mm as any)?.isCompleted ?? false),
+      };
+    }
   }
 
   function cancelEdit() {
@@ -147,7 +251,7 @@
         date: new Date(`${draftDate}T12:00:00`),
         status: draftStatus,
         notes: draftNotes,
-        perceivedEffortRatings: (session as any).perceivedEffortRatings ?? null
+        perceivedEffortRatings: (session as any).perceivedEffortRatings ?? null,
       } as any;
 
       session = await sessionClient.put(req);
@@ -156,11 +260,12 @@
       if (pendingOrderIds && pendingOrderIds.length > 0) {
         const orderClient = new UpdateMovementOrderEndpointClient();
 
-        // NOTE: field names depend on your generated client.
-        // Using `as any` keeps this resilient while you confirm the DTO shape.
         const orderReq: UpdateMovementOrderRequest = {
           trainingSessionID: (session as any).trainingSessionID ?? sessionId,
-          movementIdsInOrder: pendingOrderIds
+          movements: pendingOrderIds.map((id, idx) => ({
+            movementID: id,
+            ordering: idx,
+          })),
         } as any;
 
         await orderClient.put(orderReq as any);
@@ -171,10 +276,43 @@
       pendingOrderIds = null;
       location.reload();
     } catch (e: any) {
-      errorMsg = e?.body?.title || e?.body?.detail || e?.message || "Failed to save changes.";
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to save changes.";
     } finally {
       loading = false;
     }
+  }
+
+  function updateMovementBase(m: MovementDTO, baseId: string) {
+    const id = idOfMovement(m);
+    if (!id || !movementEdits[id]) return;
+    movementEdits[id].movementBaseId = baseId;
+  }
+
+  function updateMovementEquipment(m: MovementDTO, equipmentId: string) {
+    const id = idOfMovement(m);
+    if (!id || !movementEdits[id]) return;
+    movementEdits[id].equipmentId = equipmentId;
+  }
+
+  function updateMovementNotes(m: MovementDTO, notes: string) {
+    const id = idOfMovement(m);
+    if (!id || !movementEdits[id]) return;
+    movementEdits[id].notes = notes;
+  }
+
+  function updateMovementCompleted(m: MovementDTO, v: boolean) {
+    const id = idOfMovement(m);
+    if (!id || !movementEdits[id]) return;
+    movementEdits[id].isCompleted = v;
+  }
+
+  function draftFor(m: MovementDTO): MovementEdit | null {
+    const id = idOfMovement(m);
+    return id && movementEdits[id] ? movementEdits[id] : null;
   }
 
   async function deleteMovement(movementId?: string) {
@@ -189,10 +327,18 @@
       await client.delete(movementId as any);
 
       // optimistic remove from UI in edit mode
-      movements = movements.filter((m: any) => (m.movementID ?? m.movementId) !== movementId);
-      pendingOrderIds = movements.map((m: any) => String(m.movementID ?? m.movementId));
+      movements = movements.filter(
+        (m: any) => (m.movementID ?? m.movementId) !== movementId,
+      );
+      pendingOrderIds = movements.map((m: any) =>
+        String(m.movementID ?? m.movementId),
+      );
     } catch (e: any) {
-      errorMsg = e?.body?.title || e?.body?.detail || e?.message || "Failed to delete movement.";
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to delete movement.";
     } finally {
       loading = false;
     }
@@ -269,28 +415,141 @@
     dragOverId = null;
   }
 
+  async function addMovement() {
+    if (!session) return;
+    if (!newMovementBaseId || !newEquipmentId) {
+      errorMsg = "Pick a movement and equipment first.";
+      return;
+    }
+
+    loading = true;
+    errorMsg = "";
+
+    try {
+      const client = new CreateMovementEndpointClient();
+
+      const req: CreateMovementRequest = {
+        trainingSessionID: (session as any).trainingSessionID ?? sessionId,
+        movementData: {
+          equipmentID: newEquipmentId,
+          movementBaseID: newMovementBaseId,
+          movementModifierID: newModifierId ? newModifierId : null,
+        },
+        notes: newMovementNotes ?? "",
+      } as any;
+
+      const created = await client.post(req as any);
+
+      // push into UI list
+      movements = [...movements, created as any];
+
+      // update pending order to include new item at end
+      pendingOrderIds = movements.map((m: any) => idOfMovement(m));
+
+      // reset notes (keep selections)
+      newMovementNotes = "";
+    } catch (e: any) {
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to add movement.";
+    } finally {
+      loading = false;
+    }
+  }
+
+  function startEditEquipment(equipmentId: string) {
+    const eq = equipments.find(
+      (x: any) => String(x.equipmentID) === String(equipmentId),
+    );
+    if (!eq) return;
+
+    editingEquipmentId = String((eq as any).equipmentID);
+    equipDraftName = String((eq as any).name ?? "");
+    equipDraftEnabled = Boolean((eq as any).enabled ?? true);
+  }
+
+  async function saveEquipment() {
+    if (!editingEquipmentId) return;
+
+    loading = true;
+    errorMsg = "";
+
+    try {
+      const client = new UpdateEquipmentEndpointClient();
+      const req: UpdateEquipmentRequest = {
+        equipmentID: editingEquipmentId,
+        name: equipDraftName,
+        enabled: equipDraftEnabled,
+      } as any;
+
+      const updated = await client.post(req as any);
+
+      equipments = equipments.map((e: any) =>
+        String(e.equipmentID) === String(editingEquipmentId)
+          ? (updated as any)
+          : e,
+      );
+
+      editingEquipmentId = null;
+    } catch (e: any) {
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to update equipment.";
+    } finally {
+      loading = false;
+    }
+  }
+
   // ---- template-safe helpers (NO "as" in markup) ----
-function sessionStatusText(s: TrainingSessionDTO | null): string {
-  if (!s) return "";
-  // cast lives in script, not in template
-  return String((s as any).status ?? "");
-}
+  function sessionStatusText(s: TrainingSessionDTO | null): string {
+    if (!s) return "";
+    // cast lives in script, not in template
+    return String((s as any).status ?? "");
+  }
 
-function sessionNotesText(s: TrainingSessionDTO | null): string {
-  if (!s) return "";
-  return String((s as any).notes ?? "");
-}
+  function sessionNotesText(s: TrainingSessionDTO | null): string {
+    if (!s) return "";
+    return String((s as any).notes ?? "");
+  }
 
-function movementName(m: MovementDTO): string {
-  return String((m as any)?.movementData?.movementBase?.name ?? "Movement");
-}
+  function movementName(m: MovementDTO): string {
+    return String((m as any)?.movementData?.movementBase?.name ?? "Movement");
+  }
 
-function movementSetCount(m: MovementDTO): number {
-  const lift = (m as any)?.liftSets?.length ?? 0;
-  const dt = (m as any)?.distanceTimeSets?.length ?? 0;
-  return lift + dt;
-}
+  function movementSetCount(m: MovementDTO): number {
+    const lift = (m as any)?.liftSets?.length ?? 0;
+    const dt = (m as any)?.distanceTimeSets?.length ?? 0;
+    return lift + dt;
+  }
+  function idOfMovement(m: MovementDTO): string {
+    return String((m as any)?.movementID ?? (m as any)?.movementId ?? "");
+  }
 
+  function movementData(m: MovementDTO): any {
+    return (m as any)?.movementData ?? (m as any)?.movementDataDTO ?? null;
+  }
+
+  function movementEquipmentId(m: MovementDTO): string {
+    return String(movementData(m)?.equipmentID ?? "");
+  }
+
+  function movementBaseId(m: MovementDTO): string {
+    return String(movementData(m)?.movementBaseID ?? "");
+  }
+
+  function movementModifierId(m: MovementDTO): string {
+    return String(movementData(m)?.movementModifierID ?? "");
+  }
+  function movementNotes(m: MovementDTO): string {
+    return String((m as any)?.notes ?? "");
+  }
+  function movementCompleted(m: MovementDTO): boolean {
+    return Boolean((m as any)?.isCompleted ?? false);
+  }
 
   onMount(load);
 </script>
@@ -308,15 +567,23 @@ function movementSetCount(m: MovementDTO): number {
         class="flex items-center gap-2 text-base-content/50 hover:text-base-content transition-colors mb-4"
       >
         <span>&larr;</span>
-        <span class="text-sm font-mono uppercase tracking-widest">Back to Training</span>
+        <span class="text-sm font-mono uppercase tracking-widest"
+          >Back to Training</span
+        >
       </button>
 
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div
+        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
         <div>
-          <h1 class="text-5xl sm:text-6xl font-display font-black tracking-tightest text-base-content leading-none">
+          <h1
+            class="text-5xl sm:text-6xl font-display font-black tracking-tightest text-base-content leading-none"
+          >
             SESSION
           </h1>
-          <p class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-3">
+          <p
+            class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-3"
+          >
             {#if session}
               {formatSessionDate(session.date)}
             {:else}
@@ -330,14 +597,26 @@ function movementSetCount(m: MovementDTO): number {
             <button class="btn btn-primary px-5 rounded-xl" disabled={!session}>
               Start Session
             </button>
-            <button class="btn btn-outline px-5 rounded-xl" disabled={!session} on:click={enterEdit}>
+            <button
+              class="btn btn-outline px-5 rounded-xl"
+              disabled={!session}
+              on:click={enterEdit}
+            >
               Edit
             </button>
           {:else}
-            <button class="btn btn-primary px-5 rounded-xl" on:click={saveEdits} disabled={loading}>
+            <button
+              class="btn btn-primary px-5 rounded-xl"
+              on:click={saveEdits}
+              disabled={loading}
+            >
               Done
             </button>
-            <button class="btn btn-ghost px-5 rounded-xl" on:click={cancelEdit} disabled={loading}>
+            <button
+              class="btn btn-ghost px-5 rounded-xl"
+              on:click={cancelEdit}
+              disabled={loading}
+            >
               Cancel
             </button>
           {/if}
@@ -347,17 +626,19 @@ function movementSetCount(m: MovementDTO): number {
 
     <!-- Body -->
     {#if loading}
-      <div class="card bg-base-100 p-8 border border-base-content/10 rounded-2xl">
+      <div
+        class="card bg-base-100 p-8 border border-base-content/10 rounded-2xl"
+      >
         Loading session...
       </div>
-
     {:else if errorMsg}
       <div class="alert alert-error rounded-xl">
         <span>{errorMsg}</span>
       </div>
-
     {:else if session}
-      <div class="card bg-base-100 shadow-editorial border-2 border-base-content/10 p-8 rounded-2xl">
+      <div
+        class="card bg-base-100 shadow-editorial border-2 border-base-content/10 p-8 rounded-2xl"
+      >
         <div class="flex items-start justify-between gap-4 mb-6">
           <div class="min-h-[110px] w-full">
             {#if !isEditing}
@@ -370,24 +651,32 @@ function movementSetCount(m: MovementDTO): number {
               </p>
 
               {#if notesText}
-                <p class="text-sm text-base-content/60 mt-3 whitespace-pre-wrap">
+                <p
+                  class="text-sm text-base-content/60 mt-3 whitespace-pre-wrap"
+                >
                   {notesText}
                 </p>
               {/if}
             {:else}
               <div class="flex flex-wrap items-center gap-3">
-                <input class="input input-sm input-bordered" type="date" bind:value={draftDate} />
-                  <select
-                    class="select select-sm select-bordered"
-                    bind:value={draftStatus}
-                  >
-                    {#each SESSION_STATUSES as s}
-                      <option value={s}>{statusLabel(s)}</option>
-                    {/each}
-                  </select>
+                <input
+                  class="input input-sm input-bordered"
+                  type="date"
+                  bind:value={draftDate}
+                />
+                <select
+                  class="select select-sm select-bordered"
+                  bind:value={draftStatus}
+                >
+                  {#each SESSION_STATUSES as s}
+                    <option value={s}>{statusLabel(s)}</option>
+                  {/each}
+                </select>
               </div>
               <div class="mt-4">
-                <div class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2">
+                <div
+                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+                >
                   Notes
                 </div>
                 <textarea
@@ -404,6 +693,60 @@ function movementSetCount(m: MovementDTO): number {
             Movements: {movements?.length ?? 0}
           </div>
         </div>
+        {#if isEditing}
+  <div class="mb-6 p-4 rounded-2xl bg-base-200 border border-base-content/10">
+    <div class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-3">
+      Add Movement
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div>
+        <div class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2">
+          Movement Base
+        </div>
+        <select class="select select-bordered w-full" bind:value={newMovementBaseId}>
+          {#each movementBases as mb}
+            <option value={String(mb.movementBaseID)}>{mb.name}</option>
+          {/each}
+        </select>
+      </div>
+
+      <div>
+        <div class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2">
+          Equipment
+        </div>
+        <select class="select select-bordered w-full" bind:value={newEquipmentId}>
+          {#each equipments as eq}
+            <option value={String(eq.equipmentID)}>
+              {eq.name}{eq.enabled ? "" : " (disabled)"}
+            </option>
+          {/each}
+        </select>
+      </div>
+
+      <div class="lg:col-span-2">
+        <div class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2">
+          Notes
+        </div>
+        <input
+          class="input input-bordered w-full"
+          placeholder="e.g., Paused, beltless, tempo, etc."
+          bind:value={newMovementNotes}
+        />
+      </div>
+
+      <div class="lg:col-span-2 flex justify-end">
+        <button
+          class="btn btn-primary rounded-xl px-5"
+          on:click={addMovement}
+          disabled={loading || !newMovementBaseId || !newEquipmentId}
+        >
+          Add Movement
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
         {#if (movements?.length ?? 0) === 0}
           <div class="p-6 bg-base-200 rounded-xl">
@@ -427,6 +770,16 @@ function movementSetCount(m: MovementDTO): number {
             {/each}
           </div>
         {:else}
+          <div
+            class="mb-6 p-4 rounded-2xl bg-base-200 border border-base-content/10"
+          >
+            <div
+              class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-3"
+            >
+              Add Movement
+            </div>
+
+          </div>
           <!-- EDIT MODE: drag swap + delete -->
           <div class="space-y-2">
             {#each movements as m (movementIdOf(m))}
@@ -461,6 +814,73 @@ function movementSetCount(m: MovementDTO): number {
                       Delete
                     </button>
                   </div>
+                  <div class="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div>
+                      <div
+                        class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+                      >
+                        Movement
+                      </div>
+                      <select
+                        class="select select-bordered w-full"
+                        value={movementBaseId(m)}
+                        on:change={(e) =>
+                          updateMovementBase(m, e.currentTarget.value)}
+                      >
+                        {#each movementBases as mb}
+                          <option value={String(mb.movementBaseID)}
+                            >{mb.name}</option
+                          >
+                        {/each}
+                      </select>
+                    </div>
+
+                    <div>
+                      <div
+                        class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+                      >
+                        Equipment
+                      </div>
+                      <select
+                        class="select select-bordered w-full"
+                        value={movementEquipmentId(m)}
+                        on:change={(e) =>
+                          updateMovementEquipment(m, e.currentTarget.value)}
+                      >
+                        {#each equipments as eq}
+                          <option value={String(eq.equipmentID)}
+                            >{eq.name}{eq.enabled ? "" : " (disabled)"}</option
+                          >
+                        {/each}
+                      </select>
+                    </div>
+
+                    <div class="lg:col-span-2">
+                      <div
+                        class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+                      >
+                        Notes
+                      </div>
+                      <textarea
+                        class="textarea textarea-bordered w-full"
+                        rows="2"
+                        value={movementNotes(m)}
+                        on:input={(e) =>
+                          updateMovementNotes(m, e.currentTarget.value)}
+                      />
+                    </div>
+
+                    <label class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        class="checkbox"
+                        checked={movementCompleted(m)}
+                        on:change={(e) =>
+                          updateMovementCompleted(m, e.currentTarget.checked)}
+                      />
+                      <span class="text-sm">Completed</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             {/each}
@@ -468,14 +888,17 @@ function movementSetCount(m: MovementDTO): number {
 
           {#if pendingOrderIds}
             <div class="mt-3 text-xs text-base-content/50">
-              Order changed — will save when you hit <span class="font-bold">Done</span>.
+              Order changed — will save when you hit <span class="font-bold"
+                >Done</span
+              >.
             </div>
           {/if}
         {/if}
       </div>
-
     {:else}
-      <div class="card bg-base-100 p-8 border border-base-content/10 rounded-2xl">
+      <div
+        class="card bg-base-100 p-8 border border-base-content/10 rounded-2xl"
+      >
         Session not found.
       </div>
     {/if}
@@ -491,8 +914,12 @@ function movementSetCount(m: MovementDTO): number {
     transform-origin: 50% 50%;
   }
   @keyframes wiggle {
-    from { transform: rotate(-0.6deg); }
-    to { transform: rotate(0.6deg); }
+    from {
+      transform: rotate(-0.6deg);
+    }
+    to {
+      transform: rotate(0.6deg);
+    }
   }
 
   .swap-hover {
