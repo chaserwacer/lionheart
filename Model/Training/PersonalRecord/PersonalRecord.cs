@@ -66,6 +66,25 @@ public class PersonalRecord
     /// </summary>
     [Required]
     public required bool IsActive { get; set; } = true;
+
+    public PersonalRecordDTO ToDTO()
+    {
+        return new PersonalRecordDTO(
+            PersonalRecordID: PersonalRecordID,
+            MovementDataID: MovementDataID,
+            MovementData: MovementData.ToDTO(),
+            PRType: PRType,
+            Weight: Weight,
+            WeightUnit: WeightUnit,
+            Reps: Reps,
+            Volume: Volume,
+            CreatedAt: CreatedAt,
+            PreviousPRCreatedAt: PreviousPRCreatedAt,
+            PreviousPersonalRecordID: PreviousPersonalRecordID,
+            SourceLiftSetEntryID: SourceLiftSetEntryID,
+            IsActive: IsActive
+        );
+    }
 }
 
 
@@ -84,7 +103,6 @@ public enum PersonalRecordType
 
 public record PersonalRecordDTO(
     Guid PersonalRecordID,
-    Guid UserID,
     Guid MovementDataID,
     MovementDataDTO MovementData,
     PersonalRecordType PRType,

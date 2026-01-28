@@ -20,6 +20,19 @@ namespace lionheart.ActivityTracking
         public string Name { get; set; } = string.Empty;
         public string UserSummary { get; set; } = string.Empty;
         public PerceivedEffortRatings? PerceivedEffortRatings { get; set; }
+
+        public ActivityDTO ToDTO()
+        {
+            return new ActivityDTO(
+                ActivityID: ActivityID,
+                DateTime: DateTime,
+                TimeInMinutes: TimeInMinutes,
+                CaloriesBurned: CaloriesBurned,
+                Name: Name,
+                UserSummary: UserSummary,
+                PerceivedEffortRatings: PerceivedEffortRatings
+            );
+        }
     }
 
 
