@@ -15,8 +15,6 @@
     MovementDTO,
     GetMovementBasesEndpointClient,
     GetEquipmentsEndpointClient,
-    UpdateEquipmentEndpointClient,
-    UpdateEquipmentRequest,
     MovementBaseDTO,
     EquipmentDTO,
     CreateMovementEndpointClient,
@@ -33,8 +31,15 @@
     UpdateMovementRequest,
   } from "$lib/api/ApiClient";
 
-  $: programId = $page.params.programId;
-  $: sessionId = $page.params.sessionId;
+
+let programId = "";
+let sessionId = "";
+
+$: ({ programId, sessionId } = $page.params as any);
+
+$: console.log("params:", $page.params, "programId:", programId, "sessionId:", sessionId);
+
+
 
   $: statusText = sessionStatusText(session);
   $: notesText = sessionNotesText(session);
@@ -108,10 +113,6 @@
     actualRPE: number;
   };
 
-  let liftDrafts: Record<string, LiftDraft[]> = {}; // movementId -> list
-  let dtDrafts: Record<string, DtDraft[]> = {};
-  let deletedSetIds: Set<string> = new Set();
-
   let movementEdits: Record<string, MovementEdit> = {};
 
   function goBack() {
@@ -184,11 +185,13 @@
 
       movementBases = (bases ?? []) as any[];
       equipments = (eqs ?? []) as any[];
+       console.log("movementBases:", movementBases)
 
       // default add-movement draft
       newMovementBaseId = movementBases[0]?.movementBaseID
         ? String(movementBases[0].movementBaseID)
         : "";
+        console.log("movementBases:", movementBases, "newMovementBaseId:", newMovementBaseId);
       newEquipmentId = equipments[0]?.equipmentID
         ? String(equipments[0].equipmentID)
         : "";
@@ -428,14 +431,20 @@
     try {
       const client = new CreateMovementEndpointClient();
 
+      console.log(
+        "Creating movement with base",
+        newMovementBaseId,
+        "and session",
+        sessionId);
+
       const req: CreateMovementRequest = {
-        trainingSessionID: (session as any).trainingSessionID ?? sessionId,
+        trainingSessionID: sessionId,
         movementData: {
           equipmentID: newEquipmentId,
           movementBaseID: newMovementBaseId,
           movementModifierID: newModifierId ? newModifierId : null,
         },
-        notes: newMovementNotes ?? "",
+        notes: (newMovementNotes ?? "").trim(),
       } as any;
 
       const created = await client.post(req as any);
@@ -459,50 +468,6 @@
     }
   }
 
-  function startEditEquipment(equipmentId: string) {
-    const eq = equipments.find(
-      (x: any) => String(x.equipmentID) === String(equipmentId),
-    );
-    if (!eq) return;
-
-    editingEquipmentId = String((eq as any).equipmentID);
-    equipDraftName = String((eq as any).name ?? "");
-    equipDraftEnabled = Boolean((eq as any).enabled ?? true);
-  }
-
-  async function saveEquipment() {
-    if (!editingEquipmentId) return;
-
-    loading = true;
-    errorMsg = "";
-
-    try {
-      const client = new UpdateEquipmentEndpointClient();
-      const req: UpdateEquipmentRequest = {
-        equipmentID: editingEquipmentId,
-        name: equipDraftName,
-        enabled: equipDraftEnabled,
-      } as any;
-
-      const updated = await client.post(req as any);
-
-      equipments = equipments.map((e: any) =>
-        String(e.equipmentID) === String(editingEquipmentId)
-          ? (updated as any)
-          : e,
-      );
-
-      editingEquipmentId = null;
-    } catch (e: any) {
-      errorMsg =
-        e?.body?.title ||
-        e?.body?.detail ||
-        e?.message ||
-        "Failed to update equipment.";
-    } finally {
-      loading = false;
-    }
-  }
 
   // ---- template-safe helpers (NO "as" in markup) ----
   function sessionStatusText(s: TrainingSessionDTO | null): string {

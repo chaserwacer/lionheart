@@ -145,7 +145,7 @@ public class MovementService : IMovementService
         _context.Movements.Add(movement);
         await _context.SaveChangesAsync();
 
-        return Result<MovementDTO>.Created(movement.Adapt<MovementDTO>());
+        return Result<MovementDTO>.Created(movement.ToDTO());
     }
 
     public async Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request)

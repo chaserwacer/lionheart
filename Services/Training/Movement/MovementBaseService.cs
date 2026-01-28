@@ -106,7 +106,8 @@ namespace lionheart.Services.Training
                 .OrderBy(mb => mb.Name)
                 .ToListAsync();
 
-            return Result<List<MovementBaseDTO>>.Success(movementBases.Adapt<List<MovementBaseDTO>>());
+            var dtos = movementBases.Select(mb => mb.ToDTO()).ToList();
+            return Result<List<MovementBaseDTO>>.Success(dtos);
         }
 
         public async Task<Result<List<MuscleGroup>>> GetAllMuscleGroupsAsync()
