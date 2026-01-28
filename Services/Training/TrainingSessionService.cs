@@ -103,7 +103,7 @@ public class TrainingSessionService : ITrainingSessionService
         {
             return Result<TrainingSessionDTO>.NotFound("Training session not found or access denied.");
         }
-        return Result<TrainingSessionDTO>.Success(session.Adapt<TrainingSessionDTO>());
+        return Result<TrainingSessionDTO>.Success(session.ToDTO());
     }
     [Tool(Name ="GetTrainingSessionsByDateRange", Description = "Get all training sessions within a specified date range.")]
     public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, DateRangeRequest dateRange)
@@ -119,7 +119,7 @@ public class TrainingSessionService : ITrainingSessionService
             .Include(s => s.Movements)
             .ToListAsync();
 
-        return Result<List<TrainingSessionDTO>>.Success(sessions.Adapt<List<TrainingSessionDTO>>());
+        return Result<List<TrainingSessionDTO>>.Success(sessions.Select(s => s.ToDTO()).ToList());
     }
 
 
@@ -153,7 +153,7 @@ public class TrainingSessionService : ITrainingSessionService
 
         _context.TrainingSessions.Add(session);
         await _context.SaveChangesAsync();
-        return Result<TrainingSessionDTO>.Created(session.Adapt<TrainingSessionDTO>());
+        return Result<TrainingSessionDTO>.Created(session.ToDTO());
     }
 
 
@@ -208,7 +208,7 @@ public class TrainingSessionService : ITrainingSessionService
             await _personalRecordService.ProcessTrainingSessionAsync(user, session.TrainingSessionID);
         }
 
-        return Result<TrainingSessionDTO>.Success(session.Adapt<TrainingSessionDTO>());
+        return Result<TrainingSessionDTO>.Success(session.ToDTO());
     }
 
 

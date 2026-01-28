@@ -16,6 +16,19 @@ namespace lionheart.Model.Training
         public required bool IsCompleted { get; set; } = false;
         public required List<TrainingSession> TrainingSessions { get; set; } = [];
         public required List<string> Tags { get; set; } = [];
+        public TrainingProgramDTO ToDTO()
+        {
+            return new TrainingProgramDTO
+            {
+                TrainingProgramID = TrainingProgramID,
+                Title = Title,
+                StartDate = StartDate,
+                EndDate = EndDate,
+                IsCompleted = IsCompleted,
+                TrainingSessions = TrainingSessions.Select(ts => ts.ToDTO()).ToList(),
+                Tags = Tags
+            };
+        }
     }
     public record TrainingProgramDTO
     {

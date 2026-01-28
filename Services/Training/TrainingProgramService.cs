@@ -73,7 +73,7 @@ namespace lionheart.Services
                 .OrderBy(p => p.StartDate)
                 .ToListAsync();
 
-            return Result<List<TrainingProgramDTO>>.Success(trainingPrograms.Adapt<List<TrainingProgramDTO>>());
+            return Result<List<TrainingProgramDTO>>.Success(trainingPrograms.Select(p => p.ToDTO()).ToList());
         }
         
         public async Task<Result<TrainingProgramDTO>> GetTrainingProgramAsync(IdentityUser user, Guid TrainingprogramId)
@@ -82,7 +82,6 @@ namespace lionheart.Services
             var trainingProgramDto = await _context.TrainingPrograms
                 .AsNoTracking()
                 .Where(p => p.TrainingProgramID == TrainingprogramId && p.UserID == userGuid)
-                .ProjectToType<TrainingProgramDTO>()
                 .FirstOrDefaultAsync();
 
             if (trainingProgramDto is null)
@@ -90,7 +89,7 @@ namespace lionheart.Services
                 return Result<TrainingProgramDTO>.NotFound("TrainingProgram not found.");
             }
 
-            return Result<TrainingProgramDTO>.Success(trainingProgramDto);
+            return Result<TrainingProgramDTO>.Success(trainingProgramDto.ToDTO());
         }
 
         public async Task<Result<TrainingProgramDTO>> CreateTrainingProgramAsync(IdentityUser user, CreateTrainingProgramRequest request)
@@ -113,7 +112,7 @@ namespace lionheart.Services
 
             _context.TrainingPrograms.Add(trainingProgram);
             await _context.SaveChangesAsync();
-            return Result<TrainingProgramDTO>.Created(trainingProgram.Adapt<TrainingProgramDTO>());
+            return Result<TrainingProgramDTO>.Created(trainingProgram.ToDTO());
         }
 
         public async Task<Result<TrainingProgramDTO>> UpdateTrainingProgramAsync(IdentityUser user, UpdateTrainingProgramRequest request)
@@ -134,7 +133,7 @@ namespace lionheart.Services
             trainingProgram.Tags = request.Tags;
 
             await _context.SaveChangesAsync();
-            return Result<TrainingProgramDTO>.Success(trainingProgram.Adapt<TrainingProgramDTO>());
+            return Result<TrainingProgramDTO>.Success(trainingProgram.ToDTO());
         }
 
         public async Task<Result> DeleteTrainingProgramAsync(IdentityUser user, Guid TrainingprogramId)
