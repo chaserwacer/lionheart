@@ -70,7 +70,7 @@ namespace lionheart.Services.Training
 
             _context.MovementBases.Add(movementBase);
             await _context.SaveChangesAsync();
-            return Result<MovementBaseDTO>.Created(movementBase.Adapt<MovementBaseDTO>());
+            return Result<MovementBaseDTO>.Created(movementBase.ToDTO());
         }
 
         public async Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)
@@ -156,7 +156,7 @@ namespace lionheart.Services.Training
             movementBase.MuscleGroups = muscleGroups;
 
             await _context.SaveChangesAsync();
-            return Result<MovementBaseDTO>.Success(movementBase.Adapt<MovementBaseDTO>());
+            return Result<MovementBaseDTO>.Success(movementBase.ToDTO());
         }
     }
 }

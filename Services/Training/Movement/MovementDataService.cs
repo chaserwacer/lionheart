@@ -38,7 +38,7 @@ public class MovementDataService : IMovementDataService
             return Result<MovementDataDTO>.NotFound("MovementData not found or access denied.");
         }
 
-        return Result<MovementDataDTO>.Success(movementData.Adapt<MovementDataDTO>());
+        return Result<MovementDataDTO>.Success(movementData.ToDTO());
     }
 
     public async Task<Result<List<MovementDataDTO>>> GetMovementDatasAsync(IdentityUser user)
@@ -53,7 +53,7 @@ public class MovementDataService : IMovementDataService
             .ThenBy(md => md.Equipment.Name)
             .ToListAsync();
 
-        return Result<List<MovementDataDTO>>.Success(movementDatas.Adapt<List<MovementDataDTO>>());
+        return Result<List<MovementDataDTO>>.Success(movementDatas.Select(md => md.ToDTO()).ToList());
     }
 
     public async Task<Result<MovementDataDTO>> CreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request)
@@ -120,7 +120,7 @@ public class MovementDataService : IMovementDataService
         _context.MovementDatas.Add(movementData);
         await _context.SaveChangesAsync();
 
-        return Result<MovementDataDTO>.Created(movementData.Adapt<MovementDataDTO>());
+        return Result<MovementDataDTO>.Created(movementData.ToDTO());
     }
 
     public async Task<Result<MovementDataDTO>> FindOrCreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request)
@@ -140,7 +140,7 @@ public class MovementDataService : IMovementDataService
 
         if (existing != null)
         {
-            return Result<MovementDataDTO>.Success(existing.Adapt<MovementDataDTO>());
+            return Result<MovementDataDTO>.Success(existing.ToDTO());
         }
 
         // Create new if not found
