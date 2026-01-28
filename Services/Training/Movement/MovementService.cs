@@ -72,7 +72,7 @@ public class MovementService : IMovementService
             .OrderBy(m => m.Ordering)
             .ToListAsync();
 
-        return Result<List<MovementDTO>>.Success([.. movements.Select(m => m.Adapt<MovementDTO>())]);
+        return Result<List<MovementDTO>>.Success([.. movements.Select(m => m.ToDTO())]);
     }
 
 
@@ -209,7 +209,8 @@ public class MovementService : IMovementService
         movement.IsCompleted = request.IsCompleted;
 
         await _context.SaveChangesAsync();
-        return Result<MovementDTO>.Success(movement.Adapt<MovementDTO>());
+        
+        return Result<MovementDTO>.Created(movement.ToDTO());
     }
 
     public async Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId)
