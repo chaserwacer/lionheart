@@ -1,11 +1,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { WeightUnit, type TrainingSessionDTO } from '$lib/api/ApiClient';
   import {
     session,
     isEditing,
     isLoading,
-    displayWeightUnit,
     enterEditMode,
     cancelEditMode,
     saveEdits,
@@ -26,10 +24,7 @@
   }
 
   async function handleSaveEdits() {
-    const success = await saveEdits(sessionId, programId || undefined);
-    if (success) {
-      location.reload();
-    }
+    await saveEdits(sessionId, programId || undefined);
   }
 
   function handleCancelEdit() {

@@ -103,32 +103,9 @@
   </div>
 </div>
 
-<!-- Floating Add Movement Button -->
-<button
-  on:click={handleOpenAddMovement}
-  class="fixed bottom-6 right-6 btn btn-primary btn-circle text-2xl shadow-lg z-50 hover:scale-110 transition-transform"
-  title="Add Movement"
->
-  +
-</button>
 
-<!-- Floating AI Modify Button -->
-<button
-  on:click={() => (showAiModal = true)}
-  class="fixed bottom-20 right-6 btn btn-secondary btn-circle text-sm font-bold shadow-lg z-50 hover:scale-110 transition-transform"
-  title="Modify with AI"
->
-  AI
-</button>
 
-<!-- AI Modification Modal -->
-{#if showAiModal && $session}
-  <ModifyTrainingSessionModal
-    show={showAiModal}
-    session={$session}
-    on:close={handleAiModalClose}
-  />
-{/if}
+
 
 <style>
   :global(.editing) :global(.wiggle) {
