@@ -1,4 +1,4 @@
-import { writable, derived, get } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import {
   GetTrainingSessionEndpointClient,
   UpdateTrainingSessionEndpointClient,
@@ -307,7 +307,6 @@ export async function addMovement(sessionId: string): Promise<void> {
 
     const created = await client.post(req as any);
     movements.update((movs) => [...movs, created as MovementDTO]);
-    pendingOrderIds.update(() => get(movements).map((m) => idOfMovement(m)));
 
     newMovementNotes.set('');
     newModifierText.set('');
@@ -365,7 +364,14 @@ export async function deleteMovement(movementId: string): Promise<void> {
     await client.delete(movementId as any);
 
     movements.update((movs) => movs.filter((m) => idOfMovement(m) !== movementId));
-    pendingOrderIds.set(get(movements).map((m) => idOfMovement(m)));
+
+    // If there was a pending reorder, remove the deleted movement from it
+    const currentPending = get(pendingOrderIds);
+    if (currentPending) {
+      const filtered = currentPending.filter((id) => id !== movementId);
+      // Only keep pending if there are still movements and order might differ
+      pendingOrderIds.set(filtered.length > 0 ? filtered : null);
+    }
   } catch (e: any) {
     errorMsg.set(
       e?.body?.title || e?.body?.detail || e?.message || 'Failed to delete movement.'
@@ -700,20 +706,7 @@ export async function updateDtSet(m: MovementDTO, s: any, patch: Partial<any>): 
       ...patch,
     } as any;
 
-    const updated = await client.put(req as any);
-
-    // movements.update((movs) => {
-    //   const copy = movs.slice();
-    //   const idx = copy.findIndex((x) => idOfMovement(x) === movementID);
-    //   if (idx >= 0) {
-    //     const mm: any = copy[idx];
-    //     mm.distanceTimeSets = (mm.distanceTimeSets ?? []).map((x: any) =>
-    //       setId(x) === setEntryID ? updated : x
-    //     );
-    //     copy[idx] = mm;
-    //   }
-    //   return copy;
-    // });
+    await client.put(req as any);
   } catch (e: any) {
     errorMsg.set(
       e?.body?.title || e?.body?.detail || e?.message || 'Failed to update distance/time set.'
