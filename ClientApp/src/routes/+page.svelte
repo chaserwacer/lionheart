@@ -186,12 +186,14 @@
       <!-- Oura Card -->
       <OuraCard dailyOuraData={$dailyOuraInfo} />
 
+      <!-- Last Session Card -->
+      <LastSessionCard session={$lastCompletedSession} />
+
       <!-- Next Session Card -->
 
       <NextSessionCard session={$nextSession} />
 
-      <!-- Last Session Card -->
-      <LastSessionCard session={$lastCompletedSession} />
+      
 
       <!-- Last Activity Card -->
       <LastActivityCard activities={$activities} />
