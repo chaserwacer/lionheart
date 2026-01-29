@@ -18,10 +18,12 @@ public interface IMovementDataService
 public class MovementDataService : IMovementDataService
 {
     private readonly ModelContext _context;
+    private readonly IMovementModifierService _movementModifierService;
 
-    public MovementDataService(ModelContext context)
+    public MovementDataService(ModelContext context, IMovementModifierService movementModifierService)
     {
         _context = context;
+        _movementModifierService = movementModifierService;
     }
 
     public async Task<Result<MovementDataDTO>> GetMovementDataAsync(IdentityUser user, Guid movementDataId)
@@ -60,6 +62,10 @@ public class MovementDataService : IMovementDataService
     {
         var userGuid = Guid.Parse(user.Id);
 
+        // Find or create the movement modifier by name
+        var modifierDto = await _movementModifierService.FindOrCreateMovementModifierAsync(user, request.MovementModifierName);
+        Guid? movementModifierId = modifierDto?.MovementModifierID;
+
         // Check if this combination already exists
         var existing = await _context.MovementDatas
             .Include(md => md.Equipment)
@@ -69,7 +75,7 @@ public class MovementDataService : IMovementDataService
                 md.UserID == userGuid &&
                 md.EquipmentID == request.EquipmentID &&
                 md.MovementBaseID == request.MovementBaseID &&
-                md.MovementModifierID == request.MovementModifierID);
+                md.MovementModifierID == movementModifierId);
 
         if (existing != null)
         {
@@ -92,16 +98,12 @@ public class MovementDataService : IMovementDataService
             return Result<MovementDataDTO>.NotFound("MovementBase not found or access denied.");
         }
 
-        // Verify movement modifier if provided
+        // Get the movement modifier entity if we have an ID
         MovementModifier? movementModifier = null;
-        if (request.MovementModifierID.HasValue)
+        if (movementModifierId.HasValue)
         {
             movementModifier = await _context.MovementModifiers
-                .FirstOrDefaultAsync(mm => mm.MovementModifierID == request.MovementModifierID.Value && mm.UserID == userGuid);
-            if (movementModifier == null)
-            {
-                return Result<MovementDataDTO>.NotFound("MovementModifier not found or access denied.");
-            }
+                .FirstOrDefaultAsync(mm => mm.MovementModifierID == movementModifierId.Value);
         }
 
         var movementData = new MovementData
@@ -127,6 +129,10 @@ public class MovementDataService : IMovementDataService
     {
         var userGuid = Guid.Parse(user.Id);
 
+        // Find or create the movement modifier by name
+        var modifierDto = await _movementModifierService.FindOrCreateMovementModifierAsync(user, request.MovementModifierName);
+        Guid? movementModifierId = modifierDto?.MovementModifierID;
+
         // Try to find existing
         var existing = await _context.MovementDatas
             .Include(md => md.Equipment)
@@ -136,7 +142,7 @@ public class MovementDataService : IMovementDataService
                 md.UserID == userGuid &&
                 md.EquipmentID == request.EquipmentID &&
                 md.MovementBaseID == request.MovementBaseID &&
-                md.MovementModifierID == request.MovementModifierID);
+                md.MovementModifierID == movementModifierId);
 
         if (existing != null)
         {

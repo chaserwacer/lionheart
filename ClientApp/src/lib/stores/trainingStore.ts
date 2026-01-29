@@ -1,7 +1,7 @@
 import { writable, derived } from 'svelte/store';
 import {
     GetTrainingProgramsEndpointClient,
-    GetTrainingSessionsEndpointClient,
+    GetTrainingSessionsByDateEndpointClient,
     GetEquipmentsEndpointClient,
     GetMovementBasesEndpointClient,
     CreateTrainingProgramEndpointClient,
@@ -17,12 +17,14 @@ import {
     UpdateEquipmentRequest,
     CreateMovementBaseRequest,
     UpdateMovementBaseRequest,
+    DateRangeRequest,
     type TrainingProgramDTO,
     type TrainingSessionDTO,
     type EquipmentDTO,
     type MovementBaseDTO,
     type MuscleGroup,
     TrainingSessionStatus,
+    MovementModifierDTO,
 } from '$lib/api/ApiClient';
 
 const baseUrl = '';
@@ -32,6 +34,7 @@ export const programs = writable<TrainingProgramDTO[]>([]);
 export const sessions = writable<TrainingSessionDTO[]>([]);
 export const equipments = writable<EquipmentDTO[]>([]);
 export const movementBases = writable<MovementBaseDTO[]>([]);
+export const movementModifiers = writable<MovementModifierDTO[]>([]);
 export const muscleGroups = writable<MuscleGroup[]>([]);
 export const isLoading = writable(false);
 export const trainingError = writable<string | null>(null);
@@ -41,17 +44,7 @@ export const activeProgram = derived(programs, ($programs) => {
     return $programs.find(p => !p.isCompleted) ?? null;
 });
 
-export const allSessions = derived(programs, ($programs) => {
-    const all: TrainingSessionDTO[] = [];
-    for (const program of $programs) {
-        if (program.trainingSessions) {
-            all.push(...program.trainingSessions);
-        }
-    }
-    return all.sort((a, b) =>
-        new Date(a.date ?? '').getTime() - new Date(b.date ?? '').getTime()
-    );
-});
+export const allSessions = writable<TrainingSessionDTO[]>([]);
 
 export const completedSessions = derived(allSessions, ($allSessions) => {
     return $allSessions.filter(s => s.status === TrainingSessionStatus._2);
@@ -128,8 +121,20 @@ export async function fetchAllTrainingData(): Promise<void> {
     await Promise.all([
         fetchPrograms(),
         fetchEquipments(),
-        fetchMovementBases()
+        fetchMovementBases(),
+        fetchMovementModifiers(),
+        fetchSessions()
     ]);
+}
+
+export async function fetchMovementModifiers(): Promise<void> {
+    try {
+        const client = new GetAllMuscleGroupsAsyncClient(baseUrl);
+        const data = await client.get();
+        movementModifiers.set(data);
+    } catch (error) {
+        console.error('Error fetching movement modifiers:', error);
+    }
 }
 
 export function getStatusText(status: TrainingSessionStatus | undefined): string {
@@ -156,7 +161,12 @@ export function getStatusColor(status: TrainingSessionStatus | undefined): strin
 
 export function formatSessionDate(date: Date | undefined): string {
     if (!date) return 'No date';
-    const d = new Date(date);
+    const d = new Date(date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC"
+        }));
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -289,3 +299,23 @@ export async function deleteMovementBase(movementBaseID: string): Promise<boolea
         return false;
     }
 }
+export async function fetchSessions(): Promise<void> {
+    try {
+        const client = new GetTrainingSessionsByDateEndpointClient(baseUrl);
+        const twoWeeksAgo = new Date();
+        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+        const today = new Date();
+
+        const request = new DateRangeRequest({
+            startDate: twoWeeksAgo,
+            endDate: today
+        });
+
+        const data = await client.post(request);
+        allSessions.set(data);
+    } catch (error) {
+        console.error('Error fetching sessions:', error);
+        trainingError.set('Failed to load training sessions');
+    }
+}
+

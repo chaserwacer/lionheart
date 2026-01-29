@@ -61,6 +61,7 @@ builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<IMovementDataService, MovementDataService>();
 builder.Services.AddTransient<IMovementBaseService, MovementBaseService>();
 builder.Services.AddTransient<IEquipmentService, EquipmentService>();
+builder.Services.AddTransient<IMovementModifierService, MovementModifierService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 builder.Services.AddTransient<ILiftSetEntryService, LiftSetEntryService>();
 builder.Services.AddTransient<IDTSetEntryService, DTSetEntryService>();

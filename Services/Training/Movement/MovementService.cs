@@ -27,29 +27,6 @@ public class MovementService : IMovementService
         _movementDataService = movementDataService;
     }
 
-    /// <summary>
-    /// Finds an existing MovementData that matches the given parameters, or creates a new one.
-    /// This ensures MovementData is reused for identical movement configurations.
-    /// </summary>
-    private async Task<MovementDataDTO> FindOrCreateMovementDataAsync(
-        IdentityUser user,
-        Guid equipmentId,
-        Guid movementBaseId,
-        Guid? movementModifierId,
-        Equipment equipment,
-        MovementBase movementBase,
-        MovementModifier? movementModifier)
-    {
-        return await _movementDataService.FindOrCreateMovementDataAsync(
-            user,
-            new CreateMovementDataRequest(
-                EquipmentID: equipmentId,
-                MovementBaseID: movementBaseId,
-                MovementModifierID: movementModifierId
-            )
-        );
-    }
-
     public async Task<Result<List<MovementDTO>>> GetMovementsAsync(IdentityUser user, Guid sessionId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -88,41 +65,13 @@ public class MovementService : IMovementService
             return Result<MovementDTO>.NotFound("Training session not found or access denied.");
         }
 
-        // Verify movement base exists
-        var movementBase = await _context.MovementBases.FindAsync(request.MovementData.MovementBaseID);
-
-        if (movementBase is null)
+        // Find or create MovementData (handles modifier creation behind the scenes)
+        var movementDataResult = await _movementDataService.FindOrCreateMovementDataAsync(user, request.MovementData);
+        if (!movementDataResult.IsSuccess)
         {
-            return Result<MovementDTO>.NotFound("Movement base not found.");
+            return Result<MovementDTO>.NotFound(movementDataResult.Errors.FirstOrDefault() ?? "Failed to create movement data.");
         }
-
-        var equipment = await _context.Equipments.FindAsync(request.MovementData.EquipmentID);
-        if (equipment == null)
-        {
-            return Result<MovementDTO>.NotFound("Equipment not found.");
-        }
-
-        // Verify movement modifier if provided
-        MovementModifier? movementModifier = null;
-        if (request.MovementData.MovementModifierID.HasValue)
-        {
-            movementModifier = await _context.MovementModifiers
-                .FirstOrDefaultAsync(mm => mm.MovementModifierID == request.MovementData.MovementModifierID.Value && mm.UserID == userGuid);
-            if (movementModifier == null)
-            {
-                return Result<MovementDTO>.NotFound("Movement modifier not found.");
-            }
-        }
-
-        // Find or create MovementData
-        var movementData = await FindOrCreateMovementDataAsync(
-            user,
-            equipment.EquipmentID,
-            movementBase.MovementBaseID,
-            movementModifier?.MovementModifierID,
-            equipment,
-            movementBase,
-            movementModifier);
+        var movementData = movementDataResult.Value;
 
         var orderings = await _context.Movements
             .Where(m => m.TrainingSessionID == request.TrainingSessionID)
@@ -166,50 +115,20 @@ public class MovementService : IMovementService
             return Result<MovementDTO>.Unauthorized();
         }
 
-        // Verify movement base exists if being updated
-        var movementBase = await _context.MovementBases.FindAsync(request.MovementData.MovementBaseID);
-
-        if (movementBase == null)
+        // Find or create MovementData (handles modifier creation behind the scenes)
+        var movementDataResult = await _movementDataService.FindOrCreateMovementDataAsync(user, request.MovementData);
+        if (!movementDataResult.IsSuccess)
         {
-            return Result<MovementDTO>.NotFound("Movement base not found.");
+            return Result<MovementDTO>.NotFound(movementDataResult.Errors.FirstOrDefault() ?? "Failed to create movement data.");
         }
-
-        var equipment = await _context.Equipments.FindAsync(request.MovementData.EquipmentID);
-        if (equipment == null)
-        {
-            return Result<MovementDTO>.NotFound("Equipment not found.");
-        }
-
-        // Verify movement modifier if provided
-        MovementModifier? movementModifier = null;
-        if (request.MovementData.MovementModifierID.HasValue)
-        {
-            movementModifier = await _context.MovementModifiers
-                .FirstOrDefaultAsync(mm => mm.MovementModifierID == request.MovementData.MovementModifierID.Value && mm.UserID == userGuid);
-            if (movementModifier == null)
-            {
-                return Result<MovementDTO>.NotFound("Movement modifier not found.");
-            }
-        }
-
-        // Find or create MovementData
-        var movementData = await FindOrCreateMovementDataAsync(
-            user,
-            equipment.EquipmentID,
-            movementBase.MovementBaseID,
-            movementModifier?.MovementModifierID,
-            equipment,
-            movementBase,
-            movementModifier);
+        var movementData = movementDataResult.Value;
 
         movement.Notes = request.Notes;
         movement.MovementDataID = movementData.MovementDataID;
-        // TODO: CHECK if we need to update navigation property too
-        // movement.MovementData = movementData;
         movement.IsCompleted = request.IsCompleted;
 
         await _context.SaveChangesAsync();
-        
+
         return Result<MovementDTO>.Created(movement.ToDTO());
     }
 
