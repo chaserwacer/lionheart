@@ -82,22 +82,27 @@
     return "Planned";
   }
 
-  function statusLabel(raw: any): string {
-    return statusKey(raw);
+function statusLabel(raw: any): string {
+  const k = statusKey(raw);
+  if (k === "InProgress") return "Active";
+  return k;
+}
+
+function statusPillClass(k: StatusKey): string {
+  switch (k) {
+    case "Planned":
+      return "badge-info";      // blue
+    case "InProgress":
+      return "badge-active";   // orange (Active)
+    case "Completed":
+      return "badge-success";   // green
+    case "Skipped":
+      return "badge-warning";   // yellow
+    default:
+      return "badge-ghost";
   }
-  function statusPillClass(k: StatusKey): string {
-    switch (k) {
-      case "Completed":
-        return "badge-success"; // green
-      case "Skipped":
-        return "badge-error"; // red
-      case "InProgress":
-        return "badge-info"; // blue (your “Active”)
-      case "Planned":
-      default:
-        return "badge-secondary"; // purple/gray-ish depending theme
-    }
-  }
+}
+
 
   // ---- dates / overdue ----
   function todayIso(): string {
@@ -601,19 +606,43 @@
       class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
     >
       <div>
-        <h1
-          class="text-5xl sm:text-6xl font-display font-black tracking-tightest text-base-content leading-none"
-        >
-          {program?.title ?? "Program"}
-        </h1>
-        <p
-          class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-3"
-        >
-          Program Overview
-        </p>
-        <div class="mt-3 text-sm text-base-content/60">
-          {formatProgramRange(program?.startDate, program?.endDate)}
-        </div>
+        {#if !isEditing}
+          <h1
+            class="text-5xl sm:text-6xl font-display font-black tracking-tightest text-base-content leading-none"
+          >
+            {program?.title ?? "Program"}
+          </h1>
+
+          <div class="mt-3 text-sm text-base-content/60">
+            {formatProgramRange(program?.startDate, program?.endDate)}
+          </div>
+        {:else}
+          <input
+            class="text-5xl sm:text-6xl font-display font-black tracking-tightest text-base-content leading-none bg-transparent outline-none border-b border-base-content/30 focus:border-base-content/70 w-full pb-2"
+            bind:value={draftTitle}
+            placeholder="Program name"
+          />
+
+          <div class="mt-3 flex items-center gap-3 mb-5">
+            <input
+              class="input input-sm input-bordered"
+              type="date"
+              bind:value={draftStartDate}
+            />
+            <span class="text-base-content/50">→</span>
+            <input
+              class="input input-sm input-bordered"
+              type="date"
+              bind:value={draftEndDate}
+            />
+          </div>
+
+          <div
+            class="mt-2 text-xs font-mono uppercase tracking-widest text-base-content/40 mb-5"
+          >
+            Editing header
+          </div>
+        {/if}
       </div>
       <div
         class="mt-5 p-4 rounded-2xl bg-base-200 border border-base-content/10"
@@ -706,36 +735,8 @@
       </div>
     {:else}
       <!-- Program Content -->
-
-      <div class="flex flex-wrap items-start justify-between gap-4 mt-8">
-        <!-- lock height so edit mode doesn't change card size -->
-        {#if isEditing}
-          <input
-            class="text-3xl font-display font-black leading-tight bg-transparent outline-none border-b border-base-content/30 focus:border-base-content/70 w-full pb-1"
-            bind:value={draftTitle}
-            placeholder="Program name"
-          />
-
-          <div
-            class="mt-3 text-sm text-base-content/60 flex items-center gap-3"
-          >
-            <input
-              class="input input-sm input-bordered"
-              type="date"
-              bind:value={draftStartDate}
-            />
-            <span>→</span>
-            <input
-              class="input input-sm input-bordered"
-              type="date"
-              bind:value={draftEndDate}
-            />
-          </div>
-        {/if}
-      </div>
-
       <h3
-        class="text-sm font-mono uppercase tracking-widest text-base-content/50 mb-3"
+        class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-5 mb-3"
       >
         Sessions ({sessions.length})
       </h3>
@@ -788,20 +789,18 @@
 
                             {#if isOverdue(s)}
                               <span
-                                class="badge badge-warning font-mono shrink-0"
+                                class="badge badge-error font-mono shrink-0"
                                 >Overdue</span
                               >
                             {/if}
                           </div>
                         </div>
                         <MovementsPill
-  sessionId={s.trainingSessionID}
-  getCount={movementCountForSessionId}
-  getLimited={movementNamesLimited}
-  maxShown={4}
-/>
-
-
+                          sessionId={s.trainingSessionID}
+                          getCount={movementCountForSessionId}
+                          getLimited={movementNamesLimited}
+                          maxShown={4}
+                        />
                       </div>
                     </button>
                   {:else}
@@ -976,4 +975,10 @@
     opacity: 0.85;
     filter: saturate(1.1);
   }
+
+  .badge-active {
+  background-color: #f97316; /* orange-500 */
+  color: white;
+}
+
 </style>
