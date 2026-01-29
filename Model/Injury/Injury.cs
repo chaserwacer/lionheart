@@ -27,7 +27,18 @@ namespace lionheart.Model.InjuryManagement
 
         public List<InjuryEvent> InjuryEvents { get; set; } = new();
 
-   
+        public InjuryDTO ToDTO()
+        {
+            return new InjuryDTO
+            {
+                InjuryID = InjuryID,
+                Name = Name,
+                Notes = Notes,
+                InjuryDate = InjuryDate,
+                IsActive = IsActive,
+                InjuryEvents = InjuryEvents.Select(e => e.ToDTO()).ToList()
+            };
+        }
     }
 
     /// <summary>
@@ -55,6 +66,20 @@ namespace lionheart.Model.InjuryManagement
         public InjuryEventType InjuryType { get; set; } = InjuryEventType.checkin;
 
         public DateTime CreationTime { get; set; } = DateTime.UtcNow;
+
+        public InjuryEventDTO ToDTO()
+        {
+            return new InjuryEventDTO
+            {
+                InjuryEventID = InjuryEventID,
+                TrainingSessionID = TrainingSessionID,
+                MovementIDs = MovementIDs,
+                Notes = Notes,
+                PainLevel = PainLevel,
+                InjuryType = InjuryType,
+                CreationTime = CreationTime
+            };
+        }
     }
 
 

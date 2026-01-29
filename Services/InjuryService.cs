@@ -3,7 +3,6 @@ using lionheart.Model.InjuryManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Data;
-using Mapster;
 using Model.Chat.Tools;
 
 
@@ -43,7 +42,7 @@ namespace lionheart.Services
             };
             _context.Injuries.Add(injury);
             await _context.SaveChangesAsync();
-            return Result<InjuryDTO>.Created(injury.Adapt<InjuryDTO>());
+            return Result<InjuryDTO>.Created(injury.ToDTO());
         }
         public async Task<Result<InjuryDTO>> UpdateInjuryAsync(IdentityUser user, UpdateInjuryRequest request)
         {
@@ -56,7 +55,7 @@ namespace lionheart.Services
             injury.Notes = request.Notes;
             injury.IsActive = request.IsActive;
             await _context.SaveChangesAsync();
-            return Result<InjuryDTO>.Success(injury.Adapt<InjuryDTO>());
+            return Result<InjuryDTO>.Success(injury.ToDTO());
         }
         public async Task<Result<InjuryDTO>> CreateInjuryEventAsync(
             IdentityUser user,
@@ -93,7 +92,7 @@ namespace lionheart.Services
             await _context.InjuryEvents.AddAsync(newEvent);
             await _context.SaveChangesAsync();
             var updatedInjury = await _context.Injuries.Include(i => i.InjuryEvents).FirstAsync(i => i.InjuryID == injury.InjuryID);
-            return Result<InjuryDTO>.Success(updatedInjury.Adapt<InjuryDTO>());
+            return Result<InjuryDTO>.Success(updatedInjury.ToDTO());
         }
         [Tool(Name = "GetAllUserInjuries", Description = "Get all injuries for user.")]
         public async Task<Result<List<InjuryDTO>>> GetUserInjuriesAsync(IdentityUser user)
@@ -105,7 +104,7 @@ namespace lionheart.Services
                 .ToListAsync();
             var ordered = injuries
                 .OrderByDescending(i => i.InjuryEvents.Count > 0 ? i.InjuryEvents.Max(ie => ie.CreationTime) : i.InjuryDate.ToDateTime(TimeOnly.MinValue))
-                .Select(i => i.Adapt<InjuryDTO>())
+                .Select(i => i.ToDTO())
                 .ToList();
             return Result<List<InjuryDTO>>.Success(ordered);
         }
@@ -139,7 +138,7 @@ namespace lionheart.Services
             var injuries = await query.ToListAsync();
             var ordered = injuries
                 .OrderByDescending(i => i.InjuryEvents.Count > 0 ? i.InjuryEvents.Max(ie => ie.CreationTime) : i.InjuryDate.ToDateTime(TimeOnly.MinValue))
-                .Select(i => i.Adapt<InjuryDTO>())
+                .Select(i => i.ToDTO())
                 .ToList();
             return Result<List<InjuryDTO>>.Success(ordered);
         }
@@ -202,7 +201,7 @@ namespace lionheart.Services
             var parent = await _context.Injuries
                 .Include(i => i.InjuryEvents)
                 .FirstAsync(i => i.InjuryID == injuryEvent.InjuryID);
-            return Result<InjuryDTO>.Success(parent.Adapt<InjuryDTO>());
+            return Result<InjuryDTO>.Success(parent.ToDTO());
         }
     }
 }

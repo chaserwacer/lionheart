@@ -3,7 +3,6 @@ using lionheart.ActivityTracking;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Ardalis.Result;
-using Mapster;
 using lionheart.Model.Request;
 using Model.Chat.Tools;
 
@@ -52,7 +51,7 @@ namespace lionheart.Services
             };
             await _context.Activities.AddAsync(activity);
             await _context.SaveChangesAsync();
-            return Result.Success(activity.Adapt<ActivityDTO>());
+            return Result.Success(activity.ToDTO());
         }
 
         public async Task<Result> DeleteActivityAsync(IdentityUser user, Guid activityID)
@@ -78,7 +77,7 @@ namespace lionheart.Services
                 .AsNoTracking()
                 .Where(a => a.UserID == userId && a.DateTime >= startDate && a.DateTime <= endDate)
                 .ToListAsync();
-            return Result.Success(activities.Adapt<List<ActivityDTO>>());
+            return Result.Success(activities.Select(a => a.ToDTO()).ToList());
         }
 
         public async Task<Result<ActivityDTO>> GetActivityAsync(IdentityUser user, Guid activityID)
@@ -90,7 +89,7 @@ namespace lionheart.Services
             {
                 return Result.NotFound("Activity with ID not found for the user.");
             }
-            return Result.Success(acitivtity.Adapt<ActivityDTO>());
+            return Result.Success(acitivtity.ToDTO());
         }
 
         public async Task<Result<ActivityDTO>> UpdateActivityAsync(IdentityUser user, UpdateActivityRequest activityRequest)
@@ -120,7 +119,7 @@ namespace lionheart.Services
             }
 
             await _context.SaveChangesAsync();
-            return Result.Success(activity.Adapt<ActivityDTO>());
+            return Result.Success(activity.ToDTO());
         }
     }
 

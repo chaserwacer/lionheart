@@ -2,7 +2,6 @@ using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.Training;
 using lionheart.Model.Training.SetEntry;
-using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Tools;
@@ -80,7 +79,7 @@ public class PersonalRecordService : IPersonalRecordService
             .OrderByDescending(pr => pr.CreatedAt)
             .ToListAsync();
 
-        return Result<List<PersonalRecordDTO>>.Success(records.Adapt<List<PersonalRecordDTO>>());
+        return Result<List<PersonalRecordDTO>>.Success(records.Select(r => r.ToDTO()).ToList());
     }
     [Tool(Name = "GetPRSummaryForMovementData", Description = "Get PR summary for a specific MovementData.")]
     public async Task<Result<MovementDataPRSummary>> GetPRSummaryForMovementDataAsync(IdentityUser user, Guid movementDataId)
@@ -118,9 +117,9 @@ public class PersonalRecordService : IPersonalRecordService
 
         return Result<MovementDataPRSummary>.Success(new MovementDataPRSummary(
             movementDataId,
-            movementData.Adapt<MovementDataDTO>(),
-            strengthPR?.Adapt<PersonalRecordDTO>(),
-            volumePR?.Adapt<PersonalRecordDTO>(),
+            movementData.ToDTO(),
+            strengthPR?.ToDTO(),
+            volumePR?.ToDTO(),
             lastPRDate
         ));
     }
@@ -277,10 +276,10 @@ public class PersonalRecordService : IPersonalRecordService
         return Result<PRAttemptResult>.Success(new PRAttemptResult(
             isNewStrengthPR,
             isNewVolumePR,
-            newStrengthPR?.Adapt<PersonalRecordDTO>(),
-            newVolumePR?.Adapt<PersonalRecordDTO>(),
-            currentStrengthPR?.Adapt<PersonalRecordDTO>(),
-            currentVolumePR?.Adapt<PersonalRecordDTO>()
+            newStrengthPR?.ToDTO(),
+            newVolumePR?.ToDTO(),
+            currentStrengthPR?.ToDTO(),
+            currentVolumePR?.ToDTO()
         ));
     }
 
@@ -349,7 +348,7 @@ public class PersonalRecordService : IPersonalRecordService
         {
             pr.PreviousPersonalRecord.IsActive = true;
             await _context.SaveChangesAsync();
-            return Result<PersonalRecordDTO?>.Success(pr.PreviousPersonalRecord.Adapt<PersonalRecordDTO>());
+            return Result<PersonalRecordDTO?>.Success(pr.PreviousPersonalRecord.ToDTO());
         }
 
         await _context.SaveChangesAsync();
@@ -371,7 +370,7 @@ public class PersonalRecordService : IPersonalRecordService
             .OrderByDescending(pr => pr.CreatedAt)
             .ToListAsync();
 
-        return Result<List<PersonalRecordDTO>>.Success(history.Adapt<List<PersonalRecordDTO>>());
+        return Result<List<PersonalRecordDTO>>.Success(history.Select(h => h.ToDTO()).ToList());
     }
 
     /// <summary>

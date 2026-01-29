@@ -1,7 +1,6 @@
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.Training.SetEntry;
-using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,7 +50,7 @@ namespace lionheart.Services
             _context.DTSetEntries.Add(setEntry);
             await _context.SaveChangesAsync();
 
-            return Result<DTSetEntryDTO>.Created(setEntry.Adapt<DTSetEntryDTO>());
+            return Result<DTSetEntryDTO>.Created(setEntry.ToDTO());
         }
 
         public async Task<Result<DTSetEntryDTO>> UpdateDTSetEntryAsync(IdentityUser user, UpdateDTSetEntryRequest request)
@@ -82,7 +81,7 @@ namespace lionheart.Services
 
             await _context.SaveChangesAsync();
 
-            return Result<DTSetEntryDTO>.Success(setEntry.Adapt<DTSetEntryDTO>());
+            return Result<DTSetEntryDTO>.Success(setEntry.ToDTO());
         }
 
         public async Task<Result> DeleteDTSetEntryAsync(IdentityUser user, Guid setEntryId)
