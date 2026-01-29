@@ -19,30 +19,58 @@
     EquipmentDTO,
     CreateMovementEndpointClient,
     CreateMovementRequest,
+
+    // sets
     CreateLiftSetEntryEndpointClient,
     CreateLiftSetEntryRequest,
     UpdateLiftSetEntryEndpointClient,
     UpdateLiftSetEntryRequest,
+    DeleteLiftSetEntryEndpointClient,
     CreateDTSetEntryEndpointClient,
     CreateDTSetEntryRequest,
     UpdateDTSetEntryEndpointClient,
     UpdateDTSetEntryRequest,
-    UpdateMovementEndpointClient,
-    UpdateMovementRequest,
+    DeleteDTSetEntryEndpointClient,
+
+    // enums
+    WeightUnit,
   } from "$lib/api/ApiClient";
 
+  let programId = "";
+  let sessionId = "";
+  $: ({ programId, sessionId } = $page.params as any);
 
-let programId = "";
-let sessionId = "";
+  // ---------- state ----------
+  let session: TrainingSessionDTO | null = null;
+  let loading = true;
+  let errorMsg = "";
 
-$: ({ programId, sessionId } = $page.params as any);
+  let movementBases: MovementBaseDTO[] = [];
+  let equipments: EquipmentDTO[] = [];
 
-$: console.log("params:", $page.params, "programId:", programId, "sessionId:", sessionId);
+  let isEditing = false;
 
+  // drafts (session)
+  let draftDate = ""; // YYYY-MM-DD
+  let draftStatus: TrainingSessionStatus = TrainingSessionStatus._0;
+  let draftNotes = "";
 
+  // movement list (canonical for reorder + UI)
+  let movements: MovementDTO[] = [];
+  let pendingOrderIds: string[] | null = null;
 
-  $: statusText = sessionStatusText(session);
-  $: notesText = sessionNotesText(session);
+  // drag swap
+  let dragFromId: string | null = null;
+  let dragOverId: string | null = null;
+
+  // add-movement draft
+  let newMovementBaseId = "";
+  let newEquipmentId = "";
+  let newMovementNotes = "";
+  let newModifierText = ""; // groundwork only (free text, not persisted yet)
+
+  // session-level weight display toggle (requested)
+  let displayWeightUnit: WeightUnit = WeightUnit._0; // assume _0 = KG, _1 = LB
 
   const SESSION_STATUSES = [
     TrainingSessionStatus._0,
@@ -51,80 +79,91 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
     TrainingSessionStatus._3,
     TrainingSessionStatus._4,
   ];
+  type DtFieldKey =
+    | "recommendedDistance"
+    | "actualDistance"
+    | "intervalDuration"
+    | "targetPace"
+    | "actualPace"
+    | "recommendedDuration"
+    | "actualDuration"
+    | "recommendedRest"
+    | "actualRest"
+    | "intervalType"
+    | "distanceUnit"
+    | "actualRPE";
 
-  let session: TrainingSessionDTO | null = null;
-  let loading = true;
-  let errorMsg = "";
-  let movementBases: MovementBaseDTO[] = [];
-  let equipments: EquipmentDTO[] = [];
-  let isEditing = false;
-  let newMovementBaseId = "";
-  let newEquipmentId = "";
-  let newModifierId = ""; // optional (only if you expose modifiers)
-  let newMovementNotes = "";
-  let editingEquipmentId: string | null = null;
-  let equipDraftName = "";
-  let equipDraftEnabled = true;
-
-  // drafts
-  let draftDate = ""; // YYYY-MM-DD
-  let draftStatus: TrainingSessionStatus = TrainingSessionStatus._0;
-  let draftNotes = "";
-
-  // movement reorder tracking
-  let movements: MovementDTO[] = []; // canonical list for UI + reorder
-  let pendingOrderIds: string[] | null = null;
-
-  // drag state (swap-on-drop like your program page)
-  let dragFromId: string | null = null;
-  let dragOverId: string | null = null;
-
-  type MovementEdit = {
-    movementBaseId: string;
-    equipmentId: string;
-    modifierId: string | null;
-    notes: string;
-    isCompleted: boolean;
-  };
-  type LiftDraft = {
-    setEntryID?: string; // undefined => new
-    recommendedReps?: number | null;
-    recommendedWeight?: number | null;
-    recommendedRPE?: number | null;
-    actualReps: number;
-    actualWeight: number;
-    actualRPE: number;
-    weightUnit: any; // your client enum
+  const DT_FIELD_LABELS: Record<DtFieldKey, string> = {
+    recommendedDistance: "Rec Dist",
+    actualDistance: "Act Dist",
+    intervalDuration: "Interval",
+    targetPace: "Target Pace",
+    actualPace: "Actual Pace",
+    recommendedDuration: "Rec Dur",
+    actualDuration: "Act Dur",
+    recommendedRest: "Rec Rest",
+    actualRest: "Act Rest",
+    intervalType: "Type",
+    distanceUnit: "Unit",
+    actualRPE: "RPE",
   };
 
-  type DtDraft = {
-    setEntryID?: string;
-    recommendedDistance?: number | null;
-    actualDistance: number;
-    intervalDuration: string; // "mm:ss" or "hh:mm:ss"
-    targetPace: string;
-    actualPace: string;
-    recommendedDuration: string;
-    actualDuration: string;
-    recommendedRest: string;
-    actualRest: string;
-    intervalType: any;
-    distanceUnit: any;
-    actualRPE: number;
-  };
+  let dtFieldVisibility: Record<string, Record<DtFieldKey, boolean>> = {};
+  let dtFieldPickerOpen: Record<string, boolean> = {};
+  type SetKind = "none" | "lift" | "dt";
 
-  let movementEdits: Record<string, MovementEdit> = {};
-
-  function goBack() {
-    goto("/training");
+  // ---------- helpers: ids / safe access ----------
+  function idOfMovement(m: MovementDTO): string {
+    return String((m as any)?.movementID ?? (m as any)?.movementId ?? "");
   }
 
+  function movementData(m: MovementDTO): any {
+    return (m as any)?.movementData ?? (m as any)?.movementDataDTO ?? null;
+  }
+
+  function movementBaseName(m: MovementDTO): string {
+    return String(movementData(m)?.movementBase?.name ?? "Movement");
+  }
+
+  function movementEquipmentName(m: MovementDTO): string {
+    return String(movementData(m)?.equipment?.name ?? "—");
+  }
+
+  function movementModifierName(m: MovementDTO): string {
+    return String(movementData(m)?.movementModifier?.name ?? "—");
+  }
+
+  function movementNotes(m: MovementDTO): string {
+    return String((m as any)?.notes ?? "");
+  }
+
+  function movementCompleted(m: MovementDTO): boolean {
+    return Boolean((m as any)?.isCompleted ?? false);
+  }
+
+  function liftSets(m: MovementDTO): any[] {
+    return ((m as any)?.liftSets ?? []) as any[];
+  }
+
+  function dtSets(m: MovementDTO): any[] {
+    return ((m as any)?.distanceTimeSets ?? (m as any)?.dtSets ?? []) as any[];
+  }
+
+  function movementSetCount(m: MovementDTO): number {
+    return liftSets(m).length + dtSets(m).length;
+  }
+
+  function setId(s: any): string {
+    return String(s?.setEntryID ?? s?.setEntryId ?? "");
+  }
+
+  // ---------- helpers: formatting ----------
   function toIsoDateOnly(raw: any): string {
     if (!raw) return "";
-
     if (typeof raw === "string") return raw.slice(0, 10);
     if (raw instanceof Date) return raw.toISOString().slice(0, 10);
 
+    // DateOnly commonly arrives shaped like { year, month, day }
     if (typeof raw === "object" && raw.year && raw.month && raw.day) {
       const y = String(raw.year).padStart(4, "0");
       const m = String(raw.month).padStart(2, "0");
@@ -135,16 +174,20 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
     return "";
   }
 
-  function formatSessionDate(raw: any): string {
-    const d =
-      raw instanceof Date ? raw : new Date(`${toIsoDateOnly(raw)}T12:00:00`);
+  function dateToUS(raw: any): string {
+    const iso = toIsoDateOnly(raw);
+    if (!iso) return "";
+    const d = new Date(`${iso}T12:00:00`);
     if (Number.isNaN(d.getTime())) return String(raw);
 
-    const weekday = d.toLocaleDateString(undefined, { weekday: "long" });
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    return `${weekday} ${day}/${month}`;
+    const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+    const md = d.toLocaleDateString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+    }); // MM/DD
+    return `${weekday} ${md}`;
   }
+
   function statusLabel(s: TrainingSessionStatus): string {
     switch (s) {
       case TrainingSessionStatus._0:
@@ -162,6 +205,61 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
     }
   }
 
+  function weightUnitLabel(u: WeightUnit): string {
+    // adjust if your enum maps differently
+    return u === WeightUnit._1 ? "lb" : "kg";
+  }
+
+  function lbToKg(lb: number): number {
+    return lb / 2.2046226218;
+  }
+  function kgToLb(kg: number): number {
+    return kg * 2.2046226218;
+  }
+
+  function displayWeight(
+    value: number | null | undefined,
+    fromUnit: WeightUnit,
+  ): string {
+    if (value === null || value === undefined) return "—";
+    const v = Number(value);
+    if (!Number.isFinite(v)) return "—";
+
+    if (fromUnit === displayWeightUnit) return String(roundTo(v, 2));
+    // convert
+    const converted = fromUnit === WeightUnit._1 ? lbToKg(v) : kgToLb(v);
+    return String(roundTo(converted, 2));
+  }
+
+  function roundTo(v: number, dp: number): number {
+    const p = Math.pow(10, dp);
+    return Math.round(v * p) / p;
+  }
+
+  function parseNumberOrZero(v: any): number {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // time helpers for DT sets (display + edit)
+  function pad2(n: number): string {
+    return String(n).padStart(2, "0");
+  }
+
+  function formatTimeSpan(ts: any): string {
+    // backend likely serializes TimeSpan as "hh:mm:ss" or "mm:ss"
+    if (ts === null || ts === undefined) return "—";
+    if (typeof ts === "string") return ts;
+    // sometimes comes as { ticks } etc — fallback
+    return String(ts);
+  }
+
+  // ---------- navigation ----------
+  function goBack() {
+    goto("/training");
+  }
+
+  // ---------- load ----------
   async function load() {
     loading = true;
     errorMsg = "";
@@ -176,25 +274,54 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
 
       const [s, bases, eqs] = await Promise.all([
         sessionClient.get(sessionId, programId),
-        basesClient.get(), // if yours needs params, adjust
-        equipClient.get(), // if yours needs params, adjust
+        basesClient.get(),
+        equipClient.get(),
       ]);
 
       session = s;
       movements = (session.movements ?? []) as any[];
+      for (const m of movements as any[]) {
+        const id = idOfMovement(m);
+        if (!id) continue;
+
+        // sane defaults: show only what most people actually type
+        dtFieldVisibility[id] ??= {
+          actualDistance: true,
+          intervalDuration: true,
+          actualPace: true,
+          actualDuration: true,
+          actualRest: true,
+          actualRPE: true,
+
+          // hidden by default
+          recommendedDistance: false,
+          targetPace: false,
+          recommendedDuration: false,
+          recommendedRest: false,
+          intervalType: false,
+          distanceUnit: false,
+        } as any;
+
+        dtFieldPickerOpen[id] ??= false;
+      }
 
       movementBases = (bases ?? []) as any[];
       equipments = (eqs ?? []) as any[];
-       console.log("movementBases:", movementBases)
 
       // default add-movement draft
       newMovementBaseId = movementBases[0]?.movementBaseID
         ? String(movementBases[0].movementBaseID)
         : "";
-        console.log("movementBases:", movementBases, "newMovementBaseId:", newMovementBaseId);
       newEquipmentId = equipments[0]?.equipmentID
         ? String(equipments[0].equipmentID)
         : "";
+      newMovementNotes = "";
+      newModifierText = "";
+
+      // seed session drafts (useful even in view mode)
+      draftDate = toIsoDateOnly((session as any).date);
+      draftStatus = (session as any).status ?? TrainingSessionStatus._0;
+      draftNotes = String((session as any).notes ?? "");
     } catch (e: any) {
       errorMsg =
         e?.body?.title ||
@@ -206,37 +333,50 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
     }
   }
 
+  // ---------- edit mode ----------
   function enterEdit() {
     if (!session) return;
-
     isEditing = true;
 
-    draftDate = toIsoDateOnly(session.date);
-    draftStatus = session?.status ?? TrainingSessionStatus._0;
-    draftNotes = (session as any).notes ?? "";
+    draftDate = toIsoDateOnly((session as any).date);
+    draftStatus = (session as any).status ?? TrainingSessionStatus._0;
+    draftNotes = String((session as any).notes ?? "");
 
     movements = (session.movements ?? []) as any[];
     pendingOrderIds = null;
-
-    movementEdits = {};
-    for (const mm of movements as any[]) {
-      const id = idOfMovement(mm);
-      if (!id) continue;
-
-      movementEdits[id] = {
-        movementBaseId: movementBaseId(mm),
-        equipmentId: movementEquipmentId(mm),
-        modifierId: movementModifierId(mm) || null,
-        notes: String((mm as any)?.notes ?? ""),
-        isCompleted: Boolean((mm as any)?.isCompleted ?? false),
-      };
-    }
   }
 
   function cancelEdit() {
-    // just reload to revert everything (matches your preference for predictability)
-    load();
+    load(); // revert everything
   }
+
+  async function addMovementQuick() {
+  if (!session) return;
+  if (!newMovementBaseId || !newEquipmentId) return;
+
+  loading = true;
+  errorMsg = "";
+  try {
+    const client = new CreateMovementEndpointClient();
+    const req: CreateMovementRequest = {
+      trainingSessionID: sessionId,
+      movementData: {
+        equipmentID: newEquipmentId,
+        movementBaseID: newMovementBaseId,
+        movementModifierID: null,
+      },
+      notes: "",
+    } as any;
+
+    const created = await client.post(req as any);
+    movements = [...movements, created as any];
+  } catch (e: any) {
+    errorMsg = e?.body?.detail || e?.message || "Failed to add movement.";
+  } finally {
+    loading = false;
+  }
+}
+
 
   async function saveEdits() {
     if (!session) return;
@@ -245,7 +385,7 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
     errorMsg = "";
 
     try {
-      // 1) update session basics
+      // update session basics
       const sessionClient = new UpdateTrainingSessionEndpointClient();
 
       const req: UpdateTrainingSessionRequest = {
@@ -259,7 +399,7 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
 
       session = await sessionClient.put(req);
 
-      // 2) persist movement order if changed
+      // persist movement order if changed
       if (pendingOrderIds && pendingOrderIds.length > 0) {
         const orderClient = new UpdateMovementOrderEndpointClient();
 
@@ -274,7 +414,6 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
         await orderClient.put(orderReq as any);
       }
 
-      // reset + hard refresh (your standard pattern)
       isEditing = false;
       pendingOrderIds = null;
       location.reload();
@@ -289,70 +428,29 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
     }
   }
 
-  function updateMovementBase(m: MovementDTO, baseId: string) {
-    const id = idOfMovement(m);
-    if (!id || !movementEdits[id]) return;
-    movementEdits[id].movementBaseId = baseId;
-  }
-
-  function updateMovementEquipment(m: MovementDTO, equipmentId: string) {
-    const id = idOfMovement(m);
-    if (!id || !movementEdits[id]) return;
-    movementEdits[id].equipmentId = equipmentId;
-  }
-
-  function updateMovementNotes(m: MovementDTO, notes: string) {
-    const id = idOfMovement(m);
-    if (!id || !movementEdits[id]) return;
-    movementEdits[id].notes = notes;
-  }
-
-  function updateMovementCompleted(m: MovementDTO, v: boolean) {
-    const id = idOfMovement(m);
-    if (!id || !movementEdits[id]) return;
-    movementEdits[id].isCompleted = v;
-  }
-
-  function draftFor(m: MovementDTO): MovementEdit | null {
-    const id = idOfMovement(m);
-    return id && movementEdits[id] ? movementEdits[id] : null;
-  }
-
-  async function deleteMovement(movementId?: string) {
-    if (!movementId) return;
-    if (!confirm("Remove this movement? This cannot be undone.")) return;
-
+  async function updateLiftSetActuals(
+    setEntryId: string,
+    patch: Partial<UpdateLiftSetEntryRequest>,
+  ) {
     loading = true;
     errorMsg = "";
-
     try {
-      const client = new DeleteMovementEndpointClient();
-      await client.delete(movementId as any);
-
-      // optimistic remove from UI in edit mode
-      movements = movements.filter(
-        (m: any) => (m.movementID ?? m.movementId) !== movementId,
-      );
-      pendingOrderIds = movements.map((m: any) =>
-        String(m.movementID ?? m.movementId),
-      );
+      const client = new UpdateLiftSetEntryEndpointClient();
+      const req: UpdateLiftSetEntryRequest = {
+        setEntryID: setEntryId,
+        ...patch,
+      } as any;
+      await client.put(req as any);
     } catch (e: any) {
-      errorMsg =
-        e?.body?.title ||
-        e?.body?.detail ||
-        e?.message ||
-        "Failed to delete movement.";
+      errorMsg = e?.body?.detail || e?.message || "Failed to update set.";
     } finally {
       loading = false;
     }
   }
 
-  function movementIdOf(m: any): string {
-    return String(m?.movementID ?? m?.movementId ?? "");
-  }
-
+  // ---------- movement reorder (swap on drop) ----------
   function onDragStartMovement(e: DragEvent, m: MovementDTO) {
-    const id = movementIdOf(m);
+    const id = idOfMovement(m);
     if (!id) return;
 
     dragFromId = id;
@@ -368,20 +466,20 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
 
   function onDragEnterMovement(e: DragEvent, m: MovementDTO) {
     e.preventDefault();
-    const id = movementIdOf(m);
+    const id = idOfMovement(m);
     if (!id || !dragFromId || id === dragFromId) return;
     dragOverId = id;
   }
 
   function onDragOverMovement(e: DragEvent, m: MovementDTO) {
     e.preventDefault();
-    const id = movementIdOf(m);
+    const id = idOfMovement(m);
     if (!id || !dragFromId || id === dragFromId) return;
     dragOverId = id;
   }
 
   function onDragLeaveMovement(_e: DragEvent, m: MovementDTO) {
-    const id = movementIdOf(m);
+    const id = idOfMovement(m);
     if (dragOverId === id) dragOverId = null;
   }
 
@@ -391,8 +489,8 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
   }
 
   function swapMovementsById(aId: string, bId: string) {
-    const aIndex = movements.findIndex((x: any) => movementIdOf(x) === aId);
-    const bIndex = movements.findIndex((x: any) => movementIdOf(x) === bId);
+    const aIndex = movements.findIndex((x: any) => idOfMovement(x) === aId);
+    const bIndex = movements.findIndex((x: any) => idOfMovement(x) === bId);
     if (aIndex < 0 || bIndex < 0) return;
 
     const copy = movements.slice();
@@ -401,21 +499,43 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
     copy[bIndex] = tmp;
 
     movements = copy;
-    pendingOrderIds = movements.map((m: any) => movementIdOf(m));
+    pendingOrderIds = movements.map((m: any) => idOfMovement(m));
   }
 
   function onDropOnMovement(e: DragEvent, m: MovementDTO) {
     e.preventDefault();
-
-    const toId = movementIdOf(m);
+    const toId = idOfMovement(m);
     const fromId = dragFromId;
-
     if (!fromId || !toId || fromId === toId) return;
 
     swapMovementsById(fromId, toId);
-
     dragFromId = null;
     dragOverId = null;
+  }
+
+  // ---------- movement CRUD ----------
+  async function deleteMovement(movementId?: string) {
+    if (!movementId) return;
+    if (!confirm("Remove this movement? This cannot be undone.")) return;
+
+    loading = true;
+    errorMsg = "";
+
+    try {
+      const client = new DeleteMovementEndpointClient();
+      await client.delete(movementId as any);
+
+      movements = movements.filter((m: any) => idOfMovement(m) !== movementId);
+      pendingOrderIds = movements.map((m: any) => idOfMovement(m));
+    } catch (e: any) {
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to delete movement.";
+    } finally {
+      loading = false;
+    }
   }
 
   async function addMovement() {
@@ -431,32 +551,26 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
     try {
       const client = new CreateMovementEndpointClient();
 
-      console.log(
-        "Creating movement with base",
-        newMovementBaseId,
-        "and session",
-        sessionId);
-
       const req: CreateMovementRequest = {
         trainingSessionID: sessionId,
         movementData: {
           equipmentID: newEquipmentId,
           movementBaseID: newMovementBaseId,
-          movementModifierID: newModifierId ? newModifierId : null,
+          movementModifierID: null, // endpoints not ready yet
         },
         notes: (newMovementNotes ?? "").trim(),
       } as any;
 
       const created = await client.post(req as any);
 
-      // push into UI list
+      // groundwork: free-text modifier isn't persisted yet.
+      // If you want it visible immediately, we can prefix notes locally (UI-only),
+      // but per your ask, I'm leaving it as "groundwork" only.
       movements = [...movements, created as any];
-
-      // update pending order to include new item at end
       pendingOrderIds = movements.map((m: any) => idOfMovement(m));
 
-      // reset notes (keep selections)
       newMovementNotes = "";
+      newModifierText = "";
     } catch (e: any) {
       errorMsg =
         e?.body?.title ||
@@ -468,54 +582,350 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
     }
   }
 
+  // ---------- set entry CRUD ----------
+  async function addLiftSet(m: MovementDTO) {
+    const movementID = idOfMovement(m);
+    if (!movementID) return;
 
-  // ---- template-safe helpers (NO "as" in markup) ----
-  function sessionStatusText(s: TrainingSessionDTO | null): string {
-    if (!s) return "";
-    // cast lives in script, not in template
-    return String((s as any).status ?? "");
+    loading = true;
+    errorMsg = "";
+
+    try {
+      const client = new CreateLiftSetEntryEndpointClient();
+
+      // recommended fields: null by default; actual editable
+      const req: CreateLiftSetEntryRequest = {
+        movementID,
+        recommendedReps: null,
+        recommendedWeight: null,
+        recommendedRPE: null,
+        actualReps: 0,
+        actualWeight: 0,
+        actualRPE: 0,
+        weightUnit: displayWeightUnit,
+      } as any;
+
+      const created = await client.post(req as any);
+
+      const copy = movements.slice();
+      const idx = copy.findIndex((x: any) => idOfMovement(x) === movementID);
+      if (idx >= 0) {
+        const mm: any = copy[idx];
+        mm.liftSets = [...(mm.liftSets ?? []), created];
+        copy[idx] = mm;
+        movements = copy;
+      }
+    } catch (e: any) {
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to add lift set.";
+    } finally {
+      loading = false;
+    }
   }
 
-  function sessionNotesText(s: TrainingSessionDTO | null): string {
+  async function updateLiftSet(m: MovementDTO, s: any, patch: Partial<any>) {
+    const movementID = idOfMovement(m);
+    const setEntryID = setId(s);
+    if (!movementID || !setEntryID) return;
+
+    loading = true;
+    errorMsg = "";
+
+    try {
+      const client = new UpdateLiftSetEntryEndpointClient();
+
+      const req: UpdateLiftSetEntryRequest = {
+        setEntryID,
+        movementID,
+        recommendedReps: s.recommendedReps ?? null,
+        recommendedWeight: s.recommendedWeight ?? null,
+        recommendedRPE: s.recommendedRPE ?? null,
+        actualReps: s.actualReps ?? 0,
+        actualWeight: s.actualWeight ?? 0,
+        actualRPE: s.actualRPE ?? 0,
+        weightUnit: s.weightUnit ?? displayWeightUnit,
+        ...patch,
+      } as any;
+
+      const updated = await client.put(req as any);
+
+      // update in-place
+      const copy = movements.slice();
+      const idx = copy.findIndex((x: any) => idOfMovement(x) === movementID);
+      if (idx >= 0) {
+        const mm: any = copy[idx];
+        mm.liftSets = (mm.liftSets ?? []).map((x: any) =>
+          setId(x) === setEntryID ? updated : x,
+        );
+        copy[idx] = mm;
+        movements = copy;
+      }
+    } catch (e: any) {
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to update lift set.";
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function deleteLiftSet(m: MovementDTO, s: any) {
+    const setEntryID = setId(s);
+    if (!setEntryID) return;
+    if (!confirm("Delete this set?")) return;
+
+    loading = true;
+    errorMsg = "";
+
+    try {
+      const client = new DeleteLiftSetEntryEndpointClient();
+      await client.delete(setEntryID as any);
+
+      const movementID = idOfMovement(m);
+      const copy = movements.slice();
+      const idx = copy.findIndex((x: any) => idOfMovement(x) === movementID);
+      if (idx >= 0) {
+        const mm: any = copy[idx];
+        mm.liftSets = (mm.liftSets ?? []).filter(
+          (x: any) => setId(x) !== setEntryID,
+        );
+        copy[idx] = mm;
+        movements = copy;
+      }
+    } catch (e: any) {
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to delete lift set.";
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function addDtSet(m: MovementDTO) {
+    const movementID = idOfMovement(m);
+    if (!movementID) return;
+
+    loading = true;
+    errorMsg = "";
+
+    try {
+      const client = new CreateDTSetEntryEndpointClient();
+
+      const req: CreateDTSetEntryRequest = {
+        movementID,
+        // you said "all fields" — start with reasonable defaults
+        recommendedDistance: 0,
+        actualDistance: 0,
+        intervalDuration: "00:00:00",
+        targetPace: "00:00:00",
+        actualPace: "00:00:00",
+        recommendedDuration: "00:00:00",
+        actualDuration: "00:00:00",
+        recommendedRest: "00:00:00",
+        actualRest: "00:00:00",
+        intervalType: saneIntervalTypeDefault() as any,
+        distanceUnit: saneDistanceUnitDefault() as any,
+        actualRPE: 0,
+      } as any;
+
+      const created = await client.post(req as any);
+
+      const copy = movements.slice();
+      const idx = copy.findIndex((x: any) => idOfMovement(x) === movementID);
+      if (idx >= 0) {
+        const mm: any = copy[idx];
+        mm.distanceTimeSets = [...(mm.distanceTimeSets ?? []), created];
+        copy[idx] = mm;
+        movements = copy;
+      }
+    } catch (e: any) {
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to add distance/time set.";
+    } finally {
+      loading = false;
+    }
+  }
+
+  // crude defaults; replace when you confirm your IntervalType/DistanceUnit enums if needed
+  function saneIntervalTypeDefault() {
+    return 0;
+  }
+  function saneDistanceUnitDefault() {
+    return 0;
+  }
+  function sessionStatusValue(
+    s: TrainingSessionDTO | null,
+  ): TrainingSessionStatus {
+    // Always returns a valid enum value (defaults to Planned)
+    if (!s) return TrainingSessionStatus._0;
+
+    const v: any = (s as any).status;
+
+    // if it already is a valid enum member, return it
+    if (v === TrainingSessionStatus._0) return TrainingSessionStatus._0;
+    if (v === TrainingSessionStatus._1) return TrainingSessionStatus._1;
+    if (v === TrainingSessionStatus._2) return TrainingSessionStatus._2;
+    if (v === TrainingSessionStatus._3) return TrainingSessionStatus._3;
+    if (v === TrainingSessionStatus._4) return TrainingSessionStatus._4;
+
+    // handle numeric/raw values (0-4)
+    const n = Number(v);
+    if (n === 0) return TrainingSessionStatus._0;
+    if (n === 1) return TrainingSessionStatus._1;
+    if (n === 2) return TrainingSessionStatus._2;
+    if (n === 3) return TrainingSessionStatus._3;
+    if (n === 4) return TrainingSessionStatus._4;
+
+    return TrainingSessionStatus._0;
+  }
+
+  function sessionStatusLabel(s: TrainingSessionDTO | null): string {
+    return statusLabel(sessionStatusValue(s));
+  }
+
+  async function updateDtSet(m: MovementDTO, s: any, patch: Partial<any>) {
+    const movementID = idOfMovement(m);
+    const setEntryID = setId(s);
+    if (!movementID || !setEntryID) return;
+
+    loading = true;
+    errorMsg = "";
+
+    try {
+      const client = new UpdateDTSetEntryEndpointClient();
+
+      const req: UpdateDTSetEntryRequest = {
+        setEntryID,
+        movementID,
+        recommendedDistance: s.recommendedDistance ?? 0,
+        actualDistance: s.actualDistance ?? 0,
+        intervalDuration: s.intervalDuration ?? "00:00:00",
+        targetPace: s.targetPace ?? "00:00:00",
+        actualPace: s.actualPace ?? "00:00:00",
+        recommendedDuration: s.recommendedDuration ?? "00:00:00",
+        actualDuration: s.actualDuration ?? "00:00:00",
+        recommendedRest: s.recommendedRest ?? "00:00:00",
+        actualRest: s.actualRest ?? "00:00:00",
+        intervalType: s.intervalType ?? saneIntervalTypeDefault(),
+        distanceUnit: s.distanceUnit ?? saneDistanceUnitDefault(),
+        actualRPE: s.actualRPE ?? 0,
+        ...patch,
+      } as any;
+
+      const updated = await client.put(req as any);
+
+      const copy = movements.slice();
+      const idx = copy.findIndex((x: any) => idOfMovement(x) === movementID);
+      if (idx >= 0) {
+        const mm: any = copy[idx];
+        mm.distanceTimeSets = (mm.distanceTimeSets ?? []).map((x: any) =>
+          setId(x) === setEntryID ? updated : x,
+        );
+        copy[idx] = mm;
+        movements = copy;
+      }
+    } catch (e: any) {
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to update distance/time set.";
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function deleteDtSet(m: MovementDTO, s: any) {
+    const setEntryID = setId(s);
+    if (!setEntryID) return;
+    if (!confirm("Delete this set?")) return;
+
+    loading = true;
+    errorMsg = "";
+
+    try {
+      const client = new DeleteDTSetEntryEndpointClient();
+      await client.delete(setEntryID as any);
+
+      const movementID = idOfMovement(m);
+      const copy = movements.slice();
+      const idx = copy.findIndex((x: any) => idOfMovement(x) === movementID);
+      if (idx >= 0) {
+        const mm: any = copy[idx];
+        mm.distanceTimeSets = (mm.distanceTimeSets ?? []).filter(
+          (x: any) => setId(x) !== setEntryID,
+        );
+        copy[idx] = mm;
+        movements = copy;
+      }
+    } catch (e: any) {
+      errorMsg =
+        e?.body?.title ||
+        e?.body?.detail ||
+        e?.message ||
+        "Failed to delete distance/time set.";
+    } finally {
+      loading = false;
+    }
+  }
+  function sessionDateValue(s: TrainingSessionDTO | null): any {
+    // returns whatever the client gave us (DateOnly-ish / string / Date)
+    return s ? (s as any).date : null;
+  }
+
+  function sessionDateUS(s: TrainingSessionDTO | null): string {
+    // uses your existing date formatter
+    return dateToUS(sessionDateValue(s));
+  }
+  function sessionNotesValue(s: TrainingSessionDTO | null): string {
     if (!s) return "";
     return String((s as any).notes ?? "");
   }
 
-  function movementName(m: MovementDTO): string {
-    return String((m as any)?.movementData?.movementBase?.name ?? "Movement");
+  function hasSessionNotes(s: TrainingSessionDTO | null): boolean {
+    return sessionNotesValue(s).trim().length > 0;
   }
 
-  function movementSetCount(m: MovementDTO): number {
-    const lift = (m as any)?.liftSets?.length ?? 0;
-    const dt = (m as any)?.distanceTimeSets?.length ?? 0;
-    return lift + dt;
+  function mbId(mb: any): string {
+    return String(mb?.movementBaseID ?? mb?.movementBaseId ?? "");
   }
-  function idOfMovement(m: MovementDTO): string {
-    return String((m as any)?.movementID ?? (m as any)?.movementId ?? "");
+  function mbName(mb: any): string {
+    return String(mb?.name ?? "");
   }
-
-  function movementData(m: MovementDTO): any {
-    return (m as any)?.movementData ?? (m as any)?.movementDataDTO ?? null;
+  function equipmentId(eq: any): string {
+    return String(eq?.equipmentID ?? eq?.equipmentId ?? "");
   }
 
-  function movementEquipmentId(m: MovementDTO): string {
-    return String(movementData(m)?.equipmentID ?? "");
+  function equipmentName(eq: any): string {
+    return String(eq?.name ?? "");
   }
 
-  function movementBaseId(m: MovementDTO): string {
-    return String(movementData(m)?.movementBaseID ?? "");
+  function equipmentLabel(eq: any): string {
+    if (!eq) return "";
+    const name = equipmentName(eq);
+    const enabled = Boolean(eq?.enabled ?? true);
+    return enabled ? name : `${name} (disabled)`;
   }
 
-  function movementModifierId(m: MovementDTO): string {
-    return String(movementData(m)?.movementModifierID ?? "");
-  }
-  function movementNotes(m: MovementDTO): string {
-    return String((m as any)?.notes ?? "");
-  }
-  function movementCompleted(m: MovementDTO): boolean {
-    return Boolean((m as any)?.isCompleted ?? false);
+  function setKindFor(m: MovementDTO): SetKind {
+    const lift = ((m as any)?.liftSets?.length ?? 0) > 0;
+    const dt = ((m as any)?.distanceTimeSets?.length ?? 0) > 0;
+    if (lift) return "lift";
+    if (dt) return "dt";
+    return "none";
   }
 
+  // ---------- mount ----------
   onMount(load);
 </script>
 
@@ -524,12 +934,12 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
 </svelte:head>
 
 <div class={`min-h-full bg-base-200 ${isEditing ? "editing" : ""}`}>
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
     <!-- Header -->
-    <header class="mb-8">
+    <header class="mb-10">
       <button
         on:click={goBack}
-        class="flex items-center gap-2 text-base-content/50 hover:text-base-content transition-colors mb-4"
+        class="flex items-center gap-2 text-base-content/60 hover:text-base-content transition-colors mb-6"
       >
         <span>&larr;</span>
         <span class="text-sm font-mono uppercase tracking-widest"
@@ -538,26 +948,60 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
       </button>
 
       <div
-        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4"
       >
         <div>
           <h1
-            class="text-5xl sm:text-6xl font-display font-black tracking-tightest text-base-content leading-none"
+            class="text-5xl sm:text-7xl font-display font-black tracking-tightest text-base-content leading-none"
           >
             SESSION
           </h1>
-          <p
-            class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-3"
-          >
-            {#if session}
-              {formatSessionDate(session.date)}
-            {:else}
+
+          {#if session}
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+              <span class="badge badge-lg badge-outline font-mono">
+                {sessionStatusLabel(session)}
+              </span>
+              <span
+                class="text-base sm:text-lg font-display font-bold text-base-content/80"
+              >
+                {sessionDateUS(session)}
+              </span>
+            </div>
+          {:else}
+            <p
+              class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-3"
+            >
               Session Details
-            {/if}
-          </p>
+            </p>
+          {/if}
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 justify-end">
+          <!-- weight unit toggle (requested) -->
+          <div class="join">
+            <button
+              class={"btn btn-sm join-item " +
+                (displayWeightUnit === WeightUnit._0
+                  ? "btn-primary"
+                  : "btn-outline")}
+              on:click={() => (displayWeightUnit = WeightUnit._0)}
+              type="button"
+            >
+              KG
+            </button>
+            <button
+              class={"btn btn-sm join-item " +
+                (displayWeightUnit === WeightUnit._1
+                  ? "btn-primary"
+                  : "btn-outline")}
+              on:click={() => (displayWeightUnit = WeightUnit._1)}
+              type="button"
+            >
+              LB
+            </button>
+          </div>
+
           {#if !isEditing}
             <button class="btn btn-primary px-5 rounded-xl" disabled={!session}>
               Start Session
@@ -589,10 +1033,9 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
       </div>
     </header>
 
-    <!-- Body -->
     {#if loading}
       <div
-        class="card bg-base-100 p-8 border border-base-content/10 rounded-2xl"
+        class="card bg-base-100 p-8 border border-base-content/10 rounded-2xl text-lg"
       >
         Loading session...
       </div>
@@ -604,247 +1047,666 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
       <div
         class="card bg-base-100 shadow-editorial border-2 border-base-content/10 p-8 rounded-2xl"
       >
-        <div class="flex items-start justify-between gap-4 mb-6">
-          <div class="min-h-[110px] w-full">
-            {#if !isEditing}
-              <h2 class="text-3xl font-display font-black">
-                {formatSessionDate(session.date)}
-              </h2>
-
-              <p class="text-sm text-base-content/60 mt-1">
-                Status: <span class="font-mono">{statusText}</span>
+        <!-- session notes always visible -->
+        <div class="mb-8">
+          {#if !isEditing}
+            {#if hasSessionNotes(session)}
+              <div
+                class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+              >
+                Notes
+              </div>
+              <p
+                class="text-base sm:text-lg text-base-content/80 whitespace-pre-wrap leading-relaxed"
+              >
+                {sessionNotesValue(session)}
               </p>
-
-              {#if notesText}
-                <p
-                  class="text-sm text-base-content/60 mt-3 whitespace-pre-wrap"
-                >
-                  {notesText}
-                </p>
-              {/if}
-            {:else}
-              <div class="flex flex-wrap items-center gap-3">
-                <input
-                  class="input input-sm input-bordered"
-                  type="date"
-                  bind:value={draftDate}
-                />
-                <select
-                  class="select select-sm select-bordered"
-                  bind:value={draftStatus}
-                >
-                  {#each SESSION_STATUSES as s}
-                    <option value={s}>{statusLabel(s)}</option>
-                  {/each}
-                </select>
-              </div>
-              <div class="mt-4">
-                <div
-                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
-                >
-                  Notes
-                </div>
-                <textarea
-                  class="textarea textarea-bordered w-full"
-                  rows="3"
-                  bind:value={draftNotes}
-                  placeholder="Add notes for this session..."
-                />
-              </div>
             {/if}
-          </div>
 
-          <div class="text-sm text-base-content/60">
-            Movements: {movements?.length ?? 0}
-          </div>
-        </div>
-        {#if isEditing}
-  <div class="mb-6 p-4 rounded-2xl bg-base-200 border border-base-content/10">
-    <div class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-3">
-      Add Movement
-    </div>
+          {:else}
+            <div class="flex flex-wrap items-center gap-3">
+              <input
+                class="input input-sm input-bordered"
+                type="date"
+                bind:value={draftDate}
+              />
+              <select
+                class="select select-sm select-bordered"
+                bind:value={draftStatus}
+              >
+                {#each SESSION_STATUSES as s}
+                  <option value={s}>{statusLabel(s)}</option>
+                {/each}
+              </select>
+            </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-      <div>
-        <div class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2">
-          Movement Base
+            <div class="mt-4">
+              <div
+                class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+              >
+                Notes
+              </div>
+              <textarea
+                class="textarea textarea-bordered w-full text-base"
+                rows="4"
+                bind:value={draftNotes}
+                placeholder="Add notes for this session..."
+              />
+            </div>
+          {/if}
         </div>
-        <select class="select select-bordered w-full" bind:value={newMovementBaseId}>
+
+        <!-- Movements -->
+        {#if (movements?.length ?? 0) === 0}
+          <div class="p-6 bg-base-200 rounded-xl">
+            <div class="font-display font-black text-xl mb-2">
+              No movements yet
+            </div>
+            <div class="text-base text-base-content/60">
+              This session is empty right now.
+            </div>
+          </div>
+        {:else}
+          <div class="space-y-3">
+            {#each movements as m (idOfMovement(m))}
+              <div
+                class={"p-5 rounded-2xl bg-base-200 border border-base-content/10 " +
+                  (isEditing ? "wiggle " : "") +
+                  (dragOverId === idOfMovement(m) ? "swap-hover " : "") +
+                  (dragFromId === idOfMovement(m) ? "swap-dragging " : "")}
+                draggable={isEditing}
+                on:dragstart={(e) => isEditing && onDragStartMovement(e, m)}
+                on:dragenter={(e) => isEditing && onDragEnterMovement(e, m)}
+                on:dragover={(e) => isEditing && onDragOverMovement(e, m)}
+                on:dragleave={(e) => isEditing && onDragLeaveMovement(e, m)}
+                on:drop={(e) => isEditing && onDropOnMovement(e, m)}
+                on:dragend={() => isEditing && onDragEndMovement()}
+              >
+                <div class="flex items-start justify-between gap-4">
+                  <div class="min-w-0">
+                    <div
+                      class="text-2xl sm:text-3xl font-display font-black leading-tight"
+                    >
+                      {movementBaseName(m)}
+                    </div>
+
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <span class="badge badge-outline font-mono">
+                        Equipment: {movementEquipmentName(m)}
+                      </span>
+                      <span class="badge badge-outline font-mono">
+                        Modifier: {movementModifierName(m)}
+                      </span>
+                      <span
+                        class={"badge font-mono " +
+                          (movementCompleted(m)
+                            ? "badge-success"
+                            : "badge-ghost")}
+                      >
+                        {movementCompleted(m) ? "Completed" : "Not completed"}
+                      </span>
+                      <span class="badge badge-ghost font-mono">
+                        Sets: {movementSetCount(m)}
+                      </span>
+                    </div>
+
+                    {#if movementNotes(m)}
+                      <div
+                        class="mt-3 text-base sm:text-lg text-base-content/80 whitespace-pre-wrap leading-relaxed"
+                      >
+                        {movementNotes(m)}
+                      </div>
+                    {/if}
+                  </div>
+
+                  {#if isEditing}
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline btn-error rounded-xl"
+                        on:click={() => deleteMovement(idOfMovement(m))}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  {/if}
+                </div>
+
+                <!-- SETS: always visible -->
+                <div class="mt-5 grid grid-cols-1 gap-4">
+                  <!-- Lift Sets -->
+                  <div
+                    class="p-4 rounded-xl bg-base-100 border border-base-content/10"
+                  >
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                      <div
+                        class="text-sm font-mono uppercase tracking-widest text-base-content/60"
+                      >
+                        Lift Sets
+                      </div>
+                      {#if isEditing}
+                        {#if setKindFor(m) === "none"}
+                          <button
+                            class="btn btn-xs btn-outline"
+                            on:click={() => addLiftSet(m)}>Add Lift Set</button
+                          >
+                          <button
+                            class="btn btn-xs btn-outline"
+                            on:click={() => addDtSet(m)}>Add DT Set</button
+                          >
+                        {:else if setKindFor(m) === "lift"}
+                          <button
+                            class="btn btn-xs btn-outline"
+                            on:click={() => addLiftSet(m)}>Add Lift Set</button
+                          >
+                        {:else}
+                          <button
+                            class="btn btn-xs btn-outline"
+                            on:click={() => addDtSet(m)}>Add DT Set</button
+                          >
+                        {/if}
+                      {/if}
+                    </div>
+
+                    {#if liftSets(m).length === 0}
+                      <div class="text-base text-base-content/60">
+                        No lift sets.
+                      </div>
+                    {:else}
+                      <div class="overflow-x-auto">
+                        <table class="table table-sm">
+                          <thead>
+                            <tr
+                              class="text-xs font-mono uppercase tracking-widest text-base-content/50"
+                            >
+                              <th>#</th>
+                              <th>Rec Reps</th>
+                              <th>Rec Wt</th>
+                              <th>Rec RPE</th>
+                              <th>Act Reps</th>
+                              <th
+                                >Act Wt ({weightUnitLabel(
+                                  displayWeightUnit,
+                                )})</th
+                              >
+                              <th>Act RPE</th>
+                              {#if isEditing}<th></th>{/if}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each liftSets(m) as s, i (setId(s))}
+                              <tr>
+                                <td class="font-mono">{i + 1}</td>
+                                <td>{s.recommendedReps ?? "—"}</td>
+                                <td>
+                                  {#if s.recommendedWeight == null}
+                                    —
+                                  {:else}
+                                    {displayWeight(
+                                      s.recommendedWeight,
+                                      s.weightUnit,
+                                    )}
+                                  {/if}
+                                </td>
+                                <td>{s.recommendedRPE ?? "—"}</td>
+
+                                {#if !isEditing}
+                                  <td>
+                                    <input
+                                      type="number"
+                                      class="input input-xs input-bordered w-16 font-semibold"
+                                      value={s.actualReps}
+                                      on:change={(e) =>
+                                        updateLiftSetActuals(s.setEntryID, {
+                                          actualReps: Number(
+                                            e.currentTarget.value,
+                                          ),
+                                        })}
+                                    />
+                                  </td>
+
+                                  <td>
+                                    <input
+                                      type="number"
+                                      class="input input-xs input-bordered w-20 font-semibold"
+                                      value={s.actualWeight}
+                                      on:change={(e) =>
+                                        updateLiftSetActuals(s.setEntryID, {
+                                          actualWeight: Number(
+                                            e.currentTarget.value,
+                                          ),
+                                        })}
+                                    />
+                                  </td>
+
+                                  <td>
+                                    <input
+                                      type="number"
+                                      step="0.5"
+                                      class="input input-xs input-bordered w-16 font-semibold"
+                                      value={s.actualRPE}
+                                      on:change={(e) =>
+                                        updateLiftSetActuals(s.setEntryID, {
+                                          actualRPE: Number(
+                                            e.currentTarget.value,
+                                          ),
+                                        })}
+                                    />
+                                  </td>
+                                {:else}
+                                  <td>
+                                    <input
+                                      class="input input-sm input-bordered w-20"
+                                      type="number"
+                                      value={s.actualReps}
+                                      on:change={(e) =>
+                                        updateLiftSet(m, s, {
+                                          actualReps: parseNumberOrZero(
+                                            e.currentTarget.value,
+                                          ),
+                                        })}
+                                    />
+                                  </td>
+                                  <td>
+                                    <input
+                                      class="input input-sm input-bordered w-28"
+                                      type="number"
+                                      value={s.actualWeight}
+                                      on:change={(e) =>
+                                        updateLiftSet(m, s, {
+                                          actualWeight: parseNumberOrZero(
+                                            e.currentTarget.value,
+                                          ),
+                                          weightUnit: displayWeightUnit,
+                                        })}
+                                    />
+                                  </td>
+                                  <td>
+                                    <input
+                                      class="input input-sm input-bordered w-24"
+                                      type="number"
+                                      step="0.5"
+                                      value={s.actualRPE}
+                                      on:change={(e) =>
+                                        updateLiftSet(m, s, {
+                                          actualRPE: parseNumberOrZero(
+                                            e.currentTarget.value,
+                                          ),
+                                        })}
+                                    />
+                                  </td>
+                                  <td class="text-right">
+                                    <button
+                                      class="btn btn-xs btn-outline btn-error"
+                                      type="button"
+                                      on:click={() => deleteLiftSet(m, s)}
+                                    >
+                                      Delete
+                                    </button>
+                                  </td>
+                                {/if}
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    {/if}
+                  </div>
+
+                  <!-- Distance/Time Sets -->
+                  <div
+                    class="p-4 rounded-xl bg-base-100 border border-base-content/10"
+                  >
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                      <div
+                        class="text-sm font-mono uppercase tracking-widest text-base-content/60"
+                      >
+                        Distance / Time Sets
+                      </div>
+                      {#if isEditing}
+                        <button
+                          class="btn btn-sm btn-primary rounded-xl"
+                          type="button"
+                          on:click={() => addDtSet(m)}
+                        >
+                          + Add DT Set
+                        </button>
+                      {/if}
+                    </div>
+                      
+                    {#if dtSets(m).length === 0}
+                      <div class="text-base text-base-content/60">
+                        No distance/time sets.
+                      </div>
+                    {:else}
+                      <div class="space-y-3">
+                        {#each dtSets(m) as s, i (setId(s))}
+                          <div
+                            class="p-3 rounded-xl bg-base-200 border border-base-content/10"
+                          >
+                            <div class="flex items-start justify-between gap-3">
+                              <div class="min-w-0">
+                                <div
+                                  class="font-mono text-xs uppercase tracking-widest text-base-content/50"
+                                >
+                                  DT Set {i + 1}
+                                </div>
+                              </div>
+                              {#if isEditing}
+                                <button
+                                  class="btn btn-xs btn-outline btn-error"
+                                  type="button"
+                                  on:click={() => deleteDtSet(m, s)}
+                                >
+                                  Delete
+                                </button>
+                              {/if}
+                            </div>
+
+                            <div
+                              class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3"
+                            >
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Recommended Distance
+                                </div>
+                                <div class="text-base font-semibold">
+                                  {s.recommendedDistance}
+                                </div>
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Actual Distance
+                                </div>
+                                {#if !isEditing}
+                                  <div class="text-base font-semibold">
+                                    {s.actualDistance}
+                                  </div>
+                                {:else}
+                                  <input
+                                    class="input input-sm input-bordered w-full"
+                                    type="number"
+                                    value={s.actualDistance}
+                                    on:change={(e) =>
+                                      updateDtSet(m, s, {
+                                        actualDistance: parseNumberOrZero(
+                                          e.currentTarget.value,
+                                        ),
+                                      })}
+                                  />
+                                {/if}
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Actual RPE
+                                </div>
+                                {#if !isEditing}
+                                  <div class="text-base font-semibold">
+                                    {s.actualRPE}
+                                  </div>
+                                {:else}
+                                  <input
+                                    class="input input-sm input-bordered w-full"
+                                    type="number"
+                                    step="0.5"
+                                    value={s.actualRPE}
+                                    on:change={(e) =>
+                                      updateDtSet(m, s, {
+                                        actualRPE: parseNumberOrZero(
+                                          e.currentTarget.value,
+                                        ),
+                                      })}
+                                  />
+                                {/if}
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Interval Duration
+                                </div>
+                                {#if !isEditing}
+                                  <div class="text-base font-semibold">
+                                    {formatTimeSpan(s.intervalDuration)}
+                                  </div>
+                                {:else}
+                                  <input
+                                    class="input input-sm input-bordered w-full"
+                                    value={formatTimeSpan(s.intervalDuration)}
+                                    placeholder="hh:mm:ss"
+                                    on:change={(e) =>
+                                      updateDtSet(m, s, {
+                                        intervalDuration: e.currentTarget.value,
+                                      })}
+                                  />
+                                {/if}
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Target Pace
+                                </div>
+                                {#if !isEditing}
+                                  <div class="text-base font-semibold">
+                                    {formatTimeSpan(s.targetPace)}
+                                  </div>
+                                {:else}
+                                  <input
+                                    class="input input-sm input-bordered w-full"
+                                    value={formatTimeSpan(s.targetPace)}
+                                    placeholder="hh:mm:ss"
+                                    on:change={(e) =>
+                                      updateDtSet(m, s, {
+                                        targetPace: e.currentTarget.value,
+                                      })}
+                                  />
+                                {/if}
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Actual Pace
+                                </div>
+                                {#if !isEditing}
+                                  <div class="text-base font-semibold">
+                                    {formatTimeSpan(s.actualPace)}
+                                  </div>
+                                {:else}
+                                  <input
+                                    class="input input-sm input-bordered w-full"
+                                    value={formatTimeSpan(s.actualPace)}
+                                    placeholder="hh:mm:ss"
+                                    on:change={(e) =>
+                                      updateDtSet(m, s, {
+                                        actualPace: e.currentTarget.value,
+                                      })}
+                                  />
+                                {/if}
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Recommended Duration
+                                </div>
+                                <div class="text-base font-semibold">
+                                  {formatTimeSpan(s.recommendedDuration)}
+                                </div>
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Actual Duration
+                                </div>
+                                {#if !isEditing}
+                                  <div class="text-base font-semibold">
+                                    {formatTimeSpan(s.actualDuration)}
+                                  </div>
+                                {:else}
+                                  <input
+                                    class="input input-sm input-bordered w-full"
+                                    value={formatTimeSpan(s.actualDuration)}
+                                    placeholder="hh:mm:ss"
+                                    on:change={(e) =>
+                                      updateDtSet(m, s, {
+                                        actualDuration: e.currentTarget.value,
+                                      })}
+                                  />
+                                {/if}
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Recommended Rest
+                                </div>
+                                <div class="text-base font-semibold">
+                                  {formatTimeSpan(s.recommendedRest)}
+                                </div>
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Actual Rest
+                                </div>
+                                {#if !isEditing}
+                                  <div class="text-base font-semibold">
+                                    {formatTimeSpan(s.actualRest)}
+                                  </div>
+                                {:else}
+                                  <input
+                                    class="input input-sm input-bordered w-full"
+                                    value={formatTimeSpan(s.actualRest)}
+                                    placeholder="hh:mm:ss"
+                                    on:change={(e) =>
+                                      updateDtSet(m, s, {
+                                        actualRest: e.currentTarget.value,
+                                      })}
+                                  />
+                                {/if}
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Interval Type
+                                </div>
+                                {#if !isEditing}
+                                  <div class="text-base font-semibold">
+                                    {s.intervalType}
+                                  </div>
+                                {:else}
+                                  <input
+                                    class="input input-sm input-bordered w-full"
+                                    value={String(s.intervalType)}
+                                    on:change={(e) =>
+                                      updateDtSet(m, s, {
+                                        intervalType: parseNumberOrZero(
+                                          e.currentTarget.value,
+                                        ),
+                                      })}
+                                  />
+                                {/if}
+                              </div>
+
+                              <div>
+                                <div
+                                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-1"
+                                >
+                                  Distance Unit
+                                </div>
+                                {#if !isEditing}
+                                  <div class="text-base font-semibold">
+                                    {s.distanceUnit}
+                                  </div>
+                                {:else}
+                                  <input
+                                    class="input input-sm input-bordered w-full"
+                                    value={String(s.distanceUnit)}
+                                    on:change={(e) =>
+                                      updateDtSet(m, s, {
+                                        distanceUnit: parseNumberOrZero(
+                                          e.currentTarget.value,
+                                        ),
+                                      })}
+                                  />
+                                {/if}
+                                {#if !isEditing}
+  <div class="mt-6 p-3 rounded-xl bg-base-200 border border-base-content/10">
+    <div class="flex flex-col md:flex-row gap-2 items-stretch md:items-end">
+      <div class="flex-1">
+        <div
+          class="text-[10px] font-mono uppercase tracking-widest text-base-content/50 mb-1"
+        >
+          Movement
+        </div>
+        <select
+          class="select select-sm select-bordered w-full"
+          bind:value={newMovementBaseId}
+        >
           {#each movementBases as mb}
-            <option value={String(mb.movementBaseID)}>{mb.name}</option>
-          {/each}
-        </select>
-      </div>
-
-      <div>
-        <div class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2">
-          Equipment
-        </div>
-        <select class="select select-bordered w-full" bind:value={newEquipmentId}>
-          {#each equipments as eq}
-            <option value={String(eq.equipmentID)}>
-              {eq.name}{eq.enabled ? "" : " (disabled)"}
+            <option value={idOfMovement(mb)}>
+              {movementBaseName(mb)}
             </option>
           {/each}
         </select>
       </div>
 
-      <div class="lg:col-span-2">
-        <div class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2">
-          Notes
+      <div class="flex-1">
+        <div
+          class="text-[10px] font-mono uppercase tracking-widest text-base-content/50 mb-1"
+        >
+          Equipment
         </div>
-        <input
-          class="input input-bordered w-full"
-          placeholder="e.g., Paused, beltless, tempo, etc."
-          bind:value={newMovementNotes}
-        />
+        <select
+          class="select select-sm select-bordered w-full"
+          bind:value={newEquipmentId}
+        >
+          {#each equipments as eq}
+            <option value={equipmentId(eq)}>
+              {equipmentLabel(eq)}
+            </option>
+          {/each}
+        </select>
       </div>
 
-      <div class="lg:col-span-2 flex justify-end">
-        <button
-          class="btn btn-primary rounded-xl px-5"
-          on:click={addMovement}
-          disabled={loading || !newMovementBaseId || !newEquipmentId}
-        >
-          Add Movement
-        </button>
-      </div>
+      <button
+        class="btn btn-sm btn-primary rounded-xl"
+        on:click={addMovementQuick}
+        disabled={loading}
+      >
+        Add
+      </button>
     </div>
   </div>
 {/if}
 
-        {#if (movements?.length ?? 0) === 0}
-          <div class="p-6 bg-base-200 rounded-xl">
-            <div class="font-bold mb-2">No movements yet</div>
-            <div class="text-sm text-base-content/60">
-              This session is empty right now. Add movements next.
-            </div>
-          </div>
-        {:else if !isEditing}
-          <div class="space-y-2">
-            {#each movements as m (movementIdOf(m))}
-              <div class="p-4 rounded-xl bg-base-200">
-                <div class="font-bold">
-                  {movementName(m)}
-                </div>
-
-                <div class="text-xs font-mono text-base-content/50">
-                  Sets: {movementSetCount(m)}
-                </div>
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <div
-            class="mb-6 p-4 rounded-2xl bg-base-200 border border-base-content/10"
-          >
-            <div
-              class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-3"
-            >
-              Add Movement
-            </div>
-
-          </div>
-          <!-- EDIT MODE: drag swap + delete -->
-          <div class="space-y-2">
-            {#each movements as m (movementIdOf(m))}
-              <div
-                class={"p-4 rounded-xl bg-base-200 border border-base-content/10 wiggle " +
-                  (dragOverId === movementIdOf(m) ? "swap-hover" : "") +
-                  (dragFromId === movementIdOf(m) ? "swap-dragging" : "")}
-                draggable="true"
-                on:dragstart={(e) => onDragStartMovement(e, m)}
-                on:dragenter={(e) => onDragEnterMovement(e, m)}
-                on:dragover={(e) => onDragOverMovement(e, m)}
-                on:dragleave={(e) => onDragLeaveMovement(e, m)}
-                on:drop={(e) => onDropOnMovement(e, m)}
-                on:dragend={onDragEndMovement}
-              >
-                <div class="flex items-start justify-between gap-4">
-                  <div>
-                    <div class="font-bold">
-                      {movementName(m)}
-                    </div>
-                    <div class="text-xs font-mono text-base-content/50 mt-1">
-                      Sets: {movementSetCount(m)}
-                    </div>
-                  </div>
-
-                  <div class="flex items-center gap-2">
-                    <button
-                      type="button"
-                      class="btn btn-xs btn-outline btn-error"
-                      on:click={() => deleteMovement(movementIdOf(m))}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  <div class="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    <div>
-                      <div
-                        class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
-                      >
-                        Movement
-                      </div>
-                      <select
-                        class="select select-bordered w-full"
-                        value={movementBaseId(m)}
-                        on:change={(e) =>
-                          updateMovementBase(m, e.currentTarget.value)}
-                      >
-                        {#each movementBases as mb}
-                          <option value={String(mb.movementBaseID)}
-                            >{mb.name}</option
-                          >
+                              </div>
+                            </div>
+                          </div>
                         {/each}
-                      </select>
-                    </div>
-
-                    <div>
-                      <div
-                        class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
-                      >
-                        Equipment
                       </div>
-                      <select
-                        class="select select-bordered w-full"
-                        value={movementEquipmentId(m)}
-                        on:change={(e) =>
-                          updateMovementEquipment(m, e.currentTarget.value)}
-                      >
-                        {#each equipments as eq}
-                          <option value={String(eq.equipmentID)}
-                            >{eq.name}{eq.enabled ? "" : " (disabled)"}</option
-                          >
-                        {/each}
-                      </select>
-                    </div>
-
-                    <div class="lg:col-span-2">
-                      <div
-                        class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
-                      >
-                        Notes
-                      </div>
-                      <textarea
-                        class="textarea textarea-bordered w-full"
-                        rows="2"
-                        value={movementNotes(m)}
-                        on:input={(e) =>
-                          updateMovementNotes(m, e.currentTarget.value)}
-                      />
-                    </div>
-
-                    <label class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        class="checkbox"
-                        checked={movementCompleted(m)}
-                        on:change={(e) =>
-                          updateMovementCompleted(m, e.currentTarget.checked)}
-                      />
-                      <span class="text-sm">Completed</span>
-                    </label>
+                    {/if}
                   </div>
                 </div>
               </div>
@@ -852,12 +1714,105 @@ $: console.log("params:", $page.params, "programId:", programId, "sessionId:", s
           </div>
 
           {#if pendingOrderIds}
-            <div class="mt-3 text-xs text-base-content/50">
+            <div class="mt-4 text-sm text-base-content/60">
               Order changed — will save when you hit <span class="font-bold"
                 >Done</span
               >.
             </div>
           {/if}
+        {/if}
+
+        <!-- Add Movement (edit only) -->
+        {#if isEditing}
+          <div
+            class="mb-8 p-5 rounded-2xl bg-base-200 border border-base-content/10"
+          >
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div
+                class="text-xs font-mono uppercase tracking-widest text-base-content/50"
+              >
+                Add Movement
+              </div>
+              <div class="text-xs text-base-content/50">
+                Movements: <span class="font-bold"
+                  >{movements?.length ?? 0}</span
+                >
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div>
+                <div
+                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+                >
+                  Movement Base
+                </div>
+                <select
+                  class="select select-bordered w-full"
+                  bind:value={newMovementBaseId}
+                >
+                  {#each movementBases as mb}
+                    <option value={mbId(mb)}>{mbName(mb)}</option>
+                  {/each}
+                </select>
+              </div>
+
+              <div>
+                <div
+                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+                >
+                  Equipment
+                </div>
+                <select
+                  class="select select-bordered w-full"
+                  bind:value={newEquipmentId}
+                >
+                  {#each equipments as eq}
+                    <option value={equipmentId(eq)}>
+                      {equipmentLabel(eq)}
+                    </option>
+                  {/each}
+                </select>
+              </div>
+
+              <!-- groundwork only -->
+              <div class="lg:col-span-2">
+                <div
+                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+                >
+                  Modifier (groundwork — not saved yet)
+                </div>
+                <input
+                  class="input input-bordered w-full"
+                  placeholder="e.g., Paused / Tempo / Beltless (future MovementModifier)"
+                  bind:value={newModifierText}
+                />
+              </div>
+
+              <div class="lg:col-span-2">
+                <div
+                  class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+                >
+                  Notes
+                </div>
+                <input
+                  class="input input-bordered w-full"
+                  placeholder="e.g., cues, constraints, intent"
+                  bind:value={newMovementNotes}
+                />
+              </div>
+
+              <div class="lg:col-span-2 flex justify-end">
+                <button
+                  class="btn btn-primary rounded-xl px-5"
+                  on:click={addMovement}
+                  disabled={loading || !newMovementBaseId || !newEquipmentId}
+                >
+                  Add Movement
+                </button>
+              </div>
+            </div>
+          </div>
         {/if}
       </div>
     {:else}

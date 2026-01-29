@@ -2,6 +2,7 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
+  import { onDestroy } from "svelte";
   import CreateTrainingSessionModal from "$lib/components/modals/CreateTrainingSessionModal.svelte";
   import {
     GetTrainingProgramEndpointClient,
@@ -15,6 +16,7 @@
     DeleteTrainingSessionEndpointClient,
     DuplicateTrainingSessionEndpointClient,
     DeleteTrainingProgramEndpointClient,
+    GetTrainingSessionEndpointClient,
   } from "$lib/api/ApiClient";
 
   let createSessionModal: any;
@@ -24,6 +26,7 @@
 
   // canonical list (used for API updates)
   let sessions: TrainingSessionDTO[] = [];
+  let sessionDetails: Record<string, TrainingSessionDTO> = {};
 
   let loading = true;
   let errorMsg = "";
@@ -38,6 +41,174 @@
 
   // sessionId -> newDate (YYYY-MM-DD)
   let pendingReorder: Record<string, string> = {};
+
+  // ---- status display / grouping ----
+  const STATUS_ORDER = [
+    "Planned",
+    "InProgress",
+    "Completed",
+    "Skipped",
+  ] as const;
+
+  type StatusKey = (typeof STATUS_ORDER)[number];
+
+  function statusKey(raw: any): StatusKey {
+    // If backend returns strings already, normalize them
+    if (typeof raw === "string") {
+      const s = raw.trim().toLowerCase();
+      if (s.includes("complete")) return "Completed";
+      if (s.includes("skip")) return "Skipped";
+      if (s.includes("progress")) return "InProgress";
+      return "Planned";
+    }
+
+    // If backend returns numeric enum (classic), map it.
+    // Adjust these mappings if your enum order differs.
+    if (typeof raw === "number") {
+      switch (raw) {
+        case 2:
+          return "Completed";
+        case 3:
+          return "Skipped";
+        case 1:
+          return "InProgress";
+        case 0:
+        default:
+          return "Planned";
+      }
+    }
+
+    return "Planned";
+  }
+
+  function statusLabel(raw: any): string {
+    return statusKey(raw);
+  }
+
+  function statusPillClass(k: StatusKey): string {
+    switch (k) {
+      case "Completed":
+        return "badge-success";
+      case "Skipped":
+        return "badge-error";
+      case "InProgress":
+        return "badge-warning";
+      case "Planned":
+      default:
+        return "badge-ghost";
+    }
+  }
+
+  // ---- dates / overdue ----
+  function todayIso(): string {
+    // local date "YYYY-MM-DD"
+    const d = new Date();
+    const y = String(d.getFullYear());
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function isOverdue(session: TrainingSessionDTO): boolean {
+    const k = statusKey((session as any).status);
+    if (k !== "Planned") return false;
+
+    const iso = toIsoDateOnly((session as any).date);
+    if (!iso) return false;
+
+    return iso < todayIso();
+  }
+
+  // ---- movement count ----
+  function movementCount(session: TrainingSessionDTO): number {
+    const anyS: any = session;
+
+    // Prefer explicit count if your API provides it
+    if (typeof anyS.movementCount === "number") return anyS.movementCount;
+    if (typeof anyS.movementsCount === "number") return anyS.movementsCount;
+
+    // Fall back to list length if included
+    if (Array.isArray(anyS.movements)) return anyS.movements.length;
+
+    // Some APIs name it "movementDTOs" etc.
+    if (Array.isArray(anyS.movementDTOs)) return anyS.movementDTOs.length;
+
+    return 0;
+  }
+  function getMovementBaseName(m: any): string {
+    // adjust to match your DTO shape; these cover the usual suspects
+    return (
+      m?.movementData?.movementBase?.name ??
+      m?.movementBase?.name ??
+      m?.movementBaseName ??
+      m?.name ??
+      "Movement"
+    );
+  }
+
+  function movementNamesForSessionId(sessionId: string): string[] {
+    const full = sessionDetails[sessionId];
+    const moves = (full as any)?.movements ?? [];
+    return moves.map(getMovementBaseName).filter(Boolean);
+  }
+
+  function movementCountForSessionId(sessionId: string): number {
+    const full = sessionDetails[sessionId];
+    return ((full as any)?.movements?.length ?? 0) as number;
+  }
+
+  async function fetchSessionDetails(ids: string[], concurrency = 6) {
+    const client = new GetTrainingSessionEndpointClient();
+
+    const queue = ids.slice();
+    const workers: Promise<void>[] = [];
+
+    async function worker() {
+      while (queue.length) {
+        const id = queue.shift();
+        if (!id) return;
+        try {
+          const full = await client.get(programId, id); // <-- adjust if your signature differs
+          sessionDetails[id] = full as any;
+        } catch {
+          // don’t hard-fail the page if one session fails to fetch
+        }
+      }
+    }
+
+    for (let i = 0; i < concurrency; i++) workers.push(worker());
+    await Promise.all(workers);
+  }
+
+  function groupSessionsByStatus(list: TrainingSessionDTO[]) {
+    const buckets: Record<StatusKey, TrainingSessionDTO[]> = {
+      Planned: [],
+      InProgress: [],
+      Completed: [],
+      Skipped: [],
+    };
+
+    for (const s of list) {
+      buckets[statusKey((s as any).status)].push(s);
+    }
+
+    // sort within each group by date ascending
+    for (const k of STATUS_ORDER) {
+      buckets[k] = buckets[k].slice().sort((a: any, b: any) => {
+        const ad = toIsoDateOnly(a.date);
+        const bd = toIsoDateOnly(b.date);
+        return ad.localeCompare(bd);
+      });
+    }
+
+    return STATUS_ORDER.map((k) => ({
+      key: k,
+      label: k,
+      sessions: buckets[k],
+    })).filter((g) => g.sessions.length > 0);
+  }
+
+  $: sessionGroups = groupSessionsByStatus(sessions);
 
   function goBack() {
     goto("/training");
@@ -115,9 +286,13 @@
 
       const sessionsClient = new GetTrainingSessionsEndpointClient();
       sessions = await sessionsClient.get(programId);
+      // Pull full details so movement counts + movement base names are accurate
+      const ids = sessions
+        .map((s: any) => s.trainingSessionID as string)
+        .filter(Boolean);
 
-      // default display: closest date at the top
-      sessions = sortSessionsByCloseness(sessions);
+      sessionDetails = {};
+      await fetchSessionDetails(ids, 6);
     } catch (e: any) {
       errorMsg = e?.message ?? "Failed to load program.";
     } finally {
@@ -517,7 +692,6 @@
         >
           Sessions ({sessions.length})
         </h3>
-
         {#if sessions.length === 0}
           <div class="p-6 bg-base-200 rounded-xl">
             <div class="font-bold mb-2">No sessions yet</div>
@@ -526,104 +700,201 @@
               one.
             </div>
           </div>
-        {:else if !isEditing}
-          <div class="space-y-2">
-            {#each sessions as s (s.trainingSessionID)}
-              <button
-                type="button"
-                class="w-full text-left flex items-center justify-between p-4 rounded-xl bg-base-200 hover:bg-base-300 transition-colors"
-                on:click={() => openSession(s.trainingSessionID)}
-              >
-                <div>
-                  <div class="font-bold">{formatSessionDate(s.date)}</div>
-                  <div class="text-xs font-mono text-base-content/50">
-                    {s.status}
-                  </div>
-                </div>
-
-                <div
-                  class="text-xs text-base-content/50 flex items-center gap-3"
-                >
-                  <span>Movements: {s.movements?.length ?? 0}</span>
-                  <span class="opacity-50">→</span>
-                </div>
-              </button>
-            {/each}
-          </div>
         {:else}
-          <!-- EDIT MODE: swap-on-drop drag system + notes -->
-          <div class="space-y-2">
-            {#each sessions as s (s.trainingSessionID)}
-              <div
-                class={"p-4 rounded-xl bg-base-200 border border-base-content/10 wiggle " +
-                  (dragOverId === s.trainingSessionID ? "swap-hover" : "") +
-                  (dragFromId === s.trainingSessionID ? "swap-dragging" : "")}
-                draggable="true"
-                on:dragstart={(e) => onDragStartSession(e, s)}
-                on:dragenter={(e) => onDragEnterSession(e, s)}
-                on:dragover={(e) => onDragOverSession(e, s)}
-                on:dragleave={(e) => onDragLeaveSession(e, s)}
-                on:drop={(e) => onDropOnSession(e, s)}
-                on:dragend={onDragEndSession}
-              >
-                <div class="relative">
-                  <div class="flex items-start justify-between gap-4 pt-5">
-                    <div>
-                      <div class="font-bold">{formatSessionDate(s.date)}</div>
-                      <div class="text-xs font-mono text-base-content/50 mt-1">
-                        {s.status}
-                      </div>
-                    </div>
-
-                    <div
-                      class="text-xs text-base-content/50 flex items-center gap-3"
-                    >
-                      <span>Movements: {s.movements?.length ?? 0}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                      <button
-                        type="button"
-                        class="btn btn-xs btn-outline"
-                        on:click={() => duplicateSession(s.trainingSessionID)}
-                      >
-                        Duplicate
-                      </button>
-
-                      <button
-                        type="button"
-                        class="btn btn-xs btn-outline btn-error"
-                        on:click={() => deleteSession(s.trainingSessionID)}
-                      >
-                        Delete
-                      </button>
-                    </div>
+          <div class="space-y-8">
+            {#each sessionGroups as g (g.key)}
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <div
+                    class="text-xs font-mono uppercase tracking-widest text-base-content/50"
+                  >
+                    {g.label} ({g.sessions.length})
                   </div>
                 </div>
 
-                <div class="mt-3">
-                  <div
-                    class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
-                  >
-                    Notes
-                  </div>
+                <div class="space-y-2">
+                  {#each g.sessions as s (s.trainingSessionID)}
+                    {#if !isEditing}
+                      <!-- VIEW CARD -->
+                      <button
+                        type="button"
+                        class="w-full text-left p-4 rounded-2xl bg-base-200 hover:bg-base-300 transition-colors border border-base-content/10"
+                        on:click={() => openSession(s.trainingSessionID)}
+                      >
+                        <div class="flex items-start justify-between gap-4">
+                          <div class="min-w-0">
+                            <div class="flex items-center gap-3">
+                              <div
+                                class="text-2xl font-display font-black leading-none"
+                              >
+                                {formatSessionDate(s.date)}
+                              </div>
 
-                  {#if s.trainingSessionID}
-                    <textarea
-                      class="textarea textarea-bordered w-full"
-                      rows="2"
-                      value={sessionEdits[s.trainingSessionID]?.notes ?? ""}
-                      on:input={(e) =>
-                        updateNotes(s.trainingSessionID, e.currentTarget.value)}
-                      placeholder="Add notes for this session..."
-                    />
-                  {:else}
-                    <textarea
-                      class="textarea textarea-bordered w-full"
-                      rows="2"
-                      disabled
-                    />
-                  {/if}
+                              <span
+                                class={"badge badge-outline font-mono " +
+                                  statusPillClass(statusKey(s.status))}
+                              >
+                                {statusLabel(s.status)}
+                              </span>
+
+                              {#if isOverdue(s)}
+                                <span class="badge badge-warning font-mono"
+                                  >Overdue</span
+                                >
+                              {/if}
+                            </div>
+
+                            <div class="mt-2 text-sm text-base-content/60">
+                              {toIsoDateOnly(s.date)}
+                            </div>
+                          </div>
+
+                          <div class="flex items-center gap-3">
+                            <div
+                              class="px-3 py-2 rounded-xl bg-base-100 border border-base-content/10"
+                            >
+                              <div
+                                class="text-[10px] font-mono uppercase tracking-widest text-base-content/50"
+                              >
+                                Movements
+                              </div>
+                              <div
+                                class="text-lg font-display font-black leading-none"
+                              >
+                                {movementCount(s)}
+                              </div>
+                              {#if (s.movements?.length ?? 0) > 0}
+                                <div class="mt-2 max-w-[420px] text-right">
+                                  <div class="flex flex-wrap justify-end gap-2">
+                                    {#each (s.movements ?? []).map((m) => m?.movementData?.movementBase?.name ?? "Movement") as n}
+                                      <span
+                                        class="badge badge-outline font-mono text-xs"
+                                      >
+                                        {n}
+                                      </span>
+                                    {/each}
+                                  </div>
+                                </div>
+                              {/if}
+                            </div>
+
+                            <span class="opacity-50 text-sm">→</span>
+                          </div>
+                        </div>
+                      </button>
+                    {:else}
+                      <!-- EDIT CARD -->
+                      <div
+                        class={"p-4 rounded-2xl bg-base-200 border border-base-content/10 wiggle " +
+                          (dragOverId === s.trainingSessionID
+                            ? "swap-hover"
+                            : "") +
+                          (dragFromId === s.trainingSessionID
+                            ? "swap-dragging"
+                            : "")}
+                        draggable="true"
+                        on:dragstart={(e) => onDragStartSession(e, s)}
+                        on:dragenter={(e) => onDragEnterSession(e, s)}
+                        on:dragover={(e) => onDragOverSession(e, s)}
+                        on:dragleave={(e) => onDragLeaveSession(e, s)}
+                        on:drop={(e) => onDropOnSession(e, s)}
+                        on:dragend={onDragEndSession}
+                      >
+                        <div class="flex items-start justify-between gap-4">
+                          <div>
+                            <div class="flex items-center gap-3">
+                              <div class="text-xl font-display font-black">
+                                {formatSessionDate(s.date)}
+                              </div>
+
+                              <span
+                                class={"badge badge-outline font-mono " +
+                                  statusPillClass(statusKey(s.status))}
+                              >
+                                {statusLabel(s.status)}
+                              </span>
+
+                              {#if isOverdue(s)}
+                                <span class="badge badge-warning font-mono"
+                                  >Overdue</span
+                                >
+                              {/if}
+                            </div>
+
+                            <div
+                              class="mt-1 text-xs font-mono text-base-content/50"
+                            >
+                              {toIsoDateOnly(s.date)}
+                            </div>
+                          </div>
+
+                          <div class="flex items-center gap-2">
+                            <div
+                              class="px-3 py-2 rounded-xl bg-base-100 border border-base-content/10"
+                            >
+                              <div
+                                class="text-[10px] font-mono uppercase tracking-widest text-base-content/50"
+                              >
+                                Movements
+                              </div>
+                              <div
+                                class="text-lg font-display font-black leading-none"
+                              >
+                                {movementCount(s)}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              class="btn btn-xs btn-outline"
+                              on:click={() =>
+                                duplicateSession(s.trainingSessionID)}
+                            >
+                              Duplicate
+                            </button>
+
+                            <button
+                              type="button"
+                              class="btn btn-xs btn-outline btn-error"
+                              on:click={() =>
+                                deleteSession(s.trainingSessionID)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+
+                        <div class="mt-3">
+                          <div
+                            class="text-xs font-mono uppercase tracking-widest text-base-content/50 mb-2"
+                          >
+                            Notes
+                          </div>
+
+                          {#if s.trainingSessionID}
+                            <textarea
+                              class="textarea textarea-bordered w-full"
+                              rows="2"
+                              value={sessionEdits[s.trainingSessionID]?.notes ??
+                                ""}
+                              on:input={(e) =>
+                                updateNotes(
+                                  s.trainingSessionID,
+                                  e.currentTarget.value,
+                                )}
+                              placeholder="Add notes for this session..."
+                            />
+                          {:else}
+                            <textarea
+                              class="textarea textarea-bordered w-full"
+                              rows="2"
+                              disabled
+                            />
+                          {/if}
+                        </div>
+                      </div>
+                    {/if}
+                  {/each}
                 </div>
               </div>
             {/each}
