@@ -305,6 +305,7 @@ export async function fetchSessions(): Promise<void> {
         const twoWeeksAgo = new Date();
         twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
         const today = new Date();
+        today.setDate(today.getDate() + 7);
 
         const request = new DateRangeRequest({
             startDate: twoWeeksAgo,
