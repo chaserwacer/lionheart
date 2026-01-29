@@ -290,7 +290,6 @@ export async function addMovement(sessionId: string): Promise<void> {
     return;
   }
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -312,8 +311,6 @@ export async function addMovement(sessionId: string): Promise<void> {
     newModifierText.set('');
   } catch (e: any) {
     errorMsg.set(e?.body?.title || e?.body?.detail || e?.message || 'Failed to add movement.');
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -327,7 +324,6 @@ export async function addMovementQuick(sessionId: string): Promise<void> {
 
   if (!baseId || !equipId) return;
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -348,15 +344,12 @@ export async function addMovementQuick(sessionId: string): Promise<void> {
     newMovementModifier.set('');
   } catch (e: any) {
     errorMsg.set(e?.body?.detail || e?.message || 'Failed to add movement.');
-  } finally {
-    isLoading.set(false);
   }
 }
 
 export async function deleteMovement(movementId: string): Promise<void> {
   if (!movementId) return;
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -376,8 +369,6 @@ export async function deleteMovement(movementId: string): Promise<void> {
     errorMsg.set(
       e?.body?.title || e?.body?.detail || e?.message || 'Failed to delete movement.'
     );
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -398,7 +389,6 @@ export async function updateMovement(
 
   const mData = (m as any)?.movementData ?? (m as any)?.movementDataDTO ?? {};
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -424,8 +414,6 @@ export async function updateMovement(
     );
   } catch (e: any) {
     errorMsg.set(e?.body?.title || e?.body?.detail || e?.message || 'Failed to update movement.');
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -439,7 +427,6 @@ export async function toggleMovementComplete(movementId: string): Promise<void> 
   const mData = (m as any)?.movementData ?? (m as any)?.movementDataDTO ?? {};
   const newCompleted = !((m as any).isCompleted ?? false);
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -462,8 +449,6 @@ export async function toggleMovementComplete(movementId: string): Promise<void> 
     );
   } catch (e: any) {
     errorMsg.set(e?.body?.title || e?.body?.detail || e?.message || 'Failed to toggle movement status.');
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -490,7 +475,6 @@ export async function addLiftSet(m: MovementDTO, hideRecommended: boolean = fals
   const movementID = idOfMovement(m);
   if (!movementID) return;
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -520,8 +504,6 @@ export async function addLiftSet(m: MovementDTO, hideRecommended: boolean = fals
     });
   } catch (e: any) {
     errorMsg.set(e?.body?.title || e?.body?.detail || e?.message || 'Failed to add lift set.');
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -534,7 +516,6 @@ export async function updateLiftSet(
   const setEntryID = setId(s);
   if (!movementID || !setEntryID) return;
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -568,8 +549,6 @@ export async function updateLiftSet(
     });
   } catch (e: any) {
     errorMsg.set(e?.body?.title || e?.body?.detail || e?.message || 'Failed to update lift set.');
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -577,7 +556,6 @@ export async function updateLiftSetActuals(
   setEntryId: string,
   patch: Partial<UpdateLiftSetEntryRequest>
 ): Promise<void> {
-  isLoading.set(true);
   errorMsg.set('');
   try {
     const client = new UpdateLiftSetEntryEndpointClient();
@@ -588,8 +566,6 @@ export async function updateLiftSetActuals(
     await client.put(req as any);
   } catch (e: any) {
     errorMsg.set(e?.body?.detail || e?.message || 'Failed to update set.');
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -597,7 +573,6 @@ export async function deleteLiftSet(m: MovementDTO, s: any): Promise<void> {
   const setEntryID = setId(s);
   if (!setEntryID) return;
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -617,8 +592,6 @@ export async function deleteLiftSet(m: MovementDTO, s: any): Promise<void> {
     });
   } catch (e: any) {
     errorMsg.set(e?.body?.title || e?.body?.detail || e?.message || 'Failed to delete lift set.');
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -636,7 +609,6 @@ export async function addDtSet(m: MovementDTO): Promise<void> {
   const movementID = idOfMovement(m);
   if (!movementID) return;
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -673,8 +645,6 @@ export async function addDtSet(m: MovementDTO): Promise<void> {
     errorMsg.set(
       e?.body?.title || e?.body?.detail || e?.message || 'Failed to add distance/time set.'
     );
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -683,7 +653,6 @@ export async function updateDtSet(m: MovementDTO, s: any, patch: Partial<any>): 
   const setEntryID = setId(s);
   if (!movementID || !setEntryID) return;
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -711,8 +680,6 @@ export async function updateDtSet(m: MovementDTO, s: any, patch: Partial<any>): 
     errorMsg.set(
       e?.body?.title || e?.body?.detail || e?.message || 'Failed to update distance/time set.'
     );
-  } finally {
-    isLoading.set(false);
   }
 }
 
@@ -720,7 +687,6 @@ export async function deleteDtSet(m: MovementDTO, s: any): Promise<void> {
   const setEntryID = setId(s);
   if (!setEntryID) return;
 
-  isLoading.set(true);
   errorMsg.set('');
 
   try {
@@ -744,8 +710,6 @@ export async function deleteDtSet(m: MovementDTO, s: any): Promise<void> {
     errorMsg.set(
       e?.body?.title || e?.body?.detail || e?.message || 'Failed to delete distance/time set.'
     );
-  } finally {
-    isLoading.set(false);
   }
 }
 
