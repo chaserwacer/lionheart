@@ -66,7 +66,6 @@ public class TrainingSessionService : ITrainingSessionService
         _personalRecordService = personalRecordService;
     }
 
-    [Tool(Name ="GetTrainingSessionsByProgram", Description = "Get all training sessions for a specific training program.")]
     public async Task<Result<List<TrainingSessionDTO>>> GetTrainingSessionsAsync(IdentityUser user, Guid programId)
     {
         var userGuid = Guid.Parse(user.Id);
