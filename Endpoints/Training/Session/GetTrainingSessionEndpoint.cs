@@ -21,7 +21,7 @@ namespace lionheart.Endpoints.TrainingSessionEndpoints
             _userManager = userManager;
         }
 
-        [HttpGet("api/training-session/get/{programId}/{sessionId}")]
+        [HttpGet("api/training-session/get/{sessionId}")]
         [EndpointDescription("Get a specific training session by ID.")]
         [ProducesResponseType<TrainingSessionDTO>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

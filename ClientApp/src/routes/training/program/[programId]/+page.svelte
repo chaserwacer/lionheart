@@ -151,7 +151,7 @@
         const id = queue.shift();
         if (!id) return;
         try {
-          const full = await client.get(id, programId); // <-- adjust if your signature differs
+          const full = await client.get(id); // <-- adjust if your signature differs
           sessionDetails = { ...sessionDetails, [id]: full as any };
         } catch {
           // don’t hard-fail the page if one session fails to fetch
@@ -836,6 +836,7 @@
                     </button>
                   {:else}
                     <!-- EDIT CARD -->
+                    <!-- svelte-ignore a11y-no-static-element-interactions -->
                     <div
                       class={"p-4 rounded-2xl bg-base-200 border border-base-content/10 wiggle " +
                         (dragOverId === s.trainingSessionID

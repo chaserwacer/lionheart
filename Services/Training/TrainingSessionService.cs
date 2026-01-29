@@ -117,6 +117,18 @@ public class TrainingSessionService : ITrainingSessionService
             .OrderBy(ts => ts.Date)
             .ThenBy(ts => ts.CreationTime)
             .Include(s => s.Movements)
+                .ThenInclude(m=> m.LiftSets)
+            .Include(s => s.Movements)
+                .ThenInclude(m => m.DistanceTimeSets)
+            .Include(s => s.Movements)
+                .ThenInclude(m => m.MovementData)
+                .ThenInclude(md => md.Equipment)
+            .Include(s => s.Movements)
+                .ThenInclude(m => m.MovementData)
+                .ThenInclude(md => md.MovementBase)
+            .Include(s => s.Movements)
+                .ThenInclude(m => m.MovementData)
+                .ThenInclude(md => md.MovementModifier)
             .ToListAsync();
 
         return Result<List<TrainingSessionDTO>>.Success(sessions.Select(s => s.ToDTO()).ToList());

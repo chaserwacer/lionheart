@@ -140,13 +140,13 @@
 
                 <div class="flex items-center gap-2">
                     <button
-                        class="btn btn-primary px-5 rounded-xl"
+                        class="btn  px-5 rounded-xl"
                         on:click={openSessionModal}
                     >
                         New Session
                     </button>
                     <button
-                        class="btn btn-outline px-5 rounded-xl"
+                        class="btn  px-5 rounded-xl"
                         on:click={openProgramModal}
                     >
                         New Program
@@ -323,12 +323,9 @@
                 >
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-base-200 flex items-center justify-center">
-                                <span class="text-2xl font-display font-black text-base-content/50">#</span>
-                            </div>
+                            
                             <div>
-                                <h3 class="text-lg font-bold">Equipment Manager</h3>
-                                <p class="text-sm text-base-content/50">Manage movement bases and equipment</p>
+                                <h3 class="text-lg font-bold">Equipment // Movement Base Library</h3>
                             </div>
                         </div>
                         <span class="text-base-content/30 text-xl">&rarr;</span>

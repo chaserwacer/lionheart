@@ -45,8 +45,8 @@ namespace lionheart.Model.Training
                 TrainingSessionID: TrainingSessionID,
                 MovementDataID: MovementDataID,
                 MovementData: MovementData.ToDTO(),
-                LiftSets: LiftSets.Select(s => s.ToDTO()).ToList(),
-                DistanceTimeSets: DistanceTimeSets.Select(s => s.ToDTO()).ToList(),
+                LiftSets: LiftSets?.Select(s => s.ToDTO()).ToList(),
+                DistanceTimeSets: DistanceTimeSets?.Select(s => s.ToDTO()).ToList(),
                 Notes: Notes,
                 IsCompleted: IsCompleted,
                 Ordering: Ordering
@@ -73,8 +73,8 @@ namespace lionheart.Model.Training
         Guid TrainingSessionID,
         Guid MovementDataID,
         MovementDataDTO MovementData,
-        List<LiftSetEntryDTO> LiftSets,
-        List<DTSetEntryDTO> DistanceTimeSets,
+        List<LiftSetEntryDTO>? LiftSets,
+        List<DTSetEntryDTO>? DistanceTimeSets,
         string Notes,
         bool IsCompleted,
         int Ordering

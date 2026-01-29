@@ -2485,6 +2485,68 @@ export class GetMovementDatasEndpointClient {
     }
 }
 
+export class GetMovementModifiersEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(): Promise<MovementModifierDTO[]> {
+        let url_ = this.baseUrl + "/api/movement-modifier/get-all";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<MovementModifierDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(MovementModifierDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<MovementModifierDTO[]>(null as any);
+    }
+}
+
 export class GetMovementsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2956,14 +3018,11 @@ export class GetTrainingSessionEndpointClient {
     /**
      * @return OK
      */
-    get(sessionId: string, programId: string): Promise<TrainingSessionDTO> {
-        let url_ = this.baseUrl + "/api/training-session/get/{programId}/{sessionId}";
+    get(sessionId: string): Promise<TrainingSessionDTO> {
+        let url_ = this.baseUrl + "/api/training-session/get/{sessionId}";
         if (sessionId === undefined || sessionId === null)
             throw new Error("The parameter 'sessionId' must be defined.");
         url_ = url_.replace("{sessionId}", encodeURIComponent("" + sessionId));
-        if (programId === undefined || programId === null)
-            throw new Error("The parameter 'programId' must be defined.");
-        url_ = url_.replace("{programId}", encodeURIComponent("" + programId));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -5758,7 +5817,7 @@ export interface ICreateMovementBaseRequest {
 export class CreateMovementDataRequest implements ICreateMovementDataRequest {
     equipmentID?: string;
     movementBaseID?: string;
-    movementModifierID?: string | undefined;
+    movementModifierName?: string | undefined;
 
     constructor(data?: ICreateMovementDataRequest) {
         if (data) {
@@ -5773,7 +5832,7 @@ export class CreateMovementDataRequest implements ICreateMovementDataRequest {
         if (_data) {
             this.equipmentID = _data["equipmentID"];
             this.movementBaseID = _data["movementBaseID"];
-            this.movementModifierID = _data["movementModifierID"];
+            this.movementModifierName = _data["movementModifierName"];
         }
     }
 
@@ -5788,7 +5847,7 @@ export class CreateMovementDataRequest implements ICreateMovementDataRequest {
         data = typeof data === 'object' ? data : {};
         data["equipmentID"] = this.equipmentID;
         data["movementBaseID"] = this.movementBaseID;
-        data["movementModifierID"] = this.movementModifierID;
+        data["movementModifierName"] = this.movementModifierName;
         return data;
     }
 }
@@ -5796,7 +5855,7 @@ export class CreateMovementDataRequest implements ICreateMovementDataRequest {
 export interface ICreateMovementDataRequest {
     equipmentID?: string;
     movementBaseID?: string;
-    movementModifierID?: string | undefined;
+    movementModifierName?: string | undefined;
 }
 
 export class CreateMovementRequest implements ICreateMovementRequest {

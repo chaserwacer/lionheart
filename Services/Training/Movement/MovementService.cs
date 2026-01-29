@@ -94,7 +94,16 @@ public class MovementService : IMovementService
         _context.Movements.Add(movement);
         await _context.SaveChangesAsync();
 
-        return Result<MovementDTO>.Created(movement.ToDTO());
+        // Reload the movement with all navigation properties
+        var createdMovement = await _context.Movements
+            .Include(m => m.LiftSets)
+            .Include(m => m.DistanceTimeSets)
+            .Include(m => m.MovementData).ThenInclude(md => md.Equipment)
+            .Include(m => m.MovementData).ThenInclude(md => md.MovementBase)
+            .Include(m => m.MovementData).ThenInclude(md => md.MovementModifier)
+            .FirstAsync(m => m.MovementID == movement.MovementID);
+
+        return Result<MovementDTO>.Created(createdMovement.ToDTO());
     }
 
     public async Task<Result<MovementDTO>> UpdateMovementAsync(IdentityUser user, UpdateMovementRequest request)
@@ -103,6 +112,12 @@ public class MovementService : IMovementService
         var movement = await _context.Movements
             .Include(m => m.TrainingSession)
             .Include(m => m.MovementData)
+            .ThenInclude(md => md.MovementBase)
+            .Include(m => m.MovementData)
+            .ThenInclude(md => md.Equipment)
+            .Include(m => m.MovementData)
+            .ThenInclude(md => md.MovementModifier)
+            
             .FirstOrDefaultAsync(m => m.MovementID == request.MovementID);
 
         if (movement is null)
@@ -129,7 +144,16 @@ public class MovementService : IMovementService
 
         await _context.SaveChangesAsync();
 
-        return Result<MovementDTO>.Created(movement.ToDTO());
+        // Reload the movement with all navigation properties
+        var updatedMovement = await _context.Movements
+            .Include(m => m.LiftSets)
+            .Include(m => m.DistanceTimeSets)
+            .Include(m => m.MovementData).ThenInclude(md => md.Equipment)
+            .Include(m => m.MovementData).ThenInclude(md => md.MovementBase)
+            .Include(m => m.MovementData).ThenInclude(md => md.MovementModifier)
+            .FirstAsync(m => m.MovementID == movement.MovementID);
+
+        return Result<MovementDTO>.Success(updatedMovement.ToDTO());
     }
 
     public async Task<Result> DeleteMovementAsync(IdentityUser user, Guid movementId)
