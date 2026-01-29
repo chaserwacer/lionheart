@@ -23,19 +23,6 @@
   $: currentRatings = ($session as any)?.perceivedEffortRatings as PerceivedEffortRatings | undefined;
   $: hasRatings = currentRatings != null;
 
-  // Initialize draft from session data when it changes
-  $: if ($session && currentRatings) {
-    includeEffortRatings = true;
-    draftRatings = {
-      difficultyRating: currentRatings.difficultyRating ?? 3,
-      engagementRating: currentRatings.engagementRating ?? 3,
-      externalVariablesRating: currentRatings.externalVariablesRating ?? 3,
-      accumulatedFatigue: currentRatings.accumulatedFatigue ?? 3,
-    };
-  } else if ($session) {
-    includeEffortRatings = false;
-  }
-
   function startEditing() {
     if (currentRatings) {
       includeEffortRatings = true;
@@ -309,7 +296,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          <span class="text-sm text-base-content/40">Add perceived effort ratings...</span>
+          <span class="text-sm text-base-content/40">Perceived Effort Ratings...</span>
         </div>
       </div>
     </button>

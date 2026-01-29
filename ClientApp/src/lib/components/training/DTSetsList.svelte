@@ -8,6 +8,9 @@
 
   $: sets = dtSets(movement);
 
+  // Responsive view mode for narrow screens: 'actual' or 'recommended'
+  let narrowViewMode: 'actual' | 'recommended' = 'actual';
+
   // Check if any set has visible recommendations
   function hasAnyRec(s: any): boolean {
     return (
@@ -46,8 +49,21 @@
 
 <div class="p-4 rounded-xl bg-base-100 border border-base-content/10">
   <div class="flex items-center justify-between gap-3 mb-3">
-    <div class="text-sm font-mono uppercase tracking-widest text-base-content/60">
-      Distance / Time Sets
+    <div class="flex items-center gap-3">
+      <div class="text-sm font-mono uppercase tracking-widest text-base-content/60">
+        Distance / Time Sets
+      </div>
+      {#if anyRecVisible}
+        <label class="md:hidden flex items-center gap-2 ml-4 cursor-pointer">
+          <span class="text-xs text-base-content/50">{narrowViewMode === 'recommended' ? 'Rec' : 'Actual'}</span>
+          <input
+            type="checkbox"
+            class="toggle toggle-xs toggle-primary"
+            checked={narrowViewMode === 'actual'}
+            on:change={() => (narrowViewMode = narrowViewMode === 'actual' ? 'recommended' : 'actual')}
+          />
+        </label>
+      {/if}
     </div>
     <button class="btn btn-xs btn-outline" type="button" on:click={handleAddDtSet}>
       +
@@ -55,36 +71,40 @@
   </div>
 
   {#if sets.length > 0}
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto md:overflow-x-visible">
       <table class="table table-sm">
         <thead>
           <tr class="text-xs font-mono uppercase tracking-widest text-base-content/50">
             <th>#</th>
             {#if anyRecVisible}
-              <th>Rec Dist</th>
-              <th>Rec Dur</th>
-              <th>Target Pace</th>
+              <!-- Recommended columns: always show on md+, toggle on narrow -->
+              <th class="hidden md:table-cell {narrowViewMode === 'recommended' ? '!table-cell' : ''}">Rec Dist</th>
+              <th class="hidden md:table-cell {narrowViewMode === 'recommended' ? '!table-cell' : ''}">Rec Dur</th>
+              <th class="hidden md:table-cell {narrowViewMode === 'recommended' ? '!table-cell' : ''}">Target Pace</th>
             {/if}
-            <th>Distance</th>
-            <th>Duration</th>
-            <th>Pace</th>
-            <th>RPE</th>
+            <!-- Actual columns: always show on md+, toggle on narrow -->
+            <th class="hidden md:table-cell {narrowViewMode === 'actual' || !anyRecVisible ? '!table-cell' : ''}">Distance</th>
+            <th class="hidden md:table-cell {narrowViewMode === 'actual' || !anyRecVisible ? '!table-cell' : ''}">Duration</th>
+            <th class="hidden md:table-cell {narrowViewMode === 'actual' || !anyRecVisible ? '!table-cell' : ''}">Pace</th>
+            <th class="hidden md:table-cell {narrowViewMode === 'actual' || !anyRecVisible ? '!table-cell' : ''}">RPE</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           {#each sets as s, i (setId(s))}
             {@const showRec = hasAnyRec(s)}
+            {@const recCellClass = `hidden md:table-cell ${narrowViewMode === 'recommended' ? '!table-cell' : ''}`}
+            {@const actCellClass = `hidden md:table-cell ${narrowViewMode === 'actual' || !anyRecVisible ? '!table-cell' : ''}`}
             <tr>
               <td class="font-mono">{i + 1}</td>
 
               {#if anyRecVisible}
                 {#if !showRec}
-                  <td>—</td>
-                  <td>—</td>
-                  <td>—</td>
+                  <td class={recCellClass}>—</td>
+                  <td class={recCellClass}>—</td>
+                  <td class={recCellClass}>—</td>
                 {:else if $isEditing}
-                  <td>
+                  <td class={recCellClass}>
                     <input
                       class="input input-sm input-bordered w-20"
                       type="number"
@@ -92,7 +112,7 @@
                       on:change={(e) => handleUpdate(s, 'recommendedDistance', e.currentTarget.value)}
                     />
                   </td>
-                  <td>
+                  <td class={recCellClass}>
                     <input
                       class="input input-sm input-bordered w-24"
                       value={formatTimeSpan(s.recommendedDuration) || ''}
@@ -100,7 +120,7 @@
                       on:change={(e) => handleUpdate(s, 'recommendedDuration', e.currentTarget.value)}
                     />
                   </td>
-                  <td>
+                  <td class={recCellClass}>
                     <input
                       class="input input-sm input-bordered w-24"
                       value={formatTimeSpan(s.targetPace) || ''}
@@ -109,14 +129,14 @@
                     />
                   </td>
                 {:else}
-                  <td>{s.recommendedDistance ?? '—'}</td>
-                  <td>{formatTimeSpan(s.recommendedDuration) || '—'}</td>
-                  <td>{formatTimeSpan(s.targetPace) || '—'}</td>
+                  <td class={recCellClass}>{s.recommendedDistance ?? '—'}</td>
+                  <td class={recCellClass}>{formatTimeSpan(s.recommendedDuration) || '—'}</td>
+                  <td class={recCellClass}>{formatTimeSpan(s.targetPace) || '—'}</td>
                 {/if}
               {/if}
 
               {#if !$isEditing}
-                <td class="relative group">
+                <td class="relative group {actCellClass}">
                   {#if showRec && s.recommendedDistance != null}
                     <button
                       class="absolute -left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-primary hover:text-primary-focus"
@@ -133,7 +153,7 @@
                     on:change={(e) => handleUpdate(s, 'actualDistance', e.currentTarget.value)}
                   />
                 </td>
-                <td class="relative group">
+                <td class="relative group {actCellClass}">
                   {#if showRec && s.recommendedDuration != null}
                     <button
                       class="absolute -left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-primary hover:text-primary-focus"
@@ -150,7 +170,7 @@
                     on:change={(e) => handleUpdate(s, 'actualDuration', e.currentTarget.value)}
                   />
                 </td>
-                <td class="relative group">
+                <td class="relative group {actCellClass}">
                   {#if showRec && s.targetPace != null}
                     <button
                       class="absolute -left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-primary hover:text-primary-focus"
@@ -167,7 +187,7 @@
                     on:change={(e) => handleUpdate(s, 'actualPace', e.currentTarget.value)}
                   />
                 </td>
-                <td>
+                <td class={actCellClass}>
                   <input
                     type="number"
                     step="0.5"
@@ -186,7 +206,7 @@
                   </button>
                 </td>
               {:else}
-                <td>
+                <td class={actCellClass}>
                   <input
                     class="input input-sm input-bordered w-20"
                     type="number"
@@ -194,7 +214,7 @@
                     on:change={(e) => handleUpdate(s, 'actualDistance', e.currentTarget.value)}
                   />
                 </td>
-                <td>
+                <td class={actCellClass}>
                   <input
                     class="input input-sm input-bordered w-24"
                     value={formatTimeSpan(s.actualDuration) || ''}
@@ -202,7 +222,7 @@
                     on:change={(e) => handleUpdate(s, 'actualDuration', e.currentTarget.value)}
                   />
                 </td>
-                <td>
+                <td class={actCellClass}>
                   <input
                     class="input input-sm input-bordered w-24"
                     value={formatTimeSpan(s.actualPace) || ''}
@@ -210,7 +230,7 @@
                     on:change={(e) => handleUpdate(s, 'actualPace', e.currentTarget.value)}
                   />
                 </td>
-                <td>
+                <td class={actCellClass}>
                   <input
                     class="input input-sm input-bordered w-20"
                     type="number"

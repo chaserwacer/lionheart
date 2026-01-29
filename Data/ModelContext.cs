@@ -97,6 +97,7 @@ namespace lionheart.Data
             modelBuilder.Entity<Activity>()
                 .HasOne<PerceivedEffortRatings>(a => a.PerceivedEffortRatings)
                 .WithOne()
+                .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired(false);
                        
 
@@ -125,7 +126,8 @@ namespace lionheart.Data
             modelBuilder.Entity<TrainingSession>()
                 .HasOne<PerceivedEffortRatings>(s => s.PerceivedEffortRatings)
                 .WithOne()
-                .IsRequired(false);
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false) ;
 
             // Movements + Movement Bases + Movement Modifiers + MovementData
             modelBuilder.Entity<Movement>()
