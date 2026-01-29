@@ -27,6 +27,7 @@
     equipmentId,
     equipmentLabel,
     liftSets,
+    setKindFor,
   } from '$lib/utils/training';
   import LiftSetsTable from './LiftSetsTable.svelte';
   import DTSetsList from './DTSetsList.svelte';
@@ -146,6 +147,7 @@
   $: currentBaseId = mData?.movementBase?.movementBaseID ?? '';
   $: currentEquipmentId = mData?.equipment?.equipmentID ?? '';
   $: currentModifierName = mData?.movementModifier?.name ?? '';
+  $: kind = setKindFor(movement);
 </script>
 
 <!-- Completed movement view -->
@@ -399,8 +401,12 @@
 
     <!-- SETS -->
     <div class="mt-4 border-t border-base-content/5 pt-4">
-      <LiftSetsTable {movement} />
-      <DTSetsList {movement} />
+      {#if kind === 'none' || kind === 'lift'}
+        <LiftSetsTable {movement} />
+      {/if}
+      {#if kind === 'none' || kind === 'dt'}
+        <DTSetsList {movement} />
+      {/if}
     </div>
     </div>
   </div>

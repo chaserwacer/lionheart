@@ -56,6 +56,14 @@
     updateLiftSet(movement, s, patch);
   }
 
+  function handleUpdateRecommended(s: any, field: string, value: string) {
+    const patch: any = { [field]: parseNumberOrZero(value) };
+    if (field === 'recommendedWeight') {
+      patch.weightUnit = $displayWeightUnit;
+    }
+    updateLiftSet(movement, s, patch);
+  }
+
   function handleDeleteSet(s: any) {
     if (!confirm('Delete this set?')) return;
     deleteLiftSet(movement, s);
@@ -133,6 +141,32 @@
                   <td>—</td>
                   <td>—</td>
                   <td>—</td>
+                {:else if $isEditing}
+                  <td>
+                    <input
+                      class="input input-sm input-bordered w-20"
+                      type="number"
+                      value={s.recommendedReps ?? ''}
+                      on:change={(e) => handleUpdateRecommended(s, 'recommendedReps', e.currentTarget.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      class="input input-sm input-bordered w-28"
+                      type="number"
+                      value={s.recommendedWeight ?? ''}
+                      on:change={(e) => handleUpdateRecommended(s, 'recommendedWeight', e.currentTarget.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      class="input input-sm input-bordered w-24"
+                      type="number"
+                      step="0.5"
+                      value={s.recommendedRPE ?? ''}
+                      on:change={(e) => handleUpdateRecommended(s, 'recommendedRPE', e.currentTarget.value)}
+                    />
+                  </td>
                 {:else}
                   <td>{s.recommendedReps ?? '—'}</td>
                   <td>

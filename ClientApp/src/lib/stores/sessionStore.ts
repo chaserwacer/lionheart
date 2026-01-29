@@ -26,6 +26,7 @@ import {
   GetMovementModifiersEndpointClient,
   TrainingSessionStatus,
   WeightUnit,
+  PerceivedEffortRatings,
   type TrainingSessionDTO,
   type MovementDTO,
   type MovementBaseDTO,
@@ -276,6 +277,47 @@ export async function updateSessionField(
   } catch (e: any) {
     errorMsg.set(
       e?.body?.title || e?.body?.detail || e?.message || 'Failed to update session.'
+    );
+    return false;
+  } finally {
+    isLoading.set(false);
+  }
+}
+
+export async function updateSessionEffortRatings(
+  sessionId: string,
+  ratings: PerceivedEffortRatings | null,
+  programId?: string
+): Promise<boolean> {
+  const s = get(session);
+  if (!s) return false;
+
+  isLoading.set(true);
+  errorMsg.set('');
+
+  try {
+    const sessionClient = new UpdateTrainingSessionEndpointClient();
+
+    const currentDate = toIsoDateOnly((s as any).date);
+    const currentStatus = (s as any).status ?? TrainingSessionStatus._0;
+    const currentNotes = (s as any).notes ?? '';
+
+    const req: UpdateTrainingSessionRequest = {
+      trainingSessionID: (s as any).trainingSessionID ?? sessionId,
+      trainingProgramID: (s as any).trainingProgramID ?? programId ?? null,
+      date: new Date(`${currentDate}T12:00:00`),
+      status: currentStatus,
+      notes: currentNotes,
+      perceivedEffortRatings: ratings,
+    } as any;
+
+    const updated = await sessionClient.put(req);
+    session.set(updated);
+
+    return true;
+  } catch (e: any) {
+    errorMsg.set(
+      e?.body?.title || e?.body?.detail || e?.message || 'Failed to update effort ratings.'
     );
     return false;
   } finally {
