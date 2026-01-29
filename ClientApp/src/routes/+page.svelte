@@ -20,6 +20,7 @@
     TrainingSessionDTO,
     TrainingSessionStatus,
     WellnessState,
+  GetTrainingProgramEndpointClient,
   } from "$lib/api/ApiClient";
 
   // Import card components
@@ -87,33 +88,77 @@
     }
   }
 
-  function computeOverview() {
-    const done = sessions.filter((s) => s.status === TrainingSessionStatus._2);
-    lastCompletedSession = done.length ? done[done.length - 1] : null;
-    nextUpcomingSession =
-      sessions.find(
-        (s) =>
-          s.status === undefined ||
-          Number(s.status) === Number(TrainingSessionStatus._0),
-      ) ?? null;
-  }
 
-  async function loadSessions() {
-    const client = new GetTrainingProgramsEndpointClient(baseUrl);
-    try {
-      const all = await client.get();
-      if (all.length === 0) return;
-      sessions = (all[0].trainingSessions ?? [])
-        .slice()
-        .sort(
-          (a, b) =>
-            new Date(a.date ?? "").getTime() - new Date(b.date ?? "").getTime(),
-        );
-      computeOverview();
-    } catch (e) {
-      console.error("loadSessions failed", e);
+function isCompleted(s: TrainingSessionDTO) {
+  // safest: treat numeric 2 as completed, but also handle undefined/null
+  return Number(s.status) === Number(TrainingSessionStatus._2);
+}
+
+function isPlanned(s: TrainingSessionDTO) {
+  // planned is often 0 or undefined
+  return s.status === undefined || Number(s.status) === Number(TrainingSessionStatus._0);
+}
+
+function safeTime(d: any) {
+  const t = new Date(d ?? "").getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+function computeOverview(allSessions: TrainingSessionDTO[]) {
+  const sorted = allSessions
+    .slice()
+    .sort((a, b) => safeTime(a.date) - safeTime(b.date));
+
+  const completed = sorted.filter(isCompleted);
+  lastCompletedSession = completed.length ? completed[completed.length - 1] : null;
+
+  // upcoming = first planned session that is today or later (fallback: first planned)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const planned = sorted.filter(isPlanned);
+  nextUpcomingSession =
+    planned.find((s) => safeTime(s.date) >= today.getTime()) ??
+    planned[0] ??
+    null;
+}
+
+async function loadSessions() {
+  const listClient = new GetTrainingProgramsEndpointClient(baseUrl);
+  const getClient = new GetTrainingProgramEndpointClient(baseUrl);
+
+  try {
+    const list = await listClient.get();
+    if (!list?.length) {
+      sessions = [];
+      computeOverview([]);
+      return;
     }
+
+    // Fetch full programs in parallel (includes trainingSessions)
+    const fullPrograms = await Promise.all(
+      list
+        .filter(p => p.trainingProgramID)
+        .map(p => getClient.get(p.trainingProgramID!))
+    );
+
+    const allSessions = fullPrograms.flatMap(p => p.trainingSessions ?? []);
+
+    sessions = allSessions;
+    computeOverview(allSessions);
+
+    console.log("programs:", list.length, "hydratedSessions:", allSessions.length, {
+      lastCompletedSession,
+      nextUpcomingSession
+    });
+  } catch (e) {
+    console.error("loadSessions failed", e);
+    sessions = [];
+    computeOverview([]);
   }
+}
+
+
 
   async function loadPrograms() {
     const client = new GetTrainingProgramsEndpointClient(baseUrl);
