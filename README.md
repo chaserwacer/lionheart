@@ -11,11 +11,11 @@ Project Lionheart is a comprehensive athletic training data management platform 
 
 Lionheart is guided by the following principles:
 
-### 1. Holistic Athlete Modeling
+ 1. Holistic Athlete Modeling
 
-### 2. Aggregation of Measured *and* Perceived Metrics
+ 2. Aggregation of Measured *and* Perceived Metrics
 
-### 3. Contextual Intelligence
+ 3. Contextual Intelligence
 
 ---
 
