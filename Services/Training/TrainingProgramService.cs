@@ -64,7 +64,7 @@ namespace lionheart.Services
         {
             _context = context;
         }
-        [Tool(Name ="GetTrainingPrograms", Description = "Get all training programs for a user.")]
+        [Tool(Name ="GetTrainingPrograms", Description = "Get all training programs for a user (not including child entities).")]
         public async Task<Result<List<TrainingProgramDTO>>> GetTrainingProgramsAsync(IdentityUser user)
         {
             var userGuid = Guid.Parse(user.Id);

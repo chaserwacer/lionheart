@@ -5,7 +5,6 @@
     isLoading,
     displayWeightUnit,
     updateLiftSet,
-    updateLiftSetActuals,
     deleteLiftSet,
     addLiftSet,
     addDtSet,
@@ -41,15 +40,25 @@
     }
   }
 
-  function handleUpdateActuals(setEntryID: string, field: string, value: string) {
-    updateLiftSetActuals(setEntryID, {
-      [field]: Number(value),
-    });
+  function handleUpdateActuals(s: any, field: string, value: string) {
+    const patch: any = { [field]: parseNumberOrZero(value) };
+    if (field === 'actualWeight') {
+      patch.weightUnit = $displayWeightUnit;
+    }
+    updateLiftSet(movement, s, patch);
   }
 
   function handleUpdateSet(s: any, field: string, value: string) {
     const patch: any = { [field]: parseNumberOrZero(value) };
     if (field === 'actualWeight') {
+      patch.weightUnit = $displayWeightUnit;
+    }
+    updateLiftSet(movement, s, patch);
+  }
+
+  function handleUpdateRecommended(s: any, field: string, value: string) {
+    const patch: any = { [field]: parseNumberOrZero(value) };
+    if (field === 'recommendedWeight') {
       patch.weightUnit = $displayWeightUnit;
     }
     updateLiftSet(movement, s, patch);
@@ -77,7 +86,7 @@
     };
     const { from, to } = fieldMap[field];
     if (s[from] != null) {
-      handleUpdateActuals(s.setEntryID, to, String(s[from]));
+      handleUpdateActuals(s, to, String(s[from]));
     }
   }
 
@@ -105,9 +114,7 @@
     </div>
   </div>
 
-  {#if sets.length === 0}
-    <div class="text-center text-base-content/50 py-4">No sets yet</div>
-  {:else}
+  {#if sets.length != 0}
     <div class="overflow-x-auto">
       <table class="table table-sm">
         <thead>
@@ -134,6 +141,32 @@
                   <td>—</td>
                   <td>—</td>
                   <td>—</td>
+                {:else if $isEditing}
+                  <td>
+                    <input
+                      class="input input-sm input-bordered w-20"
+                      type="number"
+                      value={s.recommendedReps ?? ''}
+                      on:change={(e) => handleUpdateRecommended(s, 'recommendedReps', e.currentTarget.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      class="input input-sm input-bordered w-28"
+                      type="number"
+                      value={s.recommendedWeight ?? ''}
+                      on:change={(e) => handleUpdateRecommended(s, 'recommendedWeight', e.currentTarget.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      class="input input-sm input-bordered w-24"
+                      type="number"
+                      step="0.5"
+                      value={s.recommendedRPE ?? ''}
+                      on:change={(e) => handleUpdateRecommended(s, 'recommendedRPE', e.currentTarget.value)}
+                    />
+                  </td>
                 {:else}
                   <td>{s.recommendedReps ?? '—'}</td>
                   <td>
@@ -162,7 +195,7 @@
                     type="number"
                     class="input input-xs input-bordered w-16 font-semibold"
                     value={s.actualReps}
-                    on:change={(e) => handleUpdateActuals(s.setEntryID, 'actualReps', e.currentTarget.value)}
+                    on:change={(e) => handleUpdateActuals(s, 'actualReps', e.currentTarget.value)}
                   />
                 </td>
                 <td class="relative group">
@@ -179,7 +212,7 @@
                     type="number"
                     class="input input-xs input-bordered w-20 font-semibold"
                     value={s.actualWeight}
-                    on:change={(e) => handleUpdateActuals(s.setEntryID, 'actualWeight', e.currentTarget.value)}
+                    on:change={(e) => handleUpdateActuals(s, 'actualWeight', e.currentTarget.value)}
                   />
                 </td>
                 <td class="relative group">
@@ -197,7 +230,7 @@
                     step="0.5"
                     class="input input-xs input-bordered w-16 font-semibold"
                     value={s.actualRPE}
-                    on:change={(e) => handleUpdateActuals(s.setEntryID, 'actualRPE', e.currentTarget.value)}
+                    on:change={(e) => handleUpdateActuals(s, 'actualRPE', e.currentTarget.value)}
                   />
                 </td>
                 <td class="text-right flex gap-3 justify-end">

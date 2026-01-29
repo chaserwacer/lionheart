@@ -27,6 +27,7 @@
     equipmentId,
     equipmentLabel,
     liftSets,
+    setKindFor,
   } from '$lib/utils/training';
   import LiftSetsTable from './LiftSetsTable.svelte';
   import DTSetsList from './DTSetsList.svelte';
@@ -146,12 +147,23 @@
   $: currentBaseId = mData?.movementBase?.movementBaseID ?? '';
   $: currentEquipmentId = mData?.equipment?.equipmentID ?? '';
   $: currentModifierName = mData?.movementModifier?.name ?? '';
+  $: kind = setKindFor(movement);
 </script>
 
 <!-- Completed movement view -->
-{#if isCompleted && !$isEditing}
+{#if isCompleted}
   <div
-    class="card bg-base-100/40 backdrop-blur border border-base-content/5 rounded-xl overflow-hidden"
+    class={'card bg-base-100/40 backdrop-blur border border-base-content/5 rounded-xl overflow-hidden ' +
+      ($isEditing ? 'wiggle ring-2 ring-primary/20 ' : '') +
+      ($dragOverId === id ? 'swap-hover ' : '') +
+      ($dragFromId === id ? 'swap-dragging ' : '')}
+    draggable={$isEditing}
+    on:dragstart={onDragStart}
+    on:dragenter={onDragEnter}
+    on:dragover={onDragOver}
+    on:dragleave={onDragLeave}
+    on:drop={onDrop}
+    on:dragend={onDragEnd}
     role="listitem"
   >
     <div class="card-body p-4">
@@ -389,8 +401,12 @@
 
     <!-- SETS -->
     <div class="mt-4 border-t border-base-content/5 pt-4">
-      <LiftSetsTable {movement} />
-      <DTSetsList {movement} />
+      {#if kind === 'none' || kind === 'lift'}
+        <LiftSetsTable {movement} />
+      {/if}
+      {#if kind === 'none' || kind === 'dt'}
+        <DTSetsList {movement} />
+      {/if}
     </div>
     </div>
   </div>

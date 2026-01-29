@@ -16,6 +16,7 @@
   import { idOfMovement } from '$lib/utils/training';
 
   import SessionHeader from '$lib/components/training/SessionHeader.svelte';
+  import SessionEffortRatings from '$lib/components/training/SessionEffortRatings.svelte';
   import SessionDetailsPanel from '$lib/components/training/SessionDetailsPanel.svelte';
   import MovementCard from '$lib/components/training/MovementCard.svelte';
   import QuickAddMovement from '$lib/components/training/QuickAddMovement.svelte';
@@ -71,6 +72,7 @@
         <span>{$errorMsg}</span>
       </div>
     {:else if $session}
+      <SessionEffortRatings />
       <SessionDetailsPanel />
 
       <!-- Movements Section -->
