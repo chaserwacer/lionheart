@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { onDestroy } from "svelte";
+  import MovementsPill from "$lib/components/training/MovementsPill.svelte";
   import CreateTrainingSessionModal from "$lib/components/modals/CreateTrainingSessionModal.svelte";
   import {
     GetTrainingProgramEndpointClient,
@@ -138,6 +139,16 @@
   function movementCountForSessionId(sessionId: string): number {
     const full = sessionDetails[sessionId];
     return ((full as any)?.movements?.length ?? 0) as number;
+  }
+  function movementNamesLimited(
+    sessionId?: string,
+    max = 4,
+  ): { shown: string[]; extra: number } {
+    if (!sessionId) return { shown: [], extra: 0 };
+    const all = movementNamesForSessionId(sessionId);
+    const shown = all.slice(0, max);
+    const extra = Math.max(0, all.length - shown.length);
+    return { shown, extra };
   }
 
   async function fetchSessionDetails(ids: string[], concurrency = 6) {
@@ -576,117 +587,113 @@
 <div class={`min-h-full bg-base-200 ${isEditing ? "editing" : ""}`}>
   <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
-      <button
-        on:click={goBack}
-        class="flex items-center gap-2 text-base-content/50 hover:text-base-content transition-colors mb-4"
+    <button
+      on:click={goBack}
+      class="flex items-center gap-2 text-base-content/50 hover:text-base-content transition-colors mb-4"
+    >
+      <span>&larr;</span>
+      <span class="text-sm font-mono uppercase tracking-widest"
+        >Back to Training</span
       >
-        <span>&larr;</span>
-        <span class="text-sm font-mono uppercase tracking-widest"
-          >Back to Training</span
+    </button>
+
+    <div
+      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+    >
+      <div>
+        <h1
+          class="text-5xl sm:text-6xl font-display font-black tracking-tightest text-base-content leading-none"
         >
-      </button>
-
-      <div
-        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-      >
-        <div>
-          <h1
-            class="text-5xl sm:text-6xl font-display font-black tracking-tightest text-base-content leading-none"
-          >
-            {program?.title ?? "Program"}
-          </h1>
-          <p
-            class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-3"
-          >
-            Program Overview
-          </p>
-          <div class="mt-3 text-sm text-base-content/60">
-            {formatProgramRange(program?.startDate, program?.endDate)}
-          </div>
-        </div>
-        <div
-          class="text-xs font-mono uppercase tracking-widest text-base-content/50"
+          {program?.title ?? "Program"}
+        </h1>
+        <p
+          class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-3"
         >
-          Tags
-        </div>
-        <div>
-          {#if !isEditing}
-            <div class="flex flex-wrap gap-2">
-              {#each program?.tags ?? [] as t (t)}
-                <span class="badge badge-outline font-mono">{t}</span>
-              {/each}
-
-              {#if (program?.tags?.length ?? 0) === 0}
-                <span class="text-sm text-base-content/50">No tags</span>
-              {/if}
-            </div>
-          {:else}
-            <div class="flex flex-wrap items-center gap-2">
-              <!-- existing tags -->
-              {#each draftTags as t (t)}
-                <span class="badge badge-primary font-mono gap-2">
-                  {t}
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs px-1"
-                    on:click={() => removeTag(t)}
-                    aria-label={`Remove ${t}`}
-                  >
-                    ✕
-                  </button>
-                </span>
-              {/each}
-
-              <!-- add tag input -->
-              <input
-                class="input input-sm input-bordered w-44"
-                placeholder="Add tag…"
-                bind:value={newTagText}
-                on:keydown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addTagFromInput();
-                  }
-                }}
-                on:blur={addTagFromInput}
-              />
-            </div>
-          {/if}
-        </div>
-
-        <div class="flex items-center gap-2">
-          {#if !isEditing}
-            <button
-              class="btn btn-primary px-5 rounded-xl"
-              on:click={openAddSession}
-            >
-              Add Session
-            </button>
-            <button
-              class="btn btn-outline px-5 rounded-xl"
-              on:click={enterEdit}
-            >
-              Edit Program
-            </button>
-          {:else}
-            <button
-              class="btn btn-primary px-5 rounded-xl"
-              on:click={saveEdits}
-            >
-              Done
-            </button>
-            <button class="btn btn-ghost px-5 rounded-xl" on:click={cancelEdit}>
-              Cancel
-            </button>
-            <button
-              class="btn btn-outline btn-error px-5 rounded-xl"
-              on:click={deleteProgram}
-            >
-              Delete Program
-            </button>
-          {/if}
+          Program Overview
+        </p>
+        <div class="mt-3 text-sm text-base-content/60">
+          {formatProgramRange(program?.startDate, program?.endDate)}
         </div>
       </div>
+      <div
+        class="mt-5 p-4 rounded-2xl bg-base-200 border border-base-content/10"
+      >
+        <div class="flex items-center justify-between mb-2">
+          <div
+            class="text-xs font-mono uppercase tracking-widest text-base-content/60"
+          >
+            Tags
+          </div>
+        </div>
+
+        {#if !isEditing}
+          <div class="flex flex-wrap gap-2">
+            {#each program?.tags ?? [] as t (t)}
+              <span class="badge badge-primary font-mono">{t}</span>
+            {/each}
+            {#if (program?.tags?.length ?? 0) === 0}
+              <span class="text-sm text-base-content/50">No tags</span>
+            {/if}
+          </div>
+        {:else}
+          <div class="flex flex-wrap items-center gap-2">
+            {#each draftTags as t (t)}
+              <span class="badge badge-primary font-mono gap-2">
+                {t}
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs px-1"
+                  on:click={() => removeTag(t)}
+                  aria-label={`Remove ${t}`}
+                >
+                  ✕
+                </button>
+              </span>
+            {/each}
+
+            <input
+              class="input input-sm input-bordered w-44"
+              placeholder="Add tag…"
+              bind:value={newTagText}
+              on:keydown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addTagFromInput();
+                }
+              }}
+              on:blur={addTagFromInput}
+            />
+          </div>
+        {/if}
+      </div>
+
+      <div class="flex items-center gap-2">
+        {#if !isEditing}
+          <button
+            class="btn btn-primary px-5 rounded-xl"
+            on:click={openAddSession}
+          >
+            Add Session
+          </button>
+          <button class="btn btn-outline px-5 rounded-xl" on:click={enterEdit}>
+            Edit Program
+          </button>
+        {:else}
+          <button class="btn btn-primary px-5 rounded-xl" on:click={saveEdits}>
+            Done
+          </button>
+          <button class="btn btn-ghost px-5 rounded-xl" on:click={cancelEdit}>
+            Cancel
+          </button>
+          <button
+            class="btn btn-outline btn-error px-5 rounded-xl"
+            on:click={deleteProgram}
+          >
+            Delete Program
+          </button>
+        {/if}
+      </div>
+    </div>
     {#if loading}
       <div
         class="card bg-base-100 p-8 border border-base-content/10 rounded-2xl"
@@ -700,33 +707,31 @@
     {:else}
       <!-- Program Content -->
 
-      <div class="flex items-start justify-between gap-4">
+      <div class="flex flex-wrap items-start justify-between gap-4 mt-8">
         <!-- lock height so edit mode doesn't change card size -->
-        <div class="min-h-[110px] w-full">
-          {#if isEditing}
-            <input
-              class="text-3xl font-display font-black leading-tight bg-transparent outline-none border-b border-base-content/30 focus:border-base-content/70 w-full pb-1"
-              bind:value={draftTitle}
-              placeholder="Program name"
-            />
+        {#if isEditing}
+          <input
+            class="text-3xl font-display font-black leading-tight bg-transparent outline-none border-b border-base-content/30 focus:border-base-content/70 w-full pb-1"
+            bind:value={draftTitle}
+            placeholder="Program name"
+          />
 
-            <div
-              class="mt-3 text-sm text-base-content/60 flex items-center gap-3"
-            >
-              <input
-                class="input input-sm input-bordered"
-                type="date"
-                bind:value={draftStartDate}
-              />
-              <span>→</span>
-              <input
-                class="input input-sm input-bordered"
-                type="date"
-                bind:value={draftEndDate}
-              />
-            </div>
-          {/if}
-        </div>
+          <div
+            class="mt-3 text-sm text-base-content/60 flex items-center gap-3"
+          >
+            <input
+              class="input input-sm input-bordered"
+              type="date"
+              bind:value={draftStartDate}
+            />
+            <span>→</span>
+            <input
+              class="input input-sm input-bordered"
+              type="date"
+              bind:value={draftEndDate}
+            />
+          </div>
+        {/if}
       </div>
 
       <h3
@@ -789,49 +794,14 @@
                             {/if}
                           </div>
                         </div>
+                        <MovementsPill
+  sessionId={s.trainingSessionID}
+  getCount={movementCountForSessionId}
+  getLimited={movementNamesLimited}
+  maxShown={4}
+/>
 
-                        <div class="flex items-center gap-3 shrink-0">
-                          <div
-                            class="px-3 py-2 rounded-xl bg-base-100 border border-base-content/10 text-center min-w-[150px]"
-                          >
-                            {#if s.trainingSessionID}
-                              {@const mc = movementCountForSessionId(
-                                s.trainingSessionID,
-                              )}
-                              {#if mc > 0}
-                                <div
-                                  class="text-lg font-display font-black leading-none"
-                                >
-                                  Movements
-                                </div>
-                                <div
-                                  class="mt-2 flex flex-wrap justify-center gap-2"
-                                >
-                                  {#each movementNamesForSessionId(s.trainingSessionID) as n}
-                                    <span
-                                      class="badge badge-outline font-mono text-xs"
-                                      >{n}</span
-                                    >
-                                  {/each}
-                                </div>
-                              {:else}
-                                <div
-                                  class="text-lg font-display font-black leading-none"
-                                >
-                                  0 Movements
-                                </div>
-                              {/if}
-                            {:else}
-                              <div
-                                class="text-lg font-display font-black leading-none"
-                              >
-                                0 Movements
-                              </div>
-                            {/if}
-                          </div>
 
-                          <span class="opacity-50 text-sm">→</span>
-                        </div>
                       </div>
                     </button>
                   {:else}
