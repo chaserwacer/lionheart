@@ -118,65 +118,65 @@ namespace Model.Tools
             var jsonBindableParams = parameters.Where(p => !IsInjectableParameter(p.ParameterType)).ToArray();
 
             // If only one JSON-bindable parameter, deserialize the entire JSON directly to that parameter
-// If only one JSON-bindable parameter, deserialize either:
-// 1) the matching property (common tool-call shape: { paramName: value })
-// 2) or the full JSON (raw value shape: "..." or 123 etc.)
-if (jsonBindableParams.Length == 1)
-{
-    var bound = new object?[parameters.Length];
-    var single = jsonBindableParams[0];
-    var singleName = single.Name ?? "arg0";
+            // If only one JSON-bindable parameter, deserialize either:
+            // 1) the matching property (common tool-call shape: { paramName: value })
+            // 2) or the full JSON (raw value shape: "..." or 123 etc.)
+            if (jsonBindableParams.Length == 1)
+            {
+                var bound = new object?[parameters.Length];
+                var single = jsonBindableParams[0];
+                var singleName = single.Name ?? "arg0";
 
-    JsonDocument? singleDoc = null;
-    JsonElement singleRoot = default;
-    bool parsed = false;
+                JsonDocument? singleDoc = null;
+                JsonElement singleRoot = default;
+                bool parsed = false;
 
-    try
-    {
-        singleDoc = JsonDocument.Parse(json);
-        singleRoot = singleDoc.RootElement;
-        parsed = true;
-    }
-    catch
-    {
-        // Not an object/value JSON we can parse (or it's a raw primitive string not wrapped as JSON).
-        // We'll let JsonSerializer handle it below.
-    }
+                try
+                {
+                    singleDoc = JsonDocument.Parse(json);
+                    singleRoot = singleDoc.RootElement;
+                    parsed = true;
+                }
+                catch
+                {
+                    // Not an object/value JSON we can parse (or it's a raw primitive string not wrapped as JSON).
+                    // We'll let JsonSerializer handle it below.
+                }
 
-    for (var i = 0; i < parameters.Length; i++)
-    {
-        var p = parameters[i];
+                for (var i = 0; i < parameters.Length; i++)
+                {
+                    var p = parameters[i];
 
-        if (IsInjectableParameter(p.ParameterType))
-        {
-            bound[i] = GetInjectedValue(p.ParameterType, user);
-            continue;
-        }
+                    if (IsInjectableParameter(p.ParameterType))
+                    {
+                        bound[i] = GetInjectedValue(p.ParameterType, user);
+                        continue;
+                    }
 
-        object? value;
+                    object? value;
 
-        // If JSON is an object and it has a property matching the param name,
-        // bind from that property instead of the whole object.
-        if (parsed && singleRoot.ValueKind == JsonValueKind.Object &&
-            singleRoot.TryGetProperty(singleName, out var prop))
-        {
-            value = prop.Deserialize(p.ParameterType, jsonOptions);
-        }
-        else
-        {
-            value = JsonSerializer.Deserialize(json, p.ParameterType, jsonOptions);
-        }
+                    // If JSON is an object and it has a property matching the param name,
+                    // bind from that property instead of the whole object.
+                    if (parsed && singleRoot.ValueKind == JsonValueKind.Object &&
+                        singleRoot.TryGetProperty(singleName, out var prop))
+                    {
+                        value = prop.Deserialize(p.ParameterType, jsonOptions);
+                    }
+                    else
+                    {
+                        value = JsonSerializer.Deserialize(json, p.ParameterType, jsonOptions);
+                    }
 
-        if (value is null && IsNonNullableValueType(p.ParameterType))
-            throw new ToolBindingException($"Argument '{p.Name}' is required.",
-                new { parameter = p.Name, type = p.ParameterType.FullName });
+                    if (value is null && IsNonNullableValueType(p.ParameterType))
+                        throw new ToolBindingException($"Argument '{p.Name}' is required.",
+                            new { parameter = p.Name, type = p.ParameterType.FullName });
 
-        bound[i] = value;
-    }
+                    bound[i] = value;
+                }
 
-    singleDoc?.Dispose();
-    return bound;
-}
+                singleDoc?.Dispose();
+                return bound;
+            }
 
 
             // Multiple JSON-bindable parameters: parse JSON as object and bind by property name
@@ -239,7 +239,7 @@ if (jsonBindableParams.Length == 1)
         /// </summary>
         private static bool IsInjectableParameter(Type parameterType)
         {
-            return parameterType == typeof(IdentityUser) 
+            return parameterType == typeof(IdentityUser)
                 || parameterType.IsAssignableTo(typeof(IdentityUser));
         }
 
