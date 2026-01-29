@@ -8678,7 +8678,6 @@ export interface IPersonalRecord {
 
 export class PersonalRecordDTO implements IPersonalRecordDTO {
     personalRecordID?: string;
-    userID?: string;
     movementDataID?: string;
     movementData?: MovementDataDTO;
     prType?: PersonalRecordType;
@@ -8704,7 +8703,6 @@ export class PersonalRecordDTO implements IPersonalRecordDTO {
     init(_data?: any) {
         if (_data) {
             this.personalRecordID = _data["personalRecordID"];
-            this.userID = _data["userID"];
             this.movementDataID = _data["movementDataID"];
             this.movementData = _data["movementData"] ? MovementDataDTO.fromJS(_data["movementData"]) : <any>undefined;
             this.prType = _data["prType"];
@@ -8730,7 +8728,6 @@ export class PersonalRecordDTO implements IPersonalRecordDTO {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["personalRecordID"] = this.personalRecordID;
-        data["userID"] = this.userID;
         data["movementDataID"] = this.movementDataID;
         data["movementData"] = this.movementData ? this.movementData.toJSON() : <any>undefined;
         data["prType"] = this.prType;
@@ -8749,7 +8746,6 @@ export class PersonalRecordDTO implements IPersonalRecordDTO {
 
 export interface IPersonalRecordDTO {
     personalRecordID?: string;
-    userID?: string;
     movementDataID?: string;
     movementData?: MovementDataDTO;
     prType?: PersonalRecordType;
