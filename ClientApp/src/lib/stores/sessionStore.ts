@@ -70,7 +70,6 @@ export const SESSION_STATUSES = [
   TrainingSessionStatus._1,
   TrainingSessionStatus._2,
   TrainingSessionStatus._3,
-  TrainingSessionStatus._4,
 ];
 
 // ---------- Stores ----------
@@ -200,7 +199,7 @@ export function cancelEditMode(sessionId: string, programId?: string): void {
   loadSession(sessionId, programId);
 }
 
-export async function saveEdits(sessionId: string, programId?: string): Promise<boolean> {
+export async function saveEdits(sessionId: string): Promise<boolean> {
   const s = get(session);
   if (!s) return false;
 
@@ -208,20 +207,6 @@ export async function saveEdits(sessionId: string, programId?: string): Promise<
   errorMsg.set('');
 
   try {
-    const sessionClient = new UpdateTrainingSessionEndpointClient();
-
-    const req: UpdateTrainingSessionRequest = {
-      trainingSessionID: (s as any).trainingSessionID ?? sessionId,
-      trainingProgramID: (s as any).trainingProgramID ?? programId ?? null,
-      date: new Date(`${get(draftDate)}T12:00:00`),
-      status: get(draftStatus),
-      notes: get(draftNotes),
-      perceivedEffortRatings: (s as any).perceivedEffortRatings ?? null,
-    } as any;
-
-    const updated = await sessionClient.put(req);
-    session.set(updated);
-
     // Persist movement order if changed
     const orderIds = get(pendingOrderIds);
     if (orderIds && orderIds.length > 0) {
@@ -250,6 +235,53 @@ export async function saveEdits(sessionId: string, programId?: string): Promise<
 }
 
 // ---------- Session Delete ----------
+
+export async function updateSessionField(
+  sessionId: string,
+  field: 'date' | 'status' | 'notes',
+  value: any,
+  programId?: string
+): Promise<boolean> {
+  const s = get(session);
+  if (!s) return false;
+
+  isLoading.set(true);
+  errorMsg.set('');
+
+  try {
+    const sessionClient = new UpdateTrainingSessionEndpointClient();
+
+    const currentDate = toIsoDateOnly((s as any).date);
+    const currentStatus = (s as any).status ?? TrainingSessionStatus._0;
+    const currentNotes = (s as any).notes ?? '';
+
+    const req: UpdateTrainingSessionRequest = {
+      trainingSessionID: (s as any).trainingSessionID ?? sessionId,
+      trainingProgramID: (s as any).trainingProgramID ?? programId ?? null,
+      date: field === 'date' ? new Date(`${value}T12:00:00`) : new Date(`${currentDate}T12:00:00`),
+      status: field === 'status' ? value : currentStatus,
+      notes: field === 'notes' ? value : currentNotes,
+      perceivedEffortRatings: (s as any).perceivedEffortRatings ?? null,
+    } as any;
+
+    const updated = await sessionClient.put(req);
+    session.set(updated);
+
+    // Update draft values to match
+    draftDate.set(toIsoDateOnly((updated as any).date));
+    draftStatus.set((updated as any).status ?? TrainingSessionStatus._0);
+    draftNotes.set(String((updated as any).notes ?? ''));
+
+    return true;
+  } catch (e: any) {
+    errorMsg.set(
+      e?.body?.title || e?.body?.detail || e?.message || 'Failed to update session.'
+    );
+    return false;
+  } finally {
+    isLoading.set(false);
+  }
+}
 
 export async function deleteSession(sessionId: string): Promise<boolean> {
   if (!sessionId) return false;
@@ -549,23 +581,6 @@ export async function updateLiftSet(
     });
   } catch (e: any) {
     errorMsg.set(e?.body?.title || e?.body?.detail || e?.message || 'Failed to update lift set.');
-  }
-}
-
-export async function updateLiftSetActuals(
-  setEntryId: string,
-  patch: Partial<UpdateLiftSetEntryRequest>
-): Promise<void> {
-  errorMsg.set('');
-  try {
-    const client = new UpdateLiftSetEntryEndpointClient();
-    const req: UpdateLiftSetEntryRequest = {
-      setEntryID: setEntryId,
-      ...patch,
-    } as any;
-    await client.put(req as any);
-  } catch (e: any) {
-    errorMsg.set(e?.body?.detail || e?.message || 'Failed to update set.');
   }
 }
 

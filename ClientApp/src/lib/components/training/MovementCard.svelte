@@ -149,9 +149,19 @@
 </script>
 
 <!-- Completed movement view -->
-{#if isCompleted && !$isEditing}
+{#if isCompleted}
   <div
-    class="card bg-base-100/40 backdrop-blur border border-base-content/5 rounded-xl overflow-hidden"
+    class={'card bg-base-100/40 backdrop-blur border border-base-content/5 rounded-xl overflow-hidden ' +
+      ($isEditing ? 'wiggle ring-2 ring-primary/20 ' : '') +
+      ($dragOverId === id ? 'swap-hover ' : '') +
+      ($dragFromId === id ? 'swap-dragging ' : '')}
+    draggable={$isEditing}
+    on:dragstart={onDragStart}
+    on:dragenter={onDragEnter}
+    on:dragover={onDragOver}
+    on:dragleave={onDragLeave}
+    on:drop={onDrop}
+    on:dragend={onDragEnd}
     role="listitem"
   >
     <div class="card-body p-4">

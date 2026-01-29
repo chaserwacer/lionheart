@@ -220,7 +220,7 @@ public class TrainingSessionService : ITrainingSessionService
             await _personalRecordService.ProcessTrainingSessionAsync(user, session.TrainingSessionID);
         }
 
-        return Result<TrainingSessionDTO>.Success(session.ToDTO());
+        return GetTrainingSessionAsync(user, session.TrainingSessionID).Result;
     }
 
 
