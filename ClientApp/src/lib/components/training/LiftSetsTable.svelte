@@ -16,6 +16,9 @@
 
   $: sets = liftSets(movement);
 
+  // Responsive view mode for narrow screens: 'actual' or 'recommended'
+  let narrowViewMode: 'actual' | 'recommended' = 'actual';
+
   // Helper to check if a set has recommendations hidden (all rec values are null)
   function isSetRecHidden(s: any): boolean {
     return s.recommendedReps == null && s.recommendedWeight == null && s.recommendedRPE == null;
@@ -102,6 +105,17 @@
       <div class="text-sm font-mono uppercase tracking-widest text-base-content/60">
         Lift Sets
       </div>
+      {#if anyRecVisible}
+        <label class="md:hidden flex items-center gap-2 ml-4 cursor-pointer">
+          <span class="text-xs text-base-content/50">{narrowViewMode === 'recommended' ? 'Rec' : 'Actual'}</span>
+          <input
+            type="checkbox"
+            class="toggle toggle-xs toggle-primary"
+            checked={narrowViewMode === 'actual'}
+            on:change={() => (narrowViewMode = narrowViewMode === 'actual' ? 'recommended' : 'actual')}
+          />
+        </label>
+      {/if}
     </div>
     <div class="flex gap-2">
       {#if kind === 'none'}
@@ -115,34 +129,38 @@
   </div>
 
   {#if sets.length != 0}
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto md:overflow-x-visible">
       <table class="table table-sm">
         <thead>
           <tr class="text-xs font-mono uppercase tracking-widest text-base-content/50">
             <th>#</th>
             {#if anyRecVisible}
-              <th>Rec Reps</th>
-              <th>Rec Wt</th>
-              <th>Rec RPE</th>
+              <!-- Recommended columns: always show on md+, toggle on narrow -->
+              <th class="hidden md:table-cell {narrowViewMode === 'recommended' ? '!table-cell' : ''}">Rec Reps</th>
+              <th class="hidden md:table-cell {narrowViewMode === 'recommended' ? '!table-cell' : ''}">Rec Wt</th>
+              <th class="hidden md:table-cell {narrowViewMode === 'recommended' ? '!table-cell' : ''}">Rec RPE</th>
             {/if}
-            <th>Reps</th>
-            <th>Wt </th>
-            <th>RPE</th>
+            <!-- Actual columns: always show on md+, toggle on narrow -->
+            <th class="hidden md:table-cell {narrowViewMode === 'actual' || !anyRecVisible ? '!table-cell' : ''}">Reps</th>
+            <th class="hidden md:table-cell {narrowViewMode === 'actual' || !anyRecVisible ? '!table-cell' : ''}">Wt</th>
+            <th class="hidden md:table-cell {narrowViewMode === 'actual' || !anyRecVisible ? '!table-cell' : ''}">RPE</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           {#each sets as s, i (setId(s))}
             {@const hideRec = isSetRecHidden(s)}
+            {@const recCellClass = `hidden md:table-cell ${narrowViewMode === 'recommended' ? '!table-cell' : ''}`}
+            {@const actCellClass = `hidden md:table-cell ${narrowViewMode === 'actual' || !anyRecVisible ? '!table-cell' : ''}`}
             <tr>
               <td class="font-mono">{i + 1}</td>
               {#if anyRecVisible}
                 {#if hideRec}
-                  <td>—</td>
-                  <td>—</td>
-                  <td>—</td>
+                  <td class={recCellClass}>—</td>
+                  <td class={recCellClass}>—</td>
+                  <td class={recCellClass}>—</td>
                 {:else if $isEditing}
-                  <td>
+                  <td class={recCellClass}>
                     <input
                       class="input input-sm input-bordered w-20"
                       type="number"
@@ -150,7 +168,7 @@
                       on:change={(e) => handleUpdateRecommended(s, 'recommendedReps', e.currentTarget.value)}
                     />
                   </td>
-                  <td>
+                  <td class={recCellClass}>
                     <input
                       class="input input-sm input-bordered w-28"
                       type="number"
@@ -158,7 +176,7 @@
                       on:change={(e) => handleUpdateRecommended(s, 'recommendedWeight', e.currentTarget.value)}
                     />
                   </td>
-                  <td>
+                  <td class={recCellClass}>
                     <input
                       class="input input-sm input-bordered w-24"
                       type="number"
@@ -168,20 +186,20 @@
                     />
                   </td>
                 {:else}
-                  <td>{s.recommendedReps ?? '—'}</td>
-                  <td>
+                  <td class={recCellClass}>{s.recommendedReps ?? '—'}</td>
+                  <td class={recCellClass}>
                     {#if s.recommendedWeight == null}
                       —
                     {:else}
                       {displayWeight(s.recommendedWeight, s.weightUnit, $displayWeightUnit)}
                     {/if}
                   </td>
-                  <td>{s.recommendedRPE ?? '—'}</td>
+                  <td class={recCellClass}>{s.recommendedRPE ?? '—'}</td>
                 {/if}
               {/if}
 
               {#if !$isEditing}
-                <td class="relative group">
+                <td class="relative group {actCellClass}">
                   {#if !hideRec}
                     <button
                       class="absolute -left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-primary hover:text-primary-focus"
@@ -198,7 +216,7 @@
                     on:change={(e) => handleUpdateActuals(s, 'actualReps', e.currentTarget.value)}
                   />
                 </td>
-                <td class="relative group">
+                <td class="relative group {actCellClass}">
                   {#if !hideRec}
                     <button
                       class="absolute -left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-primary hover:text-primary-focus"
@@ -215,7 +233,7 @@
                     on:change={(e) => handleUpdateActuals(s, 'actualWeight', e.currentTarget.value)}
                   />
                 </td>
-                <td class="relative group">
+                <td class="relative group {actCellClass}">
                   {#if !hideRec}
                     <button
                       class="absolute -left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-primary hover:text-primary-focus"
@@ -251,7 +269,7 @@
                   </button>
                 </td>
               {:else}
-                <td>
+                <td class={actCellClass}>
                   <input
                     class="input input-sm input-bordered w-20"
                     type="number"
@@ -259,7 +277,7 @@
                     on:change={(e) => handleUpdateSet(s, 'actualReps', e.currentTarget.value)}
                   />
                 </td>
-                <td>
+                <td class={actCellClass}>
                   <input
                     class="input input-sm input-bordered w-28"
                     type="number"
@@ -267,7 +285,7 @@
                     on:change={(e) => handleUpdateSet(s, 'actualWeight', e.currentTarget.value)}
                   />
                 </td>
-                <td>
+                <td class={actCellClass}>
                   <input
                     class="input input-sm input-bordered w-24"
                     type="number"
