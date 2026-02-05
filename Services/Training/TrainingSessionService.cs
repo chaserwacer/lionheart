@@ -201,16 +201,33 @@ public class TrainingSessionService : ITrainingSessionService
         session.Date = DateOnly.FromDateTime(request.Date);
         session.Status = request.Status;
         session.Notes = request.Notes;
-        session.PerceivedEffortRatings = request.PerceivedEffortRatings is not null
-            ? new PerceivedEffortRatings
+        
+        if (request.PerceivedEffortRatings is not null)
+        {
+            if (session.PerceivedEffortRatings is null)
             {
-                RecordedAt = request.PerceivedEffortRatings.RecordedAt,
-                AccumulatedFatigue = request.PerceivedEffortRatings.AccumulatedFatigue,
-                DifficultyRating = request.PerceivedEffortRatings.DifficultyRating,
-                EngagementRating = request.PerceivedEffortRatings.EngagementRating,
-                ExternalVariablesRating = request.PerceivedEffortRatings.ExternalVariablesRating
+                session.PerceivedEffortRatings = new PerceivedEffortRatings
+                {
+                    RecordedAt = request.PerceivedEffortRatings.RecordedAt,
+                    AccumulatedFatigue = request.PerceivedEffortRatings.AccumulatedFatigue,
+                    DifficultyRating = request.PerceivedEffortRatings.DifficultyRating,
+                    EngagementRating = request.PerceivedEffortRatings.EngagementRating,
+                    ExternalVariablesRating = request.PerceivedEffortRatings.ExternalVariablesRating
+                };
             }
-            : null;
+            else
+            {
+                session.PerceivedEffortRatings.RecordedAt = request.PerceivedEffortRatings.RecordedAt;
+                session.PerceivedEffortRatings.AccumulatedFatigue = request.PerceivedEffortRatings.AccumulatedFatigue;
+                session.PerceivedEffortRatings.DifficultyRating = request.PerceivedEffortRatings.DifficultyRating;
+                session.PerceivedEffortRatings.EngagementRating = request.PerceivedEffortRatings.EngagementRating;
+                session.PerceivedEffortRatings.ExternalVariablesRating = request.PerceivedEffortRatings.ExternalVariablesRating;
+            }
+        }
+        else
+        {
+            session.PerceivedEffortRatings = null;
+        }
 
         await _context.SaveChangesAsync();
 
