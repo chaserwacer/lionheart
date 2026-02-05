@@ -106,16 +106,32 @@ namespace lionheart.Services
             activity.CaloriesBurned = activityRequest.CaloriesBurned;
             activity.Name = activityRequest.Name;
             activity.UserSummary = activityRequest.UserSummary;
+            
             if (activityRequest.PerceivedEffortRatings != null)
             {
-                activity.PerceivedEffortRatings = new PerceivedEffortRatings
+                if (activity.PerceivedEffortRatings is null)
+                {
+                    activity.PerceivedEffortRatings = new PerceivedEffortRatings
                     {
                         RecordedAt = DateTime.UtcNow,
                         AccumulatedFatigue = activityRequest.PerceivedEffortRatings.AccumulatedFatigue,
                         DifficultyRating = activityRequest.PerceivedEffortRatings.DifficultyRating,
                         EngagementRating = activityRequest.PerceivedEffortRatings.EngagementRating,
                         ExternalVariablesRating = activityRequest.PerceivedEffortRatings.ExternalVariablesRating
-                };
+                    };
+                }
+                else
+                {
+                    activity.PerceivedEffortRatings.RecordedAt = DateTime.UtcNow;
+                    activity.PerceivedEffortRatings.AccumulatedFatigue = activityRequest.PerceivedEffortRatings.AccumulatedFatigue;
+                    activity.PerceivedEffortRatings.DifficultyRating = activityRequest.PerceivedEffortRatings.DifficultyRating;
+                    activity.PerceivedEffortRatings.EngagementRating = activityRequest.PerceivedEffortRatings.EngagementRating;
+                    activity.PerceivedEffortRatings.ExternalVariablesRating = activityRequest.PerceivedEffortRatings.ExternalVariablesRating;
+                }
+            }
+            else
+            {
+                activity.PerceivedEffortRatings = null;
             }
 
             await _context.SaveChangesAsync();
