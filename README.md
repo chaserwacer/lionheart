@@ -1,5 +1,5 @@
 # Project Lionheart
-
+*see LinkedIn for Demo
 ## Overview
 Project Lionheart is a comprehensive athletic training data management platform designed to centralize, contextualize, and analyze the full spectrum of data that influences athletic performance. Unlike traditional fitness applications that focus narrowly on isolated activities or metrics, Lionheart is built around a holistic model of the athlete—capturing training, lifestyle, recovery, and subjective experience in a unified system.
 
