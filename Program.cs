@@ -10,6 +10,7 @@ using lionheart.Services.Chat;
 using Services.Chat;
 using Model.Tools;
 using lionheart.Services.Training;
+using lionheart.Services.Ingestion;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -69,6 +70,8 @@ builder.Services.AddTransient<IPersonalRecordService, PersonalRecordService>();
 builder.Services.AddTransient<IChatMessageService, ChatMessageService>();
 builder.Services.AddTransient<ChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
+builder.Services.AddTransient<IIngestionParseService, IngestionParseService>();
+builder.Services.AddTransient<IIngestionCommitService, IngestionCommitService>();
 
 
 builder.Services.AddSingleton<ToolRegistry>(sp =>

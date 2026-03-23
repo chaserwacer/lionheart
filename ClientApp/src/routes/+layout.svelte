@@ -113,6 +113,13 @@
                   Chat
                 </a>
                 <a
+                  href="/import"
+                  class="px-5 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-200
+                         {currentPath === '/import' ? 'text-base-content border-b-2 border-base-content' : 'text-base-content/60 hover:text-base-content border-b-2 border-transparent'}"
+                >
+                  Import
+                </a>
+                <a
                   href="/profile"
                   class="px-5 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-200
                          {currentPath === '/profile' ? 'text-base-content border-b-2 border-base-content' : 'text-base-content/60 hover:text-base-content border-b-2 border-transparent'}"
@@ -221,6 +228,14 @@
                      {currentPath === '/chat' ? 'text-base-content bg-base-200/60' : 'text-base-content/60 hover:text-base-content hover:bg-base-200/40'}"
             >
               Chat
+            </button>
+
+            <button
+              on:click={() => navigateTo('/import')}
+              class="px-4 py-3 text-sm font-bold uppercase tracking-wider text-left transition-all duration-200 rounded-lg
+                     {currentPath === '/import' ? 'text-base-content bg-base-200/60' : 'text-base-content/60 hover:text-base-content hover:bg-base-200/40'}"
+            >
+              Import
             </button>
 
             <button
