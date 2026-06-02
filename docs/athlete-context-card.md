@@ -294,6 +294,62 @@ Begin with Phase 0 and present the plan.
 
 ---
 
+## 3a. Implementation status (initial execution)
+
+A first implementation slice landed on `claude/lionheart-user-profiles-Ob5y0`:
+
+- **Entity / persistence** — `Model/Profile/AthleteContextCard.cs` (one derived
+  card per user: Stable Profile + Recent State + coverage manifest, each with
+  version + as-of stamps and a generator version for rebuilds). Registered in
+  `Data/ModelContext.cs` with a unique index on `UserID`.
+- **Generation pipeline** — `Services/Profile/AthleteContextCardService.cs`:
+  deterministic EF Core aggregation for both tiers (baselines, 7d wellness/Oura
+  means, acute:chronic load, active injuries, PR counts) + **best-effort**
+  narrative via a separate cheap model (`Services/Profile/NarrativeChatClient.cs`).
+  Narrative failure falls back to deterministic text — numbers never come from the LLM.
+- **Integration** — `ChatConversationService` now renders the card into the
+  system message (byte-stable cacheable prefix = instructions + profile +
+  tool-routing policy; volatile manifest + Recent State appended after), with a
+  static fallback prompt on any failure.
+- **Tool steering** — the rendered system message carries a coverage manifest
+  ("what's loaded + over what window + which tool to call for the rest") and an
+  explicit decision policy.
+- **Context management** — `ChatCompletionService.HandleConversationHistory`
+  reserves the card's budget first, packs user/model turns by priority, then
+  fills remaining budget with tool-result payloads (dropped first, kept in DB).
+- **Invalidation** — `WellnessService.AddWellnessStateAsync` marks Recent State
+  stale (batched, no extra round trip); lazy rebuild on next read (6h max age).
+- **DI / config** — `Program.cs` registers the card service and the cheap
+  narrative client (model from `OpenAI:NarrativeModel`, default `gpt-5.2-mini`).
+
+### Build & migration note (no .NET SDK in the web container)
+
+This environment has no `dotnet` CLI, so the build and the EF migration could not
+be generated/verified here. The `ModelContext` model changes are in place, so
+generate the migration locally with the SDK before running:
+
+```
+dotnet build
+dotnet ef migrations add AddAthleteContextCard
+dotnet ef database update
+```
+
+Letting EF generate the migration (rather than hand-writing it) keeps the
+migration, its `Designer.cs`, and `ModelContextModelSnapshot.cs` mutually
+consistent. Also set the `OpenAI:NarrativeModel` user-secret if the default isn't
+desired.
+
+### Remaining follow-ups (later phases)
+
+- Event-driven invalidation on the injury and Oura-sync write paths (wellness is
+  wired as the representative example).
+- Scheduled weekly/monthly/yearly rollups via an `IHostedService`/`BackgroundService`.
+- Eval/observability: log tool-calls and input-tokens per conversation (before/after).
+- "Summarize the oldest turns" history compaction (current pass drops tool
+  results first; turn-summarization is the next refinement).
+
+---
+
 ## 4. Why this is the token-efficient choice
 
 - **Per-conversation:** static 200-token prompt + N tool-call round-trips (each a

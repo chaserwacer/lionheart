@@ -10,6 +10,7 @@ using lionheart.Services.Chat;
 using Services.Chat;
 using Model.Tools;
 using lionheart.Services.Training;
+using lionheart.Services.Profile;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,6 +38,12 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
 var openAiApiKey = configuration["OpenAI:ApiKey"];
 builder.Services.AddSingleton(provider =>
     new ChatClient(model: "gpt-5.2", apiKey: openAiApiKey)
+);
+
+// Cheap, off-the-hot-path model used only for Athlete Context Card narrative summarization.
+var narrativeModel = configuration["OpenAI:NarrativeModel"] ?? "gpt-5.2-mini";
+builder.Services.AddSingleton(provider =>
+    new NarrativeChatClient(new ChatClient(model: narrativeModel, apiKey: openAiApiKey))
 );
 
 builder.Services
@@ -69,6 +76,7 @@ builder.Services.AddTransient<IPersonalRecordService, PersonalRecordService>();
 builder.Services.AddTransient<IChatMessageService, ChatMessageService>();
 builder.Services.AddTransient<ChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
+builder.Services.AddTransient<IAthleteContextCardService, AthleteContextCardService>();
 
 
 builder.Services.AddSingleton<ToolRegistry>(sp =>
