@@ -90,14 +90,74 @@ tier is computed rarely, the fast tier is cheap to recompute and small.
   Stable Profile cached + refreshed lazily; Recent State re-injected at
   conversation start.
 
-### 2.6 The card must point at what it omits ("retrieval pointers")
+### 2.6 The card actively *steers* tool calls (not just "points at" data)
 
-The ACC reduces retrieval; it does not replace tools. Include compact pointers
-("PR history exists for 14 movements; ask to drill in", "32 logged sessions in
-the last 8 weeks") so the model knows *when a tool call is still warranted*
-instead of guessing or hallucinating. Tools stay registered and available.
+The ACC reduces retrieval; it does not replace tools. But the bigger win is using
+the card to make the model's tool-calling **more intelligent and deliberate**,
+not just less frequent. The card carries an explicit, machine-readable **tool
+routing** layer that turns "the model guesses what to fetch" into "the model
+follows a decision policy":
 
-### 2.7 Safety, provenance, evaluation
+1. **Coverage manifest** — for each domain, a compact line stating *what the card
+   already contains and over what window*, so the model never re-fetches data it
+   already has:
+   - `wellness: last 7d summarized + today's scores present (as-of 2026-06-02)`
+   - `oura: 7d readiness/sleep/HRV means present; per-night detail NOT loaded`
+   - `training: 8-week load + acute:chronic present; per-session detail NOT loaded`
+   - `injuries: 2 active (summarized); full event history NOT loaded`
+   - `PRs: current PRs for 14 movements present; progression history NOT loaded`
+
+2. **Drill-down pointers + the exact tool + arguments to use** — each "NOT loaded"
+   item names the tool and the parameter shape that would retrieve it, so a needed
+   call is unambiguous:
+   - "For per-session detail call `GetTrainingSessionsByDateRange` with the date
+     range in question."
+   - "For injury event history call `GetUserInjuries` filtered to the injury."
+
+3. **A decision policy in the system prompt** that consumes the manifest:
+   - If the answer is fully supported by the card → **answer directly, no tools.**
+   - If the question needs detail the manifest marks `NOT loaded` → call **exactly
+     the named tool with the narrowest date range** that covers the question.
+   - Never re-fetch a domain the manifest marks present-and-fresh for the same
+     window; trust the card's deterministic numbers.
+   - If card data is stale/missing (per its `as-of`) for a time-sensitive
+     question → fetch; otherwise prefer the card.
+
+This converts the card from passive context into an explicit **router**: the
+model spends tool budget only on genuine drill-downs, with the right tool and
+tight arguments on the first try, instead of exploratory round-trips. Tools stay
+registered and available — the card changes *when and how precisely* they fire.
+
+### 2.7 Context management across the conversation
+
+The card changes the token profile of every turn, so the existing context budget
+logic in `ChatCompletionService.HandleConversationHistory` (newest-first packing
+against `MAX_INPUT_TOKENS`) must be made card-aware rather than left as-is:
+
+- **One stable system block, not a growing one.** The Stable Profile is rendered
+  once as the cached prefix; do not append a fresh card copy on every turn. Only
+  the small Recent State is re-injected, and only when it has actually changed
+  (compare its version/as-of stamp) — otherwise reuse the cached block so prompt
+  caching keeps hitting.
+- **Reserve the card's budget first.** Compute `cardTokens` and subtract it from
+  `MAX_INPUT_TOKENS` *before* packing history, so the card can never be crowded
+  out by old turns and history can never silently blow the window. The card has
+  a hard cap (see 2.8); history fills what remains.
+- **Prune history the card makes redundant.** Persisted `LHChatToolCallResult`
+  messages are the largest, stalest payloads in a conversation. Once the card
+  covers a domain/window, older raw tool-result messages for that same window are
+  the first thing dropped from the packed context (they remain in the DB for
+  audit; they just stop being re-sent). This is the single biggest in-conversation
+  token saving and it composes with the cross-conversation saving from the card.
+- **Summarize, don't truncate, long histories.** When history still exceeds its
+  remaining budget, prefer rolling the oldest user/model turns into a short
+  running synopsis (cheap-model, offline-style) over hard-cutting at a token
+  boundary, so older context degrades gracefully instead of vanishing.
+- **Keep the cacheable prefix byte-stable.** Anything that changes the prefix
+  (even whitespace) busts the cache. Put all volatile content (Recent State,
+  timestamps) *after* the stable prefix, never interleaved.
+
+### 2.8 Safety, provenance, evaluation
 
 - Carry confidence/recency so stale or sparse data is flagged; keep the existing
   no-medical-advice disclaimer posture.
@@ -106,7 +166,7 @@ instead of guessing or hallucinating. Tools stay registered and available.
   introduces no fabricated numbers (since numbers are deterministic, this should
   hold by construction).
 
-### 2.8 What this unlocks later
+### 2.9 What this unlocks later
 
 Once the ACC exists, deeper questions need less retrieval because the framing
 (baselines, trends, active issues) is already present — the model drills down
@@ -167,13 +227,32 @@ coding. Your plan must cover:
      existing write paths (AddWellnessStateAsync, injury event creation, Oura
      sync), plus scheduled rollups (propose IHostedService/BackgroundService).
      Keep aggregation deterministic; never recompute numbers with the LLM.
-  4. System-message assembly: render the ACC into a bounded, token-budgeted
-     block; place Stable Profile as a cacheable stable prefix and Recent State
-     after it. Decide how this integrates with the existing per-conversation
-     LHSystemChatMessage (refresh-on-create + Recent-State re-inject vs frozen).
-     Confirm/enable provider prompt caching for the stable prefix.
-  5. Retrieval pointers: include compact "what exists / ask to drill in" hints so
-     the model still knows when to call a tool. Keep all existing tools registered.
+  4. System-message assembly + INTEGRATION into the live chat flow: render the
+     ACC into a bounded, token-budgeted block; place Stable Profile as a
+     cacheable stable prefix and Recent State after it. Specify exactly how this
+     wires into the existing path — ChatConversationService builds the
+     LHSystemChatMessage today, and ChatMessageService.ProcessUserChatMessageAsync
+     drives each turn. Decide and justify: Stable Profile cached + refreshed
+     lazily, Recent State re-injected at conversation start (and only when its
+     version/as-of changed). Confirm/enable provider prompt caching for the
+     stable prefix and keep that prefix byte-stable (all volatile content after
+     it). This is a first-class deliverable, not an afterthought.
+  5. Tool-call STEERING (the card must make tool use more intelligent, not just
+     rarer): embed a machine-readable "coverage manifest" in the card (what each
+     domain contains + over what window + as-of), plus drill-down pointers naming
+     the exact tool + argument shape for anything NOT loaded. Add a decision
+     policy to the system prompt: answer directly when the card suffices; when
+     detail is needed, call exactly the named tool with the narrowest date range;
+     never re-fetch a domain the manifest marks present-and-fresh. Keep all
+     existing tools registered. Show before/after expected tool-call behavior on
+     2-3 example questions in the plan.
+  5b. Context management across the conversation: make
+     ChatCompletionService.HandleConversationHistory card-aware — reserve the
+     card's token budget before packing history; drop persisted
+     LHChatToolCallResult messages that the card now makes redundant (keep them in
+     the DB, just stop re-sending); prefer summarizing the oldest turns over hard
+     truncation. State the new budget math explicitly (card reserved first, then
+     history fills MAX_INPUT_TOKENS minus card).
   6. Token budget + safety: hard cap the card size with priority-ordered
      truncation; carry recency/provenance; preserve the no-medical-advice posture.
   7. Eval/observability: log tool-calls-per-conversation and input-tokens-per-
@@ -196,8 +275,11 @@ coding. Your plan must cover:
 ## Ways of working (token efficiency + Claude Code performance)
   - Plan-first, then implement in small, independently reviewable phases; pause
     between phases. Prefer Phase 1 = persistence + migration, Phase 2 = generation
-    pipeline, Phase 3 = system-message assembly + caching, Phase 4 = invalidation +
-    scheduling, Phase 5 = eval/observability.
+    pipeline, Phase 3 = system-message assembly + caching + tool-routing manifest
+    (the integration), Phase 4 = card-aware context management in
+    ChatCompletionService (budget reservation + redundant-tool-result pruning),
+    Phase 5 = invalidation + scheduling, Phase 6 = eval/observability (tool-calls
+    and input-tokens per conversation, before/after).
   - Make independent tool calls in parallel; read only what you need; don't
     re-read unchanged files; prefer precise greps over broad scans.
   - Keep each commit focused with a clear message. Develop on
