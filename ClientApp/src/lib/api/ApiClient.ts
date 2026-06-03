@@ -128,6 +128,73 @@ export class AddWellnessStateEndpointClient {
     }
 }
 
+export class CommitIngestionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return Created
+     */
+    post(body: IngestionCommitRequest | undefined): Promise<IngestionCommitResponse> {
+        let url_ = this.baseUrl + "/api/ingestion/commit";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPost(_response);
+        });
+    }
+
+    protected processPost(response: Response): Promise<IngestionCommitResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 201) {
+            return response.text().then((_responseText) => {
+            let result201: any = null;
+            let resultData201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result201 = IngestionCommitResponse.fromJS(resultData201);
+            return result201;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<IngestionCommitResponse>(null as any);
+    }
+}
+
 export class CreateChatConversationEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3938,6 +4005,73 @@ export class LogoutUserEndpointClient {
     }
 }
 
+export class ParseIngestionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    post(body: IngestionParseRequest | undefined): Promise<IngestionParseResponse> {
+        let url_ = this.baseUrl + "/api/ingestion/parse";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPost(_response);
+        });
+    }
+
+    protected processPost(response: Response): Promise<IngestionParseResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = IngestionParseResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<IngestionParseResponse>(null as any);
+    }
+}
+
 export class ProcessUserChatMessageEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -6515,6 +6649,302 @@ export enum DistanceUnit {
     _3 = 3,
 }
 
+export class DraftDTSet implements IDraftDTSet {
+    actualDistance?: number;
+    actualDuration?: string;
+    actualPace?: string;
+    intervalType?: IntervalType;
+    distanceUnit?: DistanceUnit;
+    actualRPE?: number;
+
+    constructor(data?: IDraftDTSet) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.actualDistance = _data["actualDistance"];
+            this.actualDuration = _data["actualDuration"];
+            this.actualPace = _data["actualPace"];
+            this.intervalType = _data["intervalType"];
+            this.distanceUnit = _data["distanceUnit"];
+            this.actualRPE = _data["actualRPE"];
+        }
+    }
+
+    static fromJS(data: any): DraftDTSet {
+        data = typeof data === 'object' ? data : {};
+        let result = new DraftDTSet();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["actualDistance"] = this.actualDistance;
+        data["actualDuration"] = this.actualDuration;
+        data["actualPace"] = this.actualPace;
+        data["intervalType"] = this.intervalType;
+        data["distanceUnit"] = this.distanceUnit;
+        data["actualRPE"] = this.actualRPE;
+        return data;
+    }
+}
+
+export interface IDraftDTSet {
+    actualDistance?: number;
+    actualDuration?: string;
+    actualPace?: string;
+    intervalType?: IntervalType;
+    distanceUnit?: DistanceUnit;
+    actualRPE?: number;
+}
+
+export class DraftLiftSet implements IDraftLiftSet {
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
+    actualReps?: number;
+    actualWeight?: number;
+    actualRPE?: number;
+    weightUnit?: WeightUnit;
+
+    constructor(data?: IDraftLiftSet) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.recommendedReps = _data["recommendedReps"];
+            this.recommendedWeight = _data["recommendedWeight"];
+            this.recommendedRPE = _data["recommendedRPE"];
+            this.actualReps = _data["actualReps"];
+            this.actualWeight = _data["actualWeight"];
+            this.actualRPE = _data["actualRPE"];
+            this.weightUnit = _data["weightUnit"];
+        }
+    }
+
+    static fromJS(data: any): DraftLiftSet {
+        data = typeof data === 'object' ? data : {};
+        let result = new DraftLiftSet();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["recommendedReps"] = this.recommendedReps;
+        data["recommendedWeight"] = this.recommendedWeight;
+        data["recommendedRPE"] = this.recommendedRPE;
+        data["actualReps"] = this.actualReps;
+        data["actualWeight"] = this.actualWeight;
+        data["actualRPE"] = this.actualRPE;
+        data["weightUnit"] = this.weightUnit;
+        return data;
+    }
+}
+
+export interface IDraftLiftSet {
+    recommendedReps?: number | undefined;
+    recommendedWeight?: number | undefined;
+    recommendedRPE?: number | undefined;
+    actualReps?: number;
+    actualWeight?: number;
+    actualRPE?: number;
+    weightUnit?: WeightUnit;
+}
+
+export class DraftMovement implements IDraftMovement {
+    draftId?: string | undefined;
+    movementBaseName?: string | undefined;
+    equipmentName?: string | undefined;
+    modifierName?: string | undefined;
+    liftSets?: DraftLiftSet[] | undefined;
+    distanceTimeSets?: DraftDTSet[] | undefined;
+    notes?: string | undefined;
+    ordering?: number;
+
+    constructor(data?: IDraftMovement) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.draftId = _data["draftId"];
+            this.movementBaseName = _data["movementBaseName"];
+            this.equipmentName = _data["equipmentName"];
+            this.modifierName = _data["modifierName"];
+            if (Array.isArray(_data["liftSets"])) {
+                this.liftSets = [] as any;
+                for (let item of _data["liftSets"])
+                    this.liftSets!.push(DraftLiftSet.fromJS(item));
+            }
+            if (Array.isArray(_data["distanceTimeSets"])) {
+                this.distanceTimeSets = [] as any;
+                for (let item of _data["distanceTimeSets"])
+                    this.distanceTimeSets!.push(DraftDTSet.fromJS(item));
+            }
+            this.notes = _data["notes"];
+            this.ordering = _data["ordering"];
+        }
+    }
+
+    static fromJS(data: any): DraftMovement {
+        data = typeof data === 'object' ? data : {};
+        let result = new DraftMovement();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["draftId"] = this.draftId;
+        data["movementBaseName"] = this.movementBaseName;
+        data["equipmentName"] = this.equipmentName;
+        data["modifierName"] = this.modifierName;
+        if (Array.isArray(this.liftSets)) {
+            data["liftSets"] = [];
+            for (let item of this.liftSets)
+                data["liftSets"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.distanceTimeSets)) {
+            data["distanceTimeSets"] = [];
+            for (let item of this.distanceTimeSets)
+                data["distanceTimeSets"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["notes"] = this.notes;
+        data["ordering"] = this.ordering;
+        return data;
+    }
+}
+
+export interface IDraftMovement {
+    draftId?: string | undefined;
+    movementBaseName?: string | undefined;
+    equipmentName?: string | undefined;
+    modifierName?: string | undefined;
+    liftSets?: DraftLiftSet[] | undefined;
+    distanceTimeSets?: DraftDTSet[] | undefined;
+    notes?: string | undefined;
+    ordering?: number;
+}
+
+export class DraftSession implements IDraftSession {
+    draftId?: string | undefined;
+    date?: Date;
+    notes?: string | undefined;
+    movements?: DraftMovement[] | undefined;
+
+    constructor(data?: IDraftSession) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.draftId = _data["draftId"];
+            this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
+            this.notes = _data["notes"];
+            if (Array.isArray(_data["movements"])) {
+                this.movements = [] as any;
+                for (let item of _data["movements"])
+                    this.movements!.push(DraftMovement.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): DraftSession {
+        data = typeof data === 'object' ? data : {};
+        let result = new DraftSession();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["draftId"] = this.draftId;
+        data["date"] = this.date ? this.date.toISOString() : <any>undefined;
+        data["notes"] = this.notes;
+        if (Array.isArray(this.movements)) {
+            data["movements"] = [];
+            for (let item of this.movements)
+                data["movements"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IDraftSession {
+    draftId?: string | undefined;
+    date?: Date;
+    notes?: string | undefined;
+    movements?: DraftMovement[] | undefined;
+}
+
+export class EntityMatch implements IEntityMatch {
+    entityId?: string;
+    name?: string | undefined;
+    confidence?: number;
+
+    constructor(data?: IEntityMatch) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.entityId = _data["entityId"];
+            this.name = _data["name"];
+            this.confidence = _data["confidence"];
+        }
+    }
+
+    static fromJS(data: any): EntityMatch {
+        data = typeof data === 'object' ? data : {};
+        let result = new EntityMatch();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["entityId"] = this.entityId;
+        data["name"] = this.name;
+        data["confidence"] = this.confidence;
+        return data;
+    }
+}
+
+export interface IEntityMatch {
+    entityId?: string;
+    name?: string | undefined;
+    confidence?: number;
+}
+
 export class Equipment implements IEquipment {
     equipmentID!: string;
     name!: string;
@@ -6897,6 +7327,226 @@ export class InfoResponse implements IInfoResponse {
 export interface IInfoResponse {
     email: string | undefined;
     isEmailConfirmed: boolean;
+}
+
+export class IngestionCommitRequest implements IIngestionCommitRequest {
+    sessions?: ResolvedSession[] | undefined;
+
+    constructor(data?: IIngestionCommitRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["sessions"])) {
+                this.sessions = [] as any;
+                for (let item of _data["sessions"])
+                    this.sessions!.push(ResolvedSession.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): IngestionCommitRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new IngestionCommitRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.sessions)) {
+            data["sessions"] = [];
+            for (let item of this.sessions)
+                data["sessions"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IIngestionCommitRequest {
+    sessions?: ResolvedSession[] | undefined;
+}
+
+export class IngestionCommitResponse implements IIngestionCommitResponse {
+    createdSessionIDs?: string[] | undefined;
+    createdDependencies?: string[] | undefined;
+    errors?: string[] | undefined;
+
+    constructor(data?: IIngestionCommitResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["createdSessionIDs"])) {
+                this.createdSessionIDs = [] as any;
+                for (let item of _data["createdSessionIDs"])
+                    this.createdSessionIDs!.push(item);
+            }
+            if (Array.isArray(_data["createdDependencies"])) {
+                this.createdDependencies = [] as any;
+                for (let item of _data["createdDependencies"])
+                    this.createdDependencies!.push(item);
+            }
+            if (Array.isArray(_data["errors"])) {
+                this.errors = [] as any;
+                for (let item of _data["errors"])
+                    this.errors!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): IngestionCommitResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new IngestionCommitResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.createdSessionIDs)) {
+            data["createdSessionIDs"] = [];
+            for (let item of this.createdSessionIDs)
+                data["createdSessionIDs"].push(item);
+        }
+        if (Array.isArray(this.createdDependencies)) {
+            data["createdDependencies"] = [];
+            for (let item of this.createdDependencies)
+                data["createdDependencies"].push(item);
+        }
+        if (Array.isArray(this.errors)) {
+            data["errors"] = [];
+            for (let item of this.errors)
+                data["errors"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IIngestionCommitResponse {
+    createdSessionIDs?: string[] | undefined;
+    createdDependencies?: string[] | undefined;
+    errors?: string[] | undefined;
+}
+
+export class IngestionParseRequest implements IIngestionParseRequest {
+    rawText?: string | undefined;
+    sourceDescription?: string | undefined;
+
+    constructor(data?: IIngestionParseRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.rawText = _data["rawText"];
+            this.sourceDescription = _data["sourceDescription"];
+        }
+    }
+
+    static fromJS(data: any): IngestionParseRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new IngestionParseRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["rawText"] = this.rawText;
+        data["sourceDescription"] = this.sourceDescription;
+        return data;
+    }
+}
+
+export interface IIngestionParseRequest {
+    rawText?: string | undefined;
+    sourceDescription?: string | undefined;
+}
+
+export class IngestionParseResponse implements IIngestionParseResponse {
+    sessions?: DraftSession[] | undefined;
+    unresolvedReferences?: UnresolvedReference[] | undefined;
+    warnings?: string[] | undefined;
+
+    constructor(data?: IIngestionParseResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["sessions"])) {
+                this.sessions = [] as any;
+                for (let item of _data["sessions"])
+                    this.sessions!.push(DraftSession.fromJS(item));
+            }
+            if (Array.isArray(_data["unresolvedReferences"])) {
+                this.unresolvedReferences = [] as any;
+                for (let item of _data["unresolvedReferences"])
+                    this.unresolvedReferences!.push(UnresolvedReference.fromJS(item));
+            }
+            if (Array.isArray(_data["warnings"])) {
+                this.warnings = [] as any;
+                for (let item of _data["warnings"])
+                    this.warnings!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): IngestionParseResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new IngestionParseResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.sessions)) {
+            data["sessions"] = [];
+            for (let item of this.sessions)
+                data["sessions"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.unresolvedReferences)) {
+            data["unresolvedReferences"] = [];
+            for (let item of this.unresolvedReferences)
+                data["unresolvedReferences"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.warnings)) {
+            data["warnings"] = [];
+            for (let item of this.warnings)
+                data["warnings"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IIngestionParseResponse {
+    sessions?: DraftSession[] | undefined;
+    unresolvedReferences?: UnresolvedReference[] | undefined;
+    warnings?: string[] | undefined;
 }
 
 export class Injury implements IInjury {
@@ -9238,6 +9888,146 @@ export interface IResilienceData {
     resilienceLevel?: string | undefined;
 }
 
+export class ResolvedMovement implements IResolvedMovement {
+    movementBaseID?: string | undefined;
+    newMovementBaseName?: string | undefined;
+    equipmentID?: string | undefined;
+    newEquipmentName?: string | undefined;
+    modifierName?: string | undefined;
+    liftSets?: DraftLiftSet[] | undefined;
+    distanceTimeSets?: DraftDTSet[] | undefined;
+    notes?: string | undefined;
+    ordering?: number;
+
+    constructor(data?: IResolvedMovement) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.movementBaseID = _data["movementBaseID"];
+            this.newMovementBaseName = _data["newMovementBaseName"];
+            this.equipmentID = _data["equipmentID"];
+            this.newEquipmentName = _data["newEquipmentName"];
+            this.modifierName = _data["modifierName"];
+            if (Array.isArray(_data["liftSets"])) {
+                this.liftSets = [] as any;
+                for (let item of _data["liftSets"])
+                    this.liftSets!.push(DraftLiftSet.fromJS(item));
+            }
+            if (Array.isArray(_data["distanceTimeSets"])) {
+                this.distanceTimeSets = [] as any;
+                for (let item of _data["distanceTimeSets"])
+                    this.distanceTimeSets!.push(DraftDTSet.fromJS(item));
+            }
+            this.notes = _data["notes"];
+            this.ordering = _data["ordering"];
+        }
+    }
+
+    static fromJS(data: any): ResolvedMovement {
+        data = typeof data === 'object' ? data : {};
+        let result = new ResolvedMovement();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["movementBaseID"] = this.movementBaseID;
+        data["newMovementBaseName"] = this.newMovementBaseName;
+        data["equipmentID"] = this.equipmentID;
+        data["newEquipmentName"] = this.newEquipmentName;
+        data["modifierName"] = this.modifierName;
+        if (Array.isArray(this.liftSets)) {
+            data["liftSets"] = [];
+            for (let item of this.liftSets)
+                data["liftSets"].push(item ? item.toJSON() : <any>undefined);
+        }
+        if (Array.isArray(this.distanceTimeSets)) {
+            data["distanceTimeSets"] = [];
+            for (let item of this.distanceTimeSets)
+                data["distanceTimeSets"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["notes"] = this.notes;
+        data["ordering"] = this.ordering;
+        return data;
+    }
+}
+
+export interface IResolvedMovement {
+    movementBaseID?: string | undefined;
+    newMovementBaseName?: string | undefined;
+    equipmentID?: string | undefined;
+    newEquipmentName?: string | undefined;
+    modifierName?: string | undefined;
+    liftSets?: DraftLiftSet[] | undefined;
+    distanceTimeSets?: DraftDTSet[] | undefined;
+    notes?: string | undefined;
+    ordering?: number;
+}
+
+export class ResolvedSession implements IResolvedSession {
+    date?: Date;
+    notes?: string | undefined;
+    trainingProgramID?: string | undefined;
+    movements?: ResolvedMovement[] | undefined;
+
+    constructor(data?: IResolvedSession) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
+            this.notes = _data["notes"];
+            this.trainingProgramID = _data["trainingProgramID"];
+            if (Array.isArray(_data["movements"])) {
+                this.movements = [] as any;
+                for (let item of _data["movements"])
+                    this.movements!.push(ResolvedMovement.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): ResolvedSession {
+        data = typeof data === 'object' ? data : {};
+        let result = new ResolvedSession();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["date"] = this.date ? this.date.toISOString() : <any>undefined;
+        data["notes"] = this.notes;
+        data["trainingProgramID"] = this.trainingProgramID;
+        if (Array.isArray(this.movements)) {
+            data["movements"] = [];
+            for (let item of this.movements)
+                data["movements"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IResolvedSession {
+    date?: Date;
+    notes?: string | undefined;
+    trainingProgramID?: string | undefined;
+    movements?: ResolvedMovement[] | undefined;
+}
+
 export class SleepData implements ISleepData {
     sleepScore?: number;
     deepSleep?: number;
@@ -9732,6 +10522,58 @@ export interface ITwoFactorResponse {
     recoveryCodes?: string[] | undefined;
     isTwoFactorEnabled: boolean;
     isMachineRemembered: boolean;
+}
+
+export class UnresolvedReference implements IUnresolvedReference {
+    rawName?: string | undefined;
+    entityType?: string | undefined;
+    candidates?: EntityMatch[] | undefined;
+
+    constructor(data?: IUnresolvedReference) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.rawName = _data["rawName"];
+            this.entityType = _data["entityType"];
+            if (Array.isArray(_data["candidates"])) {
+                this.candidates = [] as any;
+                for (let item of _data["candidates"])
+                    this.candidates!.push(EntityMatch.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): UnresolvedReference {
+        data = typeof data === 'object' ? data : {};
+        let result = new UnresolvedReference();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["rawName"] = this.rawName;
+        data["entityType"] = this.entityType;
+        if (Array.isArray(this.candidates)) {
+            data["candidates"] = [];
+            for (let item of this.candidates)
+                data["candidates"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IUnresolvedReference {
+    rawName?: string | undefined;
+    entityType?: string | undefined;
+    candidates?: EntityMatch[] | undefined;
 }
 
 export class UpdateActivityRequest implements IUpdateActivityRequest {
