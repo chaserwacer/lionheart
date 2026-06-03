@@ -9,6 +9,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Ardalis.Result;
 using lionheart.Model.Request;
+using lionheart.Services.Profile;
 using Model.Chat.Tools;
 
 namespace lionheart.Services
@@ -41,13 +42,15 @@ namespace lionheart.Services
     {
         private readonly ModelContext _context;
         private readonly HttpClient _httpClient;
+        private readonly IAthleteContextCardService _cardService;
         private readonly string APPLICATION_NAME = "oura";
         //private const string BaseUrl = "https://api.ouraring.com/v2/usercollection/";
 
-        public OuraService(ModelContext context, HttpClient httpClient)
+        public OuraService(ModelContext context, HttpClient httpClient, IAthleteContextCardService cardService)
         {
             _httpClient = httpClient;
             _context = context;
+            _cardService = cardService;
         }
 
         public async Task<Result<DailyOuraDataDTO>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date)
@@ -371,6 +374,10 @@ namespace lionheart.Services
                 }
                 currentDate = currentDate.AddDays(1);
             }
+
+            // Fresh biometrics just landed — invalidate the card's Recent State so it rebuilds on next read.
+            await _cardService.MarkRecentStateStaleAsync(userGuid);
+            await _context.SaveChangesAsync();
             return Result.Success();
         }
 

@@ -32,24 +32,6 @@ namespace lionheart.Services.Chat
             _cardService = cardService;
         }
 
-        /// <summary>
-        /// Static coaching prompt used as a safe fallback when the Athlete Context Card cannot be built
-        /// (e.g. brand-new user with no data, or a transient error). Behaviorally equivalent to the card's
-        /// stable prefix minus the per-user profile.
-        /// </summary>
-        private const string FallbackSystemPrompt = """
-            You are Lionheart, an intelligent training coach and analyst.
-            You access the Lionheart Training Intelligence System: an athlete's training history, subjective notes, and wearable biometrics (e.g., Oura Ring).
-            Core principles:
-            Interpret, don't report. Never restate raw data or list metrics.
-            Prioritize patterns and trends over snapshots. Reference numbers only when they strengthen insight.
-            Analyze in context: load vs. recovery, performance vs. fatigue, lifestyle stress alongside training.
-            Use tools proactively to retrieve only what's needed. Never expose tool usage.
-            Tone: Thoughtful coach—intelligent, grounded, human. Engaging, not robotic.
-            Always aim to add value through insights and actionable advice.
-            You are a training intelligence layer, not a dashboard.
-            """;
-
         public async Task<Result<LHChatConversationDTO>> CreateChatConversationAsync(IdentityUser user, CreateChatConversationRequest request)
         {
             var userId = Guid.Parse(user.Id);
@@ -64,11 +46,11 @@ namespace lionheart.Services.Chat
                 var cardResult = await _cardService.GetOrBuildCardAsync(user);
                 systemContent = cardResult.IsSuccess
                     ? _cardService.RenderSystemMessage(cardResult.Value)
-                    : FallbackSystemPrompt;
+                    : _cardService.RenderFallbackSystemMessage();
             }
             catch
             {
-                systemContent = FallbackSystemPrompt;
+                systemContent = _cardService.RenderFallbackSystemMessage();
             }
 
             var systemMessage = new LHSystemChatMessage

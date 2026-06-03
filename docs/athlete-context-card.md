@@ -294,56 +294,68 @@ Begin with Phase 0 and present the plan.
 
 ---
 
-## 3a. Implementation status (initial execution)
+## 3a. Implementation status (integrated)
 
-A first implementation slice landed on `claude/lionheart-user-profiles-Ob5y0`:
+The ACC is implemented and wired into the live chat flow on
+`claude/lionheart-user-profiles-Ob5y0`:
 
 - **Entity / persistence** — `Model/Profile/AthleteContextCard.cs` (one derived
   card per user: Stable Profile + Recent State + coverage manifest, each with
   version + as-of stamps and a generator version for rebuilds). Registered in
-  `Data/ModelContext.cs` with a unique index on `UserID`.
+  `Data/ModelContext.cs` with a unique index on `UserID`, and created by the EF
+  migration `Migrations/20260603000000_AddAthleteContextCard.cs`.
 - **Generation pipeline** — `Services/Profile/AthleteContextCardService.cs`:
-  deterministic EF Core aggregation for both tiers (baselines, 7d wellness/Oura
-  means, acute:chronic load, active injuries, PR counts) + **best-effort**
-  narrative via a separate cheap model (`Services/Profile/NarrativeChatClient.cs`).
-  Narrative failure falls back to deterministic text — numbers never come from the LLM.
-- **Integration** — `ChatConversationService` now renders the card into the
-  system message (byte-stable cacheable prefix = instructions + profile +
-  tool-routing policy; volatile manifest + Recent State appended after), with a
-  static fallback prompt on any failure.
+  deterministic EF Core aggregation for both tiers. The **Stable Profile** carries
+  identity, 12-month biometric baselines (resting HR, HRV, readiness, sleep),
+  training cadence + history span, dominant training modality (most-trained
+  movements), a concrete strength profile (strongest current lifts), chronic
+  injury history, and a 90d-vs-prior-90d trajectory. The **Recent State** carries
+  the latest wellness entry + 7d average + week-over-week trend, 7d Oura means +
+  trend + latest night, acute:chronic load with an interpretation flag and 7d
+  perceived-difficulty (RPE), PRs set in the last 30 days, and active injuries
+  with last pain + recency. A **best-effort one-sentence narrative** is generated
+  per tier; on any failure it falls back to the deterministic text — numbers never
+  come from the LLM.
+- **Single frontier model** — every AI use (flagship chat completions *and* the
+  card narratives) runs through the one `ChatClient` (`gpt-5.2`) registered in
+  `Program.cs`. There is no separate/cheap model.
+- **Integration** — `ChatConversationService` renders the card into the system
+  message (byte-stable cacheable prefix = instructions + profile + tool-routing
+  policy; volatile manifest + Recent State appended after), with a static fallback
+  (`RenderFallbackSystemMessage`) on any failure.
 - **Tool steering** — the rendered system message carries a coverage manifest
-  ("what's loaded + over what window + which tool to call for the rest") and an
-  explicit decision policy.
+  ("what's loaded + over what window + which tool to call for the rest") whose
+  tool names match the registered tools, plus an explicit decision policy.
 - **Context management** — `ChatCompletionService.HandleConversationHistory`
   reserves the card's budget first, packs user/model turns by priority, then
   fills remaining budget with tool-result payloads (dropped first, kept in DB).
-- **Invalidation** — `WellnessService.AddWellnessStateAsync` marks Recent State
-  stale (batched, no extra round trip); lazy rebuild on next read (6h max age).
-- **DI / config** — `Program.cs` registers the card service and the cheap
-  narrative client (model from `OpenAI:NarrativeModel`, default `gpt-5.2-mini`).
+- **Event-driven invalidation** — centralized via
+  `IAthleteContextCardService.MarkRecentStateStaleAsync(userId)` and wired into
+  every relevant write path: wellness (`AddWellnessStateAsync`), injuries
+  (create/update injury + create injury event), and Oura sync (`SyncOuraAPI`).
+  Marking is batched into the caller's `SaveChanges` (no extra round trip); the
+  tier is rebuilt lazily on the next read (6h max age, or generator-version bump).
 
 ### Build & migration note (no .NET SDK in the web container)
 
-This environment has no `dotnet` CLI, so the build and the EF migration could not
-be generated/verified here. The `ModelContext` model changes are in place, so
-generate the migration locally with the SDK before running:
+This environment has no `dotnet` CLI, so the migration was hand-authored to match
+EF's output (`Up`/`Down` + `.Designer.cs` + an updated
+`ModelContextModelSnapshot.cs`, kept mutually consistent). Apply it locally:
 
 ```
 dotnet build
-dotnet ef migrations add AddAthleteContextCard
 dotnet ef database update
 ```
 
-Letting EF generate the migration (rather than hand-writing it) keeps the
-migration, its `Designer.cs`, and `ModelContextModelSnapshot.cs` mutually
-consistent. Also set the `OpenAI:NarrativeModel` user-secret if the default isn't
-desired.
+If you prefer EF to regenerate it, delete the three
+`*_AddAthleteContextCard*`/snapshot edits and run
+`dotnet ef migrations add AddAthleteContextCard` — the resulting schema is
+identical.
 
 ### Remaining follow-ups (later phases)
 
-- Event-driven invalidation on the injury and Oura-sync write paths (wellness is
-  wired as the representative example).
-- Scheduled weekly/monthly/yearly rollups via an `IHostedService`/`BackgroundService`.
+- Scheduled weekly/monthly/yearly rollups via an `IHostedService`/`BackgroundService`
+  (the lazy 6h refresh covers freshness today).
 - Eval/observability: log tool-calls and input-tokens per conversation (before/after).
 - "Summarize the oldest turns" history compaction (current pass drops tool
   results first; turn-summarization is the next refinement).
@@ -355,8 +367,8 @@ desired.
 - **Per-conversation:** static 200-token prompt + N tool-call round-trips (each a
   full model invocation over growing context) → bounded card in a **cached**
   prefix + near-zero tool calls for baseline context.
-- **Cost is moved off the hot path:** narrative summarization runs offline on a
-  cheaper model on a schedule, amortized across many conversations, instead of
-  the flagship model re-deriving it live every session.
+- **Cost is moved off the hot path:** the card is a DB read + string render at
+  chat time; the only LLM cost is two short, best-effort narrative calls during a
+  (re)build, amortized across every conversation that reuses the card.
 - **Numbers stay correct for free:** deterministic aggregation means the
   expensive model never has to (re)compute metrics, only reason over them.

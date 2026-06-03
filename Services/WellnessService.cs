@@ -1,6 +1,7 @@
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.Request;
+using lionheart.Services.Profile;
 using lionheart.WellBeing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -34,10 +35,12 @@ namespace lionheart.Services
     public class WellnessService : IWellnessService
     {
         private readonly ModelContext _context;
+        private readonly IAthleteContextCardService _cardService;
 
-        public WellnessService(ModelContext context)
+        public WellnessService(ModelContext context, IAthleteContextCardService cardService)
         {
             _context = context;
+            _cardService = cardService;
         }
 
         public async Task<Result<WellnessState>> GetWellnessStateAsync(IdentityUser user, DateOnly date)
@@ -77,7 +80,7 @@ namespace lionheart.Services
                 int decimalPlaces = 2;
                 int numComponents = 4;
                 existingState.OverallScore = Math.Round(total / numComponents, decimalPlaces);
-                await InvalidateRecentStateAsync(userGuid);
+                await _cardService.MarkRecentStateStaleAsync(userGuid);
                 await _context.SaveChangesAsync();
                 return Result<WellnessState>.Success(existingState);
             }
@@ -85,26 +88,10 @@ namespace lionheart.Services
             {
                 WellnessState wellnessState = new WellnessState(userGuid, req.Motivation, req.Stress, req.Mood, req.Energy, selectedDate);
                 _context.WellnessStates.Add(wellnessState);
-                await InvalidateRecentStateAsync(userGuid);
+                await _cardService.MarkRecentStateStaleAsync(userGuid);
                 await _context.SaveChangesAsync();
                 return Result<WellnessState>.Created(wellnessState);
             }
         }
-
-        /// <summary>
-        /// Event-driven invalidation of the Athlete Context Card's volatile Recent State tier.
-        /// Marking it stale (rather than recomputing here) keeps the write path cheap; the card is
-        /// rebuilt lazily on the next read via <c>IAthleteContextCardService.GetOrBuildCardAsync</c>.
-        /// Batched into the caller's <c>SaveChangesAsync</c> — no extra round trip.
-        /// </summary>
-        private async Task InvalidateRecentStateAsync(Guid userGuid)
-        {
-            var card = await _context.AthleteContextCards.FirstOrDefaultAsync(c => c.UserID == userGuid);
-            if (card is not null)
-            {
-                card.RecentStateAsOf = DateTime.MinValue;
-            }
-        }
-
     }
 }

@@ -3,6 +3,7 @@ using lionheart.Model.InjuryManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Data;
+using lionheart.Services.Profile;
 using Model.Chat.Tools;
 
 
@@ -22,10 +23,12 @@ namespace lionheart.Services
     public class InjuryService : IInjuryService
     {
         private readonly ModelContext _context;
+        private readonly IAthleteContextCardService _cardService;
 
-        public InjuryService(ModelContext context)
+        public InjuryService(ModelContext context, IAthleteContextCardService cardService)
         {
             _context = context;
+            _cardService = cardService;
         }
 
         public async Task<Result<InjuryDTO>> CreateInjuryAsync(IdentityUser user, CreateInjuryRequest request)
@@ -41,6 +44,7 @@ namespace lionheart.Services
                 InjuryEvents = new()
             };
             _context.Injuries.Add(injury);
+            await _cardService.MarkRecentStateStaleAsync(injury.UserID);
             await _context.SaveChangesAsync();
             return Result<InjuryDTO>.Created(injury.ToDTO());
         }
@@ -54,6 +58,7 @@ namespace lionheart.Services
             injury.Name = request.Name;
             injury.Notes = request.Notes;
             injury.IsActive = request.IsActive;
+            await _cardService.MarkRecentStateStaleAsync(userId);
             await _context.SaveChangesAsync();
             return Result<InjuryDTO>.Success(injury.ToDTO());
         }
@@ -90,6 +95,7 @@ namespace lionheart.Services
                 MovementIDs = request.MovementIDs
             };
             await _context.InjuryEvents.AddAsync(newEvent);
+            await _cardService.MarkRecentStateStaleAsync(userId);
             await _context.SaveChangesAsync();
             var updatedInjury = await _context.Injuries.Include(i => i.InjuryEvents).FirstAsync(i => i.InjuryID == injury.InjuryID);
             return Result<InjuryDTO>.Success(updatedInjury.ToDTO());

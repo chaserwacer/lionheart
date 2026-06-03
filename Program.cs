@@ -35,15 +35,11 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
 
+// A single frontier ChatClient powers every AI use in the app — flagship chat completions
+// and the Athlete Context Card's best-effort narrative summaries alike.
 var openAiApiKey = configuration["OpenAI:ApiKey"];
 builder.Services.AddSingleton(provider =>
     new ChatClient(model: "gpt-5.2", apiKey: openAiApiKey)
-);
-
-// Cheap, off-the-hot-path model used only for Athlete Context Card narrative summarization.
-var narrativeModel = configuration["OpenAI:NarrativeModel"] ?? "gpt-5.2-mini";
-builder.Services.AddSingleton(provider =>
-    new NarrativeChatClient(new ChatClient(model: narrativeModel, apiKey: openAiApiKey))
 );
 
 builder.Services
