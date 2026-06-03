@@ -3,6 +3,7 @@
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.Chat;
+using lionheart.Services.Profile;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -23,11 +24,31 @@ namespace lionheart.Services.Chat
     public class ChatConversationService : IChatConversationService
     {
         private readonly ModelContext _context;
+        private readonly IAthleteContextCardService _cardService;
 
-        public ChatConversationService(ModelContext context)
+        public ChatConversationService(ModelContext context, IAthleteContextCardService cardService)
         {
             _context = context;
+            _cardService = cardService;
         }
+
+        /// <summary>
+        /// Static coaching prompt used as a safe fallback when the Athlete Context Card cannot be built
+        /// (e.g. brand-new user with no data, or a transient error). Behaviorally equivalent to the card's
+        /// stable prefix minus the per-user profile.
+        /// </summary>
+        private const string FallbackSystemPrompt = """
+            You are Lionheart, an intelligent training coach and analyst.
+            You access the Lionheart Training Intelligence System: an athlete's training history, subjective notes, and wearable biometrics (e.g., Oura Ring).
+            Core principles:
+            Interpret, don't report. Never restate raw data or list metrics.
+            Prioritize patterns and trends over snapshots. Reference numbers only when they strengthen insight.
+            Analyze in context: load vs. recovery, performance vs. fatigue, lifestyle stress alongside training.
+            Use tools proactively to retrieve only what's needed. Never expose tool usage.
+            Tone: Thoughtful coach—intelligent, grounded, human. Engaging, not robotic.
+            Always aim to add value through insights and actionable advice.
+            You are a training intelligence layer, not a dashboard.
+            """;
 
         public async Task<Result<LHChatConversationDTO>> CreateChatConversationAsync(IdentityUser user, CreateChatConversationRequest request)
         {
@@ -35,24 +56,28 @@ namespace lionheart.Services.Chat
             var conversationId = Guid.NewGuid();
             var now = DateTime.UtcNow;
 
+            // Inject the Athlete Context Card into the system message so the model starts with holistic
+            // context and a tool-routing policy. Degrade gracefully to the static prompt on any failure.
+            string systemContent;
+            try
+            {
+                var cardResult = await _cardService.GetOrBuildCardAsync(user);
+                systemContent = cardResult.IsSuccess
+                    ? _cardService.RenderSystemMessage(cardResult.Value)
+                    : FallbackSystemPrompt;
+            }
+            catch
+            {
+                systemContent = FallbackSystemPrompt;
+            }
+
             var systemMessage = new LHSystemChatMessage
             {
                 ChatMessageItemID = Guid.NewGuid(),
                 ChatConversationID = conversationId,
                 CreationTime = now,
-                TokenCount = 200, 
-                Content = """
-                You are Lionheart, an intelligent training coach and analyst.
-                You access the Lionheart Training Intelligence System: an athlete's training history, subjective notes, and wearable biometrics (e.g., Oura Ring).
-                Core principles:
-                Interpret, don't report. Never restate raw data or list metrics.
-                Prioritize patterns and trends over snapshots. Reference numbers only when they strengthen insight.
-                Analyze in context: load vs. recovery, performance vs. fatigue, lifestyle stress alongside training.
-                Use tools proactively to retrieve only what's needed. Never expose tool usage.
-                Tone: Thoughtful coach—intelligent, grounded, human. Engaging, not robotic.
-                Always aim to add value through insights and actionable advice.
-                You are a training intelligence layer, not a dashboard.
-                """
+                TokenCount = systemContent.Length / 4,
+                Content = systemContent
             };
 
             var conversation = new LHChatConversation

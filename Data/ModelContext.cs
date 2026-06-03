@@ -9,6 +9,7 @@ using lionheart.Model.InjuryManagement;
 using lionheart.Model.Training.SetEntry;
 using lionheart.Model.User;
 using lionheart.Model.Chat;
+using lionheart.Model.Profile;
 
 namespace lionheart.Data
 {
@@ -41,6 +42,7 @@ namespace lionheart.Data
         public DbSet<LHModelChatMessage> ModelChatMessages { get; set; }
         public DbSet<LHSystemChatMessage> SystemChatMessages { get; set; }
         public DbSet<LHChatToolCallResult> ToolChatMessages { get; set; }
+        public DbSet<AthleteContextCard> AthleteContextCards { get; set; }
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
         }
@@ -320,9 +322,15 @@ namespace lionheart.Data
             modelBuilder.Entity<LHChatToolCallResult>()
                 .HasKey(m => m.ChatMessageItemID);
 
-            
+            // Athlete Context Card — one derived card per user.
+            modelBuilder.Entity<AthleteContextCard>()
+                .HasKey(c => c.CardID);
 
-        
+            modelBuilder.Entity<AthleteContextCard>()
+                .HasIndex(c => c.UserID)
+                .IsUnique();
+
+
         }
     }
 }

@@ -130,22 +130,42 @@ namespace Services.Chat
             }
 
 
+            // The system prompt now carries the Athlete Context Card, so its budget is reserved first
+            // (it is never packed/dropped here). History then fills MAX_INPUT_TOKENS minus the card.
             var tokenCount = systemPrompt.TokenCount;
-            var compressedChatConversation = new List<ChatMessage>();
+            var selected = new List<LHChatMessage>();
 
-
-            var messagesNewToOld = conversation.GetAllNonSystemMessagesInChronologicalOrder().OrderByDescending(m => m.CreationTime).ToList();
-            foreach (var message in messagesNewToOld)
+            // Pass 1: prioritize conversational continuity — pack user/model turns newest-first.
+            foreach (var message in conversation.GetUserModelMessagesInChronologicalOrder()
+                         .OrderByDescending(m => m.CreationTime))
             {
                 if (tokenCount + message.TokenCount > MAX_INPUT_TOKENS)
                 {
-                    break;
+                    continue;
                 }
-                compressedChatConversation.Add(message.ToChatMessage());
+                selected.Add(message);
                 tokenCount += message.TokenCount;
             }
 
-            compressedChatConversation.Reverse();
+            // Pass 2: fill any remaining budget with persisted tool-call results, newest-first.
+            // These are the largest, stalest payloads and the baseline they captured is already
+            // represented in the card, so they are the first thing dropped when space is tight.
+            // (They remain in the DB for audit; they just stop being re-sent.)
+            foreach (var message in conversation.ToolMessages.OrderByDescending(m => m.CreationTime))
+            {
+                if (tokenCount + message.TokenCount > MAX_INPUT_TOKENS)
+                {
+                    continue;
+                }
+                selected.Add(message);
+                tokenCount += message.TokenCount;
+            }
+
+            // Restore chronological order and prepend the (card-bearing) system prompt.
+            var compressedChatConversation = selected
+                .OrderBy(m => m.CreationTime)
+                .Select(m => m.ToChatMessage())
+                .ToList();
             compressedChatConversation.Insert(0, systemPrompt.ToChatMessage());
             return Result.Success(compressedChatConversation);
            
