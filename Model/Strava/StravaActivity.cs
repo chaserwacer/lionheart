@@ -30,7 +30,6 @@ namespace lionheart.Model.Strava
         public double MaxSpeed { get; set; }
         public double? AverageHeartrate { get; set; }
         public double? MaxHeartrate { get; set; }
-        public double? Calories { get; set; }
 
         /// <summary>
         /// Raw JSON for this activity as returned by the Strava API.
@@ -58,8 +57,7 @@ namespace lionheart.Model.Strava
                 AverageSpeed: AverageSpeed,
                 MaxSpeed: MaxSpeed,
                 AverageHeartrate: AverageHeartrate,
-                MaxHeartrate: MaxHeartrate,
-                Calories: Calories
+                MaxHeartrate: MaxHeartrate
             );
         }
     }
@@ -81,7 +79,6 @@ namespace lionheart.Model.Strava
         double AverageSpeed,
         double MaxSpeed,
         double? AverageHeartrate,
-        double? MaxHeartrate,
-        double? Calories
+        double? MaxHeartrate
     );
 }

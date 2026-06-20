@@ -42,7 +42,6 @@ namespace lionheart.Migrations
                     MaxSpeed = table.Column<double>(type: "REAL", nullable: false),
                     AverageHeartrate = table.Column<double>(type: "REAL", nullable: true),
                     MaxHeartrate = table.Column<double>(type: "REAL", nullable: true),
-                    Calories = table.Column<double>(type: "REAL", nullable: true),
                     RawJson = table.Column<string>(type: "TEXT", nullable: false),
                     SyncedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },

@@ -18,7 +18,6 @@
         maxSpeed: number;
         averageHeartrate: number | null;
         maxHeartrate: number | null;
-        calories: number | null;
     }
 
     let connected = false;
@@ -30,6 +29,8 @@
     let connecting = false;
     let error = "";
     let showReconnectModal = false;
+    // true when the existing authorization is dead (reauth); false when never connected.
+    let modalIsReauth = false;
 
     // Default to the past year so the initial backfill is visible.
     const today = new Date();
@@ -116,7 +117,9 @@
             if (response.ok) {
                 const result = await response.json();
                 if (!result.connected || result.reauthRequired) {
-                    // Credentials missing or could not be refreshed -> prompt reconnect.
+                    // Credentials missing or could not be refreshed -> prompt (re)connect.
+                    connected = result.connected;
+                    modalIsReauth = result.reauthRequired;
                     showReconnectModal = true;
                 } else {
                     await loadStatus();
@@ -335,13 +338,14 @@
                 on:click={() => (showReconnectModal = false)}>✕</button
             >
             <h3 class="text-xl font-bold uppercase tracking-wider mb-2">
-                Reconnect Strava
+                {modalIsReauth ? "Reconnect Strava" : "Connect Strava"}
             </h3>
             <p
                 class="text-sm text-base-content/70 mb-6"
             >
-                Your Strava authorization has expired or was revoked. Reconnect
-                your account to continue syncing activities.
+                {modalIsReauth
+                    ? "Your Strava authorization has expired or was revoked. Reconnect your account to continue syncing activities."
+                    : "Connect your Strava account to import your activities."}
             </p>
             <div class="modal-action">
                 <button
@@ -358,7 +362,7 @@
                     {#if connecting}
                         <span class="loading loading-spinner loading-sm"></span>
                     {/if}
-                    Reconnect
+                    {modalIsReauth ? "Reconnect" : "Connect"}
                 </button>
             </div>
         </div>

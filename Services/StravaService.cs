@@ -184,27 +184,29 @@ namespace lionheart.Services
                     break;
                 }
 
-                foreach (var element in elements)
+                // Deserialize the page, then batch-load any already-stored rows in a single query
+                // (avoids one existence query per activity).
+                var summaries = elements
+                    .Select(e => (RawJson: e.GetRawText(), Summary: JsonSerializer.Deserialize<StravaSummaryActivity>(e.GetRawText())))
+                    .Where(x => x.Summary is not null && x.Summary.Id != 0)
+                    .ToList();
+
+                var pageIds = summaries.Select(x => x.Summary!.Id).ToList();
+                var existingById = await _context.StravaActivities
+                    .Where(a => a.UserID == userGuid && pageIds.Contains(a.StravaActivityID))
+                    .ToDictionaryAsync(a => a.StravaActivityID);
+
+                foreach (var (rawJson, summary) in summaries)
                 {
-                    var rawJson = element.GetRawText();
-                    var summary = JsonSerializer.Deserialize<StravaSummaryActivity>(rawJson);
-                    if (summary is null || summary.Id == 0)
-                    {
-                        continue;
-                    }
-
-                    var existing = await _context.StravaActivities
-                        .FirstOrDefaultAsync(a => a.UserID == userGuid && a.StravaActivityID == summary.Id);
-
-                    if (existing is null)
-                    {
-                        _context.StravaActivities.Add(MapToEntity(userGuid, summary, rawJson, now, Guid.NewGuid()));
-                        imported++;
-                    }
-                    else
+                    if (existingById.TryGetValue(summary!.Id, out var existing))
                     {
                         ApplySummary(existing, summary, rawJson, now);
                         updated++;
+                    }
+                    else
+                    {
+                        _context.StravaActivities.Add(MapToEntity(userGuid, summary, rawJson, now, Guid.NewGuid()));
+                        imported++;
                     }
                 }
 
@@ -243,11 +245,13 @@ namespace lionheart.Services
         {
             var userGuid = Guid.Parse(user.Id);
             var start = range.StartDate;
-            var end = range.EndDate;
+            // EndDate binds to midnight for a date-only value; use an exclusive upper bound at the
+            // start of the next day so activities later on the end date are included.
+            var endExclusive = range.EndDate.Date.AddDays(1);
 
             var activities = await _context.StravaActivities
                 .AsNoTracking()
-                .Where(a => a.UserID == userGuid && a.StartDate >= start && a.StartDate <= end)
+                .Where(a => a.UserID == userGuid && a.StartDate >= start && a.StartDate < endExclusive)
                 .OrderByDescending(a => a.StartDate)
                 .ToListAsync();
 
@@ -347,7 +351,8 @@ namespace lionheart.Services
             entity.Name = summary.Name;
             entity.SportType = summary.SportType ?? summary.Type ?? string.Empty;
             entity.StartDate = DateTime.SpecifyKind(summary.StartDate, DateTimeKind.Utc);
-            entity.StartDateLocal = summary.StartDateLocal;
+            // start_date_local is wall-clock local time despite Strava's misleading "Z" suffix.
+            entity.StartDateLocal = DateTime.SpecifyKind(summary.StartDateLocal, DateTimeKind.Unspecified);
             entity.ElapsedTimeSeconds = summary.ElapsedTime;
             entity.MovingTimeSeconds = summary.MovingTime;
             entity.DistanceMeters = summary.Distance;

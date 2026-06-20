@@ -856,9 +856,6 @@ namespace lionheart.Migrations
                     b.Property<double>("AverageSpeed")
                         .HasColumnType("REAL");
 
-                    b.Property<double?>("Calories")
-                        .HasColumnType("REAL");
-
                     b.Property<double>("DistanceMeters")
                         .HasColumnType("REAL");
 
