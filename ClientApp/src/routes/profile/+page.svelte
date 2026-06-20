@@ -16,8 +16,27 @@
     { value: "caramellatte", label: "Caramellatte" }
   ];
 
+  let connectingStrava = false;
+
   function showApiModal() {
     showApiAccessModal = true;
+  }
+
+  async function connectStrava() {
+    connectingStrava = true;
+    try {
+      const response = await self.fetch("/api/strava/auth-url");
+      if (response.ok) {
+        const { url } = await response.json();
+        window.location.href = url;
+      } else {
+        console.error("Failed to start Strava connection:", response.statusText);
+        connectingStrava = false;
+      }
+    } catch (error) {
+      console.error("Error starting Strava connection:", error);
+      connectingStrava = false;
+    }
   }
 
   function closeApiModal() {
@@ -112,12 +131,21 @@
         </h2>
         <p class="text-xs text-base-content/60 mb-6 uppercase tracking-wider font-bold">Connect external services</p>
 
-        <button class="btn btn-primary w-full sm:w-auto px-5 gap-2 rounded-xl" on:click={showApiModal}>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          Add API Access Token
-        </button>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button class="btn btn-primary w-full sm:w-auto px-5 gap-2 rounded-xl" on:click={showApiModal}>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add API Access Token
+          </button>
+
+          <button class="btn btn-outline w-full sm:w-auto px-5 gap-2 rounded-xl" on:click={connectStrava} disabled={connectingStrava}>
+            {#if connectingStrava}
+              <span class="loading loading-spinner loading-sm"></span>
+            {/if}
+            Connect Strava
+          </button>
+        </div>
       </div>
     </div>
 

@@ -9,5 +9,16 @@ namespace lionheart.Model.User
         public Guid UserID {get; init;}
         public string ApplicationName { get; set; } = string.Empty;
         public string PersonalAccessToken { get; set; } = string.Empty;
+
+        /// <summary>
+        /// OAuth2 refresh token. Null for services that use a simple personal access token (e.g. Oura).
+        /// Used by services such as Strava to refresh an expired <see cref="PersonalAccessToken"/>.
+        /// </summary>
+        public string? RefreshToken { get; set; }
+
+        /// <summary>
+        /// UTC expiry of the current <see cref="PersonalAccessToken"/> for OAuth2 services. Null when the token does not expire.
+        /// </summary>
+        public DateTime? ExpiresAt { get; set; }
     }
 }

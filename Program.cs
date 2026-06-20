@@ -54,6 +54,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();
+builder.Services.AddTransient<IStravaService, StravaService>();
 builder.Services.AddTransient<IWellnessService, WellnessService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
@@ -90,6 +91,9 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 {
     client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
 });
+
+// Strava calls absolute URLs (www.strava.com/oauth/* and /api/v3/*), so no BaseAddress is set.
+builder.Services.AddHttpClient<IStravaService, StravaService>();
 
 
 

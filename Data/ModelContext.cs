@@ -4,6 +4,7 @@ using lionheart.ActivityTracking;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using lionheart.Model.Oura;
+using lionheart.Model.Strava;
 using lionheart.Model.Training;
 using lionheart.Model.InjuryManagement;
 using lionheart.Model.Training.SetEntry;
@@ -23,6 +24,7 @@ namespace lionheart.Data
         public DbSet<Activity> Activities { get; set; }
         public DbSet<ApiAccessToken> ApiAccessTokens { get; set; }
         public DbSet<DailyOuraData> DailyOuraDatas { get; set; }
+        public DbSet<StravaActivity> StravaActivities { get; set; }
         public DbSet<TrainingProgram> TrainingPrograms { get; set; }
         public DbSet<TrainingSession> TrainingSessions { get; set; }
         public DbSet<MovementBase> MovementBases { get; set; }
@@ -279,6 +281,20 @@ namespace lionheart.Data
                 .OwnsOne(o => o.SleepData);
             modelBuilder.Entity<DailyOuraData>()
                 .OwnsOne(o => o.ActivityData);
+
+            // Strava Activities
+            modelBuilder.Entity<StravaActivity>()
+                .HasKey(a => a.ObjectID);
+
+            modelBuilder.Entity<StravaActivity>()
+                .HasOne<LionheartUser>()
+                .WithMany(u => u.StravaActivities)
+                .HasForeignKey(a => a.UserID);
+
+            // Prevent duplicate Strava activities per user (used for upsert on sync)
+            modelBuilder.Entity<StravaActivity>()
+                .HasIndex(a => new { a.UserID, a.StravaActivityID })
+                .IsUnique();
 
             // Chat Conversations
             modelBuilder.Entity<LHChatConversation>()
