@@ -128,6 +128,69 @@ export class AddWellnessStateEndpointClient {
     }
 }
 
+export class ConnectStravaEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    post(body: ConnectStravaRequest | undefined): Promise<void> {
+        let url_ = this.baseUrl + "/api/strava/connect";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPost(_response);
+        });
+    }
+
+    protected processPost(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
 export class CreateChatConversationEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2878,6 +2941,183 @@ export class GetPRSummaryForMovementDataEndpointClient {
     }
 }
 
+export class GetStravaActivitiesEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param body (optional) 
+     * @return OK
+     */
+    post(body: DateRangeRequest | undefined): Promise<StravaActivityDTO[]> {
+        let url_ = this.baseUrl + "/api/strava/get-activities";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPost(_response);
+        });
+    }
+
+    protected processPost(response: Response): Promise<StravaActivityDTO[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(StravaActivityDTO.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<StravaActivityDTO[]>(null as any);
+    }
+}
+
+export class GetStravaAuthUrlEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(): Promise<StravaAuthUrlResponse> {
+        let url_ = this.baseUrl + "/api/strava/auth-url";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<StravaAuthUrlResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = StravaAuthUrlResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<StravaAuthUrlResponse>(null as any);
+    }
+}
+
+export class GetStravaStatusEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(): Promise<StravaStatusDto> {
+        let url_ = this.baseUrl + "/api/strava/status";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<StravaStatusDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = StravaStatusDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<StravaStatusDto>(null as any);
+    }
+}
+
 export class GetTrainingProgramEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -4199,6 +4439,61 @@ export class SyncOuraApiEndpointClient {
     }
 }
 
+export class SyncStravaEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    post(): Promise<StravaSyncResultDto> {
+        let url_ = this.baseUrl + "/api/strava/sync";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPost(_response);
+        });
+    }
+
+    protected processPost(response: Response): Promise<StravaSyncResultDto> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = StravaSyncResultDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<StravaSyncResultDto>(null as any);
+    }
+}
+
 export class UpdateActivityEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5292,6 +5587,8 @@ export class ApiAccessToken implements IApiAccessToken {
     userID?: string;
     applicationName?: string | undefined;
     personalAccessToken?: string | undefined;
+    refreshToken?: string | undefined;
+    expiresAt?: Date | undefined;
 
     constructor(data?: IApiAccessToken) {
         if (data) {
@@ -5308,6 +5605,8 @@ export class ApiAccessToken implements IApiAccessToken {
             this.userID = _data["userID"];
             this.applicationName = _data["applicationName"];
             this.personalAccessToken = _data["personalAccessToken"];
+            this.refreshToken = _data["refreshToken"];
+            this.expiresAt = _data["expiresAt"] ? new Date(_data["expiresAt"].toString()) : <any>undefined;
         }
     }
 
@@ -5324,6 +5623,8 @@ export class ApiAccessToken implements IApiAccessToken {
         data["userID"] = this.userID;
         data["applicationName"] = this.applicationName;
         data["personalAccessToken"] = this.personalAccessToken;
+        data["refreshToken"] = this.refreshToken;
+        data["expiresAt"] = this.expiresAt ? this.expiresAt.toISOString() : <any>undefined;
         return data;
     }
 }
@@ -5333,6 +5634,8 @@ export interface IApiAccessToken {
     userID?: string;
     applicationName?: string | undefined;
     personalAccessToken?: string | undefined;
+    refreshToken?: string | undefined;
+    expiresAt?: Date | undefined;
 }
 
 export class BootUserDTO implements IBootUserDTO {
@@ -5373,6 +5676,46 @@ export class BootUserDTO implements IBootUserDTO {
 export interface IBootUserDTO {
     name?: string | undefined;
     hasCreatedProfile?: boolean;
+}
+
+export class ConnectStravaRequest implements IConnectStravaRequest {
+    code?: string | undefined;
+    state?: string | undefined;
+
+    constructor(data?: IConnectStravaRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.code = _data["code"];
+            this.state = _data["state"];
+        }
+    }
+
+    static fromJS(data: any): ConnectStravaRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new ConnectStravaRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["code"] = this.code;
+        data["state"] = this.state;
+        return data;
+    }
+}
+
+export interface IConnectStravaRequest {
+    code?: string | undefined;
+    state?: string | undefined;
 }
 
 export class CreateActivityRequest implements ICreateActivityRequest {
@@ -7776,6 +8119,7 @@ export class LionheartUser implements ILionheartUser {
     activities?: Activity[] | undefined;
     apiAccessTokens?: ApiAccessToken[] | undefined;
     dailyOuraInfos?: DailyOuraData[] | undefined;
+    stravaActivities?: StravaActivity[] | undefined;
     trainingPrograms?: TrainingProgram[] | undefined;
     trainingSessions?: TrainingSession[] | undefined;
     movementBases?: MovementBase[] | undefined;
@@ -7821,6 +8165,11 @@ export class LionheartUser implements ILionheartUser {
                 this.dailyOuraInfos = [] as any;
                 for (let item of _data["dailyOuraInfos"])
                     this.dailyOuraInfos!.push(DailyOuraData.fromJS(item));
+            }
+            if (Array.isArray(_data["stravaActivities"])) {
+                this.stravaActivities = [] as any;
+                for (let item of _data["stravaActivities"])
+                    this.stravaActivities!.push(StravaActivity.fromJS(item));
             }
             if (Array.isArray(_data["trainingPrograms"])) {
                 this.trainingPrograms = [] as any;
@@ -7904,6 +8253,11 @@ export class LionheartUser implements ILionheartUser {
             for (let item of this.dailyOuraInfos)
                 data["dailyOuraInfos"].push(item ? item.toJSON() : <any>undefined);
         }
+        if (Array.isArray(this.stravaActivities)) {
+            data["stravaActivities"] = [];
+            for (let item of this.stravaActivities)
+                data["stravaActivities"].push(item ? item.toJSON() : <any>undefined);
+        }
         if (Array.isArray(this.trainingPrograms)) {
             data["trainingPrograms"] = [];
             for (let item of this.trainingPrograms)
@@ -7963,6 +8317,7 @@ export interface ILionheartUser {
     activities?: Activity[] | undefined;
     apiAccessTokens?: ApiAccessToken[] | undefined;
     dailyOuraInfos?: DailyOuraData[] | undefined;
+    stravaActivities?: StravaActivity[] | undefined;
     trainingPrograms?: TrainingProgram[] | undefined;
     trainingSessions?: TrainingSession[] | undefined;
     movementBases?: MovementBase[] | undefined;
@@ -9300,6 +9655,318 @@ export interface ISleepData {
     restfulness?: number;
     timing?: number;
     totalSleep?: number;
+}
+
+export class StravaActivity implements IStravaActivity {
+    objectID?: string;
+    userID?: string;
+    stravaActivityID?: number;
+    name?: string | undefined;
+    sportType?: string | undefined;
+    startDate?: Date;
+    startDateLocal?: Date;
+    elapsedTimeSeconds?: number;
+    movingTimeSeconds?: number;
+    distanceMeters?: number;
+    totalElevationGainMeters?: number;
+    averageSpeed?: number;
+    maxSpeed?: number;
+    averageHeartrate?: number | undefined;
+    maxHeartrate?: number | undefined;
+    rawJson?: string | undefined;
+    syncedAt?: Date;
+
+    constructor(data?: IStravaActivity) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.objectID = _data["objectID"];
+            this.userID = _data["userID"];
+            this.stravaActivityID = _data["stravaActivityID"];
+            this.name = _data["name"];
+            this.sportType = _data["sportType"];
+            this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
+            this.startDateLocal = _data["startDateLocal"] ? new Date(_data["startDateLocal"].toString()) : <any>undefined;
+            this.elapsedTimeSeconds = _data["elapsedTimeSeconds"];
+            this.movingTimeSeconds = _data["movingTimeSeconds"];
+            this.distanceMeters = _data["distanceMeters"];
+            this.totalElevationGainMeters = _data["totalElevationGainMeters"];
+            this.averageSpeed = _data["averageSpeed"];
+            this.maxSpeed = _data["maxSpeed"];
+            this.averageHeartrate = _data["averageHeartrate"];
+            this.maxHeartrate = _data["maxHeartrate"];
+            this.rawJson = _data["rawJson"];
+            this.syncedAt = _data["syncedAt"] ? new Date(_data["syncedAt"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): StravaActivity {
+        data = typeof data === 'object' ? data : {};
+        let result = new StravaActivity();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["objectID"] = this.objectID;
+        data["userID"] = this.userID;
+        data["stravaActivityID"] = this.stravaActivityID;
+        data["name"] = this.name;
+        data["sportType"] = this.sportType;
+        data["startDate"] = this.startDate ? this.startDate.toISOString() : <any>undefined;
+        data["startDateLocal"] = this.startDateLocal ? this.startDateLocal.toISOString() : <any>undefined;
+        data["elapsedTimeSeconds"] = this.elapsedTimeSeconds;
+        data["movingTimeSeconds"] = this.movingTimeSeconds;
+        data["distanceMeters"] = this.distanceMeters;
+        data["totalElevationGainMeters"] = this.totalElevationGainMeters;
+        data["averageSpeed"] = this.averageSpeed;
+        data["maxSpeed"] = this.maxSpeed;
+        data["averageHeartrate"] = this.averageHeartrate;
+        data["maxHeartrate"] = this.maxHeartrate;
+        data["rawJson"] = this.rawJson;
+        data["syncedAt"] = this.syncedAt ? this.syncedAt.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IStravaActivity {
+    objectID?: string;
+    userID?: string;
+    stravaActivityID?: number;
+    name?: string | undefined;
+    sportType?: string | undefined;
+    startDate?: Date;
+    startDateLocal?: Date;
+    elapsedTimeSeconds?: number;
+    movingTimeSeconds?: number;
+    distanceMeters?: number;
+    totalElevationGainMeters?: number;
+    averageSpeed?: number;
+    maxSpeed?: number;
+    averageHeartrate?: number | undefined;
+    maxHeartrate?: number | undefined;
+    rawJson?: string | undefined;
+    syncedAt?: Date;
+}
+
+export class StravaActivityDTO implements IStravaActivityDTO {
+    objectID?: string;
+    stravaActivityID?: number;
+    name?: string | undefined;
+    sportType?: string | undefined;
+    startDate?: Date;
+    startDateLocal?: Date;
+    elapsedTimeSeconds?: number;
+    movingTimeSeconds?: number;
+    distanceMeters?: number;
+    totalElevationGainMeters?: number;
+    averageSpeed?: number;
+    maxSpeed?: number;
+    averageHeartrate?: number | undefined;
+    maxHeartrate?: number | undefined;
+
+    constructor(data?: IStravaActivityDTO) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.objectID = _data["objectID"];
+            this.stravaActivityID = _data["stravaActivityID"];
+            this.name = _data["name"];
+            this.sportType = _data["sportType"];
+            this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
+            this.startDateLocal = _data["startDateLocal"] ? new Date(_data["startDateLocal"].toString()) : <any>undefined;
+            this.elapsedTimeSeconds = _data["elapsedTimeSeconds"];
+            this.movingTimeSeconds = _data["movingTimeSeconds"];
+            this.distanceMeters = _data["distanceMeters"];
+            this.totalElevationGainMeters = _data["totalElevationGainMeters"];
+            this.averageSpeed = _data["averageSpeed"];
+            this.maxSpeed = _data["maxSpeed"];
+            this.averageHeartrate = _data["averageHeartrate"];
+            this.maxHeartrate = _data["maxHeartrate"];
+        }
+    }
+
+    static fromJS(data: any): StravaActivityDTO {
+        data = typeof data === 'object' ? data : {};
+        let result = new StravaActivityDTO();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["objectID"] = this.objectID;
+        data["stravaActivityID"] = this.stravaActivityID;
+        data["name"] = this.name;
+        data["sportType"] = this.sportType;
+        data["startDate"] = this.startDate ? this.startDate.toISOString() : <any>undefined;
+        data["startDateLocal"] = this.startDateLocal ? this.startDateLocal.toISOString() : <any>undefined;
+        data["elapsedTimeSeconds"] = this.elapsedTimeSeconds;
+        data["movingTimeSeconds"] = this.movingTimeSeconds;
+        data["distanceMeters"] = this.distanceMeters;
+        data["totalElevationGainMeters"] = this.totalElevationGainMeters;
+        data["averageSpeed"] = this.averageSpeed;
+        data["maxSpeed"] = this.maxSpeed;
+        data["averageHeartrate"] = this.averageHeartrate;
+        data["maxHeartrate"] = this.maxHeartrate;
+        return data;
+    }
+}
+
+export interface IStravaActivityDTO {
+    objectID?: string;
+    stravaActivityID?: number;
+    name?: string | undefined;
+    sportType?: string | undefined;
+    startDate?: Date;
+    startDateLocal?: Date;
+    elapsedTimeSeconds?: number;
+    movingTimeSeconds?: number;
+    distanceMeters?: number;
+    totalElevationGainMeters?: number;
+    averageSpeed?: number;
+    maxSpeed?: number;
+    averageHeartrate?: number | undefined;
+    maxHeartrate?: number | undefined;
+}
+
+export class StravaAuthUrlResponse implements IStravaAuthUrlResponse {
+    url?: string | undefined;
+
+    constructor(data?: IStravaAuthUrlResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.url = _data["url"];
+        }
+    }
+
+    static fromJS(data: any): StravaAuthUrlResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new StravaAuthUrlResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["url"] = this.url;
+        return data;
+    }
+}
+
+export interface IStravaAuthUrlResponse {
+    url?: string | undefined;
+}
+
+export class StravaStatusDto implements IStravaStatusDto {
+    connected?: boolean;
+    lastSyncedAt?: Date | undefined;
+
+    constructor(data?: IStravaStatusDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.connected = _data["connected"];
+            this.lastSyncedAt = _data["lastSyncedAt"] ? new Date(_data["lastSyncedAt"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): StravaStatusDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new StravaStatusDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["connected"] = this.connected;
+        data["lastSyncedAt"] = this.lastSyncedAt ? this.lastSyncedAt.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IStravaStatusDto {
+    connected?: boolean;
+    lastSyncedAt?: Date | undefined;
+}
+
+export class StravaSyncResultDto implements IStravaSyncResultDto {
+    connected?: boolean;
+    reauthRequired?: boolean;
+    imported?: number;
+    updated?: number;
+
+    constructor(data?: IStravaSyncResultDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.connected = _data["connected"];
+            this.reauthRequired = _data["reauthRequired"];
+            this.imported = _data["imported"];
+            this.updated = _data["updated"];
+        }
+    }
+
+    static fromJS(data: any): StravaSyncResultDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new StravaSyncResultDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["connected"] = this.connected;
+        data["reauthRequired"] = this.reauthRequired;
+        data["imported"] = this.imported;
+        data["updated"] = this.updated;
+        return data;
+    }
+}
+
+export interface IStravaSyncResultDto {
+    connected?: boolean;
+    reauthRequired?: boolean;
+    imported?: number;
+    updated?: number;
 }
 
 export class TrainingProgram implements ITrainingProgram {
