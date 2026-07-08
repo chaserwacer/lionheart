@@ -233,5 +233,6 @@ _Pvt_Extensions
 
 
 # Data Folder / my database
-Data/
+Data/*
 !Data/ModelContext.cs
+!Data/ModelContextDesignTimeFactory.cs

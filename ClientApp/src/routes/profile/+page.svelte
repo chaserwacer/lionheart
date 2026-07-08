@@ -2,13 +2,11 @@
   import { goto } from "$app/navigation";
   import { bootUserDto } from "$lib/stores/stores";
   import { onMount } from "svelte";
-  import { themeChange } from "theme-change";
 
   let applicationName = "";
   let personalApiAccessToken = "";
   let showAccessTokenAdded = false;
   let showApiAccessModal = false;
-  let currentTheme = "";
 
   const themes = [
     { value: "bumblebee", label: "Bumblebee" },
@@ -71,8 +69,6 @@
   }
 
   onMount(() => {
-    // Get the current theme from the document
-    // currentTheme = document.documentElement.getAttribute("data-theme") || "bumblebee";
     showAccessTokenAdded = false;
   });
 </script>

@@ -39,17 +39,17 @@
   <PackageReference Include="Mapster" Version="7.4.0" />
 
   <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.0-preview.4.*" />
-  <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.0-preview.4.*" />
+  <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.6" />
   <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.6" />
   <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0-preview.4.*" />
   <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="9.0.0-preview.4.*" />
-  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0-preview.4.*">
+  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.6">
     <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     <PrivateAssets>all</PrivateAssets>
   </PackageReference>
   <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.6" />
 
-<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0-preview.4.*" />
+<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.6" />
 
 <PackageReference Include="Microsoft.Extensions.AI.Ollama" Version="9.6.0-preview.1.25310.2" />
 
