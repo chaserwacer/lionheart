@@ -236,3 +236,5 @@ _Pvt_Extensions
 Data/*
 !Data/ModelContext.cs
 !Data/ModelContextDesignTimeFactory.cs
+# Local secrets
+.env

@@ -11,7 +11,12 @@ using Services.Chat;
 using Model.Tools;
 using lionheart.Services.Training;
 using lionheart.Services.Profile;
+using System.ClientModel;
+using OpenAI;
 
+// Load .env into the process environment before the host reads configuration,
+// so LmStudio__* keys flow through the default environment-variable provider.
+DotNetEnv.Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,15 +40,28 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
 
-var openAiApiKey = configuration["OpenAI:ApiKey"];
+// Chat is served by LM Studio over its OpenAI-compatible API. BaseUrl (must end at the /v1 root),
+// ApiKey, and Model come from .env.
+var baseUrl = configuration["LmStudio:BaseUrl"];
+var apiKey = configuration["LmStudio:ApiKey"];
+var chatModel = configuration["LmStudio:Model"];
+if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(chatModel))
+{
+    throw new InvalidOperationException(
+        "LM Studio configuration is incomplete. Set LmStudio__BaseUrl, LmStudio__ApiKey, and LmStudio__Model in your .env file.");
+}
+
+var credential = new ApiKeyCredential(apiKey);
+var clientOptions = new OpenAIClientOptions { Endpoint = new Uri(baseUrl) };
+
 builder.Services.AddSingleton(provider =>
-    new ChatClient(model: "gpt-5.2", apiKey: openAiApiKey)
+    new ChatClient(model: chatModel, credential: credential, options: clientOptions)
 );
 
-// Cheap, off-the-hot-path model used only for Athlete Context Card narrative summarization.
-var narrativeModel = configuration["OpenAI:NarrativeModel"] ?? "gpt-5.2-mini";
+// Optional smaller model for off-the-hot-path Athlete Context Card narratives; defaults to the chat model.
+var narrativeModel = configuration["LmStudio:NarrativeModel"] ?? chatModel;
 builder.Services.AddSingleton(provider =>
-    new NarrativeChatClient(new ChatClient(model: narrativeModel, apiKey: openAiApiKey))
+    new NarrativeChatClient(new ChatClient(model: narrativeModel, credential: credential, options: clientOptions))
 );
 
 builder.Services

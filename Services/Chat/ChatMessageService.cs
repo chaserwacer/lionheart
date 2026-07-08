@@ -91,9 +91,13 @@ public class ChatMessageService : IChatMessageService
         await _context.SaveChangesAsync();
         return Result.Success(new LHChatMessageDTO(responseMessage.Value.CompletionGeneratedMessages.Select(m => m).First(m => m.ChatMessageItemID == responseMessage.Value.ModelFinalChatMessageID)));
     }
+    // Reasoning models spend output tokens "thinking" before answering, so the cap must cover both.
+    // Running against a local LM Studio server, generosity is free.
+    private const int MaxOutputTokens = 32_000;
+
     private ChatCompletionOptions GetChatCompletionOptions(IEnumerable<ChatTool> tools)
     {
-        var completionOptions = new ChatCompletionOptions();
+        var completionOptions = new ChatCompletionOptions { MaxOutputTokenCount = MaxOutputTokens };
         foreach (var tool in tools)
         {
             completionOptions.Tools.Add(tool);

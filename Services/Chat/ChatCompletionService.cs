@@ -1,6 +1,7 @@
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.Chat;
+using lionheart.Services.Chat;
 using Microsoft.AspNetCore.Identity;
 using Model.Chat.Completion;
 using Model.Tools;
@@ -47,8 +48,13 @@ namespace Services.Chat
             do
             {
                 requiresAction = false;
-                ChatCompletion completion = await _chatClient.CompleteChatAsync(messages, request.Options);
-    
+                var completionResult = (await _chatClient.CompleteChatAsync(messages, request.Options)).ToResult();
+                if (completionResult.IsError())
+                {
+                    return Result.Error(string.Join("; ", completionResult.Errors));
+                }
+                ChatCompletion completion = completionResult.Value;
+
                 switch (completion.FinishReason)
                 {
                     case ChatFinishReason.Stop:

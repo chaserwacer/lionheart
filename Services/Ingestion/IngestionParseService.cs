@@ -6,6 +6,7 @@ using lionheart.Model.Training;
 using lionheart.Model.Training.SetEntry;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using lionheart.Services.Chat;
 using OpenAI.Chat;
 
 namespace lionheart.Services.Ingestion;
@@ -236,15 +237,20 @@ public class IngestionParseService : IIngestionParseService
             Temperature = 0.1f
         };
 
-        var completion = await _chatClient.CompleteChatAsync(messages, options);
-
-        if (completion.Value.FinishReason == ChatFinishReason.Stop)
+        var completionResult = (await _chatClient.CompleteChatAsync(messages, options)).ToResult();
+        if (completionResult.IsError())
         {
-            var json = completion.Value.Content[0].Text;
+            throw new InvalidOperationException(string.Join("; ", completionResult.Errors));
+        }
+        var completion = completionResult.Value;
+
+        if (completion.FinishReason == ChatFinishReason.Stop)
+        {
+            var json = completion.Content[0].Text;
             return JsonSerializer.Deserialize<LlmParseResult>(json, _jsonOptions);
         }
 
-        throw new InvalidOperationException($"LLM finished with reason: {completion.Value.FinishReason}");
+        throw new InvalidOperationException($"LLM finished with reason: {completion.FinishReason}");
     }
 
     private string BuildExistingEntitiesContext(
