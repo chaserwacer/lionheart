@@ -10,4 +10,4 @@ public sealed record FacetValue(
     FacetAxis Axis,
     string Canonical,
     IReadOnlyList<string> Aliases,
-    EmbeddingRef Embedding);
+    float[] Embedding);

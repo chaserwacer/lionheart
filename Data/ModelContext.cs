@@ -10,6 +10,10 @@ using lionheart.Model.Training.SetEntry;
 using lionheart.Model.User;
 using lionheart.Model.Chat;
 using lionheart.Model.Profile;
+using lionheart.Model.Analysis;
+using lionheart.Model.Contexts;
+using Programs = lionheart.Model.Training.Programs;
+using Sessions = lionheart.Model.Training.Sessions;
 
 namespace lionheart.Data
 {
@@ -43,8 +47,49 @@ namespace lionheart.Data
         public DbSet<LHSystemChatMessage> SystemChatMessages { get; set; }
         public DbSet<LHChatToolCallResult> ToolChatMessages { get; set; }
         public DbSet<AthleteContextCard> AthleteContextCards { get; set; }
+
+        // Remodeled domain (docs/data-remodel.md) — coexists with the legacy tables above
+        // until backfill completes, then the legacy sets are deleted.
+        public DbSet<Sessions.TrainingSession> Sessions { get; set; }
+        public DbSet<Programs.TrainingProgram> Programs { get; set; }
+        public DbSet<Context> Contexts { get; set; }
+        public DbSet<AnalyzableEntry> AnalyzableEntries { get; set; }
+        public DbSet<FacetValue> FacetValues { get; set; }
+
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            StampDerivedTimeColumns();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            StampDerivedTimeColumns();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        /// <summary>
+        /// Domain time-truth lives inside JSON Period columns; queries need a real indexed
+        /// column. Recomputing the duplicate on every save is what keeps it unable to drift.
+        /// </summary>
+        private void StampDerivedTimeColumns()
+        {
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
+                var period = entry.Entity switch
+                {
+                    Sessions.CompletedTrainingSession completed => completed.Period,
+                    Context context => context.Period,
+                    AnalyzableEntry analyzable => analyzable.Period,
+                    _ => null
+                };
+                if (period is not null) entry.Property("StartTime").CurrentValue = period.StartTime;
+            }
         }
 
 
@@ -334,7 +379,7 @@ namespace lionheart.Data
                 .HasIndex(c => c.UserID)
                 .IsUnique();
 
-
+            RemodelConfiguration.Apply(modelBuilder);
         }
     }
 }

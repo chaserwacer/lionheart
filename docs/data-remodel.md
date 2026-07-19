@@ -40,7 +40,7 @@ public sealed record Decoration(
     IReadOnlyList<Facet> Facets,      // closed-vocab (axis, canonical value)
     IReadOnlyList<string> FreeTags,   // open labels for semantic recall
     Valence Valence,                  // Positive | Negative | Neutral | Mixed
-    EmbeddingRef Embedding,           // pgvector handle over summary text
+    string SummaryText,               // what gets embedded; vector lives on AnalyzableEntry
     int DecoratorVersion);            // which extractor produced this
 
 public sealed record Facet(FacetAxis Axis, string Value);
@@ -55,7 +55,7 @@ aliases) or admits new canonicals below a similarity threshold — the same
 ```csharp
 public sealed record FacetValue(
     FacetAxis Axis, string Canonical,
-    IReadOnlyList<string> Aliases, EmbeddingRef Embedding);
+    IReadOnlyList<string> Aliases, float[] Embedding);
 ```
 
 Decoration fill-state is explicit, never null:
@@ -236,11 +236,21 @@ swaps may not be partial.
 
 ## Storage
 
+**Provider: SQLite** (decided 2026-07-19 — the app already runs on it; at single-user
+volume nothing here degrades). The retrieve primitive's interface is provider-shaped, so
+a later Postgres/pgvector swap stays contained in the storage layer.
+
 - Relational spine: sessions, programs, contexts, MovementData, FacetValue as tables.
-- Polymorphic lists (`SetEntry`, `Period`, `DecorationState`) as jsonb via
-  System.Text.Json polymorphic serialization (`[JsonDerivedType]`) behind EF value
-  converters (EF's native owned-JSON doesn't handle hierarchies).
-- `AnalyzableEntry`: facets as GIN-indexed jsonb; embedding via pgvector EF extension.
+- Polymorphic shapes (`SetEntry` lists, `SetPrescription` lists, `Period`,
+  `DecorationState`, `EffortState`, `Utterance`) as JSON TEXT columns via
+  System.Text.Json polymorphic serialization (`[JsonDerivedType]`, discriminator
+  `$type`) behind EF value converters (EF's native owned-JSON doesn't handle
+  hierarchies). `Rpe` maps rated→number, unrated→null (`RpeJsonConverter`).
+- Embeddings: float[] as BLOB; cosine similarity computed in-app — fine at personal
+  scale, replaced by pgvector only if volume ever demands it.
+- Queryable time: derived `Date`/`StartTime` values are duplicated into real indexed
+  columns at save time (recomputed on every save by the persistence layer, so they
+  cannot drift from the domain truth). Facet filtering loads-and-filters in app.
 
 ## Migration & backfill
 
@@ -272,6 +282,8 @@ Chat, Oura, Profile, Wellness, Injury.
 | Movement wrapper | Deleted; flat ordered set list, grouping derivable. `MovementData` kept |
 | Old data | Backfilled through the interpretation engine |
 | Session date | Derived (`abstract Date`) from each lifecycle state's own time-truth (PlannedFor / StartedAt / Period) — never stored alongside it |
+| Storage provider | SQLite (already in use; no quality loss at this scale). Retrieval interface stays provider-shaped for a contained Postgres swap later |
+| Embedding storage | No EmbeddingRef indirection — vectors live directly on `FacetValue` and the `AnalyzableEntry` projection; `Decoration` carries `SummaryText` |
 
 ## Build order
 

@@ -1,8 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace lionheart.Model.Analysis;
 
 /// <summary>
 /// Temporal shape shared by everything analyzable: a single moment or a span.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(Instant), "instant")]
+[JsonDerivedType(typeof(Interval), "interval")]
 public abstract record Period
 {
     /// <summary>Where this period begins on the timeline — the uniform sort/join key for retrieval.</summary>

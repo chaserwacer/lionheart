@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using lionheart.Model.Training.SetEntry;
 using lionheart.Model.Training.Sets;
 
@@ -7,6 +8,10 @@ namespace lionheart.Model.Training.Sessions;
 /// A prescribed set on a planned session — targets only. Actuals live exclusively on
 /// performed <see cref="Sets.SetEntry"/>s, so planned and actual never half-null one row.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(LiftPrescription), "lift")]
+[JsonDerivedType(typeof(DistanceTimePrescription), "distanceTime")]
+[JsonDerivedType(typeof(FreeformPrescription), "freeform")]
 public abstract record SetPrescription;
 
 public sealed record LiftPrescription(

@@ -1,9 +1,13 @@
+using System.Text.Json.Serialization;
+using lionheart.Model.Mappers;
+
 namespace lionheart.Model.Training.Sets;
 
 /// <summary>
 /// Rate of perceived exertion with explicit fill-state: <see cref="Unrated"/> or
 /// <see cref="Of"/> a value in [0, 10]. Never null, never a magic zero.
 /// </summary>
+[JsonConverter(typeof(RpeJsonConverter))]
 public readonly record struct Rpe
 {
     private readonly double _value;

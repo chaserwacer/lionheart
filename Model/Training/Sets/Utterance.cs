@@ -1,9 +1,14 @@
+using System.Text.Json.Serialization;
+
 namespace lionheart.Model.Training.Sets;
 
 /// <summary>
 /// How an entry was logged. Structuring is additive enrichment: a <see cref="Texted"/>
 /// source survives any upgrade to a richer set type — the words are never lost.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(Texted), "texted")]
+[JsonDerivedType(typeof(Formed), "formed")]
 public abstract record Utterance;
 
 public sealed record Texted : Utterance

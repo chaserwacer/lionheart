@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace lionheart.Model.Analysis;
 
 public enum Valence { Positive, Negative, Neutral, Mixed }
@@ -16,25 +18,25 @@ public enum FacetAxis { Modality, MovementPattern, MuscleRegion, Intent, LifeDom
 public sealed record Facet(FacetAxis Axis, string Value);
 
 /// <summary>
-/// Handle to a stored embedding vector. Vectors live in storage (pgvector), never on domain records.
-/// </summary>
-public sealed record EmbeddingRef(Guid EmbeddingId);
-
-/// <summary>
 /// Machine-generated annotation carried by everything analyzable: closed-vocab facets for
-/// deterministic analytics, free tags + embedding + valence for semantic recall.
+/// deterministic analytics, free tags + summary + valence for semantic recall. The
+/// embedding vector over <see cref="SummaryText"/> lives on the <see cref="AnalyzableEntry"/>
+/// projection, never on domain records.
 /// </summary>
 public sealed record Decoration(
     IReadOnlyList<Facet> Facets,
     IReadOnlyList<string> FreeTags,
     Valence Valence,
-    EmbeddingRef Embedding,
+    string SummaryText,
     int DecoratorVersion);
 
 /// <summary>
 /// Fill-state of an entry's decoration. Sessions are decorated on completion, contexts on
 /// creation; anything not yet processed is <see cref="NotDecorated"/> — never null.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(NotDecorated), "none")]
+[JsonDerivedType(typeof(Decorated), "decorated")]
 public abstract record DecorationState
 {
     public bool IsDecorated => this is Decorated;

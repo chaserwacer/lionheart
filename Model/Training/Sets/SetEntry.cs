@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.SetEntry;
 
@@ -8,6 +9,11 @@ namespace lionheart.Model.Training.Sets;
 /// lives on the session; movement grouping is derivable from consecutive MovementDataIds.
 /// Looseness is a smaller shape (<see cref="FreeformSet"/>), never nullable columns.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(LiftSet), "lift")]
+[JsonDerivedType(typeof(DistanceTimeSet), "distanceTime")]
+[JsonDerivedType(typeof(TrailRunSet), "trailRun")]
+[JsonDerivedType(typeof(FreeformSet), "freeform")]
 public abstract record SetEntry
 {
     public required Utterance Source { get; init; }
