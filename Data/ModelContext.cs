@@ -86,6 +86,10 @@ namespace lionheart.Data
                 .HasKey(nameof(IdentityUserRole<string>.UserId), nameof(IdentityUserRole<string>.RoleId));
             modelBuilder.Entity<IdentityUserToken<string>>()
             .HasKey(u => u.UserId);
+            // Exclude the passkey entity added by the .NET 10 UserPasskeys DbSet: without a
+            // base.OnModelCreating call it maps raw and fails validation on its keyless
+            // IdentityPasskeyData. Passkeys are unused, matching the framework default.
+            modelBuilder.Ignore<IdentityUserPasskey<string>>();
 
             // Activities
             modelBuilder.Entity<Activity>()
