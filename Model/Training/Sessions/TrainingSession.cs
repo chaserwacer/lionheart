@@ -13,7 +13,20 @@ public enum Provenance { User, AiAssisted }
 /// <summary>Program membership as fill-state: standalone or belonging to a program. Never a nullable FK in the domain.</summary>
 public abstract record ProgramMembership;
 public sealed record Standalone : ProgramMembership;
-public sealed record InProgram(Guid TrainingProgramId) : ProgramMembership;
+
+public sealed record InProgram : ProgramMembership
+{
+    public InProgram(Guid trainingProgramId)
+    {
+        // Guid.Empty is the storage sentinel for Standalone; letting it in here would
+        // silently rehydrate as the wrong membership state.
+        if (trainingProgramId == Guid.Empty)
+            throw new ArgumentException("InProgram requires a real program id; use Standalone.", nameof(trainingProgramId));
+        TrainingProgramId = trainingProgramId;
+    }
+
+    public Guid TrainingProgramId { get; }
+}
 
 /// <summary>
 /// A training session's lifecycle as sealed subtypes — prescriptions exist only while
