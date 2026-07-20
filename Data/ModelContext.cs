@@ -40,7 +40,7 @@ namespace lionheart.Data
         public DbSet<LHChatToolCallResult> ToolChatMessages { get; set; }
         public DbSet<AthleteContextCard> AthleteContextCards { get; set; }
 
-        // Remodeled domain — see docs/data-remodel.md
+        // Training domain — design in docs/data-remodel.md
         public DbSet<Sessions.TrainingSession> Sessions { get; set; }
         public DbSet<Programs.TrainingProgram> Programs { get; set; }
         public DbSet<Context> Contexts { get; set; }

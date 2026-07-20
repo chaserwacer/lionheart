@@ -1,8 +1,8 @@
 namespace lionheart.Model.Training.Programs;
 
 /// <summary>
-/// A training program's lifecycle as sealed subtypes — replaces the old IsCompleted bool.
-/// Only a completed program can carry a summary.
+/// A training program's lifecycle as sealed subtypes. Only a completed program can
+/// carry a summary.
 /// </summary>
 public abstract record TrainingProgram
 {

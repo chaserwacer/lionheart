@@ -70,7 +70,7 @@ namespace lionheart.Services
                     .AnyAsync(ts => ts.TrainingSessionId == tsId && ts.UserId == userId);
                 if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
             }
-            // Movement links point at MovementData (the reusable movement identity) since the remodel.
+            // MovementIDs reference MovementData — the reusable movement identity.
             foreach (var movementId in request.MovementIDs)
             {
                 var ownsMovement = await _context.MovementDatas

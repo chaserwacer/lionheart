@@ -13,8 +13,7 @@ public sealed record InProgram(Guid TrainingProgramId) : ProgramMembership;
 
 /// <summary>
 /// A training session's lifecycle as sealed subtypes — prescriptions exist only while
-/// planned, actuals only once active/completed, decoration only on completion. Replaces
-/// the old status enum (and its provenance-smuggling AIModified member).
+/// planned, actuals only once active/completed, decoration only on completion.
 /// </summary>
 public abstract record TrainingSession
 {
