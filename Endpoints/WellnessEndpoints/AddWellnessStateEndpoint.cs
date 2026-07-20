@@ -1,6 +1,5 @@
 using Ardalis.ApiEndpoints;
 using lionheart.Services;
-using lionheart.ActivityTracking;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Ardalis.Result.AspNetCore;
@@ -25,8 +24,8 @@ namespace lionheart.Endpoints.WellnessEndpoints
 
         [HttpPost("api/wellness/add")]
         [EndpointDescription("Add/update a wellness state for a user.")]
-        [ProducesResponseType<Activity>(StatusCodes.Status201Created)]
-        [ProducesResponseType<Activity>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<WellnessState>(StatusCodes.Status201Created)]
+        [ProducesResponseType<WellnessState>(StatusCodes.Status401Unauthorized)]
         public override async Task<ActionResult<WellnessState>> HandleAsync([FromBody] CreateWellnessStateRequest request, CancellationToken cancellationToken = default)
         {
             var user = await _userManager.GetUserAsync(User);

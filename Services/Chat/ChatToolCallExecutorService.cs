@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using Ardalis.Result;
-using lionheart.Endpoints.Training.Activity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Model.Chat.Tools;

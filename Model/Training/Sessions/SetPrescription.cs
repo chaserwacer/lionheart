@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using lionheart.Model.Training.SetEntry;
 using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Training.Sessions;

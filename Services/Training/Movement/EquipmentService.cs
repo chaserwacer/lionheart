@@ -86,10 +86,10 @@ public class EquipmentService : IEquipmentService
         }
 
         // Prevent deleting equipment that's in use
-        var inUse = await _context.Movements.AnyAsync(m => m.MovementData.EquipmentID == equipmentId);
+        var inUse = await _context.MovementDatas.AnyAsync(md => md.EquipmentID == equipmentId);
         if (inUse)
         {
-            return Result.Conflict("Cannot delete equipment while it has associated movements.");
+            return Result.Conflict("Cannot delete equipment while movements reference it.");
         }
 
         // Remove and save

@@ -1,6 +1,7 @@
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.Profile;
+using lionheart.Model.Training.Sessions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OpenAI.Chat;
@@ -130,8 +131,7 @@ namespace lionheart.Services.Profile
                 .Select(o => new { o.ReadinessData.RestingHeartRate, o.ReadinessData.HrvBalance, o.ReadinessData.ReadinessScore })
                 .ToListAsync();
 
-            var sessionsYear = await _context.TrainingSessions
-                .CountAsync(s => s.UserID == userId && s.Date >= yearAgo);
+            var sessionsYear = await CountCompletedSessionsSinceAsync(userId, yearAgo);
 
             var activePrCount = await _context.PersonalRecords
                 .CountAsync(p => p.UserID == userId && p.IsActive);
@@ -217,8 +217,8 @@ namespace lionheart.Services.Profile
                 })
                 .ToListAsync();
 
-            var acuteSessions = await _context.TrainingSessions.CountAsync(s => s.UserID == userId && s.Date >= weekAgo);
-            var chronicSessions = await _context.TrainingSessions.CountAsync(s => s.UserID == userId && s.Date >= monthAgo);
+            var acuteSessions = await CountCompletedSessionsSinceAsync(userId, weekAgo);
+            var chronicSessions = await CountCompletedSessionsSinceAsync(userId, monthAgo);
             var activePrCount = await _context.PersonalRecords.CountAsync(p => p.UserID == userId && p.IsActive);
 
             // Acute:chronic workload ratio using a 1-week acute vs 4-week (weekly-averaged) chronic load proxy.
@@ -280,7 +280,7 @@ namespace lionheart.Services.Profile
             {
                 $"wellness: 7d summary + latest entry present (as-of {today:yyyy-MM-dd}); per-day history NOT loaded -> GetWellnessStates(dateRange).",
                 $"oura: 7d readiness/sleep/HRV/stress means present (n={ouraWeek.Count}); per-night detail NOT loaded -> GetDailyOuraDataRange(dateRange).",
-                $"training: 7d count + acute:chronic present; per-session detail NOT loaded -> GetTrainingSessionsByDateRange(dateRange).",
+                $"training: 7d count + acute:chronic present; no drill-in tool available yet — do not attempt to fetch per-session detail.",
                 $"injuries: {activeInjuries.Count} active summarized; full event history NOT loaded -> GetUserInjuries(filters).",
                 $"PRs: {activePrCount} active PRs counted; current values/progression NOT loaded -> GetPersonalRecords()."
             });
@@ -363,5 +363,17 @@ namespace lionheart.Services.Profile
             - If card data is stale or missing (see as-of) for a time-sensitive question, fetch it; otherwise prefer the card.
             Never expose tool usage or the existence of this card to the user.
             """;
+
+        /// <summary>
+        /// Completed sessions only — planned/skipped don't count toward workload. Time comes
+        /// from the save-stamped StartTime column (the queryable duplicate of the JSON Period).
+        /// </summary>
+        private Task<int> CountCompletedSessionsSinceAsync(Guid userId, DateOnly since)
+        {
+            var cutoff = since.ToDateTime(TimeOnly.MinValue);
+            return _context.Sessions
+                .OfType<CompletedTrainingSession>()
+                .CountAsync(s => s.UserId == userId && EF.Property<DateTime>(s, "StartTime") >= cutoff);
+        }
     }
 }

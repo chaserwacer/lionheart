@@ -85,10 +85,10 @@ namespace lionheart.Services.Training
                 return Result.NotFound("Movement base not found or not owned by user.");
             }
 
-            var inUse = await _context.Movements.AnyAsync(m => m.MovementData.MovementBaseID == movementBaseId);
+            var inUse = await _context.MovementDatas.AnyAsync(md => md.MovementBaseID == movementBaseId);
             if (inUse)
             {
-                return Result.Conflict("Cannot delete movement base while it has associated movements.");
+                return Result.Conflict("Cannot delete movement base while movements reference it.");
             }
 
             _context.MovementBases.Remove(movementBase);

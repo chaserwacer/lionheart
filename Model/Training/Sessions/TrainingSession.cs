@@ -3,10 +3,6 @@ using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Training.Sessions;
 
-// Alias must live inside the namespace while the legacy lionheart.Model.Training.SetEntry
-// namespace still exists — as an enclosing-namespace sibling it otherwise shadows the new type.
-using SetEntry = lionheart.Model.Training.Sets.SetEntry;
-
 /// <summary>Who authored the session content. Orthogonal to lifecycle — an AI-adjusted plan can still be completed.</summary>
 public enum Provenance { User, AiAssisted }
 

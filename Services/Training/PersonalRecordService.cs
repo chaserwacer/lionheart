@@ -1,7 +1,6 @@
 using Ardalis.Result;
 using lionheart.Data;
 using lionheart.Model.Training;
-using lionheart.Model.Training.SetEntry;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Tools;
@@ -26,21 +25,7 @@ public interface IPersonalRecordService
     Task<Result<List<MovementDataPRSummary>>> GetAllPRSummariesAsync(IdentityUser user);
 
     /// <summary>
-    /// Submit an attempt to check if it's a new PR.
-    /// This should be called when a LiftSetEntry is created or updated,
-    /// or when a TrainingSession is marked complete.
-    /// </summary>
-    Task<Result<PRAttemptResult>> SubmitAttemptAsync(IdentityUser user, LiftSetEntry setEntry, bool forceCheck = false);
-
-    /// <summary>
-    /// Process all lift sets in a training session for PR checking.
-    /// Called when a TrainingSession is marked as Completed.
-    /// </summary>
-    Task<Result<List<PRAttemptResult>>> ProcessTrainingSessionAsync(IdentityUser user, Guid trainingSessionId);
-
-    /// <summary>
     /// Reverts a PR to its previous state.
-    /// Used when a set entry that was a PR is decreased.
     /// </summary>
     Task<Result<PersonalRecordDTO?>> RevertToPreviousAsync(IdentityUser user, Guid personalRecordId);
 
@@ -48,12 +33,6 @@ public interface IPersonalRecordService
     /// Gets the history of PRs for a specific MovementData and type.
     /// </summary>
     Task<Result<List<PersonalRecordDTO>>> GetPRHistoryAsync(IdentityUser user, Guid movementDataId, PersonalRecordType prType);
-
-    /// <summary>
-    /// Checks if a set entry that was previously a PR needs to trigger a revert.
-    /// Called when updating a set entry with decreased values.
-    /// </summary>
-    Task<Result> CheckAndRevertPRIfNeededAsync(IdentityUser user, LiftSetEntry setEntry, double oldWeight, int oldReps);
 }
 [ToolProvider]
 public class PersonalRecordService : IPersonalRecordService
@@ -147,175 +126,6 @@ public class PersonalRecordService : IPersonalRecordService
         return Result<List<MovementDataPRSummary>>.Success(summaries.OrderByDescending(s => s.LastPRDate).ToList());
     }
 
-    public async Task<Result<PRAttemptResult>> SubmitAttemptAsync(IdentityUser user, LiftSetEntry setEntry, bool forceCheck = false)
-    {
-        var userGuid = Guid.Parse(user.Id);
-
-        // Load the movement and its MovementData
-        var movement = await _context.Movements
-            .Include(m => m.MovementData)
-                .ThenInclude(md => md.Equipment)
-            .Include(m => m.MovementData)
-                .ThenInclude(md => md.MovementBase)
-            .Include(m => m.MovementData)
-                .ThenInclude(md => md.MovementModifier)
-            .Include(m => m.TrainingSession)
-            .FirstOrDefaultAsync(m => m.MovementID == setEntry.MovementID);
-
-        if (movement == null)
-        {
-            return Result<PRAttemptResult>.NotFound("Movement not found.");
-        }
-
-        // Check if we should process this attempt
-        // Only process if forceCheck is true or if the session is completed
-        if (!forceCheck && movement.TrainingSession.Status != TrainingSessionStatus.Completed)
-        {
-            return Result<PRAttemptResult>.Success(new PRAttemptResult(false, false, null, null, null, null));
-        }
-
-        var movementDataId = movement.MovementDataID;
-        var weight = setEntry.ActualWeight;
-        var reps = setEntry.ActualReps;
-        var volume = weight * reps;
-
-        // Get current active PRs for this MovementData
-        var currentStrengthPR = await _context.PersonalRecords
-            .Where(pr => pr.UserID == userGuid && pr.MovementDataID == movementDataId && pr.PRType == PersonalRecordType.Strength && pr.IsActive)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.Equipment)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.MovementBase)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.MovementModifier)
-            .FirstOrDefaultAsync();
-
-        var currentVolumePR = await _context.PersonalRecords
-            .Where(pr => pr.UserID == userGuid && pr.MovementDataID == movementDataId && pr.PRType == PersonalRecordType.Volume && pr.IsActive)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.Equipment)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.MovementBase)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.MovementModifier)
-            .FirstOrDefaultAsync();
-
-        bool isNewStrengthPR = false;
-        bool isNewVolumePR = false;
-        PersonalRecord? newStrengthPR = null;
-        PersonalRecord? newVolumePR = null;
-
-        // Check for Strength PR (compare weight)
-        if (currentStrengthPR == null || weight > currentStrengthPR.Weight)
-        {
-            isNewStrengthPR = true;
-
-            // Deactivate old PR if exists
-            if (currentStrengthPR != null)
-            {
-                currentStrengthPR.IsActive = false;
-            }
-
-            // Create new PR
-            newStrengthPR = new PersonalRecord
-            {
-                PersonalRecordID = Guid.NewGuid(),
-                UserID = userGuid,
-                MovementDataID = movementDataId,
-                MovementData = movement.MovementData,
-                PRType = PersonalRecordType.Strength,
-                Weight = weight,
-                WeightUnit = setEntry.WeightUnit,
-                Reps = reps,
-                CreatedAt = DateTime.UtcNow,
-                PreviousPRCreatedAt = currentStrengthPR?.CreatedAt,
-                PreviousPersonalRecordID = currentStrengthPR?.PersonalRecordID,
-                PreviousPersonalRecord = currentStrengthPR,
-                SourceLiftSetEntryID = setEntry.SetEntryID,
-                SourceLiftSetEntry = setEntry,
-                IsActive = true
-            };
-
-            _context.PersonalRecords.Add(newStrengthPR);
-        }
-
-        // Check for Volume PR (compare weight * reps)
-        if (currentVolumePR == null || volume > currentVolumePR.Volume)
-        {
-            isNewVolumePR = true;
-
-            // Deactivate old PR if exists
-            if (currentVolumePR != null)
-            {
-                currentVolumePR.IsActive = false;
-            }
-
-            // Create new PR
-            newVolumePR = new PersonalRecord
-            {
-                PersonalRecordID = Guid.NewGuid(),
-                UserID = userGuid,
-                MovementDataID = movementDataId,
-                MovementData = movement.MovementData,
-                PRType = PersonalRecordType.Volume,
-                Weight = weight,
-                WeightUnit = setEntry.WeightUnit,
-                Reps = reps,
-                CreatedAt = DateTime.UtcNow,
-                PreviousPRCreatedAt = currentVolumePR?.CreatedAt,
-                PreviousPersonalRecordID = currentVolumePR?.PersonalRecordID,
-                PreviousPersonalRecord = currentVolumePR,
-                SourceLiftSetEntryID = setEntry.SetEntryID,
-                SourceLiftSetEntry = setEntry,
-                IsActive = true
-            };
-
-            _context.PersonalRecords.Add(newVolumePR);
-        }
-
-
-        if (isNewStrengthPR || isNewVolumePR)
-        {
-            await _context.SaveChangesAsync();
-        }
-
-        return Result<PRAttemptResult>.Success(new PRAttemptResult(
-            isNewStrengthPR,
-            isNewVolumePR,
-            newStrengthPR?.ToDTO(),
-            newVolumePR?.ToDTO(),
-            currentStrengthPR?.ToDTO(),
-            currentVolumePR?.ToDTO()
-        ));
-    }
-
-    public async Task<Result<List<PRAttemptResult>>> ProcessTrainingSessionAsync(IdentityUser user, Guid trainingSessionId)
-    {
-        var userGuid = Guid.Parse(user.Id);
-
-        var session = await _context.TrainingSessions
-            .Include(ts => ts.Movements)
-                .ThenInclude(m => m.LiftSets)
-            .Include(ts => ts.Movements)
-                .ThenInclude(m => m.MovementData)
-            .FirstOrDefaultAsync(ts => ts.TrainingSessionID == trainingSessionId && ts.UserID == userGuid);
-
-        if (session is null)
-        {
-            return Result<List<PRAttemptResult>>.NotFound("Training session not found.");
-        }
-
-        var results = new List<PRAttemptResult>();
-
-        foreach (var movement in session.Movements)
-        {
-            foreach (var setEntry in movement.LiftSets)
-            {
-                var result = await SubmitAttemptAsync(user, setEntry, forceCheck: true);
-                if (result.IsSuccess && (result.Value.IsNewStrengthPR || result.Value.IsNewVolumePR))
-                {
-                    results.Add(result.Value);
-                }
-            }
-        }
-
-        return Result<List<PRAttemptResult>>.Success(results);
-    }
-
     public async Task<Result<PersonalRecordDTO?>> RevertToPreviousAsync(IdentityUser user, Guid personalRecordId)
     {
         var userGuid = Guid.Parse(user.Id);
@@ -373,38 +183,4 @@ public class PersonalRecordService : IPersonalRecordService
         return Result<List<PersonalRecordDTO>>.Success(history.Select(h => h.ToDTO()).ToList());
     }
 
-    /// <summary>
-    /// Checks if a set entry that was previously a PR needs to trigger a revert.
-    /// Called when updating a set entry with decreased values.
-    /// </summary>
-    public async Task<Result> CheckAndRevertPRIfNeededAsync(IdentityUser user, LiftSetEntry setEntry, double oldWeight, int oldReps)
-    {
-        var userGuid = Guid.Parse(user.Id);
-
-        // Find any PRs that reference this set entry
-        var prsFromThisSet = await _context.PersonalRecords
-            .Where(pr => pr.UserID == userGuid && pr.SourceLiftSetEntryID == setEntry.SetEntryID && pr.IsActive)
-            .ToListAsync();
-
-        foreach (var pr in prsFromThisSet)
-        {
-            bool shouldRevert = false;
-
-            if (pr.PRType == PersonalRecordType.Strength && setEntry.ActualWeight < oldWeight)
-            {
-                shouldRevert = true;
-            }
-            else if (pr.PRType == PersonalRecordType.Volume && (setEntry.ActualWeight * setEntry.ActualReps) < (oldWeight * oldReps))
-            {
-                shouldRevert = true;
-            }
-
-            if (shouldRevert)
-            {
-                await RevertToPreviousAsync(user, pr.PersonalRecordID);
-            }
-        }
-
-        return Result.Success();
-    }
 }

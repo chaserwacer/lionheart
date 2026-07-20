@@ -66,15 +66,15 @@ namespace lionheart.Services
             if (injury is null) return Result<InjuryDTO>.NotFound("Injury not found");
             if (request.TrainingSessionID is Guid tsId && tsId != Guid.Empty)
             {
-                var ownsSession = await _context.TrainingSessions
-                    .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.UserID == userId);
+                var ownsSession = await _context.Sessions
+                    .AnyAsync(ts => ts.TrainingSessionId == tsId && ts.UserId == userId);
                 if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
             }
+            // Movement links point at MovementData (the reusable movement identity) since the remodel.
             foreach (var movementId in request.MovementIDs)
             {
-                var ownsMovement = await _context.Movements
-                    .Include(m => m.TrainingSession)
-                    .AnyAsync(m => m.MovementID == movementId && m.TrainingSession.UserID == userId);
+                var ownsMovement = await _context.MovementDatas
+                    .AnyAsync(md => md.MovementDataID == movementId && md.UserID == userId);
                 if (!ownsMovement) return Result<InjuryDTO>.Unauthorized("One or more movements not found or access denied");
             }
 
@@ -183,17 +183,16 @@ namespace lionheart.Services
             if (request.TrainingSessionID.HasValue && request.TrainingSessionID.Value != Guid.Empty)
             {
                 var tsId = request.TrainingSessionID.Value;
-                var ownsSession = await _context.TrainingSessions
-                    .AnyAsync(ts => ts.TrainingSessionID == tsId && ts.UserID == userId);
+                var ownsSession = await _context.Sessions
+                    .AnyAsync(ts => ts.TrainingSessionId == tsId && ts.UserId == userId);
                 if (!ownsSession) return Result<InjuryDTO>.Unauthorized("Training session not found or access denied");
                 injuryEvent.TrainingSessionID = tsId;
             }
             injuryEvent.MovementIDs.Clear();
             foreach (var movementId in request.MovementIDs)
             {
-                var ownsMovement = await _context.Movements
-                    .Include(m => m.TrainingSession)
-                    .AnyAsync(m => m.MovementID == movementId && m.TrainingSession.UserID == userId);
+                var ownsMovement = await _context.MovementDatas
+                    .AnyAsync(md => md.MovementDataID == movementId && md.UserID == userId);
                 if (!ownsMovement) continue;
                 injuryEvent.MovementIDs.Add(movementId);
             }

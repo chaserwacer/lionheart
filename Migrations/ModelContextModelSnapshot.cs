@@ -227,39 +227,6 @@ namespace lionheart.Migrations
                     b.ToTable("MuscleGroups");
                 });
 
-            modelBuilder.Entity("lionheart.ActivityTracking.Activity", b =>
-                {
-                    b.Property<Guid>("ActivityID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("CaloriesBurned")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("DateTime")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TimeInMinutes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("UserID")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserSummary")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("ActivityID");
-
-                    b.HasIndex("UserID");
-
-                    b.ToTable("Activities");
-                });
-
             modelBuilder.Entity("lionheart.Model.Analysis.AnalyzableEntry", b =>
                 {
                     b.Property<Guid>("EntryId")
@@ -674,37 +641,6 @@ namespace lionheart.Migrations
                     b.ToTable("Equipments");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Training.Movement", b =>
-                {
-                    b.Property<Guid>("MovementID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("MovementDataID")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Ordering")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("TrainingSessionID")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("MovementID");
-
-                    b.HasIndex("MovementDataID");
-
-                    b.HasIndex("TrainingSessionID");
-
-                    b.ToTable("Movements");
-                });
-
             modelBuilder.Entity("lionheart.Model.Training.MovementData", b =>
                 {
                     b.Property<Guid>("MovementDataID")
@@ -787,9 +723,6 @@ namespace lionheart.Migrations
                     b.Property<int>("Reps")
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid?>("SourceLiftSetEntryID")
-                        .HasColumnType("TEXT");
-
                     b.Property<Guid>("UserID")
                         .HasColumnType("TEXT");
 
@@ -804,8 +737,6 @@ namespace lionheart.Migrations
                     b.HasIndex("MovementDataID");
 
                     b.HasIndex("PreviousPersonalRecordID");
-
-                    b.HasIndex("SourceLiftSetEntryID");
 
                     b.HasIndex("UserID", "MovementDataID", "PRType", "IsActive");
 
@@ -890,162 +821,6 @@ namespace lionheart.Migrations
                     b.HasDiscriminator<string>("Lifecycle").HasValue("TrainingSession");
 
                     b.UseTphMappingStrategy();
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.SetEntry.DTSetEntry", b =>
-                {
-                    b.Property<Guid>("SetEntryID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<double>("ActualDistance")
-                        .HasColumnType("REAL");
-
-                    b.Property<TimeSpan>("ActualDuration")
-                        .HasColumnType("TEXT");
-
-                    b.Property<TimeSpan>("ActualPace")
-                        .HasColumnType("TEXT");
-
-                    b.Property<double>("ActualRPE")
-                        .HasColumnType("REAL");
-
-                    b.Property<TimeSpan>("ActualRest")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("DistanceUnit")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<TimeSpan>("IntervalDuration")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("IntervalType")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("MovementID")
-                        .HasColumnType("TEXT");
-
-                    b.Property<double>("RecommendedDistance")
-                        .HasColumnType("REAL");
-
-                    b.Property<TimeSpan>("RecommendedDuration")
-                        .HasColumnType("TEXT");
-
-                    b.Property<TimeSpan>("RecommendedRest")
-                        .HasColumnType("TEXT");
-
-                    b.Property<TimeSpan>("TargetPace")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("SetEntryID");
-
-                    b.HasIndex("MovementID");
-
-                    b.ToTable("DTSetEntries");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.SetEntry.LiftSetEntry", b =>
-                {
-                    b.Property<Guid>("SetEntryID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<double>("ActualRPE")
-                        .HasColumnType("REAL");
-
-                    b.Property<int>("ActualReps")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<double>("ActualWeight")
-                        .HasColumnType("REAL");
-
-                    b.Property<Guid>("MovementID")
-                        .HasColumnType("TEXT");
-
-                    b.Property<double?>("RecommendedRPE")
-                        .HasColumnType("REAL");
-
-                    b.Property<int?>("RecommendedReps")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<double?>("RecommendedWeight")
-                        .HasColumnType("REAL");
-
-                    b.Property<int>("WeightUnit")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("SetEntryID");
-
-                    b.HasIndex("MovementID");
-
-                    b.ToTable("LiftSetEntries");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.TrainingProgram", b =>
-                {
-                    b.Property<Guid>("TrainingProgramID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateOnly>("EndDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateOnly>("StartDate")
-                        .HasColumnType("TEXT");
-
-                    b.PrimitiveCollection<string>("Tags")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("UserID")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("TrainingProgramID");
-
-                    b.HasIndex("UserID");
-
-                    b.ToTable("TrainingPrograms");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.TrainingSession", b =>
-                {
-                    b.Property<Guid>("TrainingSessionID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreationTime")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid?>("TrainingProgramID")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("UserID")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("TrainingSessionID");
-
-                    b.HasIndex("TrainingProgramID");
-
-                    b.HasIndex("UserID");
-
-                    b.ToTable("TrainingSessions");
                 });
 
             modelBuilder.Entity("lionheart.Model.User.ApiAccessToken", b =>
@@ -1263,45 +1038,6 @@ namespace lionheart.Migrations
                     b.HasOne("MovementBase", null)
                         .WithMany("MuscleGroups")
                         .HasForeignKey("MovementBaseID");
-                });
-
-            modelBuilder.Entity("lionheart.ActivityTracking.Activity", b =>
-                {
-                    b.HasOne("lionheart.Model.User.LionheartUser", null)
-                        .WithMany("Activities")
-                        .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.OwnsOne("PerceivedEffortRatings", "PerceivedEffortRatings", b1 =>
-                        {
-                            b1.Property<Guid>("ActivityID")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<int?>("AccumulatedFatigue")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int?>("DifficultyRating")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int?>("EngagementRating")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int?>("ExternalVariablesRating")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<DateTime>("RecordedAt")
-                                .HasColumnType("TEXT");
-
-                            b1.HasKey("ActivityID");
-
-                            b1.ToTable("Activities");
-
-                            b1.WithOwner()
-                                .HasForeignKey("ActivityID");
-                        });
-
-                    b.Navigation("PerceivedEffortRatings");
                 });
 
             modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>
@@ -1566,25 +1302,6 @@ namespace lionheart.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("lionheart.Model.Training.Movement", b =>
-                {
-                    b.HasOne("lionheart.Model.Training.MovementData", "MovementData")
-                        .WithMany()
-                        .HasForeignKey("MovementDataID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("lionheart.Model.Training.TrainingSession", "TrainingSession")
-                        .WithMany("Movements")
-                        .HasForeignKey("TrainingSessionID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("MovementData");
-
-                    b.Navigation("TrainingSession");
-                });
-
             modelBuilder.Entity("lionheart.Model.Training.MovementData", b =>
                 {
                     b.HasOne("lionheart.Model.Training.Equipment", "Equipment")
@@ -1639,11 +1356,6 @@ namespace lionheart.Migrations
                         .HasForeignKey("PreviousPersonalRecordID")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("lionheart.Model.Training.SetEntry.LiftSetEntry", "SourceLiftSetEntry")
-                        .WithMany()
-                        .HasForeignKey("SourceLiftSetEntryID")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany("PersonalRecords")
                         .HasForeignKey("UserID")
@@ -1653,8 +1365,6 @@ namespace lionheart.Migrations
                     b.Navigation("MovementData");
 
                     b.Navigation("PreviousPersonalRecord");
-
-                    b.Navigation("SourceLiftSetEntry");
                 });
 
             modelBuilder.Entity("lionheart.Model.Training.Programs.TrainingProgram", b =>
@@ -1673,82 +1383,6 @@ namespace lionheart.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.SetEntry.DTSetEntry", b =>
-                {
-                    b.HasOne("lionheart.Model.Training.Movement", "Movement")
-                        .WithMany("DistanceTimeSets")
-                        .HasForeignKey("MovementID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Movement");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.SetEntry.LiftSetEntry", b =>
-                {
-                    b.HasOne("lionheart.Model.Training.Movement", "Movement")
-                        .WithMany("LiftSets")
-                        .HasForeignKey("MovementID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Movement");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.TrainingProgram", b =>
-                {
-                    b.HasOne("lionheart.Model.User.LionheartUser", null)
-                        .WithMany("TrainingPrograms")
-                        .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.TrainingSession", b =>
-                {
-                    b.HasOne("lionheart.Model.Training.TrainingProgram", "TrainingProgram")
-                        .WithMany("TrainingSessions")
-                        .HasForeignKey("TrainingProgramID");
-
-                    b.HasOne("lionheart.Model.User.LionheartUser", null)
-                        .WithMany("TrainingSessions")
-                        .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.OwnsOne("PerceivedEffortRatings", "PerceivedEffortRatings", b1 =>
-                        {
-                            b1.Property<Guid>("TrainingSessionID")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<int?>("AccumulatedFatigue")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int?>("DifficultyRating")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int?>("EngagementRating")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int?>("ExternalVariablesRating")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<DateTime>("RecordedAt")
-                                .HasColumnType("TEXT");
-
-                            b1.HasKey("TrainingSessionID");
-
-                            b1.ToTable("TrainingSessions");
-
-                            b1.WithOwner()
-                                .HasForeignKey("TrainingSessionID");
-                        });
-
-                    b.Navigation("PerceivedEffortRatings");
-
-                    b.Navigation("TrainingProgram");
                 });
 
             modelBuilder.Entity("lionheart.Model.User.ApiAccessToken", b =>
@@ -1800,27 +1434,8 @@ namespace lionheart.Migrations
                     b.Navigation("InjuryEvents");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Training.Movement", b =>
-                {
-                    b.Navigation("DistanceTimeSets");
-
-                    b.Navigation("LiftSets");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.TrainingProgram", b =>
-                {
-                    b.Navigation("TrainingSessions");
-                });
-
-            modelBuilder.Entity("lionheart.Model.Training.TrainingSession", b =>
-                {
-                    b.Navigation("Movements");
-                });
-
             modelBuilder.Entity("lionheart.Model.User.LionheartUser", b =>
                 {
-                    b.Navigation("Activities");
-
                     b.Navigation("ApiAccessTokens");
 
                     b.Navigation("ChatConversations");
@@ -1838,10 +1453,6 @@ namespace lionheart.Migrations
                     b.Navigation("MovementModifiers");
 
                     b.Navigation("PersonalRecords");
-
-                    b.Navigation("TrainingPrograms");
-
-                    b.Navigation("TrainingSessions");
 
                     b.Navigation("WellnessStates");
                 });

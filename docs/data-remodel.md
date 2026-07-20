@@ -254,13 +254,11 @@ a later Postgres/pgvector swap stays contained in the storage layer.
 
 ## Migration & backfill
 
-**Old data is backfilled into the new model** (decided). Old tables stay until backfill
-verifies clean.
-
-- `Activity` rows → `ExertionContext` (Formed utterance semantics; decorate via engine).
-- Old sessions/movements/sets → new sessions with structured sets (`Source = Formed`),
-  decorated by the engine at current version.
-- Backfill is the interpretation engine's first bulk client — no bespoke migration logic.
+**No backfill** (decided 2026-07-19, superseding the earlier backfill plan): legacy
+training data was abandoned and the legacy model/tables dropped outright. Surviving
+legacy entities: `MovementData`/`MovementBase`/`MovementModifier`, `Equipment`,
+`MuscleGroup`, `PersonalRecord` (its lift-set source pointer removed; PR *detection*
+returns with the interpretation engine).
 
 ## Out of scope (unchanged for now)
 
@@ -280,7 +278,7 @@ Chat, Oura, Profile, Wellness, Injury.
 | Program status | `Planned/Active/CompletedTrainingProgram` subtypes (kills `IsCompleted`) |
 | Activity | Deleted; absorbed by `ExertionContext` |
 | Movement wrapper | Deleted; flat ordered set list, grouping derivable. `MovementData` kept |
-| Old data | Backfilled through the interpretation engine |
+| Old data | Abandoned (user call 2026-07-19) — no backfill; legacy tables dropped. Kept: MovementData/Base/Modifier, Equipment, MuscleGroups, PersonalRecords |
 | Session date | Derived (`abstract Date`) from each lifecycle state's own time-truth (PlannedFor / StartedAt / Period) — never stored alongside it |
 | Storage provider | SQLite (already in use; no quality loss at this scale). Retrieval interface stays provider-shaped for a contained Postgres swap later |
 | Embedding storage | No EmbeddingRef indirection — vectors live directly on `FacetValue` and the `AnalyzableEntry` projection; `Decoration` carries `SummaryText` |
@@ -330,21 +328,38 @@ Parse → Resolve → Commit engine:
   (same pattern as the existing `UnresolvedReference`/`EntityMatch` flow).
 - Commit writes the domain entity and upserts its `AnalyzableEntry` row.
 - Stamp `DecoratorVersion` everywhere; engine must be re-runnable (freeform upgrades,
-  backfill, re-decoration).
+  re-decoration at newer versions).
+- PR detection re-enters here: the legacy submit-attempt flow was deleted with the old
+  model; the engine should evaluate completed lift sets against `PersonalRecords`.
+- Chat tools for sessions/contexts also re-enter here (the legacy session/activity/
+  program tools died with their services); the athlete-context-card coverage manifest
+  currently tells the model there is no training drill-in tool — restore that line when
+  the new tool exists.
 - **First deliverable: a runtime JSON round-trip smoke test** — save + rehydrate each
   session lifecycle state, a context, an `AnalyzableEntry`. The converters have
   compile-time + EF-model validation but have never been exercised at runtime
   (no test project exists yet — add one, or smoke-test via the first service).
 
-### ⬜ Step 4 — Backfill
+### ✅ Step 4 — Legacy removal (was: backfill; re-scoped by user 2026-07-19)
 
-Legacy rows through the engine (decided; legacy tables stay until verified):
+No backfill — old training data abandoned. Deleted outright: `Activity`,
+legacy `TrainingSession`/`TrainingProgram`, `Movement` wrapper, `LiftSetEntry`/
+`DTSetEntry` + the legacy `SetEntry` namespace (alias gotcha gone; `WeightUnit`/
+`DistanceUnit` relocated to `Model/Training/Sets/Units.cs`), the ingestion
+parse/commit services + endpoints + models (rebuilt properly in step 3), their
+services/endpoints/DI registrations, and `PersonalRecord`'s lift-set source pointer +
+attempt-submission machinery (read/revert surface kept). Migration
+`DropLegacyTrainingModel` dropped the six legacy tables — applied to the dev DB.
+Callers ported to the new model: injury ownership checks (movement links now mean
+`MovementData` ids), equipment/movement-base in-use checks (vs `MovementDatas` — also
+fixes a latent FK-crash), athlete-context-card session counts (completed sessions via
+stamped `StartTime`).
 
-- `Activity` → `ExertionContext` (`Formed` utterance semantics).
-- Legacy sessions/Movements/Lift+DT sets → new sessions with structured sets
-  (`Source = Formed`), decorated at current version.
-- After verification: drop legacy entities, tables, services, endpoints — including the
-  legacy `SetEntry` namespace (removes the alias gotcha) and the `Activity` model.
+**Known frontend fallout (accepted, fix rides the new UI work):** the TS client
+regenerates from swagger at dev startup, so deleted endpoints vanish from
+`ClientApp/src/lib/api/ApiClient.ts`; the Svelte stores/pages for sessions, training,
+and ingestion reference removed methods and are broken until rebuilt against the new
+endpoints (which don't exist yet — see open question 3).
 
 ### ⬜ Step 5 — Balance ledger (first analytic)
 
