@@ -960,7 +960,7 @@ namespace lionheart.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("Sets");
 
-                    b.Property<DateTime>("StartedAt")
+                    b.Property<DateTimeOffset>("StartedAt")
                         .HasColumnType("TEXT");
 
                     b.HasDiscriminator().HasValue("active");
@@ -1038,6 +1038,15 @@ namespace lionheart.Migrations
                     b.HasOne("MovementBase", null)
                         .WithMany("MuscleGroups")
                         .HasForeignKey("MovementBaseID");
+                });
+
+            modelBuilder.Entity("lionheart.Model.Analysis.AnalyzableEntry", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>

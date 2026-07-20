@@ -16,4 +16,12 @@ public sealed record AnalyzableEntry(
     Valence Valence,
     float[] Embedding,
     string SummaryText,
-    int DecoratorVersion);
+    int DecoratorVersion)
+{
+    public EntryKind Kind { get; init; } = Require.ClosedEnum(Kind, nameof(Kind));
+    public Period Period { get; init; } = Require.Present(Period, nameof(Period));
+    public IReadOnlyList<Facet> Facets { get; init; } = Require.Present(Facets, nameof(Facets));
+    public Valence Valence { get; init; } = Require.ClosedEnum(Valence, nameof(Valence));
+    public float[] Embedding { get; init; } = Require.Present(Embedding, nameof(Embedding));
+    public string SummaryText { get; init; } = Require.Present(SummaryText, nameof(SummaryText));
+}

@@ -142,38 +142,51 @@ namespace Model.Tools
                     // We'll let JsonSerializer handle it below.
                 }
 
-                for (var i = 0; i < parameters.Length; i++)
+                try
                 {
-                    var p = parameters[i];
-
-                    if (IsInjectableParameter(p.ParameterType))
+                    for (var i = 0; i < parameters.Length; i++)
                     {
-                        bound[i] = GetInjectedValue(p.ParameterType, user);
-                        continue;
+                        var p = parameters[i];
+
+                        if (IsInjectableParameter(p.ParameterType))
+                        {
+                            bound[i] = GetInjectedValue(p.ParameterType, user);
+                            continue;
+                        }
+
+                        object? value;
+
+                        // A model is free to send arguments that are not valid JSON, or JSON of
+                        // the wrong shape. That is a bad tool call to report back to it, not a
+                        // fault in the conversation, so it converts to the same
+                        // ToolBindingException the multi-parameter path below raises.
+                        try
+                        {
+                            // If JSON is an object and it has a property matching the param name,
+                            // bind from that property instead of the whole object.
+                            value = parsed && singleRoot.ValueKind == JsonValueKind.Object &&
+                                    singleRoot.TryGetProperty(singleName, out var prop)
+                                ? prop.Deserialize(p.ParameterType, jsonOptions)
+                                : JsonSerializer.Deserialize(json, p.ParameterType, jsonOptions);
+                        }
+                        catch (JsonException je)
+                        {
+                            throw new ToolBindingException($"Invalid JSON for argument '{p.Name}'.",
+                                new { parameter = p.Name, type = p.ParameterType.FullName, je.Message });
+                        }
+
+                        if (value is null && IsNonNullableValueType(p.ParameterType))
+                            throw new ToolBindingException($"Argument '{p.Name}' is required.",
+                                new { parameter = p.Name, type = p.ParameterType.FullName });
+
+                        bound[i] = value;
                     }
-
-                    object? value;
-
-                    // If JSON is an object and it has a property matching the param name,
-                    // bind from that property instead of the whole object.
-                    if (parsed && singleRoot.ValueKind == JsonValueKind.Object &&
-                        singleRoot.TryGetProperty(singleName, out var prop))
-                    {
-                        value = prop.Deserialize(p.ParameterType, jsonOptions);
-                    }
-                    else
-                    {
-                        value = JsonSerializer.Deserialize(json, p.ParameterType, jsonOptions);
-                    }
-
-                    if (value is null && IsNonNullableValueType(p.ParameterType))
-                        throw new ToolBindingException($"Argument '{p.Name}' is required.",
-                            new { parameter = p.Name, type = p.ParameterType.FullName });
-
-                    bound[i] = value;
+                }
+                finally
+                {
+                    singleDoc?.Dispose();
                 }
 
-                singleDoc?.Dispose();
                 return bound;
             }
 

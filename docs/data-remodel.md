@@ -282,6 +282,10 @@ Chat, Oura, Profile, Wellness, Injury.
 | Session date | Derived (`abstract Date`) from each lifecycle state's own time-truth (PlannedFor / StartedAt / Period) — never stored alongside it |
 | Storage provider | SQLite (already in use; no quality loss at this scale). Retrieval interface stays provider-shaped for a contained Postgres swap later |
 | Embedding storage | No EmbeddingRef indirection — vectors live directly on `FacetValue` and the `AnalyzableEntry` projection; `Decoration` carries `SummaryText` |
+| Period time zone | `DateTimeOffset`: absolute instant indexes the StartTime column, captured offset derives the athlete's calendar `Date`. Offset over zone id — for a past event the offset is the whole answer (2026-07-20) |
+| User delete vs. analysis rows | `AnalyzableEntry` cascades with its user — derived data follows its source (2026-07-20) |
+| Measure validity | Non-finite rejected at construction; sign deliberately unpoliced (2026-07-20) |
+| JSON encoder | Relaxed encoder on storage options — payloads never reach HTML, and readability of the SQLite file wins (2026-07-20) |
 
 ## Status & roadmap — source of truth
 
@@ -331,6 +335,122 @@ loud), and EF round-trips against real in-memory SQLite: every session/program l
 state, both context kinds, `AnalyzableEntry` BLOB embeddings, `FacetValue` composite key,
 the `Guid.Empty` membership sentinel at the raw-column level, and `StartTime` stamping on
 insert + update + window query. This delivers step 3's smoke-test prerequisite up front.
+
+### ✅ Step 2.6 — Adversarial audit + LLM test infrastructure
+
+Second pass over step 2.5, written to break it rather than confirm it. 76 → 256 tests
+(244 running, 8 skipped specifications for the unbuilt interpretation engine, 4 opt-in LocalModel).
+
+**Closed in the suite.** Hand-written JSON literal fixtures pinning the on-disk bytes
+(the round-trip tests used the serializer as their own oracle, so a serializer-level bug
+was invisible); EF change detection through the value converters, including proof the
+vector comparer's cheap `v.Length` hash is safe because its equality is exact;
+DateTime fidelity (sub-second ticks and `DateTimeKind` through JSON, precision and
+ordering through the stamped column); malformed storage planted by raw SQL and read back
+through EF; relational edges (user-delete cascade, FK violations, the unconstrained
+program pointer); query translation asserted against generated SQL, not just results;
+hostile values (emoji/newlines/quotes, 0- and 1536-length embeddings, non-finite
+measures, `DateOnly` extremes, empty lists everywhere); and concurrent stamping across
+two contexts on one connection.
+
+**Defects found and fixed** (each has a test that fails without the fix):
+
+- Derived members were being written into the stored JSON — `Period.StartTime`,
+  `Interval.Duration`, `DecorationState.IsDecorated`. The design says derived values are
+  never stored beside their source; they now carry `[JsonIgnore]`. Note the trap:
+  `[JsonIgnore]` does **not** inherit through an override, so every `Period` subtype must
+  repeat it.
+- `FacetAxis` and `Valence` ordinals outside their enums rehydrated silently, so a
+  corrupt row could widen the closed query surface the MCP tool depends on. `Facet`,
+  `Decoration`, and `AnalyzableEntry` now guard in their constructors (`Model/Require.cs`),
+  which covers deserialization, `with`, and app code alike. The same guards close null
+  smuggling into non-nullable members (`Value`, `SummaryText`, `RawText`, and the facet/tag
+  lists). Trap worth knowing: System.Text.Json writes non-redeclared positional members
+  first, so redeclaring *some* members of a record to add guards silently reorders its
+  stored JSON — `Decoration` redeclares all five for that reason.
+- A truncated embedding BLOB (length not a multiple of 4) threw an opaque
+  `Buffer.BlockCopy` overrun; `ValueConversions.ToFloats` now rejects it by name.
+- `ChatToolCallExecutor`'s single-argument binding path let a `JsonException` escape when
+  the model sent malformed tool arguments, aborting the whole conversation. The
+  multi-argument path already converted it to `ToolBindingException`; the single path now
+  matches. (It also leaked a `JsonDocument` on every throw.)
+- Solution-level `dotnet test` exited 1: `lionheart.csproj` carried `xunit`,
+  `xunit.runner.visualstudio`, and `FluentAssertions` with zero usages, so VSTest treated
+  the web project as a test project. Removed.
+
+**Resolved by the owner 2026-07-20**, after being flagged by this audit:
+
+- **Periods carry their offset.** `Instant` and `Interval` hold `DateTimeOffset`, so the offset
+  in force when an entry was logged travels with it. A moment gets asked two different questions
+  and each needs a different half: `Period.StartTimeUtc` is the absolute instant that the stamped
+  `StartTime` column indexes (one timeline, correct ordering and windowing), while
+  `Period.LocalDate` reads the moment at its captured offset and is what `Date` derives from.
+  Deriving the day from UTC instead moves an evening session west of Greenwich to tomorrow —
+  which would then join against the wrong night's sleep in the hidden-cost analytic. Capturing an
+  offset rather than a time-zone id is deliberate: for an event that already happened the offset
+  that applied at that instant is the whole answer, and it stays right across travel and DST with
+  no rules lookup and nothing extra to ask the athlete. `ActiveTrainingSession.StartedAt` gets the
+  same treatment so an in-progress session reports the same day it will once completed;
+  `PerceivedEffortRatings.RecordedAt` is bookkeeping rather than training time and is simply
+  normalized to UTC. Rows written before this still read: a bare `"...Z"` parses as `+00:00`.
+- **Deleting a user deletes their `AnalyzableEntry` rows.** The read model is derived data and
+  follows its source. `RemodelConfiguration` maps the `LionheartUser` relationship; migration
+  `CascadeAnalyzableEntriesToUser` adds the FK.
+- **Non-finite measures are refused at construction** — `Weight`, `Distance`,
+  `ElevationGainMeters`, `TargetWeight`, `TargetDistance` via `Require.Finite`. Sign is
+  deliberately *not* policed: net elevation gain is legitimately negative on a descent.
+- **Failed tool calls now tell the model what went wrong**, per Ardalis status, instead of
+  `System.String[]`.
+- **JSON columns use the relaxed encoder**, so `sled pull+push` is stored as itself. Done now
+  because there is no production data to rewrite. `ValueConversions.StorageJson` is public so
+  the literal fixtures pin the bytes that actually reach storage rather than the ambient default.
+
+Two footguns worth carrying forward, both discovered by the literal fixtures rather than by
+reasoning:
+
+- `[JsonIgnore]` does **not** inherit through an override — every `Period` subtype repeats it.
+- System.Text.Json writes non-redeclared positional members **first**, so redeclaring only
+  *some* members of a record to add a guard silently reorders its stored payload. `Decoration`,
+  `LiftSet`, `DistanceTimeSet`, `TrailRunSet`, `LiftPrescription`, and `DistanceTimePrescription`
+  therefore redeclare **all** their positional members, guarded or not.
+
+**Still flagged — no decision yet:**
+
+1. **Null elements inside stored lists survive as holes.** A `null` in a stored `Sets` array
+   rehydrates as a null entry, so the first analytics pass touching `set.Source` throws far from
+   the corrupt row. Deferred (owner, 2026-07-20) until the interpretation engine exists, since
+   that is what will actually be producing these lists. Characterized by
+   `Null_element_inside_a_set_list_currently_survives_as_a_hole`.
+2. **Sign and upper bounds on measures.** Negative distance, weight, and duration persist
+   happily. Characterized by `Negative_measures_are_accepted_by_design_for_now`.
+
+**LLM test infrastructure.** No production seam was added: `ChatClient` accepts a
+`Transport`, so tests build a real client over a fake `HttpMessageHandler` serving canned
+OpenAI-format bodies. That is both the smallest change (none) and the highest fidelity —
+it exercises real SDK request building, real response parsing, and
+`ChatCompletionResultExtensions.ToResult`, which an app-owned interface fake would bypass
+entirely. Covered: the tool-call loop (happy path, unknown tool, malformed arguments,
+throwing tool, multi-round chains, empty and whitespace output, `length` and
+`content_filter` finish reasons, refusals, LM Studio's HTTP-200-with-error body), and the
+Athlete Context Card's narrative fallback driven through the real card service against
+every LM Studio failure mode.
+
+Interpretation-engine contracts are written but the engine does not exist: the parts the
+domain can already answer run today (facet-axis closure against hallucinated axes, invalid
+JSON, prose-wrapped JSON, confidence bounds), and eight `Skip`-marked specifications name
+what must land for Parse/Resolve/Commit.
+
+**LocalModel tests** (`Category=LocalModel`, excluded by default) read `LmStudio__*` through
+the same `DotNetEnv` + environment-variable path as `Program.cs`, health-check the server,
+try `lms server start`, and skip — never fail — with the failing key named. Commands are in
+`lionheart.Tests/README.md`.
+
+> **Verified against a real model 2026-07-20**: all four LocalModel tests pass end to end
+> (`dotnet test --settings lionheart.localmodel.runsettings`, ~1m40s) — the terse-log parse
+> returns schema-valid sets with a `Texted` source and in-range confidence, proposed facet axes
+> stay inside the closed enum, and a registered tool really is called and its result returned.
+> If `LmStudio__ApiKey` drifts from the token LM Studio is serving, both `/v1/models` and
+> `/v1/chat/completions` answer HTTP 401 and the tests skip with that message rather than failing.
 
 ### ⬜ Step 3 — Interpretation engine
 
@@ -394,3 +514,10 @@ hidden-cost, eras, rivalry, ROI) as consumers.
    `ProgramMembership`) — generic `Option<T>` deferred unless a fourth appears.
 3. DTO/request shapes for the new types and the migration path for existing
    endpoints/services (likely lands with steps 3–4).
+4. **Do stored lists guard their elements?** (step 2.6). A null inside a stored `Sets` array
+   rehydrates as a hole today. Deferred until the interpretation engine exists, since that is
+   what will produce these lists — decide then whether a bad element rejects the row or is
+   dropped, and which of the domain's ~8 list members get element guards.
+5. **Sign and upper bounds on measures.** `Require.Finite` now rejects NaN and the infinities;
+   negative distance, weight, and duration are still representable. Sign is not a blanket rule
+   (net elevation gain is legitimately negative), so this needs per-measure judgement.

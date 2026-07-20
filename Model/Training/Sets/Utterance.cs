@@ -17,6 +17,7 @@ public sealed record Texted : Utterance
     {
         if (structureConfidence is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(structureConfidence), "Confidence must be within [0, 1].");
+        ArgumentNullException.ThrowIfNull(rawText);
         RawText = rawText;
         StructureConfidence = structureConfidence;
     }

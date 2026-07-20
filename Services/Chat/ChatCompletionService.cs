@@ -40,7 +40,7 @@ namespace Services.Chat
             var conversationHistoryMessagesResult = HandleConversationHistory(request.Conversation);
             if (conversationHistoryMessagesResult.IsError())
             {
-                return Result.Error(conversationHistoryMessagesResult.Errors.ToString());
+                return Result.Error(string.Join("; ", conversationHistoryMessagesResult.Errors));
             }
             var messages = conversationHistoryMessagesResult.Value;
             var newlyGeneratedMessages = new List<LHChatMessage>();
@@ -103,8 +103,7 @@ namespace Services.Chat
                                 }
                                 else
                                 {
-                                    messages.Add(new ToolChatMessage(toolCall.Id, toolCallResult.Errors.ToString()));
-                                    
+                                    messages.Add(new ToolChatMessage(toolCall.Id, DescribeToolFailure(toolCallResult)));
                                 }
                             }
 
@@ -121,6 +120,28 @@ namespace Services.Chat
                 }
             } while (requiresAction);
             return Result.Error("Failed to generate chat completion.");
+        }
+
+        /// <summary>
+        /// What the model is told when a tool call fails. It is the model's only signal to
+        /// recover — retry with different arguments, or answer without the tool — so it has to
+        /// say what went wrong. Each Ardalis status carries its detail in a different place, and
+        /// the refusal statuses carry none at all.
+        /// </summary>
+        private static string DescribeToolFailure(Result<ToolChatMessage> result)
+        {
+            var detail = result.Status switch
+            {
+                ResultStatus.NotFound => "No such tool is available.",
+                ResultStatus.Unauthorized => "You are not authorized to call this tool.",
+                ResultStatus.Forbidden => "This tool is not available in this conversation.",
+                ResultStatus.Invalid => string.Join("; ", result.ValidationErrors.Select(e => e.ErrorMessage)),
+                _ => string.Join("; ", result.Errors),
+            };
+
+            return string.IsNullOrWhiteSpace(detail)
+                ? $"Tool call failed ({result.Status})."
+                : $"Tool call failed: {detail}";
         }
 
         /// <summary>

@@ -11,7 +11,20 @@ namespace lionheart.Data;
 /// </summary>
 public static class ValueConversions
 {
-    private static readonly JsonSerializerOptions Json = JsonSerializerOptions.Default;
+    /// <summary>
+    /// The exact options every JSON column is written and read with. Public so tests can pin
+    /// the bytes that actually reach storage rather than whatever the ambient default produces.
+    /// </summary>
+    /// <remarks>
+    /// The relaxed encoder is deliberate: these payloads go to a local SQLite file and are never
+    /// interpolated into HTML, so the default encoder's HTML-safety escaping buys nothing and
+    /// costs readability — plain training text like "sled pull+push" would otherwise be stored
+    /// as "sled pull+push".
+    /// </remarks>
+    public static readonly JsonSerializerOptions StorageJson = new(JsonSerializerOptions.Default)
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     public static PropertyBuilder<T> HasJsonConversion<T>(this PropertyBuilder<T> property)
     {
@@ -31,9 +44,9 @@ public static class ValueConversions
         return property.HasConversion(v => ToBytes(v), b => ToFloats(b), comparer);
     }
 
-    private static string Serialize<T>(T? value) => JsonSerializer.Serialize(value, Json);
+    private static string Serialize<T>(T? value) => JsonSerializer.Serialize(value, StorageJson);
 
-    private static T Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json, Json)
+    private static T Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json, StorageJson)
         ?? throw new JsonException($"Stored JSON deserialized to null for {typeof(T).Name}.");
 
     private static byte[] ToBytes(float[] vector)
@@ -45,6 +58,12 @@ public static class ValueConversions
 
     private static float[] ToFloats(byte[] bytes)
     {
+        // A partial float means the BLOB is truncated. Decoding it anyway would hand analytics
+        // a silently shortened vector, which compares as a legitimate (wrong) embedding.
+        if (bytes.Length % sizeof(float) != 0)
+            throw new InvalidDataException(
+                $"Embedding BLOB length {bytes.Length} is not a whole number of {sizeof(float)}-byte floats.");
+
         var vector = new float[bytes.Length / sizeof(float)];
         Buffer.BlockCopy(bytes, 0, vector, 0, bytes.Length);
         return vector;

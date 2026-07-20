@@ -79,7 +79,7 @@ namespace lionheart.Data
                     AnalyzableEntry analyzable => analyzable.Period,
                     _ => null
                 };
-                if (period is not null) entry.Property("StartTime").CurrentValue = period.StartTime;
+                if (period is not null) entry.Property("StartTime").CurrentValue = period.StartTimeUtc;
             }
         }
 

@@ -21,26 +21,54 @@ public abstract record SetEntry
     public required IReadOnlyList<Facet> Facets { get; init; }
 }
 
+// Each measure is guarded in a redeclared member. Every positional member is redeclared, not
+// only the guarded ones: System.Text.Json writes non-redeclared positional members first, so a
+// partial redeclaration would silently reorder the stored payload (pinned in StorageFormatTests).
+
 public sealed record LiftSet(
     Guid MovementDataId,
     int Reps,
     double Weight,
     WeightUnit Unit,
-    Rpe Rpe) : SetEntry;
+    Rpe Rpe) : SetEntry
+{
+    public Guid MovementDataId { get; init; } = MovementDataId;
+    public int Reps { get; init; } = Reps;
+    public double Weight { get; init; } = Require.Finite(Weight, nameof(Weight));
+    public WeightUnit Unit { get; init; } = Require.ClosedEnum(Unit, nameof(Unit));
+    public Rpe Rpe { get; init; } = Rpe;
+}
 
 public sealed record DistanceTimeSet(
     Guid MovementDataId,
     double Distance,
     DistanceUnit Unit,
     TimeSpan Duration,
-    Rpe Rpe) : SetEntry;
+    Rpe Rpe) : SetEntry
+{
+    public Guid MovementDataId { get; init; } = MovementDataId;
+    public double Distance { get; init; } = Require.Finite(Distance, nameof(Distance));
+    public DistanceUnit Unit { get; init; } = Require.ClosedEnum(Unit, nameof(Unit));
+    public TimeSpan Duration { get; init; } = Duration;
+    public Rpe Rpe { get; init; } = Rpe;
+}
 
 public sealed record TrailRunSet(
     double Distance,
     DistanceUnit Unit,
     TimeSpan Duration,
     double ElevationGainMeters,
-    Rpe Rpe) : SetEntry;
+    Rpe Rpe) : SetEntry
+{
+    public double Distance { get; init; } = Require.Finite(Distance, nameof(Distance));
+    public DistanceUnit Unit { get; init; } = Require.ClosedEnum(Unit, nameof(Unit));
+    public TimeSpan Duration { get; init; } = Duration;
+
+    /// <summary>Net gain, so a descent-dominant route may legitimately be negative.</summary>
+    public double ElevationGainMeters { get; init; } = Require.Finite(ElevationGainMeters, nameof(ElevationGainMeters));
+
+    public Rpe Rpe { get; init; } = Rpe;
+}
 
 /// <summary>
 /// A first-class loose log — structure lives in <see cref="SetEntry.Source"/>'s raw text

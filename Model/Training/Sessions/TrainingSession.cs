@@ -52,10 +52,11 @@ public sealed record PlannedTrainingSession(
 }
 
 public sealed record ActiveTrainingSession(
-    DateTime StartedAt,
+    DateTimeOffset StartedAt,
     IReadOnlyList<SetEntry> Sets) : TrainingSession
 {
-    public override DateOnly Date => DateOnly.FromDateTime(StartedAt);
+    /// <summary>Read at the captured offset, so an in-progress session reports the same day it will once completed.</summary>
+    public override DateOnly Date => DateOnly.FromDateTime(StartedAt.DateTime);
 }
 
 public sealed record CompletedTrainingSession(
@@ -64,7 +65,7 @@ public sealed record CompletedTrainingSession(
     EffortState Effort,
     DecorationState Decoration) : TrainingSession, IAnalyzable
 {
-    public override DateOnly Date => DateOnly.FromDateTime(Period.StartTime);
+    public override DateOnly Date => Period.LocalDate;
 }
 
 public sealed record SkippedTrainingSession(DateOnly PlannedFor) : TrainingSession

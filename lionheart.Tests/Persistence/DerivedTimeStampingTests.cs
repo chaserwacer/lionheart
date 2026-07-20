@@ -27,7 +27,7 @@ public sealed class DerivedTimeStampingTests : IDisposable
             context.SaveChanges();
         }
 
-        Assert.Equal(session.Period.StartTime, _db.ReadDateTimeColumn("SELECT StartTime FROM Sessions"));
+        Assert.Equal(session.Period.StartTimeUtc, _db.ReadDateTimeColumn("SELECT StartTime FROM Sessions"));
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class DerivedTimeStampingTests : IDisposable
             context.SaveChanges();
         }
 
-        Assert.Equal(stateContext.Period.StartTime, _db.ReadDateTimeColumn("SELECT StartTime FROM Contexts"));
+        Assert.Equal(stateContext.Period.StartTimeUtc, _db.ReadDateTimeColumn("SELECT StartTime FROM Contexts"));
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class DerivedTimeStampingTests : IDisposable
             context.SaveChanges();
         }
 
-        Assert.Equal(entry.Period.StartTime, _db.ReadDateTimeColumn("SELECT StartTime FROM AnalyzableEntries"));
+        Assert.Equal(entry.Period.StartTimeUtc, _db.ReadDateTimeColumn("SELECT StartTime FROM AnalyzableEntries"));
     }
 
     [Fact]

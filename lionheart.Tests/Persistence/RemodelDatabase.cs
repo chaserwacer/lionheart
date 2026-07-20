@@ -33,12 +33,32 @@ public sealed class RemodelDatabase : IDisposable
     public ModelContext CreateContext() =>
         new(new DbContextOptionsBuilder<ModelContext>().UseSqlite(_connection).Options);
 
-    /// <summary>Raw column read, for asserting on storage representation (sentinels, stamped columns).</summary>
+    /// <summary>
+    /// Raw column read, for asserting on storage representation (sentinels, stamped columns).
+    /// A SQL NULL comes back as null rather than DBNull.Value, which is non-null in C# and
+    /// would quietly satisfy an Assert.NotNull on a column that is in fact empty.
+    /// </summary>
     public object? ExecuteScalar(string sql)
     {
         using var command = _connection.CreateCommand();
         command.CommandText = sql;
-        return command.ExecuteScalar();
+        var value = command.ExecuteScalar();
+        return value == DBNull.Value ? null : value;
+    }
+
+    /// <summary>
+    /// EF's SQLite provider writes Guid TEXT columns uppercase, and SQLite compares TEXT
+    /// byte-for-byte — a lowercase literal in hand-written SQL silently matches nothing
+    /// (or fails a foreign key that is actually satisfied).
+    /// </summary>
+    public static string SqlGuid(Guid id) => id.ToString().ToUpperInvariant();
+
+    /// <summary>Raw write, for planting rows EF would never produce (corrupt JSON, orphan FKs).</summary>
+    public int ExecuteNonQuery(string sql)
+    {
+        using var command = _connection.CreateCommand();
+        command.CommandText = sql;
+        return command.ExecuteNonQuery();
     }
 
     public DateTime ReadDateTimeColumn(string sql) =>

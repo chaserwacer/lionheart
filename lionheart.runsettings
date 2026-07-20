@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default test run excludes the LocalModel category: those tests need a running LM Studio
+  server and a loaded model, which no CI machine and no fresh clone has. Run them
+  explicitly with the "Category=LocalModel" filter (see lionheart.Tests/README.md).
+  An explicit filter on the command line overrides this default.
+-->
+<RunSettings>
+  <RunConfiguration>
+    <TestCaseFilter>Category!=LocalModel</TestCaseFilter>
+  </RunConfiguration>
+</RunSettings>

@@ -114,6 +114,11 @@ public static class RemodelConfiguration
         {
             entry.ToTable("AnalyzableEntries");
             entry.HasKey(e => e.EntryId); // one projection row per analyzable, keyed by its id
+
+            // Derived data follows its source: this row is a projection of a session or context
+            // the user owns, so deleting the user must take the summary text and embedding with
+            // it rather than leaving them queryable in the table retrieval reads.
+            entry.HasOne<LionheartUser>().WithMany().HasForeignKey(e => e.UserId);
             entry.Property(e => e.Period).HasJsonConversion();
             entry.Property(e => e.Facets).HasJsonConversion();
             entry.Property(e => e.Embedding).HasVectorConversion();
