@@ -317,6 +317,20 @@ namespace dies.
   applied to the dev DB.
 - Gotcha (commented in-code): `ProgramMembership` persists as Guid with
   `Guid.Empty` = Standalone, so `Sessions.TrainingProgramId` has no relational FK.
+- Gotcha (fixed on `claude/dotnet-testing-suite-b7e8c7`): the `.gitignore` rule `Data/*`
+  silently kept `Data/ValueConversions.cs` and `Data/RemodelConfiguration.cs` out of
+  commit `f63465a` — they existed only in the remodel worktree. The rule now ignores
+  `Data/*.db*` patterns only, and both files are committed.
+
+### ✅ Step 2.5 — Test suite (branch `claude/dotnet-testing-suite-b7e8c7`)
+
+`lionheart.Tests` (xUnit, `dotnet test`): domain invariants (Rpe, Interval, Texted
+confidence, derived `Date`), JSON polymorphic round-trips for every sealed hierarchy with
+pinned `$type` discriminators (renaming one orphans stored rows — the tests make that
+loud), and EF round-trips against real in-memory SQLite: every session/program lifecycle
+state, both context kinds, `AnalyzableEntry` BLOB embeddings, `FacetValue` composite key,
+the `Guid.Empty` membership sentinel at the raw-column level, and `StartTime` stamping on
+insert + update + window query. This delivers step 3's smoke-test prerequisite up front.
 
 ### ⬜ Step 3 — Interpretation engine
 
@@ -335,10 +349,9 @@ Parse → Resolve → Commit engine:
   program tools died with their services); the athlete-context-card coverage manifest
   currently tells the model there is no training drill-in tool — restore that line when
   the new tool exists.
-- **First deliverable: a runtime JSON round-trip smoke test** — save + rehydrate each
-  session lifecycle state, a context, an `AnalyzableEntry`. The converters have
-  compile-time + EF-model validation but have never been exercised at runtime
-  (no test project exists yet — add one, or smoke-test via the first service).
+- ~~First deliverable: a runtime JSON round-trip smoke test~~ — **done in step 2.5**:
+  `lionheart.Tests` exercises save + rehydrate for every session lifecycle state, both
+  context kinds, and `AnalyzableEntry` against real SQLite.
 
 ### ✅ Step 4 — Legacy removal (was: backfill; re-scoped by user 2026-07-19)
 
@@ -375,8 +388,8 @@ hidden-cost, eras, rivalry, ROI) as consumers.
 
 ### Open questions
 
-1. Test infrastructure: no test project in the repo; step 3's smoke test forces the
-   decision (dedicated test project vs. service-level smoke).
+1. ~~Test infrastructure~~ — resolved: dedicated `lionheart.Tests` xUnit project
+   (step 2.5); persistence tests run the full `ModelContext` schema on in-memory SQLite.
 2. Three hand-rolled fill-states (`DecorationState`, `EffortState`,
    `ProgramMembership`) — generic `Option<T>` deferred unless a fourth appears.
 3. DTO/request shapes for the new types and the migration path for existing

@@ -232,9 +232,10 @@ _Pvt_Extensions
 .fake/
 
 
-# Data Folder / my database
-Data/*
-!Data/ModelContext.cs
-!Data/ModelContextDesignTimeFactory.cs
+# SQLite database files (source files in Data/ stay tracked)
+Data/*.db
+Data/*.db-shm
+Data/*.db-wal
+Data/*.db.backup*
 # Local secrets
 .env
