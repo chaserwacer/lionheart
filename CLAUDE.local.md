@@ -21,6 +21,20 @@ live in skills; this file holds only what's specific to this repo plus the skill
   result pattern and encapsulated fill-state (empty/present) checks.
 
 
+## Worktrees
+
+`.env` lives only in the main checkout. Link it into a fresh worktree before running or
+testing anything that talks to LM Studio — run this from inside the worktree:
+
+```bash
+ln -sfn "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.env" .env
+```
+
+`--git-common-dir` resolves to the main repo's `.git` regardless of worktree depth, so
+this works unedited from any worktree. `.env` is gitignored, so the symlink is never
+committed. Required keys: `LmStudio__BaseUrl`, `LmStudio__ApiKey`, `LmStudio__Model`,
+`LmStudio__EmbeddingModel` — the app throws at startup if any is missing.
+
 ## UX/UI testing
 
 If a change touches UI/UX, use the **/cl-ux** skill. Prompt me before you start testing

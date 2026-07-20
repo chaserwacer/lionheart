@@ -282,6 +282,8 @@ Chat, Oura, Profile, Wellness, Injury.
 | Session date | Derived (`abstract Date`) from each lifecycle state's own time-truth (PlannedFor / StartedAt / Period) — never stored alongside it |
 | Storage provider | SQLite (already in use; no quality loss at this scale). Retrieval interface stays provider-shaped for a contained Postgres swap later |
 | Embedding storage | No EmbeddingRef indirection — vectors live directly on `FacetValue` and the `AnalyzableEntry` projection; `Decoration` carries `SummaryText` |
+| Embedding provider | LM Studio local endpoint (2026-07-20), same server as chat. Model pinned in `LmStudio__EmbeddingModel`; dimension mismatch is a hard error, never a silent rescore |
+| Entity vs facet resolution | Facets snap semantically (embeddings); movements/equipment stay lexical — no embedding column on those tables, and exact names dominate in practice |
 
 ## Status & roadmap — source of truth
 
@@ -332,26 +334,60 @@ state, both context kinds, `AnalyzableEntry` BLOB embeddings, `FacetValue` compo
 the `Guid.Empty` membership sentinel at the raw-column level, and `StartTime` stamping on
 insert + update + window query. This delivers step 3's smoke-test prerequisite up front.
 
-### ⬜ Step 3 — Interpretation engine
+### 🟨 Step 3 — Interpretation engine (core landed; PR detection + chat tools remain)
 
-Generalize `Model/Ingestion/IngestionModels.cs` into the versioned
-Parse → Resolve → Commit engine:
+**Embedding infrastructure (new).** Nothing in the repo generated vectors before this step
+— the deleted ingestion pipeline resolved names with Levenshtein only. Embeddings now come
+from LM Studio's OpenAI-compatible endpoint (the same local server that serves chat, user
+call 2026-07-20), wired as an `EmbeddingClient` singleton behind `IEmbeddingGenerator`
+(`Services/Embedding/`). The model is pinned in `LmStudio__EmbeddingModel`; because vectors
+from different models are incomparable, `Vectors.CosineSimilarity` returns an **error** on a
+dimension mismatch rather than scoring it, so a model swap surfaces as a loud "must be
+recomputed" instead of silently corrupting resolution.
 
-- Parse emits sets **and** a proposed `Decoration`; runs over Context text too.
-- Resolve snaps facet values to `FacetValue` canonicals via embedding similarity
-  (same pattern as the existing `UnresolvedReference`/`EntityMatch` flow).
-- Commit writes the domain entity and upserts its `AnalyzableEntry` row.
-- Stamp `DecoratorVersion` everywhere; engine must be re-runnable (freeform upgrades,
-  re-decoration at newer versions).
-- PR detection re-enters here: the legacy submit-attempt flow was deleted with the old
-  model; the engine should evaluate completed lift sets against `PersonalRecords`.
-- Chat tools for sessions/contexts also re-enter here (the legacy session/activity/
-  program tools died with their services); the athlete-context-card coverage manifest
-  currently tells the model there is no training drill-in tool — restore that line when
-  the new tool exists.
-- ~~First deliverable: a runtime JSON round-trip smoke test~~ — **done in step 2.5**:
-  `lionheart.Tests` exercises save + rehydrate for every session lifecycle state, both
-  context kinds, and `AnalyzableEntry` against real SQLite.
+**Engine (`Services/Interpretation/`), one stage per file, orchestrated by
+`InterpretationEngine`:**
+
+- `InterpretationParser` — LLM call under a strict JSON schema; emits drafts **and** a
+  proposed `Decoration`, over sessions and both context kinds. A set it can't break down
+  stays `DraftFreeformSet` by design rather than becoming a guessed lift.
+- `MovementResolver` — names → `MovementData` ids, reusing `FindOrCreateMovementDataAsync`.
+  Unmatched names come back as `UnresolvedReference` + ranked candidates.
+- `FacetResolver` — proposed facet values → canonical `FacetValue`s: literal/alias match
+  first, then embedding snap above a 0.82 cosine threshold (accruing the raw value as an
+  alias), else admit a new canonical. Resolves the whole run in **one** embedding batch.
+- `InterpretationResolver` — assembles real domain records; stamps `DecoratorVersion`.
+- `InterpretationCommitter` — writes entity + `AnalyzableEntry` in one save. The
+  projection's facets are the **union** of entry-level and per-set facets, since movement
+  patterns only ever exist at set level and step 5 filters on them.
+
+`Model/Interpretation/InterpretationModels.cs` holds the draft layer (it exists because
+parsed text carries movement *names*, not ids) and the outcome hierarchies:
+`Resolved | Ambiguous` for the resolve stage, `Committed | AwaitingConfirmation` for a run.
+
+37 new tests (`lionheart.Tests/Interpretation/`, 113 total green) cover cosine + dimension
+mismatch, facet literal/alias/snap/admit paths, alias accrual, two-near-values-one-pass
+key-collision avoidance, stale-vocabulary and embedding-failure propagation, movement
+match/candidate/dedup/cross-user isolation, and the draft→domain mapping.
+
+**Deliberate narrowings, and what is left:**
+
+- **Entity matching stayed lexical.** The doc line "snap entities *and* facet values via
+  embedding similarity" is implemented semantically for facets only: `MovementBase` and
+  `Equipment` carry no embedding column, and adding one is a migration this step didn't
+  need. Exercise names the athlete already uses match exactly far more often than they
+  paraphrase. Revisit if unresolved-reference prompts prove noisy.
+- **Commit is create-only.** Re-decoration/backfill (`WHERE DecoratorVersion < current`)
+  needs an update path on both the entity and its projection; the engine is versioned and
+  re-runnable in shape, but that entry point does not exist yet.
+- **The confirmation round-trip is one-directional.** `AwaitingConfirmation` carries the
+  draft back so the user's choices can be re-resolved without re-parsing, but the resume
+  path lands with the endpoints (open question 3).
+- **PR detection** still to come: evaluate committed lift sets against `PersonalRecords`.
+- **Chat tools** for sessions/contexts still to come; when the training drill-in tool
+  exists, restore the athlete-context-card coverage manifest line that currently says
+  there is none.
+- ~~First deliverable: a runtime JSON round-trip smoke test~~ — done in step 2.5.
 
 ### ✅ Step 4 — Legacy removal (was: backfill; re-scoped by user 2026-07-19)
 
