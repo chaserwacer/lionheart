@@ -365,10 +365,26 @@ recomputed" instead of silently corrupting resolution.
 parsed text carries movement *names*, not ids) and the outcome hierarchies:
 `Resolved | Ambiguous` for the resolve stage, `Committed | AwaitingConfirmation` for a run.
 
-37 new tests (`lionheart.Tests/Interpretation/`, 113 total green) cover cosine + dimension
-mismatch, facet literal/alias/snap/admit paths, alias accrual, two-near-values-one-pass
-key-collision avoidance, stale-vocabulary and embedding-failure propagation, movement
-match/candidate/dedup/cross-user isolation, and the draft→domain mapping.
+**Reasoning-model trap (found by running it, 2026-07-20).** The configured chat model
+(`qwen/qwen3.6-35b-a3b`) is a reasoning model: while it thinks, LM Studio returns the
+schema-conformant JSON in `reasoning_content` and leaves `content` **empty**, which the
+parser sees as an empty response. Neither `chat_template_kwargs.enable_thinking=false` nor
+`/no_think` changes this; **`reasoning_effort: "none"` does**, and that is what
+`BuildParseOptions` sets (SDK property still experimental — `OPENAI001` suppressed at that
+one site). The parser also now fails with a Result error naming this cause instead of
+indexing an empty `Content` collection. Extraction gains nothing from a reasoning pass, so
+this costs nothing.
+
+Tests: 116 hermetic (fakes; `dotnet test` needs nothing running) plus **6 opt-in live tests**
+behind `[LmStudioFact]`, which skip unless `LIONHEART_LMSTUDIO_TESTS=1`. The hermetic set
+covers cosine + dimension mismatch, facet literal/alias/snap/admit paths, alias accrual,
+two-near-values-one-pass key-collision avoidance, stale-vocabulary and embedding-failure
+propagation, movement match/candidate/dedup/cross-user isolation, no-create-on-ambiguous, and
+the draft→domain mapping. The live set is the only thing that can catch the model breaking
+schema compliance — run it after touching the prompt, the schema, or the configured model.
+All 6 verified green against qwen3 + `text-embedding-qwen3-embedding-4b` (2560-dim), including
+the full engine committing a session with its projection, and an unknown movement returning
+`AwaitingConfirmation` with nothing written.
 
 **Deliberate narrowings, and what is left:**
 

@@ -53,14 +53,7 @@ public sealed class InterpretationParser : IInterpretationParser
             new UserChatMessage(request.RawText)
         };
 
-        var options = new ChatCompletionOptions
-        {
-            ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
-                jsonSchemaFormatName: "interpretation",
-                jsonSchema: BinaryData.FromString(ParseSchema),
-                jsonSchemaIsStrict: true),
-            Temperature = 0.1f
-        };
+        var options = BuildParseOptions();
 
         var completionResult = (await _chatClient.CompleteChatAsync(messages, options)).ToResult();
         if (completionResult.IsError()) return Result<LlmParse>.Error(
@@ -72,9 +65,17 @@ public sealed class InterpretationParser : IInterpretationParser
             return Result<LlmParse>.Error($"Parse stopped early: {completion.FinishReason}.");
         }
 
+        var json = completion.Content.FirstOrDefault()?.Text;
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return Result<LlmParse>.Error(
+                "Parser returned an empty response. If the configured model reasons, the content " +
+                "may have been routed to `reasoning_content` instead.");
+        }
+
         try
         {
-            var parsed = JsonSerializer.Deserialize<LlmParse>(completion.Content[0].Text, JsonOptions);
+            var parsed = JsonSerializer.Deserialize<LlmParse>(json, JsonOptions);
             return parsed is null
                 ? Result<LlmParse>.Error("Parser returned no interpretable content.")
                 : Result<LlmParse>.Success(parsed);
@@ -212,6 +213,26 @@ public sealed class InterpretationParser : IInterpretationParser
     };
 
     private const string DefaultEquipment = "Bodyweight";
+
+    // OPENAI001: ReasoningEffortLevel is still marked experimental in the SDK. Suppressed here
+    // only, so the rest of the codebase keeps warning about experimental OpenAI surface.
+#pragma warning disable OPENAI001
+    private static ChatCompletionOptions BuildParseOptions() => new()
+    {
+        ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
+            jsonSchemaFormatName: "interpretation",
+            jsonSchema: BinaryData.FromString(ParseSchema),
+            jsonSchemaIsStrict: true),
+        Temperature = 0.1f,
+
+        // Load-bearing, not a tuning knob: the configured model reasons, and while it thinks
+        // LM Studio returns the schema-conformant JSON in `reasoning_content` and leaves
+        // `content` empty — which reads here as an empty response. "none" is not one of the
+        // SDK's presets; it is what LM Studio accepts to suppress thinking. Extraction gains
+        // nothing from a reasoning pass anyway.
+        ReasoningEffortLevel = new ChatReasoningEffortLevel("none")
+    };
+#pragma warning restore OPENAI001
 
     private static string BuildSystemPrompt(DateTime loggedAt, string knownMovementContext) =>
         $$"""
