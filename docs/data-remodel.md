@@ -285,13 +285,84 @@ Chat, Oura, Profile, Wellness, Injury.
 | Storage provider | SQLite (already in use; no quality loss at this scale). Retrieval interface stays provider-shaped for a contained Postgres swap later |
 | Embedding storage | No EmbeddingRef indirection — vectors live directly on `FacetValue` and the `AnalyzableEntry` projection; `Decoration` carries `SummaryText` |
 
-## Build order
+## Status & roadmap — source of truth
 
-1. **Domain core** — sealed hierarchies above + `Decoration` + `IAnalyzable` +
-   `AnalyzableEntry` (in progress, this branch).
-2. Persistence — EF configs, jsonb converters, pgvector, migrations.
-3. Interpretation engine — generalize parse→resolve→commit, add `DecoratorVersion`.
-4. Backfill old data.
-5. **Balance ledger** — first analytic; pure-facet, validates the whole vocabulary +
-   resolution chain end to end.
-6. Retrieval primitive + MCP surface.
+Update this section as steps land. Branch: `claude/lionheart-data-remodel-684517`.
+
+### ✅ Step 1 — Domain core (commit `36dfb47`)
+
+Sealed hierarchies, exactly as specced above:
+
+- `Model/Analysis/` — `Period`, `Decoration` + `Facet`/`FacetAxis`/`Valence`/
+  `DecorationState`, `FacetValue`, `IAnalyzable`, `AnalyzableEntry`.
+- `Model/Training/Sets/` — `Utterance`, `Rpe`, `SetEntry` hierarchy.
+- `Model/Training/Sessions/` — session lifecycle subtypes, `Provenance`,
+  `ProgramMembership`, `SetPrescription` hierarchy.
+- `Model/Training/Programs/TrainingProgram.cs`, `Model/Training/EffortState.cs`,
+  `Model/Contexts/Context.cs`.
+
+Passed a code-review-fixer pass. Gotcha (commented in-code): the legacy
+`lionheart.Model.Training.SetEntry` *namespace* shadows the new `SetEntry` *type*;
+`Sessions/TrainingSession.cs` carries a namespace-scoped using alias until the legacy
+namespace dies.
+
+### ✅ Step 2 — Persistence (commit `f63465a`)
+
+- `Data/ValueConversions.cs` — polymorphic records ↔ JSON TEXT (`$type` discriminators
+  on the abstract bases), `float[]` ↔ BLOB.
+- `Data/RemodelConfiguration.cs` — TPH mapping for the five new tables; deliberately
+  separate from the legacy inline config so old mapping deletes wholesale after backfill.
+- `ModelContext` — new DbSets (`Sessions`, `Programs`, `Contexts`, `AnalyzableEntries`,
+  `FacetValues`); `StampDerivedTimeColumns` recomputes queryable `StartTime` columns
+  from JSON `Period` on every save (drift-proof by construction).
+- Migration `20260719204913_DataRemodelCore` — five additive tables, legacy untouched,
+  applied to the dev DB.
+- Gotcha (commented in-code): `ProgramMembership` persists as Guid with
+  `Guid.Empty` = Standalone, so `Sessions.TrainingProgramId` has no relational FK.
+
+### ⬜ Step 3 — Interpretation engine
+
+Generalize `Model/Ingestion/IngestionModels.cs` into the versioned
+Parse → Resolve → Commit engine:
+
+- Parse emits sets **and** a proposed `Decoration`; runs over Context text too.
+- Resolve snaps facet values to `FacetValue` canonicals via embedding similarity
+  (same pattern as the existing `UnresolvedReference`/`EntityMatch` flow).
+- Commit writes the domain entity and upserts its `AnalyzableEntry` row.
+- Stamp `DecoratorVersion` everywhere; engine must be re-runnable (freeform upgrades,
+  backfill, re-decoration).
+- **First deliverable: a runtime JSON round-trip smoke test** — save + rehydrate each
+  session lifecycle state, a context, an `AnalyzableEntry`. The converters have
+  compile-time + EF-model validation but have never been exercised at runtime
+  (no test project exists yet — add one, or smoke-test via the first service).
+
+### ⬜ Step 4 — Backfill
+
+Legacy rows through the engine (decided; legacy tables stay until verified):
+
+- `Activity` → `ExertionContext` (`Formed` utterance semantics).
+- Legacy sessions/Movements/Lift+DT sets → new sessions with structured sets
+  (`Source = Formed`), decorated at current version.
+- After verification: drop legacy entities, tables, services, endpoints — including the
+  legacy `SetEntry` namespace (removes the alias gotcha) and the `Activity` model.
+
+### ⬜ Step 5 — Balance ledger (first analytic)
+
+Pure-facet running balances (push/pull, quad/hinge, lift/run) over `AnalyzableEntry`.
+Chosen first because it validates the facet vocabulary + resolution chain end to end.
+
+### ⬜ Step 6 — Retrieval primitive + MCP surface
+
+`retrieve(facets?, window?, semantic?, valence?)` over `AnalyzableEntries` (facet filter
++ time window in SQL; cosine over BLOB vectors in-app). MCP tool = this primitive with
+`FacetAxis` as enum params. Then the remaining analytics (sentiment arc, avoidance map,
+hidden-cost, eras, rivalry, ROI) as consumers.
+
+### Open questions
+
+1. Test infrastructure: no test project in the repo; step 3's smoke test forces the
+   decision (dedicated test project vs. service-level smoke).
+2. Three hand-rolled fill-states (`DecorationState`, `EffortState`,
+   `ProgramMembership`) — generic `Option<T>` deferred unless a fourth appears.
+3. DTO/request shapes for the new types and the migration path for existing
+   endpoints/services (likely lands with steps 3–4).
