@@ -6,16 +6,15 @@ using lionheart.Tests.Support;
 namespace lionheart.Tests.Llm;
 
 /// <summary>
-/// Contracts for the Parse → Resolve → Commit engine of docs/data-remodel.md step 3, which is
-/// not built yet. The tests that can run today do: whatever shape the engine ends up having, a
-/// model's proposal has to become domain types, and these pin what the domain will and will not
-/// accept from model output. The rest are skipped with the name of the type that must land for
-/// them to light up — they are the specification, written before the code.
+/// Where model output meets the domain: whatever shape the engine has, a proposal must become
+/// domain types, and these pin what the domain will and will not accept from a model. They sit
+/// beside — not on top of — lionheart.Tests/Interpretation/, which covers the engine's stages
+/// themselves; these cover the boundary the engine has to write through.
 /// </summary>
 public class InterpretationContractTests
 {
-    private const string SkipUntilEngine =
-        "Interpretation engine (docs/data-remodel.md step 3) not implemented — no Parse/Resolve type to test against yet.";
+    private const string SkipUntilReRunnable =
+        "Engine re-runnability (re-decoration / freeform upgrade) not implemented — see docs/data-remodel.md step 3.";
 
     /// <summary>The canonical terse log from the design doc's motivation section.</summary>
     private const string TerseLog = "sled pull+push worked up to 235, 2 or 3 sets";
@@ -136,68 +135,36 @@ public class InterpretationContractTests
         Assert.Equal(7, decoration.DecoratorVersion);
     }
 
-    // ---- Specification for the engine, skipped until it exists ----
+    // ---- Specification for engine work that has not landed ----
+    //
+    // The Parse, Resolve and Commit stages themselves are built and covered by
+    // lionheart.Tests/Interpretation/ (fakes) and the [LmStudioFact] tests there (live). What
+    // remains below is the re-runnability half of the doc's "versioned and re-runnable" promise,
+    // which has no code yet.
 
-    [Fact(Skip = SkipUntilEngine)]
-    public void Parse_turns_a_terse_log_into_sets_plus_a_proposed_decoration()
-    {
-        // Expects: engine.Parse(TerseLog) → sets with Texted sources AND a proposed Decoration,
-        // per docs/data-remodel.md "Interpretation engine" step 1.
-        Assert.Fail("Specification only.");
-    }
-
-    [Fact(Skip = SkipUntilEngine)]
-    public void Parse_runs_over_context_text_as_well_as_training_text()
-    {
-        // Expects: the same Parse entry point accepts a Context utterance ("slept badly, exam week")
-        // and proposes a Decoration for it.
-        Assert.Fail("Specification only.");
-    }
-
-    [Fact(Skip = SkipUntilEngine)]
-    public void Resolve_snaps_a_near_match_facet_value_to_its_existing_canonical()
-    {
-        // Expects: proposed "lifting" resolves to canonical "lift" and accumulates "lifting"
-        // as an alias on the FacetValue, rather than admitting a second canonical.
-        Assert.Fail("Specification only.");
-    }
-
-    [Fact(Skip = SkipUntilEngine)]
-    public void Resolve_admits_a_genuinely_new_facet_value_as_a_new_canonical()
-    {
-        // Expects: a proposal below the similarity threshold becomes a new FacetValue on the
-        // same axis, leaving existing canonicals untouched.
-        Assert.Fail("Specification only.");
-    }
-
-    [Fact(Skip = SkipUntilEngine)]
-    public void Resolve_never_admits_a_value_on_an_axis_outside_the_closed_enum()
-    {
-        // The runnable tests above prove the domain refuses it; this pins that Resolve rejects
-        // the proposal cleanly instead of throwing out of the ingest pipeline.
-        Assert.Fail("Specification only.");
-    }
-
-    [Fact(Skip = SkipUntilEngine)]
-    public void Commit_writes_the_entity_and_upserts_exactly_one_analyzable_entry()
-    {
-        // Expects: one AnalyzableEntry row per analyzable, keyed by its id, re-running Commit
-        // updates rather than duplicating.
-        Assert.Fail("Specification only.");
-    }
-
-    [Fact(Skip = SkipUntilEngine)]
+    [Fact(Skip = SkipUntilReRunnable)]
     public void Re_running_the_engine_at_a_newer_decorator_version_re_decorates_in_place()
     {
-        // Expects: backfill semantics — WHERE DecoratorVersion < current re-decorates and
-        // leaves the raw utterance untouched.
+        // Expects backfill semantics: WHERE DecoratorVersion < current re-decorates the entity
+        // and its AnalyzableEntry projection, leaving the raw utterance untouched. Note that
+        // Commit is deliberately create-only today, so this needs an update path on both sides
+        // before it can pass.
         Assert.Fail("Specification only.");
     }
 
-    [Fact(Skip = SkipUntilEngine)]
+    [Fact(Skip = SkipUntilReRunnable)]
     public void Upgrading_a_freeform_set_to_a_lift_set_keeps_the_original_utterance()
     {
         // The doc's central promise: structuring is additive enrichment, the words are never lost.
+        Assert.Fail("Specification only.");
+    }
+
+    [Fact(Skip = SkipUntilReRunnable)]
+    public void Resolve_reports_an_out_of_enum_facet_axis_rather_than_throwing()
+    {
+        // The runnable tests above prove the domain refuses the value. This pins the surrounding
+        // behaviour: a model proposing an axis outside FacetAxis should surface as a warning on
+        // the interpretation outcome, not an exception escaping the ingest pipeline.
         Assert.Fail("Specification only.");
     }
 }

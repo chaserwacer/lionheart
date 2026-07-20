@@ -1,7 +1,21 @@
 # Lionheart Data Remodel
 
-Reference design for the training-data remodel. Decisions here are settled unless marked
-open. Build against this document.
+Single source of truth for the training-data remodel, and the working context for whoever —
+human or model — picks the work up next.
+
+**How to use this document.**
+
+| Section | What it is | How to treat it |
+|---|---|---|
+| Motivation → Migration & backfill | The intended shape of the domain | Settled. Build against it; do not re-litigate |
+| Decision log | What was decided, and when | Outranks your instinct. If you disagree, raise it, don't quietly diverge |
+| Status & roadmap | What has actually landed, with commits | **Update it as steps land** — standing instruction, not a courtesy |
+| Traps | Non-obvious failures already paid for | Read before debugging anything that "should obviously work" |
+| Open questions | The only place work is allowed to be ambiguous | If you need an answer that is not here, ask Chase rather than choosing |
+
+Where the code lives: domain in `Model/`, persistence in `Data/`, the interpretation engine in
+`Services/Interpretation/` + `Services/Embedding/`, tests in `lionheart.Tests/`
+(see its README for how to run the live-model ones).
 
 ## Motivation
 
@@ -28,10 +42,19 @@ feed analytics and RAG.
 ### Period (shared temporal shape)
 
 ```csharp
-public abstract record Period;
-public sealed record Instant(DateTime At) : Period;
-public sealed record Interval(DateTime Start, DateTime End) : Period;
+public abstract record Period;                                    // holds DateTimeOffset
+public sealed record Instant(DateTimeOffset At) : Period;
+public sealed record Interval(DateTimeOffset Start, DateTimeOffset End) : Period;
 ```
+
+A moment answers two different questions and each needs a different half of it.
+`Period.StartTimeUtc` is the absolute instant — one timeline, what the stamped `StartTime`
+column indexes and what windows and ordering use. `Period.LocalDate` reads the moment at the
+offset it was *logged* at, and is what a session's `Date` derives from. Deriving the day from
+UTC instead moves an evening session west of Greenwich to tomorrow, which would then join
+against the wrong night's sleep in the hidden-cost analytic. An offset rather than a time-zone
+id is deliberate: for an event that already happened, the offset that applied at that instant
+is the whole answer, and it survives travel and DST with no rules lookup.
 
 ### Decoration (the annotation payload)
 
@@ -46,6 +69,9 @@ public sealed record Decoration(
 public sealed record Facet(FacetAxis Axis, string Value);
 public enum FacetAxis { Modality, MovementPattern, MuscleRegion, Intent, LifeDomain, BodyState }
 ```
+
+`FacetAxis` and `Valence` are enforced closed at construction (`Model/Require.cs`), so a
+corrupt row or a hallucinating model cannot widen the query surface the MCP tool depends on.
 
 **Axes are fixed; values grow.** Canonical values live in a lookup table; the LLM proposes
 values and a semantic resolver snaps near-matches to existing canonicals (accumulating
@@ -284,8 +310,14 @@ Chat, Oura, Profile, Wellness, Injury.
 | Embedding storage | No EmbeddingRef indirection — vectors live directly on `FacetValue` and the `AnalyzableEntry` projection; `Decoration` carries `SummaryText` |
 | Period time zone | `DateTimeOffset`: absolute instant indexes the StartTime column, captured offset derives the athlete's calendar `Date`. Offset over zone id — for a past event the offset is the whole answer (2026-07-20) |
 | User delete vs. analysis rows | `AnalyzableEntry` cascades with its user — derived data follows its source (2026-07-20) |
-| Measure validity | Non-finite rejected at construction; sign deliberately unpoliced (2026-07-20) |
+| Measure validity | Non-finite rejected at construction; sign deliberately unpoliced, since net elevation gain is legitimately negative (2026-07-20) |
+| Closed enums at the boundary | `FacetAxis`/`Valence` guarded in constructors, so deserialization, `with`, and app code are all covered (2026-07-20) |
 | JSON encoder | Relaxed encoder on storage options — payloads never reach HTML, and readability of the SQLite file wins (2026-07-20) |
+| Embedding provider | Local LM Studio, same server as chat; no external dependency or cost (2026-07-20) |
+| Entity matching | Movements/equipment stay **lexical**; only facet values resolve semantically — a deliberate narrowing of "snap entities and facet values" (2026-07-20) |
+| Live-test gating | One mechanism: `Category=LocalModel` trait selects, `[LmStudioFact]` skips with the failing key named (2026-07-20) |
+| Embedding provider | LM Studio local endpoint (2026-07-20), same server as chat. Model pinned in `LmStudio__EmbeddingModel`; dimension mismatch is a hard error, never a silent rescore |
+| Entity vs facet resolution | Facets snap semantically (embeddings); movements/equipment stay lexical — no embedding column on those tables, and exact names dominate in practice |
 
 ## Status & roadmap — source of truth
 
@@ -338,140 +370,118 @@ insert + update + window query. This delivers step 3's smoke-test prerequisite u
 
 ### ✅ Step 2.6 — Adversarial audit + LLM test infrastructure
 
-Second pass over step 2.5, written to break it rather than confirm it. 76 → 256 tests
-(244 running, 8 skipped specifications for the unbuilt interpretation engine, 4 opt-in LocalModel).
+Second pass over step 2.5, written to break it rather than confirm it. The suite went from 76
+tests to ~293 hermetic plus 10 live.
 
-**Closed in the suite.** Hand-written JSON literal fixtures pinning the on-disk bytes
-(the round-trip tests used the serializer as their own oracle, so a serializer-level bug
-was invisible); EF change detection through the value converters, including proof the
-vector comparer's cheap `v.Length` hash is safe because its equality is exact;
-DateTime fidelity (sub-second ticks and `DateTimeKind` through JSON, precision and
-ordering through the stamped column); malformed storage planted by raw SQL and read back
-through EF; relational edges (user-delete cascade, FK violations, the unconstrained
-program pointer); query translation asserted against generated SQL, not just results;
-hostile values (emoji/newlines/quotes, 0- and 1536-length embeddings, non-finite
-measures, `DateOnly` extremes, empty lists everywhere); and concurrent stamping across
-two contexts on one connection.
+**What it closed.** Hand-written JSON literal fixtures pinning the on-disk bytes (the
+round-trip tests used the serializer as their own oracle, so a serializer-level bug was
+invisible to them); EF change detection through the value converters, including proof the
+vector comparer's cheap `v.Length` hash is safe because its equality is exact; DateTime
+fidelity; malformed rows planted by raw SQL and read back through EF; relational edges;
+query translation asserted against generated SQL rather than results; hostile values; and
+concurrent stamping across two contexts on one connection.
 
 **Defects found and fixed** (each has a test that fails without the fix):
 
-- Derived members were being written into the stored JSON — `Period.StartTime`,
-  `Interval.Duration`, `DecorationState.IsDecorated`. The design says derived values are
-  never stored beside their source; they now carry `[JsonIgnore]`. Note the trap:
-  `[JsonIgnore]` does **not** inherit through an override, so every `Period` subtype must
-  repeat it.
-- `FacetAxis` and `Valence` ordinals outside their enums rehydrated silently, so a
-  corrupt row could widen the closed query surface the MCP tool depends on. `Facet`,
-  `Decoration`, and `AnalyzableEntry` now guard in their constructors (`Model/Require.cs`),
-  which covers deserialization, `with`, and app code alike. The same guards close null
-  smuggling into non-nullable members (`Value`, `SummaryText`, `RawText`, and the facet/tag
-  lists). Trap worth knowing: System.Text.Json writes non-redeclared positional members
-  first, so redeclaring *some* members of a record to add guards silently reorders its
-  stored JSON — `Decoration` redeclares all five for that reason.
-- A truncated embedding BLOB (length not a multiple of 4) threw an opaque
-  `Buffer.BlockCopy` overrun; `ValueConversions.ToFloats` now rejects it by name.
-- `ChatToolCallExecutor`'s single-argument binding path let a `JsonException` escape when
-  the model sent malformed tool arguments, aborting the whole conversation. The
-  multi-argument path already converted it to `ToolBindingException`; the single path now
-  matches. (It also leaked a `JsonDocument` on every throw.)
-- Solution-level `dotnet test` exited 1: `lionheart.csproj` carried `xunit`,
-  `xunit.runner.visualstudio`, and `FluentAssertions` with zero usages, so VSTest treated
-  the web project as a test project. Removed.
+- Derived members were serialized into stored JSON — `Period.StartTime`, `Interval.Duration`,
+  `DecorationState.IsDecorated` — contradicting "derived, never stored beside its source".
+- `FacetAxis`/`Valence` ordinals outside their enums, and nulls in non-nullable members,
+  rehydrated silently. Guarded in constructors via `Model/Require.cs`.
+- A truncated embedding BLOB threw an opaque `Buffer.BlockCopy` overrun; `ToFloats` now
+  rejects it by name.
+- `ChatToolCallExecutor` aborted the whole conversation on malformed tool arguments: the
+  single-argument path let `JsonException` escape where the multi-argument path already
+  converted it. It also leaked a `JsonDocument` on every throw.
+- Failed tool calls reported `Errors.ToString()` to the model — the literal text
+  `System.String[]` — instead of why they failed.
+- Solution-level `dotnet test` exited 1: `lionheart.csproj` carried `xunit` and
+  `FluentAssertions` with zero usages, so VSTest treated the web project as a test project.
 
-**Resolved by the owner 2026-07-20**, after being flagged by this audit:
+**Owner decisions landed the same pass:** `Period` carries offsets (see Domain model);
+`AnalyzableEntry` cascades with its user (migration `CascadeAnalyzableEntriesToUser`);
+`Require.Finite` rejects non-finite measures; storage JSON uses the relaxed encoder, with
+`ValueConversions.StorageJson` public so the literal fixtures pin the bytes that actually
+reach storage.
 
-- **Periods carry their offset.** `Instant` and `Interval` hold `DateTimeOffset`, so the offset
-  in force when an entry was logged travels with it. A moment gets asked two different questions
-  and each needs a different half: `Period.StartTimeUtc` is the absolute instant that the stamped
-  `StartTime` column indexes (one timeline, correct ordering and windowing), while
-  `Period.LocalDate` reads the moment at its captured offset and is what `Date` derives from.
-  Deriving the day from UTC instead moves an evening session west of Greenwich to tomorrow —
-  which would then join against the wrong night's sleep in the hidden-cost analytic. Capturing an
-  offset rather than a time-zone id is deliberate: for an event that already happened the offset
-  that applied at that instant is the whole answer, and it stays right across travel and DST with
-  no rules lookup and nothing extra to ask the athlete. `ActiveTrainingSession.StartedAt` gets the
-  same treatment so an in-progress session reports the same day it will once completed;
-  `PerceivedEffortRatings.RecordedAt` is bookkeeping rather than training time and is simply
-  normalized to UTC. Rows written before this still read: a bare `"...Z"` parses as `+00:00`.
-- **Deleting a user deletes their `AnalyzableEntry` rows.** The read model is derived data and
-  follows its source. `RemodelConfiguration` maps the `LionheartUser` relationship; migration
-  `CascadeAnalyzableEntriesToUser` adds the FK.
-- **Non-finite measures are refused at construction** — `Weight`, `Distance`,
-  `ElevationGainMeters`, `TargetWeight`, `TargetDistance` via `Require.Finite`. Sign is
-  deliberately *not* policed: net elevation gain is legitimately negative on a descent.
-- **Failed tool calls now tell the model what went wrong**, per Ardalis status, instead of
-  `System.String[]`.
-- **JSON columns use the relaxed encoder**, so `sled pull+push` is stored as itself. Done now
-  because there is no production data to rewrite. `ValueConversions.StorageJson` is public so
-  the literal fixtures pin the bytes that actually reach storage rather than the ambient default.
+**Mocked-LLM tests need no production seam.** `ChatClient` accepts a `Transport`, so tests
+build a real client over a fake `HttpMessageHandler` serving canned OpenAI-format bodies.
+That is both the smallest change (none) and the highest fidelity — it keeps real SDK request
+building, real response parsing, and `ChatCompletionResultExtensions.ToResult` in the path,
+all of which an app-owned interface fake would bypass. Covers the tool-call loop end to end:
+unknown tool, malformed arguments, throwing tool, multi-round chains, empty and whitespace
+output, `length`/`content_filter` finish reasons, refusals, and LM Studio's
+HTTP-200-with-error-body.
 
-Two footguns worth carrying forward, both discovered by the literal fixtures rather than by
-reasoning:
+### 🟨 Step 3 — Interpretation engine (core landed; PR detection + chat tools remain)
 
-- `[JsonIgnore]` does **not** inherit through an override — every `Period` subtype repeats it.
-- System.Text.Json writes non-redeclared positional members **first**, so redeclaring only
-  *some* members of a record to add a guard silently reorders its stored payload. `Decoration`,
-  `LiftSet`, `DistanceTimeSet`, `TrailRunSet`, `LiftPrescription`, and `DistanceTimePrescription`
-  therefore redeclare **all** their positional members, guarded or not.
+**Embedding infrastructure (new).** Nothing in the repo generated vectors before this step
+— the deleted ingestion pipeline resolved names with Levenshtein only. Embeddings now come
+from LM Studio's OpenAI-compatible endpoint (the same local server that serves chat, user
+call 2026-07-20), wired as an `EmbeddingClient` singleton behind `IEmbeddingGenerator`
+(`Services/Embedding/`). The model is pinned in `LmStudio__EmbeddingModel`; because vectors
+from different models are incomparable, `Vectors.CosineSimilarity` returns an **error** on a
+dimension mismatch rather than scoring it, so a model swap surfaces as a loud "must be
+recomputed" instead of silently corrupting resolution.
 
-**Still flagged — no decision yet:**
+**Engine (`Services/Interpretation/`), one stage per file, orchestrated by
+`InterpretationEngine`:**
 
-1. **Null elements inside stored lists survive as holes.** A `null` in a stored `Sets` array
-   rehydrates as a null entry, so the first analytics pass touching `set.Source` throws far from
-   the corrupt row. Deferred (owner, 2026-07-20) until the interpretation engine exists, since
-   that is what will actually be producing these lists. Characterized by
-   `Null_element_inside_a_set_list_currently_survives_as_a_hole`.
-2. **Sign and upper bounds on measures.** Negative distance, weight, and duration persist
-   happily. Characterized by `Negative_measures_are_accepted_by_design_for_now`.
+- `InterpretationParser` — LLM call under a strict JSON schema; emits drafts **and** a
+  proposed `Decoration`, over sessions and both context kinds. A set it can't break down
+  stays `DraftFreeformSet` by design rather than becoming a guessed lift.
+- `MovementResolver` — names → `MovementData` ids, reusing `FindOrCreateMovementDataAsync`.
+  Unmatched names come back as `UnresolvedReference` + ranked candidates.
+- `FacetResolver` — proposed facet values → canonical `FacetValue`s: literal/alias match
+  first, then embedding snap above a 0.82 cosine threshold (accruing the raw value as an
+  alias), else admit a new canonical. Resolves the whole run in **one** embedding batch.
+- `InterpretationResolver` — assembles real domain records; stamps `DecoratorVersion`.
+- `InterpretationCommitter` — writes entity + `AnalyzableEntry` in one save. The
+  projection's facets are the **union** of entry-level and per-set facets, since movement
+  patterns only ever exist at set level and step 5 filters on them.
 
-**LLM test infrastructure.** No production seam was added: `ChatClient` accepts a
-`Transport`, so tests build a real client over a fake `HttpMessageHandler` serving canned
-OpenAI-format bodies. That is both the smallest change (none) and the highest fidelity —
-it exercises real SDK request building, real response parsing, and
-`ChatCompletionResultExtensions.ToResult`, which an app-owned interface fake would bypass
-entirely. Covered: the tool-call loop (happy path, unknown tool, malformed arguments,
-throwing tool, multi-round chains, empty and whitespace output, `length` and
-`content_filter` finish reasons, refusals, LM Studio's HTTP-200-with-error body), and the
-Athlete Context Card's narrative fallback driven through the real card service against
-every LM Studio failure mode.
+`Model/Interpretation/InterpretationModels.cs` holds the draft layer (it exists because
+parsed text carries movement *names*, not ids) and the outcome hierarchies:
+`Resolved | Ambiguous` for the resolve stage, `Committed | AwaitingConfirmation` for a run.
 
-Interpretation-engine contracts are written but the engine does not exist: the parts the
-domain can already answer run today (facet-axis closure against hallucinated axes, invalid
-JSON, prose-wrapped JSON, confidence bounds), and eight `Skip`-marked specifications name
-what must land for Parse/Resolve/Commit.
+**Reasoning-model trap (found by running it, 2026-07-20).** The configured chat model
+(`qwen/qwen3.6-35b-a3b`) is a reasoning model: while it thinks, LM Studio returns the
+schema-conformant JSON in `reasoning_content` and leaves `content` **empty**, which the
+parser sees as an empty response. Neither `chat_template_kwargs.enable_thinking=false` nor
+`/no_think` changes this; **`reasoning_effort: "none"` does**, and that is what
+`BuildParseOptions` sets (SDK property still experimental — `OPENAI001` suppressed at that
+one site). The parser also now fails with a Result error naming this cause instead of
+indexing an empty `Content` collection. Extraction gains nothing from a reasoning pass, so
+this costs nothing.
 
-**LocalModel tests** (`Category=LocalModel`, excluded by default) read `LmStudio__*` through
-the same `DotNetEnv` + environment-variable path as `Program.cs`, health-check the server,
-try `lms server start`, and skip — never fail — with the failing key named. Commands are in
-`lionheart.Tests/README.md`.
+Tests: the hermetic set (fakes, needs nothing running) covers cosine + dimension mismatch,
+facet literal/alias/snap/admit paths, alias accrual, two-near-values-one-pass key-collision
+avoidance, stale-vocabulary and embedding-failure propagation, movement
+match/candidate/dedup/cross-user isolation, no-create-on-ambiguous, and the draft→domain
+mapping. Ten **live** tests (`[LmStudioFact]`, `Category=LocalModel`) are the only thing that
+can catch the model breaking schema compliance — run them after touching the prompt, the
+schema, or the configured model. All ten verified green against qwen3 +
+`text-embedding-qwen3-embedding-4b` (2560-dim), including the full engine committing a session
+with its projection and an unknown movement returning `AwaitingConfirmation` with nothing
+written.
 
-> **Verified against a real model 2026-07-20**: all four LocalModel tests pass end to end
-> (`dotnet test --settings lionheart.localmodel.runsettings`, ~1m40s) — the terse-log parse
-> returns schema-valid sets with a `Texted` source and in-range confidence, proposed facet axes
-> stay inside the closed enum, and a registered tool really is called and its result returned.
-> If `LmStudio__ApiKey` drifts from the token LM Studio is serving, both `/v1/models` and
-> `/v1/chat/completions` answer HTTP 401 and the tests skip with that message rather than failing.
+**Deliberate narrowings, and what is left:**
 
-### ⬜ Step 3 — Interpretation engine
-
-Generalize `Model/Ingestion/IngestionModels.cs` into the versioned
-Parse → Resolve → Commit engine:
-
-- Parse emits sets **and** a proposed `Decoration`; runs over Context text too.
-- Resolve snaps facet values to `FacetValue` canonicals via embedding similarity
-  (same pattern as the existing `UnresolvedReference`/`EntityMatch` flow).
-- Commit writes the domain entity and upserts its `AnalyzableEntry` row.
-- Stamp `DecoratorVersion` everywhere; engine must be re-runnable (freeform upgrades,
-  re-decoration at newer versions).
-- PR detection re-enters here: the legacy submit-attempt flow was deleted with the old
-  model; the engine should evaluate completed lift sets against `PersonalRecords`.
-- Chat tools for sessions/contexts also re-enter here (the legacy session/activity/
-  program tools died with their services); the athlete-context-card coverage manifest
-  currently tells the model there is no training drill-in tool — restore that line when
-  the new tool exists.
-- ~~First deliverable: a runtime JSON round-trip smoke test~~ — **done in step 2.5**:
-  `lionheart.Tests` exercises save + rehydrate for every session lifecycle state, both
-  context kinds, and `AnalyzableEntry` against real SQLite.
+- **Entity matching stayed lexical.** The doc line "snap entities *and* facet values via
+  embedding similarity" is implemented semantically for facets only: `MovementBase` and
+  `Equipment` carry no embedding column, and adding one is a migration this step didn't
+  need. Exercise names the athlete already uses match exactly far more often than they
+  paraphrase. Revisit if unresolved-reference prompts prove noisy.
+- **Commit is create-only.** Re-decoration/backfill (`WHERE DecoratorVersion < current`)
+  needs an update path on both the entity and its projection; the engine is versioned and
+  re-runnable in shape, but that entry point does not exist yet.
+- **The confirmation round-trip is one-directional.** `AwaitingConfirmation` carries the
+  draft back so the user's choices can be re-resolved without re-parsing, but the resume
+  path lands with the endpoints (open question 3).
+- **PR detection** still to come: evaluate committed lift sets against `PersonalRecords`.
+- **Chat tools** for sessions/contexts still to come; when the training drill-in tool
+  exists, restore the athlete-context-card coverage manifest line that currently says
+  there is none.
+- ~~First deliverable: a runtime JSON round-trip smoke test~~ — done in step 2.5.
 
 ### ✅ Step 4 — Legacy removal (was: backfill; re-scoped by user 2026-07-19)
 
@@ -506,18 +516,74 @@ Chosen first because it validates the facet vocabulary + resolution chain end to
 `FacetAxis` as enum params. Then the remaining analytics (sentiment arc, avoidance map,
 hidden-cost, eras, rivalry, ROI) as consumers.
 
+### Traps — non-obvious failures already paid for
+
+Read this before debugging something that "should obviously work".
+
+- **Reasoning models return an empty `content`.** With thinking enabled, LM Studio routes the
+  schema-conformant JSON to `reasoning_content` and leaves `content` empty. Neither
+  `chat_template_kwargs.enable_thinking=false` nor `/no_think` changes it; **`reasoning_effort:
+  "none"` does**, and that is what `BuildParseOptions` sets. If parses come back empty, look
+  here first.
+- **`[JsonIgnore]` does not inherit through an override.** Every `Period` subtype repeats it,
+  or the derived member leaks back into stored JSON.
+- **Redeclaring *some* positional record members reorders the stored JSON.** System.Text.Json
+  writes non-redeclared positional members first. Records persisted as JSON that need a
+  constructor guard (`Decoration`, the `SetEntry` and `SetPrescription` shapes) therefore
+  redeclare **all** their members, guarded or not. `StorageFormatTests` is the tripwire.
+- **EF writes Guid TEXT columns uppercase in SQLite**, and SQLite compares TEXT byte-for-byte.
+  A lowercase literal in hand-written SQL matches nothing. Use `RemodelDatabase.SqlGuid`.
+- **`ExecuteScalar` returns `DBNull.Value`, not null**, which is non-null in C# and will
+  quietly satisfy an `Assert.NotNull` on an empty column. `RemodelDatabase.ExecuteScalar`
+  normalizes it.
+- **VSTest ANDs a `--filter` with the runsettings `TestCaseFilter`**, so
+  `--filter "Category=LocalModel"` resolves to an empty set. Select a different settings file
+  instead; see `lionheart.Tests/README.md`.
+- **Live tests have one gate, with two halves.** The `Category=LocalModel` trait *selects*
+  (keeping a plain run hermetic and network-free at discovery time); `[LmStudioFact]` +
+  `SkipUnlessAvailable()` *skips* with the failing key named. Do not add a third mechanism, and
+  never read `LmStudio__*` from the environment directly — `Support/LmStudioSettings.cs` is the
+  one reader, so a missing key becomes a named skip rather than a `NullReferenceException`.
+
 ### Open questions
 
-1. ~~Test infrastructure~~ — resolved: dedicated `lionheart.Tests` xUnit project
-   (step 2.5); persistence tests run the full `ModelContext` schema on in-memory SQLite.
-2. Three hand-rolled fill-states (`DecorationState`, `EffortState`,
-   `ProgramMembership`) — generic `Option<T>` deferred unless a fourth appears.
-3. DTO/request shapes for the new types and the migration path for existing
-   endpoints/services (likely lands with steps 3–4).
-4. **Do stored lists guard their elements?** (step 2.6). A null inside a stored `Sets` array
-   rehydrates as a hole today. Deferred until the interpretation engine exists, since that is
-   what will produce these lists — decide then whether a bad element rejects the row or is
-   dropped, and which of the domain's ~8 list members get element guards.
-5. **Sign and upper bounds on measures.** `Require.Finite` now rejects NaN and the infinities;
-   negative distance, weight, and duration are still representable. Sign is not a blanket rule
-   (net elevation gain is legitimately negative), so this needs per-measure judgement.
+Numbered for reference; nothing here is decided. **Ask Chase rather than choosing.**
+
+1. **DTO/request shapes and endpoints** for sessions, contexts, programs, and the engine —
+   including where the `AwaitingConfirmation` resume path lands. **This is the blocking item:**
+   the Svelte stores under `ClientApp/src/lib/stores/` call endpoints deleted in step 4 and stay
+   broken until it is answered.
+2. **Does the domain police measure sign and upper bounds?** `Require.Finite` rejects NaN and
+   the infinities; negative distance, weight, and duration are still representable. Not a
+   blanket rule — net elevation gain is legitimately negative — so it needs per-measure
+   judgement. Characterized by `Negative_measures_are_accepted_by_design_for_now`.
+3. **Do stored lists guard their elements?** A `null` inside a stored `Sets` array rehydrates
+   as a hole, so the first analytics pass touching `set.Source` throws far from the corrupt row.
+   Deferred until the engine's write paths settle. Decide whether a bad element rejects the row
+   or is dropped, and which of the ~8 list members get guards. Characterized by
+   `Null_element_inside_a_set_list_currently_survives_as_a_hole`.
+4. **Is the 0.82 facet snap threshold right?** A reasonable starting point, **never tuned
+   against real data**. Now that real 2560-dim vectors flow, worth revisiting once actual logs
+   accumulate — too low silently merges distinct concepts, too high fragments the vocabulary.
+5. **Parse quality beyond schema compliance is unmeasured.** The live tests assert structure —
+   a session with sets, a context for a sleep note — not extraction accuracy across messy
+   phrasing. Worth throwing real logs at it before endpoints are built on top.
+6. **Three hand-rolled fill-states** (`DecorationState`, `EffortState`, `ProgramMembership`) —
+   a generic `Option<T>` is deferred unless a fourth appears.
+7. **De-"remodel"-ing identifiers** — `RemodelConfiguration` → `TrainingDomainConfiguration`
+   and similar, now that the remodel is the model rather than a migration in flight. Offered
+   twice, still unanswered. **Do not do it without asking.**
+8. **Embedding-model changes force a full recompute.** `Vectors.CosineSimilarity` errors on a
+   dimension mismatch rather than scoring it, so the failure is loud — but no recompute entry
+   point exists yet. It arrives with the re-decoration path (step 3's remaining work).
+
+### Next steps, in order
+
+1. **Endpoints + DTOs** (open question 1), then rebuild the broken Svelte stores against them.
+2. **Re-decoration / backfill entry point** — needs an update path on both the entity and its
+   `AnalyzableEntry` projection; `InterpretationCommitter` is create-only today. Three skipped
+   specs in `lionheart.Tests/Llm/InterpretationContractTests.cs` light up when this lands.
+3. **PR detection** — evaluate committed lift sets against `PersonalRecords`.
+4. **Chat tools** for sessions/contexts; when the training drill-in tool exists, restore the
+   athlete-context-card coverage-manifest line that currently says there is none.
+5. **Step 5** balance ledger, then **step 6** retrieval primitive + MCP surface.

@@ -2,74 +2,69 @@ using System.ClientModel;
 using System.Diagnostics;
 using OpenAI;
 using OpenAI.Chat;
+using OpenAI.Embeddings;
 
-namespace lionheart.Tests.LocalModel;
-
-/// <summary>
-/// Marker for the LocalModel collection, so the readiness probe and any server start happen
-/// once per run rather than once per test.
-/// </summary>
-[CollectionDefinition(Name)]
-public sealed class LocalModelCollection : ICollectionFixture<LocalModelFixture>
-{
-    public const string Name = "LocalModel";
-}
+namespace lionheart.Tests.Support;
 
 /// <summary>
-/// Brings up (or gives up on) a real LM Studio server for the opt-in integration tests.
+/// Brings up (or gives up on) a real LM Studio server, once per test run, and hands out clients
+/// pointed at it.
 /// </summary>
 /// <remarks>
 /// The rule is that a machine without a local model is never a failing machine: every way this
 /// can not-work resolves to <see cref="Unavailable"/> carrying the key or step that failed, and
-/// the tests turn that into a skip. Only a server that answers produces a client.
+/// <see cref="LmStudioFactAttribute"/> turns that into a skip. The probe is lazy so a plain
+/// <c>dotnet test</c> — which filters these tests out before running any of them — never touches
+/// the network or starts a server.
 /// </remarks>
-public sealed class LocalModelFixture : IDisposable
+public static class LmStudio
 {
     private static readonly TimeSpan StartupBudget = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(5);
 
-    private readonly HttpClient _probe = new() { Timeout = ProbeTimeout };
-    private readonly LmStudioSettings? _settings;
+    private static readonly Lazy<(LmStudioSettings? Settings, string? Unavailable)> Probe = new(Resolve);
 
-    public LocalModelFixture()
+    /// <summary>Null when the local model is usable; otherwise why it is not, naming the key or step.</summary>
+    public static string? Unavailable => Probe.Value.Unavailable;
+
+    public static ChatClient CreateChatClient() =>
+        new(Settings().Model, Credential(), ClientOptions());
+
+    public static ChatClient CreateChatClient(string model) =>
+        new(model, Credential(), ClientOptions());
+
+    public static EmbeddingClient CreateEmbeddingClient() =>
+        new(Settings().EmbeddingModel, Credential(), ClientOptions());
+
+    private static LmStudioSettings Settings() =>
+        Probe.Value.Settings ?? throw new InvalidOperationException($"Local model unavailable: {Unavailable}");
+
+    private static ApiKeyCredential Credential() => new(Settings().ApiKey);
+
+    private static OpenAIClientOptions ClientOptions() => new() { Endpoint = new Uri(Settings().BaseUrl) };
+
+    private static (LmStudioSettings?, string?) Resolve()
     {
         var (settings, missingKey) = LmStudioSettings.Read();
         if (settings is null)
-        {
-            Unavailable = $"{missingKey} is not set (add it to .env — see lionheart.Tests/README.md).";
-            return;
-        }
+            return (null, $"{missingKey} is not set (add it to .env — see lionheart.Tests/README.md).");
 
-        _settings = settings;
-        Unavailable = EnsureServerAnswers(settings);
+        var unavailable = EnsureServerAnswers(settings);
+        return (unavailable is null ? settings : null, unavailable);
     }
 
-    /// <summary>Null when the local model is usable; otherwise why it is not, naming the key or step.</summary>
-    public string? Unavailable { get; }
-
-    public ChatClient CreateChatClient()
-    {
-        if (_settings is null || Unavailable is not null)
-            throw new InvalidOperationException($"Local model unavailable: {Unavailable}");
-
-        return new ChatClient(
-            _settings.Model,
-            new ApiKeyCredential(_settings.ApiKey),
-            new OpenAIClientOptions { Endpoint = new Uri(_settings.BaseUrl) });
-    }
-
-    public void Dispose() => _probe.Dispose();
-
-    private string? EnsureServerAnswers(LmStudioSettings settings)
+    private static string? EnsureServerAnswers(LmStudioSettings settings)
     {
         if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var baseUri))
             return $"{LmStudioSettings.BaseUrlKey} is not an absolute URI: '{settings.BaseUrl}'.";
 
+        using var probe = new HttpClient { Timeout = ProbeTimeout };
+
         // A running server that rejects the key is a different problem from no server, and
         // restarting it would not help — report it instead of entering the start-and-wait path.
-        var initial = Probe(baseUri, settings.ApiKey);
-        if (initial is ProbeResult.Reachable) return null;
-        if (initial is ProbeResult.Unauthorized) return KeyRejected(baseUri);
+        var initial = Ping(probe, baseUri, settings.ApiKey);
+        if (initial is Reachability.Reachable) return null;
+        if (initial is Reachability.Unauthorized) return KeyRejected(baseUri);
 
         var startFailure = TryStartServer(settings);
         if (startFailure is not null) return startFailure;
@@ -77,9 +72,9 @@ public sealed class LocalModelFixture : IDisposable
         var deadline = DateTime.UtcNow + StartupBudget;
         while (DateTime.UtcNow < deadline)
         {
-            var probe = Probe(baseUri, settings.ApiKey);
-            if (probe is ProbeResult.Reachable) return null;
-            if (probe is ProbeResult.Unauthorized) return KeyRejected(baseUri);
+            var reachability = Ping(probe, baseUri, settings.ApiKey);
+            if (reachability is Reachability.Reachable) return null;
+            if (reachability is Reachability.Unauthorized) return KeyRejected(baseUri);
 
             Thread.Sleep(TimeSpan.FromSeconds(2));
         }
@@ -91,31 +86,31 @@ public sealed class LocalModelFixture : IDisposable
         $"LM Studio at {baseUri} rejected {LmStudioSettings.ApiKeyKey} (HTTP 401). "
         + "Copy the token from LM Studio's Developer tab into .env.";
 
-    private enum ProbeResult { Reachable, Unauthorized, Unreachable }
+    private enum Reachability { Reachable, Unauthorized, Unreachable }
 
     /// <summary>
     /// The /v1 root's models listing is the cheapest proof the server is up. It is an
     /// authenticated route: without the key LM Studio answers 401, which looks identical to a
-    /// dead server unless the key is sent — and would send the fixture off restarting a server
-    /// that was running the whole time.
+    /// dead server unless the key is sent — and would send this off restarting a server that
+    /// was running the whole time.
     /// </summary>
-    private ProbeResult Probe(Uri baseUri, string apiKey)
+    private static Reachability Ping(HttpClient probe, Uri baseUri, string apiKey)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(baseUri, "models"));
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
 
-            using var response = _probe.Send(request);
-            if (response.IsSuccessStatusCode) return ProbeResult.Reachable;
+            using var response = probe.Send(request);
+            if (response.IsSuccessStatusCode) return Reachability.Reachable;
 
             return response.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                ? ProbeResult.Unauthorized
-                : ProbeResult.Unreachable;
+                ? Reachability.Unauthorized
+                : Reachability.Unreachable;
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
         {
-            return ProbeResult.Unreachable;
+            return Reachability.Unreachable;
         }
     }
 

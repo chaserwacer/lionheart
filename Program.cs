@@ -13,6 +13,9 @@ using lionheart.Services.Training;
 using lionheart.Services.Profile;
 using System.ClientModel;
 using OpenAI;
+using OpenAI.Embeddings;
+using lionheart.Services.Embedding;
+using lionheart.Services.Interpretation;
 
 // Load .env into the process environment before the host reads configuration,
 // so LmStudio__* keys flow through the default environment-variable provider.
@@ -64,6 +67,20 @@ builder.Services.AddSingleton(provider =>
     new NarrativeChatClient(new ChatClient(model: narrativeModel, credential: credential, options: clientOptions))
 );
 
+// Embeddings come from the same LM Studio server. The model is pinned in configuration because
+// vectors from different models are incomparable: changing it invalidates every stored vector
+// and requires a full re-decoration pass, never a partial one.
+var embeddingModel = configuration["LmStudio:EmbeddingModel"];
+if (string.IsNullOrWhiteSpace(embeddingModel))
+{
+    throw new InvalidOperationException(
+        "LM Studio embedding configuration is missing. Set LmStudio__EmbeddingModel in your .env file.");
+}
+
+builder.Services.AddSingleton(provider =>
+    new EmbeddingClient(model: embeddingModel, credential: credential, options: clientOptions)
+);
+
 builder.Services
   .AddControllers()
   .AddJsonOptions(opts =>
@@ -89,6 +106,13 @@ builder.Services.AddTransient<IChatMessageService, ChatMessageService>();
 builder.Services.AddTransient<ChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
 builder.Services.AddTransient<IAthleteContextCardService, AthleteContextCardService>();
+builder.Services.AddTransient<IEmbeddingGenerator, LmStudioEmbeddingGenerator>();
+builder.Services.AddTransient<IInterpretationParser, InterpretationParser>();
+builder.Services.AddTransient<IFacetResolver, FacetResolver>();
+builder.Services.AddTransient<IMovementResolver, MovementResolver>();
+builder.Services.AddTransient<IInterpretationResolver, InterpretationResolver>();
+builder.Services.AddTransient<IInterpretationCommitter, InterpretationCommitter>();
+builder.Services.AddTransient<IInterpretationEngine, InterpretationEngine>();
 
 
 builder.Services.AddSingleton<ToolRegistry>(sp =>

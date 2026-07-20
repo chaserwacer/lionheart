@@ -12,8 +12,8 @@ using Services.Chat;
 namespace lionheart.Tests.LocalModel;
 
 /// <summary>
-/// The opt-in half of the LLM suite: a real local model, reached through the same
-/// configuration the app uses. Excluded from a plain run by lionheart.runsettings.
+/// Chat-layer checks against a real local model, reached through the same configuration the
+/// app uses. Excluded from a plain run by the Category trait; see Support/LmStudioFact.cs.
 /// </summary>
 /// <remarks>
 /// Assertions are on structure, never on wording. A local model's phrasing changes with the
@@ -22,8 +22,7 @@ namespace lionheart.Tests.LocalModel;
 /// test that would fail because the model chose different words is a broken test, not a finding.
 /// </remarks>
 [Trait("Category", "LocalModel")]
-[Collection(LocalModelCollection.Name)]
-public sealed class LocalModelChatTests(LocalModelFixture fixture) : IDisposable
+public sealed class LocalModelChatTests : IDisposable
 {
     private static readonly TimeSpan Budget = TimeSpan.FromMinutes(5);
 
@@ -34,13 +33,13 @@ public sealed class LocalModelChatTests(LocalModelFixture fixture) : IDisposable
     /// <summary>Low temperature: these tests want the model's most typical output, not its range.</summary>
     private static ChatCompletionOptions Deterministic() => new() { Temperature = 0f };
 
-    private ChatClient Client()
+    private static ChatClient Client()
     {
-        Skip.If(fixture.Unavailable is not null, $"LocalModel tests skipped: {fixture.Unavailable}");
-        return fixture.CreateChatClient();
+        LmStudioFactAttribute.SkipUnlessAvailable();
+        return LmStudio.CreateChatClient();
     }
 
-    [SkippableFact]
+    [LmStudioFact]
     public async Task The_configured_model_answers_at_all()
     {
         using var cancellation = new CancellationTokenSource(Budget);
@@ -60,7 +59,7 @@ public sealed class LocalModelChatTests(LocalModelFixture fixture) : IDisposable
     /// assertion is that it deserializes into real SetEntry values with a Texted source and an
     /// in-range confidence — not that it found any particular number of sets.
     /// </summary>
-    [SkippableFact]
+    [LmStudioFact]
     public async Task A_terse_log_parses_into_schema_valid_sets_with_a_texted_source()
     {
         using var cancellation = new CancellationTokenSource(Budget);
@@ -92,7 +91,7 @@ public sealed class LocalModelChatTests(LocalModelFixture fixture) : IDisposable
         });
     }
 
-    [SkippableFact]
+    [LmStudioFact]
     public async Task Proposed_facets_stay_inside_the_closed_axis_enum()
     {
         using var cancellation = new CancellationTokenSource(Budget);
@@ -123,7 +122,7 @@ public sealed class LocalModelChatTests(LocalModelFixture fixture) : IDisposable
     /// A real tool-call round trip through the real executor: the model must emit a call the
     /// registry recognises, and the loop must run it and come back with a final answer.
     /// </summary>
-    [SkippableFact]
+    [LmStudioFact]
     public async Task A_registered_tool_is_actually_called_and_its_result_returned()
     {
         var client = Client();

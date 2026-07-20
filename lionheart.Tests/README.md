@@ -10,7 +10,7 @@ Tests for the remodeled training domain (`docs/data-remodel.md`) and the LM Stud
 # which filters out Category=LocalModel.
 dotnet test
 
-# Only the opt-in LM Studio integration tests.
+# Only the live LM Studio tests (chat layer + interpretation engine).
 dotnet test --settings lionheart.localmodel.runsettings
 
 # Everything, mocked and local-model alike.
@@ -24,9 +24,13 @@ dotnet test --settings lionheart.all.runsettings
 is why the two extra `.runsettings` files exist. `--filter` still works for narrowing within
 a run, e.g. `dotnet test --filter "FullyQualifiedName~ChatCompletionServiceTests"`.
 
-The LocalModel tests never fail a machine that has no model: if configuration is missing or
-LM Studio is unreachable they report as **skipped**, with a message naming the key or step
-that failed.
+**Live tests use one mechanism, and it has two halves that do different jobs.** *Selection* is
+the `[Trait("Category", "LocalModel")]` attribute on the test class, filtered out by the default
+runsettings — that is what keeps a plain run hermetic and fast, and why nothing probes the
+network at discovery time. *Skipping* is `[LmStudioFact]` plus `LmStudioFactAttribute.SkipUnlessAvailable()`,
+called before touching a client: once selected, a test that cannot reach a server reports as
+**skipped** with the failing key or step named, never as a failure. Add both to any new live
+test; do not introduce a third gate.
 
 ## Layout
 
@@ -35,8 +39,9 @@ that failed.
 | `Domain/` | Invariants of the sealed hierarchies — no I/O |
 | `Serialization/` | The JSON storage format: round trips, hand-written literal fixtures, malformed payloads |
 | `Persistence/` | Real in-memory SQLite through the full `ModelContext` |
-| `Llm/` | Chat and interpretation contracts against a faked LM Studio — no network |
-| `LocalModel/` | Opt-in integration against a real LM Studio server |
+| `Llm/` | Chat and model-output contracts against a faked LM Studio — no network |
+| `Interpretation/` | The Parse → Resolve → Commit engine, against fakes and (live) a real model |
+| `LocalModel/` | Chat-layer checks against a real LM Studio server |
 | `Support/` | Fixtures: domain samples, the fake chat server, canned responses, a test toolbox |
 
 `Serialization/StorageFormatTests.cs` is deliberately redundant with the round-trip tests:
@@ -60,6 +65,7 @@ Create a `.env` at the repository root — **never commit it**, it is already gi
 LmStudio__BaseUrl=http://127.0.0.1:1234/v1
 LmStudio__ApiKey=your-lm-studio-api-token
 LmStudio__Model=your-loaded-model-name
+LmStudio__EmbeddingModel=your-loaded-embedding-model-name
 ```
 
 `LmStudio__ApiKey` must match the token LM Studio is actually serving with. If LM Studio has
@@ -67,9 +73,11 @@ authentication enabled and the token is stale, both `/v1/models` and `/v1/chat/c
 answer HTTP 401 and the LocalModel tests skip with that message — the app's chat would be
 equally broken, so it is worth fixing rather than working around.
 
-`LocalModelFixture` health-checks `LmStudio__BaseUrl`, and if nothing answers it tries
-`lms server start` and `lms load <LmStudio__Model>` before waiting up to 90s. It only ever
-skips; it never fails the run for a missing server.
+`Support/LmStudio.cs` health-checks `LmStudio__BaseUrl` once per run, and if nothing answers it
+tries `lms server start` and `lms load <LmStudio__Model>` before waiting up to 90s. It only ever
+skips; it never fails the run for a missing server. `Support/LmStudioSettings.cs` is the single
+config reader — do not read `LmStudio__*` from the environment directly in a test, or a missing
+key becomes a NullReferenceException instead of a skip that names it.
 
 ## Writing tests here
 
