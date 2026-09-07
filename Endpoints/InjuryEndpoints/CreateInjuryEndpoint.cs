@@ -2,8 +2,7 @@ using Ardalis.ApiEndpoints;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Ardalis.Result.AspNetCore;
-using Ardalis.Filters;
+using lionheart.Endpoints.Filters;
 using lionheart.Model.InjuryManagement;
 
 namespace lionheart.Endpoints.InjuryEndpoints
@@ -30,7 +29,9 @@ namespace lionheart.Endpoints.InjuryEndpoints
             var user = await _userManager.GetUserAsync(User);
             if (user is null) return Unauthorized();
 
-            return this.ToActionResult(await _injuryService.CreateInjuryAsync(user, request));
+            return this.ToActionResult(
+                await _injuryService.CreateInjuryAsync(user, request),
+                StatusCodes.Status201Created);
         }
     }
 }

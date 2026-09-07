@@ -1,6 +1,5 @@
 using Ardalis.ApiEndpoints;
-using Ardalis.Filters;
-using Ardalis.Result.AspNetCore;
+using lionheart.Endpoints.Filters;
 using lionheart.Model.Chat;
 using lionheart.Services.Chat;
 using Microsoft.AspNetCore.Identity;
@@ -31,7 +30,9 @@ namespace lionheart.Endpoints.ChatEndpoints
             var user = await _userManager.GetUserAsync(User);
             if (user is null) return Unauthorized("User is not recognized or no longer exists.");
 
-            return this.ToActionResult(await _chatConversationService.CreateChatConversationAsync(user, request));
+            return this.ToActionResult(
+                await _chatConversationService.CreateChatConversationAsync(user, request),
+                StatusCodes.Status201Created);
         }
     }
 }

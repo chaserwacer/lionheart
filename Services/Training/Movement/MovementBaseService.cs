@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
@@ -8,11 +8,11 @@ namespace lionheart.Services.Training
 {
     public interface IMovementBaseService
     {
-        Task<Result<List<MovementBaseDTO>>> GetMovementBasesAsync(IdentityUser user);
-        Task<Result<MovementBaseDTO>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request);
-        Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId);
-        Task<Result<MovementBaseDTO>> UpdateMovementBaseAsync(IdentityUser user, UpdateMovementBaseRequest request);
-        Task<Result<List<MuscleGroup>>> GetAllMuscleGroupsAsync();
+        Task<Result<List<MovementBaseDTO>, Problem>> GetMovementBasesAsync(IdentityUser user);
+        Task<Result<MovementBaseDTO, Problem>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request);
+        Task<Result<Unit, Problem>> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId);
+        Task<Result<MovementBaseDTO, Problem>> UpdateMovementBaseAsync(IdentityUser user, UpdateMovementBaseRequest request);
+        Task<Result<List<MuscleGroup>, Problem>> GetAllMuscleGroupsAsync();
     }
 
     public class MovementBaseService : IMovementBaseService
@@ -26,7 +26,7 @@ namespace lionheart.Services.Training
             _userManager = userManager;
         }
 
-        public async Task<Result<MovementBaseDTO>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request)
+        public async Task<Result<MovementBaseDTO, Problem>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
 
@@ -35,7 +35,7 @@ namespace lionheart.Services.Training
 
             if (existingBase != null)
             {
-                return Result<MovementBaseDTO>.Conflict("A movement base with this name already exists for this user.");
+                return Result<MovementBaseDTO, Problem>.Failure(new Problem.Conflict("A movement base with this name already exists for this user."));
             }
 
             // IMPORTANT: resolve requested muscle groups to existing tracked entities
@@ -52,11 +52,8 @@ namespace lionheart.Services.Training
 
             if (muscleGroups.Count != requestedIds.Count)
             {
-                return Result<MovementBaseDTO>.Invalid(new ValidationError
-                {
-                    Identifier = nameof(request.MuscleGroups),
-                    ErrorMessage = "One or more muscle groups do not exist."
-                });
+                return Result<MovementBaseDTO, Problem>.Failure(new Problem.Invalid(
+                    nameof(request.MuscleGroups), "One or more muscle groups do not exist."));
             }
 
             var movementBase = new MovementBase
@@ -70,10 +67,10 @@ namespace lionheart.Services.Training
 
             _context.MovementBases.Add(movementBase);
             await _context.SaveChangesAsync();
-            return Result<MovementBaseDTO>.Created(movementBase.ToDTO());
+            return Result<MovementBaseDTO, Problem>.Success(movementBase.ToDTO());
         }
 
-        public async Task<Result> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)
+        public async Task<Result<Unit, Problem>> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)
         {
             var userGuid = Guid.Parse(user.Id);
 
@@ -82,21 +79,21 @@ namespace lionheart.Services.Training
 
             if (movementBase == null)
             {
-                return Result.NotFound("Movement base not found or not owned by user.");
+                return Result<Unit, Problem>.Failure(new Problem.NotFound("Movement base not found or not owned by user."));
             }
 
             var inUse = await _context.MovementDatas.AnyAsync(md => md.MovementBaseID == movementBaseId);
             if (inUse)
             {
-                return Result.Conflict("Cannot delete movement base while movements reference it.");
+                return Result<Unit, Problem>.Failure(new Problem.Conflict("Cannot delete movement base while movements reference it."));
             }
 
             _context.MovementBases.Remove(movementBase);
             await _context.SaveChangesAsync();
-            return Result.NoContent();
+            return Result<Unit, Problem>.Success(Unit.Value);
         }
 
-        public async Task<Result<List<MovementBaseDTO>>> GetMovementBasesAsync(IdentityUser user)
+        public async Task<Result<List<MovementBaseDTO>, Problem>> GetMovementBasesAsync(IdentityUser user)
         {
             var userGuid = Guid.Parse(user.Id);
 
@@ -107,16 +104,16 @@ namespace lionheart.Services.Training
                 .ToListAsync();
 
             var dtos = movementBases.Select(mb => mb.ToDTO()).ToList();
-            return Result<List<MovementBaseDTO>>.Success(dtos);
+            return Result<List<MovementBaseDTO>, Problem>.Success(dtos);
         }
 
-        public async Task<Result<List<MuscleGroup>>> GetAllMuscleGroupsAsync()
+        public async Task<Result<List<MuscleGroup>, Problem>> GetAllMuscleGroupsAsync()
         {
             var muscleGroups = await _context.MuscleGroups.ToListAsync();
-            return Result<List<MuscleGroup>>.Success(muscleGroups);
+            return Result<List<MuscleGroup>, Problem>.Success(muscleGroups);
         }
 
-        public async Task<Result<MovementBaseDTO>> UpdateMovementBaseAsync(IdentityUser user, UpdateMovementBaseRequest request)
+        public async Task<Result<MovementBaseDTO, Problem>> UpdateMovementBaseAsync(IdentityUser user, UpdateMovementBaseRequest request)
         {
             var userGuid = Guid.Parse(user.Id);
 
@@ -126,7 +123,7 @@ namespace lionheart.Services.Training
 
             if (movementBase == null)
             {
-                return Result<MovementBaseDTO>.NotFound("Movement base not found or not owned by user.");
+                return Result<MovementBaseDTO, Problem>.Failure(new Problem.NotFound("Movement base not found or not owned by user."));
             }
 
             movementBase.Name = request.Name;
@@ -146,17 +143,14 @@ namespace lionheart.Services.Training
 
             if (muscleGroups.Count != requestedIds.Count)
             {
-                return Result<MovementBaseDTO>.Invalid(new ValidationError
-                {
-                    Identifier = nameof(request.MuscleGroups),
-                    ErrorMessage = "One or more muscle groups do not exist."
-                });
+                return Result<MovementBaseDTO, Problem>.Failure(new Problem.Invalid(
+                    nameof(request.MuscleGroups), "One or more muscle groups do not exist."));
             }
 
             movementBase.MuscleGroups = muscleGroups;
 
             await _context.SaveChangesAsync();
-            return Result<MovementBaseDTO>.Success(movementBase.ToDTO());
+            return Result<MovementBaseDTO, Problem>.Success(movementBase.ToDTO());
         }
     }
 }

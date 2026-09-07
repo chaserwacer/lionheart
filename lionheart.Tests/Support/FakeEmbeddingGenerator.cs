@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Services.Embedding;
 
 namespace lionheart.Tests.Support;
@@ -24,20 +24,25 @@ public sealed class FakeEmbeddingGenerator : IEmbeddingGenerator
         return this;
     }
 
-    public Task<Result<float[]>> GenerateAsync(string text)
+    public Task<Result<float[], Problem>> GenerateAsync(string text)
     {
         Requested.Add(text);
-        return Task.FromResult(
-            FailWith is null ? Result<float[]>.Success(VectorFor(text)) : Result<float[]>.Error(FailWith));
+        return Task.FromResult(FailWith is null
+            ? Result<float[], Problem>.Success(VectorFor(text))
+            : Result<float[], Problem>.Failure(new Problem.Upstream(FailWith)));
     }
 
-    public Task<Result<IReadOnlyList<float[]>>> GenerateBatchAsync(IReadOnlyList<string> texts)
+    public Task<Result<IReadOnlyList<float[]>, Problem>> GenerateBatchAsync(IReadOnlyList<string> texts)
     {
         Requested.AddRange(texts);
-        if (FailWith is not null) return Task.FromResult(Result<IReadOnlyList<float[]>>.Error(FailWith));
+        if (FailWith is not null)
+        {
+            return Task.FromResult(
+                Result<IReadOnlyList<float[]>, Problem>.Failure(new Problem.Upstream(FailWith)));
+        }
 
         IReadOnlyList<float[]> vectors = [.. texts.Select(VectorFor)];
-        return Task.FromResult(Result<IReadOnlyList<float[]>>.Success(vectors));
+        return Task.FromResult(Result<IReadOnlyList<float[]>, Problem>.Success(vectors));
     }
 
     private float[] VectorFor(string text)

@@ -1,3 +1,4 @@
+using lionheart.Functional;
 using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Model.Tools;
@@ -50,15 +51,13 @@ namespace Model.Chat.Tools
                 foreach (var method in methods)
                 {
                     var toolAttr = method.GetCustomAttribute<ToolAttribute>()!;
-                    var chatToolResult = await OpenAIToolMapper.MapTool(method);
-                    
-                    if (chatToolResult.IsSuccess)
+                    if (await OpenAIToolMapper.MapTool(method) is Success<ChatTool, Problem> chatTool)
                     {
                         var descriptor = new ToolDescriptor(
                             toolAttr.Name,
                             toolProvider,
                             method,
-                            chatToolResult.Value,
+                            chatTool.Value,
                             RequiresAuthorization(method));
                         toolDescriptors.Add(descriptor);
                     }

@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Model.Chat;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
@@ -24,7 +24,7 @@ public sealed class ChatCompletionServiceTests : IDisposable
         _toolbox.Dispose();
     }
 
-    private Task<Result<ChatCompletionResponse>> Complete(string userMessage = "how did last week go?")
+    private Task<Result<ChatCompletionResponse, Problem>> Complete(string userMessage = "how did last week go?")
     {
         var service = new ChatCompletionService(_server.CreateChatClient(), _toolbox.Executor);
         return service.GenerateChatCompletionAsync(
@@ -43,10 +43,10 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
         var result = await Complete();
 
-        Assert.True(result.IsSuccess);
-        var message = Assert.IsType<LHModelChatMessage>(Assert.Single(result.Value.CompletionGeneratedMessages));
+        var response = ResultAssert.Succeeded(result);
+        var message = Assert.IsType<LHModelChatMessage>(Assert.Single(response.CompletionGeneratedMessages));
         Assert.Equal("You logged four sessions.", message.Content);
-        Assert.Equal(message.ChatMessageItemID, result.Value.ModelFinalChatMessageID);
+        Assert.Equal(message.ChatMessageItemID, response.ModelFinalChatMessageID);
     }
 
     [Fact]
@@ -57,13 +57,13 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
         var result = await Complete();
 
-        Assert.True(result.IsSuccess);
+        var response = ResultAssert.Succeeded(result);
         Assert.Equal(["echo:sled pulls"], _toolbox.Tools.Calls);
         Assert.Equal(2, _server.RequestCount);
 
-        var toolResult = Assert.IsType<LHChatToolCallResult>(result.Value.CompletionGeneratedMessages[0]);
+        var toolResult = Assert.IsType<LHChatToolCallResult>(response.CompletionGeneratedMessages[0]);
         Assert.Contains("you said sled pulls", toolResult.Content);
-        Assert.IsType<LHModelChatMessage>(result.Value.CompletionGeneratedMessages[1]);
+        Assert.IsType<LHModelChatMessage>(response.CompletionGeneratedMessages[1]);
     }
 
     [Fact]
@@ -138,15 +138,15 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
         var result = await Complete();
 
-        Assert.True(result.IsSuccess);
+        var response = ResultAssert.Succeeded(result);
         Assert.Equal(["boom:kaboom"], _toolbox.Tools.Calls);
-        Assert.Single(result.Value.CompletionGeneratedMessages);
+        Assert.Single(response.CompletionGeneratedMessages);
     }
 
     /// <summary>
-    /// A failed tool call is the model's cue to recover, so the reason has to reach it. This
-    /// previously sent <c>Errors.ToString()</c> on an IEnumerable&lt;string&gt;, which told the
-    /// model the tool had returned the literal text "System.String[]".
+    /// A failed tool call is the model's cue to recover, so the reason has to reach it. A
+    /// failure channel that stringifies badly once told the model the tool had returned the
+    /// literal text "System.String[]".
     /// </summary>
     [Fact]
     public async Task An_unknown_tool_tells_the_model_the_tool_does_not_exist()
@@ -191,8 +191,8 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
         var result = await Complete();
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(string.Empty, Assert.Single(result.Value.CompletionGeneratedMessages).Content);
+        var response = ResultAssert.Succeeded(result);
+        Assert.Equal(string.Empty, Assert.Single(response.CompletionGeneratedMessages).Content);
     }
 
     [Fact]
@@ -202,8 +202,8 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
         var result = await Complete();
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal("   \n  ", Assert.Single(result.Value.CompletionGeneratedMessages).Content);
+        var response = ResultAssert.Succeeded(result);
+        Assert.Equal("   \n  ", Assert.Single(response.CompletionGeneratedMessages).Content);
     }
 
     [Fact]
@@ -213,8 +213,7 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
         var result = await Complete();
 
-        Assert.True(result.IsError());
-        Assert.Contains("MaxTokens", string.Join("; ", result.Errors));
+        Assert.Contains("MaxTokens", ResultAssert.Failed(result).Description);
     }
 
     [Fact]
@@ -224,8 +223,7 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
         var result = await Complete();
 
-        Assert.True(result.IsError());
-        Assert.Contains("content filter", string.Join("; ", result.Errors));
+        Assert.Contains("content filter", ResultAssert.Failed(result).Description);
     }
 
     [Fact]
@@ -235,8 +233,8 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
         var result = await Complete();
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(string.Empty, Assert.Single(result.Value.CompletionGeneratedMessages).Content);
+        var response = ResultAssert.Succeeded(result);
+        Assert.Equal(string.Empty, Assert.Single(response.CompletionGeneratedMessages).Content);
     }
 
     [Fact]
@@ -246,8 +244,7 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
         var result = await Complete();
 
-        Assert.True(result.IsError());
-        Assert.Contains("not loaded", string.Join("; ", result.Errors));
+        Assert.Contains("not loaded", ResultAssert.Failed(result).Description);
     }
 
     [Fact]
@@ -276,7 +273,7 @@ public sealed class ChatCompletionServiceTests : IDisposable
                 Options = new ChatCompletionOptions(),
             });
 
-        Assert.True(result.IsError());
+        Assert.False(result.IsSuccess);
         Assert.Equal(0, _server.RequestCount);
     }
 }

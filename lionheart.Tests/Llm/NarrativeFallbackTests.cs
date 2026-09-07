@@ -29,10 +29,8 @@ public sealed class NarrativeFallbackTests : IDisposable
         var service = new AthleteContextCardService(
             context, new NarrativeChatClient(_server.CreateChatClient()));
 
-        var result = await service.GetOrBuildCardAsync(new IdentityUser { Id = _db.UserId.ToString() });
-
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return ResultAssert.Succeeded(
+            await service.GetOrBuildCardAsync(new IdentityUser { Id = _db.UserId.ToString() }));
     }
 
     [Fact]

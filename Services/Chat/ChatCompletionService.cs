@@ -1,4 +1,5 @@
-using Ardalis.Result;
+using System.Diagnostics;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Chat;
 using lionheart.Services.Chat;
@@ -18,7 +19,7 @@ namespace Services.Chat
         /// <summary>
         /// Generate chat completion based on request data.
         /// </summary>
-        Task<Result<ChatCompletionResponse>> GenerateChatCompletionAsync(IdentityUser user, ChatCompletionRequest request);
+        Task<Result<ChatCompletionResponse, Problem>> GenerateChatCompletionAsync(IdentityUser user, ChatCompletionRequest request);
     }
     public class ChatCompletionService(ChatClient chatClient, ChatToolCallExecutor toolCallExecutor) : IChatCompletionService
     {
@@ -33,27 +34,35 @@ namespace Services.Chat
         /// <summary>
         /// Generates a chat completion for the given user and request.
         /// </summary>
-        public async Task<Result<ChatCompletionResponse>> GenerateChatCompletionAsync(IdentityUser user, ChatCompletionRequest request)
-        {
-            bool requiresAction ;
+        public Task<Result<ChatCompletionResponse, Problem>> GenerateChatCompletionAsync(
+            IdentityUser user, ChatCompletionRequest request) =>
+            HandleConversationHistory(request.Conversation)
+                .BindAsync(messages => CompleteAsync(user, request, messages));
 
-            var conversationHistoryMessagesResult = HandleConversationHistory(request.Conversation);
-            if (conversationHistoryMessagesResult.IsError())
-            {
-                return Result.Error(string.Join("; ", conversationHistoryMessagesResult.Errors));
-            }
-            var messages = conversationHistoryMessagesResult.Value;
+        /// <summary>
+        /// Runs the model until it answers, resolving each round of tool calls in between.
+        /// </summary>
+        private async Task<Result<ChatCompletionResponse, Problem>> CompleteAsync(
+            IdentityUser user, ChatCompletionRequest request, List<ChatMessage> messages)
+        {
+            bool requiresAction;
             var newlyGeneratedMessages = new List<LHChatMessage>();
 
             do
             {
                 requiresAction = false;
-                var completionResult = (await _chatClient.CompleteChatAsync(messages, request.Options)).ToResult();
-                if (completionResult.IsError())
+
+                ChatCompletion completion;
+                switch (await _chatClient.CompleteAsResultAsync(messages, request.Options))
                 {
-                    return Result.Error(string.Join("; ", completionResult.Errors));
+                    case Success<ChatCompletion, Problem> completed:
+                        completion = completed.Value;
+                        break;
+                    case Failure<ChatCompletion, Problem> refused:
+                        return Result<ChatCompletionResponse, Problem>.Failure(refused.Problem);
+                    default:
+                        throw new UnreachableException();
                 }
-                ChatCompletion completion = completionResult.Value;
 
                 switch (completion.FinishReason)
                 {
@@ -66,7 +75,7 @@ namespace Services.Chat
                                 TokenCount = completion.Usage.OutputTokenCount,
                                 Content = string.Join("", completion.Content.Select(c => c.Text))
                             });
-                            return Result.Success(new ChatCompletionResponse
+                            return Result<ChatCompletionResponse, Problem>.Success(new ChatCompletionResponse
                             {
                                 Completion = completion,
                                 CompletionGeneratedMessages = newlyGeneratedMessages,
@@ -89,21 +98,21 @@ namespace Services.Chat
                             // add a new tool message for each tool call that is resolved.
                             foreach (ChatToolCall toolCall in completion.ToolCalls)
                             {
-                                var toolCallResult = await _toolCallExecutor.ExecuteToolCallAsync(toolCall, user);
-                                if (toolCallResult.IsSuccess)
+                                switch (await _toolCallExecutor.ExecuteToolCallAsync(toolCall, user))
                                 {
-                                    messages.Add(toolCallResult.Value);
-                                    newlyGeneratedMessages.Add(new LHChatToolCallResult{
-                                        ChatMessageItemID =  Guid.NewGuid(),
-                                        ChatConversationID = request.Conversation.ChatConversationID,
-                                        CreationTime = DateTime.UtcNow,
-                                        TokenCount = (toolCallResult.Value.Content?[0].Text ?? string.Empty).Length / 4,
-                                        Content = toolCallResult.Value.Content?[0].Text,
-                                    });   
-                                }
-                                else
-                                {
-                                    messages.Add(new ToolChatMessage(toolCall.Id, DescribeToolFailure(toolCallResult)));
+                                    case Success<ToolChatMessage, Problem> executed:
+                                        messages.Add(executed.Value);
+                                        newlyGeneratedMessages.Add(new LHChatToolCallResult{
+                                            ChatMessageItemID =  Guid.NewGuid(),
+                                            ChatConversationID = request.Conversation.ChatConversationID,
+                                            CreationTime = DateTime.UtcNow,
+                                            TokenCount = (executed.Value.Content?[0].Text ?? string.Empty).Length / 4,
+                                            Content = executed.Value.Content?[0].Text,
+                                        });
+                                        break;
+                                    case Failure<ToolChatMessage, Problem> refused:
+                                        messages.Add(new ToolChatMessage(toolCall.Id, DescribeToolFailure(refused.Problem)));
+                                        break;
                                 }
                             }
 
@@ -112,48 +121,42 @@ namespace Services.Chat
                         }
 
                     case ChatFinishReason.Length:
-                        return Result.Error("Incomplete model output due to MaxTokens parameter or token limit exceeded.");
+                        return Result<ChatCompletionResponse, Problem>.Failure(new Problem.Upstream(
+                            "Incomplete model output due to MaxTokens parameter or token limit exceeded."));
                     case ChatFinishReason.ContentFilter:
-                        return Result.Error("Omitted content due to a content filter flag.");
+                        return Result<ChatCompletionResponse, Problem>.Failure(
+                            new Problem.Upstream("Omitted content due to a content filter flag."));
                     default:
-                        return Result.Error(completion.FinishReason.ToString());
+                        return Result<ChatCompletionResponse, Problem>.Failure(
+                            new Problem.Upstream(completion.FinishReason.ToString()));
                 }
             } while (requiresAction);
-            return Result.Error("Failed to generate chat completion.");
+
+            return Result<ChatCompletionResponse, Problem>.Failure(
+                new Problem.Upstream("Failed to generate chat completion."));
         }
 
         /// <summary>
         /// What the model is told when a tool call fails. It is the model's only signal to
         /// recover — retry with different arguments, or answer without the tool — so it has to
-        /// say what went wrong. Each Ardalis status carries its detail in a different place, and
-        /// the refusal statuses carry none at all.
+        /// say what went wrong.
         /// </summary>
-        private static string DescribeToolFailure(Result<ToolChatMessage> result)
-        {
-            var detail = result.Status switch
-            {
-                ResultStatus.NotFound => "No such tool is available.",
-                ResultStatus.Unauthorized => "You are not authorized to call this tool.",
-                ResultStatus.Forbidden => "This tool is not available in this conversation.",
-                ResultStatus.Invalid => string.Join("; ", result.ValidationErrors.Select(e => e.ErrorMessage)),
-                _ => string.Join("; ", result.Errors),
-            };
-
-            return string.IsNullOrWhiteSpace(detail)
-                ? $"Tool call failed ({result.Status})."
-                : $"Tool call failed: {detail}";
-        }
+        private static string DescribeToolFailure(Problem problem) =>
+            string.IsNullOrWhiteSpace(problem.Description)
+                ? "Tool call failed."
+                : $"Tool call failed: {problem.Description}";
 
         /// <summary>
         /// Given a chat conversation, process and return the list of chat messages to be used in the completion.
         /// This includes handling conversation history compression if needed.
         /// </summary>
-        private Result<List<ChatMessage>> HandleConversationHistory(LHChatConversation conversation)
+        private Result<List<ChatMessage>, Problem> HandleConversationHistory(LHChatConversation conversation)
         {
             var systemPrompt = conversation.ChatSystemMessage;
             if (systemPrompt.TokenCount > MAX_INPUT_TOKENS)
             {
-                return Result.Error("System prompt exceeds maximum allowed tokens.");   
+                return Result<List<ChatMessage>, Problem>.Failure(
+                    new Problem.Unexpected("System prompt exceeds maximum allowed tokens."));
             }
 
 
@@ -194,7 +197,7 @@ namespace Services.Chat
                 .Select(m => m.ToChatMessage())
                 .ToList();
             compressedChatConversation.Insert(0, systemPrompt.ToChatMessage());
-            return Result.Success(compressedChatConversation);
+            return Result<List<ChatMessage>, Problem>.Success(compressedChatConversation);
            
         }
             

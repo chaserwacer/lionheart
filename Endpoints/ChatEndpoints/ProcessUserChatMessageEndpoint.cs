@@ -1,6 +1,5 @@
 using Ardalis.ApiEndpoints;
-using Ardalis.Filters;
-using Ardalis.Result.AspNetCore;
+using lionheart.Endpoints.Filters;
 using lionheart.Model.Chat;
 using lionheart.Services.Chat;
 using Microsoft.AspNetCore.Identity;

@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Training;
 using Mapster;
@@ -7,10 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 public interface IEquipmentService
 {
-    Task<Result<EquipmentDTO>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request);
-    Task<Result<EquipmentDTO>> UpdateEquipmentAsync(IdentityUser user, UpdateEquipmentRequest request);
-    Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId);
-    Task<Result<List<EquipmentDTO>>> GetEquipmentsAsync(IdentityUser user);
+    Task<Result<EquipmentDTO, Problem>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request);
+    Task<Result<EquipmentDTO, Problem>> UpdateEquipmentAsync(IdentityUser user, UpdateEquipmentRequest request);
+    Task<Result<Unit, Problem>> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId);
+    Task<Result<List<EquipmentDTO>, Problem>> GetEquipmentsAsync(IdentityUser user);
 }
 
 public class EquipmentService : IEquipmentService
@@ -22,7 +22,7 @@ public class EquipmentService : IEquipmentService
         _context = context;
     }
 
-    public async Task<Result<EquipmentDTO>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request)
+    public async Task<Result<EquipmentDTO, Problem>> CreateEquipmentAsync(IdentityUser user, CreateEquipmentRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
         // Check if equipment with this name already exists for this user
@@ -31,7 +31,7 @@ public class EquipmentService : IEquipmentService
 
         if (existingEquipment != null)
         {
-            return Result<EquipmentDTO>.Conflict("An equipment with this name already exists for this user.");
+            return Result<EquipmentDTO, Problem>.Failure(new Problem.Conflict("An equipment with this name already exists for this user."));
         }
 
         var equipment = new Equipment
@@ -44,10 +44,10 @@ public class EquipmentService : IEquipmentService
 
         _context.Equipments.Add(equipment);
         await _context.SaveChangesAsync();
-        return Result<EquipmentDTO>.Created(equipment.ToDTO());
+        return Result<EquipmentDTO, Problem>.Success(equipment.ToDTO());
     }
 
-    public async Task<Result<EquipmentDTO>> UpdateEquipmentAsync(IdentityUser user, UpdateEquipmentRequest request)
+    public async Task<Result<EquipmentDTO, Problem>> UpdateEquipmentAsync(IdentityUser user, UpdateEquipmentRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
         var equipment = await _context.Equipments
@@ -55,7 +55,7 @@ public class EquipmentService : IEquipmentService
 
         if (equipment == null)
         {
-            return Result.NotFound("Equipment not found or not owned by user.");
+            return Result<EquipmentDTO, Problem>.Failure(new Problem.NotFound("Equipment not found or not owned by user."));
         }
 
         // Check for name conflicts
@@ -65,46 +65,46 @@ public class EquipmentService : IEquipmentService
 
         if (nameConflict)
         {
-            return Result.Conflict("An equipment with this name already exists for this user.");
+            return Result<EquipmentDTO, Problem>.Failure(new Problem.Conflict("An equipment with this name already exists for this user."));
         }
 
         equipment.Name = request.Name;
         equipment.Enabled = request.Enabled;
 
         await _context.SaveChangesAsync();
-        return Result<EquipmentDTO>.Success(equipment.ToDTO());
+        return Result<EquipmentDTO, Problem>.Success(equipment.ToDTO());
     }
 
-    public async Task<Result> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId)
+    public async Task<Result<Unit, Problem>> DeleteEquipmentAsync(IdentityUser user, Guid equipmentId)
     {
         var userGuid = Guid.Parse(user.Id);
         // Verify the equipment exists and belongs to the user
         var equipment = await _context.Equipments.FirstOrDefaultAsync(e => e.EquipmentID == equipmentId && e.UserID == userGuid);
         if (equipment == null)
         {
-            return Result.NotFound("Equipment not found or not owned by user.");
+            return Result<Unit, Problem>.Failure(new Problem.NotFound("Equipment not found or not owned by user."));
         }
 
         // Prevent deleting equipment that's in use
         var inUse = await _context.MovementDatas.AnyAsync(md => md.EquipmentID == equipmentId);
         if (inUse)
         {
-            return Result.Conflict("Cannot delete equipment while movements reference it.");
+            return Result<Unit, Problem>.Failure(new Problem.Conflict("Cannot delete equipment while movements reference it."));
         }
 
         // Remove and save
         _context.Equipments.Remove(equipment);
         await _context.SaveChangesAsync();
-        return Result.NoContent();
+        return Result<Unit, Problem>.Success(Unit.Value);
     }
 
-    public async Task<Result<List<EquipmentDTO>>> GetEquipmentsAsync(IdentityUser user)
+    public async Task<Result<List<EquipmentDTO>, Problem>> GetEquipmentsAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);
         var equipments = await _context.Equipments
             .Where(e => e.UserID == userGuid)
             .OrderBy(e => e.Name)
             .ToListAsync();
-        return Result<List<EquipmentDTO>>.Success(equipments.Select(e => e.ToDTO()).ToList());
+        return Result<List<EquipmentDTO>, Problem>.Success(equipments.Select(e => e.ToDTO()).ToList());
     }
 }

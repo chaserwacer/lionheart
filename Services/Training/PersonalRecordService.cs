@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Training;
 using Microsoft.AspNetCore.Identity;
@@ -12,27 +12,27 @@ public interface IPersonalRecordService
     /// <summary>
     /// Gets all active personal records for a user.
     /// </summary>
-    Task<Result<List<PersonalRecordDTO>>> GetPersonalRecordsAsync(IdentityUser user);
+    Task<Result<List<PersonalRecordDTO>, Problem>> GetPersonalRecordsAsync(IdentityUser user);
 
     /// <summary>
     /// Gets the PR summary for a specific MovementData.
     /// </summary>
-    Task<Result<MovementDataPRSummary>> GetPRSummaryForMovementDataAsync(IdentityUser user, Guid movementDataId);
+    Task<Result<MovementDataPRSummary, Problem>> GetPRSummaryForMovementDataAsync(IdentityUser user, Guid movementDataId);
 
     /// <summary>
     /// Gets all PR summaries for all MovementDatas the user has PRs for.
     /// </summary>
-    Task<Result<List<MovementDataPRSummary>>> GetAllPRSummariesAsync(IdentityUser user);
+    Task<Result<List<MovementDataPRSummary>, Problem>> GetAllPRSummariesAsync(IdentityUser user);
 
     /// <summary>
     /// Reverts a PR to its previous state.
     /// </summary>
-    Task<Result<PersonalRecordDTO?>> RevertToPreviousAsync(IdentityUser user, Guid personalRecordId);
+    Task<Result<PersonalRecordDTO?, Problem>> RevertToPreviousAsync(IdentityUser user, Guid personalRecordId);
 
     /// <summary>
     /// Gets the history of PRs for a specific MovementData and type.
     /// </summary>
-    Task<Result<List<PersonalRecordDTO>>> GetPRHistoryAsync(IdentityUser user, Guid movementDataId, PersonalRecordType prType);
+    Task<Result<List<PersonalRecordDTO>, Problem>> GetPRHistoryAsync(IdentityUser user, Guid movementDataId, PersonalRecordType prType);
 }
 [ToolProvider]
 public class PersonalRecordService : IPersonalRecordService
@@ -44,7 +44,7 @@ public class PersonalRecordService : IPersonalRecordService
         _context = context;
     }
     [Tool(Name = "GetPersonalRecords", Description = "Get all active personal records for the user.")]
-    public async Task<Result<List<PersonalRecordDTO>>> GetPersonalRecordsAsync(IdentityUser user)
+    public async Task<Result<List<PersonalRecordDTO>, Problem>> GetPersonalRecordsAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);
         var records = await _context.PersonalRecords
@@ -58,10 +58,10 @@ public class PersonalRecordService : IPersonalRecordService
             .OrderByDescending(pr => pr.CreatedAt)
             .ToListAsync();
 
-        return Result<List<PersonalRecordDTO>>.Success(records.Select(r => r.ToDTO()).ToList());
+        return Result<List<PersonalRecordDTO>, Problem>.Success(records.Select(r => r.ToDTO()).ToList());
     }
     [Tool(Name = "GetPRSummaryForMovementData", Description = "Get PR summary for a specific MovementData.")]
-    public async Task<Result<MovementDataPRSummary>> GetPRSummaryForMovementDataAsync(IdentityUser user, Guid movementDataId)
+    public async Task<Result<MovementDataPRSummary, Problem>> GetPRSummaryForMovementDataAsync(IdentityUser user, Guid movementDataId)
     {
         var userGuid = Guid.Parse(user.Id);
 
@@ -73,7 +73,7 @@ public class PersonalRecordService : IPersonalRecordService
 
         if (movementData == null)
         {
-            return Result<MovementDataPRSummary>.NotFound("MovementData not found.");
+            return Result<MovementDataPRSummary, Problem>.Failure(new Problem.NotFound("MovementData not found."));
         }
 
         var strengthPR = await _context.PersonalRecords
@@ -94,7 +94,7 @@ public class PersonalRecordService : IPersonalRecordService
             .Where(d => d.HasValue)
             .Max();
 
-        return Result<MovementDataPRSummary>.Success(new MovementDataPRSummary(
+        return Result<MovementDataPRSummary, Problem>.Success(new MovementDataPRSummary(
             movementDataId,
             movementData.ToDTO(),
             strengthPR?.ToDTO(),
@@ -102,7 +102,7 @@ public class PersonalRecordService : IPersonalRecordService
             lastPRDate
         ));
     }
-    public async Task<Result<List<MovementDataPRSummary>>> GetAllPRSummariesAsync(IdentityUser user)
+    public async Task<Result<List<MovementDataPRSummary>, Problem>> GetAllPRSummariesAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);
 
@@ -114,22 +114,31 @@ public class PersonalRecordService : IPersonalRecordService
             .ToListAsync();
 
         var summaries = new List<MovementDataPRSummary>();
-        foreach (var mdId in movementDataIds)
+        foreach (var movementDataId in movementDataIds)
         {
-            var result = await GetPRSummaryForMovementDataAsync(user, mdId);
-            if (result.IsSuccess)
+            // A movement whose summary cannot be built is simply absent from the list rather
+            // than failing the whole page.
+            if (await GetPRSummaryForMovementDataAsync(user, movementDataId)
+                is Success<MovementDataPRSummary, Problem> summary)
             {
-                summaries.Add(result.Value);
+                summaries.Add(summary.Value);
             }
         }
 
-        return Result<List<MovementDataPRSummary>>.Success(summaries.OrderByDescending(s => s.LastPRDate).ToList());
+        return Result<List<MovementDataPRSummary>, Problem>.Success(summaries.OrderByDescending(s => s.LastPRDate).ToList());
     }
 
-    public async Task<Result<PersonalRecordDTO?>> RevertToPreviousAsync(IdentityUser user, Guid personalRecordId)
-    {
-        var userGuid = Guid.Parse(user.Id);
+    public Task<Result<PersonalRecordDTO?, Problem>> RevertToPreviousAsync(IdentityUser user, Guid personalRecordId) =>
+        FindRevertableAsync(Guid.Parse(user.Id), personalRecordId)
+            // A record that has already been reverted collides with the state it is in, rather
+            // than being a malformed ask: the same request was legitimate a moment earlier.
+            .EnsureAsync(
+                pr => pr.IsActive,
+                _ => new Problem.Conflict("Cannot revert an inactive personal record."))
+            .MapAsync(RevertAsync);
 
+    private async Task<Result<PersonalRecord, Problem>> FindRevertableAsync(Guid userId, Guid personalRecordId)
+    {
         var pr = await _context.PersonalRecords
             .Include(pr => pr.PreviousPersonalRecord)
             .Include(pr => pr.MovementData)
@@ -138,34 +147,27 @@ public class PersonalRecordService : IPersonalRecordService
                 .ThenInclude(md => md.MovementBase)
             .Include(pr => pr.MovementData)
                 .ThenInclude(md => md.MovementModifier)
-            .FirstOrDefaultAsync(pr => pr.PersonalRecordID == personalRecordId && pr.UserID == userGuid);
+            .FirstOrDefaultAsync(pr => pr.PersonalRecordID == personalRecordId && pr.UserID == userId);
 
-        if (pr == null)
-        {
-            return Result<PersonalRecordDTO?>.NotFound("Personal record not found.");
-        }
-
-        if (!pr.IsActive)
-        {
-            return Result<PersonalRecordDTO?>.Error("Cannot revert an inactive personal record.");
-        }
-
-        // Deactivate current PR
-        pr.IsActive = false;
-
-        // Reactivate previous PR if it exists
-        if (pr.PreviousPersonalRecord != null)
-        {
-            pr.PreviousPersonalRecord.IsActive = true;
-            await _context.SaveChangesAsync();
-            return Result<PersonalRecordDTO?>.Success(pr.PreviousPersonalRecord.ToDTO());
-        }
-
-        await _context.SaveChangesAsync();
-        return Result<PersonalRecordDTO?>.Success(null);
+        return pr is null
+            ? Result<PersonalRecord, Problem>.Failure(new Problem.NotFound("Personal record not found."))
+            : Result<PersonalRecord, Problem>.Success(pr);
     }
 
-    public async Task<Result<List<PersonalRecordDTO>>> GetPRHistoryAsync(IdentityUser user, Guid movementDataId, PersonalRecordType prType)
+    /// <summary>
+    /// Steps the PR back one link in its own chain. A record that was the first of its kind has
+    /// nothing behind it to restore, which is why nothing comes back in that case.
+    /// </summary>
+    private async Task<PersonalRecordDTO?> RevertAsync(PersonalRecord pr)
+    {
+        pr.IsActive = false;
+        if (pr.PreviousPersonalRecord is not null) pr.PreviousPersonalRecord.IsActive = true;
+
+        await _context.SaveChangesAsync();
+        return pr.PreviousPersonalRecord?.ToDTO();
+    }
+
+    public async Task<Result<List<PersonalRecordDTO>, Problem>> GetPRHistoryAsync(IdentityUser user, Guid movementDataId, PersonalRecordType prType)
     {
         var userGuid = Guid.Parse(user.Id);
 
@@ -180,7 +182,7 @@ public class PersonalRecordService : IPersonalRecordService
             .OrderByDescending(pr => pr.CreatedAt)
             .ToListAsync();
 
-        return Result<List<PersonalRecordDTO>>.Success(history.Select(h => h.ToDTO()).ToList());
+        return Result<List<PersonalRecordDTO>, Problem>.Success(history.Select(h => h.ToDTO()).ToList());
     }
 
 }

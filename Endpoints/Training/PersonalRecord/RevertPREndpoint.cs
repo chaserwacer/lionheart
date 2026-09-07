@@ -1,5 +1,4 @@
 using Ardalis.ApiEndpoints;
-using Ardalis.Result.AspNetCore;
 using lionheart.Model.Training;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;
@@ -22,10 +21,12 @@ public class RevertPREndpoint : EndpointBaseAsync
 
     [HttpPost("api/personal-records/revert/{personalRecordId:guid}")]
     [EndpointDescription("Revert a personal record to its previous state. Returns the previous PR if one exists, or null if there was no previous PR.")]
+    // 200 with a null body is what "reverted, and there was no previous PR" looks like — the
+    // route always answers with the DTO slot, so there is no 204 among its outcomes.
     [ProducesResponseType<PersonalRecordDTO>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public override async Task<ActionResult<PersonalRecordDTO?>> HandleAsync([FromRoute] Guid personalRecordId, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.GetUserAsync(User);

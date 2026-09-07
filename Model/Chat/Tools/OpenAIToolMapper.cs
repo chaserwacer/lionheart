@@ -1,8 +1,6 @@
-using System.ComponentModel;
 using System.Reflection;
 using System.Text.Json;
-using Ardalis.Result;
-using lionheart.Model.Training;
+using lionheart.Functional;
 using Microsoft.AspNetCore.Identity;
 using Model.Chat.Tools;
 using NJsonSchema;
@@ -20,10 +18,11 @@ namespace Model.Tools
         /// </summary>
         /// <param name="methodInfo"></param>
         /// <returns></returns>
-        public static async Task<Result<ChatTool>> MapTool(MethodInfo methodInfo)
+        public static async Task<Result<ChatTool, Problem>> MapTool(MethodInfo methodInfo)
         {
             if (methodInfo is null)
-                return Result.Error("MethodInfo cannot be null.");
+                return Result<ChatTool, Problem>.Failure(
+                    new Problem.Unexpected("MethodInfo cannot be null."));
 
             var parameters = methodInfo.GetParameters();
             string functionParameters;
@@ -44,9 +43,11 @@ namespace Model.Tools
             else
             {
                 if (parameters[0].ParameterType != typeof(IdentityUser))
-                    return Result.Error($"First parameter of method '{methodInfo.Name}' is expected to be 'IdentityUser'.");
+                    return Result<ChatTool, Problem>.Failure(new Problem.Unexpected(
+                        $"First parameter of method '{methodInfo.Name}' is expected to be 'IdentityUser'."));
                 if (parameters.Length > 2)
-                    return Result.Error($"Method '{methodInfo.Name}' must have at most two parameters.");
+                    return Result<ChatTool, Problem>.Failure(new Problem.Unexpected(
+                        $"Method '{methodInfo.Name}' must have at most two parameters."));
 
                 if (parameters[1].ParameterType == typeof(Guid) || parameters[1].ParameterType == typeof(string))
                 {
@@ -85,30 +86,7 @@ namespace Model.Tools
                 functionParameters: BinaryData.FromString(functionParameters)
             );
 
-            return Result.Success(tool);
-        }
-
-        /// <summary>
-        /// Maps a list of MethodInfo objects to their corresponding ChatTool definitions.
-        /// </summary>
-        /// <param name="methodInfos"></param>
-        /// <returns></returns>
-        public static async Task<Result<List<ChatTool>>> MapTools(List<MethodInfo> methodInfos)
-        {
-            var tools = new List<ChatTool>();
-            var errors = new List<string>();
-            foreach (var methodInfo in methodInfos)
-            {
-                var result = await MapTool(methodInfo);
-                if (!result.IsSuccess)
-                    errors.AddRange(result.Errors);
-                else
-                    tools.Add(result.Value);
-            }
-
-            return errors.Any()
-                ? Result.Error(new ErrorList(errors))
-                : Result.Success(tools);
+            return Result<ChatTool, Problem>.Success(tool);
         }
     }
 

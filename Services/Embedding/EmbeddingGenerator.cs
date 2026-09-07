@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using OpenAI.Embeddings;
 
 namespace lionheart.Services.Embedding;
@@ -10,8 +10,8 @@ namespace lionheart.Services.Embedding;
 /// </summary>
 public interface IEmbeddingGenerator
 {
-    Task<Result<float[]>> GenerateAsync(string text);
-    Task<Result<IReadOnlyList<float[]>>> GenerateBatchAsync(IReadOnlyList<string> texts);
+    Task<Result<float[], Problem>> GenerateAsync(string text);
+    Task<Result<IReadOnlyList<float[]>, Problem>> GenerateBatchAsync(IReadOnlyList<string> texts);
 }
 
 /// <summary>
@@ -24,50 +24,46 @@ public sealed class LmStudioEmbeddingGenerator : IEmbeddingGenerator
 
     public LmStudioEmbeddingGenerator(EmbeddingClient client) => _client = client;
 
-    public async Task<Result<float[]>> GenerateAsync(string text)
+    public async Task<Result<float[], Problem>> GenerateAsync(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
-            return Result<float[]>.Invalid(new ValidationError
-            {
-                Identifier = nameof(text),
-                ErrorMessage = "Cannot embed empty text."
-            });
+            return Result<float[], Problem>.Failure(
+                new Problem.Invalid(nameof(text), "Cannot embed empty text."));
         }
 
         try
         {
             var embedding = await _client.GenerateEmbeddingAsync(text);
-            return Result<float[]>.Success(embedding.Value.ToFloats().ToArray());
+            return Result<float[], Problem>.Success(embedding.Value.ToFloats().ToArray());
         }
         catch (Exception ex)
         {
-            return Result<float[]>.Error($"Embedding generation failed: {ex.Message}");
+            return Result<float[], Problem>.Failure(
+                new Problem.Upstream($"Embedding generation failed: {ex.Message}"));
         }
     }
 
-    public async Task<Result<IReadOnlyList<float[]>>> GenerateBatchAsync(IReadOnlyList<string> texts)
+    public async Task<Result<IReadOnlyList<float[]>, Problem>> GenerateBatchAsync(IReadOnlyList<string> texts)
     {
-        if (texts.Count == 0) return Result<IReadOnlyList<float[]>>.Success([]);
+        if (texts.Count == 0) return Result<IReadOnlyList<float[]>, Problem>.Success([]);
 
         if (texts.Any(string.IsNullOrWhiteSpace))
         {
-            return Result<IReadOnlyList<float[]>>.Invalid(new ValidationError
-            {
-                Identifier = nameof(texts),
-                ErrorMessage = "Cannot embed empty text."
-            });
+            return Result<IReadOnlyList<float[]>, Problem>.Failure(
+                new Problem.Invalid(nameof(texts), "Cannot embed empty text."));
         }
 
         try
         {
             var embeddings = await _client.GenerateEmbeddingsAsync(texts);
             IReadOnlyList<float[]> vectors = [.. embeddings.Value.Select(e => e.ToFloats().ToArray())];
-            return Result<IReadOnlyList<float[]>>.Success(vectors);
+            return Result<IReadOnlyList<float[]>, Problem>.Success(vectors);
         }
         catch (Exception ex)
         {
-            return Result<IReadOnlyList<float[]>>.Error($"Embedding generation failed: {ex.Message}");
+            return Result<IReadOnlyList<float[]>, Problem>.Failure(
+                new Problem.Upstream($"Embedding generation failed: {ex.Message}"));
         }
     }
 }

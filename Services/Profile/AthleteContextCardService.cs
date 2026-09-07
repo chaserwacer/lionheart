@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Profile;
 using lionheart.Model.Training.Sessions;
@@ -20,13 +20,13 @@ namespace lionheart.Services.Profile
         /// tier if it has gone stale or the generator version changed. Never an LLM call on the hot path
         /// beyond best-effort narrative during a (re)build.
         /// </summary>
-        Task<Result<AthleteContextCard>> GetOrBuildCardAsync(IdentityUser user);
+        Task<Result<AthleteContextCard, Problem>> GetOrBuildCardAsync(IdentityUser user);
 
         /// <summary>Rebuild the slow-changing Stable Profile tier (identity, baselines, long-horizon trends).</summary>
-        Task<Result<AthleteContextCard>> RebuildStableProfileAsync(IdentityUser user);
+        Task<Result<AthleteContextCard, Problem>> RebuildStableProfileAsync(IdentityUser user);
 
         /// <summary>Recompute the fast, event-driven Recent State tier (today/this-week snapshot).</summary>
-        Task<Result<AthleteContextCard>> RefreshRecentStateAsync(IdentityUser user);
+        Task<Result<AthleteContextCard, Problem>> RefreshRecentStateAsync(IdentityUser user);
 
         /// <summary>
         /// Assemble the full system prompt: a byte-stable, cacheable prefix (coaching instructions +
@@ -47,7 +47,7 @@ namespace lionheart.Services.Profile
         private readonly ModelContext _context = context;
         private readonly NarrativeChatClient _narrativeClient = narrativeClient;
 
-        public async Task<Result<AthleteContextCard>> GetOrBuildCardAsync(IdentityUser user)
+        public async Task<Result<AthleteContextCard, Problem>> GetOrBuildCardAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
             var card = await _context.AthleteContextCards.FirstOrDefaultAsync(c => c.UserID == userId);
@@ -67,7 +67,7 @@ namespace lionheart.Services.Profile
                 await BuildStableProfileAsync(card, userId);
                 await BuildRecentStateAsync(card, userId);
                 await _context.SaveChangesAsync();
-                return Result.Success(card);
+                return Result<AthleteContextCard, Problem>.Success(card);
             }
 
             var stableStale = card.GeneratorVersion != GENERATOR_VERSION;
@@ -87,10 +87,10 @@ namespace lionheart.Services.Profile
                 await _context.SaveChangesAsync();
             }
 
-            return Result.Success(card);
+            return Result<AthleteContextCard, Problem>.Success(card);
         }
 
-        public async Task<Result<AthleteContextCard>> RebuildStableProfileAsync(IdentityUser user)
+        public async Task<Result<AthleteContextCard, Problem>> RebuildStableProfileAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
             var card = await _context.AthleteContextCards.FirstOrDefaultAsync(c => c.UserID == userId);
@@ -100,10 +100,10 @@ namespace lionheart.Services.Profile
             }
             await BuildStableProfileAsync(card, userId);
             await _context.SaveChangesAsync();
-            return Result.Success(card);
+            return Result<AthleteContextCard, Problem>.Success(card);
         }
 
-        public async Task<Result<AthleteContextCard>> RefreshRecentStateAsync(IdentityUser user)
+        public async Task<Result<AthleteContextCard, Problem>> RefreshRecentStateAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
             var card = await _context.AthleteContextCards.FirstOrDefaultAsync(c => c.UserID == userId);
@@ -113,7 +113,7 @@ namespace lionheart.Services.Profile
             }
             await BuildRecentStateAsync(card, userId);
             await _context.SaveChangesAsync();
-            return Result.Success(card);
+            return Result<AthleteContextCard, Problem>.Success(card);
         }
 
         // ---------------------------------------------------------------------

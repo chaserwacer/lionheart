@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Services.Chat;
 using lionheart.Tests.Support;
 using OpenAI.Chat;
@@ -23,10 +23,10 @@ public sealed class FakeChatServerTests : IDisposable
 
         var result = (await _server.CreateChatClient().CompleteChatAsync([new UserChatMessage("hi")])).ToResult();
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(ChatFinishReason.Stop, result.Value.FinishReason);
-        Assert.Equal("worked up to 235", string.Join("", result.Value.Content.Select(c => c.Text)));
-        Assert.Equal(7, result.Value.Usage.OutputTokenCount);
+        var completion = ResultAssert.Succeeded(result);
+        Assert.Equal(ChatFinishReason.Stop, completion.FinishReason);
+        Assert.Equal("worked up to 235", string.Join("", completion.Content.Select(c => c.Text)));
+        Assert.Equal(7, completion.Usage.OutputTokenCount);
     }
 
     [Fact]
@@ -36,9 +36,9 @@ public sealed class FakeChatServerTests : IDisposable
 
         var result = (await _server.CreateChatClient().CompleteChatAsync([new UserChatMessage("hi")])).ToResult();
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(ChatFinishReason.ToolCalls, result.Value.FinishReason);
-        var call = Assert.Single(result.Value.ToolCalls);
+        var completion = ResultAssert.Succeeded(result);
+        Assert.Equal(ChatFinishReason.ToolCalls, completion.FinishReason);
+        var call = Assert.Single(completion.ToolCalls);
         Assert.Equal("get_wellness", call.FunctionName);
         Assert.Equal("""{"days":7}""", call.FunctionArguments.ToString());
     }
@@ -54,8 +54,7 @@ public sealed class FakeChatServerTests : IDisposable
 
         var result = (await _server.CreateChatClient().CompleteChatAsync([new UserChatMessage("hi")])).ToResult();
 
-        Assert.True(result.IsError());
-        Assert.Contains("Model 'qwen' is not loaded.", string.Join("; ", result.Errors));
+        Assert.Contains("Model 'qwen' is not loaded.", ResultAssert.Failed(result).Description);
     }
 
     [Fact]
@@ -65,8 +64,7 @@ public sealed class FakeChatServerTests : IDisposable
 
         var result = (await _server.CreateChatClient().CompleteChatAsync([new UserChatMessage("hi")])).ToResult();
 
-        Assert.True(result.IsError());
-        Assert.Contains("no choices", string.Join("; ", result.Errors));
+        Assert.Contains("no choices", ResultAssert.Failed(result).Description);
     }
 
     [Fact]
