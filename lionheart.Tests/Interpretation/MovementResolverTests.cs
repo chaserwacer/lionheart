@@ -5,6 +5,7 @@ using lionheart.Model.User;
 using lionheart.Services;
 using lionheart.Services.Interpretation;
 using lionheart.Tests.Persistence;
+using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,10 +61,10 @@ public class MovementResolverTests : IDisposable
         var resolution = await BuildResolver(context).ResolveAsync(
             _user, [new MovementReference("Bench Press", "Barbell", string.Empty)]);
 
-        Assert.True(resolution.IsSuccess);
-        Assert.Empty(resolution.Value.Unresolved);
-        Assert.Single(resolution.Value.Resolved);
-        Assert.NotEqual(Guid.Empty, resolution.Value.Resolved.Values.Single());
+        var resolved = ResultAssert.Succeeded(resolution);
+        Assert.Empty(resolved.Unresolved);
+        Assert.Single(resolved.Resolved);
+        Assert.NotEqual(Guid.Empty, resolved.Resolved.Values.Single());
     }
 
     [Fact]
@@ -75,8 +76,8 @@ public class MovementResolverTests : IDisposable
         var resolution = await BuildResolver(context).ResolveAsync(
             _user, [new MovementReference("  bench press ", "BARBELL", string.Empty)]);
 
-        Assert.True(resolution.IsSuccess);
-        Assert.Empty(resolution.Value.Unresolved);
+        var resolved = ResultAssert.Succeeded(resolution);
+        Assert.Empty(resolved.Unresolved);
     }
 
     [Fact]
@@ -88,10 +89,10 @@ public class MovementResolverTests : IDisposable
         var resolution = await BuildResolver(context).ResolveAsync(
             _user, [new MovementReference("Squat", "Barbell", string.Empty)]);
 
-        Assert.True(resolution.IsSuccess);
-        Assert.Empty(resolution.Value.Resolved);
+        var resolved = ResultAssert.Succeeded(resolution);
+        Assert.Empty(resolved.Resolved);
 
-        var unresolved = Assert.Single(resolution.Value.Unresolved);
+        var unresolved = Assert.Single(resolved.Unresolved);
         Assert.Equal("Squat", unresolved.RawName);
         Assert.Equal(ReferenceKind.MovementBase, unresolved.Kind);
         Assert.Equal("Front Squat", unresolved.Candidates.First().Name);
@@ -106,8 +107,8 @@ public class MovementResolverTests : IDisposable
         var resolution = await BuildResolver(context).ResolveAsync(
             _user, [new MovementReference("Bench Press", "Barbell", string.Empty)]);
 
-        Assert.True(resolution.IsSuccess);
-        var unresolved = Assert.Single(resolution.Value.Unresolved);
+        var resolved = ResultAssert.Succeeded(resolution);
+        var unresolved = Assert.Single(resolved.Unresolved);
         Assert.Equal(ReferenceKind.Equipment, unresolved.Kind);
         Assert.Equal("Barbell", unresolved.RawName);
     }
@@ -126,8 +127,8 @@ public class MovementResolverTests : IDisposable
             new MovementReference("sled pull", "Barbell", string.Empty)
         ]);
 
-        Assert.True(resolution.IsSuccess);
-        Assert.Single(resolution.Value.Unresolved);
+        var resolved = ResultAssert.Succeeded(resolution);
+        Assert.Single(resolved.Unresolved);
     }
 
     /// <summary>
@@ -147,9 +148,9 @@ public class MovementResolverTests : IDisposable
                 new MovementReference("Sled Pull", "Barbell", string.Empty)
             ]);
 
-            Assert.True(resolution.IsSuccess);
-            Assert.NotEmpty(resolution.Value.Unresolved);
-            Assert.Empty(resolution.Value.Resolved);
+            var resolved = ResultAssert.Succeeded(resolution);
+            Assert.NotEmpty(resolved.Unresolved);
+            Assert.Empty(resolved.Resolved);
         }
 
         using var verify = _database.CreateContext();
@@ -168,9 +169,9 @@ public class MovementResolverTests : IDisposable
             new MovementReference("Bench Press", "Barbell", "Incline")
         ]);
 
-        Assert.True(resolution.IsSuccess);
-        Assert.Equal(2, resolution.Value.Resolved.Count);
-        Assert.Equal(2, resolution.Value.Resolved.Values.Distinct().Count());
+        var resolved = ResultAssert.Succeeded(resolution);
+        Assert.Equal(2, resolved.Resolved.Count);
+        Assert.Equal(2, resolved.Resolved.Values.Distinct().Count());
     }
 
     [Fact]
@@ -202,7 +203,7 @@ public class MovementResolverTests : IDisposable
         var resolution = await BuildResolver(context).ResolveAsync(
             _user, [new MovementReference("Bench Press", "Barbell", string.Empty)]);
 
-        Assert.True(resolution.IsSuccess);
-        Assert.Contains(resolution.Value.Unresolved, u => u.Kind == ReferenceKind.MovementBase);
+        var resolved = ResultAssert.Succeeded(resolution);
+        Assert.Contains(resolved.Unresolved, u => u.Kind == ReferenceKind.MovementBase);
     }
 }

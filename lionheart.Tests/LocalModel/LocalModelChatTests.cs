@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Chat;
@@ -50,8 +50,8 @@ public sealed class LocalModelChatTests : IDisposable
             cancellation.Token);
 
         var result = completion.ToResult();
-        Assert.True(result.IsSuccess, string.Join("; ", result.Errors));
-        Assert.NotEmpty(string.Join("", result.Value.Content.Select(c => c.Text)));
+        var completed = ResultAssert.Succeeded(result);
+        Assert.NotEmpty(string.Join("", completed.Content.Select(c => c.Text)));
     }
 
     /// <summary>
@@ -74,10 +74,10 @@ public sealed class LocalModelChatTests : IDisposable
             cancellation.Token);
 
         var result = completion.ToResult();
-        Assert.True(result.IsSuccess, string.Join("; ", result.Errors));
+        var completed = ResultAssert.Succeeded(result);
 
         var sets = JsonSerializer.Deserialize<IReadOnlyList<SetEntry>>(
-            ExtractJsonArray(string.Join("", result.Value.Content.Select(c => c.Text))));
+            ExtractJsonArray(string.Join("", completed.Content.Select(c => c.Text))));
 
         Assert.NotNull(sets);
         Assert.NotEmpty(sets);
@@ -105,10 +105,10 @@ public sealed class LocalModelChatTests : IDisposable
             cancellation.Token);
 
         var result = completion.ToResult();
-        Assert.True(result.IsSuccess, string.Join("; ", result.Errors));
+        var completed = ResultAssert.Succeeded(result);
 
         var facets = JsonSerializer.Deserialize<IReadOnlyList<Facet>>(
-            ExtractJsonArray(string.Join("", result.Value.Content.Select(c => c.Text))));
+            ExtractJsonArray(string.Join("", completed.Content.Select(c => c.Text))));
 
         Assert.NotNull(facets);
         Assert.All(facets, facet =>
@@ -142,7 +142,7 @@ public sealed class LocalModelChatTests : IDisposable
                 Options = options,
             });
 
-        Assert.True(result.IsSuccess, string.Join("; ", result.Errors));
+        ResultAssert.Succeeded(result);
         Assert.Contains(_toolbox.Tools.Calls, call => call.StartsWith("count:", StringComparison.Ordinal));
     }
 

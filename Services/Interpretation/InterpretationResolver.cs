@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
 using lionheart.Model.Interpretation;
@@ -10,7 +10,13 @@ namespace lionheart.Services.Interpretation;
 
 public interface IInterpretationResolver
 {
-    Task<Result<ResolutionOutcome>> ResolveAsync(IdentityUser user, ParsedInterpretation parsed);
+    /// <summary>
+    /// Resolves <paramref name="parsed"/> against what the athlete already has, settling the
+    /// names in <paramref name="confirmed"/> the way they asked. The default is the first pass,
+    /// where nothing has been confirmed because the athlete has not been asked.
+    /// </summary>
+    Task<Result<ResolutionOutcome, Problem>> ResolveAsync(
+        IdentityUser user, ParsedInterpretation parsed, ConfirmedReferences confirmed = default);
 }
 
 /// <summary>
@@ -29,33 +35,34 @@ public sealed class InterpretationResolver : IInterpretationResolver
         _facets = facets;
     }
 
-    public async Task<Result<ResolutionOutcome>> ResolveAsync(
-        IdentityUser user, ParsedInterpretation parsed)
+    // Movements first, and the early return matters: facet resolution stages new vocabulary on
+    // the shared context, which a later unrelated save would flush. Bailing out before it keeps
+    // an abandoned interpretation from leaving canonicals behind.
+    public Task<Result<ResolutionOutcome, Problem>> ResolveAsync(
+        IdentityUser user, ParsedInterpretation parsed, ConfirmedReferences confirmed = default) =>
+        _movements.ResolveAsync(user, CollectMovementReferences(parsed), confirmed)
+            .BindAsync(movements => movements.Unresolved.Count > 0
+                ? Task.FromResult(Result<ResolutionOutcome, Problem>.Success(
+                    new Ambiguous(movements.Unresolved)))
+                : _facets.ResolveAsync(CollectProposedFacets(parsed))
+                    .MapAsync(vocabulary => Build(user, parsed, movements, vocabulary)));
+
+    private static ResolutionOutcome Build(
+        IdentityUser user,
+        ParsedInterpretation parsed,
+        MovementResolution movements,
+        ResolvedVocabulary vocabulary)
     {
-        // Movements first, and the early return matters: facet resolution stages new vocabulary
-        // on the shared context, which a later unrelated save would flush. Bailing out before it
-        // keeps an abandoned interpretation from leaving canonicals behind.
-        var movements = await _movements.ResolveAsync(user, CollectMovementReferences(parsed));
-        if (!movements.IsSuccess) return Result<ResolutionOutcome>.Error(new ErrorList([.. movements.Errors]));
-
-        if (movements.Value.Unresolved.Count > 0)
-        {
-            return Result<ResolutionOutcome>.Success(new Ambiguous(movements.Value.Unresolved));
-        }
-
-        var vocabulary = await _facets.ResolveAsync(CollectProposedFacets(parsed));
-        if (!vocabulary.IsSuccess) return Result<ResolutionOutcome>.Error(new ErrorList([.. vocabulary.Errors]));
-
         var userGuid = Guid.Parse(user.Id);
         var sessions = new List<CompletedTrainingSession>();
         var contexts = new List<Context>();
 
         foreach (var entry in parsed.Entries)
         {
-            var decoration = Decorate(entry, vocabulary.Value);
+            var decoration = Decorate(entry, vocabulary);
             if (entry is DraftSession session)
             {
-                sessions.Add(BuildSession(session, userGuid, decoration, vocabulary.Value, movements.Value));
+                sessions.Add(BuildSession(session, userGuid, decoration, vocabulary, movements));
             }
             else
             {
@@ -63,8 +70,7 @@ public sealed class InterpretationResolver : IInterpretationResolver
             }
         }
 
-        return Result<ResolutionOutcome>.Success(
-            new Resolved(new ResolvedInterpretation(sessions, contexts, parsed.Warnings)));
+        return new Resolved(new ResolvedInterpretation(sessions, contexts, parsed.Warnings));
     }
 
     private static IReadOnlyList<MovementReference> CollectMovementReferences(ParsedInterpretation parsed) =>

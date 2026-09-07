@@ -1,4 +1,5 @@
 using lionheart.Services.Embedding;
+using lionheart.Tests.Support;
 
 namespace lionheart.Tests.Interpretation;
 
@@ -9,8 +10,7 @@ public class VectorsTests
     {
         var similarity = Vectors.CosineSimilarity([1f, 2f, 3f], [1f, 2f, 3f]);
 
-        Assert.True(similarity.IsSuccess);
-        Assert.Equal(1.0, similarity.Value, precision: 6);
+        Assert.Equal(1.0, ResultAssert.Succeeded(similarity), precision: 6);
     }
 
     [Fact]
@@ -18,8 +18,7 @@ public class VectorsTests
     {
         var similarity = Vectors.CosineSimilarity([1f, 0f], [0f, 1f]);
 
-        Assert.True(similarity.IsSuccess);
-        Assert.Equal(0.0, similarity.Value, precision: 6);
+        Assert.Equal(0.0, ResultAssert.Succeeded(similarity), precision: 6);
     }
 
     [Fact]
@@ -27,8 +26,7 @@ public class VectorsTests
     {
         var similarity = Vectors.CosineSimilarity([1f, 1f], [10f, 10f]);
 
-        Assert.True(similarity.IsSuccess);
-        Assert.Equal(1.0, similarity.Value, precision: 6);
+        Assert.Equal(1.0, ResultAssert.Succeeded(similarity), precision: 6);
     }
 
     [Fact]
@@ -36,8 +34,7 @@ public class VectorsTests
     {
         var similarity = Vectors.CosineSimilarity([0f, 0f], [1f, 1f]);
 
-        Assert.True(similarity.IsSuccess);
-        Assert.Equal(0.0, similarity.Value);
+        Assert.Equal(0.0, ResultAssert.Succeeded(similarity));
     }
 
     /// <summary>
@@ -49,7 +46,6 @@ public class VectorsTests
     {
         var similarity = Vectors.CosineSimilarity([1f, 0f, 0f], [1f, 0f]);
 
-        Assert.False(similarity.IsSuccess);
-        Assert.Contains("recomputed", string.Join(" ", similarity.Errors));
+        Assert.Contains("recomputed", ResultAssert.Failed(similarity).Description);
     }
 }

@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
@@ -10,7 +10,7 @@ namespace lionheart.Services.Interpretation;
 
 public interface IInterpretationCommitter
 {
-    Task<Result<Committed>> CommitAsync(ResolvedInterpretation interpretation);
+    Task<Result<Committed, Problem>> CommitAsync(ResolvedInterpretation interpretation);
 }
 
 /// <summary>
@@ -33,20 +33,20 @@ public sealed class InterpretationCommitter : IInterpretationCommitter
         _embeddings = embeddings;
     }
 
-    public async Task<Result<Committed>> CommitAsync(ResolvedInterpretation interpretation)
+    public Task<Result<Committed, Problem>> CommitAsync(ResolvedInterpretation interpretation) =>
+        EmbedSummariesAsync(CollectProjections(interpretation))
+            .BindAsync(entries => WriteAsync(interpretation, entries));
+
+    private async Task<Result<Committed, Problem>> WriteAsync(
+        ResolvedInterpretation interpretation, IReadOnlyList<AnalyzableEntry> entries)
     {
-        var projections = CollectProjections(interpretation);
-
-        var embedded = await EmbedSummariesAsync(projections);
-        if (!embedded.IsSuccess) return Result<Committed>.Error(new ErrorList([.. embedded.Errors]));
-
         foreach (var session in interpretation.Sessions) _context.Sessions.Add(session);
         foreach (var context in interpretation.Contexts) _context.Contexts.Add(context);
-        _context.AnalyzableEntries.AddRange(embedded.Value);
+        _context.AnalyzableEntries.AddRange(entries);
 
         await _context.SaveChangesAsync();
 
-        return Result<Committed>.Success(new Committed(
+        return Result<Committed, Problem>.Success(new Committed(
             SessionIds: [.. interpretation.Sessions.Select(s => s.TrainingSessionId)],
             ContextIds: [.. interpretation.Contexts.Select(c => c.ContextId)],
             Warnings: interpretation.Warnings));
@@ -85,23 +85,32 @@ public sealed class InterpretationCommitter : IInterpretationCommitter
         return [.. sessions.Concat(contexts)];
     }
 
-    private async Task<Result<IReadOnlyList<AnalyzableEntry>>> EmbedSummariesAsync(
+    private Task<Result<IReadOnlyList<AnalyzableEntry>, Problem>> EmbedSummariesAsync(
         IReadOnlyList<Projection> projections)
     {
-        if (projections.Count == 0) return Result<IReadOnlyList<AnalyzableEntry>>.Success([]);
+        if (projections.Count == 0)
+        {
+            return Task.FromResult(Result<IReadOnlyList<AnalyzableEntry>, Problem>.Success([]));
+        }
 
         // An entry with no summary still belongs in the projection — it stays facet- and
         // window-queryable, just not semantically retrievable.
         var summarized = projections.Where(p => !string.IsNullOrWhiteSpace(p.Decoration.SummaryText)).ToList();
-        var vectors = await _embeddings.GenerateBatchAsync([.. summarized.Select(p => p.Decoration.SummaryText)]);
-        if (!vectors.IsSuccess) return Result<IReadOnlyList<AnalyzableEntry>>.Error(
-            new ErrorList([.. vectors.Errors]));
 
+        return _embeddings.GenerateBatchAsync([.. summarized.Select(p => p.Decoration.SummaryText)])
+            .MapAsync(vectors => Project(projections, summarized, vectors));
+    }
+
+    private static IReadOnlyList<AnalyzableEntry> Project(
+        IReadOnlyList<Projection> projections,
+        IReadOnlyList<Projection> summarized,
+        IReadOnlyList<float[]> vectors)
+    {
         var byId = summarized
-            .Zip(vectors.Value)
+            .Zip(vectors)
             .ToDictionary(pair => pair.First.EntryId, pair => pair.Second);
 
-        IReadOnlyList<AnalyzableEntry> entries =
+        return
         [
             .. projections.Select(p => new AnalyzableEntry(
                 EntryId: p.EntryId,
@@ -114,8 +123,6 @@ public sealed class InterpretationCommitter : IInterpretationCommitter
                 SummaryText: p.Decoration.SummaryText,
                 DecoratorVersion: p.Decoration.DecoratorVersion))
         ];
-
-        return Result<IReadOnlyList<AnalyzableEntry>>.Success(entries);
     }
 
     private sealed record Projection(

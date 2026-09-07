@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Interpretation;
 using lionheart.Model.Training;
@@ -11,7 +11,7 @@ namespace lionheart.Services.Interpretation;
 
 public interface IInterpretationParser
 {
-    Task<Result<ParsedInterpretation>> ParseAsync(InterpretationRequest request, string knownMovementContext);
+    Task<Result<ParsedInterpretation, Problem>> ParseAsync(InterpretationRequest request, string knownMovementContext);
 }
 
 /// <summary>
@@ -25,26 +25,15 @@ public sealed class InterpretationParser : IInterpretationParser
 
     public InterpretationParser(ChatClient chatClient) => _chatClient = chatClient;
 
-    public async Task<Result<ParsedInterpretation>> ParseAsync(
-        InterpretationRequest request, string knownMovementContext)
-    {
-        if (string.IsNullOrWhiteSpace(request.RawText))
-        {
-            return Result<ParsedInterpretation>.Invalid(new ValidationError
-            {
-                Identifier = nameof(request.RawText),
-                ErrorMessage = "Input text cannot be empty."
-            });
-        }
+    public Task<Result<ParsedInterpretation, Problem>> ParseAsync(
+        InterpretationRequest request, string knownMovementContext) =>
+        string.IsNullOrWhiteSpace(request.RawText)
+            ? Task.FromResult(Result<ParsedInterpretation, Problem>.Failure(
+                new Problem.Invalid(nameof(request.RawText), "Input text cannot be empty.")))
+            : RequestParseAsync(request, knownMovementContext)
+                .BindAsync(parse => MapToDrafts(parse, request.LoggedAt));
 
-        var completion = await RequestParseAsync(request, knownMovementContext);
-        if (!completion.IsSuccess) return Result<ParsedInterpretation>.Error(
-            new ErrorList([.. completion.Errors]));
-
-        return MapToDrafts(completion.Value, request.LoggedAt);
-    }
-
-    private async Task<Result<LlmParse>> RequestParseAsync(
+    private async Task<Result<LlmParse, Problem>> RequestParseAsync(
         InterpretationRequest request, string knownMovementContext)
     {
         var messages = new List<ChatMessage>
@@ -53,97 +42,88 @@ public sealed class InterpretationParser : IInterpretationParser
             new UserChatMessage(request.RawText)
         };
 
-        var options = BuildParseOptions();
+        var completion = await _chatClient.CompleteAsResultAsync(messages, BuildParseOptions());
+        return completion.Bind(ReadParse);
+    }
 
-        var completionResult = (await _chatClient.CompleteChatAsync(messages, options)).ToResult();
-        if (completionResult.IsError()) return Result<LlmParse>.Error(
-            new ErrorList([.. completionResult.Errors]));
-
-        var completion = completionResult.Value;
+    private static Result<LlmParse, Problem> ReadParse(ChatCompletion completion)
+    {
         if (completion.FinishReason != ChatFinishReason.Stop)
         {
-            return Result<LlmParse>.Error($"Parse stopped early: {completion.FinishReason}.");
+            return Result<LlmParse, Problem>.Failure(
+                new Problem.Upstream($"Parse stopped early: {completion.FinishReason}."));
         }
 
         var json = completion.Content.FirstOrDefault()?.Text;
         if (string.IsNullOrWhiteSpace(json))
         {
-            return Result<LlmParse>.Error(
+            return Result<LlmParse, Problem>.Failure(new Problem.Upstream(
                 "Parser returned an empty response. If the configured model reasons, the content " +
-                "may have been routed to `reasoning_content` instead.");
+                "may have been routed to `reasoning_content` instead."));
         }
 
         try
         {
             var parsed = JsonSerializer.Deserialize<LlmParse>(json, JsonOptions);
             return parsed is null
-                ? Result<LlmParse>.Error("Parser returned no interpretable content.")
-                : Result<LlmParse>.Success(parsed);
+                ? Result<LlmParse, Problem>.Failure(
+                    new Problem.Upstream("Parser returned no interpretable content."))
+                : Result<LlmParse, Problem>.Success(parsed);
         }
         catch (JsonException ex)
         {
-            return Result<LlmParse>.Error($"Parser returned malformed JSON: {ex.Message}");
+            return Result<LlmParse, Problem>.Failure(
+                new Problem.Upstream($"Parser returned malformed JSON: {ex.Message}"));
         }
     }
 
-    private static Result<ParsedInterpretation> MapToDrafts(LlmParse parse, DateTime loggedAt)
+    private static Result<ParsedInterpretation, Problem> MapToDrafts(LlmParse parse, DateTime loggedAt) =>
+        (parse.Entries ?? [])
+            .Traverse(entry => MapEntry(entry, loggedAt))
+            .Map(entries => new ParsedInterpretation(entries, parse.Warnings ?? []));
+
+    private static Result<DraftEntry, Problem> MapEntry(LlmEntry entry, DateTime loggedAt) =>
+        MapPeriod(entry, loggedAt).Map(period => Draft(entry, period));
+
+    private static DraftEntry Draft(LlmEntry entry, Period period)
     {
-        var entries = new List<DraftEntry>();
-        foreach (var entry in parse.Entries ?? [])
-        {
-            var mapped = MapEntry(entry, loggedAt);
-            if (!mapped.IsSuccess) return Result<ParsedInterpretation>.Error(
-                new ErrorList([.. mapped.Errors]));
-            entries.Add(mapped.Value);
-        }
-
-        return Result<ParsedInterpretation>.Success(
-            new ParsedInterpretation(entries, parse.Warnings ?? []));
-    }
-
-    private static Result<DraftEntry> MapEntry(LlmEntry entry, DateTime loggedAt)
-    {
-        var period = MapPeriod(entry, loggedAt);
-        if (!period.IsSuccess) return Result<DraftEntry>.Error(new ErrorList([.. period.Errors]));
-
         var decoration = MapDecoration(entry.Decoration);
         var notes = entry.Notes ?? string.Empty;
 
         // Perceived-effort ratings are a numeric self-report from the UI, never something
         // to guess from prose — text sentiment belongs in the decoration's valence instead.
-        DraftEntry draft = entry.Kind switch
+        return entry.Kind switch
         {
             "session" => new DraftSession([.. (entry.Sets ?? []).Select(MapSet)], new EffortNotReported())
             {
-                Period = period.Value,
+                Period = period,
                 Notes = notes,
                 Decoration = decoration
             },
             "exertionContext" => new DraftExertionContext(new EffortNotReported())
             {
-                Period = period.Value,
+                Period = period,
                 Notes = notes,
                 Decoration = decoration
             },
             _ => new DraftStateContext
             {
-                Period = period.Value,
+                Period = period,
                 Notes = notes,
                 Decoration = decoration
             }
         };
-
-        return Result<DraftEntry>.Success(draft);
     }
 
-    private static Result<Period> MapPeriod(LlmEntry entry, DateTime loggedAt)
+    private static Result<Period, Problem> MapPeriod(LlmEntry entry, DateTime loggedAt)
     {
         var start = entry.Start ?? loggedAt;
-        if (entry.End is not { } end) return Result<Period>.Success(new Instant(start));
+        if (entry.End is not { } end) return Result<Period, Problem>.Success(new Instant(start));
 
         return end < start
-            ? Result<Period>.Error($"Parsed period ends ({end:o}) before it starts ({start:o}).")
-            : Result<Period>.Success(new Interval(start, end));
+            ? Result<Period, Problem>.Failure(new Problem.Upstream(
+                $"Parsed period ends ({end:o}) before it starts ({start:o})."))
+            : Result<Period, Problem>.Success(new Interval(start, end));
     }
 
     private static ProposedDecoration MapDecoration(LlmDecoration? decoration) =>

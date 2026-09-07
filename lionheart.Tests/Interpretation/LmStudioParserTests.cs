@@ -41,9 +41,9 @@ public class LmStudioParserTests
             new InterpretationRequest("Bench press 225x5, 235x5, 240x3 today. Felt strong.", DateTime.UtcNow),
             KnownMovements);
 
-        Assert.True(parsed.IsSuccess, string.Join("; ", parsed.Errors));
+        var interpretation = ResultAssert.Succeeded(parsed);
 
-        var session = Assert.IsType<DraftSession>(Assert.Single(parsed.Value.Entries));
+        var session = Assert.IsType<DraftSession>(Assert.Single(interpretation.Entries));
         Assert.NotEmpty(session.Sets);
         Assert.NotEmpty(session.Decoration.Facets);
         Assert.NotEmpty(session.Decoration.SummaryText);
@@ -58,8 +58,8 @@ public class LmStudioParserTests
             new InterpretationRequest("sled pull+push worked up to 235, 2 or 3 sets. brutal", DateTime.UtcNow),
             KnownMovements);
 
-        Assert.True(parsed.IsSuccess, string.Join("; ", parsed.Errors));
-        Assert.NotEmpty(parsed.Value.Entries);
+        var interpretation = ResultAssert.Succeeded(parsed);
+        Assert.NotEmpty(interpretation.Entries);
     }
 
     [LmStudioFact]
@@ -69,8 +69,8 @@ public class LmStudioParserTests
             new InterpretationRequest("Slept terribly last night, maybe four hours.", DateTime.UtcNow),
             KnownMovements);
 
-        Assert.True(parsed.IsSuccess, string.Join("; ", parsed.Errors));
-        var entry = Assert.Single(parsed.Value.Entries);
+        var interpretation = ResultAssert.Succeeded(parsed);
+        var entry = Assert.Single(interpretation.Entries);
         Assert.False(entry is DraftSession, "A sleep note is a context, not a training session.");
     }
 
@@ -82,10 +82,10 @@ public class LmStudioParserTests
 
         var vectors = await generator.GenerateBatchAsync(["heavy push session", "terrible sleep"]);
 
-        Assert.True(vectors.IsSuccess, string.Join("; ", vectors.Errors));
-        Assert.Equal(2, vectors.Value.Count);
-        Assert.NotEmpty(vectors.Value[0]);
+        var embeddings = ResultAssert.Succeeded(vectors);
+        Assert.Equal(2, embeddings.Count);
+        Assert.NotEmpty(embeddings[0]);
         // Equal dimensions are what make stored vectors comparable at all — see Vectors.CosineSimilarity.
-        Assert.Equal(vectors.Value[0].Length, vectors.Value[1].Length);
+        Assert.Equal(embeddings[0].Length, embeddings[1].Length);
     }
 }

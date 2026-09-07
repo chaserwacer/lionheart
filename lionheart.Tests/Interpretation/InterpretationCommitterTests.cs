@@ -1,3 +1,4 @@
+using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
 using lionheart.Model.Interpretation;
@@ -16,7 +17,7 @@ public class InterpretationCommitterTests : IDisposable
 
     public void Dispose() => _database.Dispose();
 
-    private async Task<Ardalis.Result.Result<Committed>> CommitAsync(ResolvedInterpretation interpretation)
+    private async Task<Result<Committed, Problem>> CommitAsync(ResolvedInterpretation interpretation)
     {
         using var context = _database.CreateContext();
         return await new InterpretationCommitter(context, _embeddings).CommitAsync(interpretation);
@@ -35,8 +36,7 @@ public class InterpretationCommitterTests : IDisposable
 
         var committed = await CommitAsync(Only(session));
 
-        Assert.True(committed.IsSuccess);
-        Assert.Equal([session.TrainingSessionId], committed.Value.SessionIds);
+        Assert.Equal([session.TrainingSessionId], ResultAssert.Succeeded(committed).SessionIds);
 
         using var context = _database.CreateContext();
         Assert.NotNull(await context.Sessions.FindAsync(session.TrainingSessionId));
@@ -81,8 +81,7 @@ public class InterpretationCommitterTests : IDisposable
 
         var committed = await CommitAsync(Only(stateContext));
 
-        Assert.True(committed.IsSuccess);
-        Assert.Equal([stateContext.ContextId], committed.Value.ContextIds);
+        Assert.Equal([stateContext.ContextId], ResultAssert.Succeeded(committed).ContextIds);
 
         using var context = _database.CreateContext();
         var entry = await context.AnalyzableEntries.SingleAsync();
@@ -129,8 +128,7 @@ public class InterpretationCommitterTests : IDisposable
 
         var committed = await CommitAsync(new ResolvedInterpretation([session], [], ["ignored a rest-timer row"]));
 
-        Assert.True(committed.IsSuccess);
-        Assert.Equal(["ignored a rest-timer row"], committed.Value.Warnings);
+        Assert.Equal(["ignored a rest-timer row"], ResultAssert.Succeeded(committed).Warnings);
     }
 
     [Fact]

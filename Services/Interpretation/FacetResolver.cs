@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Analysis;
 using lionheart.Model.Interpretation;
@@ -32,7 +32,7 @@ public sealed class ResolvedVocabulary
 
 public interface IFacetResolver
 {
-    Task<Result<ResolvedVocabulary>> ResolveAsync(IReadOnlyList<ProposedFacet> proposed);
+    Task<Result<ResolvedVocabulary, Problem>> ResolveAsync(IReadOnlyList<ProposedFacet> proposed);
 }
 
 /// <summary>
@@ -59,9 +59,9 @@ public sealed class FacetResolver : IFacetResolver
         _embeddings = embeddings;
     }
 
-    public async Task<Result<ResolvedVocabulary>> ResolveAsync(IReadOnlyList<ProposedFacet> proposed)
+    public async Task<Result<ResolvedVocabulary, Problem>> ResolveAsync(IReadOnlyList<ProposedFacet> proposed)
     {
-        if (proposed.Count == 0) return Result<ResolvedVocabulary>.Success(
+        if (proposed.Count == 0) return Result<ResolvedVocabulary, Problem>.Success(
             new ResolvedVocabulary(new Dictionary<(FacetAxis, string), string>()));
 
         var vocabulary = await _context.FacetValues.ToListAsync();
@@ -70,14 +70,9 @@ public sealed class FacetResolver : IFacetResolver
         var byLiteral = MatchLiterally(distinct, vocabulary);
         var unmatched = distinct.Where(p => !byLiteral.ContainsKey(Key(p))).ToList();
 
-        var semantic = await MatchSemanticallyAsync(unmatched, vocabulary);
-        if (!semantic.IsSuccess) return Result<ResolvedVocabulary>.Error(new ErrorList([.. semantic.Errors]));
-
-        var canonicals = byLiteral
-            .Concat(semantic.Value)
-            .ToDictionary(pair => pair.Key, pair => pair.Value);
-
-        return Result<ResolvedVocabulary>.Success(new ResolvedVocabulary(canonicals));
+        return (await MatchSemanticallyAsync(unmatched, vocabulary))
+            .Map(semantic => new ResolvedVocabulary(
+                byLiteral.Concat(semantic).ToDictionary(pair => pair.Key, pair => pair.Value)));
     }
 
     /// <summary>
@@ -110,51 +105,53 @@ public sealed class FacetResolver : IFacetResolver
         return matches;
     }
 
-    private async Task<Result<Dictionary<(FacetAxis, string), string>>> MatchSemanticallyAsync(
-        List<ProposedFacet> proposed, List<FacetValue> vocabulary)
-    {
-        var matches = new Dictionary<(FacetAxis, string), string>();
-        if (proposed.Count == 0) return Result<Dictionary<(FacetAxis, string), string>>.Success(matches);
+    private Task<Result<Dictionary<(FacetAxis, string), string>, Problem>> MatchSemanticallyAsync(
+        List<ProposedFacet> proposed, List<FacetValue> vocabulary) =>
+        proposed.Count == 0
+            ? Task.FromResult(Result<Dictionary<(FacetAxis, string), string>, Problem>.Success([]))
+            : _embeddings.GenerateBatchAsync([.. proposed.Select(p => p.Value)])
+                .BindAsync(vectors => SnapToVocabulary(proposed, vectors, vocabulary));
 
-        var vectors = await _embeddings.GenerateBatchAsync([.. proposed.Select(p => p.Value)]);
-        if (!vectors.IsSuccess) return Result<Dictionary<(FacetAxis, string), string>>.Error(
-            new ErrorList([.. vectors.Errors]));
+    /// <summary>
+    /// Walks the proposals in order, because admitting a canonical makes it visible to the ones
+    /// that follow. Fail-fast: a vocabulary the embedder cannot score must not be half-updated.
+    /// </summary>
+    private Result<Dictionary<(FacetAxis, string), string>, Problem> SnapToVocabulary(
+        List<ProposedFacet> proposed, IReadOnlyList<float[]> vectors, List<FacetValue> vocabulary) =>
+        proposed.Zip(vectors)
+            .Traverse(pair => FindNearest(pair.First, pair.Second, vocabulary)
+                .Map(nearest => KeyValuePair.Create(
+                    Key(pair.First),
+                    nearest is { } match
+                        ? AbsorbAsAlias(match, pair.First.Value)
+                        : AdmitCanonical(pair.First, pair.Second, vocabulary))))
+            .Map(canonicals => canonicals.ToDictionary());
 
-        foreach (var (facet, vector) in proposed.Zip(vectors.Value))
-        {
-            var nearest = FindNearest(facet, vector, vocabulary);
-            if (!nearest.IsSuccess) return Result<Dictionary<(FacetAxis, string), string>>.Error(
-                new ErrorList([.. nearest.Errors]));
+    private static Result<FacetValue?, Problem> FindNearest(
+        ProposedFacet facet, float[] vector, List<FacetValue> vocabulary) =>
+        vocabulary
+            .Where(candidate => candidate.Axis == facet.Axis)
+            .Traverse(candidate => Vectors.CosineSimilarity(vector, candidate.Embedding)
+                .Map(similarity => (Candidate: candidate, Similarity: similarity)))
+            .Map(Closest);
 
-            var canonical = nearest.Value is { } match
-                ? AbsorbAsAlias(match, facet.Value)
-                : AdmitCanonical(facet, vector, vocabulary);
-
-            matches[Key(facet)] = canonical;
-        }
-
-        return Result<Dictionary<(FacetAxis, string), string>>.Success(matches);
-    }
-
-    private static Result<FacetValue?> FindNearest(
-        ProposedFacet facet, float[] vector, List<FacetValue> vocabulary)
+    /// <summary>
+    /// The last candidate at least as close as every candidate before it, or none if nothing
+    /// reaches <see cref="SnapThreshold"/>.
+    /// </summary>
+    private static FacetValue? Closest(IReadOnlyList<(FacetValue Candidate, double Similarity)> scored)
     {
         FacetValue? nearest = null;
         var best = SnapThreshold;
 
-        foreach (var candidate in vocabulary.Where(v => v.Axis == facet.Axis))
+        foreach (var (candidate, similarity) in scored)
         {
-            var similarity = Vectors.CosineSimilarity(vector, candidate.Embedding);
-            if (!similarity.IsSuccess) return Result<FacetValue?>.Error(new ErrorList([.. similarity.Errors]));
-
-            if (similarity.Value >= best)
-            {
-                best = similarity.Value;
-                nearest = candidate;
-            }
+            if (similarity < best) continue;
+            best = similarity;
+            nearest = candidate;
         }
 
-        return Result<FacetValue?>.Success(nearest);
+        return nearest;
     }
 
     private string AbsorbAsAlias(FacetValue canonical, string alias)

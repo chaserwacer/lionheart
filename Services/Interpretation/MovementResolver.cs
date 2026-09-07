@@ -1,4 +1,5 @@
-using Ardalis.Result;
+using System.Diagnostics;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Interpretation;
 using lionheart.Model.Training;
@@ -14,15 +15,24 @@ public sealed record MovementResolution(
 
 public interface IMovementResolver
 {
-    Task<Result<MovementResolution>> ResolveAsync(
-        IdentityUser user, IReadOnlyList<MovementReference> references);
+    /// <summary>
+    /// Maps every name in <paramref name="references"/> onto a MovementData id, consulting
+    /// <paramref name="confirmed"/> for the names that do not match outright. The default is the
+    /// first pass, where nothing has been confirmed because the athlete has not been asked.
+    /// </summary>
+    Task<Result<MovementResolution, Problem>> ResolveAsync(
+        IdentityUser user,
+        IReadOnlyList<MovementReference> references,
+        ConfirmedReferences confirmed = default);
 }
 
 /// <summary>
 /// Turns the parser's movement names into MovementData ids. Matching is lexical rather than
 /// semantic: unlike facet values, movement bases and equipment carry no embedding, and an
 /// exercise name the athlete already uses is an exact string far more often than a paraphrase.
-/// Anything not matched outright goes back to the user with candidates instead of guessing.
+/// Anything not matched outright goes back to the user with candidates instead of guessing, and
+/// comes back on the next pass as a confirmed choice — an entity they picked, or one to create
+/// under the name they used.
 /// </summary>
 public sealed class MovementResolver : IMovementResolver
 {
@@ -39,90 +49,178 @@ public sealed class MovementResolver : IMovementResolver
         _movementDataService = movementDataService;
     }
 
-    public async Task<Result<MovementResolution>> ResolveAsync(
-        IdentityUser user, IReadOnlyList<MovementReference> references)
+    public async Task<Result<MovementResolution, Problem>> ResolveAsync(
+        IdentityUser user,
+        IReadOnlyList<MovementReference> references,
+        ConfirmedReferences confirmed = default)
     {
         var distinct = references.Distinct().ToList();
-        if (distinct.Count == 0) return Result<MovementResolution>.Success(
-            new MovementResolution(new Dictionary<MovementReference, Guid>(), []));
+        if (distinct.Count == 0) return Result<MovementResolution, Problem>.Success(NothingResolved);
 
-        var userGuid = Guid.Parse(user.Id);
-        var bases = await _context.MovementBases
-            .Where(mb => mb.UserID == userGuid)
-            .Select(mb => new NamedEntity(mb.MovementBaseID, mb.Name))
-            .ToListAsync();
-        var equipment = await _context.Equipments
-            .Where(e => e.UserID == userGuid)
-            .Select(e => new NamedEntity(e.EquipmentID, e.Name))
-            .ToListAsync();
+        var catalog = await LoadCatalogAsync(Guid.Parse(user.Id));
 
-        var unresolved = new List<UnresolvedReference>();
-        var matched = new Dictionary<MovementReference, (Guid Base, Guid Equipment)>();
-
-        foreach (var reference in distinct)
-        {
-            var baseMatch = MatchExactly(reference.BaseName, bases);
-            var equipmentMatch = MatchExactly(reference.EquipmentName, equipment);
-
-            if (baseMatch is null) unresolved.Add(Unmatched(reference.BaseName, ReferenceKind.MovementBase, bases));
-            if (equipmentMatch is null) unresolved.Add(Unmatched(reference.EquipmentName, ReferenceKind.Equipment, equipment));
-            if (baseMatch is not null && equipmentMatch is not null)
-            {
-                matched[reference] = (baseMatch.Id, equipmentMatch.Id);
-            }
-        }
-
-        // Every name must land before anything is created: FindOrCreate persists, and an
-        // interpretation the user ends up abandoning must not leave MovementData behind.
-        if (unresolved.Count > 0)
-        {
-            return Result<MovementResolution>.Success(
-                new MovementResolution(new Dictionary<MovementReference, Guid>(), Deduplicate(unresolved)));
-        }
-
-        var resolved = new Dictionary<MovementReference, Guid>();
-        foreach (var (reference, ids) in matched)
-        {
-            var movementData = await _movementDataService.FindOrCreateMovementDataAsync(
-                user,
-                new CreateMovementDataRequest(
-                    EquipmentID: ids.Equipment,
-                    MovementBaseID: ids.Base,
-                    MovementModifierName: string.IsNullOrWhiteSpace(reference.ModifierName)
-                        ? null
-                        : reference.ModifierName));
-
-            if (!movementData.IsSuccess) return Result<MovementResolution>.Error(
-                new ErrorList([.. movementData.Errors]));
-
-            resolved[reference] = movementData.Value.MovementDataID;
-        }
-
-        return Result<MovementResolution>.Success(new MovementResolution(resolved, []));
+        return await NamesIn(distinct)
+            .Traverse(name => Settle(name, catalog, confirmed))
+            .BindAsync(landings => LandAsync(user, distinct, landings));
     }
 
-    private static NamedEntity? MatchExactly(string rawName, List<NamedEntity> candidates) =>
-        candidates.FirstOrDefault(c => c.Name.Trim().Equals(rawName.Trim(), StringComparison.OrdinalIgnoreCase));
-
-    private static UnresolvedReference Unmatched(
-        string rawName, ReferenceKind kind, List<NamedEntity> candidates)
+    /// <summary>
+    /// Where one name lands: on an entity the athlete already has, on one they have confirmed is
+    /// new, or back on the athlete because nothing matched and nothing was chosen.
+    /// </summary>
+    private static Result<NameLanding, Problem> Settle(
+        NamedReference name, NameCatalog catalog, ConfirmedReferences confirmed)
     {
-        IReadOnlyList<EntityMatch> matches =
-        [
-            .. candidates
-                .Select(c => new EntityMatch(c.Id, c.Name, Math.Round(Similarity(rawName, c.Name), 2)))
-                .Where(m => m.Confidence >= CandidateThreshold)
-                .OrderByDescending(m => m.Confidence)
-                .Take(MaxCandidates)
-        ];
+        if (catalog.MatchExactly(name) is { } known)
+        {
+            return Result<NameLanding, Problem>.Success(new NameLanding.OnEntity(name.Key, known.Id));
+        }
 
-        return new UnresolvedReference(rawName, kind, matches);
+        return confirmed.For(name.Kind, name.RawName) switch
+        {
+            // A chosen id the athlete does not own is answered as absent rather than forbidden:
+            // whose it is would be disclosing that it exists at all.
+            ReferenceDecision.ChoseExisting chosen => catalog.Owns(name.Kind, chosen.EntityId)
+                ? Result<NameLanding, Problem>.Success(new NameLanding.OnEntity(name.Key, chosen.EntityId))
+                : Result<NameLanding, Problem>.Failure(
+                    new Problem.NotFound($"The chosen {Describe(name.Kind)} does not exist.")),
+            ReferenceDecision.ChoseNewEntity =>
+                Result<NameLanding, Problem>.Success(new NameLanding.OnNewEntity(name)),
+            ReferenceDecision.Undecided =>
+                Result<NameLanding, Problem>.Success(new NameLanding.OnTheAthlete(catalog.Unmatched(name))),
+            _ => throw new UnreachableException()
+        };
     }
 
-    private static IReadOnlyList<UnresolvedReference> Deduplicate(List<UnresolvedReference> unresolved) =>
-        [.. unresolved
-            .GroupBy(u => (u.Kind, u.RawName.Trim().ToLowerInvariant()))
-            .Select(group => group.First())];
+    /// <summary>
+    /// Nothing is created until every name has landed. Creating movement data — or a movement
+    /// base under a name the athlete never confirmed — must not outlive an interpretation they
+    /// end up abandoning at the confirmation prompt.
+    /// </summary>
+    private async Task<Result<MovementResolution, Problem>> LandAsync(
+        IdentityUser user, IReadOnlyList<MovementReference> references, IReadOnlyList<NameLanding> landings)
+    {
+        IReadOnlyList<UnresolvedReference> needed =
+            [.. landings.OfType<NameLanding.OnTheAthlete>().Select(landing => landing.Reference)];
+
+        if (needed.Count > 0)
+        {
+            return Result<MovementResolution, Problem>.Success(new MovementResolution(NoMovements, needed));
+        }
+
+        var entityIds = await CreateNewlyNamedEntitiesAsync(Guid.Parse(user.Id), landings);
+        return await IdentifyMovementsAsync(user, references, entityIds);
+    }
+
+    /// <summary>
+    /// Gives every settled name an entity id, creating rows for the names the athlete confirmed
+    /// are new. The row carries the name and nothing else — description, muscle groups and the
+    /// rest are the athlete's to fill in later, and guessing them here would be inventing data.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<ReferenceKey, Guid>> CreateNewlyNamedEntitiesAsync(
+        Guid userId, IReadOnlyList<NameLanding> landings)
+    {
+        var entityIds = landings
+            .OfType<NameLanding.OnEntity>()
+            .ToDictionary(landing => landing.Key, landing => landing.EntityId);
+
+        var newlyNamed = landings.OfType<NameLanding.OnNewEntity>().ToList();
+        foreach (var landing in newlyNamed)
+        {
+            entityIds[landing.Name.Key] = Stage(userId, landing.Name);
+        }
+
+        if (newlyNamed.Count > 0) await _context.SaveChangesAsync();
+        return entityIds;
+    }
+
+    private Guid Stage(Guid userId, NamedReference name)
+    {
+        var entityId = Guid.NewGuid();
+        var trimmed = name.RawName.Trim();
+
+        switch (name.Kind)
+        {
+            case ReferenceKind.MovementBase:
+                _context.MovementBases.Add(new MovementBase
+                {
+                    MovementBaseID = entityId,
+                    Name = trimmed,
+                    UserID = userId,
+                    Description = string.Empty,
+                    MuscleGroups = []
+                });
+                break;
+            case ReferenceKind.Equipment:
+                _context.Equipments.Add(new Equipment
+                {
+                    EquipmentID = entityId,
+                    Name = trimmed,
+                    UserID = userId
+                });
+                break;
+            default:
+                throw new UnreachableException();
+        }
+
+        return entityId;
+    }
+
+    private Task<Result<MovementResolution, Problem>> IdentifyMovementsAsync(
+        IdentityUser user,
+        IReadOnlyList<MovementReference> references,
+        IReadOnlyDictionary<ReferenceKey, Guid> entityIds) =>
+        references
+            .TraverseAsync(reference => IdentifyMovementAsync(user, reference, entityIds))
+            .MapAsync(identified => new MovementResolution(identified.ToDictionary(), []));
+
+    private Task<Result<KeyValuePair<MovementReference, Guid>, Problem>> IdentifyMovementAsync(
+        IdentityUser user,
+        MovementReference reference,
+        IReadOnlyDictionary<ReferenceKey, Guid> entityIds) =>
+        _movementDataService
+            .FindOrCreateMovementDataAsync(user, new CreateMovementDataRequest(
+                EquipmentID: entityIds[ReferenceKey.For(ReferenceKind.Equipment, reference.EquipmentName)],
+                MovementBaseID: entityIds[ReferenceKey.For(ReferenceKind.MovementBase, reference.BaseName)],
+                MovementModifierName: string.IsNullOrWhiteSpace(reference.ModifierName)
+                    ? null
+                    : reference.ModifierName))
+            .MapAsync(movementData => KeyValuePair.Create(reference, movementData.MovementDataID));
+
+    private async Task<NameCatalog> LoadCatalogAsync(Guid userId) => new(
+        Bases: await _context.MovementBases
+            .Where(mb => mb.UserID == userId)
+            .Select(mb => new NamedEntity(mb.MovementBaseID, mb.Name))
+            .ToListAsync(),
+        Equipment: await _context.Equipments
+            .Where(e => e.UserID == userId)
+            .Select(e => new NamedEntity(e.EquipmentID, e.Name))
+            .ToListAsync());
+
+    /// <summary>
+    /// Every name a run has to settle, each one once: the same movement across a dozen sets must
+    /// not produce a dozen identical prompts.
+    /// </summary>
+    private static IEnumerable<NamedReference> NamesIn(IEnumerable<MovementReference> references) =>
+        references
+            .SelectMany(reference => new NamedReference[]
+            {
+                new(ReferenceKind.MovementBase, reference.BaseName),
+                new(ReferenceKind.Equipment, reference.EquipmentName)
+            })
+            .DistinctBy(name => name.Key);
+
+    private static string Describe(ReferenceKind kind) => kind switch
+    {
+        ReferenceKind.MovementBase => "movement",
+        ReferenceKind.Equipment => "equipment",
+        _ => throw new UnreachableException()
+    };
+
+    private static readonly IReadOnlyDictionary<MovementReference, Guid> NoMovements =
+        new Dictionary<MovementReference, Guid>();
+
+    private static MovementResolution NothingResolved => new(NoMovements, []);
 
     private static double Similarity(string left, string right)
     {
@@ -160,5 +258,52 @@ public sealed class MovementResolver : IMovementResolver
         return distances[a.Length, b.Length];
     }
 
+    /// <summary>One name the parser used, and the kind of thing it names.</summary>
+    private sealed record NamedReference(ReferenceKind Kind, string RawName)
+    {
+        public ReferenceKey Key => ReferenceKey.For(Kind, RawName);
+    }
+
     private sealed record NamedEntity(Guid Id, string Name);
+
+    /// <summary>The entities this athlete has, which is the whole universe a name can match.</summary>
+    private sealed record NameCatalog(IReadOnlyList<NamedEntity> Bases, IReadOnlyList<NamedEntity> Equipment)
+    {
+        public NamedEntity? MatchExactly(NamedReference name) =>
+            Of(name.Kind).FirstOrDefault(entity =>
+                entity.Name.Trim().Equals(name.RawName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        public bool Owns(ReferenceKind kind, Guid entityId) => Of(kind).Any(entity => entity.Id == entityId);
+
+        public UnresolvedReference Unmatched(NamedReference name) => new(
+            name.RawName,
+            name.Kind,
+            [
+                .. Of(name.Kind)
+                    .Select(entity => new EntityMatch(
+                        entity.Id, entity.Name, Math.Round(Similarity(name.RawName, entity.Name), 2)))
+                    .Where(match => match.Confidence >= CandidateThreshold)
+                    .OrderByDescending(match => match.Confidence)
+                    .Take(MaxCandidates)
+            ]);
+
+        private IReadOnlyList<NamedEntity> Of(ReferenceKind kind) => kind switch
+        {
+            ReferenceKind.MovementBase => Bases,
+            ReferenceKind.Equipment => Equipment,
+            _ => throw new UnreachableException()
+        };
+    }
+
+    /// <summary>Where one name landed on this pass.</summary>
+    private abstract record NameLanding
+    {
+        private protected NameLanding() { }
+
+        public sealed record OnEntity(ReferenceKey Key, Guid EntityId) : NameLanding;
+
+        public sealed record OnNewEntity(NamedReference Name) : NameLanding;
+
+        public sealed record OnTheAthlete(UnresolvedReference Reference) : NameLanding;
+    }
 }

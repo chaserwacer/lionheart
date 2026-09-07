@@ -48,9 +48,7 @@ public class InterpretationResolverTests : IDisposable
             new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context))),
             new FacetResolver(context, _embeddings));
 
-        var outcome = await resolver.ResolveAsync(_user, parsed);
-        Assert.True(outcome.IsSuccess);
-        return outcome.Value;
+        return ResultAssert.Succeeded(await resolver.ResolveAsync(_user, parsed));
     }
 
     private static ProposedDecoration Decoration(params ProposedFacet[] facets) =>

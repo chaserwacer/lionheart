@@ -1,3 +1,4 @@
+using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Interpretation;
 using lionheart.Services.Interpretation;
@@ -21,15 +22,15 @@ public class FacetResolverTests : IDisposable
         await context.SaveChangesAsync();
     }
 
-    private async Task<(IReadOnlyList<Facet> Facets, Ardalis.Result.Result<ResolvedVocabulary> Result)>
+    private async Task<(IReadOnlyList<Facet> Facets, Result<ResolvedVocabulary, Problem> Result)>
         ResolveAsync(params ProposedFacet[] proposed)
     {
         using var context = _database.CreateContext();
         var resolver = new FacetResolver(context, _embeddings);
         var result = await resolver.ResolveAsync(proposed);
-        if (!result.IsSuccess) return ([], result);
+        if (result is not Success<ResolvedVocabulary, Problem> resolved) return ([], result);
 
-        var facets = result.Value.Canonicalize(proposed);
+        var facets = resolved.Value.Canonicalize(proposed);
         await context.SaveChangesAsync();
         return (facets, result);
     }
@@ -171,8 +172,7 @@ public class FacetResolverTests : IDisposable
 
         var (_, result) = await ResolveAsync(new ProposedFacet(FacetAxis.Modality, "sled work"));
 
-        Assert.False(result.IsSuccess);
-        Assert.Contains("recomputed", string.Join(" ", result.Errors));
+        Assert.Contains("recomputed", ResultAssert.Failed(result).Description);
     }
 
     [Fact]

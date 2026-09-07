@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
 using lionheart.Model.Training;
@@ -31,6 +32,16 @@ public sealed record MovementReference(string BaseName, string EquipmentName, st
 /// A set as parsed: the domain <see cref="SetEntry"/> shapes, but keyed by movement name
 /// instead of id. Shapes correspond one-to-one so Resolve is a straight mapping.
 /// </summary>
+/// <remarks>
+/// The discriminators are what make the resume path work: a draft is handed to the client and
+/// echoed back, so every draft shape has to survive a JSON round trip. They match the names the
+/// parser's own schema uses for the same shapes — renaming one breaks a client mid-confirmation.
+/// </remarks>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(DraftLiftSet), "lift")]
+[JsonDerivedType(typeof(DraftDistanceTimeSet), "distanceTime")]
+[JsonDerivedType(typeof(DraftTrailRunSet), "trailRun")]
+[JsonDerivedType(typeof(DraftFreeformSet), "freeform")]
 public abstract record DraftSet
 {
     public required Utterance Source { get; init; }
@@ -65,6 +76,10 @@ public sealed record DraftFreeformSet : DraftSet;
 /// One analyzable thing the parser found in the text. The subtypes mirror the two
 /// analyzable aggregates — a training session, or a context of either kind.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(DraftSession), "session")]
+[JsonDerivedType(typeof(DraftExertionContext), "exertionContext")]
+[JsonDerivedType(typeof(DraftStateContext), "stateContext")]
 public abstract record DraftEntry
 {
     public required Period Period { get; init; }
@@ -101,7 +116,10 @@ public sealed record ResolvedInterpretation(
     IReadOnlyList<string> Warnings);
 
 /// <summary>Where the resolve stage landed: every reference mapped, or some names are ambiguous.</summary>
-public abstract record ResolutionOutcome;
+public abstract record ResolutionOutcome
+{
+    private protected ResolutionOutcome() { }
+}
 
 public sealed record Resolved(ResolvedInterpretation Interpretation) : ResolutionOutcome;
 
@@ -111,7 +129,18 @@ public sealed record Ambiguous(IReadOnlyList<UnresolvedReference> References) : 
 /// Where a run of the engine ended: everything resolved and was written, or the user has to
 /// disambiguate a name the parser used before anything can be committed.
 /// </summary>
-public abstract record InterpretationOutcome;
+/// <remarks>
+/// Both cases are successes. Needing a confirmation is an outcome of a request that was
+/// understood and carried out as far as it could go, so it answers 200 with the case named in
+/// the body rather than a 4xx.
+/// </remarks>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(Committed), "committed")]
+[JsonDerivedType(typeof(AwaitingConfirmation), "awaitingConfirmation")]
+public abstract record InterpretationOutcome
+{
+    private protected InterpretationOutcome() { }
+}
 
 public sealed record Committed(
     IReadOnlyList<Guid> SessionIds,

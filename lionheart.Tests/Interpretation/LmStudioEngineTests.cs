@@ -75,8 +75,7 @@ public class LmStudioEngineTests : IDisposable
                 _user,
                 new InterpretationRequest("Bench press 225x5 and 235x5 today, barbell. Felt strong.", DateTime.UtcNow));
 
-            Assert.True(result.IsSuccess, string.Join("; ", result.Errors));
-            outcome = result.Value;
+            outcome = ResultAssert.Succeeded(result);
         }
 
         var committed = Assert.IsType<Committed>(outcome);
@@ -109,8 +108,8 @@ public class LmStudioEngineTests : IDisposable
                 _user,
                 new InterpretationRequest("Did 4 sets of kettlebell windmills at 35lb.", DateTime.UtcNow));
 
-            Assert.True(result.IsSuccess, string.Join("; ", result.Errors));
-            var awaiting = Assert.IsType<AwaitingConfirmation>(result.Value);
+            var outcome = ResultAssert.Succeeded(result);
+            var awaiting = Assert.IsType<AwaitingConfirmation>(outcome);
             Assert.NotEmpty(awaiting.References);
             Assert.NotEmpty(awaiting.Draft.Entries);
         }
