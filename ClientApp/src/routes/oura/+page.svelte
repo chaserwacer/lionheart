@@ -6,23 +6,22 @@
 
     const baseUrl = "";
 
-    let historicalData: DailyOuraDataDTO[] = [];
-    let loading = false;
-    let error = "";
-    let syncing = false;
+    let historicalData = $state<DailyOuraDataDTO[]>([]);
+    let loading = $state(false);
+    let error = $state("");
+    let syncing = $state(false);
 
     // Date range defaults
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
 
-    let startDate = thirtyDaysAgo.toISOString().split("T")[0];
-    let endDate = today.toISOString().split("T")[0];
+    let startDate = $state(thirtyDaysAgo.toISOString().split("T")[0]);
+    let endDate = $state(today.toISOString().split("T")[0]);
 
-    let selectedDataPoint: DailyOuraDataDTO | null = null;
-    let modalOpen = false;
-    let activeTab: "readiness" | "sleep" | "activity" | "resilience" =
-        "readiness";
+    let selectedDataPoint = $state<DailyOuraDataDTO | null>(null);
+    let modalOpen = $state(false);
+    let activeTab = $state<"readiness" | "sleep" | "activity" | "resilience">("readiness");
 
     onMount(async () => {
         await fetchBootUserDto(fetch);
@@ -196,7 +195,7 @@
 
             <div class="flex gap-2">
                 <button
-                    on:click={loadHistoricalData}
+                    onclick={loadHistoricalData}
                     disabled={loading}
                     class="btn btn-primary px-5 rounded-xl gap-2"
                 >
@@ -207,7 +206,7 @@
                 </button>
 
                 <button
-                    on:click={syncOuraData}
+                    onclick={syncOuraData}
                     disabled={syncing}
                     class="btn btn-accent px-5 rounded-xl gap-2"
                 >
@@ -267,7 +266,7 @@
                 No Oura data found for the selected date range.
             </p>
             <button
-                on:click={syncOuraData}
+                onclick={syncOuraData}
                 class="btn btn-primary px-6 rounded-xl mx-auto"
             >
                 Sync Data Now
@@ -277,7 +276,7 @@
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each historicalData as data}
                 <button
-                    on:click={() => openModal(data)}
+                    onclick={() => openModal(data)}
                     class="card bg-base-100 shadow-editorial hover:shadow-editorial-lg transition-all duration-200
                  cursor-pointer p-6 text-left w-full
                  border-2 border-base-content/10 hover:border-base-content/30"
@@ -411,8 +410,9 @@
                         </div>
                     </div>
                     <button
-                        on:click={closeModal}
-                        class="btn btn-ghost btn-sm btn-circle"
+                        onclick={closeModal}
+                        aria-label="Close"
+                        class="btn btn-ghost btn-circle h-11 min-h-11 w-11"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -436,37 +436,37 @@
             <div class="px-6 pt-4">
                 <div class="flex gap-2 p-1 bg-base-200 rounded-2xl">
                     <button
-                        on:click={() => (activeTab = "readiness")}
+                        onclick={() => (activeTab = "readiness")}
                         class="flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all duration-200
                    {activeTab === 'readiness'
-                            ? 'bg-base-100 shadow-sm'
+                            ? 'bg-base-100 shadow-xs'
                             : 'hover:bg-base-300'}"
                     >
                         Readiness
                     </button>
                     <button
-                        on:click={() => (activeTab = "sleep")}
+                        onclick={() => (activeTab = "sleep")}
                         class="flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all duration-200
                    {activeTab === 'sleep'
-                            ? 'bg-base-100 shadow-sm'
+                            ? 'bg-base-100 shadow-xs'
                             : 'hover:bg-base-300'}"
                     >
                         Sleep
                     </button>
                     <button
-                        on:click={() => (activeTab = "activity")}
+                        onclick={() => (activeTab = "activity")}
                         class="flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all duration-200
                    {activeTab === 'activity'
-                            ? 'bg-base-100 shadow-sm'
+                            ? 'bg-base-100 shadow-xs'
                             : 'hover:bg-base-300'}"
                     >
                         Activity
                     </button>
                     <button
-                        on:click={() => (activeTab = "resilience")}
+                        onclick={() => (activeTab = "resilience")}
                         class="flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all duration-200
                    {activeTab === 'resilience'
-                            ? 'bg-base-100 shadow-sm'
+                            ? 'bg-base-100 shadow-xs'
                             : 'hover:bg-base-300'}"
                     >
                         Resilience
@@ -644,9 +644,9 @@
         </div>
         <form
             method="dialog"
-            class="modal-backdrop bg-black/50 backdrop-blur-sm"
+            class="modal-backdrop bg-black/50 backdrop-blur-xs"
         >
-            <button on:click={closeModal}>close</button>
+            <button onclick={closeModal}>close</button>
         </form>
     </dialog>
 {/if}

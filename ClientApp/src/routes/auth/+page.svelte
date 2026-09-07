@@ -1,23 +1,16 @@
 <script lang="ts">
-    import { bootUserDto, fetchBootUserDto } from "$lib/stores/stores";
+    import { bootUserDto, fetchBootUserDto, rememberProfileCreated } from "$lib/stores/stores";
     import { goto } from "$app/navigation";
-    import { writable } from "svelte/store";
-    import {
-        LionheartClient,
-        CreateProfileEndpointClient,
-        LoginRequest,
-        CreateProfileRequest,
-    } from "$lib/api/ApiClient";
+    import { LionheartClient, LoginRequest } from "$lib/api/ApiClient";
 
-    let email = "";
-    let password = "";
-    let displayName = "";
-    let age = "";
-    let weight = "";
-    let errorMessage = writable("");
+    let email = $state("");
+    let password = $state("");
+    let displayName = $state("");
+    let age = $state("");
+    let weight = $state("");
+    let errorMessage = $state("");
 
     const lionheartClient = new LionheartClient();
-    const createProfileClient = new CreateProfileEndpointClient();
 
     async function register() {
         try {
@@ -37,11 +30,11 @@
                 if (body?.errors) {
                     // flatten all validation messages
                     const messages = Object.values(body.errors).flat();
-                    errorMessage.set(messages.join(" "));
+                    errorMessage = messages.join(" ");
                 } else if (body?.title) {
-                    errorMessage.set(body.title);
+                    errorMessage = body.title;
                 } else {
-                    errorMessage.set("Registration failed.");
+                    errorMessage = "Registration failed.";
                 }
                 return;
             }
@@ -51,13 +44,9 @@
             
         } catch (error) {
             if (error instanceof Error) {
-                errorMessage.set(
-                    `Failed to register your account: ${error.message}`,
-                );
+                errorMessage = `Failed to register your account: ${error.message}`;
             } else {
-                errorMessage.set(
-                    "An unknown error occurred during registration.",
-                );
+                errorMessage = "An unknown error occurred during registration.";
             }
         }
     }
@@ -68,40 +57,42 @@
             await lionheartClient.login(true, true, request);
             await fetchBootUserDto(fetch);
             if ($bootUserDto.hasCreatedProfile) {
-                goto("/");
+                goto("/log");
             }
         } catch (error) {
             if (error instanceof Error) {
                 console.log("Login error: ", error);
             }
-            errorMessage.set("Login failed. Ensure your email and password are correct.");
+            errorMessage = "Login failed. Ensure your email and password are correct.";
                           
         }
     }
 
+    /**
+     * Creating a profile is also how the app learns one already exists: the endpoint answers 409
+     * in that case, which is the only read of that fact the API offers. Either answer settles it.
+     */
     async function createProfile() {
-        try {
-            const request = new CreateProfileRequest({
-                displayName: displayName,
+        errorMessage = "";
+
+        const response = await fetch("/api/user/create-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                displayName,
                 age: parseInt(age),
                 weight: parseInt(weight),
-            });
-            await createProfileClient.post(request);
-            await fetchBootUserDto(fetch);
-            if ($bootUserDto.hasCreatedProfile) {
-                goto("/");
-            }
-        } catch (error) {
-            if (error instanceof Error) {
-                errorMessage.set(
-                    `Error creating your profile: ${error.message}`,
-                );
-            } else {
-                errorMessage.set(
-                    "An unknown error occurred while creating your profile.",
-                );
-            }
+            }),
+        });
+
+        if (!response.ok && response.status !== 409) {
+            errorMessage = `Could not create your profile (${response.status}).`;
+            return;
         }
+
+        rememberProfileCreated($bootUserDto.name ?? email);
+        await fetchBootUserDto(fetch);
+        goto("/log");
     }
 </script>
 
@@ -141,18 +132,18 @@
                 <div class="text-center pt-5 space-x-4">
                     <button
                         type="button"
-                        on:click={register}
+                        onclick={register}
                         class="btn btn-primary p-2">Register</button
                     >
                     <button
                         type="button"
-                        on:click={login}
+                        onclick={login}
                         class="btn btn-primary p-2">Login</button
                     >
-                    {#if $errorMessage}
+                    {#if errorMessage}
                         <p class="pt-4 w-64 break-words justify-center mx-auto">
                             <span class="text-error font-bold"
-                                >{$errorMessage}</span
+                                >{errorMessage}</span
                             >
                         </p>
                     {/if}
@@ -203,13 +194,13 @@
                    
                     <button
                         type="button"
-                        on:click={createProfile}
+                        onclick={createProfile}
                         class="btn btn-primary p-2">Create Profile</button
                     >
-                    {#if $errorMessage}
+                    {#if errorMessage}
                         <p class="pt-4 w-64 break-words justify-center mx-auto">
                             <span class="text-error font-bold"
-                                >{$errorMessage}</span
+                                >{errorMessage}</span
                             >
                         </p>
                     {/if}

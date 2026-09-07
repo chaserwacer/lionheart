@@ -28,39 +28,39 @@
     const deleteEventClient = new DeleteInjuryEventEndpointClient(baseUrl);
 
     // State
-    let injuries: InjuryDTO[] = [];
-    let loading = false;
-    let error = "";
+    let injuries = $state<InjuryDTO[]>([]);
+    let loading = $state(false);
+    let error = $state("");
     
     // Modal states
-    let createInjuryModalOpen = false;
-    let addEventModalOpen = false;
-    let editInjuryModalOpen = false;
-    let viewInjuryModalOpen = false;
-    let selectedInjury: InjuryDTO | null = null;
+    let createInjuryModalOpen = $state(false);
+    let addEventModalOpen = $state(false);
+    let editInjuryModalOpen = $state(false);
+    let viewInjuryModalOpen = $state(false);
+    let selectedInjury = $state<InjuryDTO | null>(null);
     
     // Form states
-    let newInjury = {
+    let newInjury = $state({
         name: "",
         injuryDate: new Date().toISOString().split("T")[0],
         notes: ""
-    };
+    });
     
-    let newEvent = {
+    let newEvent = $state({
         painLevel: 5,
         notes: "",
         injuryType: InjuryEventType._1 // checkin
-    };
+    });
     
-    let editForm = {
+    let editForm = $state({
         name: "",
         notes: "",
         isActive: false
-    };
+    });
 
     // Filter states
-    let filterActive = "all"; // "all", "active", "inactive"
-    let searchQuery = "";
+    let filterActive = $state<"all" | "active" | "inactive">("all");
+    let searchQuery = $state("");
 
     onMount(async () => {
         await fetchBootUserDto(fetch);
@@ -244,7 +244,7 @@
     }
 
     // Computed
-    $: filteredInjuries = injuries.filter(injury => {
+    const filteredInjuries = $derived(injuries.filter(injury => {
         // Filter by active status
         if (filterActive === "active" && !injury.isActive) return false;
         if (filterActive === "inactive" && injury.isActive) return false;
@@ -257,7 +257,7 @@
         }
         
         return true;
-    });
+    }));
 
     function formatDate(date: any): string {
         if (!date) return "N/A";
@@ -326,7 +326,7 @@
                             class="input input-bordered w-full rounded-xl"
                             bind:value={searchQuery}
                         />
-                        <button class="btn btn-square rounded-xl">
+                        <button class="btn btn-square rounded-xl" aria-label="Search injuries">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                             </svg>
@@ -344,7 +344,7 @@
                 </select>
                 
                 <button
-                    on:click={openCreateInjuryModal}
+                    onclick={openCreateInjuryModal}
                     class="btn btn-primary px-5 rounded-xl gap-2"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
@@ -371,7 +371,7 @@
                     />
                 </svg>
                 <span>{error}</span>
-                <button class="btn btn-sm btn-ghost" on:click={() => error = ""}>✕</button>
+                <button class="btn btn-sm btn-ghost" onclick={() => error = ""}>✕</button>
             </div>
         {/if}
     </div>
@@ -405,7 +405,7 @@
             </p>
             {#if !searchQuery && filterActive === "all"}
                 <button
-                    on:click={openCreateInjuryModal}
+                    onclick={openCreateInjuryModal}
                     class="btn btn-primary px-6 rounded-xl mx-auto"
                 >
                     Create First Injury
@@ -465,27 +465,27 @@
                     <!-- Actions -->
                     <div class="flex gap-2">
                         <button
-                            on:click={() => openViewInjuryModal(injury)}
+                            onclick={() => openViewInjuryModal(injury)}
                             class="btn btn-sm btn-outline rounded-xl flex-1"
                         >
                             View
                         </button>
                         <button
-                            on:click={() => openAddEventModal(injury)}
+                            onclick={() => openAddEventModal(injury)}
                             class="btn btn-sm btn-primary rounded-xl flex-1"
                         >
                             Add Event
                         </button>
                         <div class="dropdown dropdown-end">
-                            <button type="button" tabindex="0" class="btn btn-sm btn-ghost btn-square rounded-xl">
+                            <button type="button" tabindex="0" aria-label="Injury actions" class="btn btn-ghost btn-square rounded-xl h-11 min-h-11 w-11">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
                                 </svg>
                             </button>
-                            <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+                            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
                             <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-xl w-52 border-2 border-base-content/10">
-                                <li><button on:click={() => openEditInjuryModal(injury)}>Edit</button></li>
-                                <li><button on:click={() => deleteInjury(injury.injuryID)} class="text-error">Delete</button></li>
+                                <li><button onclick={() => openEditInjuryModal(injury)}>Edit</button></li>
+                                <li><button onclick={() => deleteInjury(injury.injuryID)} class="text-error">Delete</button></li>
                             </ul>
                         </div>
                     </div>
@@ -499,14 +499,14 @@
 {#if createInjuryModalOpen}
     <div class="modal modal-open">
         <div class="modal-box w-11/12 max-w-lg">
-            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" on:click={closeCreateInjuryModal}>✕</button>
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick={closeCreateInjuryModal}>✕</button>
             
             <h3 class="font-bold text-2xl mb-2">Create New Injury</h3>
             <p class="text-sm text-base-content/70 mb-6">
                 Record a new injury to start tracking your recovery
             </p>
 
-            <form on:submit|preventDefault={createInjury}>
+            <form onsubmit={(event) => { event.preventDefault(); createInjury(); }}>
                 <div class="form-control w-full mb-4">
                     <label class="label" for="injury-name">
                         <span class="label-text font-bold uppercase text-xs tracking-wider">Injury Name</span>
@@ -548,12 +548,12 @@
                 </div>
 
                 <div class="modal-action">
-                    <button type="button" class="btn btn-outline px-5 rounded-xl" on:click={closeCreateInjuryModal}>Cancel</button>
+                    <button type="button" class="btn btn-outline px-5 rounded-xl" onclick={closeCreateInjuryModal}>Cancel</button>
                     <button type="submit" class="btn btn-primary px-5 rounded-xl">Create Injury</button>
                 </div>
             </form>
         </div>
-        <div class="modal-backdrop bg-base-300/80" on:click={closeCreateInjuryModal} on:keydown={(e) => e.key === 'Escape' && closeCreateInjuryModal()} role="button" tabindex="0" aria-label="Close modal"></div>
+        <div class="modal-backdrop bg-base-300/80" onclick={closeCreateInjuryModal} onkeydown={(e) => e.key === 'Escape' && closeCreateInjuryModal()} role="button" tabindex="0" aria-label="Close modal"></div>
     </div>
 {/if}
 
@@ -561,7 +561,7 @@
 {#if addEventModalOpen && selectedInjury}
     <div class="modal modal-open">
         <div class="modal-box w-11/12 max-w-lg">
-            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" on:click={closeAddEventModal}>✕</button>
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick={closeAddEventModal}>✕</button>
             
             <h3 class="font-bold text-2xl mb-2">Add Injury Event</h3>
             <p class="text-sm text-base-content/70 mb-1">
@@ -571,7 +571,7 @@
                 Track treatments, check-ins, and pain levels
             </p>
 
-            <form on:submit|preventDefault={addInjuryEvent}>
+            <form onsubmit={(event) => { event.preventDefault(); addInjuryEvent(); }}>
                 <div class="form-control w-full mb-4">
                     <label class="label" for="event-type">
                         <span class="label-text font-bold uppercase text-xs tracking-wider">Event Type</span>
@@ -624,12 +624,12 @@
                 </div>
 
                 <div class="modal-action">
-                    <button type="button" class="btn btn-outline px-5 rounded-xl" on:click={closeAddEventModal}>Cancel</button>
+                    <button type="button" class="btn btn-outline px-5 rounded-xl" onclick={closeAddEventModal}>Cancel</button>
                     <button type="submit" class="btn btn-primary px-5 rounded-xl">Add Event</button>
                 </div>
             </form>
         </div>
-        <div class="modal-backdrop bg-base-300/80" on:click={closeAddEventModal} on:keydown={(e) => e.key === 'Escape' && closeAddEventModal()} role="button" tabindex="0" aria-label="Close modal"></div>
+        <div class="modal-backdrop bg-base-300/80" onclick={closeAddEventModal} onkeydown={(e) => e.key === 'Escape' && closeAddEventModal()} role="button" tabindex="0" aria-label="Close modal"></div>
     </div>
 {/if}
 
@@ -637,14 +637,14 @@
 {#if editInjuryModalOpen && selectedInjury}
     <div class="modal modal-open">
         <div class="modal-box w-11/12 max-w-lg">
-            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" on:click={closeEditInjuryModal}>✕</button>
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick={closeEditInjuryModal}>✕</button>
             
             <h3 class="font-bold text-2xl mb-2">Edit Injury</h3>
             <p class="text-sm text-base-content/70 mb-6">
                 Update injury details and status
             </p>
 
-            <form on:submit|preventDefault={updateInjury}>
+            <form onsubmit={(event) => { event.preventDefault(); updateInjury(); }}>
                 <div class="form-control w-full mb-4">
                     <label class="label" for="edit-injury-name">
                         <span class="label-text font-bold uppercase text-xs tracking-wider">Injury Name</span>
@@ -683,12 +683,12 @@
                 </div>
 
                 <div class="modal-action">
-                    <button type="button" class="btn btn-outline px-5 rounded-xl" on:click={closeEditInjuryModal}>Cancel</button>
+                    <button type="button" class="btn btn-outline px-5 rounded-xl" onclick={closeEditInjuryModal}>Cancel</button>
                     <button type="submit" class="btn btn-primary px-5 rounded-xl">Save Changes</button>
                 </div>
             </form>
         </div>
-        <div class="modal-backdrop bg-base-300/80" on:click={closeEditInjuryModal} on:keydown={(e) => e.key === 'Escape' && closeEditInjuryModal()} role="button" tabindex="0" aria-label="Close modal"></div>
+        <div class="modal-backdrop bg-base-300/80" onclick={closeEditInjuryModal} onkeydown={(e) => e.key === 'Escape' && closeEditInjuryModal()} role="button" tabindex="0" aria-label="Close modal"></div>
     </div>
 {/if}
 
@@ -696,7 +696,7 @@
 {#if viewInjuryModalOpen && selectedInjury}
     <div class="modal modal-open">
         <div class="modal-box w-11/12 max-w-4xl max-h-[90vh]">
-            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" on:click={closeViewInjuryModal}>✕</button>
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick={closeViewInjuryModal}>✕</button>
             
             <!-- Injury Header -->
             <div class="mb-6">
@@ -744,7 +744,7 @@
                                         </span>
                                     </div>
                                     <button
-                                        on:click={() => deleteEvent(event.injuryEventID)}
+                                        onclick={() => deleteEvent(event.injuryEventID)}
                                         class="btn btn-ghost btn-xs btn-square text-error"
                                         title="Delete event"
                                     >
@@ -772,7 +772,7 @@
 
             <div class="modal-action">
                 <button
-                    on:click={() => {
+                    onclick={() => {
                         const injury = selectedInjury;
                         closeViewInjuryModal();
                         if (injury) openAddEventModal(injury);
@@ -781,9 +781,9 @@
                 >
                     Add Event
                 </button>
-                <button class="btn btn-outline px-5 rounded-xl" on:click={closeViewInjuryModal}>Close</button>
+                <button class="btn btn-outline px-5 rounded-xl" onclick={closeViewInjuryModal}>Close</button>
             </div>
         </div>
-        <div class="modal-backdrop bg-base-300/80" on:click={closeViewInjuryModal} on:keydown={(e) => e.key === 'Escape' && closeViewInjuryModal()} role="button" tabindex="0" aria-label="Close modal"></div>
+        <div class="modal-backdrop bg-base-300/80" onclick={closeViewInjuryModal} onkeydown={(e) => e.key === 'Escape' && closeViewInjuryModal()} role="button" tabindex="0" aria-label="Close modal"></div>
     </div>
 {/if}

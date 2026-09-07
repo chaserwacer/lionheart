@@ -16,27 +16,27 @@
     const getWellnessStateClient = new GetWellnessStateEndpointClient(baseUrl);
     const addWellnessStateClient = new AddWellnessStateEndpointClient(baseUrl);
 
-    let wellnessStates: WellnessState[] = [];
-    let todaysWellness: WellnessState | null = null;
-    let loading = false;
-    let error = "";
+    let wellnessStates = $state<WellnessState[]>([]);
+    let todaysWellness = $state<WellnessState | null>(null);
+    let loading = $state(false);
+    let error = $state("");
     
-    let startDate = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split("T")[0];
-    let endDate = new Date().toISOString().split("T")[0];
+    let startDate = $state(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split("T")[0]);
+    let endDate = $state(new Date().toISOString().split("T")[0]);
     
-    let logWellnessModalOpen = false;
-    let viewWellnessModalOpen = false;
-    let selectedWellness: WellnessState | null = null;
+    let logWellnessModalOpen = $state(false);
+    let viewWellnessModalOpen = $state(false);
+    let selectedWellness = $state<WellnessState | null>(null);
     
-    let wellnessForm = {
+    let wellnessForm = $state({
         date: new Date().toISOString().split("T")[0],
         energy: 3,
         motivation: 3,
         mood: 3,
         stress: 3
-    };
+    });
 
-    let sortDirection: "asc" | "desc" = "desc";
+    let sortDirection = $state<"asc" | "desc">("desc");
 
     // Parse date string as local date (not UTC)
     function parseLocalDate(dateStr: string): Date {
@@ -124,26 +124,26 @@
         };
     }
 
-    $: sortedWellnessStates = [...wellnessStates].sort((a, b) => {
+    const sortedWellnessStates = $derived([...wellnessStates].sort((a, b) => {
         const dateA = new Date(a.date?.toString() ?? "");
         const dateB = new Date(b.date?.toString() ?? "");
         return sortDirection === "desc" 
             ? dateB.getTime() - dateA.getTime()
             : dateA.getTime() - dateB.getTime();
-    });
+    }));
 
-    $: totalEntries = wellnessStates.length;
-    $: averageOverall = totalEntries > 0 
+    const totalEntries = $derived(wellnessStates.length);
+    const averageOverall = $derived(totalEntries > 0 
         ? Math.round((wellnessStates.reduce((sum, w) => sum + (w.overallScore ?? 0), 0) / totalEntries) * 10) / 10
-        : 0;
-    $: averageEnergy = totalEntries > 0 
+        : 0);
+    const averageEnergy = $derived(totalEntries > 0 
         ? Math.round((wellnessStates.reduce((sum, w) => sum + (w.energyScore ?? 0), 0) / totalEntries) * 10) / 10
-        : 0;
-    $: averageMood = totalEntries > 0 
+        : 0);
+    const averageMood = $derived(totalEntries > 0 
         ? Math.round((wellnessStates.reduce((sum, w) => sum + (w.moodScore ?? 0), 0) / totalEntries) * 10) / 10
-        : 0;
+        : 0);
 
-    $: calculatedOverall = ((wellnessForm.mood + wellnessForm.energy + wellnessForm.motivation + (6 - wellnessForm.stress)) / 4);
+    const calculatedOverall = $derived(((wellnessForm.mood + wellnessForm.energy + wellnessForm.motivation + (6 - wellnessForm.stress)) / 4));
 
     function formatDate(date: Date | string | undefined): string {
         if (!date) return "N/A";
@@ -259,7 +259,7 @@
                     </div>
                 </div>
                 <button
-                    on:click={() => openLogWellnessModal()}
+                    onclick={() => openLogWellnessModal()}
                     class="btn btn-outline px-5 rounded-xl"
                 >
                     Update
@@ -274,7 +274,7 @@
                     <p class="text-base-content/50 text-sm">Log how you're feeling to track your wellness</p>
                 </div>
                 <button
-                    on:click={() => openLogWellnessModal()}
+                    onclick={() => openLogWellnessModal()}
                     class="btn btn-primary px-6 rounded-xl"
                 >
                     Log Today
@@ -310,21 +310,21 @@
                 <input
                     type="date"
                     bind:value={startDate}
-                    on:change={loadWellnessStates}
+                    onchange={loadWellnessStates}
                     class="input input-bordered input-sm rounded-xl font-mono text-xs"
                 />
                 <span class="text-base-content/50 text-sm font-bold">to</span>
                 <input
                     type="date"
                     bind:value={endDate}
-                    on:change={loadWellnessStates}
+                    onchange={loadWellnessStates}
                     class="input input-bordered input-sm rounded-xl font-mono text-xs"
                 />
             </div>
 
             <div class="flex gap-2">
                 <button
-                    on:click={toggleSort}
+                    onclick={toggleSort}
                     class="btn btn-outline btn-sm rounded-xl gap-2"
                 >
                     {#if sortDirection === "desc"}
@@ -341,7 +341,7 @@
                 </button>
                 
                 <button
-                    on:click={() => openLogWellnessModal()}
+                    onclick={() => openLogWellnessModal()}
                     class="btn btn-primary btn-sm px-4 rounded-xl gap-2"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
@@ -355,7 +355,7 @@
         {#if error}
             <div class="alert alert-error mt-4 rounded-xl">
                 <span>{error}</span>
-                <button class="btn btn-sm btn-ghost" on:click={() => error = ""}>✕</button>
+                <button class="btn btn-sm btn-ghost" onclick={() => error = ""}>✕</button>
             </div>
         {/if}
     </div>
@@ -372,7 +372,7 @@
                 Start tracking by logging your first wellness entry
             </p>
             <button
-                on:click={() => openLogWellnessModal()}
+                onclick={() => openLogWellnessModal()}
                 class="btn btn-primary px-6 rounded-xl mx-auto"
             >
                 Log First Entry
@@ -382,7 +382,7 @@
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each sortedWellnessStates as wellness}
                 <button
-                    on:click={() => openViewWellnessModal(wellness)}
+                    onclick={() => openViewWellnessModal(wellness)}
                     class="card bg-base-100 shadow-editorial border-2 border-base-content/10 
                            hover:border-base-content/30 hover:shadow-editorial-lg 
                            transition-all duration-200 p-5 text-left w-full"
@@ -450,7 +450,7 @@
                         <h3 class="text-2xl font-display font-black tracking-tight">Log Wellness</h3>
                         <p class="text-xs font-mono uppercase tracking-widest text-base-content/50 mt-1">Record your state</p>
                     </div>
-                    <button on:click={closeLogWellnessModal} class="btn btn-ghost btn-sm btn-circle">
+                    <button onclick={closeLogWellnessModal} aria-label="Close" class="btn btn-ghost btn-circle h-11 min-h-11 w-11">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
@@ -458,7 +458,7 @@
                 </div>
             </div>
 
-            <form on:submit|preventDefault={logWellness} class="p-6">
+            <form onsubmit={(event) => { event.preventDefault(); logWellness(); }} class="p-6">
                 <div class="form-control w-full mb-6">
                     <label class="label" for="wellness-date">
                         <span class="label-text font-bold uppercase text-xs tracking-wider">Date</span>
@@ -538,12 +538,12 @@
                 </div>
 
                 <div class="flex justify-end gap-2 mt-6">
-                    <button type="button" class="btn btn-ghost px-5 rounded-xl" on:click={closeLogWellnessModal}>Cancel</button>
+                    <button type="button" class="btn btn-ghost px-5 rounded-xl" onclick={closeLogWellnessModal}>Cancel</button>
                     <button type="submit" class="btn btn-primary px-5 rounded-xl">Save</button>
                 </div>
             </form>
         </div>
-        <div class="modal-backdrop bg-base-300/80" on:click={closeLogWellnessModal} on:keydown={(e) => e.key === 'Escape' && closeLogWellnessModal()} role="button" tabindex="0" aria-label="Close modal"></div>
+        <div class="modal-backdrop bg-base-300/80" onclick={closeLogWellnessModal} onkeydown={(e) => e.key === 'Escape' && closeLogWellnessModal()} role="button" tabindex="0" aria-label="Close modal"></div>
     </div>
 {/if}
 
@@ -557,7 +557,7 @@
                         <span class="text-xs font-bold uppercase tracking-widest text-base-content/50">{formatDate(selectedWellness.date)}</span>
                         <h3 class="text-2xl font-display font-black tracking-tight mt-1">Wellness</h3>
                     </div>
-                    <button on:click={closeViewWellnessModal} class="btn btn-ghost btn-sm btn-circle">
+                    <button onclick={closeViewWellnessModal} aria-label="Close" class="btn btn-ghost btn-circle h-11 min-h-11 w-11">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
@@ -624,7 +624,7 @@
 
                 <div class="flex justify-end gap-2 mt-6 pt-4 border-t-2 border-base-content/10">
                     <button
-                        on:click={() => {
+                        onclick={() => {
                             closeViewWellnessModal();
                             if (selectedWellness?.date) {
                                 openLogWellnessModal(new Date(selectedWellness.date).toISOString().split("T")[0]);
@@ -634,10 +634,10 @@
                     >
                         Update
                     </button>
-                    <button class="btn btn-primary px-5 rounded-xl" on:click={closeViewWellnessModal}>Close</button>
+                    <button class="btn btn-primary px-5 rounded-xl" onclick={closeViewWellnessModal}>Close</button>
                 </div>
             </div>
         </div>
-        <div class="modal-backdrop bg-base-300/80" on:click={closeViewWellnessModal} on:keydown={(e) => e.key === 'Escape' && closeViewWellnessModal()} role="button" tabindex="0" aria-label="Close modal"></div>
+        <div class="modal-backdrop bg-base-300/80" onclick={closeViewWellnessModal} onkeydown={(e) => e.key === 'Escape' && closeViewWellnessModal()} role="button" tabindex="0" aria-label="Close modal"></div>
     </div>
 {/if}

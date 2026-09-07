@@ -1,488 +1,186 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { goto } from "$app/navigation";
-    import {
-        programs,
-        activeProgram,
-        lastCompletedSession,
-        nextSession,
-        recentSessions,
-        isLoading,
-        trainingError,
-        fetchAllTrainingData,
-        getStatusText,
-        getStatusColor,
-        formatSessionDate,
-        getSessionTitle,
-    } from "$lib/stores/trainingStore";
-    import {
-        TrainingSessionStatus,
-        type TrainingSessionDTO,
-        type TrainingProgramDTO,
-        type LiftSetEntryDTO,
-    } from "$lib/api/ApiClient";
-    import CreateTrainingSessionModal from "$lib/components/modals/CreateTrainingSessionModal.svelte";
-    import CreateTrainingProgramModal from "$lib/components/modals/CreateTrainingProgramModal.svelte";
-    import NextSessionCard from "$lib/components/home/NextSessionCard.svelte";
-    import LastSessionCard from "$lib/components/home/LastSessionCard.svelte";
+  import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
+  import {
+    LIFECYCLE_BADGES,
+    LIFECYCLE_LABELS,
+    PROGRAM_LIFECYCLE_LABELS,
+    prescriptionsOf,
+    setsOf,
+    type TrainingProgramView,
+    type TrainingSessionView,
+  } from "$lib/api/training";
+  import { relativeDay, training } from "$lib/stores/training.svelte";
+  import CreateTrainingSessionModal from "$lib/components/modals/CreateTrainingSessionModal.svelte";
+  import CreateTrainingProgramModal from "$lib/components/modals/CreateTrainingProgramModal.svelte";
+  import NextSessionCard from "$lib/components/home/NextSessionCard.svelte";
+  import LastSessionCard from "$lib/components/home/LastSessionCard.svelte";
 
-    // Modal states
-    let createProgramModalOpen = false;
-    let createSessionModalOpen = false;
+  onMount(() => training.loadAll());
 
-    // Forms
-    let programForm = {
-        title: "",
-        startDate: new Date().toISOString().slice(0, 10),
-        endDate: "",
-        tagsCsv: "",
-    };
+  function openDialog(id: string) {
+    (document.getElementById(id) as HTMLDialogElement | null)?.showModal();
+  }
 
-    let sessionForm = {
-        date: new Date().toISOString().slice(0, 10),
-        notes: "",
-    };
+  function goToSession(session: TrainingSessionView) {
+    goto(`/training/session/${session.trainingSessionId}`);
+  }
 
-    onMount(async () => {
-        await fetchAllTrainingData();
-    });
+  function goToProgram(program: TrainingProgramView) {
+    goto(`/training/program/${program.trainingProgramId}`);
+  }
 
-    function openProgramModal() {
-        (
-            document.getElementById("create_program_modal") as HTMLDialogElement
-        )?.showModal();
-    }
+  // A session's size reads off the list it actually has: targets when planned, sets once it ran.
+  function sizeOf(session: TrainingSessionView): string {
+    const sets = setsOf(session).length;
+    if (sets > 0) return `${sets} ${sets === 1 ? "set" : "sets"}`;
 
-    function openSessionModal() {
-        (
-            document.getElementById("create_session_modal") as HTMLDialogElement
-        )?.showModal();
-    }
+    const prescribed = prescriptionsOf(session).length;
+    if (prescribed > 0) return `${prescribed} prescribed`;
 
-    function goToSession(session: TrainingSessionDTO) {
-        if (session.trainingSessionID) {
-            goto(`/training/session/${session.trainingSessionID}`);
-        }
-    }
+    return "No sets";
+  }
 
-    function goToProgram(program: TrainingProgramDTO) {
-        if (program.trainingProgramID) {
-            goto(`/training/program/${program.trainingProgramID}`);
-        }
-    }
-
-    function goToEquipmentManager() {
-        goto("/training/equipment");
-    }
-
-    // Calculate stats for session cards
-    function getMovementCount(session: TrainingSessionDTO | null): number {
-        return session?.movements?.length ?? 0;
-    }
-
-    function getTotalSets(session: TrainingSessionDTO | null): number {
-        if (!session?.movements) return 0;
-        return session.movements.reduce((sum, m) => {
-            const liftSets = m.liftSets?.length ?? 0;
-            const dtSets = m.distanceTimeSets?.length ?? 0;
-            return sum + liftSets + dtSets;
-        }, 0);
-    }
-
-    function getTotalVolume(session: TrainingSessionDTO | null): number {
-        if (!session?.movements) return 0;
-        return session.movements.reduce((sum, m) => {
-            const liftVolume =
-                m.liftSets?.reduce(
-                    (s: number, e: LiftSetEntryDTO) =>
-                        s + (e.actualWeight ?? 0) * (e.actualReps ?? 0),
-                    0,
-                ) ?? 0;
-            return sum + liftVolume;
-        }, 0);
-    }
-
-    function formatVolume(vol: number): string {
-        if (vol > 1000) return (vol / 1000).toFixed(1) + "k";
-        return vol.toString();
-    }
-
-    function formatDate(date: any): string {
-        if (!date) return "N/A";
-        const d = new Date(date.toString());
-        return d.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            timeZone: "UTC",
-        });
-    }
-
-    function getProgramProgress(program: TrainingProgramDTO | null): {
-        completed: number;
-        total: number;
-    } {
-        if (!program?.trainingSessions) return { completed: 0, total: 0 };
-        const completed = program.trainingSessions.filter(
-            (s) => s.status === TrainingSessionStatus._2,
-        ).length;
-        return { completed, total: program.trainingSessions.length };
-    }
+  function sessionsIn(program: TrainingProgramView): TrainingSessionView[] {
+    return training.sessions.filter(
+      (session) => session.trainingProgramId === program.trainingProgramId,
+    );
+  }
 </script>
 
 <svelte:head>
-    <title>Training - Lionheart</title>
+  <title>Training - Lionheart</title>
 </svelte:head>
 
 <div class="min-h-full bg-base-200">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Header -->
-        <header class="mb-8">
-            <div
-                class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-            >
-                <div>
-                    <h1
-                        class="text-5xl sm:text-6xl font-display font-black tracking-tightest text-base-content leading-none"
-                    >
-                        TRAINING
-                    </h1>
-                    <p
-                        class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-3"
-                    >
-                        Programs, Sessions & Progress
-                    </p>
-                </div>
+  <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1
+          class="font-display text-5xl font-black leading-none tracking-tightest text-base-content"
+        >
+          TRAINING
+        </h1>
+        <p class="mt-3 font-mono text-sm uppercase tracking-widest text-base-content/50">
+          {training.sessions.length} sessions in the window
+        </p>
+      </div>
 
-                <div class="flex items-center gap-2">
-                    <button
-                        class="btn px-5 rounded-xl"
-                        on:click={openSessionModal}
-                    >
-                        New Session
-                    </button>
-                    <button
-                        class="btn px-5 rounded-xl"
-                        on:click={openProgramModal}
-                    >
-                        New Program
-                    </button>
-                </div>
-            </div>
-        </header>
+      <div class="flex flex-wrap gap-2">
+        <button
+          onclick={() => openDialog("create_session_modal")}
+          class="btn btn-neutral min-h-11 h-11 rounded-xl px-5 text-xs font-bold uppercase tracking-widest"
+        >
+          New session
+        </button>
+        <button
+          onclick={() => openDialog("create_program_modal")}
+          class="btn btn-outline min-h-11 h-11 rounded-xl border-2 px-5 text-xs font-bold uppercase tracking-widest"
+        >
+          New program
+        </button>
+        <button
+          onclick={() => goto("/training/equipment")}
+          class="btn btn-ghost min-h-11 h-11 text-xs font-bold uppercase tracking-widest"
+        >
+          Library
+        </button>
+      </div>
+    </header>
 
-        {#if $trainingError}
-            <div class="alert alert-error mb-6">
-                <span>{$trainingError}</span>
-            </div>
-        {/if}
+    {#if training.error}
+      <p class="mb-6 rounded-xl border-2 border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
+        {training.error}
+      </p>
+    {/if}
 
-        {#if $isLoading}
-            <div class="flex justify-center items-center py-12">
-                <span class="loading loading-spinner loading-lg"></span>
-            </div>
-        {:else}
-            <!-- Overview Cards Grid -->
-            <div
-                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"
-            >
-                <LastSessionCard session={$lastCompletedSession} />
-                <NextSessionCard session={$nextSession} />
+    {#if training.activeSession}
+      <a
+        href="/training/session/{training.activeSession.trainingSessionId}"
+        class="mb-8 flex items-center justify-between rounded-2xl border-2 border-warning bg-warning/10 px-6 py-5"
+      >
+        <span>
+          <span class="block text-xs font-bold uppercase tracking-widest text-warning">
+            In progress
+          </span>
+          <span class="mt-1 block font-display text-2xl font-black tracking-tight">
+            {training.activeSession.notes || "Training session"}
+          </span>
+        </span>
+        <span class="text-2xl text-base-content/40">&rarr;</span>
+      </a>
+    {/if}
 
-                <!-- Active Program Card -->
-                <button
-                    on:click={() =>
-                        $activeProgram && goToProgram($activeProgram)}
-                    class="card bg-base-100 shadow-editorial hover:shadow-editorial-lg transition-all duration-200
-                           cursor-pointer p-6 text-left w-full h-full
-                           border-2 border-base-content/10 hover:border-base-content/30
-                           {!$activeProgram
-                        ? 'opacity-60 cursor-not-allowed'
-                        : ''}"
-                    disabled={!$activeProgram}
-                >
-                    <div class="flex items-start justify-between mb-6">
-                        <div class="flex flex-col gap-1">
-                            <span
-                                class="text-xs font-bold uppercase tracking-widest text-base-content/50"
-                                >Active</span
-                            >
-                            <h3
-                                class="text-2xl font-display font-black tracking-tight"
-                            >
-                                Program
-                            </h3>
-                        </div>
-                        {#if $activeProgram}
-                            <span class="text-base-content/30 text-xl"
-                                >&rarr;</span
-                            >
-                        {/if}
-                    </div>
-
-                    {#if $activeProgram}
-                        {@const progress = getProgramProgress($activeProgram)}
-                        <div>
-                            <p
-                                class="text-xl font-bold uppercase tracking-wide truncate"
-                            >
-                                {$activeProgram.title || "Untitled Program"}
-                            </p>
-                            <p
-                                class="text-sm font-mono uppercase tracking-widest text-base-content/50 mt-2"
-                            >
-                                {formatDate($activeProgram.startDate)} &ndash;
-                                {formatDate($activeProgram.endDate)}
-                            </p>
-                        </div>
-
-                        <div
-                            class="mt-6 pt-4 border-t-2 border-base-content/10"
-                        >
-                            <div class="flex items-center justify-between mb-2">
-                                <span
-                                    class="text-xs font-bold uppercase tracking-wider text-base-content/50"
-                                    >Progress</span
-                                >
-                                <span class="text-sm font-mono"
-                                    >{progress.completed}/{progress.total}</span
-                                >
-                            </div>
-                            <progress
-                                class="progress progress-primary w-full h-2"
-                                value={progress.completed}
-                                max={progress.total}
-                            ></progress>
-                        </div>
-                    {:else}
-                        <div class="py-4">
-                            <p class="text-base-content/50">
-                                No active program
-                            </p>
-                            <p class="text-xs text-base-content/30 mt-1">
-                                Create a training program
-                            </p>
-                        </div>
-                    {/if}
-                </button>
-            </div>
-
-            <!-- Equipment Manager Link -->
-            <div class="mb-8">
-                <button
-                    on:click={goToEquipmentManager}
-                    class="card bg-base-100 shadow-editorial hover:shadow-editorial-lg transition-all duration-200
-                           cursor-pointer p-6 text-left w-full
-                           border-2 border-base-content/10 hover:border-base-content/30"
-                >
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-4">
-                            <div>
-                                <h3 class="text-lg font-bold">
-                                    Equipment // Movement Base Library
-                                </h3>
-                            </div>
-                        </div>
-                        <span class="text-base-content/30 text-xl">&rarr;</span>
-                    </div>
-                </button>
-            </div>
-
-            <!-- Recent Sessions -->
-            <section>
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-2xl font-display font-black tracking-tight">
-                        Recent Sessions
-                    </h2>
-                    <span
-                        class="text-sm font-mono uppercase tracking-widest text-base-content/50"
-                    >
-                        Last 2 weeks
-                    </span>
-                </div>
-
-                {#if $recentSessions.length === 0}
-                    <div
-                        class="card bg-base-100 shadow-editorial border-2 border-base-content/10 p-8 text-center"
-                    >
-                        <p class="text-base-content/50 mb-4">
-                            No recent sessions
-                        </p>
-                        <button
-                            class="btn btn-primary px-6 rounded-xl mx-auto"
-                            on:click={openSessionModal}
-                        >
-                            Create Your First Session
-                        </button>
-                    </div>
-                {:else}
-                    <div class="space-y-3">
-                        {#each $recentSessions as session}
-                            <button
-                                on:click={() => goToSession(session)}
-                                class="card bg-base-100 shadow-editorial hover:shadow-editorial-lg transition-all duration-200
-                                       cursor-pointer p-4 text-left w-full
-                                       border-2 border-base-content/10 hover:border-base-content/30"
-                            >
-                                <div class="flex items-center justify-between">
-                                    <div
-                                        class="flex items-center gap-4 flex-1 min-w-0"
-                                    >
-                                        <div
-                                            class="flex flex-col gap-1 min-w-0 flex-1"
-                                        >
-                                            <div
-                                                class="flex items-center gap-2"
-                                            >
-                                                <span class="font-bold truncate"
-                                                    >{getSessionTitle(
-                                                        session,
-                                                    )}</span
-                                                >
-                                                <span
-                                                    class="badge {getStatusColor(
-                                                        session.status,
-                                                    )} badge-sm shrink-0"
-                                                >
-                                                    {getStatusText(
-                                                        session.status,
-                                                    )}
-                                                </span>
-                                            </div>
-                                            <span
-                                                class="text-xs font-mono uppercase tracking-widest text-base-content/50"
-                                            >
-                                                {formatSessionDate(
-                                                    session.date,
-                                                )}
-                                            </span>
-                                        </div>
-
-                                        <div
-                                            class="hidden sm:flex items-center gap-6 text-sm text-base-content/60"
-                                        >
-                                            <div
-                                                class="flex flex-col items-center"
-                                            >
-                                                <span
-                                                    class="text-lg font-display font-black text-base-content"
-                                                    >{getMovementCount(
-                                                        session,
-                                                    )}</span
-                                                >
-                                                <span
-                                                    class="text-xs uppercase tracking-wider"
-                                                    >moves</span
-                                                >
-                                            </div>
-                                            {#if getTotalSets(session) > 0}
-                                                <div
-                                                    class="flex flex-col items-center"
-                                                >
-                                                    <span
-                                                        class="text-lg font-display font-black text-base-content"
-                                                        >{getTotalSets(
-                                                            session,
-                                                        )}</span
-                                                    >
-                                                    <span
-                                                        class="text-xs uppercase tracking-wider"
-                                                        >sets</span
-                                                    >
-                                                </div>
-                                            {/if}
-                                        </div>
-                                    </div>
-
-                                    <span
-                                        class="text-base-content/30 text-xl ml-4"
-                                        >&rarr;</span
-                                    >
-                                </div>
-                            </button>
-                        {/each}
-                    </div>
-                {/if}
-            </section>
-
-            <!-- All Programs -->
-            {#if $programs.length > 0}
-                <section class="mt-8">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2
-                            class="text-2xl font-display font-black tracking-tight"
-                        >
-                            All Programs
-                        </h2>
-                        <span
-                            class="text-sm font-mono uppercase tracking-widest text-base-content/50"
-                        >
-                            {$programs.length} total
-                        </span>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {#each $programs as program}
-                            {@const progress = getProgramProgress(program)}
-                            <button
-                                on:click={() => goToProgram(program)}
-                                class="card bg-base-100 shadow-editorial hover:shadow-editorial-lg transition-all duration-200
-                                       cursor-pointer p-5 text-left w-full
-                                       border-2 border-base-content/10 hover:border-base-content/30"
-                            >
-                                <div
-                                    class="flex items-start justify-between mb-3"
-                                >
-                                    <div class="flex-1 min-w-0">
-                                        <h3 class="font-bold truncate">
-                                            {program.title ||
-                                                "Untitled Program"}
-                                        </h3>
-                                        <p
-                                            class="text-xs font-mono uppercase tracking-widest text-base-content/50 mt-1"
-                                        >
-                                            {formatDate(program.startDate)} &ndash;
-                                            {formatDate(program.endDate)}
-                                        </p>
-                                    </div>
-                                    {#if program.isCompleted}
-                                        <span
-                                            class="badge badge-success badge-sm"
-                                            >Completed</span
-                                        >
-                                    {:else}
-                                        <span class="badge badge-ghost badge-sm"
-                                            >Active</span
-                                        >
-                                    {/if}
-                                </div>
-
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2 flex-1">
-                                        <progress
-                                            class="progress progress-primary flex-1 h-2"
-                                            value={progress.completed}
-                                            max={progress.total}
-                                        ></progress>
-                                        <span
-                                            class="text-xs font-mono text-base-content/50"
-                                        >
-                                            {progress.completed}/{progress.total}
-                                        </span>
-                                    </div>
-                                    <span
-                                        class="text-base-content/30 text-lg ml-4"
-                                        >&rarr;</span
-                                    >
-                                </div>
-                            </button>
-                        {/each}
-                    </div>
-                </section>
-            {/if}
-        {/if}
+    <div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <LastSessionCard session={training.lastCompletedSession} />
+      <NextSessionCard session={training.nextSession} />
     </div>
+
+    <section class="mb-10">
+      <h2 class="mb-4 font-display text-2xl font-black tracking-tight">Programs</h2>
+
+      {#if training.programs.length === 0}
+        <p class="text-sm text-base-content/50">No programs yet.</p>
+      {:else}
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {#each training.programs as program (program.trainingProgramId)}
+            <button
+              onclick={() => goToProgram(program)}
+              class="card w-full border-2 border-base-content/10 bg-base-100 p-5 text-left shadow-editorial
+                     transition-all hover:border-base-content/30"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <span class="font-display text-xl font-black tracking-tight">{program.title}</span>
+                <span class="badge badge-sm badge-outline shrink-0">
+                  {PROGRAM_LIFECYCLE_LABELS[program.$type]}
+                </span>
+              </div>
+              <p class="mt-2 font-mono text-xs uppercase tracking-widest text-base-content/50">
+                {program.startDate} → {program.endDate}
+              </p>
+              <p class="mt-3 text-sm text-base-content/60">
+                {sessionsIn(program).length} sessions in the window
+              </p>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </section>
+
+    <section>
+      <h2 class="mb-4 font-display text-2xl font-black tracking-tight">Recent</h2>
+
+      {#if training.recentSessions.length === 0}
+        <p class="text-sm text-base-content/50">
+          Nothing logged yet — the <a class="link" href="/log">Log screen</a> is the fastest way in.
+        </p>
+      {:else}
+        <div class="flex flex-col gap-2">
+          {#each training.recentSessions as session (session.trainingSessionId)}
+            <button
+              onclick={() => goToSession(session)}
+              class="flex w-full items-center gap-4 rounded-xl border-2 border-base-content/10 bg-base-100
+                     px-5 py-4 text-left transition-colors hover:border-base-content/30"
+            >
+              <span class="badge {LIFECYCLE_BADGES[session.$type]} badge-sm shrink-0">
+                {LIFECYCLE_LABELS[session.$type]}
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate font-bold">
+                  {session.notes?.trim() || "Training session"}
+                </span>
+                <span class="mt-0.5 block font-mono text-xs uppercase tracking-widest text-base-content/50">
+                  {relativeDay(session.date)} · {sizeOf(session)}
+                </span>
+              </span>
+              <span class="shrink-0 text-base-content/30">&rarr;</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </section>
+  </div>
 </div>
 
-<CreateTrainingProgramModal modalId="create_program_modal" />
-
-<CreateTrainingSessionModal modalId="create_session_modal" />
+<CreateTrainingSessionModal oncreated={() => training.loadSessions()} />
+<CreateTrainingProgramModal oncreated={() => training.loadPrograms()} />

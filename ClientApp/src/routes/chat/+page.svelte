@@ -1,9 +1,9 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { page } from "$app/stores";
-    import { get, writable } from "svelte/store";
+    import { page } from "$app/state";
     import { fetchBootUserDto, bootUserDto } from "$lib/stores/stores";
     import {
+        LHChatConversationDTO,
         ProcessUserChatMessageEndpointClient,
         AddChatMessageRequest,
         CreateChatConversationRequest,
@@ -12,23 +12,21 @@
         GetChatConversationEndpointClient,
         DeleteChatConversationEndpointClient,
         LHChatMessageDTO,
-        type LHChatConversationDTO,
     } from "$lib/api/ApiClient";
     import { marked } from "marked";
 
     const baseUrl = "";
 
-    let newMessage = "";
-    let loading = false;
-    let chatContainer: HTMLElement;
+    let newMessage = $state("");
+    let loading = $state(false);
+    let chatContainer = $state<HTMLElement>();
 
     let lastPrefill: string | null = null;
 
-    // Chat conversations (using stores for proper reactivity)
-    const conversations = writable<LHChatConversationDTO[]>([]);
-    const currentChatConversation = writable<LHChatConversationDTO | null>(null);
-    const selectedChatId = writable<string | null>(null);
-    let loadingConversations = true;
+    let conversations = $state<LHChatConversationDTO[]>([]);
+    let currentChatConversation = $state<LHChatConversationDTO | null>(null);
+    let selectedChatId = $state<string | null>(null);
+    let loadingConversations = $state(true);
 
 
     function delay(ms: number) {
@@ -36,7 +34,7 @@
     }
 
     // Modal state
-    let conversationsModalOpen = false;
+    let conversationsModalOpen = $state(false);
 
     function openConversationsModal() {
         conversationsModalOpen = true;
@@ -52,7 +50,7 @@
         try {
             loadingConversations = true;
             const client = new GetAllChatConversationsEndpointClient(baseUrl);
-            conversations.set(await client.get());
+            conversations = await client.get();
             loadingConversations = false;
         } catch (error) {
             console.error("Error loading conversations:", error);
@@ -64,12 +62,11 @@
     async function loadConversation(chatId: string) {
         try {
             const client = new GetChatConversationEndpointClient(baseUrl);
-            const conversation = await client.get(chatId);
-            currentChatConversation.set(conversation);
+            currentChatConversation = await client.get(chatId);
             scrollToBottom();
         } catch (error) {
             console.error("Error loading conversation:", error);
-            currentChatConversation.set(null);
+            currentChatConversation = null;
         }
     }
 
@@ -97,27 +94,9 @@
             }
             const newChatId = newConversation.chatConversationID;
 
-            // Add optimistic user message to the conversation object
-            const optimisticMessage = LHChatMessageDTO.fromJS({
-                chatMessageItemID: crypto.randomUUID(),
-                chatConversationID: newChatId,
-                creationTime: new Date().toISOString(),
-                content: initialMessage,
-            });
-            newConversation.messages = [optimisticMessage];
-
-            // Set state all at once
-            selectedChatId.set(newChatId);
+            selectedChatId = newChatId;
             selectConversation(newChatId);
-            // currentChatConversation.set(newConversation);
-            // currentChatConversation.update((conv) => {
-            //     if (conv) {
-            //         conv.messages = [...(conv.messages ?? []), optimisticMessage];
-            //     }
-            //     return conv;
-            // });
             newMessage = "";
-
 
             // Send the message to AI
             await sendMessageToAI(initialMessage, newChatId);
@@ -135,39 +114,38 @@
         newMessage = "";
 
         // If no conversation selected, create a new one
-        if (!$selectedChatId || !$currentChatConversation) {
+        const conversation = currentChatConversation;
+        if (!selectedChatId || !conversation) {
             await createNewConversation(userQuery);
             return;
         }
 
         loading = true;
 
-        // Add optimistic user message
         const optimisticMessage = LHChatMessageDTO.fromJS({
             chatMessageItemID: crypto.randomUUID(),
-            chatConversationID: $selectedChatId,
+            chatConversationID: selectedChatId,
             creationTime: new Date().toISOString(),
             content: userQuery,
         });
-        currentChatConversation.update(conv => {
-            if (conv) {
-                conv.messages = [...(conv.messages ?? []), optimisticMessage];
-            }
-            return conv;
+        // The generated DTO is a class instance, which $state does not proxy, so
+        // the optimistic message has to arrive as a replacement value.
+        currentChatConversation = new LHChatConversationDTO({
+            ...conversation,
+            messages: [...(conversation.messages ?? []), optimisticMessage],
         });
 
         scrollToBottom();
 
-        await sendMessageToAI(userQuery, $selectedChatId);
+        await sendMessageToAI(userQuery, selectedChatId);
     }
 
     // Actually send message to AI and handle response
     async function sendMessageToAI(content: string, chatIdOverride?: string | null) {
-        const chatId = chatIdOverride ?? $selectedChatId;
+        const chatId = chatIdOverride ?? selectedChatId;
         if (!chatId) return;
 
-        const localConversation = get(currentChatConversation);
-        const localMessageCount = localConversation?.messages?.length ?? 0;
+        const localMessageCount = currentChatConversation?.messages?.length ?? 0;
 
         try {
             const chatClient = new ProcessUserChatMessageEndpointClient(
@@ -191,7 +169,7 @@
                 const serverCount = serverConversation?.messages?.length ?? 0;
 
                 if (serverCount >= localMessageCount) {
-                    currentChatConversation.set(serverConversation);
+                    currentChatConversation = serverConversation;
                 }
 
                 // If assistant message arrived, stop loading.
@@ -212,15 +190,15 @@
 
     // Select a conversation
     function selectConversation(id: string) {
-        selectedChatId.set(id);
+        selectedChatId = id;
         conversationsModalOpen = false;
         loadConversation(id);
     }
 
     // Start a new chat
     function startNewChat() {
-        selectedChatId.set(null);
-        currentChatConversation.set(null);
+        selectedChatId = null;
+        currentChatConversation = null;
         conversationsModalOpen = false;
     }
 
@@ -230,7 +208,7 @@
             ev.stopPropagation();
             ev.preventDefault();
         }
-        const convo = $conversations.find((c) => c.chatConversationID === id);
+        const convo = conversations.find((c) => c.chatConversationID === id);
         const name = convo?.name || "this conversation";
         if (!confirm(`Delete '${name}'? This cannot be undone.`)) return;
         try {
@@ -239,7 +217,7 @@
             await loadConversations();
 
             // If we deleted the current one, clear the view
-            if ($selectedChatId === id) {
+            if (selectedChatId === id) {
                 startNewChat();
             }
         } catch (e) {
@@ -280,17 +258,17 @@
         await loadConversations();
     });
 
-    $: {
-        const prefill = $page.url.searchParams.get("prefill");
+    $effect(() => {
+        const prefill = page.url.searchParams.get("prefill");
         if (prefill && prefill !== lastPrefill) {
             newMessage = prefill;
             lastPrefill = prefill;
         }
-    }
+    });
 </script>
 
 <svelte:head>
-    <title>{$currentChatConversation?.name ?? "Chat"} - Lionheart</title>
+    <title>{currentChatConversation?.name ?? "Chat"} - Lionheart</title>
 </svelte:head>
 <div class= "max-w-6xl mx-auto border border-base-content/10 rounded-2xl overflow-hidden">
     
@@ -300,8 +278,8 @@
     <div class="fixed inset-0 z-50 flex items-center justify-center">
         <!-- Backdrop -->
         <button
-            class="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            on:click={closeConversationsModal}
+            class="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            onclick={closeConversationsModal}
             aria-label="Close modal"
         ></button>
 
@@ -317,7 +295,7 @@
                 <div class="flex items-center gap-2">
                     <button
                         class="btn btn-ghost btn-sm"
-                        on:click={startNewChat}
+                        onclick={startNewChat}
                         aria-label="New chat"
                     >
                         <svg
@@ -338,7 +316,7 @@
                     </button>
                     <button
                         class="btn btn-ghost btn-sm btn-square"
-                        on:click={closeConversationsModal}
+                        onclick={closeConversationsModal}
                         aria-label="Close"
                     >
                         <svg
@@ -365,7 +343,7 @@
                     <div class="flex justify-center py-12">
                         <span class="loading loading-spinner loading-md"></span>
                     </div>
-                {:else if $conversations.length === 0}
+                {:else if conversations.length === 0}
                     <div class="py-12 text-center">
                         <div
                             class="w-16 h-16 rounded-full bg-base-200 flex items-center justify-center mx-auto mb-4"
@@ -390,34 +368,36 @@
                         </p>
                         <button
                             class="btn btn-primary btn-sm"
-                            on:click={startNewChat}
+                            onclick={startNewChat}
                         >
                             Start a conversation
                         </button>
                     </div>
                 {:else}
                     <div class="space-y-1">
-                        {#each $conversations as conversation}
-                            <button
-                                class="group w-full text-left px-4 py-3 rounded-xl transition-all
+                        {#each conversations as conversation}
+                            <div
+                                class="group flex items-center rounded-xl transition-all
                                        border-2 border-transparent hover:bg-base-200
-                                       {$selectedChatId ===
+                                       {selectedChatId ===
                                 conversation.chatConversationID
                                     ? 'bg-base-200 border-base-content/10'
                                     : ''}"
-                                on:click={() =>
-                                    selectConversation(
-                                        conversation.chatConversationID,
-                                    )}
                             >
-                                <div class="flex items-center gap-3">
+                                <button
+                                    class="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left"
+                                    onclick={() =>
+                                        selectConversation(
+                                            conversation.chatConversationID,
+                                        )}
+                                >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke-width="1.5"
                                         stroke="currentColor"
-                                        class="w-5 h-5 text-base-content/30 flex-shrink-0"
+                                        class="w-5 h-5 text-base-content/30 shrink-0"
                                     >
                                         <path
                                             stroke-linecap="round"
@@ -441,11 +421,13 @@
                                             })}
                                         </span>
                                     </div>
+                                </button>
+
                                     <button
                                         type="button"
-                                        class="text-base-content/30 hover:text-error p-1
-                                               opacity-0 group-hover:opacity-100 transition-opacity"
-                                        on:click={(e) =>
+                                        class="flex h-11 w-11 shrink-0 items-center justify-center text-base-content/40
+                                               hover:text-error transition-colors lg:opacity-0 lg:group-hover:opacity-100"
+                                        onclick={(e) =>
                                             deleteConversation(
                                                 conversation.chatConversationID,
                                                 e,
@@ -467,8 +449,7 @@
                                             />
                                         </svg>
                                     </button>
-                                </div>
-                            </button>
+                            </div>
                         {/each}
                     </div>
                 {/if}
@@ -494,7 +475,7 @@
         >
             <button
                 class="btn btn-ghost btn-sm btn-square"
-                on:click={openConversationsModal}
+                onclick={openConversationsModal}
                 aria-label="Open conversations"
             >
                 <svg
@@ -513,12 +494,12 @@
                 </svg>
             </button>
             <h1 class="text-lg font-bold truncate flex-1">
-                {$currentChatConversation?.name ?? "-------------------------------------"}
+                {currentChatConversation?.name ?? "-------------------------------------"}
             </h1>
-            {#if $currentChatConversation}
+            {#if currentChatConversation}
                 <button
                     class="btn btn-ghost btn-sm"
-                    on:click={startNewChat}
+                    onclick={startNewChat}
                     aria-label="New chat"
                 >
                     <svg
@@ -542,13 +523,13 @@
         <!-- Chat Messages -->
         <div bind:this={chatContainer} class="flex-1 overflow-y-auto px-4 py-8">
             <div class="max-w-3xl mx-auto w-full">
-                {#if $currentChatConversation && $currentChatConversation.messages && $currentChatConversation.messages.length > 0}
-                    {#each $currentChatConversation.messages as message, idx}
+                {#if currentChatConversation && currentChatConversation.messages && currentChatConversation.messages.length > 0}
+                    {#each currentChatConversation.messages as message, idx}
                         {#if message.content}
                             <div class="mb-8">
                                 <div class="flex items-start gap-4">
                                     <!-- Avatar -->
-                                    <div class="flex-shrink-0">
+                                    <div class="shrink-0">
                                         {#if isUserMessage(message, idx)}
                                             <div
                                                 class="w-8 h-8 rounded-full flex items-center justify-center bg-primary text-primary-content"
@@ -626,7 +607,7 @@
                 {#if loading}
                     <div class="mb-8">
                         <div class="flex items-start gap-4">
-                            <div class="flex-shrink-0">
+                            <div class="shrink-0">
                                 <div
                                     class="w-8 h-8 rounded-full flex items-center justify-center text-base-content bg-base-content/10"
                                 >
@@ -671,9 +652,9 @@
                     <textarea
                         bind:value={newMessage}
                         readonly={loading}
-                        on:keydown={handleKeydown}
-                        class="w-full py-4 px-4 bg-transparent focus:outline-none resize-none text-base-content placeholder:text-base-content/40"
-                        placeholder={$currentChatConversation
+                        onkeydown={handleKeydown}
+                        class="w-full py-4 px-4 bg-transparent focus:outline-hidden resize-none text-base-content placeholder:text-base-content/40"
+                        placeholder={currentChatConversation
                             ? "Continue the conversation..."
                             : "Ask chat about your training, wellness, or health data..."}
                         rows="3"
@@ -688,7 +669,7 @@
                         </span>
                         <button
                             class="btn btn-primary btn-sm px-6 rounded-lg disabled:opacity-40"
-                            on:click={sendMessage}
+                            onclick={sendMessage}
                             disabled={loading || !newMessage.trim()}
                             aria-label="Send message"
                         >
