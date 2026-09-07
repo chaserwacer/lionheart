@@ -1,4 +1,4 @@
-import { TrainingSessionStatus, WeightUnit } from '$lib/api/ApiClient';
+import { WeightUnit } from '$lib/api/ApiClient';
 
 // ---------- Date Formatting ----------
 
@@ -45,25 +45,6 @@ export function formatDateShort(raw: any): string {
     year: 'numeric',
     timeZone: 'UTC',
   });
-}
-
-// ---------- Status Formatting ----------
-
-export function statusLabel(s: TrainingSessionStatus): string {
-  switch (s) {
-    case TrainingSessionStatus._0:
-      return 'Planned';
-    case TrainingSessionStatus._1:
-      return 'Active';
-    case TrainingSessionStatus._2:
-      return 'Completed';
-    case TrainingSessionStatus._3:
-      return 'Skipped';
-    case TrainingSessionStatus._4:
-      return 'AI Modified';
-    default:
-      return 'Unknown';
-  }
 }
 
 // ---------- Weight Formatting ----------

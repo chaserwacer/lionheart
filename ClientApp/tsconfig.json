@@ -11,7 +11,7 @@
 		"strict": true,
 		"noEmit": true,
 		"moduleResolution": "bundler",
-		"types": ["chart.js", "svelte", "vite/client"]
+		"types": ["svelte", "vite/client"]
 	},
 	"include": ["src", "src/types"],
 	// Path aliases are handled by https://kit.svelte.dev/docs/configuration#alias

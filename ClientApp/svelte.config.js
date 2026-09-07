@@ -12,7 +12,9 @@ const config = {
 		adapter: adapter({
 			assets: 'build',
 			pages: 'build',
-			fallback: '+page.svelte'
+			// The app renders entirely on the client and has dynamic routes, so every
+			// request is served from one SPA fallback document rather than prerendered.
+			fallback: 'index.html'
 		})
 	}
 };

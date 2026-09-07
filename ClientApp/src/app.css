@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+@source './';
+
+@plugin '@tailwindcss/typography';
+@plugin 'daisyui' {
+	themes: bumblebee --default, dark --prefersdark;
+}
+
+@theme {
+	--font-sans: Inter, system-ui, -apple-system, sans-serif;
+	--font-display: 'Playfair Display', Georgia, serif;
+	--font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+	--tracking-tightest: -0.075em;
+
+	--shadow-editorial: 0 1px 3px rgb(0 0 0 / 0.12);
+	--shadow-editorial-lg: 0 4px 12px rgb(0 0 0 / 0.15);
+}
+
+@layer base {
+	/*
+	 * Tailwind 4 defaults an unqualified `border` to currentColor. The markup predates
+	 * that change and reads as v3 did, so keep the old grey until each `border` usage
+	 * has been given an explicit colour.
+	 */
+	*,
+	::after,
+	::before,
+	::backdrop,
+	::file-selector-button {
+		border-color: var(--color-gray-200, currentColor);
+	}
+}

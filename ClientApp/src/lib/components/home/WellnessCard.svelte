@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import { goto } from '$app/navigation';
   import { pageUpdate } from '$lib/stores/stores';
   import {
@@ -7,7 +6,16 @@
     CreateWellnessStateRequest
   } from '$lib/api/ApiClient';
 
-  export let wellnessState = {
+  type WellnessScores = {
+    motivationScore: number;
+    stressScore: number;
+    moodScore: number;
+    energyScore: number;
+    overallScore: number;
+    date: string;
+  };
+
+  const emptyWellnessScores: WellnessScores = {
     motivationScore: 0,
     stressScore: 0,
     moodScore: 0,
@@ -16,20 +24,24 @@
     date: "",
   };
 
-  const dispatch = createEventDispatcher();
+  let {
+    wellnessState = emptyWellnessScores,
+  }: { wellnessState?: WellnessScores } = $props();
+
   const baseUrl = "";
-  let modalOpen = false;
-  let logModalOpen = false;
-  let submitting = false;
+  let modalOpen = $state(false);
+  let logModalOpen = $state(false);
+  let submitting = $state(false);
 
   // Form state for logging wellness
-  let wellnessForm = {
-    date: wellnessState.date || new Date().toISOString().split("T")[0],
+  // openLogModal() re-seeds the date from the current props each time it opens.
+  let wellnessForm = $state({
+    date: new Date().toISOString().split("T")[0],
     energy: 3,
     motivation: 3,
     mood: 3,
     stress: 3
-  };
+  });
 
   // Parse date string as local date (not UTC)
   function parseLocalDate(dateStr: string): Date {
@@ -49,7 +61,6 @@
 
   function openModal() {
     modalOpen = true;
-    dispatch('open');
   }
 
   function closeModal() {
@@ -123,12 +134,12 @@
     return 'Low';
   }
 
-  $: calculatedOverall = ((wellnessForm.mood + wellnessForm.energy + wellnessForm.motivation + (6 - wellnessForm.stress)) / 4);
+  const calculatedOverall = $derived((wellnessForm.mood + wellnessForm.energy + wellnessForm.motivation + (6 - wellnessForm.stress)) / 4);
 </script>
 
 <!-- Card -->
 <button
-  on:click={wellnessState.overallScore === -1 ? openLogModal : openModal}
+  onclick={wellnessState.overallScore === -1 ? openLogModal : openModal}
   class="card bg-base-100 shadow-editorial hover:shadow-editorial-lg transition-all duration-200
          cursor-pointer p-6 text-left w-full h-full
          border-2 {wellnessState.overallScore === -1 ? 'border-dashed border-primary/40' : 'border-base-content/10 hover:border-base-content/30'}"
@@ -185,7 +196,7 @@
           <h3 class="text-3xl font-display font-black tracking-tight">Wellness Overview</h3>
           <p class="text-xs font-mono uppercase tracking-widest text-base-content/50 mt-1">Past 7 days trend</p>
         </div>
-        <button on:click={closeModal} class="btn btn-ghost btn-sm btn-circle">
+        <button onclick={closeModal} aria-label="Close" class="btn btn-ghost btn-circle h-11 min-h-11 w-11">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
           </svg>
@@ -243,7 +254,7 @@
       <!-- View All Link -->
       <div class="mt-6 pt-4 border-t-2 border-base-content/10">
         <button
-          on:click={goToWellnessPage}
+          onclick={goToWellnessPage}
           class="btn btn-ghost btn-sm w-full rounded-xl text-xs font-bold uppercase tracking-wider"
         >
           View All Wellness Data
@@ -254,8 +265,8 @@
       </div>
     </div>
   </div>
-  <form method="dialog" class="modal-backdrop bg-black/50 backdrop-blur-sm">
-    <button on:click={closeModal}>close</button>
+  <form method="dialog" class="modal-backdrop bg-black/50 backdrop-blur-xs">
+    <button onclick={closeModal}>close</button>
   </form>
 </dialog>
 
@@ -270,7 +281,7 @@
             <h3 class="text-3xl font-display font-black tracking-tight">Log Wellness</h3>
             <p class="text-xs font-mono uppercase tracking-widest text-base-content/50 mt-1">{formatDateDisplay(wellnessForm.date)}</p>
           </div>
-          <button on:click={closeLogModal} class="btn btn-ghost btn-sm btn-circle">
+          <button onclick={closeLogModal} aria-label="Close" class="btn btn-ghost btn-circle h-11 min-h-11 w-11">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
@@ -279,7 +290,7 @@
       </div>
 
       <!-- Content -->
-      <form on:submit|preventDefault={logWellness} class="p-6">
+      <form onsubmit={(event) => { event.preventDefault(); logWellness(); }} class="p-6">
         <div class="form-control w-full mb-6">
           <label class="label" for="home-wellness-date">
             <span class="label-text font-bold uppercase text-xs tracking-wider">Date</span>
@@ -382,7 +393,7 @@
         </div>
 
         <div class="flex justify-end gap-2 mt-6">
-          <button type="button" class="btn btn-outline px-5 rounded-xl" on:click={closeLogModal}>Cancel</button>
+          <button type="button" class="btn btn-outline px-5 rounded-xl" onclick={closeLogModal}>Cancel</button>
           <button type="submit" class="btn btn-primary px-5 rounded-xl" disabled={submitting}>
             {#if submitting}
               <span class="loading loading-spinner loading-sm"></span>
@@ -392,6 +403,6 @@
         </div>
       </form>
     </div>
-    <div class="modal-backdrop bg-base-300/80" on:click={closeLogModal} on:keydown={(e) => e.key === 'Escape' && closeLogModal()} role="button" tabindex="0" aria-label="Close modal"></div>
+    <div class="modal-backdrop bg-base-300/80" onclick={closeLogModal} onkeydown={(e) => e.key === 'Escape' && closeLogModal()} role="button" tabindex="0" aria-label="Close modal"></div>
   </div>
 {/if}
