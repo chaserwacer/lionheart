@@ -71,7 +71,7 @@ public sealed class ChangeDetectionTests : IDisposable
         _ = context.Sessions.Single();
 
         Assert.Equal(0, context.SaveChanges());
-        Assert.Empty(context.ChangeTracker.Entries().Where(e => e.State == EntityState.Modified));
+        Assert.DoesNotContain(context.ChangeTracker.Entries(), e => e.State == EntityState.Modified);
     }
 
     [Fact]
