@@ -3,8 +3,6 @@
   import { goto } from "$app/navigation";
   import { bootUserDto, fetchBootUserDto, pageUpdate } from "$lib/stores/stores";
   import {
-    DailyOuraDataDTO,
-    GetDailyOuraDataEndpointClient,
     GetWellnessStateEndpointClient,
     WellnessState,
   } from "$lib/api/ApiClient";
@@ -12,6 +10,7 @@
 
   import WellnessCard from "$lib/components/home/WellnessCard.svelte";
   import OuraCard from "$lib/components/home/OuraCard.svelte";
+  import { fetchOuraDay, ouraDay, type OuraDayView } from "$lib/api/oura";
   import NextSessionCard from "$lib/components/home/NextSessionCard.svelte";
   import LastSessionCard from "$lib/components/home/LastSessionCard.svelte";
   import InjuryOverviewCard from "$lib/components/home/InjuryOverviewCard.svelte";
@@ -21,7 +20,7 @@
   let selectedDate = $state(new Date().toDateString());
 
   let wellnessState = $state<WellnessState>(new WellnessState());
-  let dailyOuraInfo = $state<DailyOuraDataDTO>(new DailyOuraDataDTO());
+  let dailyOuraInfo = $state<OuraDayView | null>(null);
 
   // Other pages bump `pageUpdate` after a write; refetch when it moves on.
   let lastHandledUpdate = $pageUpdate;
@@ -49,7 +48,7 @@
 
   async function loadDailyOuraInfo() {
     try {
-      dailyOuraInfo = await new GetDailyOuraDataEndpointClient(baseUrl).get(new Date(selectedDate));
+      dailyOuraInfo = await fetchOuraDay(ouraDay(new Date(selectedDate)));
     } catch (error) {
       console.error("Error loading daily oura info:", error);
     }
@@ -134,7 +133,7 @@
         }}
       />
 
-      <OuraCard dailyOuraData={dailyOuraInfo} />
+      <OuraCard day={dailyOuraInfo} />
 
       <LastSessionCard session={training.lastCompletedSession} />
 

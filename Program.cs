@@ -22,10 +22,19 @@ using lionheart.Services.Contexts;
 using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.Sessions;
 using lionheart.Endpoints.OpenApi;
+using lionheart.Services.Oura;
+using lionheart.Services.Oura.Import;
 
 // Load .env into the process environment before the host reads configuration,
 // so LmStudio__* keys flow through the default environment-variable provider.
 DotNetEnv.Env.TraversePath().Load();
+
+// A one-off command runs instead of the server, and before it is built: the web host refuses to
+// start without LM Studio configured, which an archive import has no use for.
+if (args is [OuraImportCommand.Verb, ..])
+{
+    return await OuraImportCommand.RunAsync(args, CancellationToken.None);
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,8 +43,7 @@ var configuration = builder.Configuration;
 // Only register SQLite if not running in Testing environment
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    builder.Services.AddDbContext<ModelContext>(options =>
-        options.UseSqlite("Data Source=./Data/lionheart.db"));
+    builder.AddLionheartDatabase();
 }
 
 builder.Services.AddAuthorization();
@@ -97,7 +105,6 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddTransient<IUserService, UserService>();
-builder.Services.AddTransient<IOuraService, OuraService>();
 builder.Services.AddTransient<IWellnessService, WellnessService>();
 builder.Services.AddTransient<IMovementDataService, MovementDataService>();
 builder.Services.AddTransient<IMovementBaseService, MovementBaseService>();
@@ -137,10 +144,11 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddSingleton<ChatToolCallExecutor>();
 
 
-builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
-{
-    client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
-});
+builder.Services.AddTransient<IOuraReadService, OuraReadService>();
+
+// The sync service reaches Oura over this client; OuraClient spells the absolute collection URLs,
+// so no BaseAddress is set here.
+builder.Services.AddHttpClient<IOuraSyncService, OuraSyncService>();
 
 
 builder.Services.AddHttpClient();
@@ -246,6 +254,8 @@ app.MapFallback(async context =>
 });
 
 app.Run();
+
+return 0;
 
 /// <summary>
 /// Regenerates ClientApp's TypeScript API client from this server's own OpenAPI document, once

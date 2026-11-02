@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type {  DailyOuraDataDTO } from "$lib/api/ApiClient";
+  import { ouraDay, score, syncOura, type OuraDayView } from "$lib/api/oura";
   import { pageUpdate } from "$lib/stores/stores";
 
-  let { dailyOuraData }: { dailyOuraData: DailyOuraDataDTO } = $props();
+  let { day }: { day: OuraDayView | null } = $props();
 
   let modalOpen = $state(false);
   let activeTab = $state<'readiness' | 'sleep' | 'activity' | 'resilience'>('readiness');
@@ -26,28 +26,15 @@
     syncSuccess = false;
     
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const response = await fetch("/api/oura/sync", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          startDate: today,
-          endDate: today,
-        }),
-      });
+      const today = ouraDay(new Date());
+      await syncOura(today, today);
 
-      if (response.ok) {
-        syncSuccess = true;
-        // Trigger page update to reload data
-        pageUpdate.set(new Date());
-        setTimeout(() => {
-          syncSuccess = false;
-        }, 3000);
-      } else {
-        syncError = "Failed to sync Oura data";
-      }
+      syncSuccess = true;
+      // Trigger page update to reload data
+      pageUpdate.set(new Date());
+      setTimeout(() => {
+        syncSuccess = false;
+      }, 3000);
     } catch (err) {
       syncError = "Error syncing Oura data";
       console.error(err);
@@ -101,15 +88,15 @@
   <div class="grid grid-cols-3 gap-3">
     <div class="flex flex-col gap-1">
       <span class="text-xs font-bold uppercase tracking-wider text-success/70">Ready</span>
-      <span class="text-4xl font-display font-black text-success leading-none">{dailyOuraData.readinessData?.readinessScore ?? 0}</span>
+      <span class="text-4xl font-display font-black text-success leading-none">{score(day?.readiness?.score)}</span>
     </div>
     <div class="flex flex-col gap-1">
       <span class="text-xs font-bold uppercase tracking-wider text-info/70">Sleep</span>
-      <span class="text-4xl font-display font-black text-info leading-none">{dailyOuraData.sleepData?.sleepScore ?? 0}</span>
+      <span class="text-4xl font-display font-black text-info leading-none">{score(day?.sleep?.score)}</span>
     </div>
     <div class="flex flex-col gap-1">
       <span class="text-xs font-bold uppercase tracking-wider text-warning/70">Active</span>
-      <span class="text-4xl font-display font-black text-warning leading-none">{dailyOuraData.activityData?.activityScore ?? 0}</span>
+      <span class="text-4xl font-display font-black text-warning leading-none">{score(day?.activity?.score)}</span>
     </div>
   </div>
 </button>
@@ -128,7 +115,7 @@
           </div>
           <div>
             <h3 class="font-semibold text-lg">Oura Metrics</h3>
-            <p class="text-sm text-base-content/50">{formatDate(dailyOuraData.date) || 'Today'}</p>
+            <p class="text-sm text-base-content/50">{formatDate(day?.day) || 'Today'}</p>
           </div>
         </div>
         <div class="flex gap-2">
@@ -211,111 +198,111 @@
     <div class="p-6 overflow-y-auto max-h-[60vh]">
       {#if activeTab === 'readiness'}
         <div class="text-center mb-6">
-          <p class="text-6xl font-bold {getScoreColor(dailyOuraData.readinessData?.readinessScore ?? 0)}">{dailyOuraData.readinessData?.readinessScore ?? 0}</p>
+          <p class="text-6xl font-bold {getScoreColor(day?.readiness?.score ?? 0)}">{score(day?.readiness?.score)}</p>
           <p class="text-base-content/50 mt-1">Readiness Score</p>
         </div>
         <div class="space-y-4">
           {#each [
-            { label: 'Sleep Balance', value: dailyOuraData.readinessData?.sleepBalance },
-            { label: 'Activity Balance', value: dailyOuraData.readinessData?.activityBalance },
-            { label: 'Recovery Index', value: dailyOuraData.readinessData?.recoveryIndex },
-            { label: 'HRV Balance', value: dailyOuraData.readinessData?.hrvBalance },
-            { label: 'Previous Night', value: dailyOuraData.readinessData?.previousNight },
-            { label: 'Previous Day Activity', value: dailyOuraData.readinessData?.previousDayActivity },
-            { label: 'Resting Heart Rate', value: dailyOuraData.readinessData?.restingHeartRate },
+            { label: 'Sleep Balance', value: day?.readiness?.contributors?.sleepBalance },
+            { label: 'Activity Balance', value: day?.readiness?.contributors?.activityBalance },
+            { label: 'Recovery Index', value: day?.readiness?.contributors?.recoveryIndex },
+            { label: 'HRV Balance', value: day?.readiness?.contributors?.hrvBalance },
+            { label: 'Previous Night', value: day?.readiness?.contributors?.previousNight },
+            { label: 'Previous Day Activity', value: day?.readiness?.contributors?.previousDayActivity },
+            { label: 'Resting Heart Rate', value: day?.readiness?.contributors?.restingHeartRate },
           ] as item}
             <div class="flex items-center justify-between">
               <span class="text-sm">{item.label}</span>
               <div class="flex items-center gap-3 w-1/2">
                 <progress class="progress {getProgressColor(item.value ?? 0)} flex-1 h-2" value={item.value ?? 0} max="100"></progress>
-                <span class="text-sm font-medium w-8 text-right">{item.value ?? 0}</span>
+                <span class="text-sm font-medium w-8 text-right">{score(item.value)}</span>
               </div>
             </div>
           {/each}
           <div class="flex items-center justify-between pt-2 border-t border-base-200">
             <span class="text-sm">Temperature Deviation</span>
-            <span class="font-medium">{dailyOuraData.readinessData?.temperatureDeviation ?? 0}°</span>
+            <span class="font-medium">{score(day?.readiness?.temperatureDeviation)}°</span>
           </div>
         </div>
       {:else if activeTab === 'sleep'}
         <div class="text-center mb-6">
-          <p class="text-6xl font-bold {getScoreColor(dailyOuraData.sleepData?.sleepScore ?? 0)}">{dailyOuraData.sleepData?.sleepScore ?? 0}</p>
+          <p class="text-6xl font-bold {getScoreColor(day?.sleep?.score ?? 0)}">{score(day?.sleep?.score)}</p>
           <p class="text-base-content/50 mt-1">Sleep Score</p>
         </div>
         <div class="space-y-4">
           {#each [
-            { label: 'Total Sleep', value: dailyOuraData.sleepData?.totalSleep },
-            { label: 'Efficiency', value: dailyOuraData.sleepData?.efficiency },
-            { label: 'Restfulness', value: dailyOuraData.sleepData?.restfulness },
-            { label: 'Timing', value: dailyOuraData.sleepData?.timing },
-            { label: 'Latency', value: dailyOuraData.sleepData?.latency },
-            { label: 'REM Sleep', value: dailyOuraData.sleepData?.remSleep },
-            { label: 'Deep Sleep', value: dailyOuraData.sleepData?.deepSleep },
+            { label: 'Total Sleep', value: day?.sleep?.contributors?.totalSleep },
+            { label: 'Efficiency', value: day?.sleep?.contributors?.efficiency },
+            { label: 'Restfulness', value: day?.sleep?.contributors?.restfulness },
+            { label: 'Timing', value: day?.sleep?.contributors?.timing },
+            { label: 'Latency', value: day?.sleep?.contributors?.latency },
+            { label: 'REM Sleep', value: day?.sleep?.contributors?.remSleep },
+            { label: 'Deep Sleep', value: day?.sleep?.contributors?.deepSleep },
           ] as item}
             <div class="flex items-center justify-between">
               <span class="text-sm">{item.label}</span>
               <div class="flex items-center gap-3 w-1/2">
                 <progress class="progress {getProgressColor(item.value ?? 0)} flex-1 h-2" value={item.value ?? 0} max="100"></progress>
-                <span class="text-sm font-medium w-8 text-right">{item.value ?? 0}</span>
+                <span class="text-sm font-medium w-8 text-right">{score(item.value)}</span>
               </div>
             </div>
           {/each}
         </div>
       {:else if activeTab === 'activity'}
         <div class="text-center mb-6">
-          <p class="text-6xl font-bold {getScoreColor(dailyOuraData.activityData?.activityScore ?? 0)}">{dailyOuraData.activityData?.activityScore ?? 0}</p>
+          <p class="text-6xl font-bold {getScoreColor(day?.activity?.score ?? 0)}">{score(day?.activity?.score)}</p>
           <p class="text-base-content/50 mt-1">Activity Score</p>
         </div>
 
         <div class="grid grid-cols-3 gap-4 mb-6">
           <div class="bg-base-200 rounded-2xl p-4 text-center">
-            <p class="text-2xl font-bold">{dailyOuraData.activityData?.steps?.toLocaleString()}</p>
+            <p class="text-2xl font-bold">{day?.activity?.steps?.toLocaleString()}</p>
             <p class="text-xs text-base-content/50">Steps</p>
           </div>
           <div class="bg-base-200 rounded-2xl p-4 text-center">
-            <p class="text-2xl font-bold">{dailyOuraData.activityData?.activeCalories}</p>
+            <p class="text-2xl font-bold">{day?.activity?.activeCalories}</p>
             <p class="text-xs text-base-content/50">Active Cal</p>
           </div>
           <div class="bg-base-200 rounded-2xl p-4 text-center">
-            <p class="text-2xl font-bold">{dailyOuraData.activityData?.totalCalories}</p>
+            <p class="text-2xl font-bold">{day?.activity?.totalCalories}</p>
             <p class="text-xs text-base-content/50">Total Cal</p>
           </div>
         </div>
 
         <div class="space-y-4">
           {#each [
-            { label: 'Training Frequency', value: dailyOuraData.activityData?.trainingFrequency },
-            { label: 'Training Volume', value: dailyOuraData.activityData?.trainingVolume },
-            { label: 'Recovery Time', value: dailyOuraData.activityData?.recoveryTime },
-            { label: 'Stay Active', value: dailyOuraData.activityData?.stayActive },
-            { label: 'Move Every Hour', value: dailyOuraData.activityData?.moveEveryHour },
-            { label: 'Meet Daily Targets', value: dailyOuraData.activityData?.meetDailyTargets },
+            { label: 'Training Frequency', value: day?.activity?.contributors?.trainingFrequency },
+            { label: 'Training Volume', value: day?.activity?.contributors?.trainingVolume },
+            { label: 'Recovery Time', value: day?.activity?.contributors?.recoveryTime },
+            { label: 'Stay Active', value: day?.activity?.contributors?.stayActive },
+            { label: 'Move Every Hour', value: day?.activity?.contributors?.moveEveryHour },
+            { label: 'Meet Daily Targets', value: day?.activity?.contributors?.meetDailyTargets },
           ] as item}
             <div class="flex items-center justify-between">
               <span class="text-sm">{item.label}</span>
               <div class="flex items-center gap-3 w-1/2">
                 <progress class="progress {getProgressColor(item.value ?? 0)} flex-1 h-2" value={item.value ?? 0} max="100"></progress>
-                <span class="text-sm font-medium w-8 text-right">{item.value ?? 0}</span>
+                <span class="text-sm font-medium w-8 text-right">{score(item.value)}</span>
               </div>
             </div>
           {/each}
         </div>
       {:else if activeTab === 'resilience'}
         <div class="text-center mb-6">
-          <p class="text-4xl font-bold text-accent">{dailyOuraData.resilienceData?.resilienceLevel ?? 0}</p>
+          <p class="text-4xl font-bold text-accent">{day?.resilience?.level ?? "—"}</p>
           <p class="text-base-content/50 mt-1">Resilience Level</p>
         </div>
         <div class="space-y-4">
           {#each [
-            { label: 'Sleep Recovery', value: dailyOuraData.resilienceData?.sleepRecovery },
-            { label: 'Daytime Recovery', value: dailyOuraData.resilienceData?.daytimeRecovery },
-            { label: 'Stress', value: dailyOuraData.resilienceData?.stress },
+            { label: 'Sleep Recovery', value: day?.resilience?.contributors?.sleepRecovery },
+            { label: 'Daytime Recovery', value: day?.resilience?.contributors?.daytimeRecovery },
+            { label: 'Stress', value: day?.resilience?.contributors?.stress },
           ] as item}
             <div class="flex items-center justify-between">
               <span class="text-sm">{item.label}</span>
               <div class="flex items-center gap-3 w-1/2">
                 <progress class="progress {getProgressColor(item.value ?? 0)} flex-1 h-2" value={item.value ?? 0} max="100"></progress>
-                <span class="text-sm font-medium w-8 text-right">{item.value ?? 0}</span>
+                <span class="text-sm font-medium w-8 text-right">{score(item.value)}</span>
               </div>
             </div>
           {/each}

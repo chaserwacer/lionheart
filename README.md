@@ -82,6 +82,26 @@ the names it could not resolve.
 
 → [`docs/quick-log.md`](docs/quick-log.md)
 
+### 4. The wearable data is stored as what the ring said, not as what is convenient
+
+Ten Oura collections, in the two shapes Oura actually has: six documents that describe a calendar
+day, and four — sleep periods, workouts, sessions, tags — that are zero-to-many events inside one.
+Each table is keyed by **Oura's own document id**, which is what makes both the live sync and the
+history import idempotent with no sync ledger to maintain: a document either exists or it does not.
+
+A missing reading is absent, never a sentinel. The integration this replaced wrote `0` for a
+contributor Oura could not compute and `-1` for a day with no document, which made a bad day
+indistinguishable from an unmeasured one and dragged every baseline average toward zero.
+
+Keeping everything is not the same as keeping all of it: the overnight HRV and heart-rate curves and
+the 5-minute hypnogram are stored because an athlete reasoning about recovery wants them, while the
+1440-sample minute-by-minute MET series — 87% of the activity payload — is dropped, because the
+MET-minute totals beside it say the same thing at the resolution anything reads.
+
+Three and a half years of his real history, 9194 documents, were imported from an archive of
+recorded API responses rather than re-pulled.
+→ [`docs/oura-integration.md`](docs/oura-integration.md)
+
 ## Testing
 
 Two suites, one gate:
