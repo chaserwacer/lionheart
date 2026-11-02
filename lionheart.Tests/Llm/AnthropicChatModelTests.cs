@@ -327,6 +327,8 @@ public sealed class AnthropicChatModelTests : IDisposable
             [new ToolDefinition("get_injuries", "Gets injuries.",
                 """
                 {
+                  "$schema": "http://json-schema.org/draft-04/schema#",
+                  "title": "GetInjuryRequest",
                   "type": "object",
                   "properties": {
                     "DateRange": { "oneOf": [ { "type": "null" }, { "$ref": "#/definitions/DateRangeRequest" } ] }
@@ -361,6 +363,13 @@ public sealed class AnthropicChatModelTests : IDisposable
         Assert.Equal(
             ["StartDate", "EndDate"],
             target.GetProperty("required").EnumerateArray().Select(n => n.GetString()));
+
+        // Everything describing the shape is sent; the dialect declaration is not. A meta-keyword
+        // the API never asked about says nothing about a parameter and is what a strict validator
+        // would reject, so NJsonSchema's draft-04 marker stays behind while `title` — inert, and
+        // useful to a reader — goes.
+        Assert.False(schema.TryGetProperty("$schema", out _));
+        Assert.Equal("GetInjuryRequest", schema.GetProperty("title").GetString());
     }
 
     // ---- Shapes the API insists on, reachable from stored history ----
@@ -397,6 +406,29 @@ public sealed class AnthropicChatModelTests : IDisposable
                 .Where(block => block.GetProperty("type").GetString() == "text")
                 .Select(block => block.GetProperty("text").GetString()),
             string.IsNullOrWhiteSpace);
+    }
+
+    /// <summary>
+    /// Nothing left to send is refused by name rather than sent as an empty transcript. A
+    /// whitespace-only message is not validated on the way in, and a user turn over the input
+    /// budget is skipped by the history packer like any other — either would otherwise come back
+    /// rejected and reach the athlete as a gateway failure naming no cause.
+    /// </summary>
+    [Fact]
+    public async Task A_transcript_with_nothing_left_in_it_is_refused_rather_than_sent()
+    {
+        _server.Responds(CannedAnthropic.Text("ok"));
+
+        var problem = ResultAssert.Failed(await Respond(new ChatTurnRequest(
+            "You are a coach.",
+            [new ModelMessage.UserSaid("   ")],
+            [],
+            new OutputContract.FreeText(),
+            ReasoningDepth.Standard,
+            1024)));
+
+        Assert.IsType<lionheart.Functional.Problem.Invalid>(problem);
+        Assert.Empty(_server.ReceivedRequests);
     }
 
     /// <summary>
