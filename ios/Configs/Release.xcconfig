@@ -1,0 +1,8 @@
+#include "Base.xcconfig"
+
+// There is no deployed Lionheart backend yet. A Release build therefore has no honest default:
+// it is pointed at a real origin here when one exists, and until then this value is a placeholder
+// that will fail to resolve rather than quietly talking to a developer's laptop.
+LH_API_BASE_URL = https:$(LH_SLASH)$(LH_SLASH)lionheart.invalid
+
+#include? "Local.xcconfig"

@@ -1,0 +1,12 @@
+// Copy to Local.xcconfig for per-machine overrides. Debug and Release both include it last with
+// #include?, so it wins over them and its absence is not an error. It is gitignored, in the same
+// way and for the same reason as .env.
+//
+// The one thing worth setting here is the API origin for a build running on a physical phone,
+// which cannot reach the Mac's loopback: use the Mac's LAN address or a tunnel. The two-slash
+// dance is explained in Base.xcconfig.
+//
+// LH_API_BASE_URL = http:$(LH_SLASH)$(LH_SLASH)192.168.1.10:7025
+//
+// A device build also needs a team, which is not committed either:
+// DEVELOPMENT_TEAM = ABCDE12345

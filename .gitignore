@@ -239,3 +239,14 @@ Data/*.db-wal
 Data/*.db.backup*
 # Local secrets
 .env
+
+# Local iOS development account (throwaway, local SQLite only — never committed)
+.lh-dev-account
+
+# Generated from ios/project.yml by `xcodegen generate` — never edited by hand, so never committed
+ios/Lionheart.xcodeproj/
+ios/Lionheart/Info.plist
+ios/DerivedData/
+
+# Per-machine build overrides, like .env. Copy Local.xcconfig.example to create one.
+ios/Configs/Local.xcconfig
