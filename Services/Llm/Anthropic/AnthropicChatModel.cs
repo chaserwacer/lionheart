@@ -100,34 +100,66 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
             .ToDictionary(member => member.Name, member => member.Value.Clone());
     }
 
-    private static Messages.ToolUnion Describe(ToolDefinition tool)
-    {
-        using var document = JsonDocument.Parse(tool.ParametersJson);
-        var root = document.RootElement;
+    /// <summary>
+    /// One tool, described by the schema this application generated for it.
+    /// </summary>
+    /// <remarks>
+    /// The whole schema object is sent, not a rebuilt subset of it. A tool parameter with a nested
+    /// complex type — <c>GetInjuryRequest.DateRange</c> is the live example — makes NJsonSchema
+    /// emit a <c>$ref</c> into a root <c>definitions</c> block, so sending only <c>properties</c>
+    /// and <c>required</c> ships a reference that resolves to nothing. <c>FromRawUnchecked</c> is
+    /// the SDK's escape hatch for exactly this: a JSON Schema has more members than the typed
+    /// shape names, and the application's schema is already the authority.
+    /// </remarks>
+    private static Messages.ToolUnion Describe(ToolDefinition tool) =>
+        new(new Messages.Tool
+        {
+            Name = tool.Name,
+            Description = tool.Description,
+            InputSchema = Messages.InputSchema.FromRawUnchecked(Schema(tool.ParametersJson)),
+        },
+        null);
 
-        var properties = root.TryGetProperty("properties", out var declared)
-            && declared.ValueKind == JsonValueKind.Object
-            ? declared.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone())
-            : [];
-
-        var required = root.TryGetProperty("required", out var names)
-            && names.ValueKind == JsonValueKind.Array
-            ? names.EnumerateArray().Select(n => n.GetString() ?? string.Empty).Where(n => n.Length > 0).ToList()
-            : [];
-
-        return new Messages.ToolUnion(
-            new Messages.Tool
-            {
-                Name = tool.Name,
-                Description = tool.Description,
-                // InputSchema.Type is set by the SDK; declaring it here would be redundant.
-                InputSchema = new Messages.InputSchema { Properties = properties, Required = required },
-            },
-            null);
-    }
-
+    /// <summary>
+    /// The history, in the two shapes the Messages API insists on: no empty text block, and a first
+    /// message in the user role.
+    /// </summary>
+    /// <remarks>
+    /// Both are reachable from stored history rather than from a bug here. A turn that spends its
+    /// whole budget thinking answers with empty text, which is a success this class reports as one
+    /// and the chat layer stores verbatim — replayed as an empty text block it would make every
+    /// later request in that conversation fail, so one such answer would retire the conversation.
+    /// And <c>ChatCompletionService</c> packs history newest-first under a token budget, which can
+    /// skip an oversized user message while keeping an older assistant one.
+    /// <para>
+    /// Dropping is right rather than lossy: an empty message carries nothing, and a leading
+    /// assistant message is a reply to a user turn that is no longer in the window. The request
+    /// always ends with the turn being asked about, so a user message always survives.
+    /// </para>
+    /// </remarks>
     private static Result<IReadOnlyList<Messages.MessageParam>, Problem> Transcribe(ChatTurnRequest request) =>
-        request.Messages.Traverse(Transcribe);
+        request.Messages
+            .Where(Speaks)
+            .SkipWhile(message => !OpensATranscript(message))
+            .ToList()
+            .Traverse(Transcribe);
+
+    /// <summary>Whether a message says anything the model could read.</summary>
+    private static bool Speaks(ModelMessage message) =>
+        message switch
+        {
+            ModelMessage.UserSaid user => !string.IsNullOrWhiteSpace(user.Text),
+            ModelMessage.AssistantSaid assistant => !string.IsNullOrWhiteSpace(assistant.Text),
+            _ => true,
+        };
+
+    /// <summary>Whether a message is one the API will accept as the first of a transcript.</summary>
+    private static bool OpensATranscript(ModelMessage message) =>
+        message switch
+        {
+            ModelMessage.UserSaid => true,
+            _ => false,
+        };
 
     private static Result<Messages.MessageParam, Problem> Transcribe(ModelMessage message) =>
         message switch

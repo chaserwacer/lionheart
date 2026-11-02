@@ -44,8 +44,15 @@ namespace lionheart.Services.Profile
         /// <summary>Recent State is considered stale after this long and is lazily recomputed on read.</summary>
         private static readonly TimeSpan RecentStateMaxAge = TimeSpan.FromHours(6);
 
-        /// <summary>One sentence is all that is asked for; the budget only has to not truncate it.</summary>
-        private const int NarrativeTokenBudget = 512;
+        /// <summary>
+        /// One sentence is all that is asked for, but the budget has to cover more than the
+        /// sentence: on a provider whose thinking cannot be switched off, the output cap counts
+        /// reasoning tokens too, and a cap that reasoning exhausts comes back as a truncated turn
+        /// rather than an answer. The narrative is a deliberate best-effort — a failure leaves the
+        /// card without its sentence instead of failing the card — so too small a number here
+        /// fails silently, which is why it is generous rather than snug.
+        /// </summary>
+        private const int NarrativeTokenBudget = 4096;
 
         private readonly ModelContext _context = context;
         private readonly NarrativeChatClient _narrativeClient = narrativeClient;
