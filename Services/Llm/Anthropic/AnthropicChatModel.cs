@@ -110,13 +110,23 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
     /// and <c>required</c> ships a reference that resolves to nothing. <c>FromRawUnchecked</c> is
     /// the SDK's escape hatch for exactly this: a JSON Schema has more members than the typed
     /// shape names, and the application's schema is already the authority.
+    /// <para>
+    /// <c>$schema</c> is the one member dropped. NJsonSchema declares the draft-04 dialect, and a
+    /// dialect this API never asked about is the kind of meta-keyword a strict validator rejects
+    /// outright — while saying nothing about the shape of a parameter, which is the only thing the
+    /// model needs. Omitting it leaves the dialect implicit, and the structure here reads the same
+    /// in every draft. Everything that describes the shape, <c>definitions</c> included, is sent.
+    /// </para>
     /// </remarks>
     private static Messages.ToolUnion Describe(ToolDefinition tool) =>
         new(new Messages.Tool
         {
             Name = tool.Name,
             Description = tool.Description,
-            InputSchema = Messages.InputSchema.FromRawUnchecked(Schema(tool.ParametersJson)),
+            InputSchema = Messages.InputSchema.FromRawUnchecked(
+                Schema(tool.ParametersJson)
+                    .Where(member => member.Key is not "$schema")
+                    .ToDictionary(member => member.Key, member => member.Value)),
         },
         null);
 
@@ -133,16 +143,31 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
     /// skip an oversized user message while keeping an older assistant one.
     /// <para>
     /// Dropping is right rather than lossy: an empty message carries nothing, and a leading
-    /// assistant message is a reply to a user turn that is no longer in the window. The request
-    /// always ends with the turn being asked about, so a user message always survives.
+    /// assistant message is a reply to a user turn that is no longer in the window. A tool round
+    /// cannot be split by either pass — its outcomes are not a user turn either, so they leave with
+    /// the turn that asked for them.
+    /// </para>
+    /// <para>
+    /// Dropping everything is possible, and is refused here by name. Two routes reach it: a
+    /// message that is only whitespace, which nothing validates on the way in, and a single user
+    /// turn larger than the input budget, which the history packer skips like any other. Both would
+    /// otherwise go out as an empty transcript, come back rejected, and reach the athlete as a
+    /// gateway failure that names nothing.
     /// </para>
     /// </remarks>
-    private static Result<IReadOnlyList<Messages.MessageParam>, Problem> Transcribe(ChatTurnRequest request) =>
-        request.Messages
+    private static Result<IReadOnlyList<Messages.MessageParam>, Problem> Transcribe(ChatTurnRequest request)
+    {
+        var transcript = request.Messages
             .Where(Speaks)
             .SkipWhile(message => !OpensATranscript(message))
-            .ToList()
-            .Traverse(Transcribe);
+            .ToList();
+
+        return transcript.Count == 0
+            ? Result<IReadOnlyList<Messages.MessageParam>, Problem>.Failure(new Problem.Invalid(
+                "messages",
+                "There is nothing to send: the message is empty, or too large for the input budget."))
+            : transcript.Traverse(Transcribe);
+    }
 
     /// <summary>Whether a message says anything the model could read.</summary>
     private static bool Speaks(ModelMessage message) =>
