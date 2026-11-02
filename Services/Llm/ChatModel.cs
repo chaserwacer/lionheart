@@ -55,10 +55,15 @@ public sealed record ChatTurnRequest(
         new(systemPrompt, [new ModelMessage.UserSaid(userText)], [],
             new OutputContract.JsonObject(schemaName, schemaJson), ReasoningDepth.Minimal, maxOutputTokens);
 
-    /// <summary>Prose over facts that are already computed: one user turn, no tools, no schema.</summary>
+    /// <summary>
+    /// Prose over facts that are already computed: one user turn, no tools, no schema. The facts
+    /// arrive decided, so there is nothing here to reason about and reasoning depth is asked at
+    /// its minimum — which also stops a provider whose thinking cannot be disabled from spending
+    /// the output budget before it writes anything.
+    /// </summary>
     public static ChatTurnRequest Prose(string systemPrompt, string userText, int maxOutputTokens) =>
         new(systemPrompt, [new ModelMessage.UserSaid(userText)], [],
-            new OutputContract.FreeText(), ReasoningDepth.Standard, maxOutputTokens);
+            new OutputContract.FreeText(), ReasoningDepth.Minimal, maxOutputTokens);
 }
 
 /// <summary>How the model ended its turn. Two outcomes, and the caller owes each a different move.</summary>
@@ -134,8 +139,10 @@ public sealed record ToolInvocation(string CallId, string ToolName, string Argum
 
 /// <summary>What a tool call produced, on its way back to the model.</summary>
 /// <param name="Failed">
-/// Kept distinct from a message that merely reads like an error: both providers can mark a result
-/// failed on the wire, and a model recovers better when told which it is.
+/// Kept distinct from a message that merely reads like an error, because a model recovers better
+/// when told which it is. How far that distinction travels depends on the provider: Anthropic
+/// carries it as a flag on the tool result, while an OpenAI-compatible tool message has no field
+/// for it, so there it survives only in the text the executor wrote.
 /// </param>
 public sealed record ToolOutcome(string CallId, string Content, bool Failed)
 {

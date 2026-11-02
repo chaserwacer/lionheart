@@ -62,9 +62,13 @@ namespace Services.Chat
         /// </summary>
         private Task<Result<Loop<Exchange, ChatCompletionResponse>, Problem>> AdvanceAsync(
             IdentityUser user, ChatCompletionRequest request, Exchange exchange, CancellationToken cancellationToken) =>
+            // Not Upstream: nothing upstream failed, this application gave up. Upstream would reach
+            // the client as 502 "an upstream service failed", which tells the athlete to blame the
+            // model for a limit chosen here. Nothing is persisted at the cap, so the conversation
+            // survives intact and the turn can be asked again.
             exchange.Rounds >= MAX_TOOL_ROUNDS
                 ? Task.FromResult(Result<Loop<Exchange, ChatCompletionResponse>, Problem>.Failure(
-                    new Problem.Upstream(
+                    new Problem.Unexpected(
                         $"The chat model asked for tools {MAX_TOOL_ROUNDS} times without answering.")))
                 : _chatModel
                     .RespondAsync(
