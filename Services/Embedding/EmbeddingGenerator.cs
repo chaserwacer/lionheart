@@ -15,14 +15,19 @@ public interface IEmbeddingGenerator
 }
 
 /// <summary>
-/// Embeddings from LM Studio's OpenAI-compatible endpoint — the same locally hosted
-/// server that serves chat, so ingestion needs no external service.
+/// Embeddings from a server speaking the OpenAI embeddings API — in practice the local LM Studio
+/// instance, so ingestion needs no external service.
 /// </summary>
-public sealed class LmStudioEmbeddingGenerator : IEmbeddingGenerator
+/// <remarks>
+/// There is deliberately no second implementation to choose between. Anthropic serves no
+/// embeddings endpoint, so production runs chat on Anthropic and embeddings here, and the
+/// <c>Embedding__*</c> configuration names this server independently of whatever serves chat.
+/// </remarks>
+public sealed class OpenAiCompatibleEmbeddingGenerator : IEmbeddingGenerator
 {
     private readonly EmbeddingClient _client;
 
-    public LmStudioEmbeddingGenerator(EmbeddingClient client) => _client = client;
+    public OpenAiCompatibleEmbeddingGenerator(EmbeddingClient client) => _client = client;
 
     public async Task<Result<float[], Problem>> GenerateAsync(string text)
     {

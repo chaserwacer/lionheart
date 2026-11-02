@@ -1,8 +1,8 @@
 using System.Text.Json;
+using lionheart.Services.Llm;
 using Microsoft.Extensions.DependencyInjection;
 using Model.Chat.Tools;
 using Model.Tools;
-using OpenAI.Chat;
 
 namespace lionheart.Tests.Support;
 
@@ -56,13 +56,17 @@ public sealed class TestToolbox : IDisposable
         services.AddSingleton<ITestTools>(Tools);
         _provider = services.BuildServiceProvider();
 
+        Registry = BuildRegistry();
         Executor = new ChatToolCallExecutor(
-            BuildRegistry(),
+            Registry,
             _provider.GetRequiredService<IServiceScopeFactory>(),
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
     }
 
     public TestTools Tools { get; }
+
+    /// <summary>The tools the model is offered — the same registry the executor resolves against.</summary>
+    public ToolRegistry Registry { get; }
 
     public ChatToolCallExecutor Executor { get; }
 
@@ -82,15 +86,15 @@ public sealed class TestToolbox : IDisposable
 
     private static ToolDescriptor Describe(string toolName, string methodName, string parameterName, string jsonType)
     {
-        var parameters = BinaryData.FromString(
+        var parameters =
             "{\"type\":\"object\",\"properties\":{\"" + parameterName + "\":{\"type\":\"" + jsonType + "\"}},"
-            + "\"required\":[\"" + parameterName + "\"]}");
+            + "\"required\":[\"" + parameterName + "\"]}";
 
         return new ToolDescriptor(
             toolName,
             typeof(TestTools),
             typeof(TestTools).GetMethod(methodName)!,
-            ChatTool.CreateFunctionTool(toolName, $"test tool {toolName}", parameters),
+            new ToolDefinition(toolName, $"test tool {toolName}", parameters),
             RequireAuthorization: false);
     }
 }

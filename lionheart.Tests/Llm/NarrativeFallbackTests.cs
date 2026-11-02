@@ -27,7 +27,7 @@ public sealed class NarrativeFallbackTests : IDisposable
     {
         using var context = _db.CreateContext();
         var service = new AthleteContextCardService(
-            context, new NarrativeChatClient(_server.CreateChatClient()));
+            context, new NarrativeChatClient(_server.CreateChatModel()));
 
         return ResultAssert.Succeeded(
             await service.GetOrBuildCardAsync(new IdentityUser { Id = _db.UserId.ToString() }));
@@ -86,14 +86,14 @@ public sealed class NarrativeFallbackTests : IDisposable
 
     /// <summary>
     /// The wrapper exists so the flagship chat model and the cheap narrative model can be two
-    /// singletons of the same type without DI ambiguity — it must hand back the client it was
+    /// singletons of the same type without DI ambiguity — it must hand back the model it was
     /// given rather than resolving one of its own.
     /// </summary>
     [Fact]
     public void The_narrative_wrapper_exposes_the_client_it_was_built_with()
     {
-        var client = _server.CreateChatClient("narrator-model");
+        var model = _server.CreateChatModel("narrator-model");
 
-        Assert.Same(client, new NarrativeChatClient(client).Client);
+        Assert.Same(model, new NarrativeChatClient(model).Model);
     }
 }

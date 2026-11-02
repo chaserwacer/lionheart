@@ -296,7 +296,7 @@ type with `allOf` — the standard OpenAPI 3.0 encoding — and the regenerated 
 The likeliest runtime condition for a local-model app — LM Studio not running, or misconfigured —
 produced an opaque `"An internal server error occurred."`
 
-`ChatCompletionResultExtensions.ToResult` only ever covered a response that *arrived*: it guards LM
+`OpenAiCompletionResult.ToResult` only ever covered a response that *arrived*: it guards LM
 Studio's HTTP-200-with-an-error-body, but a connection failure makes the SDK **throw**, and two of
 the three transport call sites had no guard, so the throw reached the generic exception handler.
 `EmbeddingGenerator` caught its own; the parser and chat service did not — the same logic missing

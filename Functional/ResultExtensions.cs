@@ -63,6 +63,23 @@ public static class ResultExtensions
                 ? Result<T, TProblem>.Failure(onFalse(success.Value))
                 : source;
 
+        /// <summary>
+        /// A side effect on the value that must not change it — a log line, a metric, adding to a
+        /// collection. Runs only on the success track and returns what it was given.
+        /// </summary>
+        public Result<T, TProblem> Tap(Action<T> effect)
+        {
+            if (source is Success<T, TProblem> success) effect(success.Value);
+            return source;
+        }
+
+        /// <summary><see cref="Tap"/>'s mirror: runs only on the failure track, changes nothing.</summary>
+        public Result<T, TProblem> TapError(Action<TProblem> effect)
+        {
+            if (source is Failure<T, TProblem> failure) effect(failure.Problem);
+            return source;
+        }
+
         public async Task<Result<U, TProblem>> MapAsync<U>(Func<T, Task<U>> selector) =>
             source switch
             {
@@ -131,6 +148,12 @@ public static class ResultExtensions
         public async Task<Result<T, TProblem>> EnsureAsync(
             Func<T, bool> predicate, Func<T, TProblem> onFalse) =>
             (await source).Ensure(predicate, onFalse);
+
+        public async Task<Result<T, TProblem>> TapAsync(Action<T> effect) =>
+            (await source).Tap(effect);
+
+        public async Task<Result<T, TProblem>> TapErrorAsync(Action<TProblem> effect) =>
+            (await source).TapError(effect);
 
         public async Task<U> MatchAsync<U>(Func<T, U> onSuccess, Func<TProblem, U> onFailure) =>
             (await source).Match(onSuccess, onFailure);

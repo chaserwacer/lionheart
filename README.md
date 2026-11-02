@@ -18,7 +18,7 @@ built. The design decisions are written down rather than implied — see [Archit
 | Backend | C# 14 · .NET 10 · EF Core 10 · SQLite |
 | API | Ardalis.ApiEndpoints (one class per endpoint) · OpenAPI via Swashbuckle · Scalar |
 | Frontend | SvelteKit 2 · **Svelte 5 runes** · Tailwind 4 · daisyUI 5 · installable PWA |
-| Intelligence | Local LLM through LM Studio's OpenAI-compatible API — no cloud dependency, no per-token cost |
+| Intelligence | A provider seam over chat, structured output and embeddings: Anthropic in production, a local LM Studio server for development and test |
 | Tests | xUnit — a hermetic suite plus a live-model suite behind an explicit gate |
 
 ## Architecture
@@ -105,13 +105,19 @@ failures already paid for. The most expensive: a reasoning model returns schema-
 
 ## Running it
 
-Requires .NET 10 SDK, Node 24, and [LM Studio](https://lmstudio.ai) for the chat and interpretation
-features.
+Requires .NET 10 SDK, Node 24, and [LM Studio](https://lmstudio.ai) — for the chat and
+interpretation features in development, and for embeddings in every configuration.
 
 ```bash
-cp .env.example .env      # then set LmStudio__BaseUrl / ApiKey / Model / EmbeddingModel
+cp .env.example .env      # then fill in the keys it describes
 dotnet run                # API + SPA proxy; regenerates the TypeScript client on startup
 ```
+
+Chat runs on whichever provider `Llm__ChatProvider` names — `LmStudio` (the default) or
+`Anthropic`. Embeddings are configured separately, under `Embedding__*`, and are **always** an
+OpenAI-compatible server: Anthropic has no embeddings endpoint, so "chat on Anthropic, embeddings
+on LM Studio" is the expected production configuration rather than a fallback. A missing or
+contradictory key stops the host at startup naming the key, not at the first request.
 
 `ClientApp/src/lib/api/ApiClient.ts` is **generated** from the OpenAPI document each time the backend
 starts. Never edit it by hand.

@@ -4,8 +4,6 @@ using lionheart.Model.Chat;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Completion;
-using Model.Chat.Tools;
-using OpenAI.Chat;
 using Services.Chat;
 
 namespace lionheart.Services.Chat;
@@ -29,14 +27,12 @@ public interface IChatMessageService
 public class ChatMessageService : IChatMessageService
 {
     private readonly ModelContext _context;
-    private readonly ChatCompletionService _chatCompletionService;
-    private readonly ToolRegistry _toolRegistry;
+    private readonly IChatCompletionService _chatCompletionService;
 
-    public ChatMessageService(ModelContext context, ChatCompletionService chatCompletionService, ToolRegistry toolRegistry)
+    public ChatMessageService(ModelContext context, IChatCompletionService chatCompletionService)
     {
         _context = context;
         _chatCompletionService = chatCompletionService;
-        _toolRegistry = toolRegistry;
     }
 
     public async Task<Result<LHChatMessageDTO, Problem>> ProcessUserChatMessageAsync(IdentityUser user, AddChatMessageRequest request)
@@ -69,7 +65,7 @@ public class ChatMessageService : IChatMessageService
         var chatCompletionRequest = new ChatCompletionRequest
         {
             Conversation = storedConversation,
-            Options = GetChatCompletionOptions(_toolRegistry.GetAllChatTools())
+            MaxOutputTokens = MaxOutputTokens
         };
         return await _chatCompletionService.GenerateChatCompletionAsync(user, chatCompletionRequest)
             .BindAsync(response => StoreLHChatMessagesAsync(user, new StoreLHChatMessagesRequest
@@ -92,19 +88,8 @@ public class ChatMessageService : IChatMessageService
                 m => m.ChatMessageItemID == response.ModelFinalChatMessageID)));
     }
     // Reasoning models spend output tokens "thinking" before answering, so the cap must cover both.
-    // Running against a local LM Studio server, generosity is free.
+    // Both providers reason by default, and on Claude Opus 5.5 thinking cannot be switched off.
     private const int MaxOutputTokens = 32_000;
-
-    private ChatCompletionOptions GetChatCompletionOptions(IEnumerable<ChatTool> tools)
-    {
-        var completionOptions = new ChatCompletionOptions { MaxOutputTokenCount = MaxOutputTokens };
-        foreach (var tool in tools)
-        {
-            completionOptions.Tools.Add(tool);
-        }
-
-        return completionOptions;
-    }
 
     public async Task<Result<List<LHChatMessageDTO>, Problem>> StoreLHChatMessagesAsync(IdentityUser user, StoreLHChatMessagesRequest request)
     {

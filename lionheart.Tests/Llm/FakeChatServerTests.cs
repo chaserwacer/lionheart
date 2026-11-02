@@ -1,5 +1,5 @@
 using lionheart.Functional;
-using lionheart.Services.Chat;
+using lionheart.Services.Llm.LmStudio;
 using lionheart.Tests.Support;
 using OpenAI.Chat;
 

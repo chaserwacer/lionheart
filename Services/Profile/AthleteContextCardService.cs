@@ -4,7 +4,7 @@ using lionheart.Model.Profile;
 using lionheart.Model.Training.Sessions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using OpenAI.Chat;
+using lionheart.Services.Llm;
 
 namespace lionheart.Services.Profile
 {
@@ -43,6 +43,9 @@ namespace lionheart.Services.Profile
 
         /// <summary>Recent State is considered stale after this long and is lazily recomputed on read.</summary>
         private static readonly TimeSpan RecentStateMaxAge = TimeSpan.FromHours(6);
+
+        /// <summary>One sentence is all that is asked for; the budget only has to not truncate it.</summary>
+        private const int NarrativeTokenBudget = 512;
 
         private readonly ModelContext _context = context;
         private readonly NarrativeChatClient _narrativeClient = narrativeClient;
@@ -317,15 +320,16 @@ namespace lionheart.Services.Profile
 
             try
             {
-                var messages = new ChatMessage[]
-                {
-                    new SystemChatMessage(
+                var turn = await _narrativeClient.Model.RespondAsync(ChatTurnRequest.Prose(
+                    systemPrompt:
                         "You write a single, plain, grounded sentence for an athlete-coaching context card. " +
-                        "Never restate raw numbers; never invent data; no medical claims."),
-                    new UserChatMessage($"{instruction}\n\nFacts:\n{facts}")
-                };
-                ChatCompletion completion = await _narrativeClient.Client.CompleteChatAsync(messages);
-                return string.Join("", completion.Content.Select(c => c.Text)).Trim();
+                        "Never restate raw numbers; never invent data; no medical claims.",
+                    userText: $"{instruction}\n\nFacts:\n{facts}",
+                    maxOutputTokens: NarrativeTokenBudget));
+
+                // A refused narrative is not an error worth surfacing: the deterministic facts
+                // already carry the signal, and the card must come back regardless.
+                return turn.Match(Spoken, _ => string.Empty);
             }
             catch
             {
@@ -333,6 +337,16 @@ namespace lionheart.Services.Profile
                 return string.Empty;
             }
         }
+
+        /// <summary>
+        /// The sentence a narrative turn produced. A narrative request offers no tools, so a turn
+        /// that asked for one has no prose in it to use.
+        /// </summary>
+        private static string Spoken(ModelTurn turn) => turn switch
+        {
+            ModelTurn.Answered answered => answered.Text.Trim(),
+            _ => string.Empty
+        };
 
         private static double Avg(IEnumerable<double> values)
         {

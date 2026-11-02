@@ -1,5 +1,7 @@
 using System.ClientModel;
 using System.Diagnostics;
+using lionheart.Services.Llm;
+using lionheart.Services.Llm.LmStudio;
 using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Embeddings;
@@ -33,8 +35,15 @@ public static class LmStudio
     public static ChatClient CreateChatClient(string model) =>
         new(model, Credential(), ClientOptions());
 
+    /// <summary>The LM Studio provider against the live server, as every consumer sees it.</summary>
+    public static IChatModel CreateChatModel() => new LmStudioChatModel(CreateChatClient());
+
+    /// <summary>
+    /// Built through the application's own factory from the <c>Embedding__*</c> configuration, so
+    /// the live tests reach the embedding server exactly the way the running app does.
+    /// </summary>
     public static EmbeddingClient CreateEmbeddingClient() =>
-        new(Settings().EmbeddingModel, Credential(), ClientOptions());
+        ChatModelFactory.CreateEmbeddingClient(Settings().Embedding);
 
     private static LmStudioSettings Settings() =>
         Probe.Value.Settings ?? throw new InvalidOperationException($"Local model unavailable: {Unavailable}");
