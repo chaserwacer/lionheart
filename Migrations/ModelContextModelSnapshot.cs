@@ -530,42 +530,254 @@ namespace lionheart.Migrations
                     b.ToTable("InjuryEvents");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Oura.DailyOuraData", b =>
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyActivity", b =>
                 {
-                    b.Property<Guid>("ObjectID")
+                    b.Property<Guid>("OuraId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ActivityJson")
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateOnly>("Date")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ReadinessJson")
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.ToTable("OuraDailyActivity", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyReadiness", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ResilienceJson")
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.ToTable("OuraDailyReadiness", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyResilience", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("SleepJson")
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.ToTable("OuraDailyResilience", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailySleep", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateOnly>("SyncDate")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("UserID")
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.ToTable("OuraDailySleep", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailySpo2", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.HasKey("ObjectID");
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
 
-                    b.HasIndex("UserID");
+                    b.Property<string>("Reading")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
-                    b.ToTable("DailyOuraDatas");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.ToTable("OuraDailySpo2", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyStress", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.ToTable("OuraDailyStress", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraSession", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.HasIndex("UserId", "StartTime");
+
+                    b.ToTable("OuraSessions", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraSleepPeriod", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.HasIndex("UserId", "StartTime");
+
+                    b.ToTable("OuraSleepPeriods", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraTag", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.HasIndex("UserId", "StartTime");
+
+                    b.ToTable("OuraTags", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraWorkout", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.HasIndex("UserId", "StartTime");
+
+                    b.ToTable("OuraWorkouts", (string)null);
                 });
 
             modelBuilder.Entity("lionheart.Model.Profile.AthleteContextCard", b =>
@@ -1129,176 +1341,93 @@ namespace lionheart.Migrations
                     b.Navigation("Injury");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Oura.DailyOuraData", b =>
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyActivity", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
-                        .WithMany("DailyOuraInfos")
-                        .HasForeignKey("UserID")
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
 
-                    b.OwnsOne("lionheart.Model.Oura.ActivityData", "ActivityData", b1 =>
-                        {
-                            b1.Property<Guid>("DailyOuraDataObjectID")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<int>("ActiveCalories")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("ActivityScore")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("MeetDailyTargets")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("MoveEveryHour")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("RecoveryTime")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("StayActive")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("Steps")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("TargetCalories")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("TotalCalories")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("TrainingFrequency")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("TrainingVolume")
-                                .HasColumnType("INTEGER");
-
-                            b1.HasKey("DailyOuraDataObjectID");
-
-                            b1.ToTable("DailyOuraDatas");
-
-                            b1.WithOwner()
-                                .HasForeignKey("DailyOuraDataObjectID");
-                        });
-
-                    b.OwnsOne("lionheart.Model.Oura.ReadinessData", "ReadinessData", b1 =>
-                        {
-                            b1.Property<Guid>("DailyOuraDataObjectID")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<int>("ActivityBalance")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("BodyTemperature")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("HrvBalance")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("PreviousDayActivity")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("PreviousNight")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("ReadinessScore")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("RecoveryIndex")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("RestingHeartRate")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("SleepBalance")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<double>("TemperatureDeviation")
-                                .HasColumnType("REAL");
-
-                            b1.HasKey("DailyOuraDataObjectID");
-
-                            b1.ToTable("DailyOuraDatas");
-
-                            b1.WithOwner()
-                                .HasForeignKey("DailyOuraDataObjectID");
-                        });
-
-                    b.OwnsOne("lionheart.Model.Oura.ResilienceData", "ResilienceData", b1 =>
-                        {
-                            b1.Property<Guid>("DailyOuraDataObjectID")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<double>("DaytimeRecovery")
-                                .HasColumnType("REAL");
-
-                            b1.Property<string>("ResilienceLevel")
-                                .IsRequired()
-                                .HasColumnType("TEXT");
-
-                            b1.Property<double>("SleepRecovery")
-                                .HasColumnType("REAL");
-
-                            b1.Property<double>("Stress")
-                                .HasColumnType("REAL");
-
-                            b1.HasKey("DailyOuraDataObjectID");
-
-                            b1.ToTable("DailyOuraDatas");
-
-                            b1.WithOwner()
-                                .HasForeignKey("DailyOuraDataObjectID");
-                        });
-
-                    b.OwnsOne("lionheart.Model.Oura.SleepData", "SleepData", b1 =>
-                        {
-                            b1.Property<Guid>("DailyOuraDataObjectID")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<int>("DeepSleep")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("Efficiency")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("Latency")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("RemSleep")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("Restfulness")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("SleepScore")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("Timing")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("TotalSleep")
-                                .HasColumnType("INTEGER");
-
-                            b1.HasKey("DailyOuraDataObjectID");
-
-                            b1.ToTable("DailyOuraDatas");
-
-                            b1.WithOwner()
-                                .HasForeignKey("DailyOuraDataObjectID");
-                        });
-
-                    b.Navigation("ActivityData")
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyReadiness", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
 
-                    b.Navigation("ReadinessData")
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyResilience", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
 
-                    b.Navigation("ResilienceData")
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailySleep", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
 
-                    b.Navigation("SleepData")
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailySpo2", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyStress", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraSession", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraSleepPeriod", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraTag", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraWorkout", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -1448,8 +1577,6 @@ namespace lionheart.Migrations
                     b.Navigation("ApiAccessTokens");
 
                     b.Navigation("ChatConversations");
-
-                    b.Navigation("DailyOuraInfos");
 
                     b.Navigation("Equipments");
 

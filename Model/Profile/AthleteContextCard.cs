@@ -8,7 +8,7 @@ namespace lionheart.Model.Profile
     /// <remarks>
     /// The card is a <b>derived materialized view</b> over the canonical source tables
     /// (<see cref="lionheart.WellBeing.WellnessState"/>, <see cref="lionheart.Model.InjuryManagement.Injury"/>,
-    /// <see cref="lionheart.Model.Oura.DailyOuraData"/>, <see cref="lionheart.Model.Training.TrainingSession"/>,
+    /// <see cref="lionheart.Model.Oura.OuraDailyReadiness"/>, <see cref="lionheart.Model.Training.TrainingSession"/>,
     /// <see cref="lionheart.Model.Training.PersonalRecord"/>, ...). It is never a source of truth and is
     /// regenerable from scratch at any time, which keeps it auditable, idempotent and versioned.
     ///
