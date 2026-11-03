@@ -50,7 +50,7 @@ namespace lionheart.Model.Chat
         /// <summary>
         /// The role a stored message's own type already states. Total over the hierarchy, and it
         /// throws on an unlisted subtype rather than defaulting: a new kind of stored message
-        /// silently projected as a model turn would be rendered to the athlete as coaching advice.
+        /// silently projected as a model turn would be rendered to the athlete as the model's answer.
         /// </summary>
         private static LHChatMessageRole RoleOf(LHChatMessage message) => message switch
         {

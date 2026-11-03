@@ -4,6 +4,7 @@ using lionheart.Model.Profile;
 using lionheart.Model.Training.Sessions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using lionheart.Services.Chat;
 using lionheart.Services.Llm;
 
 namespace lionheart.Services.Profile
@@ -29,7 +30,7 @@ namespace lionheart.Services.Profile
         Task<Result<AthleteContextCard, Problem>> RefreshRecentStateAsync(IdentityUser user);
 
         /// <summary>
-        /// Assemble the full system prompt: a byte-stable, cacheable prefix (coaching instructions +
+        /// Assemble the full system prompt: a byte-stable, cacheable prefix (the chat's voice +
         /// Stable Profile + tool-routing policy) followed by the volatile coverage manifest and Recent State.
         /// </summary>
         string RenderSystemMessage(AthleteContextCard card);
@@ -39,7 +40,7 @@ namespace lionheart.Services.Profile
         : IAthleteContextCardService
     {
         /// <summary>Bump when aggregation or rendering changes so existing cards are detected as stale.</summary>
-        private const int GENERATOR_VERSION = 1;
+        private const int GENERATOR_VERSION = 2;
 
         /// <summary>Recent State is considered stale after this long and is lazily recomputed on read.</summary>
         private static readonly TimeSpan RecentStateMaxAge = TimeSpan.FromHours(6);
@@ -207,8 +208,8 @@ namespace lionheart.Services.Profile
 
             var deterministic = facts.Count > 0 ? string.Join("\n", facts) : "No profile data on record yet.";
             var narrative = await TryNarrateAsync(
-                "Write ONE concise sentence characterizing this athlete's training identity and any standing constraints. " +
-                "Use only the facts; invent nothing; no numbers not present.",
+                "In one sentence, characterize this athlete's training identity and any standing constraints. " +
+                "Use only the facts given, and introduce no number that is not among them.",
                 deterministic);
 
             card.StableProfileText = string.IsNullOrWhiteSpace(narrative)
@@ -316,8 +317,8 @@ namespace lionheart.Services.Profile
 
             var deterministic = string.Join("\n", lines);
             var narrative = await TryNarrateAsync(
-                "In ONE sentence, summarize this athlete's current readiness-vs-load picture for a coach. " +
-                "Use only the facts; invent no numbers.",
+                "In one sentence, state where this athlete's readiness stands against their current training load. " +
+                "Use only the facts given, and introduce no number that is not among them.",
                 deterministic);
 
             card.RecentStateText = string.IsNullOrWhiteSpace(narrative)
@@ -344,7 +345,7 @@ namespace lionheart.Services.Profile
             // STABLE PREFIX (byte-stable across turns while the Stable Profile is unchanged -> prompt-cacheable).
             // No timestamps or volatile content above this line.
             var prefix =
-                $"{BaseInstructions}\n\n" +
+                $"{ChatInstructions.Voice}\n\n" +
                 $"=== ATHLETE PROFILE (stable) ===\n{card.StableProfileText.Trim()}\n\n" +
                 $"=== TOOL ROUTING POLICY ===\n{ToolRoutingPolicy}";
 
@@ -368,8 +369,9 @@ namespace lionheart.Services.Profile
             {
                 var turn = await _narrativeClient.Model.RespondAsync(ChatTurnRequest.Prose(
                     systemPrompt:
-                        "You write a single, plain, grounded sentence for an athlete-coaching context card. " +
-                        "Never restate raw numbers; never invent data; no medical claims.",
+                        "You write one precise sentence for an athlete context card that a sports-science analyst reads. " +
+                        "The facts are printed beside your sentence, so interpret them rather than restating the figures. " +
+                        "Invent nothing, make no medical claims, and leave out encouragement and filler.",
                     userText: $"{instruction}\n\nFacts:\n{facts}",
                     maxOutputTokens: NarrativeTokenBudget));
 
@@ -411,28 +413,17 @@ namespace lionheart.Services.Profile
         private static double Mean(IEnumerable<int?> readings) =>
             Avg(readings.Where(reading => reading.HasValue).Select(reading => (double)reading!.Value));
 
-        private const string BaseInstructions = """
-            You are Lionheart, an intelligent training coach and analyst.
-            You access the Lionheart Training Intelligence System: an athlete's training history, subjective notes, and wearable biometrics (e.g., Oura Ring).
-            Core principles:
-            Interpret, don't report. Never restate raw data or list metrics.
-            Prioritize patterns and trends over snapshots. Reference numbers only when they strengthen insight.
-            Analyze in context: load vs. recovery, performance vs. fatigue, lifestyle stress alongside training.
-            Tone: Thoughtful coach—intelligent, grounded, human. Engaging, not robotic.
-            Always aim to add value through insights and actionable advice.
-            You are a training intelligence layer, not a dashboard.
-            """;
-
         private const string ToolRoutingPolicy = """
             You are given an ATHLETE PROFILE and RECENT STATE below, plus a COVERAGE MANIFEST listing what is
-            already loaded and over what window. Use them to decide tool calls deliberately:
-            - If the answer is fully supported by the card, answer directly and DO NOT call tools.
-            - If you need detail the manifest marks "NOT loaded", call exactly the tool named there, with the
-              NARROWEST date range that covers the question.
-            - Never re-fetch a domain the manifest marks present-and-fresh for the same window; trust the card's
-              numbers (they are computed deterministically, not by a model).
-            - If card data is stale or missing (see as-of) for a time-sensitive question, fetch it; otherwise prefer the card.
-            Never expose tool usage or the existence of this card to the user.
+            already loaded and over what window. Use them to decide when a tool call is worth making:
+            - When the card fully supports the answer, answer from it without calling tools.
+            - When you need detail the manifest marks "NOT loaded", call the tool it names, with the narrowest
+              date range that covers the question.
+            - Do not re-fetch a domain the manifest marks present and fresh for the same window. The card's
+              numbers are computed deterministically, not by a model, so rely on them.
+            - When the card's data is stale or missing (see its as-of) and the question is time-sensitive, fetch
+              it; otherwise prefer the card.
+            Do not narrate tool calls or mention this card to the athlete.
             """;
 
         /// <summary>
