@@ -20,10 +20,10 @@ public sealed class CorruptRowTests : IDisposable
     {
         _db.ExecuteNonQuery($$"""
             INSERT INTO Sessions
-                (TrainingSessionId, UserId, Notes, Provenance, TrainingProgramId, CreatedAt,
+                (TrainingSessionId, UserId, Notes, Provenance, TrainingProgramId, RoutineId, CreatedAt,
                  Lifecycle, Sets, Period, Effort, Decoration, StartTime)
             VALUES
-                ('{{RemodelDatabase.SqlGuid(Guid.NewGuid())}}', '{{RemodelDatabase.SqlGuid(_db.UserId)}}', 'planted', 0, '{{RemodelDatabase.SqlGuid(Guid.Empty)}}', '2026-07-18 09:30:00',
+                ('{{RemodelDatabase.SqlGuid(Guid.NewGuid())}}', '{{RemodelDatabase.SqlGuid(_db.UserId)}}', 'planted', 0, '{{RemodelDatabase.SqlGuid(Guid.Empty)}}', '{{RemodelDatabase.SqlGuid(Guid.Empty)}}', '2026-07-18 09:30:00',
                  'completed', '{{setsJson.Replace("'", "''")}}', '{{periodJson.Replace("'", "''")}}',
                  '{"$type":"none"}', '{"$type":"none"}', '2026-07-18 09:30:00');
             """);
@@ -126,9 +126,9 @@ public sealed class CorruptRowTests : IDisposable
     {
         _db.ExecuteNonQuery($"""
             INSERT INTO Sessions
-                (TrainingSessionId, UserId, Notes, Provenance, TrainingProgramId, CreatedAt, Lifecycle)
+                (TrainingSessionId, UserId, Notes, Provenance, TrainingProgramId, RoutineId, CreatedAt, Lifecycle)
             VALUES
-                ('{RemodelDatabase.SqlGuid(Guid.NewGuid())}', '{RemodelDatabase.SqlGuid(_db.UserId)}', 'planted', 0, '{RemodelDatabase.SqlGuid(Guid.Empty)}', '2026-07-18 09:30:00', 'abandoned');
+                ('{RemodelDatabase.SqlGuid(Guid.NewGuid())}', '{RemodelDatabase.SqlGuid(_db.UserId)}', 'planted', 0, '{RemodelDatabase.SqlGuid(Guid.Empty)}', '{RemodelDatabase.SqlGuid(Guid.Empty)}', '2026-07-18 09:30:00', 'abandoned');
             """);
 
         ReadSessions();

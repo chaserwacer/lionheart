@@ -15,6 +15,9 @@ struct SetEntryForm: View {
     @Binding var draft: SetDraft
     /// What the button says. "Log set" while logging; the edit sheet saves instead.
     var actionLabel = "Log set"
+    /// Last time at this position, the plates and the load moved, read off the fields as typed.
+    /// The edit sheet has none: a set already logged is being corrected, not aimed.
+    var guide: SetGuide?
     let log: (SetCommand) -> Void
 
     /// The RPE values worth offering. Below five is not a working set, and the server's scale is
@@ -31,6 +34,7 @@ struct SetEntryForm: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if let guide, !guide.isEmpty { guideLine(guide) }
             switch draft.modality {
             case .lift: liftFields
             case .distanceTime: distanceFields
@@ -67,8 +71,36 @@ struct SetEntryForm: View {
 
     @ViewBuilder
     private var menus: some View {
-        if draft.movementDataId != nil { modalityPicker }
+        if draft.movementDataId != nil { setTypePicker }
         if draft.modality != .freeform { ratingMenu }
+    }
+
+    /// The figures that bear on this set, in one quiet line above the fields: what was done at this
+    /// position last time, the load moved where the weight sits on top of bodyweight, and the plates.
+    private func guideLine(_ guide: SetGuide) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Tokens.cardPadding) { guideParts(guide) }
+            VStack(alignment: .leading, spacing: 2) { guideParts(guide) }
+        }
+        .font(.footnote.monospacedDigit())
+        .foregroundStyle(Color(.secondaryLabel))
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func guideParts(_ guide: SetGuide) -> some View {
+        if let lastTime = guide.lastTime, let text = Formatting.lastTime(lastTime.set) {
+            Text("\(Text("Last").foregroundStyle(Color(.tertiaryLabel))) \(text)")
+                .accessibilityLabel("Last time, \(Formatting.date(lastTime.day)): \(text)")
+        }
+        if let load = guide.systemLoad {
+            Text("\(Text("System").foregroundStyle(Color(.tertiaryLabel))) \(Formatting.weight(load.total, load.unit))")
+                .accessibilityLabel("System load \(Formatting.weight(load.total, load.unit)), with bodyweight")
+        }
+        if let plates = guide.plates {
+            Text(Formatting.plates(plates, unit: draft.weightUnit))
+                .accessibilityLabel("Plates: \(Formatting.plates(plates, unit: draft.weightUnit))")
+        }
     }
 
     /// Log and Done, above the keys.
@@ -92,14 +124,44 @@ struct SetEntryForm: View {
 
     // MARK: - Shapes
 
-    private var modalityPicker: some View {
-        Picker("How this set is measured", selection: $draft.modality) {
-            Text("Lift").tag(SetModality.lift)
-            Text("Distance").tag(SetModality.distanceTime)
+    /// What the set is and how it is measured, as one menu: a working lift, a warm-up, a drop or
+    /// a failure set, or distance and time.
+    ///
+    /// One control rather than a measure menu beside a kind menu, because the two never vary
+    /// independently on a row this narrow — a kind only means something on a lift — and three
+    /// menus would push the Log button onto a line of its own at the default text size.
+    private var setTypePicker: some View {
+        Picker("Set type", selection: Binding(
+            get: { SetType(draft) },
+            set: { type in
+                switch type {
+                case .lift(let kind):
+                    draft.modality = .lift
+                    draft.kind = kind
+                case .distanceTime:
+                    draft.modality = .distanceTime
+                    draft.kind = .working
+                }
+            }
+        )) {
+            ForEach(SetKind.offered, id: \.self) { kind in
+                Text(Formatting.setKind(kind)).tag(SetType.lift(kind))
+            }
+            Text("Distance").tag(SetType.distanceTime)
         }
         .pickerStyle(.menu)
         .labelsHidden()
         .fixedSize()
+    }
+
+    /// The choices the set-type menu offers.
+    private enum SetType: Hashable {
+        case lift(SetKind)
+        case distanceTime
+
+        init(_ draft: SetDraft) {
+            self = draft.modality == .distanceTime ? .distanceTime : .lift(draft.kind)
+        }
     }
 
     private var liftFields: some View {

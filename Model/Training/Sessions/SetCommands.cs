@@ -56,21 +56,27 @@ public abstract record SetCommand
     public abstract Result<SetEntry, Problem> ToEntry();
 }
 
+/// <remarks>
+/// <see cref="Kind"/> defaults to <see cref="SetKind.Working"/>, so a client that does not know
+/// about set kinds logs working sets, which is what every set it sent before meant.
+/// </remarks>
 public sealed record LiftSetCommand(
     Guid MovementDataId,
     int Reps,
     double Weight,
     WeightUnit Unit,
-    double? Rpe) : SetCommand
+    double? Rpe,
+    SetKind Kind = SetKind.Working) : SetCommand
 {
     public override Result<SetEntry, Problem> ToEntry() =>
         Stated.ClosedEnum(Unit, nameof(Unit))
-            .Bind(unit => Stated.Rating(Rpe, nameof(Rpe))
-                .Map(rpe => (SetEntry)new LiftSet(MovementDataId, Reps, Weight, unit, rpe)
-                {
-                    Source = new Formed(),
-                    Facets = [],
-                }));
+            .Bind(unit => Stated.ClosedEnum(Kind, nameof(Kind))
+                .Bind(kind => Stated.Rating(Rpe, nameof(Rpe))
+                    .Map(rpe => (SetEntry)new LiftSet(MovementDataId, Reps, Weight, unit, rpe, kind)
+                    {
+                        Source = new Formed(),
+                        Facets = [],
+                    })));
 }
 
 public sealed record DistanceTimeSetCommand(

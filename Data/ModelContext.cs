@@ -12,6 +12,8 @@ using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.PersonalRecords;
+using lionheart.Model.Training.Routines;
+using lionheart.Model.BodyMeasurements;
 using Programs = lionheart.Model.Training.Programs;
 using Sessions = lionheart.Model.Training.Sessions;
 
@@ -48,6 +50,8 @@ namespace lionheart.Data
         public DbSet<AnalyzableEntry> AnalyzableEntries { get; set; }
         public DbSet<FacetValue> FacetValues { get; set; }
         public DbSet<FocusPin> FocusPins { get; set; }
+        public DbSet<Routine> Routines { get; set; }
+        public DbSet<BodyweightMeasurement> BodyweightMeasurements { get; set; }
 
         // Oura — design in docs/oura-integration.md. One table per collection: eight documents that
         // describe a calendar day, four that describe events within one, and the all-day heart-rate
@@ -204,6 +208,14 @@ namespace lionheart.Data
                 .HasForeignKey(md => md.MovementModifierID)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // The athlete's setup for the movement, as two columns on the movement's row.
+            modelBuilder.Entity<MovementData>()
+                .ComplexProperty(md => md.Setup, setup =>
+                {
+                    setup.Property(s => s.Notes).HasColumnName("SetupNotes");
+                    setup.Property(s => s.AddsToBodyweight).HasColumnName("AddsToBodyweight");
+                });
+
             // Unique index to prevent duplicate MovementData combinations per user
             modelBuilder.Entity<MovementData>()
                 .HasIndex(md => new { md.UserID, md.EquipmentID, md.MovementBaseID, md.MovementModifierID })
@@ -302,6 +314,7 @@ namespace lionheart.Data
 
             RemodelConfiguration.Apply(modelBuilder);
             OuraConfiguration.Apply(modelBuilder);
+            BodyMeasurementConfiguration.Apply(modelBuilder);
         }
     }
 }

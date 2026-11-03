@@ -41,10 +41,26 @@ enum TrainingSession: Equatable, Sendable, Identifiable {
         /// The program this session belongs to, or `nil` when it stands alone. The server models
         /// membership as a fill-state; on the wire it is this nullable id.
         let trainingProgramId: UUID?
+        /// The routine the session was trained from, or `nil` for an ad hoc one. The server's
+        /// fill-state is this nullable id on the wire, like program membership.
+        let routineId: UUID?
         let createdAt: Date?
         /// The calendar day the session belongs to, derived server-side by each state from its own
         /// time-truth.
         let date: CalendarDay
+
+        init(
+            trainingSessionId: UUID, notes: String, provenance: Provenance, trainingProgramId: UUID?,
+            routineId: UUID? = nil, createdAt: Date?, date: CalendarDay
+        ) {
+            self.trainingSessionId = trainingSessionId
+            self.notes = notes
+            self.provenance = provenance
+            self.trainingProgramId = trainingProgramId
+            self.routineId = routineId
+            self.createdAt = createdAt
+            self.date = date
+        }
     }
 
     struct Planned: Equatable, Sendable {
@@ -116,6 +132,7 @@ extension TrainingSession: Decodable {
             notes: container.lenient("notes", or: ""),
             provenance: Provenance(wire: container.lenient(Int.self, "provenance")),
             trainingProgramId: container.lenient(UUID.self, "trainingProgramId"),
+            routineId: container.lenient(UUID.self, "routineId"),
             createdAt: container.instant("createdAt"),
             date: date)
 

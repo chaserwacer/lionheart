@@ -123,7 +123,8 @@ public abstract record SetEntry
 }                                                               // embeddings stay session-level
 
 public sealed record LiftSet(
-    Guid MovementDataId, int Reps, double Weight, WeightUnit Unit, Rpe Rpe) : SetEntry;
+    Guid MovementDataId, int Reps, double Weight, WeightUnit Unit, Rpe Rpe, SetKind Kind) : SetEntry;
+public enum SetKind { Working, WarmUp, Drop, Failure }   // lifts only; a warm-up sets no record
 public sealed record DistanceTimeSet(
     Guid MovementDataId, double Distance, DistanceUnit Unit, TimeSpan Duration, Rpe Rpe) : SetEntry;
 public sealed record TrailRunSet(
@@ -155,6 +156,7 @@ public abstract record TrainingSession
     public required string Notes { get; init; }
     public required Provenance Provenance { get; init; }   // User | AiAssisted — orthogonal to lifecycle
     public required ProgramMembership Membership { get; init; } // Standalone | InProgram — fill-state, not nullable FK
+    public required RoutineOrigin Origin { get; init; }         // AdHoc | FromRoutine — the same shape
     public abstract DateOnly Date { get; }                 // derived from each state's own time-truth
 }
 
@@ -324,9 +326,14 @@ everything else about it.
 | Live-test gating | One mechanism: `Category=LocalModel` trait selects, `[LmStudioFact]` skips with the failing key named (2026-07-20) |
 | Embedding provider | An OpenAI-compatible server, configured independently of chat under `Embedding__*` — Anthropic serves no embeddings endpoint, so there is deliberately no provider choice here. Model pinned in `Embedding__Model`; dimension mismatch is a hard error, never a silent rescore |
 | Entity vs facet resolution | Facets snap semantically (embeddings); movements/equipment stay lexical — no embedding column on those tables, and exact names dominate in practice |
-| Strong history | The athlete's Strong export imports as completed sessions (owner request 2026-11-03). Distinct from the abandoned legacy Lionheart data, which stays abandoned. Warm-ups become freeform sets; drop and failure sets are lifts with their kind in the notes — no set-kind field until the owner decides one is wanted |
+| Strong history | The athlete's Strong export imports as completed sessions (owner request 2026-11-03). Distinct from the abandoned legacy Lionheart data, which stays abandoned. ~~Warm-ups become freeform sets; drop and failure sets are lifts with their kind in the notes — no set-kind field until the owner decides one is wanted~~ — superseded by the set-kind row below |
 | Coached-programme history | The 2023–24 programme spreadsheets import as completed sessions in completed programmes (owner request 2026-11-03). Only rows whose weight the athlete entered are sets; a spreadsheet-computed weight is a prescription. Records are rebuilt over the whole history rather than detected incrementally, because this history is older than every standing record |
 | Retracted records and the rebuild | A rebuild refuses while any record is withdrawn: the set behind it is still in its session, so a replay would award it again. Preserving a withdrawal through a rebuild needs a rule for which sets it covers, which is the owner's call |
+| Set kind | A lift carries `SetKind` — working, warm-up, drop, failure (owner asked for the logging round to decide it, 2026-11-03). A kind rather than a set shape: all four are the same measurement and differ only in what they mean. A warm-up never sets a record, the session volume included; drop and failure sets were performed at the weight stated and count as working sets. No schema change — the kind is the last member of the set JSON, and a stored lift without one reads as working. The Strong import writes kinds; `upgrade-strong-set-kinds` upgrades the sessions it wrote before |
+| Routines | A routine is its own aggregate: an undated, reusable movement order with a working-set count each. Not a planned session (dated, one-shot, its prescriptions consumed by the lifecycle) and not a program (a dated block with no content). It stores no targets: the athlete trains to beat last time, so targets come from previous performances (2026-11-03) |
+| Routine origin | A session carries `RoutineOrigin` — `AdHoc` or `FromRoutine(id)`, persisted as a `RoutineId` column with `Guid.Empty` for ad hoc, no FK, the shape `ProgramMembership` has. A routine id that is not the athlete's is **dropped to ad hoc, never refused**, unlike a program: a workout started offline from a routine deleted meanwhile still happened. Deleting a routine leaves its sessions naming it (2026-11-03) |
+| Bodyweight | A dated `BodyweightMeasurement`, one per day keyed by `(UserId, Day)`, holding `Bodyweight(value, unit)`, is the source for what the athlete weighs. `LionheartUser.Weight` — the profile's undated, unitless number — is left alone and is not the source. "Bodyweight on a day" is the newest measurement on or before it, a rule for the reader (2026-11-03) |
+| Movement setup | `MovementData` carries `MovementSetup(notes, addsToBodyweight)`: the athlete's setup cues, and whether the weight logged on it is plate added to bodyweight (weighted dips, pull-ups), so system load is bodyweight plus weight. A fact about the movement, set per movement by the athlete; nothing seeds it (2026-11-03) |
 
 ## Status & roadmap — source of truth
 
@@ -620,22 +627,34 @@ yet — nothing in the app migrates at startup, so it lands on the next `dotnet 
 archive import (`Services/Strong/`). Each Strong workout becomes a `CompletedTrainingSession`
 (`Provenance.User`, standalone, `NotDecorated`, effort not reported) over `Interval(start, start +
 duration)`, the start placed at the machine's time zone as it applied on that date. Sets are
-`LiftSet`s in pounds with Strong's RPE; set and workout notes, a non-default workout name, and which
-sets were drop sets or taken to failure go into the session notes. Rest-timer rows are counted and
-set aside — the domain has nowhere to hold a rest.
+`LiftSet`s in pounds with Strong's RPE and Strong's set kind; set and workout notes and a
+non-default workout name go into the session notes. Rest-timer rows are counted and set aside — the
+domain has nowhere to hold a rest.
 
-- **Set kinds without a schema change.** A warm-up is a `FreeformSet` holding its own words
-  ("Warm-up — Bench Press (Barbell): 155 lb × 13"): it must not set a record, a freeform set raises
-  none, and the stored session then reads exactly as the detector saw it. Drop and failure sets
-  were performed at the weight stated, so they are lifts and count toward records.
+- **Set kinds.** Strong's warm-up, drop and failure sets import as lifts of that kind. A warm-up
+  sets no record; drop and failure sets count toward records like any set performed.
+- **Upgrading what the first import wrote.** Before sets carried a kind, a warm-up was written as a
+  `FreeformSet` holding its words ("Warm-up — Bench Press (Barbell): 155 lb × 13") and drop and
+  failure sets as plain lifts, named in two notes lines ("Drop sets: …", "Taken to failure: …").
+  `dotnet run -- upgrade-strong-set-kinds <strong-export.csv> --user <athlete-guid>`, a command of
+  its own beside the import, brings each held session up to the current shape when it is provably
+  what that import wrote for the workout — set by set (movement, reps, weight, unit, RPE; a warm-up's
+  words exactly) and the notes whole — replacing only its sets and notes, all in one save. A session
+  that already reads as the import writes now is counted current; any other (edited since, or written
+  under a mapping that has since changed) is left alone and listed by date. It creates nothing: a
+  workout the database does not hold is counted and left to the import, and it resolves movements
+  with its own read-only query rather than the import's catalogue. Records are not touched or
+  re-detected: a freeform warm-up raised none and a warm-up lift raises none, and drop and failure
+  sets were lifts before and after (`StrongSetKindUpgrader`, `StrongUpgrade`, `StrongUpgradeCommand`
+  in `Services/Strong/`). The import itself still skips a held workout.
 - **Movements** come from `Services/Strong/strong-movements.json`, an athlete-editable map from
   every Strong exercise name to base / equipment / modifier, matched against the athlete's
   catalogue ignoring case and surrounding spaces. Judgement calls carry an `unsure` reason and are
   listed by every run that applies them. An unmapped name refuses the import before anything is
   written.
 - **Re-runnable.** A session's id is a name-based (v5) UUID of the athlete and the workout's start,
-  so a workout already held is recognised and skipped, and renaming it in Strong does not import it
-  again. A session deleted here does come back on the next run, and a mapping corrected after a
+  so a workout already held is recognised and never imported twice, and renaming it in Strong does
+  not import it again. A session deleted here does come back on the next run, and a mapping corrected after a
   workout was imported does not reach it.
 - **Records as if logged live.** The new sessions go through `PersonalRecordDetector` in one batch,
   oldest first. The import refuses — writing nothing — if a record already standing on an identity
@@ -653,6 +672,18 @@ when he lifted), duplicate the Strong workout of 2026-03-20 on five movements. W
 back a predecessor stamped the same instant, so clearing them is fifteen withdrawals. Whether to
 withdraw them, delete them, or have the import treat them otherwise is the owner's decision; nothing
 is decided here.
+
+**The set-kind upgrade against the athlete's data (2026-11-03, on a worktree copy of the database).**
+`~/Downloads/strong_workouts.csv` holds 208 workouts and the database 206 of them: the two it lacks
+are "Tester workout" (2024-07-23) and "Tester" (2024-08-15), which `upgrade-strong-set-kinds` counts
+as not imported. (`import-strong` over the whole export refuses, writing nothing: re-adding those two
+would replay records older than 19 that now stand.) The upgrade upgraded **44** sessions (5 warm-ups,
+36 drop sets, 16 failure sets gained their kind), counted **160** already current (no special sets),
+and left **2** alone: 2024-10-10 and 2026-10-28, whose stored sets omit a typo'd set the export still
+holds (a 315 × 315 deadlift; a 115 × 45 overhead press). The 2026-10-28 session keeps its one drop set
+as a plain lift with its notes line until it is corrected by hand. The 3,440 records, every session's
+id, period and creation time, and the catalogue were byte-identical before and after, and a second
+run upgraded nothing. The main checkout's database has not been migrated or upgraded.
 
 ### ✅ Focus pins, and the records a movement or a session established
 
@@ -707,6 +738,28 @@ later change to how sets are read. It writes nothing when the result equals what
 survive a no-op. Against the athlete's database copy of 2026-11-03 it reported all 3,440 records
 unchanged; after the import, 3,674 records, of which 3,158 were unchanged, 74 restated behind a 2023
 predecessor, 208 dropped and 442 new.
+
+### ✅ Logging round — set kinds, routines, previous performances, bodyweight, movement setup
+
+Backend half of the native logging round; the wire is in `docs/api-surface.md`.
+
+- **Set kind** (`Model/Training/Sets/SetKind.cs`): the last positional member of `LiftSet`,
+  guarded with `Require.ClosedEnum`; `LiftSetCommand.Kind` defaults to working.
+  `RecordCandidates` ignores warm-ups for every lift record. The interpretation engine's lifts are
+  working sets. `MovementSets` reads a set list by movement, which routines and previous
+  performances share.
+- **Routines** (`Model/Training/Routines/`, `Services/Training/Routines/`): `Routine` is a sealed
+  entity revised only through checked `RoutineContent`; its movements are one JSON column.
+  `RoutineOrigin` on every session; `POST /active` and `/completed` drop an unknown routine to ad hoc.
+- **Previous performances** (`Model/Training/Sessions/PreviousPerformance.cs`): a pure read over the
+  athlete's completed sessions.
+- **Bodyweight** (`Model/BodyMeasurements/`, `Data/BodyMeasurementConfiguration.cs`): the
+  measurement keyed by athlete and day, its `Bodyweight` a complex property.
+- **Movement setup**: a complex property on `MovementData`, two columns.
+- **Migration `RoutinesBodyweightAndMovementSetup`** — the `Routines` and `BodyweightMeasurements`
+  tables, `Sessions.RoutineId` (existing rows `Guid.Empty`, indexed, no FK), and
+  `MovementDatas.SetupNotes` (default `''`) and `AddsToBodyweight` (default `0`). Applied to a
+  worktree copy of the database only.
 
 ### Traps — non-obvious failures already paid for
 
@@ -772,8 +825,11 @@ Numbered for reference; nothing here is decided. **Ask Chase rather than choosin
 5. **Parse quality beyond schema compliance is unmeasured.** The live tests assert structure —
    a session with sets, a context for a sleep note — not extraction accuracy across messy
    phrasing. Worth throwing real logs at it before endpoints are built on top.
-6. **Three hand-rolled fill-states** (`DecorationState`, `EffortState`, `ProgramMembership`) —
-   a generic `Option<T>` is deferred unless a fourth appears.
+6. **Hand-rolled fill-states** (`DecorationState`, `EffortState`, `ProgramMembership`, and since
+   then `RecordSubject` and `RoutineOrigin`) — a generic `Option<T>` was deferred "unless a fourth
+   appears". `RoutineOrigin` makes five, the last two persisted as a Guid sentinel the way
+   `ProgramMembership` is, so the deferral's condition has been met; whether to generalize is still
+   undecided.
 7. **De-"remodel"-ing identifiers** — `RemodelConfiguration` → `TrainingDomainConfiguration`
    and similar, now that the remodel is the model rather than a migration in flight. Offered
    twice, still unanswered. **Do not do it without asking.**

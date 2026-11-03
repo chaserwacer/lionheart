@@ -27,3 +27,16 @@ public sealed class Addressed<TBody>
     [FromBody]
     public TBody Body { get; set; } = default!;
 }
+
+/// <summary>
+/// <see cref="Addressed{TBody}"/> for a record keyed by a calendar day rather than an id: the day
+/// from the route, what to do on it from the body.
+/// </summary>
+public sealed class Dated<TBody>
+{
+    [FromRoute(Name = "day")]
+    public DateOnly Day { get; set; }
+
+    [FromBody]
+    public TBody Body { get; set; } = default!;
+}

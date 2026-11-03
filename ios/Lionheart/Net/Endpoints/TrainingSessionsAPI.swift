@@ -57,14 +57,15 @@ struct TrainingSessionsAPI: Sendable {
             body: StartSessionRequest(startedAt: startedAt))
     }
 
-    /// An unplanned start: nothing was planned and the athlete began training.
+    /// An unplanned start: nothing was planned and the athlete began training — from a routine,
+    /// where `routineId` names one.
     func startUnplanned(
-        at startedAt: Date, notes: String = "", programId: UUID? = nil
+        at startedAt: Date, notes: String = "", programId: UUID? = nil, routineId: UUID? = nil
     ) async throws -> TrainingSession {
         try await client.post(
             "\(Self.root)/active",
             body: StartUnplannedSessionRequest(
-                startedAt: startedAt, notes: notes, trainingProgramId: programId))
+                startedAt: startedAt, notes: notes, trainingProgramId: programId, routineId: routineId))
     }
 
     /// A session that already happened, in one request.
@@ -73,13 +74,24 @@ struct TrainingSessionsAPI: Sendable {
         period: PeriodRequest,
         effort: PerceivedEffortRequest?,
         notes: String = "",
-        programId: UUID? = nil
+        programId: UUID? = nil,
+        routineId: UUID? = nil
     ) async throws -> TrainingSession {
         try await client.post(
             "\(Self.root)/completed",
             body: LogCompletedSessionRequest(
                 sets: sets, period: period, effort: effort,
-                notes: notes, trainingProgramId: programId))
+                notes: notes, trainingProgramId: programId, routineId: routineId))
+    }
+
+    /// Last time on every movement the athlete has trained: each one's sets from the most recent
+    /// completed session holding it. Remembered, because the previous column is wanted most in a
+    /// basement.
+    func previousPerformances(remembering key: ReadKey) async throws -> Remembered<[PreviousPerformance]> {
+        try await client.get(
+            "/api/training/previous-performances", as: LenientList<PreviousPerformance>.self,
+            remembering: key
+        ).map(\.elements)
     }
 
     // MARK: - While it runs

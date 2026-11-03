@@ -11,6 +11,10 @@ import SwiftUI
 struct FinishWorkoutSheet: View {
     let store: ActiveWorkoutStore
     let library: MovementLibraryStore
+    let bodyweight: BodyweightStore
+    let routines: RoutineStore
+    /// Receives the readout of the finished workout, built before it is handed over.
+    let finished: (WorkoutSummary) -> Void
 
     /// The scale the self-reported ratings use.
     ///
@@ -29,9 +33,15 @@ struct FinishWorkoutSheet: View {
     @State private var endedAt: Date
     @State private var startedAt: Date
 
-    init(store: ActiveWorkoutStore, library: MovementLibraryStore) {
+    init(
+        store: ActiveWorkoutStore, library: MovementLibraryStore, bodyweight: BodyweightStore,
+        routines: RoutineStore, finished: @escaping (WorkoutSummary) -> Void
+    ) {
         self.store = store
         self.library = library
+        self.bodyweight = bodyweight
+        self.routines = routines
+        self.finished = finished
         _notes = State(initialValue: store.workout?.notes ?? "")
         _startedAt = State(initialValue: store.workout?.startedAt ?? Date())
         _endedAt = State(initialValue: Self.proposedEnd(for: store.workout))
@@ -78,8 +88,8 @@ struct FinishWorkoutSheet: View {
 
     private func summarySection(_ workout: ActiveWorkout) -> some View {
         let totals = WorkoutTotals.of(workout.sets)
-        return Section("What you did") {
-            LabeledContent("Sets") { Text("\(totals.setCount)").monospacedDigit() }
+        return Section {
+            LabeledContent("Working sets") { Text("\(totals.setCount)").monospacedDigit() }
             ForEach(totals.weights) { weight in
                 LabeledContent("Volume") {
                     Text(Formatting.volume(weight)).monospacedDigit()
@@ -94,6 +104,12 @@ struct FinishWorkoutSheet: View {
                 LabeledContent("Moving time") {
                     Text(Formatting.duration(seconds: totals.movingDuration)).monospacedDigit()
                 }
+            }
+        } header: {
+            Text("What you did")
+        } footer: {
+            if workout.sets.contains(where: { !$0.command.isWork }) {
+                Text("Warm-ups are not counted.")
             }
         }
     }
@@ -198,6 +214,17 @@ struct FinishWorkoutSheet: View {
             store.moveStart(to: startedAt)
         }
 
+        // Read before the hand-over: once the server has the session, last time on every movement
+        // is this workout, and the readout would compare it with itself.
+        let summary = WorkoutSummary.of(
+            store.workout ?? workout,
+            endingAt: endedAt,
+            previous: library.previous,
+            records: library.records,
+            setups: library.setups,
+            bodyweight: bodyweight.series,
+            lastRoutineSession: workout.routine.flatMap { routines.routine($0.routineId)?.lastSession })
+
         let effort = PerceivedEffortRequest(
             accumulatedFatigue: fatigue,
             difficultyRating: difficulty,
@@ -207,15 +234,19 @@ struct FinishWorkoutSheet: View {
         switch await store.complete(effort: effort, endingAt: endedAt) {
         case .delivered:
             Haptics.achievement()
+            finished(summary.completed(as: workout.destination.sessionId))
             dismiss()
             // Completing is what establishes records, and the library's copy is what the next
             // workout's set rows are judged against and what the picker shows as the number to aim
-            // at. Left alone it would hold the records as they stood at launch.
+            // at. Left alone it would hold the records as they stood at launch. The routines are
+            // read again for the same reason: this session is now the routine's last.
             await library.refresh()
+            if workout.routine != nil { await routines.refresh() }
         case .heldForDelivery:
             // Finished as far as the athlete is concerned; Train lists it until the server has it.
             // The records cannot have moved yet, so there is nothing for the library to learn.
             Haptics.achievement()
+            finished(summary)
             dismiss()
         case .notFinished:
             break

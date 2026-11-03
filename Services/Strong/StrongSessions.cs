@@ -12,19 +12,14 @@ namespace lionheart.Services.Strong;
 /// A Strong workout as the completed training session it imports as.
 /// </summary>
 /// <remarks>
-/// Lionheart's set has no place for Strong's three special kinds of set, so each gets the most
-/// faithful answer the domain already has, and none of them changes the schema:
-/// <list type="bullet">
-/// <item><b>Drop and failure sets</b> are lifts like any other. Every rep in them was performed at
-/// the weight stated, so they count toward records and volume exactly as a working set would. What
-/// kind of set each was is kept in the session's notes, which the athlete and the chat model read.</item>
-/// <item><b>A warm-up</b> becomes a freeform set holding its own words, and is not a lift. A warm-up
-/// must not set a record, and a freeform set raises none, so the stored session and the records
-/// detected from it agree — the session reads exactly as it would had it been logged here that
-/// way. The words keep the numbers, so a later set kind can upgrade it without anything being lost.</item>
-/// </list>
-/// The session is the athlete's own log (<see cref="Provenance.User"/>), standalone, undecorated
-/// like every structured session, and with no perceived effort, which Strong does not record.
+/// Every set is a lift carrying Strong's kind for it: warm-up, drop, failure or working. A warm-up
+/// sets no record; drop and failure sets were performed at the weight stated and count as working
+/// sets do (see <see cref="SetKind"/>).
+/// <para>
+/// The session is the athlete's own log (<see cref="Provenance.User"/>), standalone, ad hoc,
+/// undecorated like every structured session, and with no perceived effort, which Strong does not
+/// record.
+/// </para>
 /// </remarks>
 internal static partial class StrongSessions
 {
@@ -38,13 +33,6 @@ internal static partial class StrongSessions
     /// </remarks>
     public const WeightUnit ExportUnit = WeightUnit.Pounds;
 
-    private static string UnitLabel => ExportUnit switch
-    {
-        WeightUnit.Pounds => "lb",
-        WeightUnit.Kilograms => "kg",
-        _ => throw new UnreachableException(),
-    };
-
     public static CompletedTrainingSession ToSession(
         StrongWorkout workout,
         Guid userId,
@@ -57,27 +45,26 @@ internal static partial class StrongSessions
         {
             TrainingSessionId = workout.Key.SessionIdFor(userId),
             UserId = userId,
-            Notes = Notes(workout),
+            Notes = string.Join("\n", NoteLines(workout)),
             Provenance = Provenance.User,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = createdAt,
         };
 
-    private static SetEntry Entry(StrongSet set, Guid movementId) => set.Kind switch
-    {
-        StrongSetKind.Working or StrongSetKind.Drop or StrongSetKind.Failure =>
-            new LiftSet(movementId, set.Reps, set.Weight, ExportUnit, set.Rpe)
-            {
-                Source = new Formed(),
-                Facets = [],
-            },
-        // Confidence zero, as a freeform set entered through the form has: no structure was
-        // lifted from these words, they are the record.
-        StrongSetKind.WarmUp => new FreeformSet
+    private static SetEntry Entry(StrongSet set, Guid movementId) =>
+        new LiftSet(movementId, set.Reps, set.Weight, ExportUnit, set.Rpe, Kind(set.Kind))
         {
-            Source = new Texted($"Warm-up — {set.Exercise}: {Performed(set)}", 0),
+            Source = new Formed(),
             Facets = [],
-        },
+        };
+
+    private static SetKind Kind(StrongSetKind kind) => kind switch
+    {
+        StrongSetKind.Working => SetKind.Working,
+        StrongSetKind.WarmUp => SetKind.WarmUp,
+        StrongSetKind.Drop => SetKind.Drop,
+        StrongSetKind.Failure => SetKind.Failure,
         _ => throw new UnreachableException(),
     };
 
@@ -86,18 +73,15 @@ internal static partial class StrongSessions
     /// <summary>
     /// Everything Strong recorded about the workout that has no field of its own here, one line each.
     /// </summary>
-    private static string Notes(StrongWorkout workout) =>
-        string.Join("\n", (IEnumerable<string>)
-        [
-            .. Named(workout.Key.Name),
-            .. Present(workout.Notes),
-            .. workout.Sets
-                .Where(set => set.Note.Length > 0)
-                .Select(set => $"{set.Exercise}: {set.Note}")
-                .Distinct(),
-            .. KindLine(workout, StrongSetKind.Drop, "Drop sets"),
-            .. KindLine(workout, StrongSetKind.Failure, "Taken to failure"),
-        ]);
+    internal static IEnumerable<string> NoteLines(StrongWorkout workout) =>
+    [
+        .. Named(workout.Key.Name),
+        .. Present(workout.Notes),
+        .. workout.Sets
+            .Where(set => set.Note.Length > 0)
+            .Select(set => $"{set.Exercise}: {set.Note}")
+            .Distinct(),
+    ];
 
     /// <summary>
     /// The workout's name, unless it is one Strong chose from the time of day.
@@ -115,19 +99,15 @@ internal static partial class StrongSessions
     private static IEnumerable<string> Present(string text) =>
         text.Trim() is { Length: > 0 } present ? [present] : [];
 
-    /// <summary>One line naming every set of a kind, grouped by exercise in the order they were done.</summary>
-    private static IEnumerable<string> KindLine(StrongWorkout workout, StrongSetKind kind, string label)
-    {
-        var groups = workout.Sets
-            .Where(set => set.Kind == kind)
-            .GroupBy(set => set.Exercise)
-            .Select(sets => $"{sets.Key} {string.Join(", ", sets.Select(Performed))}")
-            .ToList();
-
-        return groups.Count == 0 ? [] : [$"{label}: {string.Join("; ", groups)}"];
-    }
-
-    private static string Performed(StrongSet set) =>
+    /// <summary>A set's load, count and rating as the athlete would say them: "155 lb × 13 @ RPE 8".</summary>
+    internal static string Performed(StrongSet set) =>
         $"{set.Weight.ToString(CultureInfo.InvariantCulture)} {UnitLabel} × {set.Reps}"
         + (set.Rpe.IsRated ? $" @ RPE {set.Rpe.Value.ToString(CultureInfo.InvariantCulture)}" : string.Empty);
+
+    private static string UnitLabel => ExportUnit switch
+    {
+        WeightUnit.Pounds => "lb",
+        WeightUnit.Kilograms => "kg",
+        _ => throw new UnreachableException(),
+    };
 }

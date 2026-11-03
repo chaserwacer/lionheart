@@ -15,8 +15,24 @@ struct MovementData: Equatable, Sendable, Identifiable {
     let baseName: String
     let equipmentName: String
     let modifierName: String?
+    /// The athlete's own notes on the movement, and how its weight is read.
+    let setup: MovementSetup
 
     var id: UUID { movementDataId }
+
+    /// The same movement with the setup the server answered after a change to it.
+    func with(setup: MovementSetup) -> MovementData {
+        MovementData(
+            movementDataId: movementDataId, baseName: baseName, equipmentName: equipmentName,
+            modifierName: modifierName, setup: setup)
+    }
+
+    /// Whether the plate calculator and the warm-up ramp's bar step apply: a straight barbell,
+    /// loaded with plates on a 45 lb bar. Smith machines and specialty bars weigh something else,
+    /// so they are left out rather than given a wrong breakdown.
+    var isBarbell: Bool {
+        equipmentName.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare("Barbell") == .orderedSame
+    }
 
     /// The movement as the athlete names it: the modifier qualifies the base.
     ///
@@ -92,6 +108,33 @@ extension MovementData: Decodable {
         baseName = container.lenient(NamedEntity.self, "movementBase")?.name ?? ""
         equipmentName = container.lenient(NamedEntity.self, "equipment")?.name ?? ""
         modifierName = container.lenient(NamedEntity.self, "movementModifier")?.name
+        setup = container.lenient(MovementSetup.self, "setup") ?? .none
+    }
+}
+
+/// What the athlete keeps about a movement: setup cues — seat positions, grip, pin — shown while
+/// logging it, and whether the weight logged on it is plate added to their own bodyweight.
+///
+/// The second is what makes a weighted dip readable. "+45" is the plate on the belt; the load the
+/// athlete moved is their bodyweight plus that, and the plate alone cannot be compared across a
+/// year in which the bodyweight moved.
+struct MovementSetup: Equatable, Sendable {
+    let notes: String
+    let addsToBodyweight: Bool
+
+    static let none = MovementSetup(notes: "", addsToBodyweight: false)
+
+    var hasNotes: Bool { !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    /// The longest notes the server keeps.
+    static let notesLimit = 2000
+}
+
+extension MovementSetup: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        notes = container.lenient("notes", or: "")
+        addsToBodyweight = container.lenient("addsToBodyweight", or: false)
     }
 }
 

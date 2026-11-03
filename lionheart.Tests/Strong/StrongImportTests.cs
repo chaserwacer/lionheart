@@ -33,7 +33,7 @@ public class StrongImportTests : IDisposable
         var report = ResultAssert.Succeeded(await ImportAsync(FourWorkouts));
 
         Assert.Equal(4, report.SessionsCreated);
-        Assert.Equal(new StrongSetTally(Lifts: 52, Drops: 0, Failures: 3, WarmUps: 1, RestTimers: 20), report.Sets);
+        Assert.Equal(new StrongSetTally(Working: 49, WarmUps: 1, Drops: 0, Failures: 3, RestTimers: 20), report.Sets);
 
         var legs = await SessionOnAsync(new DateOnly(2024, 8, 20));
         var period = Assert.IsType<Interval>(legs.Period);
@@ -44,15 +44,31 @@ public class StrongImportTests : IDisposable
     }
 
     [Fact]
-    public async Task A_warm_up_is_kept_in_its_own_words_as_a_freeform_set()
+    public async Task A_warm_up_imports_as_a_warm_up_lift_with_its_numbers()
     {
         await ImportAsync(FourWorkouts);
 
         var push = await SessionOnAsync(new DateOnly(2024, 8, 12));
 
-        var warmUp = Assert.IsType<FreeformSet>(push.Sets[0]);
-        Assert.Equal("Warm-up — Bench Press (Barbell): 155 lb × 13", Assert.IsType<Texted>(warmUp.Source).RawText);
-        Assert.IsType<LiftSet>(push.Sets[1]);
+        var warmUp = Assert.IsType<LiftSet>(push.Sets[0]);
+        Assert.Equal((SetKind.WarmUp, 155.0, 13), (warmUp.Kind, warmUp.Weight, warmUp.Reps));
+        Assert.Equal(SetKind.Working, Assert.IsType<LiftSet>(push.Sets[1]).Kind);
+    }
+
+    [Fact]
+    public async Task Drop_and_failure_sets_carry_their_kind_on_the_set()
+    {
+        using var export = new ExportFile(
+            Set("2025-01-10 17:00:00", "Squat (Machine)", "1", 405, 5),
+            Set("2025-01-10 17:00:00", "Squat (Machine)", "F", 365, 7),
+            Set("2025-01-10 17:00:00", "Squat (Machine)", "D", 315, 9));
+
+        await ImportAsync(export.Path, Map(("Squat (Machine)", "Squat", "Machine", "")));
+
+        var session = await SessionOnAsync(new DateOnly(2025, 1, 10));
+        Assert.Equal(
+            [SetKind.Working, SetKind.Failure, SetKind.Drop],
+            session.Sets.Select(set => Assert.IsType<LiftSet>(set).Kind));
     }
 
     [Fact]
@@ -60,10 +76,9 @@ public class StrongImportTests : IDisposable
     {
         await ImportAsync(FourWorkouts);
 
+        // A failure set's kind is on the set, so the notes do not name it.
         var legs = await SessionOnAsync(new DateOnly(2024, 8, 20));
-        Assert.Equal(
-            "RIT Legs\nTaken to failure: Squat (Machine) 365 lb × 7, 365 lb × 3, 315 lb × 5",
-            legs.Notes);
+        Assert.Equal("RIT Legs", legs.Notes);
 
         var arms = await SessionOnAsync(new DateOnly(2026, 3, 20));
         Assert.Equal(

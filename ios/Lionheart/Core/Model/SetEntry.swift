@@ -28,6 +28,20 @@ enum SetEntry: Equatable, Sendable {
         let weight: Double
         let unit: WeightUnit
         let rpe: Rpe
+        let kind: SetKind
+
+        init(
+            common: Common, movementDataId: UUID, reps: Int, weight: Double, unit: WeightUnit,
+            rpe: Rpe, kind: SetKind = .working
+        ) {
+            self.common = common
+            self.movementDataId = movementDataId
+            self.reps = reps
+            self.weight = weight
+            self.unit = unit
+            self.rpe = rpe
+            self.kind = kind
+        }
     }
 
     struct DistanceTime: Equatable, Sendable {
@@ -79,6 +93,20 @@ enum SetEntry: Equatable, Sendable {
         case .freeform, .unrecognised: .unrated
         }
     }
+
+    /// What the set was for. Only a lift carries a kind.
+    var kind: SetKind {
+        switch self {
+        case .lift(let set): set.kind
+        case .distanceTime, .trailRun, .freeform, .unrecognised: .working
+        }
+    }
+}
+
+extension Sequence where Element == SetEntry {
+    /// The sets that were the work, warm-ups left out — what every count, total and chart of a
+    /// finished session reads, as the workout in flight does.
+    var work: [SetEntry] { filter(\.kind.isWork) }
 }
 
 extension SetEntry: Decodable {
@@ -101,7 +129,8 @@ extension SetEntry: Decodable {
                 reps: container.lenient("reps", or: 0),
                 weight: container.lenient("weight", or: 0),
                 unit: WeightUnit(wire: container.lenient(Int.self, "unit")),
-                rpe: Rpe(wire: container.lenient(Double.self, "rpe"))))
+                rpe: Rpe(wire: container.lenient(Double.self, "rpe")),
+                kind: SetKind(wire: container.lenient(Int.self, "kind"))))
 
         case "distanceTime":
             guard let movementDataId = container.lenient(UUID.self, "movementDataId") else {

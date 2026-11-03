@@ -22,10 +22,10 @@ struct MovementHistory: Equatable, Sendable {
 
         var id: UUID { sessionId }
 
-        /// The lifts among the sets, in one unit.
+        /// The working lifts among the sets, in one unit. A warm-up is not a measure of the movement.
         func lifts(in unit: WeightUnit) -> [SetEntry.Lift] {
             sets.compactMap { set in
-                guard case .lift(let lift) = set.entry, lift.unit == unit else { return nil }
+                guard case .lift(let lift) = set.entry, lift.unit == unit, lift.kind.isWork else { return nil }
                 return lift
             }
         }
@@ -196,7 +196,7 @@ struct MovementFrequency: Equatable, Sendable {
             since: history.firstDay,
             weeks: TrainingTrends.weeks(
                 ofDays: history.sessions.map(\.day),
-                setCounts: history.sessions.map(\.sets.count),
+                setCounts: history.sessions.map { $0.sets.count(where: \.entry.kind.isWork) },
                 today: today, calendar: calendar))
     }
 }

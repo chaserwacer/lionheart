@@ -40,6 +40,7 @@ enum AWorkout {
         weight: Double = 100,
         unit: WeightUnit = .kilograms,
         rpe: Rpe = .unrated,
+        kind: SetKind = .working,
         at offset: TimeInterval = 0,
         id: UUID = UUID()
     ) -> LoggedSet {
@@ -47,7 +48,7 @@ enum AWorkout {
             id: id,
             loggedAt: start.addingTimeInterval(offset),
             command: .lift(SetCommand.Lift(
-                movementDataId: movement, reps: reps, weight: weight, unit: unit, rpe: rpe)))
+                movementDataId: movement, reps: reps, weight: weight, unit: unit, rpe: rpe, kind: kind)))
     }
 
     static func run(

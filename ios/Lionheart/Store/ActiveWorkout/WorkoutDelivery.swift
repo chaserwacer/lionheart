@@ -58,7 +58,8 @@ struct WorkoutDelivery: Sendable {
 
     private func openUnplanned(_ workout: ActiveWorkout) async throws -> UUID {
         try Self.activeId(await sessions.startUnplanned(
-            at: workout.startedAt, notes: workout.notes, programId: nil))
+            at: workout.startedAt, notes: workout.notes, programId: nil,
+            routineId: workout.routine?.routineId))
     }
 
     // MARK: - Delivering
@@ -159,7 +160,8 @@ struct WorkoutDelivery: Sendable {
             period: period,
             effort: effort,
             notes: workout.notes,
-            programId: nil)
+            programId: nil,
+            routineId: workout.routine?.routineId)
     }
 
     // MARK: - Withdrawing

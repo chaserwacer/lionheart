@@ -67,8 +67,8 @@ internal static class StrongImportCommand
         Console.WriteLine($"{report.WorkoutsInExport} workouts in the export, {report.AlreadyImported} already imported.");
         Console.WriteLine($"{report.SessionsCreated} sessions created.");
         Console.WriteLine(
-            $"{report.Sets.Lifts} lifts ({report.Sets.Drops} drop sets, {report.Sets.Failures} to failure), "
-            + $"{report.Sets.WarmUps} warm-ups kept as freeform sets, {report.Sets.RestTimers} rest timers set aside.");
+            $"{report.Sets.Lifts} lifts ({report.Sets.WarmUps} warm-ups, {report.Sets.Drops} drop sets, "
+            + $"{report.Sets.Failures} to failure), {report.Sets.RestTimers} rest timers set aside.");
         Console.WriteLine($"{report.RecordsEstablished} personal records established.");
 
         ImportConsole.Growth(report.Catalogue);

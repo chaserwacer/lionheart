@@ -30,9 +30,13 @@ struct StartUnplannedSessionRequest: Encodable, Sendable {
     let startedAt: Date
     let notes: String
     let trainingProgramId: UUID?
+    /// The routine the workout starts from. One the server no longer holds lands the session ad
+    /// hoc rather than refusing it, so a workout started offline from a routine deleted meanwhile
+    /// still opens.
+    let routineId: UUID?
 
     private enum CodingKeys: String, CodingKey {
-        case startedAt, notes, trainingProgramId
+        case startedAt, notes, trainingProgramId, routineId
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -40,6 +44,7 @@ struct StartUnplannedSessionRequest: Encodable, Sendable {
         try container.encode(WireDate.offsetWire(from: startedAt), forKey: .startedAt)
         try container.encode(notes, forKey: .notes)
         try container.encode(trainingProgramId, forKey: .trainingProgramId)
+        try container.encode(routineId, forKey: .routineId)
     }
 }
 
@@ -52,6 +57,8 @@ struct LogCompletedSessionRequest: Encodable, Sendable {
     let effort: PerceivedEffortRequest?
     let notes: String
     let trainingProgramId: UUID?
+    /// As on `StartUnplannedSessionRequest`: a routine the server no longer holds lands ad hoc.
+    let routineId: UUID?
 }
 
 /// `POST /{id}/complete` — Active → Completed.

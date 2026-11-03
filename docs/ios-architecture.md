@@ -301,7 +301,7 @@ there; an unplanned workout has none, so picking a movement records it in
 logging loses nothing. A pick with nothing logged on it can be removed; one with a set cannot,
 because the set is the record; `ActiveWorkout.canDrop(_:)` is that rule, stated once. Picking a
 movement the workout already holds moves the athlete to it without moving its section. Version 3 of
-the document added the list; version 4 added the deferred start and the plan a workout came from. A version 2 document whose current movement no set or target names
+the document added the list; version 4 added the deferred start and the plan a workout came from; version 5 added the routine and a kind on every lift. A version 2 document whose current movement no set or target names
 restores with that movement added: usually a pick not yet logged on, occasionally a movement whose
 only set was deleted, which comes back as an empty section the athlete can remove.
 
@@ -407,6 +407,89 @@ the Island and pull down the Lock Screen through SpringBoard. Compact, expanded,
 before and after a rest ran out in the background, the rest-end notification, and the activity
 ending on Finish, discard and sign-out were all seen that way. The minimal presentation needs a
 second app's activity on the Island and has not been seen.
+
+## Logging: routines, last time, set kinds and bodyweight
+
+What makes logging a session as fast as Strong for an athlete who trains two sets to failure on an
+upper / lower / full-body split.
+
+### Routines
+
+A routine is the server's own aggregate (`docs/data-remodel.md` says why it is not a planned session
+or a program): a name, an order of movements and a working-set count each — no weights. Train lists
+them under "Routines", and a tap starts a workout from one exactly as "Start workout" does, through
+`POST /active` with the routine's id, or as a deferred start when the server cannot be reached. The
+routine is copied into the workout document (`ActiveWorkout.routine`, version 5) and its movements
+are added to the workout in order, so each has a section before anything is logged and one can be
+removed like any pick. The header's "1 of 2" counts working sets against the routine's count where
+nothing was prescribed. The session the server opens — or the one `POST /completed` lands — names the
+routine; a routine deleted meanwhile lands the session ad hoc rather than refusing it.
+
+The fastest way to make one is from a session already trained: "New routine → From a past session"
+lists the sessions Train's window holds, and the server takes their movements in order with each
+one's working sets, and makes that session the routine's first. The editor reorders, removes, adds
+from the same picker and sets counts. The finish readout offers "Save as routine" for an ad hoc
+workout and "Update ‹routine›" when today's movements or counts differ; a routine movement left
+untrained today keeps its count, since running out of time is not a decision to drop it.
+
+### Last time
+
+`GET /api/training/previous-performances` answers, for every movement, its sets from the most recent
+completed session holding it, and `MovementLibraryStore` keeps it beside the catalogue and the
+records — remembered, so a routine started in a basement still has last time — and read again when a
+finished workout lands, straight away or from the outbox (`WorkoutOutbox.onLanded`). A session
+that only warmed up on a movement is not last time for it. Each movement's
+section shows it as one line, and the entry row opens on it (`SetDefaults`): the first set on last
+time's first working set; later sets on today's weight with last time's reps at the same position,
+which is the number a set to failure is trying to beat. A plan's target still beats last time, and a
+warm-up is never a precedent, so the set after a ramp opens on the work. The row's guide line says
+"Last 160 × 6" only once the fields differ from it.
+
+### Set kinds
+
+A lift is working, warm-up, drop or failure. Warm-ups are numbered apart and marked "W", answer no
+target, count toward no total and never badge a record — the server keeps them out of every record
+for the same reason. History, a movement's page and the training load read finished sessions the
+same way: their counts, totals, lines and charts are the work. A drop set counts toward totals and
+records but takes no place in the plan (`SetKind.takesAPlace`): it extends the set before it, so it
+answers no target, does not raise a routine's count, and the set after it is read against last
+time's next working set. The kind is chosen in the entry row's set-type menu, beside the measure, and a
+warm-up ramp logs its steps as warm-ups.
+
+### Plates and warm-ups
+
+On a barbell in pounds, the guide line gives the plates per side for the weight typed (45 lb bar;
+45, 35, 25, 10, 5 and 2.5 lb plates; not configurable). A movement's menu offers "Warm-up sets": a
+short ramp to the working weight — the bar, then about half, seven-tenths and most of it, each
+rounded down to what the plates make — which is logged a step at a time or all at once, and starts
+no rest. A weighted dip ramps from bodyweight alone. It is offered, never inserted.
+
+### Bodyweight
+
+One reading a day, logged on its own screen under Train (a `PUT` to the day, so a retry writes the
+same row), with its trend over 30 days, 90 days or a year in `DailyTrendChart`. It lives in Train
+because that is where it is weighed against: a movement whose setup says its weight is added to
+bodyweight shows "System 225 lb" — the reading in force on the workout's day plus the plate — in its
+entry row, and the finish readout judges it on that load. `BodyweightSeries.inForce(on:)` and
+`SystemLoad` are the pure functions any screen judging a past dip needs. Body, the Recovery tab, can
+link to the same screen.
+
+### A movement's setup
+
+A movement's menu holds "Setup and notes": the athlete's cues ("seat 4, pin 7"), shown under the
+movement while logging, and whether its weight is added to bodyweight. They are the server's
+(`PUT /api/movement-datas/{id}/setup`), so a change with no connection is refused in the sheet with
+the text kept. The same menu opens the movement's page from History over the workout.
+
+### The finish readout
+
+`WorkoutSummary` is built when Finish is tapped, before the hand-over: once the server has the
+session, last time on every movement is this workout. The root presents it once the logging surface
+has gone. It reads duration, working sets, volume and the sets that beat a standing record; the last
+session of the same routine as the same figures with their changes; and each movement's best set
+against last time's, as a change in estimated one-rep max — on bodyweight plus plate for a weighted
+dip when both days have a reading in force, and on the plate alone otherwise, so a day with no
+bodyweight never reads as a leap.
 
 ## History: the training log, a movement's page, and the focus list
 
@@ -538,8 +621,10 @@ owner's brief: native, like Apple Music, and explicitly not the web app's custom
 session's movements as log-book lines, figures aligned down one column, which Today and History share),
 and `SummaryFigures` (a span's headline figures as columns, or labelled rows when they would not fit),
 `LevelTimeline` (states in lanes over clock time — a hypnogram, a day's activity), `RangeGauge` (a
-value on a fixed scale against a usual band), and `MeasureColours` (the one place a sleep stage, an
-activity class or a heart-rate zone gets its colour, so each reads the same on every screen).
+value on a fixed scale against a usual band), `MeasureColours` (the one place a sleep stage, an
+activity class or a heart-rate zone gets its colour, so each reads the same on every screen), and
+`DailyTrendChart` (a per-day figure's readings, a line through them, the span's mean and a pressed
+day — bodyweight's trend, and any other figure read once a day or less).
 
 Colour carries a verdict in one way only: orange marks a recovery figure, or a readiness band,
 that asks for attention. Oura's other bands read in the secondary label colour — a traffic light's

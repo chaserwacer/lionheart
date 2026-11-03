@@ -20,8 +20,8 @@ directly* in any of the three live states, because logging after the fact is the
 | Verb | Route | Creates / moves to | Body |
 |---|---|---|---|
 | POST | `/planned` | `PlannedTrainingSession` | `PlannedFor`, `Prescriptions[]`, `Notes`, `Membership` |
-| POST | `/active` | `ActiveTrainingSession` (unplanned start) | `StartedAt`, `Notes`, `Membership` |
-| POST | `/completed` | `CompletedTrainingSession` (logged after the fact) | `Sets[]`, `Period`, `Effort`, `Notes`, `Membership` |
+| POST | `/active` | `ActiveTrainingSession` (unplanned start) | `StartedAt`, `Notes`, `Membership`, `RoutineId?` |
+| POST | `/completed` | `CompletedTrainingSession` (logged after the fact) | `Sets[]`, `Period`, `Effort`, `Notes`, `Membership`, `RoutineId?` |
 | POST | `/{id}/start` | Planned → Active | `StartedAt` |
 | POST | `/{id}/complete` | Active → Completed | `Period`, `Effort` |
 | POST | `/{id}/skip` | Planned → Skipped | — |
@@ -32,6 +32,27 @@ directly* in any of the three live states, because logging after the fact is the
 
 A transition requested from the wrong source state is a **domain refusal** (a `Problem` case), never
 an exception and never a silent no-op. `Completed` and `Skipped` are terminal.
+
+**Routine origin.** Every session view carries `routineId` beside `trainingProgramId`: the routine it
+was trained from, or `null` when it was ad hoc. `POST /active` and `POST /completed` take an optional
+`routineId`. Unlike a program id, a routine id that is not one of the athlete's routines — deleted
+since, or never theirs — is **dropped to ad hoc, never refused**: a workout started offline from a
+routine deleted meanwhile still happened, and must land. A planned session is ad hoc, and every
+transition carries the origin over. Deleting a routine leaves its sessions naming it.
+
+**Set kind.** A lift set carries `kind` (int): `0` working, `1` warm-up, `2` drop, `3` failure. A lift
+sent without one is a working set, and a stored lift written before sets had a kind reads as one.
+Only lifts carry a kind. A warm-up never sets a record; drop and failure sets count as working sets
+do.
+
+### Previous performances — `GET /api/training/previous-performances`
+
+One entry per movement the athlete has a completed set on: `movementDataId`, the `trainingSessionId`,
+`date` and `startedAt` of the most recent completed session that worked it — a session that only
+warmed up on it is passed over (most recent by the stamped start time), and `sets` — that movement's sets from that session in performed order, warm-ups
+included with their kind. Sets with no movement (trail runs, freeform) never appear. The list's order
+carries no meaning. It reads every completed session, since which sessions hold a movement lives in
+the sets' JSON column.
 
 ### Sets and prescriptions are replaced whole
 
@@ -93,6 +114,56 @@ A **retraction** answers with a discriminated outcome rather than a nullable rec
 tell "your previous record stands again" from "this subject now holds no record of that kind".
 Retracting a record that no longer stands is a `Conflict`, so 409: the same request was legitimate
 while it stood.
+
+## Routines — `/api/training/routines`
+
+A routine is an undated, reusable order of movements, each with a working-set count. Targets are not
+stored on it: the client reads them from previous performances.
+
+| Verb | Route | Body | Answers |
+|---|---|---|---|
+| POST | `/` | `{ name, notes, movements: [{ movementDataId, workingSets }] }` | 201 `RoutineView` |
+| POST | `/from-session/{sessionId}` | `{ name }` | 201 `RoutineView` |
+| GET | `/` | — | `[RoutineView]`, oldest `createdAt` first |
+| GET | `/{id}` | — | `RoutineView`, or 404 |
+| PUT | `/{id}` | same body as `POST /` | `RoutineView`, name, notes and movements replaced |
+| DELETE | `/{id}` | — | 204 |
+
+`RoutineView` is `{ routineId, name, notes, movements, createdAt, lastSession }`, where `lastSession`
+is the most recent **completed** session trained from the routine, as the session envelope with its
+`$type: "completed"`, or `null`.
+
+- **Refusals.** A name that is empty once trimmed, no movements, a movement named twice, or a
+  `workingSets` outside 1–20 is a 400 naming the field (`Name`, `Movements`,
+  `Movements[i].WorkingSets`). A movement that is not the athlete's is a 404.
+- **From a session.** The session must be the athlete's (404) and completed (409). Its movements
+  are read in first-appearance order, `workingSets` being the count of that movement's sets that are
+  neither warm-ups nor drop sets (a drop set extends the set before it); a movement trained only in warm-ups is left out, and a session left with no
+  movement is a 400 on `SessionId`. An ad hoc session takes the new routine as its origin in the same
+  save, so the routine answers with it as `lastSession`; a session already trained from another
+  routine keeps that origin.
+
+## Bodyweight — `/api/bodyweight`
+
+One measurement per calendar day: logging a day again replaces it.
+
+| Verb | Route | Body / query | Answers |
+|---|---|---|---|
+| PUT | `/{day}` (yyyy-MM-dd) | `{ weight, unit }` | 200 `BodyweightView` |
+| GET | `?from=&to=` | `DayRange` | `[BodyweightView]`, day ascending |
+| GET | `/latest` | — | the newest `BodyweightView`, or 404 when none is logged |
+| DELETE | `/{day}` | — | 204, or 404 when that day has none |
+
+`BodyweightView` is `{ day, weight, unit }`. A weight that is not more than 0 and at most 1000 is a
+400 on `Weight`. Bodyweight on a day with no measurement of its own is the newest measurement on or
+before it; that rule is the reader's, so no route answers it.
+
+## Movement setup — `PUT /api/movement-datas/{id}/setup`
+
+`{ notes, addsToBodyweight }` → 200 `MovementDataDTO`, 404 when the movement is not the athlete's.
+Notes are trimmed and run to at most 2000 characters (400 on `Notes`). Every `MovementDataDTO` carries
+`setup: { notes, addsToBodyweight }`; `addsToBodyweight` says the weight logged on the movement is
+plate added to the athlete's own bodyweight, so the load moved is bodyweight plus that.
 
 ## Contexts — `/api/contexts`
 

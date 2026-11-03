@@ -13,6 +13,7 @@ public interface IMovementDataService
     Task<Result<List<MovementDataDTO>, Problem>> GetMovementDatasAsync(IdentityUser user);
     Task<Result<MovementDataDTO, Problem>> CreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request);
     Task<Result<MovementDataDTO, Problem>> FindOrCreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request);
+    Task<Result<MovementDataDTO, Problem>> UpdateSetupAsync(IdentityUser user, Guid movementDataId, MovementSetupRequest request, CancellationToken ct);
 }
 
 public class MovementDataService : IMovementDataService
@@ -41,6 +42,34 @@ public class MovementDataService : IMovementDataService
         }
 
         return Result<MovementDataDTO, Problem>.Success(movementData.ToDTO());
+    }
+
+    /// <summary>Replaces how the athlete sets a movement up. Someone else's movement is not found.</summary>
+    public Task<Result<MovementDataDTO, Problem>> UpdateSetupAsync(
+        IdentityUser user, Guid movementDataId, MovementSetupRequest request, CancellationToken ct) =>
+        MovementSetup.Of(request.Notes, request.AddsToBodyweight)
+            .BindAsync(setup => OwnedAsync(user, movementDataId, ct)
+                .MapAsync(movement => ReplaceSetupAsync(movement, setup, ct)));
+
+    private async Task<MovementDataDTO> ReplaceSetupAsync(MovementData movement, MovementSetup setup, CancellationToken ct)
+    {
+        movement.ReplaceSetup(setup);
+        await _context.SaveChangesAsync(ct);
+        return movement.ToDTO();
+    }
+
+    private async Task<Result<MovementData, Problem>> OwnedAsync(IdentityUser user, Guid movementDataId, CancellationToken ct)
+    {
+        var userGuid = Guid.Parse(user.Id);
+        var movementData = await _context.MovementDatas
+            .Include(md => md.Equipment)
+            .Include(md => md.MovementBase)
+            .Include(md => md.MovementModifier)
+            .FirstOrDefaultAsync(md => md.MovementDataID == movementDataId && md.UserID == userGuid, ct);
+
+        return movementData is null
+            ? Result<MovementData, Problem>.Failure(new Problem.NotFound("MovementData not found or access denied."))
+            : Result<MovementData, Problem>.Success(movementData);
     }
 
     public async Task<Result<List<MovementDataDTO>, Problem>> GetMovementDatasAsync(IdentityUser user)

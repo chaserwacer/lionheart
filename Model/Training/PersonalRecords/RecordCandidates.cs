@@ -30,6 +30,11 @@ public sealed record RecordCandidate(RecordSubject Subject, Achievement Achievem
 /// so the sentinel can arrive on a lift, and a subject cannot be built from it.
 /// </para>
 /// <para>
+/// A warm-up raises no candidate for any lift record, the session's volume included: it is load
+/// the athlete chose to be light, and counting it would let a long warm-up out-rep the work. Drop
+/// and failure sets were performed at the weight stated, so they count as working sets do.
+/// </para>
+/// <para>
 /// A set with no load or no reps — and an effort with no distance or no time — raises no
 /// candidate. Nothing ranks a zero: it could never beat another zero, so admitting it would plant
 /// a record that can only ever be equalled. Logging bodyweight work at zero load therefore sets no
@@ -43,6 +48,7 @@ public static class RecordCandidates
 
     private static IEnumerable<RecordCandidate> FromLifts(IEnumerable<SetEntry> sets) =>
         from set in sets.OfType<LiftSet>()
+        where set.IsWorking
         where set.MovementDataId != Guid.Empty && set.Weight > 0 && set.Reps > 0
         group set by (set.MovementDataId, set.Unit) into loaded
         let subject = new RecordSubject.Movement(loaded.Key.MovementDataId)

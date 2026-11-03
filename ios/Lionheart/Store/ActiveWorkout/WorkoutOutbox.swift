@@ -27,7 +27,12 @@ final class WorkoutOutbox {
 
     /// The delivery run in progress. Held so a second request to deliver joins it rather than
     /// sending the same workout twice at once.
-    private var delivering: Task<Void, Never>?
+    private var delivering: Task<Bool, Never>?
+
+    /// Run after a delivery run that landed at least one workout. What the server derives from a
+    /// session — last time on each movement, the records, a routine's last session — has moved,
+    /// and the stores holding them registered here rather than this type knowing they exist.
+    private var landedHandlers: [@MainActor () async -> Void] = []
 
     init(document: FinishedWorkoutsDocument = FinishedWorkoutsDocument(), sessions: any WorkoutSessionWriting) {
         self.document = document
@@ -52,16 +57,25 @@ final class WorkoutOutbox {
         return true
     }
 
+    /// Registers something to run after a delivery run lands a workout.
+    func onLanded(_ handler: @escaping @MainActor () async -> Void) {
+        landedHandlers.append(handler)
+    }
+
     /// Delivers every waiting workout, oldest first. Joins a run already in progress.
     func deliver() async {
         if let delivering {
-            await delivering.value
+            _ = await delivering.value
             return
         }
         let run = Task { await self.deliverWaiting() }
         delivering = run
-        await run.value
-        if delivering == run { delivering = nil }
+        let landed = await run.value
+        // A sign-out during the run cleared it; what landed then is no longer this account's news.
+        let isStillThisRun = delivering == run
+        if isStillThisRun { delivering = nil }
+        guard landed, isStillThisRun else { return }
+        for handler in landedHandlers { await handler() }
     }
 
     /// Throws away a workout the server would not take. Only the athlete does this, and only to
@@ -81,9 +95,11 @@ final class WorkoutOutbox {
         document.clear()
     }
 
-    private func deliverWaiting() async {
+    /// - Returns: whether any workout landed, which is what the landing handlers are run for.
+    private func deliverWaiting() async -> Bool {
+        var landed = false
         for waiting in finished where waiting.isWorthDelivering {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return landed }
             do {
                 try await delivery.deliver(
                     waiting.workout,
@@ -91,13 +107,13 @@ final class WorkoutOutbox {
                     effort: waiting.effort,
                     mayHaveLanded: true)
             } catch is CancellationError {
-                return
+                return landed
             } catch {
                 switch Self.verdict(on: error) {
                 case .serverAway:
                     // The ones behind it would meet the same absent server. They wait for its
                     // return together.
-                    return
+                    return landed
                 case .tryAgainLater:
                     continue
                 case .refused(let reason):
@@ -107,7 +123,9 @@ final class WorkoutOutbox {
             }
             document.remove(waiting.id)
             finished.removeAll { $0.id == waiting.id }
+            landed = true
         }
+        return landed
     }
 
     /// What one failed delivery means for it and for the ones behind it.

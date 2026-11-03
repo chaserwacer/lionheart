@@ -64,6 +64,7 @@ internal static partial class SheetSessions
             Notes = Notes(workout, program, templateText),
             Provenance = Provenance.User,
             Membership = new InProgram(ProgramIdFor(program.Sheet, userId)),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = createdAt,
         };
 
@@ -86,7 +87,7 @@ internal static partial class SheetSessions
         };
 
     private static LiftSet Lift(SheetSet set, Guid movementId) =>
-        new(movementId, set.Reps, set.Weight, SheetSet.Unit, set.Rpe)
+        new(movementId, set.Reps, set.Weight, SheetSet.Unit, set.Rpe, SetKind.Working)
         {
             Source = new Formed(),
             Facets = [],
