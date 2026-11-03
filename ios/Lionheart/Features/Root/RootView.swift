@@ -50,7 +50,11 @@ private struct SignedInTabs: View {
                 TodayView(store: container.today, apiBaseURL: container.configuration.baseURL)
             }
             Tab("Train", systemImage: "figure.strengthtraining.traditional", value: Destination.train) {
-                TrainView()
+                TrainView(
+                    store: container.train,
+                    activeWorkout: container.activeWorkout,
+                    library: container.movements,
+                    openWorkout: { isWorkoutPresented = true })
             }
             Tab("History", systemImage: "list.bullet.rectangle", value: Destination.history) {
                 HistoryView()
@@ -64,35 +68,17 @@ private struct SignedInTabs: View {
         }
         .workoutAccessory(
             container.activeWorkout.workout,
-            isPersisted: container.activeWorkout.isPersisted) {
+            isPersisted: container.activeWorkout.isPersisted,
+            // Resolved here because the bar is in `Design/` and does not reach for a store. The
+            // library is already loaded for the Train tab, so this costs nothing.
+            movementTitle: container.movements.movement(
+                container.activeWorkout.workout?.currentMovementDataId ?? UUID())?.title) {
             isWorkoutPresented = true
         }
         .fullScreenCover(isPresented: $isWorkoutPresented) {
-            ActiveWorkoutPlaceholder()
-        }
-    }
-}
-
-/// Where the full-screen logging surface will live.
-///
-/// It exists so the bar's tap target goes somewhere real and the seam is complete: the
-/// training-feature agent replaces this view, not the plumbing around it.
-private struct ActiveWorkoutPlaceholder: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView {
-                Label("Logging a workout", systemImage: "figure.strengthtraining.traditional")
-            } description: {
-                Text("The set-by-set logging surface is the next thing being built. The workout bar, its persistence and its two OS paths are already in place.")
-            }
-            .navigationTitle("Workout")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Close") { dismiss() }
-                }
-            }
+            ActiveWorkoutView(
+                store: container.activeWorkout,
+                library: container.movements)
         }
     }
 }

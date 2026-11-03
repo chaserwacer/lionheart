@@ -1,0 +1,544 @@
+import Foundation
+import Testing
+
+@testable import Lionheart
+
+/// What the workout adds up to.
+@Suite("Workout totals")
+struct WorkoutTotalsTests {
+    @Test("Volume is weight times reps, summed — the server's own arithmetic")
+    func volumeIsWeightTimesReps() {
+        let totals = WorkoutTotals.of([
+            AWorkout.lift(reps: 5, weight: 100),
+            AWorkout.lift(reps: 3, weight: 110),
+        ])
+
+        #expect(totals.weights.count == 1)
+        #expect(totals.weights[0].volume == 830)
+        #expect(totals.weights[0].reps == 8)
+        #expect(totals.weights[0].setCount == 2)
+        #expect(totals.setCount == 2)
+    }
+
+    @Test("Mixed units are totalled apart rather than converted")
+    func mixedUnitsAreKeptApart() {
+        // The server compares a record's weight numerically without converting, so a device-side
+        // conversion would print a volume that disagrees with the record beside it.
+        let totals = WorkoutTotals.of([
+            AWorkout.lift(reps: 5, weight: 100, unit: .kilograms),
+            AWorkout.lift(reps: 5, weight: 100, unit: .pounds),
+        ])
+
+        #expect(totals.weights.map(\.unit) == [.kilograms, .pounds])
+        #expect(totals.weights.allSatisfy { $0.volume == 500 })
+    }
+
+    @Test("Units are ordered by the one used first")
+    func unitsAreInFirstAppearanceOrder() {
+        let totals = WorkoutTotals.of([
+            AWorkout.lift(weight: 100, unit: .pounds),
+            AWorkout.lift(weight: 100, unit: .kilograms),
+        ])
+
+        #expect(totals.weights.map(\.unit) == [.pounds, .kilograms])
+    }
+
+    @Test("Distance work and trail runs both count towards distance and moving time")
+    func bothDistanceShapesCount() {
+        let totals = WorkoutTotals.of([
+            AWorkout.run(distance: 5, duration: 1470),
+            AWorkout.trailRun(distance: 10),
+        ])
+
+        #expect(totals.distances.count == 1)
+        #expect(totals.distances[0].distance == 15)
+        #expect(totals.movingDuration == 1470 + 3900)
+    }
+
+    @Test("A set logged as words contributes nothing but its count")
+    func wordsAddNoFigures() {
+        let totals = WorkoutTotals.of([AWorkout.words()])
+
+        #expect(totals.setCount == 1)
+        #expect(totals.weights.isEmpty)
+        #expect(totals.distances.isEmpty)
+        #expect(totals.movingDuration == 0)
+    }
+
+    @Test("No sets is no totals")
+    func nothingLoggedIsEmpty() {
+        #expect(WorkoutTotals.of([]).isEmpty)
+    }
+}
+
+/// How the surface reads the workout.
+@Suite("Workout reading")
+struct WorkoutReadingTests {
+    @Test("Sets are grouped by movement and numbered within it")
+    func setsAreNumberedWithinTheirMovement() {
+        let workout = AWorkout.live(sets: [
+            AWorkout.lift(AWorkout.bench, at: 0),
+            AWorkout.lift(AWorkout.squat, at: 60),
+            AWorkout.lift(AWorkout.bench, at: 120),
+        ])
+
+        let reading = WorkoutReading.of(workout)
+
+        #expect(reading.movements.map(\.movementDataId) == [AWorkout.bench, AWorkout.squat])
+        // Three sets in the workout, but the second bench set is bench's number two — a set on one
+        // movement must not advance the numbering of another.
+        #expect(reading.movements[0].sets.map(\.number) == [1, 2])
+        #expect(reading.movements[1].sets.map(\.number) == [1])
+    }
+
+    @Test("A movement appears as soon as it is prescribed, before anything is logged")
+    func aPrescribedMovementAppearsFirst() {
+        // Opening a planned session should show the plan, not an empty screen.
+        let workout = AWorkout.live(prescriptions: [
+            AWorkout.liftTarget(AWorkout.squat),
+            AWorkout.liftTarget(AWorkout.bench),
+        ])
+
+        let reading = WorkoutReading.of(workout)
+
+        #expect(reading.movements.map(\.movementDataId) == [AWorkout.squat, AWorkout.bench])
+        #expect(reading.movements.allSatisfy { $0.sets.isEmpty })
+    }
+
+    @Test("Prescribed movements come before ones the athlete added")
+    func prescribedOrderLeads() {
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift(AWorkout.squat)],
+            prescriptions: [AWorkout.liftTarget(AWorkout.bench)])
+
+        #expect(WorkoutReading.of(workout).movements.map(\.movementDataId)
+            == [AWorkout.bench, AWorkout.squat])
+    }
+
+    @Test("Each set is matched to the target at its own position in the movement")
+    func setsAnswerTargetsInOrder() {
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift(reps: 5, weight: 100), AWorkout.lift(reps: 5, weight: 102.5)],
+            prescriptions: [
+                AWorkout.liftTarget(reps: 5, weight: 100),
+                AWorkout.liftTarget(reps: 5, weight: 105),
+            ])
+
+        let movement = WorkoutReading.of(workout).movements[0]
+
+        #expect(movement.sets[0].target == AWorkout.liftTarget(reps: 5, weight: 100))
+        #expect(movement.sets[1].target == AWorkout.liftTarget(reps: 5, weight: 105))
+        #expect(movement.nextTarget == nil)
+        #expect(movement.isComplete)
+    }
+
+    @Test("The next target is the first one no set has answered")
+    func theNextTargetIsTheFirstUnanswered() {
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift()],
+            prescriptions: [
+                AWorkout.liftTarget(weight: 100),
+                AWorkout.liftTarget(weight: 105),
+                AWorkout.liftTarget(weight: 110),
+            ])
+
+        let movement = WorkoutReading.of(workout).movements[0]
+
+        #expect(movement.nextTarget == AWorkout.liftTarget(weight: 105))
+        #expect(movement.remainingTargetCount == 2)
+        #expect(!movement.isComplete)
+    }
+
+    @Test("An extra set beyond the plan answers no target and does not break the numbering")
+    func anExtraSetHasNoTarget() {
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift(), AWorkout.lift()],
+            prescriptions: [AWorkout.liftTarget()])
+
+        let movement = WorkoutReading.of(workout).movements[0]
+
+        #expect(movement.sets[1].target == nil)
+        #expect(movement.isComplete)
+        #expect(movement.remainingTargetCount == 0)
+    }
+
+    @Test("A movement with no targets is never complete, because nothing was asked of it")
+    func anUnplannedMovementIsNeverComplete() {
+        let workout = AWorkout.live(sets: [AWorkout.lift()])
+
+        #expect(!WorkoutReading.of(workout).movements[0].isComplete)
+    }
+
+    @Test("Sets with no movement are kept apart rather than forced into one")
+    func unattachedSetsStandAlone() {
+        let workout = AWorkout.live(sets: [
+            AWorkout.lift(), AWorkout.trailRun(), AWorkout.words(),
+        ])
+
+        let reading = WorkoutReading.of(workout)
+
+        #expect(reading.movements.count == 1)
+        #expect(reading.unattached.count == 2)
+    }
+
+    @Test("A target naming no movement is kept as a loose one")
+    func aFreeformTargetIsLoose() {
+        let workout = AWorkout.live(prescriptions: [
+            AWorkout.liftTarget(), .freeform(text: "mobility, 10 minutes"),
+        ])
+
+        let reading = WorkoutReading.of(workout)
+
+        #expect(reading.movements.count == 1)
+        #expect(reading.looseTargets == [.freeform(text: "mobility, 10 minutes")])
+    }
+
+    @Test("The focus stays on the movement being worked on while it is still in the workout")
+    func focusStaysPut() {
+        let workout = AWorkout.live(sets: [
+            AWorkout.lift(AWorkout.bench), AWorkout.lift(AWorkout.squat),
+        ])
+
+        #expect(WorkoutReading.of(workout).focus(given: AWorkout.squat) == AWorkout.squat)
+    }
+
+    @Test("With nothing being worked on, the focus is the first movement with a target left")
+    func focusFallsToTheFirstUnfinishedMovement() {
+        // Starting a planned session should put the first prescribed movement under the thumb.
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift(AWorkout.bench)],
+            prescriptions: [AWorkout.liftTarget(AWorkout.bench), AWorkout.liftTarget(AWorkout.squat)])
+
+        #expect(WorkoutReading.of(workout).focus(given: nil) == AWorkout.squat)
+    }
+
+    @Test("A movement that has left the workout does not keep the focus")
+    func focusDoesNotPointAtNothing() {
+        let workout = AWorkout.live(sets: [AWorkout.lift(AWorkout.bench)])
+
+        #expect(WorkoutReading.of(workout).focus(given: AWorkout.treadmill) == AWorkout.bench)
+    }
+
+    @Test("An empty workout has nothing to focus on")
+    func anEmptyWorkoutHasNoFocus() {
+        #expect(WorkoutReading.of(AWorkout.live()).focus(given: nil) == nil)
+    }
+}
+
+/// The rule that decides whether logging is fast.
+@Suite("Set defaults")
+struct SetDefaultsTests {
+    @Test("The last set on this movement is what the next one starts from")
+    func theLastSetIsCarriedForward() {
+        let workout = AWorkout.live(sets: [
+            AWorkout.lift(reps: 5, weight: 100, rpe: .rated(7)),
+            AWorkout.lift(reps: 3, weight: 110, rpe: .rated(9)),
+        ])
+
+        let next = SetDefaults.nextSet(on: AWorkout.bench, in: workout)
+
+        #expect(next.liftPart?.reps == 3)
+        #expect(next.liftPart?.weight == 110)
+        #expect(next.rpe == .rated(9))
+    }
+
+    @Test("The last set beats the plan, because a plan is an intention and a set is a fact")
+    func theLastSetBeatsTheTarget() {
+        // An athlete who dropped the weight on set three does not want set four pre-filled with
+        // the plan they abandoned.
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift(reps: 3, weight: 90)],
+            prescriptions: [AWorkout.liftTarget(reps: 5, weight: 102.5)])
+
+        #expect(SetDefaults.nextSet(on: AWorkout.bench, in: workout).liftPart?.weight == 90)
+    }
+
+    @Test("With nothing logged, the next target is what the fields hold")
+    func theTargetSeedsTheFirstSet() {
+        let workout = AWorkout.live(prescriptions: [AWorkout.liftTarget(reps: 5, weight: 102.5)])
+
+        let next = SetDefaults.nextSet(on: AWorkout.bench, in: workout)
+
+        #expect(next.liftPart?.reps == 5)
+        #expect(next.liftPart?.weight == 102.5)
+        // The target's own RPE is a target, not something the athlete has felt yet.
+        #expect(next.rpe == .unrated)
+    }
+
+    @Test("A movement with no history and no target starts empty, as a lift")
+    func anUnknownMovementStartsEmpty() {
+        let next = SetDefaults.nextSet(on: AWorkout.bench, in: AWorkout.live())
+
+        #expect(next.liftPart?.reps == 0)
+        #expect(next.liftPart?.weight == 0)
+        #expect(next.modality == .lift)
+    }
+
+    @Test("Only this movement's own sets carry forward")
+    func otherMovementsDoNotLeak() {
+        let workout = AWorkout.live(sets: [AWorkout.lift(AWorkout.squat, reps: 5, weight: 140)])
+
+        #expect(SetDefaults.nextSet(on: AWorkout.bench, in: workout).liftPart?.weight == 0)
+    }
+
+    @Test("The weight unit follows the athlete across movements")
+    func theUnitIsCarriedAcrossMovements() {
+        // The unit is a property of the athlete, not of the exercise: someone lifting in pounds
+        // does so for all of them.
+        let workout = AWorkout.live(sets: [AWorkout.lift(AWorkout.squat, unit: .pounds)])
+
+        #expect(SetDefaults.nextSet(on: AWorkout.bench, in: workout).liftPart?.unit == .pounds)
+    }
+
+    @Test("A movement last logged as distance work opens as distance work")
+    func theShapeIsRemembered() {
+        let workout = AWorkout.live(sets: [AWorkout.run(distance: 5, duration: 1470)])
+
+        let next = SetDefaults.nextSet(on: AWorkout.treadmill, in: workout)
+
+        #expect(next.modality == .distanceTime)
+        #expect(next.coveredPart?.distance == 5)
+        #expect(next.coveredPart?.duration == 1470)
+    }
+
+    @Test("A distance target opens the distance fields even with nothing logged")
+    func aDistanceTargetPicksTheShape() {
+        let workout = AWorkout.live(prescriptions: [
+            .distanceTime(SetPrescription.DistanceTime(
+                movementDataId: AWorkout.treadmill, targetDistance: 5,
+                unit: .kilometers, targetDuration: 1500)),
+        ])
+
+        #expect(SetDefaults.nextSet(on: AWorkout.treadmill, in: workout).modality == .distanceTime)
+    }
+
+    @Test("Asking for a shape overrides what was last used")
+    func aForcedShapeWins() {
+        let workout = AWorkout.live(sets: [AWorkout.lift()])
+
+        #expect(SetDefaults.nextSet(on: AWorkout.bench, in: workout, as: .distanceTime).modality
+            == .distanceTime)
+    }
+
+    @Test("A trail run starts from the last trail run of the workout")
+    func trailRunsCarryForward() {
+        let workout = AWorkout.live(sets: [AWorkout.trailRun(distance: 10, gain: 320)])
+
+        let next = SetDefaults.nextTrailRun(in: workout)
+
+        #expect(next.coveredPart?.distance == 10)
+        #expect(next.modality == .trailRun)
+    }
+
+    @Test("The first trail run of a workout starts empty")
+    func theFirstTrailRunIsEmpty() {
+        #expect(SetDefaults.nextTrailRun(in: AWorkout.live()).coveredPart?.distance == 0)
+    }
+}
+
+/// Whether a set beat anything.
+@Suite("Set record outcome")
+struct SetRecordOutcomeTests
+{
+    private static func records(weight: Double?, volume: Double?) -> MovementRecords {
+        MovementRecords(
+            movementDataId: AWorkout.bench, heaviestWeight: weight, bestVolume: volume)
+    }
+
+    @Test("A heavier set beats the strength record")
+    func aHeavierSetIsAStrengthRecord() {
+        let set = SetCommand.lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 1, weight: 120, unit: .kilograms, rpe: .unrated))
+
+        #expect(SetRecordOutcome.of(set, against: Self.records(weight: 110, volume: 1000))
+            == .strength)
+    }
+
+    @Test("More weight times reps beats the volume record")
+    func moreVolumeIsAVolumeRecord() {
+        let set = SetCommand.lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 10, weight: 100, unit: .kilograms, rpe: .unrated))
+
+        #expect(SetRecordOutcome.of(set, against: Self.records(weight: 110, volume: 900))
+            == .volume)
+    }
+
+    @Test("A set can beat both at once")
+    func aSetCanBeatBoth() {
+        let set = SetCommand.lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 10, weight: 120, unit: .kilograms, rpe: .unrated))
+
+        #expect(SetRecordOutcome.of(set, against: Self.records(weight: 110, volume: 900)) == .both)
+    }
+
+    @Test("Equalling a record does not beat it")
+    func equallingIsNotBeating() {
+        // Strict, which is also what keeps a repeated set from announcing itself five times.
+        let set = SetCommand.lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 5, weight: 110, unit: .kilograms, rpe: .unrated))
+
+        #expect(SetRecordOutcome.of(set, against: Self.records(weight: 110, volume: 550)) == .none)
+    }
+
+    @Test("A movement with no record yet says so, and says it quietly")
+    func noRecordYetIsSilent() {
+        let set = SetCommand.lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 5, weight: 100, unit: .kilograms, rpe: .unrated))
+
+        let outcome = SetRecordOutcome.of(set, against: nil)
+
+        #expect(outcome == .noRecordYet)
+        // A new athlete has not achieved anything by having no history, and announcing it on every
+        // set of their first weeks would make the badge mean nothing by the time it was earned.
+        #expect(!outcome.isWorthSaying)
+    }
+
+    @Test("A summary carrying neither figure is no record, not a record of zero")
+    func anEmptySummaryIsNoRecord() {
+        let set = SetCommand.lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 5, weight: 100, unit: .kilograms, rpe: .unrated))
+
+        #expect(SetRecordOutcome.of(set, against: Self.records(weight: nil, volume: nil))
+            == .noRecordYet)
+    }
+
+    @Test("Only a lift has records to beat")
+    func otherShapesHaveNoRecords() {
+        #expect(SetRecordOutcome.of(AWorkout.run().command, against: nil) == .notApplicable)
+        #expect(SetRecordOutcome.of(AWorkout.trailRun().command, against: nil) == .notApplicable)
+        #expect(SetRecordOutcome.of(.freeform(text: "x"), against: nil) == .notApplicable)
+    }
+}
+
+/// Taking over a session the server already holds.
+@Suite("Workout resumption")
+struct WorkoutResumptionTests {
+    private static func active(sets: [SetEntry]) -> TrainingSession.Active {
+        TrainingSession.Active(
+            envelope: TrainingSession.Envelope(
+                trainingSessionId: AWorkout.session,
+                notes: "",
+                provenance: .user,
+                trainingProgramId: nil,
+                createdAt: nil,
+                date: CalendarDay(year: 2026, month: 11, day: 2)),
+            startedAt: AWorkout.start,
+            sets: sets)
+    }
+
+    private static let common = SetEntry.Common(source: .formed, facets: [])
+
+    @Test("Every shape the server holds comes back as a command that can be pushed again")
+    func allShapesRestate() throws {
+        let session = Self.active(sets: [
+            .lift(SetEntry.Lift(
+                common: Self.common, movementDataId: AWorkout.bench, reps: 5,
+                weight: 100, unit: .kilograms, rpe: .rated(8))),
+            .distanceTime(SetEntry.DistanceTime(
+                common: Self.common, movementDataId: AWorkout.treadmill, distance: 5,
+                unit: .kilometers, duration: 1470, rpe: .unrated)),
+            .trailRun(SetEntry.TrailRun(
+                common: Self.common, distance: 10, unit: .kilometers,
+                duration: 3900, elevationGainMeters: 320, rpe: .unrated)),
+            .freeform(SetEntry.Common(
+                source: .texted(rawText: "some mobility", structureConfidence: 0), facets: [])),
+        ])
+
+        let restated = try WorkoutResumption.sets(of: session, loggedAt: AWorkout.start)
+
+        #expect(restated.map(\.modality) == [.lift, .distanceTime, .trailRun, .freeform])
+        #expect(restated[0].command.liftPart?.rpe == .rated(8))
+        #expect(restated[3].command == .freeform(text: "some mobility"))
+    }
+
+    @Test("Every resumed set is stamped with the session's start, the only time the device knows")
+    func resumedSetsTakeTheSessionStart() throws {
+        let session = Self.active(sets: [.freeform(Self.common)])
+
+        let restated = try WorkoutResumption.sets(of: session, loggedAt: AWorkout.start)
+
+        #expect(restated.allSatisfy { $0.loggedAt == AWorkout.start })
+    }
+
+    @Test("A set shape this build cannot write back is refused rather than dropped")
+    func anUnrestatableSetRefusesTheWholeSession() {
+        // `PUT /sets` replaces the whole list, so resuming lossily would mean the next set logged
+        // deleted the athlete's work. Refusing is what keeps it.
+        let session = Self.active(sets: [
+            .lift(SetEntry.Lift(
+                common: Self.common, movementDataId: AWorkout.bench, reps: 5,
+                weight: 100, unit: .kilograms, rpe: .unrated)),
+            .unrecognised(type: "isometricHold", common: Self.common),
+        ])
+
+        #expect(throws: WorkoutResumption.Refusal.cannotRestate(type: "isometricHold")) {
+            try WorkoutResumption.sets(of: session, loggedAt: AWorkout.start)
+        }
+    }
+
+    @Test("A session with no sets resumes as an empty workout")
+    func anEmptySessionResumes() throws {
+        #expect(try WorkoutResumption.sets(of: Self.active(sets: []), loggedAt: AWorkout.start)
+            .isEmpty)
+    }
+}
+
+/// The countdown between sets.
+@Suite("Rest clock")
+struct RestClockTests {
+    private static let started = Date(timeIntervalSince1970: 1000)
+
+    @Test("A running clock counts down")
+    func aRunningClockCountsDown() {
+        let rest = RestClock.running(since: Self.started, duration: 120)
+
+        #expect(rest.remaining(at: Self.started) == 120)
+        #expect(rest.remaining(at: Self.started.addingTimeInterval(45)) == 75)
+    }
+
+    @Test("A clock that has run out reads as zero, never as negative")
+    func anExpiredClockReadsZero() {
+        let rest = RestClock.running(since: Self.started, duration: 120)
+
+        #expect(rest.remaining(at: Self.started.addingTimeInterval(600)) == 0)
+        #expect(!rest.isResting(at: Self.started.addingTimeInterval(600)))
+    }
+
+    @Test("An idle clock is not resting, which is not the same as one that has expired")
+    func idleIsNotResting() {
+        #expect(!RestClock.idle.isResting(at: Self.started))
+        #expect(RestClock.idle.remaining(at: Self.started) == 0)
+        #expect(RestClock.idle.duration == nil)
+    }
+
+    @Test("The fraction elapsed runs from none to all")
+    func theFractionRunsFromNoneToAll() {
+        let rest = RestClock.running(since: Self.started, duration: 100)
+
+        #expect(rest.fractionElapsed(at: Self.started) == 0)
+        #expect(rest.fractionElapsed(at: Self.started.addingTimeInterval(25)) == 0.25)
+        #expect(rest.fractionElapsed(at: Self.started.addingTimeInterval(1000)) == 1)
+    }
+
+    @Test("A rest of no length reads as finished rather than dividing by nothing")
+    func aZeroLengthRestIsFinished() {
+        #expect(RestClock.running(since: Self.started, duration: 0).fractionElapsed(at: Self.started)
+            == 1)
+    }
+
+    @Test("Extending lengthens the rest without moving its start")
+    func extendingKeepsTheStart() {
+        let rest = RestClock.running(since: Self.started, duration: 120)
+
+        let longer = rest.extended(by: 30)
+
+        // Thirty seconds more, not a fresh two minutes: the athlete has already rested ninety.
+        #expect(longer == .running(since: Self.started, duration: 150))
+        #expect(longer.remaining(at: Self.started.addingTimeInterval(90)) == 60)
+    }
+
+    @Test("An idle clock has nothing to extend")
+    func extendingIdleDoesNothing() {
+        #expect(RestClock.idle.extended(by: 30) == .idle)
+    }
+}

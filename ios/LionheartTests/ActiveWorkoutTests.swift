@@ -3,7 +3,89 @@ import Testing
 
 @testable import Lionheart
 
-/// The persistence the workout bar's seam is built on.
+/// Values a test needs a lot of, named for the domain state they stand for rather than their
+/// contents, so a change to what a bench press weighs does not rename them.
+enum AWorkout {
+    static let session = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+    static let bench = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+    static let squat = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
+    static let treadmill = UUID(uuidString: "44444444-4444-4444-4444-444444444444")!
+
+    static let start = Date(timeIntervalSince1970: 1_772_645_400)
+
+    static func live(
+        sets: [LoggedSet] = [],
+        prescriptions: [SetPrescription] = [],
+        rest: RestClock = .idle,
+        sync: WorkoutSyncState = .synced,
+        notes: String = ""
+    ) -> ActiveWorkout {
+        ActiveWorkout(
+            destination: .liveSession(session),
+            startedAt: start,
+            sync: sync,
+            sets: sets,
+            rest: rest,
+            prescriptions: prescriptions,
+            notes: notes)
+    }
+
+    static func retro(sets: [LoggedSet] = []) -> ActiveWorkout {
+        ActiveWorkout(destination: .afterTheFact, startedAt: start, sets: sets)
+    }
+
+    static func lift(
+        _ movement: UUID = bench,
+        reps: Int = 5,
+        weight: Double = 100,
+        unit: WeightUnit = .kilograms,
+        rpe: Rpe = .unrated,
+        at offset: TimeInterval = 0,
+        id: UUID = UUID()
+    ) -> LoggedSet {
+        LoggedSet(
+            id: id,
+            loggedAt: start.addingTimeInterval(offset),
+            command: .lift(SetCommand.Lift(
+                movementDataId: movement, reps: reps, weight: weight, unit: unit, rpe: rpe)))
+    }
+
+    static func run(
+        _ movement: UUID = treadmill,
+        distance: Double = 5,
+        unit: DistanceUnit = .kilometers,
+        duration: TimeInterval = 1470,
+        at offset: TimeInterval = 0
+    ) -> LoggedSet {
+        LoggedSet(
+            loggedAt: start.addingTimeInterval(offset),
+            command: .distanceTime(SetCommand.DistanceTime(
+                movementDataId: movement, distance: distance, unit: unit,
+                duration: duration, rpe: .unrated)))
+    }
+
+    static func trailRun(distance: Double = 10, gain: Double = 320) -> LoggedSet {
+        LoggedSet(
+            loggedAt: start,
+            command: .trailRun(SetCommand.TrailRun(
+                distance: distance, unit: .kilometers, duration: 3900,
+                elevationGainMeters: gain, rpe: .unrated)))
+    }
+
+    static func words(_ text: String = "ten minutes of hip mobility") -> LoggedSet {
+        LoggedSet(loggedAt: start, command: .freeform(text: text))
+    }
+
+    static func liftTarget(
+        _ movement: UUID = bench, reps: Int = 5, weight: Double = 102.5, rpe: Rpe = .unrated
+    ) -> SetPrescription {
+        .lift(SetPrescription.Lift(
+            movementDataId: movement, targetReps: reps, targetWeight: weight,
+            unit: .kilograms, targetRpe: rpe))
+    }
+}
+
+/// The persistence everything else rests on.
 ///
 /// A set logged in a basement and lost to a force-quit is the one failure that would stop the owner
 /// using the app, so the document's behaviour is asserted directly rather than taken on trust.
@@ -15,12 +97,15 @@ struct ActiveWorkoutDocumentTests {
             directoryURL: URL.temporaryDirectory.appending(path: UUID().uuidString))
     }
 
-    @Test("A workout written is a workout read back")
+    @Test("A workout written is a workout read back, sets and all")
     func aWorkoutRoundTrips() throws {
         let document = Self.aDocument()
-        let workout = ActiveWorkout(
-            sessionId: UUID(uuidString: "99999999-9999-9999-9999-999999999999")!,
-            startedAt: Date(timeIntervalSince1970: 1_772_645_400))
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift(), AWorkout.run(), AWorkout.trailRun(), AWorkout.words()],
+            prescriptions: [AWorkout.liftTarget(), .freeform(text: "mobility")],
+            rest: .running(since: AWorkout.start, duration: 120),
+            sync: .failed("no signal"),
+            notes: "felt strong")
 
         #expect(document.write(workout))
 
@@ -35,7 +120,7 @@ struct ActiveWorkoutDocumentTests {
     @Test("A cleared document is gone")
     func clearingRemovesTheWorkout() {
         let document = Self.aDocument()
-        document.write(ActiveWorkout(sessionId: UUID(), startedAt: Date()))
+        document.write(AWorkout.live())
 
         document.clear()
 
@@ -48,7 +133,7 @@ struct ActiveWorkoutDocumentTests {
         // able to start.
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try Data(#"{"sessionId":"not-a-uuid"#.utf8)
+        try Data(#"{"startedAt":123"#.utf8)
             .write(to: directory.appending(path: "active-workout.json"))
 
         #expect(ActiveWorkoutDocument(directoryURL: directory).read() == nil)
@@ -60,155 +145,183 @@ struct ActiveWorkoutDocumentTests {
         // which is how logged sets get lost for good.
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let fromTheFuture = ActiveWorkout(
-            sessionId: UUID(), startedAt: Date(), version: ActiveWorkout.currentVersion + 1)
-        try JSONEncoder().encode(fromTheFuture)
+        try Data(#"""
+            {"version":99,"destination":{"kind":"afterTheFact"},"startedAt":1,
+             "sync":{"kind":"synced"},"sets":[],"rest":{"idle":{}},"prescriptions":[],"notes":""}
+            """#.utf8)
             .write(to: directory.appending(path: "active-workout.json"))
 
         #expect(ActiveWorkoutDocument(directoryURL: directory).read() == nil)
     }
 
+    @Test("A version 1 document is read rather than thrown away")
+    func aVersionOneDocumentUpgrades() throws {
+        // The foundation build wrote a bare session id and no sets. An athlete who updates mid
+        // workout should find their workout, not an empty Train tab.
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data(#"""
+            {"version":1,"sessionId":"11111111-1111-1111-1111-111111111111",
+             "startedAt":1772645400,"isSynced":true}
+            """#.utf8)
+            .write(to: directory.appending(path: "active-workout.json"))
+
+        let restored = ActiveWorkoutDocument(directoryURL: directory).read()
+
+        #expect(restored?.destination == .liveSession(AWorkout.session))
+        #expect(restored?.sets.isEmpty == true)
+        #expect(restored?.rest == .idle)
+        // Pending rather than synced: version 1's flag is not read, and the safe reading of "we do
+        // not know" is that the next push should carry everything.
+        #expect(restored?.sync == .pending)
+    }
+
     @Test("Writing twice leaves the second workout, not both")
     func aWriteReplacesWhatWasThere() {
         let document = Self.aDocument()
-        let first = ActiveWorkout(sessionId: UUID(), startedAt: Date(timeIntervalSince1970: 1))
-        let second = ActiveWorkout(sessionId: UUID(), startedAt: Date(timeIntervalSince1970: 2))
+        let first = AWorkout.live(sets: [AWorkout.lift(reps: 5)])
+        let second = AWorkout.live(sets: [AWorkout.lift(reps: 8)])
 
         document.write(first)
         document.write(second)
 
         #expect(document.read() == second)
     }
+
+    @Test("A document rewritten by this build carries this build's version")
+    func rewritingStampsTheCurrentVersion() throws {
+        let document = Self.aDocument()
+        document.write(ActiveWorkout(
+            destination: .afterTheFact, startedAt: AWorkout.start, version: 1))
+
+        #expect(document.read()?.version == ActiveWorkout.currentVersion)
+    }
 }
 
 /// The value itself.
 @Suite("Active workout")
-struct ActiveWorkoutTests {
+struct ActiveWorkoutValueTests {
     @Test("Elapsed time counts from the start")
     func elapsedCountsFromTheStart() {
-        let workout = ActiveWorkout(
-            sessionId: UUID(), startedAt: Date(timeIntervalSince1970: 1000))
-
-        #expect(workout.elapsed(at: Date(timeIntervalSince1970: 1_720)) == 720)
+        #expect(AWorkout.live().elapsed(at: AWorkout.start.addingTimeInterval(720)) == 720)
     }
 
     @Test("A clock that moved backwards does not make a workout count down")
     func elapsedNeverGoesNegative() {
-        let workout = ActiveWorkout(
-            sessionId: UUID(), startedAt: Date(timeIntervalSince1970: 1000))
-
-        #expect(workout.elapsed(at: Date(timeIntervalSince1970: 900)) == 0)
+        #expect(AWorkout.live().elapsed(at: AWorkout.start.addingTimeInterval(-100)) == 0)
     }
 
-    @Test("Marking synced changes only that, and keeps the identity and the start")
-    func markingSyncedChangesOnlyTheFlag() {
-        let workout = ActiveWorkout(
-            sessionId: UUID(uuidString: "99999999-9999-9999-9999-999999999999")!,
-            startedAt: Date(timeIntervalSince1970: 1000))
+    @Test("Appending a set adds it, starts the rest and marks the workout unpushed")
+    func appendingASetStartsTheRest() {
+        let set = AWorkout.lift(at: 60)
 
-        let unsynced = workout.markingSynced(false)
+        let after = AWorkout.live().appending(set, restingFor: 120)
 
-        #expect(unsynced.isSynced == false)
-        #expect(unsynced.sessionId == workout.sessionId)
-        #expect(unsynced.startedAt == workout.startedAt)
-        #expect(unsynced.version == workout.version)
+        #expect(after.sets == [set])
+        #expect(after.rest == .running(since: set.loggedAt, duration: 120))
+        #expect(after.sync == .pending)
+        #expect(after.currentMovementDataId == AWorkout.bench)
     }
 
-    @Test("A workout of this build's version is readable")
-    func thisBuildsVersionIsReadable() {
-        #expect(ActiveWorkout(sessionId: UUID(), startedAt: Date()).isReadable)
+    @Test("Appending with no rest asked for leaves the clock idle")
+    func appendingWithoutRestLeavesTheClockIdle() {
+        #expect(AWorkout.live().appending(AWorkout.lift(), restingFor: nil).rest == .idle)
+    }
+
+    @Test("A set with no movement keeps the movement already being worked on")
+    func aTrailRunDoesNotChangeTheCurrentMovement() {
+        let workout = AWorkout.live().appending(AWorkout.lift(), restingFor: nil)
+
+        let after = workout.appending(AWorkout.trailRun(), restingFor: nil)
+
+        #expect(after.currentMovementDataId == AWorkout.bench)
+    }
+
+    @Test("Restating a set keeps its identity and the moment it was logged")
+    func restatingKeepsIdentity() {
+        let original = AWorkout.lift(reps: 5, weight: 100, at: 60)
+        let workout = AWorkout.live(sets: [original])
+
+        let corrected = workout.restating(
+            original.id,
+            as: .lift(SetCommand.Lift(
+                movementDataId: AWorkout.bench, reps: 5, weight: 102.5,
+                unit: .kilograms, rpe: .unrated)))
+
+        #expect(corrected.sets.count == 1)
+        #expect(corrected.sets[0].id == original.id)
+        #expect(corrected.sets[0].loggedAt == original.loggedAt)
+        #expect(corrected.sets[0].command.liftPart?.weight == 102.5)
+        #expect(corrected.sync == .pending)
+    }
+
+    @Test("Restating a set that is not there changes nothing")
+    func restatingAnUnknownSetIsANoOp() {
+        let workout = AWorkout.live(sets: [AWorkout.lift()])
+
+        #expect(workout.restating(UUID(), as: .freeform(text: "x")) == workout)
+    }
+
+    @Test("Removing a set that is not there changes nothing")
+    func removingAnUnknownSetIsANoOp() {
+        let workout = AWorkout.live(sets: [AWorkout.lift()])
+
+        #expect(workout.removing(UUID()) == workout)
+    }
+
+    @Test("Removing a set leaves the others in order")
+    func removingKeepsTheRestInOrder() {
+        let first = AWorkout.lift(reps: 5, at: 0)
+        let second = AWorkout.lift(reps: 6, at: 60)
+        let third = AWorkout.lift(reps: 7, at: 120)
+        let workout = AWorkout.live(sets: [first, second, third])
+
+        let after = workout.removing(second.id)
+
+        #expect(after.sets.map(\.id) == [first.id, third.id])
+    }
+
+    @Test("Clearing the current movement is possible, not just changing it")
+    func theCurrentMovementCanBeCleared() {
+        let workout = AWorkout.live().working(on: AWorkout.bench)
+
+        #expect(workout.working(on: nil).currentMovementDataId == nil)
+    }
+
+    @Test("A workout of this build's version is readable, a later one is not")
+    func versionDecidesReadability() {
+        #expect(AWorkout.live().isReadable)
         #expect(!ActiveWorkout(
-            sessionId: UUID(), startedAt: Date(),
+            destination: .afterTheFact,
+            startedAt: AWorkout.start,
             version: ActiveWorkout.currentVersion + 1).isReadable)
+    }
+
+    @Test("A live workout pushes as it goes; one logged afterwards does not")
+    func onlyALiveWorkoutPushes() {
+        #expect(WorkoutDestination.liveSession(AWorkout.session).pushesAsItGoes)
+        #expect(!WorkoutDestination.afterTheFact.pushesAsItGoes)
+        #expect(WorkoutDestination.afterTheFact.sessionId == nil)
     }
 }
 
-/// The store the bar is driven by.
-@MainActor
-@Suite("Active workout store")
-struct ActiveWorkoutStoreTests {
-    private static func aStore() -> (ActiveWorkoutStore, ActiveWorkoutDocument) {
-        let document = ActiveWorkoutDocument(
-            directoryURL: URL.temporaryDirectory.appending(path: UUID().uuidString))
-        return (ActiveWorkoutStore(document: document, now: { Date(timeIntervalSince1970: 500) }),
-                document)
+/// The four sync states, and which of them mean anything to anyone.
+@Suite("Workout sync state")
+struct WorkoutSyncStateTests {
+    @Test("Only a state another push could land is worth pushing")
+    func refusedIsNotWorthPushing() {
+        #expect(WorkoutSyncState.pending.isWorthPushing)
+        #expect(WorkoutSyncState.failed("no signal").isWorthPushing)
+        #expect(!WorkoutSyncState.synced.isWorthPushing)
+        // The session is not active any more. Another identical request cannot change that.
+        #expect(!WorkoutSyncState.refused("already completed").isWorthPushing)
     }
 
-    @Test("Nothing in flight is nothing to render")
-    func anEmptyStoreHasNoWorkout() {
-        let (store, _) = Self.aStore()
-
-        #expect(store.workout == nil)
-        #expect(store.isPersisted)
-    }
-
-    @Test("Beginning a workout persists it before publishing it")
-    func beginningPersistsFirst() {
-        let (store, document) = Self.aStore()
-        let sessionId = UUID(uuidString: "99999999-9999-9999-9999-999999999999")!
-
-        store.begin(sessionId: sessionId)
-
-        // The value on screen and the value on disk are the same one. Publishing first would let a
-        // crash in between lose something the athlete had already seen confirmed.
-        #expect(store.workout?.sessionId == sessionId)
-        #expect(document.read() == store.workout)
-        #expect(store.isPersisted)
-    }
-
-    @Test("A workout begun takes the injected clock, not the wall clock")
-    func beginningUsesTheInjectedClock() {
-        let (store, _) = Self.aStore()
-
-        store.begin(sessionId: UUID())
-
-        #expect(store.workout?.startedAt == Date(timeIntervalSince1970: 500))
-    }
-
-    @Test("What survived the last run is what is restored")
-    func restoringReadsWhatSurvived() async {
-        let (store, document) = Self.aStore()
-        let workout = ActiveWorkout(
-            sessionId: UUID(uuidString: "99999999-9999-9999-9999-999999999999")!,
-            startedAt: Date(timeIntervalSince1970: 1000))
-        document.write(workout)
-
-        await store.restore()
-
-        #expect(store.workout == workout)
-    }
-
-    @Test("Ending clears the document, because that is what makes it unrecoverable")
-    func endingClearsTheDocument() {
-        let (store, document) = Self.aStore()
-        store.begin(sessionId: UUID())
-
-        store.end()
-
-        #expect(store.workout == nil)
-        #expect(document.read() == nil)
-    }
-
-    @Test("An unsynced workout is still persisted, because those are different facts")
-    func syncAndPersistenceAreSeparate() {
-        let (store, document) = Self.aStore()
-        store.begin(sessionId: UUID())
-
-        store.markSynced(false)
-
-        #expect(store.workout?.isSynced == false)
-        #expect(store.isPersisted)
-        #expect(document.read()?.isSynced == false)
-    }
-
-    @Test("Marking the sync state it already has changes nothing")
-    func markingTheSameSyncStateIsANoOp() {
-        let (store, _) = Self.aStore()
-        store.begin(sessionId: UUID())
-        let before = store.workout
-
-        store.markSynced(true)
-
-        #expect(store.workout == before)
+    @Test("Pending says nothing, because almost every set is pending for a moment")
+    func pendingIsSilent() {
+        #expect(!WorkoutSyncState.pending.needsSaying)
+        #expect(!WorkoutSyncState.synced.needsSaying)
+        #expect(WorkoutSyncState.failed("no signal").needsSaying)
+        #expect(WorkoutSyncState.refused("already completed").needsSaying)
     }
 }

@@ -25,7 +25,9 @@ enum Rpe: Equatable, Sendable {
 }
 
 /// How a set's weight was measured. Integer-valued on the wire, and the order is the server's.
-enum WeightUnit: Equatable, Sendable {
+///
+/// `Hashable` so a `Picker` can tag with it — a unit is a choice the athlete makes on the entry row.
+enum WeightUnit: Hashable, Sendable {
     case kilograms
     case pounds
     case unrecognised(Int)
@@ -45,10 +47,21 @@ enum WeightUnit: Equatable, Sendable {
         case .unrecognised: ""
         }
     }
+
+    /// The integer the server reads. An unrecognised unit sends back the number it arrived as, so
+    /// a set this build could not name is still re-sent as what it was rather than silently
+    /// becoming kilograms.
+    var wire: Int {
+        switch self {
+        case .kilograms: 0
+        case .pounds: 1
+        case .unrecognised(let value): value
+        }
+    }
 }
 
 /// How a set's distance was measured. Integer-valued on the wire, and the order is the server's.
-enum DistanceUnit: Equatable, Sendable {
+enum DistanceUnit: Hashable, Sendable {
     case meters
     case yards
     case miles
@@ -72,6 +85,18 @@ enum DistanceUnit: Equatable, Sendable {
         case .miles: "mi"
         case .kilometers: "km"
         case .unrecognised: ""
+        }
+    }
+
+    /// The integer the server reads. See `WeightUnit.wire` for why an unrecognised unit keeps its
+    /// number.
+    var wire: Int {
+        switch self {
+        case .meters: 0
+        case .yards: 1
+        case .miles: 2
+        case .kilometers: 3
+        case .unrecognised(let value): value
         }
     }
 }
