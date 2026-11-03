@@ -107,7 +107,7 @@ enum Formatting {
     static func set(_ command: SetCommand) -> String? {
         switch command {
         case .lift(let set):
-            return "\(set.reps) × \(weight(set.weight, set.unit))"
+            return "\(weight(set.weight, set.unit)) × \(set.reps)"
         case .distanceTime(let set):
             return "\(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
         case .trailRun(let set):
@@ -122,7 +122,7 @@ enum Formatting {
     static func target(_ prescription: SetPrescription) -> String {
         switch prescription {
         case .lift(let target):
-            let numbers = "\(target.targetReps) × \(weight(target.targetWeight, target.unit))"
+            let numbers = "\(weight(target.targetWeight, target.unit)) × \(target.targetReps)"
             guard let rpe = target.targetRpe.value else { return numbers }
             return "\(numbers) @ \(self.rpe(rpe))"
         case .distanceTime(let target):

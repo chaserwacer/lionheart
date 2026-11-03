@@ -30,6 +30,7 @@ struct TodayView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .listSectionSpacing(.compact)
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -66,7 +67,7 @@ struct TodayView: View {
 
     @ViewBuilder
     private func bodySection(_ reading: ReadinessReading?) -> some View {
-        Section("How the body is") {
+        Section("Readiness") {
             if let reading {
                 HStack(alignment: .center, spacing: Tokens.cardPadding) {
                     ReadinessGauge(reading: reading)
@@ -98,7 +99,7 @@ struct TodayView: View {
                     }
                 }
             } else {
-                Label("No Oura data in the last two weeks", systemImage: "moon.zzz")
+                Text("No Oura data in the last two weeks")
                     .foregroundStyle(Color(.secondaryLabel))
             }
         }
@@ -109,10 +110,10 @@ struct TodayView: View {
             Button {
                 isQuickLogPresented = true
             } label: {
-                Label("Log what you did", systemImage: "text.bubble")
+                Text("Log in plain words")
             }
         } footer: {
-            Text("Type it in plain words and Lionheart works out the rest.")
+            Text("Free text, parsed into structured entries.")
         }
     }
 
@@ -210,7 +211,7 @@ struct TodayView: View {
     /// already, which is the point of it being a sheet over plain words.
     @ViewBuilder
     private var loadingRows: some View {
-        Section("How the body is") { SkeletonRows(count: 1, systemImage: "moon.zzz") }
+        Section("Readiness") { SkeletonRows(count: 1) }
         quickLogSection
         Section("Last session") { SkeletonRows(count: 1) }
         Section("Next session") { SkeletonRows(count: 1) }

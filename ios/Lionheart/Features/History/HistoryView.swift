@@ -39,6 +39,7 @@ struct HistoryView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .listSectionSpacing(.compact)
             .navigationTitle("History")
             .searchable(text: $query, prompt: "Movement or note")
             .minimizingSearchField()
@@ -66,7 +67,7 @@ struct HistoryView: View {
         // a record is retracted from a pushed screen and an alert from a view underneath the top
         // of the stack has nowhere to present.
         .alert(
-            "That did not happen",
+            "Refused",
             isPresented: Binding(
                 get: { store.action.refusal != nil },
                 set: { if !$0 { store.dismissRefusal() } })
@@ -110,10 +111,11 @@ struct HistoryView: View {
             } else {
                 // Reachable: a refresh can land while a pushed row's session is no longer in the
                 // window. Saying so beats an empty screen with a title.
-                ContentUnavailableView(
-                    "Session not available",
-                    systemImage: "questionmark.folder",
-                    description: Text("It is no longer in the window History has loaded."))
+                ContentUnavailableView {
+                    Text("Session not available")
+                } description: {
+                    Text("It is no longer in the window History has loaded.")
+                }
             }
         case .records:
             PersonalRecordsView(
@@ -172,11 +174,11 @@ struct HistoryView: View {
                     Text(held == 0 ? "None yet" : "\(held)")
                         .monospacedDigit()
                 } label: {
-                    Label("Personal records", systemImage: "trophy")
+                    Text("Personal records")
                 }
             }
             NavigationLink(value: HistoryRoute.trends) {
-                Label("Trends", systemImage: "chart.xyaxis.line")
+                Text("Trends")
             }
         }
     }
@@ -248,9 +250,9 @@ struct HistoryView: View {
     private var nothingLoggedYet: some View {
         Section {
             ContentUnavailableView {
-                Label("Nothing logged yet", systemImage: "list.bullet.rectangle")
+                Text("No sessions logged")
             } description: {
-                Text("Sessions you complete show up here, newest first, with their sets.")
+                Text("Completed sessions are listed here by month, newest first.")
             }
             .listRowBackground(Color.clear)
         }

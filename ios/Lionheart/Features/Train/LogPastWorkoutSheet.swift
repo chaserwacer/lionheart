@@ -42,7 +42,7 @@ struct LogPastWorkoutSheet: View {
                             dismiss()
                         }
                     } label: {
-                        Label("Log the sets", systemImage: "square.and.pencil")
+                        Text("Log the sets")
                             .fontWeight(.semibold)
                     }
                     .disabled(store.isWorkoutInFlight)

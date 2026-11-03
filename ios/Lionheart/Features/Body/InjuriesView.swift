@@ -13,7 +13,7 @@ struct InjuriesView: View {
         List {
             if injuries.isEmpty {
                 ContentUnavailableView {
-                    Label("No injuries tracked", systemImage: "bandage")
+                    Text("No injuries tracked")
                 } description: {
                     Text("Tracking one keeps its events — treatments and check-ins — in one place Lionheart can read.")
                 }
@@ -24,6 +24,7 @@ struct InjuriesView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
         .navigationTitle("Injuries")
         .refreshable { await store.refresh() }
     }

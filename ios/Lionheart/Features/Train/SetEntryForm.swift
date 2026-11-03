@@ -8,7 +8,7 @@ import SwiftUI
 /// list, logging the next identical set is one tap on a button that has not moved.
 ///
 /// The fields are shaped by `draft.modality`, and the two shapes a movement can carry are offered
-/// as a segmented control — the same flow logs five at a hundred kilos and five kilometres in
+/// as a menu beside RPE — the same flow logs five at a hundred kilos and five kilometres in
 /// twenty-four minutes, because `SetEntry` makes them siblings and the screen should not pretend
 /// otherwise.
 struct SetEntryForm: View {
@@ -30,9 +30,7 @@ struct SetEntryForm: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if draft.movementDataId != nil { modalityPicker }
-
+        VStack(alignment: .leading, spacing: 8) {
             switch draft.modality {
             case .lift: liftFields
             case .distanceTime: distanceFields
@@ -40,14 +38,37 @@ struct SetEntryForm: View {
             case .freeform: freeformField
             }
 
+            controls
+        }
+        .padding(.vertical, 2)
+        .toolbar { keyboardBar }
+    }
+
+    /// How the set is measured, its RPE and the Log button, on one line under the fields.
+    ///
+    /// One line rather than the measure on a segmented row of its own above the fields: this row
+    /// sits under a movement's logged sets, and every line it takes is a set pushed off the screen.
+    /// The measure changes once per movement at most, so it is a menu beside the RPE menu rather
+    /// than a control as wide as the row. At the text sizes where the three do not fit across,
+    /// `ViewThatFits` puts the button on a line of its own.
+    private var controls: some View {
+        ViewThatFits(in: .horizontal) {
             HStack(spacing: Tokens.cardPadding) {
-                if draft.modality != .freeform { ratingMenu }
+                menus
                 Spacer(minLength: 0)
                 logButton
             }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: Tokens.cardPadding) { menus }
+                logButton
+            }
         }
-        .padding(.vertical, 6)
-        .toolbar { keyboardBar }
+    }
+
+    @ViewBuilder
+    private var menus: some View {
+        if draft.movementDataId != nil { modalityPicker }
+        if draft.modality != .freeform { ratingMenu }
     }
 
     /// Log and Done, above the keys.
@@ -73,11 +94,12 @@ struct SetEntryForm: View {
 
     private var modalityPicker: some View {
         Picker("How this set is measured", selection: $draft.modality) {
-            Text("Weight & reps").tag(SetModality.lift)
-            Text("Distance & time").tag(SetModality.distanceTime)
+            Text("Lift").tag(SetModality.lift)
+            Text("Distance").tag(SetModality.distanceTime)
         }
-        .pickerStyle(.segmented)
+        .pickerStyle(.menu)
         .labelsHidden()
+        .fixedSize()
     }
 
     private var liftFields: some View {
@@ -205,10 +227,8 @@ struct SetEntryForm: View {
                 Button(Formatting.measure(value)) { draft.rpe = .rated(value) }
             }
         } label: {
-            Label(
-                draft.rpe.value.map { "RPE \(Formatting.measure($0))" } ?? "RPE",
-                systemImage: "gauge.with.dots.needle.33percent")
-                .font(.subheadline)
+            Text(draft.rpe.value.map { "RPE \(Formatting.measure($0))" } ?? "RPE")
+                .font(.subheadline.monospacedDigit())
         }
         .accessibilityLabel(draft.rpe.value.map { Formatting.rpe($0) } ?? "Rate of perceived exertion, not rated")
     }

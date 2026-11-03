@@ -48,6 +48,7 @@ struct TrainView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .listSectionSpacing(.compact)
             .navigationTitle("Train")
             .refreshable { await store.refresh() }
             .navigationDestination(for: Route.self) { route in
@@ -85,7 +86,7 @@ struct TrainView: View {
         // Every one of these transitions can be refused — the session was started or skipped on the
         // web app, or deleted from under this window — and the list looks the same either way.
         .alert(
-            "That did not happen",
+            "Refused",
             isPresented: Binding(
                 get: { store.action.refusal != nil },
                 set: { if !$0 { store.dismissRefusal() } })
@@ -128,7 +129,7 @@ struct TrainView: View {
         Section {
             if activeWorkout.workout != nil {
                 Button(action: openWorkout) {
-                    Label("Continue your workout", systemImage: "figure.strengthtraining.traditional")
+                    Text("Continue workout")
                         .fontWeight(.semibold)
                 }
             } else {
@@ -140,7 +141,7 @@ struct TrainView: View {
                         if await store.startUnplanned() { openWorkout() }
                     }
                 } label: {
-                    Label("Start a workout", systemImage: "play.circle")
+                    Text("Start workout")
                         .fontWeight(.semibold)
                 }
                 .disabled(store.action.isRunning)
@@ -148,14 +149,14 @@ struct TrainView: View {
                 Button {
                     isPastWorkoutAsked = true
                 } label: {
-                    Label("Log a workout you already did", systemImage: "square.and.pencil")
+                    Text("Log a past workout")
                 }
             }
         } header: {
             Text("Now")
         } footer: {
             if activeWorkout.workout == nil, store.state.value?.inProgress != nil {
-                Text("There is an unfinished session on the server. Resuming picks up its sets.")
+                Text("An unfinished session is open on the server. Resuming picks up its sets.")
             }
         }
     }
@@ -167,7 +168,7 @@ struct TrainView: View {
             if store.resume(session) { openWorkout() }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
-                Label("Resume the session in progress", systemImage: "arrow.clockwise.circle")
+                Text("Resume session in progress")
                     .fontWeight(.semibold)
                 Text("Started \(session.startedAt.formatted(date: .abbreviated, time: .shortened))"
                      + " · \(Formatting.count(session.sets.count, "set"))")
@@ -201,12 +202,12 @@ struct TrainView: View {
             } header: {
                 Text("Missed")
             } footer: {
-                Text("Planned for a day gone by. Starting one late is fine — it is recorded on the day you do it.")
+                Text("Planned for a past day. A late start is recorded on the day it happens.")
             }
         }
         if plan.hasNothingPlanned {
             Section {
-                Text("Nothing planned. Sessions are planned on the Lionheart web app, or just start one above.")
+                Text("Nothing planned. Sessions are planned on the web app.")
                     .font(.footnote)
                     .foregroundStyle(Color(.secondaryLabel))
             }
@@ -320,7 +321,7 @@ struct TrainView: View {
         } footer: {
             // Starting a workout needs the server, but logging one you already did does not — so
             // the start section above stays useful even here.
-            Text("You can still log a workout you already did; it is saved on this phone until you finish it.")
+            Text("A past workout can still be logged; it is held on this phone until it is finished.")
         }
     }
 }

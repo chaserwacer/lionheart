@@ -34,7 +34,10 @@ struct RepMaxGridView: View {
                 }
             }
         }
-        .padding(.vertical, 6)
+        // A rounded rectangle rather than the capsule iOS 26 gives a bordered button by default:
+        // twelve capsules read as a row of pills, twelve cells read as a table of figures.
+        .buttonBorderShape(.roundedRectangle)
+        .padding(.vertical, 4)
     }
 
     private func held(_ cell: RepMaxGrid.Cell, _ record: PersonalRecord, showsSetLength: Bool) -> some View {
@@ -80,7 +83,7 @@ struct RepMaxGridView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 4)
+        .padding(.vertical, 1)
     }
 }
 

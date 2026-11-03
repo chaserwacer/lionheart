@@ -18,7 +18,7 @@ struct RecordHistoryView: View {
         List {
             switch store.histories[key] ?? .loading {
             case .loading:
-                Section { SkeletonRows(count: 4, systemImage: "trophy") }
+                Section { SkeletonRows(count: 4) }
             case .unavailable(let failure):
                 ContentUnavailableView {
                     Label("History is not available", systemImage: "exclamationmark.triangle")
@@ -37,6 +37,7 @@ struct RecordHistoryView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
         .navigationTitle(key.kind.label)
         .refreshable { await store.loadHistory(of: key) }
         .task(id: key) { await store.loadHistory(of: key) }
@@ -51,9 +52,9 @@ struct RecordHistoryView: View {
 
         if history.links.isEmpty {
             ContentUnavailableView {
-                Label("No history", systemImage: "trophy")
+                Text("No history")
             } description: {
-                Text("Nothing has been recorded for this yet.")
+                Text("No record of this kind has been set.")
             }
             .listRowBackground(Color.clear)
         } else {

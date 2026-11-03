@@ -27,13 +27,14 @@ struct BodyView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .listSectionSpacing(.compact)
             .navigationTitle("Body")
             .refreshable { await store.refresh() }
             .navigationDestination(for: BodyRoute.self) { destination(for: $0) }
             // An injury action is the only thing on this tab that writes, and a 404 — the injury
             // was deleted on the web app — looks exactly like a row that did nothing.
             .alert(
-                "That did not happen",
+                "Refused",
                 isPresented: Binding(
                     get: { store.action.refusal != nil },
                     set: { if !$0 { store.dismissRefusal() } })
@@ -60,10 +61,11 @@ struct BodyView: View {
                     workouts: snapshot.workouts(on: day),
                     tags: snapshot.tags(on: day))
             } else {
-                ContentUnavailableView(
-                    "That day is no longer loaded",
-                    systemImage: "moon.zzz",
-                    description: Text("Pull to refresh on the Body screen."))
+                ContentUnavailableView {
+                    Text("That day is no longer loaded")
+                } description: {
+                    Text("Pull to refresh on the Body screen.")
+                }
             }
         case .wellness:
             WellnessHistoryView(readings: snapshot?.wellness ?? [], refresh: { await store.refresh() })
@@ -73,10 +75,11 @@ struct BodyView: View {
             if let injury = snapshot?.injuries.first(where: { $0.injuryId == id }) {
                 InjuryDetailView(history: InjuryHistory.of(injury), store: store)
             } else {
-                ContentUnavailableView(
-                    "That injury is no longer loaded",
-                    systemImage: "bandage",
-                    description: Text("Pull to refresh on the Body screen."))
+                ContentUnavailableView {
+                    Text("That injury is no longer loaded")
+                } description: {
+                    Text("Pull to refresh on the Body screen.")
+                }
             }
         }
     }
@@ -128,7 +131,7 @@ struct BodyView: View {
                     }
                 }
             } else {
-                Label("The ring has recorded nothing in the last eight weeks", systemImage: "moon.zzz")
+                Text("No Oura data in the last eight weeks")
                     .foregroundStyle(Color(.secondaryLabel))
             }
         }
@@ -157,21 +160,21 @@ struct BodyView: View {
                 LabeledContent {
                     Text(count(snapshot.ouraDays.count, "day")).monospacedDigit()
                 } label: {
-                    Label("Oura days", systemImage: "bed.double")
+                    Text("Oura days")
                 }
             }
             NavigationLink(value: BodyRoute.wellness) {
                 LabeledContent {
                     Text(count(snapshot.wellness.count, "entry", plural: "entries")).monospacedDigit()
                 } label: {
-                    Label("Wellness", systemImage: "face.smiling")
+                    Text("Wellness")
                 }
             }
             NavigationLink(value: BodyRoute.injuries) {
                 LabeledContent {
                     Text(count(snapshot.injuries.count, "injury", plural: "injuries")).monospacedDigit()
                 } label: {
-                    Label("Injuries", systemImage: "bandage")
+                    Text("Injuries")
                 }
             }
         }
@@ -187,16 +190,16 @@ struct BodyView: View {
     /// behind it. Six requests in parallel, and this is what stands in for all of them.
     @ViewBuilder
     private var loadingSections: some View {
-        Section("Recovery") { SkeletonRows(count: 1, systemImage: "moon.zzz") }
-        Section("Records") { SkeletonRows(count: 3, systemImage: "bed.double") }
+        Section("Recovery") { SkeletonRows(count: 1) }
+        Section("Records") { SkeletonRows(count: 3) }
     }
 
     private var nothingRecorded: some View {
         Section {
             ContentUnavailableView {
-                Label("Nothing about your body yet", systemImage: "heart.text.square")
+                Text("No body data")
             } description: {
-                Text("Oura days arrive once the ring has synced. Wellness entries and injuries are yours to add.")
+                Text("Oura days arrive when the ring syncs. Wellness entries and injuries are entered by hand.")
             }
             .listRowBackground(Color.clear)
         }

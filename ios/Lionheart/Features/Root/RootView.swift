@@ -35,6 +35,10 @@ struct RootView: View {
 
 /// The five tabs, chosen so each answers one question the athlete asks.
 ///
+/// The glyphs are one set of outlined instrument marks rather than illustrations — a gauge for the
+/// day's readiness, the record mark for logging, the history clock, a speech bubble, an ECG trace —
+/// so no tab draws a figure or an object and the bar reads as a measuring tool's.
+///
 /// All five read live data. The selection is held here as `@State` rather than left to the
 /// `TabView`, because the workout accessory is hung conditionally and would otherwise reset the
 /// athlete's tab the moment a workout started — see `WorkoutAccessory`.
@@ -52,24 +56,34 @@ private struct SignedInTabs: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            Tab("Today", systemImage: "sun.horizon", value: Destination.today) {
+            Tab(value: Destination.today) {
                 TodayView(store: container.today, apiBaseURL: container.configuration.baseURL)
+            } label: {
+                TabLabel("Today", systemImage: "gauge.with.dots.needle.50percent")
             }
-            Tab("Train", systemImage: "figure.strengthtraining.traditional", value: Destination.train) {
+            Tab(value: Destination.train) {
                 TrainView(
                     store: container.train,
                     activeWorkout: container.activeWorkout,
                     library: container.movements,
                     openWorkout: { isWorkoutPresented = true })
+            } label: {
+                TabLabel("Train", systemImage: "record.circle")
             }
-            Tab("History", systemImage: "list.bullet.rectangle", value: Destination.history) {
+            Tab(value: Destination.history) {
                 HistoryView(store: container.history)
+            } label: {
+                TabLabel("History", systemImage: "clock.arrow.circlepath")
             }
-            Tab("Chat", systemImage: "bubble.left.and.text.bubble.right", value: Destination.chat) {
+            Tab(value: Destination.chat) {
                 ChatView(store: container.chat)
+            } label: {
+                TabLabel("Chat", systemImage: "bubble.left")
             }
-            Tab("Body", systemImage: "heart.text.square", value: Destination.body) {
+            Tab(value: Destination.body) {
                 BodyView(store: container.body)
+            } label: {
+                TabLabel("Body", systemImage: "waveform.path.ecg")
             }
         }
         .minimizingTabBarOnScroll()
@@ -87,5 +101,25 @@ private struct SignedInTabs: View {
                 store: container.activeWorkout,
                 library: container.movements)
         }
+    }
+}
+
+/// A tab's label, drawn in the symbol's outline form.
+///
+/// The tab bar swaps in a symbol's `.fill` variant wherever one exists, which would draw two of the
+/// five glyphs solid and three as outlines. One weight across the set is the point of the set, so
+/// the variant is pinned here rather than left to which symbols happen to have a fill.
+private struct TabLabel: View {
+    let title: String
+    let systemImage: String
+
+    init(_ title: String, systemImage: String) {
+        self.title = title
+        self.systemImage = systemImage
+    }
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .environment(\.symbolVariants, .none)
     }
 }
