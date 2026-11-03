@@ -33,12 +33,23 @@ enum SetRecordOutcome: Equatable, Sendable {
         }
     }
 
+    /// - Note: A record held in a different unit from the set is **not** compared. The server
+    ///   stores a record's unit and compares weights numerically without converting, so a
+    ///   device-side conversion would announce a record the server then disagrees with — 225 lb
+    ///   would "beat" a 100 kg record. Silence is the honest answer until the athlete's units
+    ///   agree again, and it is the same reasoning that keeps volume totals unconverted.
     static func of(_ command: SetCommand, against records: MovementRecords?) -> SetRecordOutcome {
         guard let lift = command.liftPart else { return .notApplicable }
         guard let records, !records.isEmpty else { return .noRecordYet }
 
-        let beatsWeight = records.heaviestWeight.map { lift.weight > $0 } ?? false
-        let beatsVolume = records.bestVolume.map { lift.weight * Double(lift.reps) > $0 } ?? false
+        func comparable(_ record: PersonalRecord?) -> PersonalRecord? {
+            guard let record, record.unit == lift.unit else { return nil }
+            return record
+        }
+
+        let beatsWeight = comparable(records.strength).map { lift.weight > $0.weight } ?? false
+        let beatsVolume = comparable(records.volume)
+            .map { lift.weight * Double(lift.reps) > $0.volume } ?? false
 
         switch (beatsWeight, beatsVolume) {
         case (true, true): return .both

@@ -299,17 +299,22 @@ struct InjuryHistoryTests {
 struct MovementCatalogueTests {
     private static let bench = "22222222-2222-2222-2222-222222222222"
 
-    @Test("A movement reads as modifier, equipment, base — the order a lifter says them")
+    @Test("A movement reads as the modifier qualifying the base, with its equipment after")
     func aMovementReadsAsALifterSaysIt() throws {
         let movement = try Decoding.decode(MovementData.self, Catalogue.movement(
             id: Self.bench, base: "Bench Press", equipment: "Dumbbell", modifier: "Incline"))
 
-        #expect(movement.displayName == "Incline Dumbbell Bench Press")
+        // Sentence case, not title case: the server stores a modifier however it was created and
+        // lower-cases it on the way in, so "incline bench press" under "Back squat" is the defect
+        // this composes around. `title` and `qualifier` are what a screen with room for two shows.
+        #expect(movement.title == "Incline bench press")
+        #expect(movement.qualifier == "Dumbbell")
+        #expect(movement.displayName == "Incline bench press, dumbbell")
     }
 
-    @Test("Equipment already in the base's name is not said twice")
+    @Test("Equipment already in the name is not said twice")
     func equipmentIsNotRepeated() throws {
-        // "Barbell Barbell Row" is how a naive join reads.
+        // "Barbell row, barbell" is how a naive join reads.
         let movement = try Decoding.decode(MovementData.self, Catalogue.movement(
             id: Self.bench, base: "Barbell Row", equipment: "Barbell"))
 

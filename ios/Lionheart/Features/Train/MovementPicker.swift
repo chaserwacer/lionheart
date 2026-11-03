@@ -82,13 +82,15 @@ struct MovementPicker: View {
                 }
                 Spacer(minLength: 8)
                 if let records = library.records(for: movement.movementDataId),
-                   let heaviest = records.heaviestWeight {
+                   let heaviest = records.strength {
                     // The standing record, where there is one: it is the number the athlete is
-                    // about to aim at.
-                    Text(Formatting.measure(heaviest))
+                    // about to aim at. Shown with its unit, because a record's unit is the
+                    // athlete's and a bare figure is the wrong number half the time.
+                    let stated = "\(Formatting.measure(heaviest.weight)) \(heaviest.unit.abbreviation)"
+                    Text(stated)
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(Color(.tertiaryLabel))
-                        .accessibilityLabel("Record \(Formatting.measure(heaviest))")
+                        .accessibilityLabel("Record \(stated)")
                 }
             }
             .contentShape(.rect)

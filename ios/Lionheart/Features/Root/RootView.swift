@@ -35,8 +35,9 @@ struct RootView: View {
 
 /// The five tabs, chosen so each answers one question the athlete asks.
 ///
-/// Four of them are honest placeholders. Today is the one that reads live data, because this change
-/// is the floor the training and analysis screens get built on rather than those screens.
+/// All five read live data. The selection is held here as `@State` rather than left to the
+/// `TabView`, because the workout accessory is hung conditionally and would otherwise reset the
+/// athlete's tab the moment a workout started — see `WorkoutAccessory`.
 private struct SignedInTabs: View {
     let container: AppContainer
 

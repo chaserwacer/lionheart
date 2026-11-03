@@ -147,3 +147,12 @@ enum Formatting {
         "\(total.volume.formatted(.number.precision(.fractionLength(0...1)))) \(total.unit.abbreviation)"
     }
 }
+
+extension String {
+    /// The string, or `nil` when it holds nothing but whitespace — for the many wire members where
+    /// the server writes `""` and the domain means "absent".
+    var nonEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}

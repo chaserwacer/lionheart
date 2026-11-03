@@ -340,9 +340,42 @@ struct SetDefaultsTests {
 @Suite("Set record outcome")
 struct SetRecordOutcomeTests
 {
-    private static func records(weight: Double?, volume: Double?) -> MovementRecords {
-        MovementRecords(
-            movementDataId: AWorkout.bench, heaviestWeight: weight, bestVolume: volume)
+    private static func records(
+        weight: Double?, volume: Double?, unit: WeightUnit = .kilograms
+    ) -> MovementRecords {
+        func record(_ kind: PersonalRecord.Kind, weight: Double, volume: Double) -> PersonalRecord {
+            PersonalRecord(
+                personalRecordId: UUID(),
+                movementDataId: AWorkout.bench,
+                movement: nil,
+                kind: kind,
+                weight: weight,
+                unit: unit,
+                reps: volume > 0 && weight > 0 ? Int(volume / weight) : 0,
+                volume: volume,
+                achievedAt: nil,
+                previousAchievedAt: nil,
+                isActive: true)
+        }
+
+        return MovementRecords(
+            movementDataId: AWorkout.bench,
+            movement: nil,
+            strength: weight.map { record(.strength, weight: $0, volume: $0) },
+            volume: volume.map { record(.volume, weight: weight ?? $0, volume: $0) },
+            lastRecordAt: nil)
+    }
+
+    /// The server stores a record's unit and compares weights numerically without converting, so a
+    /// device-side conversion would announce a record the server then disagrees with — 225 lb is a
+    /// bigger number than 100 kg and a lighter lift.
+    @Test("A record held in another unit is not compared at all")
+    func aRecordInAnotherUnitIsNotCompared() {
+        let set = SetCommand.lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 1, weight: 225, unit: .pounds, rpe: .unrated))
+
+        #expect(SetRecordOutcome.of(
+            set, against: Self.records(weight: 110, volume: 1000, unit: .kilograms)) == .none)
     }
 
     @Test("A heavier set beats the strength record")

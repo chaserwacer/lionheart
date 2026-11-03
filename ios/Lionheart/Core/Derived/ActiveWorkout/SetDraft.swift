@@ -30,9 +30,14 @@ struct SetDraft: Equatable, Sendable {
     var rpe: Rpe = .unrated
     var text: String = ""
 
-    /// Seeds the fields from a set — the previous one on this movement, or its target. Zeros come
-    /// through as empty fields: a brand-new movement should show a placeholder to type into, not a
-    /// weight of nought to clear first.
+    /// Seeds the fields from a set — the previous one on this movement, or its target.
+    ///
+    /// A zero measure comes through as an empty field, because a zero distance or a zero duration
+    /// is a set that did not happen. **A lift's weight is the exception**: nought is what a pull-up,
+    /// a dip and a push-up weigh, and this initialiser only ever runs on a set that was actually
+    /// performed — a movement with no history seeds nothing and starts empty anyway. Emptying it
+    /// here cost a typed "0" on every single set of every bodyweight movement, which is the opposite
+    /// of the one-tap next set this whole type exists for.
     init(from command: SetCommand) {
         modality = command.modality
         movementDataId = command.movementDataId
@@ -40,7 +45,7 @@ struct SetDraft: Equatable, Sendable {
 
         switch command {
         case .lift(let set):
-            weight = Self.field(set.weight)
+            weight = Self.weightField(set.weight)
             reps = Self.field(set.reps)
             weightUnit = set.unit
         case .distanceTime(let set):
@@ -135,6 +140,11 @@ struct SetDraft: Equatable, Sendable {
         value == 0
             ? ""
             : value.formatted(.number.precision(.fractionLength(0...2)).grouping(.never))
+    }
+
+    /// A lift's weight, where nought is a value rather than an absence — see `init(from:)`.
+    private static func weightField(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...2)).grouping(.never))
     }
 
     private static func field(_ value: Int) -> String {

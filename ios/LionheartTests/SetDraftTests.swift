@@ -49,15 +49,30 @@ struct SetDraftTests {
         #expect(SetDraft(from: original).command == original)
     }
 
-    @Test("A zero comes through as an empty field, not as a nought to clear")
+    @Test("A zero count comes through as an empty field, not as a nought to clear")
     func zeroSeedsAnEmptyField() {
         let draft = SetDraft(from: .lift(SetCommand.Lift(
             movementDataId: AWorkout.bench, reps: 0, weight: 0,
             unit: .kilograms, rpe: .unrated)))
 
-        #expect(draft.weight.isEmpty)
         #expect(draft.reps.isEmpty)
-        #expect(!draft.isLoggable)
+    }
+
+    /// The two halves of this used to be tested separately and contradicted each other: typing a
+    /// nought was loggable, but seeding from a nought gave back an empty field. So the second set
+    /// of every bodyweight movement cost a typed "0" — against a feature whose whole claim is that
+    /// the next identical set is one tap.
+    @Test("A bodyweight set seeds the next one, rather than making it be typed again")
+    func aBodyweightSetSeedsTheNextOne() {
+        let pullUp = SetCommand.lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 10, weight: 0,
+            unit: .kilograms, rpe: .unrated))
+
+        let next = SetDraft(from: pullUp)
+
+        #expect(next.weight == "0")
+        #expect(next.isLoggable)
+        #expect(next.command == pullUp)
     }
 
     @Test("A lift with no reps has not happened")
