@@ -1,12 +1,13 @@
 import Foundation
 import Observation
 
-/// The Today screen's data.
+/// The Today screen's data, for whichever day it shows.
 ///
-/// Two requests, in parallel. They are independent, there is a known number of them, and the screen
-/// needs both — which is exactly what `async let` is for, and what `APIClient` being `Sendable`
-/// exists to allow. One window of sessions answers three of the screen's four questions, so a
-/// wider single read beats three narrow ones and guarantees the cards agree with each other.
+/// Three requests, in parallel — sessions, Oura days, Oura nights. They are independent, there is a
+/// known number of them, and the screen needs all three — which is exactly what `async let` is for,
+/// and what `APIClient` being `Sendable` exists to allow. On today one window of sessions answers
+/// three of the screen's questions, so a wider single read beats three narrow ones and guarantees
+/// the cards agree with each other.
 ///
 /// Everything the screen decides is a pure function in `Core/Derived/`; this type does IO and turns
 /// the outcome into one state case at one `do`/`catch`.

@@ -22,6 +22,9 @@ final class OuraSyncStore {
     private var lastAttempt: Date?
     private var running: Task<Void, Never>?
     private var whenSynced: [@MainActor () async -> Void] = []
+    /// Moves on at every `reset()`. A read that was out across a sign-out compares it before
+    /// writing, so one athlete's coverage cannot land in the state the next sign-in starts from.
+    private var generation = 0
 
     init(oura: any OuraSyncing, now: @escaping @Sendable () -> Date = { Date() }) {
         self.oura = oura
@@ -38,8 +41,10 @@ final class OuraSyncStore {
     /// was: the control can still offer a sync, and the sync reads the coverage again first.
     func refreshCoverage() async {
         guard !state.isSyncing else { return }
+        let session = generation
         do {
             let coverage = try await oura.coverage()
+            guard session == generation, !state.isSyncing else { return }
             state = .idle(coverage)
         } catch {
             return
@@ -52,10 +57,11 @@ final class OuraSyncStore {
             await running.value
             return
         }
+        let session = generation
         let task = Task { await self.run() }
         running = task
         await task.value
-        running = nil
+        if session == generation { running = nil }
     }
 
     /// Syncs because the app came back to the foreground, if the data is behind and the last
@@ -72,6 +78,7 @@ final class OuraSyncStore {
     }
 
     func reset() {
+        generation += 1
         running?.cancel()
         running = nil
         lastAttempt = nil
@@ -81,6 +88,9 @@ final class OuraSyncStore {
     /// Read the coverage, plan the range, sync it, read the coverage again — one railway, ended in
     /// one `do`/`catch`. The second read is what moves the control's "through" day; the report
     /// alone cannot say it, since Oura may have had nothing newer.
+    ///
+    /// Only `reset()` cancels a run, which is a sign-out: every step checks for it after its
+    /// await, and a cancelled run writes nothing.
     private func run() async {
         let moment = now()
         lastAttempt = moment
@@ -88,18 +98,22 @@ final class OuraSyncStore {
 
         do {
             let coverage = try await oura.coverage()
+            try Task.checkCancellation()
             guard let range = OuraSyncPlan.range(for: coverage, today: CalendarDay(moment)) else {
                 state = .idle(coverage)
                 return
             }
             state = .syncing(range, from: coverage)
             let report = try await oura.sync(range)
+            try Task.checkCancellation()
             let after = try await oura.coverage()
+            try Task.checkCancellation()
             state = .synced(report, coverage: after)
             for action in whenSynced { await action() }
         } catch is CancellationError {
-            state = known.map(OuraSyncState.idle) ?? .unknown
+            return
         } catch {
+            guard !Task.isCancelled else { return }
             let failure = (try? OuraSyncFailure.from(error)) ?? .unavailable(String(describing: error))
             state = .failed(failure, coverage: state.coverage ?? known)
         }

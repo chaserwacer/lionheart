@@ -28,11 +28,17 @@ struct MovementDigest: Equatable, Sendable, Identifiable {
         let reps: Int
     }
 
-    /// The movements of a set list, in the order they were performed.
+    /// The movements of a set list, in the order they were performed, then any work that names no
+    /// movement — a trail run, a freeform set — as one counted line, so no set goes unmentioned.
     static func of(_ sets: [SetEntry], catalogue: MovementCatalogue) -> [MovementDigest] {
-        SessionDetail.of(sets, catalogue: catalogue).blocks.map { block in
-            MovementDigest(order: block.order, movementName: block.movementName, line: line(of: block.sets.map(\.entry)))
+        let detail = SessionDetail.of(sets, catalogue: catalogue)
+        let movements = detail.blocks.map { block in
+            MovementDigest(
+                order: block.order, movementName: block.movementName, line: line(of: block.sets.map(\.entry)))
         }
+        guard !detail.unattached.isEmpty else { return movements }
+        return movements + [MovementDigest(
+            order: movements.count, movementName: "Other work", line: .counted(setCount: detail.unattached.count))]
     }
 
     static func line(of entries: [SetEntry]) -> Line {

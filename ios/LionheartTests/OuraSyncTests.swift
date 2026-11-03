@@ -152,6 +152,22 @@ struct OuraSyncTests {
         #expect(await server.asked.count == 1)
     }
 
+    @Test("Signing out during a sync leaves nothing of the last athlete's coverage behind")
+    @MainActor
+    func signingOutMidSyncWritesNothing() async throws {
+        let server = AnOuraServer(
+            coverages: [.through(Self.today.adding(days: -3))], sync: .success(Self.report),
+            syncTakes: .seconds(5))
+        let store = OuraSyncStore(oura: server, now: { Self.today.middayDate() })
+
+        let syncing = Task { await store.sync() }
+        while !store.state.isSyncing { await Task.yield() }
+        store.reset()
+        await syncing.value
+
+        #expect(store.state == .unknown)
+    }
+
     private static let report = OuraSyncReport(range: nil, stored: 12, rejected: 0, collections: [])
 }
 
@@ -160,11 +176,13 @@ struct OuraSyncTests {
 private actor AnOuraServer: OuraSyncing {
     private var coverages: [OuraCoverage]
     private let outcome: Result<OuraSyncReport, APIError>
+    private let syncTakes: Duration
     private(set) var asked: [DayRange] = []
 
-    init(coverages: [OuraCoverage], sync: Result<OuraSyncReport, APIError>) {
+    init(coverages: [OuraCoverage], sync: Result<OuraSyncReport, APIError>, syncTakes: Duration = .zero) {
         self.coverages = coverages
         self.outcome = sync
+        self.syncTakes = syncTakes
     }
 
     func coverage() async throws -> OuraCoverage {
@@ -173,6 +191,7 @@ private actor AnOuraServer: OuraSyncing {
 
     func sync(_ range: DayRange) async throws -> OuraSyncReport {
         asked.append(range)
+        if syncTakes > .zero { try await Task.sleep(for: syncTakes) }
         return try outcome.get()
     }
 }

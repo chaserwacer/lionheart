@@ -164,11 +164,9 @@ struct HistoryView: View {
         }
     }
 
-    /// Records and trends. Hidden while searching, because a search is about the log and two
-    /// navigation rows above the results would be noise in the way.
-    ///
-    /// The training load leads as a chart rather than a link, because the shape of the last four
-    /// months is the first thing a log of hundreds of sessions should say; the chart opens Trends.
+    /// The training load and the records. The load leads as a chart rather than a link, because the
+    /// shape of the last four months is the first thing a log of hundreds of sessions should say;
+    /// the chart opens Trends. Hidden while searching, because a search is about the log.
     @ViewBuilder
     private func readings(_ snapshot: HistorySnapshot) -> some View {
         let weeks = Array(snapshot.trends.weeks.suffix(Self.loadWeeksShown + TrainingTrends.loadAverageWeeks - 1))
