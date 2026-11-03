@@ -325,9 +325,36 @@ public sealed class PersonalRecordService : IPersonalRecordService
     // bound from JSON and described to the model as if it were an argument. The model is handed
     // the empty answer rather than a refusal it can do nothing about.
 
-    [Tool(Name = "GetPersonalRecords", Description = "Every personal record the athlete currently holds, newest first: heaviest set, best set volume, each rep max, best session volume, longest distance, fastest time at a distance and best pace. A rep max at N reps (two to twelve) is the heaviest weight lifted in a set of at least N reps; setReps is how many reps that set had. The one-rep max is the heaviest set.")]
-    public Task<IReadOnlyList<PersonalRecordView>> GetPersonalRecordsForChatAsync(IdentityUser user) =>
-        GetStandingAsync(user, CancellationToken.None).MatchAsync(records => records, _ => []);
+    [Tool(Name = "GetPersonalRecords", Description = "The athlete's headline personal records, one line per movement, for the 25 movements whose records were set most recently: heaviest set, the 3-, 5-, 8- and 10-rep maxes, best set volume and best session volume, or the distance records, each with its date. A rep max at N reps is the heaviest weight lifted in a set of at least N reps, shown with that set's own reps; the one-rep max is the heaviest set. For every rep max of one movement, call GetPersonalRecordsForMovement with the movementDataId on its line.")]
+    public async Task<IReadOnlyList<RecordDigest>> GetPersonalRecordsForChatAsync(IdentityUser user)
+    {
+        const int Movements = 25;
+
+        var recent = (await StandingAsync(user, CancellationToken.None))
+            .GroupBy(record => record.Subject)
+            .OrderByDescending(subject => subject.Max(record => record.AchievedAt))
+            .Take(Movements)
+            .ToList();
+
+        var ids = recent.Select(subject => subject.Key).OfType<RecordSubject.Movement>().Select(movement => movement.MovementDataId).ToList();
+        var names = await _context.MovementDatas
+            .AsNoTracking()
+            .Where(movement => ids.Contains(movement.MovementDataID))
+            .Select(movement => new
+            {
+                movement.MovementDataID,
+                Name = movement.MovementBase.Name + " / " + movement.Equipment.Name
+                       + (movement.MovementModifier == null ? "" : " / " + movement.MovementModifier.Name),
+            })
+            .ToDictionaryAsync(movement => movement.MovementDataID, movement => movement.Name);
+
+        return
+        [
+            .. recent.Select(subject => subject.Key is RecordSubject.Movement movement
+                ? RecordDigest.Of(movement.MovementDataId, names.GetValueOrDefault(movement.MovementDataId, "an unlisted movement"), [.. subject])
+                : RecordDigest.Of(null, "trail running", [.. subject]))
+        ];
+    }
 
     [Tool(Name = "GetPersonalRecordsForMovement", Description = "The records the athlete currently holds on one movement, given its movement data id.")]
     public Task<IReadOnlyList<PersonalRecordView>> GetPersonalRecordsForMovementForChatAsync(
