@@ -308,7 +308,8 @@ them, and withdraws one when the athlete says the set was not real. Three rules 
   dashes.
 - **The live badge says only what beat a standing record.** A set competes for the heaviest set,
   the rep max at every count it holds and the best set volume, in its own unit, against the records
-  as they stood when the workout began. Firsts of their kind, session volume and the distance
+  as they stood when the workout began and the movement's earlier sets in this workout — so the
+  badge lands on the first set that beats a record, and a repeat of that set lights nothing. Firsts of their kind, session volume and the distance
   records are left to the server, which decides them on completion — so one set of twelve on a new
   movement lights nothing rather than eleven badges. Several records beaten read as one sentence,
   the most worth saying first: "New heaviest set and 5 more records".

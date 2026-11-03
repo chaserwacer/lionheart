@@ -431,13 +431,13 @@ struct SetRecordOutcomeTests {
 
     @Test("A heavier five beats the five-rep max, and says so ahead of the volume it also beat")
     func aHeavierFiveIsARepMax() {
-        #expect(SetRecordOutcome.of(Self.set(210, 5), against: Self.pounds)
+        #expect(SetRecordOutcome.of(Self.set(210, 5), after: [], against: Self.pounds)
             == .beats(.repMax(reps: 5), also: [.bestSetVolume]))
     }
 
     @Test("A heavier single beats the heaviest set, which is the one-rep max, and nothing more")
     func aHeavierSingleIsTheHeaviestSet() {
-        #expect(SetRecordOutcome.of(Self.set(230, 1), against: Self.pounds) == .beats(.heaviestSet, also: []))
+        #expect(SetRecordOutcome.of(Self.set(230, 1), after: [], against: Self.pounds) == .beats(.heaviestSet, also: []))
     }
 
     @Test("A set beats the standing rep max at every count it holds, its own count named first")
@@ -454,7 +454,7 @@ struct SetRecordOutcomeTests {
             ARecord.repMax(180, 7, .kilograms),
         ])
 
-        let outcome = SetRecordOutcome.of(Self.set(190, 6, .kilograms), against: book)
+        let outcome = SetRecordOutcome.of(Self.set(190, 6, .kilograms), after: [], against: book)
 
         #expect(outcome == .beats(.heaviestSet, also: [6, 5, 4, 3, 2].map { .repMax(reps: $0) }))
         #expect(Formatting.recordsBeaten(outcome) == "New heaviest set and 5 more records")
@@ -466,7 +466,7 @@ struct SetRecordOutcomeTests {
         // every other count: one badge, not eleven.
         let fives = ARecord.held([ARecord.repMax(100, 5)])
 
-        #expect(SetRecordOutcome.of(Self.set(105, 12), against: fives) == .beats(.repMax(reps: 5), also: []))
+        #expect(SetRecordOutcome.of(Self.set(105, 12), after: [], against: fives) == .beats(.repMax(reps: 5), also: []))
     }
 
     @Test("A set in the other unit is not compared with this unit's records at all")
@@ -475,8 +475,8 @@ struct SetRecordOutcomeTests {
         // different record, not a worse pounds one.
         let kilograms = ARecord.held([ARecord.heaviest(110, 1, .kilograms), ARecord.repMax(100, 5, .kilograms)])
 
-        #expect(SetRecordOutcome.of(Self.set(225, 5, .pounds), against: kilograms) == .noRecordYet)
-        #expect(SetRecordOutcome.of(Self.set(105, 5, .kilograms), against: kilograms)
+        #expect(SetRecordOutcome.of(Self.set(225, 5, .pounds), after: [], against: kilograms) == .noRecordYet)
+        #expect(SetRecordOutcome.of(Self.set(105, 5, .kilograms), after: [], against: kilograms)
             == .beats(.repMax(reps: 5), also: []))
     }
 
@@ -484,8 +484,8 @@ struct SetRecordOutcomeTests {
     func bothUnitsHeldEachCompetesInItsOwn() {
         let both = ARecord.held(Self.pounds.records + [ARecord.heaviest(100, 1, .kilograms)])
 
-        #expect(SetRecordOutcome.of(Self.set(105, 1, .kilograms), against: both) == .beats(.heaviestSet, also: []))
-        #expect(SetRecordOutcome.of(Self.set(105, 1, .pounds), against: both) == .none)
+        #expect(SetRecordOutcome.of(Self.set(105, 1, .kilograms), after: [], against: both) == .beats(.heaviestSet, also: []))
+        #expect(SetRecordOutcome.of(Self.set(105, 1, .pounds), after: [], against: both) == .none)
     }
 
     @Test("Equalling a record does not beat it")
@@ -493,20 +493,63 @@ struct SetRecordOutcomeTests {
         // Strict, which is also what keeps a repeated set from announcing itself five times.
         let book = ARecord.held([ARecord.heaviest(205, 5), ARecord.repMax(205, 5), ARecord.setVolume(205, 5)])
 
-        #expect(SetRecordOutcome.of(Self.set(205, 5), against: book) == .none)
+        #expect(SetRecordOutcome.of(Self.set(205, 5), after: [], against: book) == .none)
+    }
+
+    @Test("Only the first set to beat a record says so; repeating it beats nothing")
+    func aRepeatedRecordSetIsNotNewsTwice() {
+        let tens = ARecord.held([ARecord.repMax(55, 10, .kilograms)])
+        let first = Self.set(60, 10, .kilograms)
+
+        #expect(SetRecordOutcome.of(first, after: [], against: tens).isWorthSaying)
+        #expect(SetRecordOutcome.of(first, after: [first], against: tens) == .none)
+        #expect(SetRecordOutcome.of(first, after: [first, first], against: tens) == .none)
+    }
+
+    @Test("A later set that beats the earlier one beats the record again")
+    func beatingTheEarlierSetIsNews() {
+        let tens = ARecord.held([ARecord.repMax(55, 10, .kilograms)])
+
+        #expect(SetRecordOutcome.of(
+            Self.set(62.5, 10, .kilograms), after: [Self.set(60, 10, .kilograms)], against: tens)
+            == .beats(.repMax(reps: 10), also: []))
+    }
+
+    @Test("An earlier set raises the bar only for the counts it holds")
+    func anEarlierSetRaisesOnlyItsOwnCounts() {
+        // 210 × 3 holds the two and three, not the five: a 210 five still beats the 205 five.
+        let earlier = Self.set(210, 3)
+
+        #expect(SetRecordOutcome.of(Self.set(210, 5), after: [earlier], against: Self.pounds)
+            == .beats(.repMax(reps: 5), also: [.bestSetVolume]))
+    }
+
+    @Test("Sets on another movement or in another unit leave the bar where it was")
+    func unrelatedEarlierSetsDoNotRaiseTheBar() {
+        let otherMovement = SetCommand.lift(SetCommand.Lift(
+            movementDataId: AWorkout.treadmill, reps: 5, weight: 300, unit: .pounds, rpe: .unrated))
+        let otherUnit = Self.set(300, 5, .kilograms)
+
+        #expect(SetRecordOutcome.of(Self.set(210, 5), after: [otherMovement, otherUnit], against: Self.pounds)
+            == .beats(.repMax(reps: 5), also: [.bestSetVolume]))
+    }
+
+    @Test("Earlier sets alone make no record: a movement with none standing stays quiet")
+    func earlierSetsDoNotCreateARecord() {
+        #expect(SetRecordOutcome.of(Self.set(100, 5), after: [Self.set(90, 5)], against: nil) == .noRecordYet)
     }
 
     @Test("A set past twelve reps contains a set of twelve, so it contests the twelve-rep max")
     func pastTheGridTheTwelveStillCounts() {
         let twelves = ARecord.held([ARecord.repMax(50, 12), ARecord.setVolume(50, 12)])
 
-        #expect(SetRecordOutcome.of(Self.set(60, 13), against: twelves)
+        #expect(SetRecordOutcome.of(Self.set(60, 13), after: [], against: twelves)
             == .beats(.repMax(reps: 12), also: [.bestSetVolume]))
     }
 
     @Test("A set of nothing contests nothing, the server's own rule")
     func zeroLoadRaisesNothing() {
-        #expect(SetRecordOutcome.of(Self.set(0, 5), against: Self.pounds) == .noRecordYet)
+        #expect(SetRecordOutcome.of(Self.set(0, 5), after: [], against: Self.pounds) == .noRecordYet)
     }
 
     @Test("A beaten or withdrawn record is not one a set can beat again")
@@ -515,12 +558,12 @@ struct SetRecordOutcomeTests {
             ARecord.record(.heaviestSet(ARecord.lift(300, 1)), standing: .retracted),
         ])
 
-        #expect(SetRecordOutcome.of(Self.set(250, 1), against: history) == .noRecordYet)
+        #expect(SetRecordOutcome.of(Self.set(250, 1), after: [], against: history) == .noRecordYet)
     }
 
     @Test("A movement with no record yet says so, and says it quietly")
     func noRecordYetIsSilent() {
-        let outcome = SetRecordOutcome.of(Self.set(100, 5), against: nil)
+        let outcome = SetRecordOutcome.of(Self.set(100, 5), after: [], against: nil)
 
         #expect(outcome == .noRecordYet)
         #expect(!outcome.isWorthSaying)
@@ -528,9 +571,9 @@ struct SetRecordOutcomeTests {
 
     @Test("Only a lift is judged mid-workout; distances are the server's to decide")
     func otherShapesAreNotJudged() {
-        #expect(SetRecordOutcome.of(AWorkout.run().command, against: nil) == .notApplicable)
-        #expect(SetRecordOutcome.of(AWorkout.trailRun().command, against: nil) == .notApplicable)
-        #expect(SetRecordOutcome.of(.freeform(text: "x"), against: nil) == .notApplicable)
+        #expect(SetRecordOutcome.of(AWorkout.run().command, after: [], against: nil) == .notApplicable)
+        #expect(SetRecordOutcome.of(AWorkout.trailRun().command, after: [], against: nil) == .notApplicable)
+        #expect(SetRecordOutcome.of(.freeform(text: "x"), after: [], against: nil) == .notApplicable)
     }
 
     @Test("A trail run looks up the trail-running records, a lift its movement's")
