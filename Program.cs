@@ -25,6 +25,7 @@ using lionheart.Endpoints.OpenApi;
 using lionheart.Services.Oura;
 using lionheart.Services.Oura.Import;
 using lionheart.Services.Strong;
+using lionheart.Services.CoachedSheets;
 
 // Load .env into the process environment before the host reads configuration, so the Llm__,
 // Anthropic__, LmStudio__ and Embedding__ keys flow through the default environment-variable
@@ -41,6 +42,16 @@ if (args is [OuraImportCommand.Verb, ..])
 if (args is [StrongImportCommand.Verb, ..])
 {
     return await StrongImportCommand.RunAsync(args, CancellationToken.None);
+}
+
+if (args is [CoachedSheetImportCommand.Verb, ..])
+{
+    return await CoachedSheetImportCommand.RunAsync(args, CancellationToken.None);
+}
+
+if (args is [RebuildRecordsCommand.Verb, ..])
+{
+    return await RebuildRecordsCommand.RunAsync(args, CancellationToken.None);
 }
 
 var builder = WebApplication.CreateBuilder(args);

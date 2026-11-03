@@ -2,6 +2,7 @@ using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sessions;
+using lionheart.Services.Import;
 using lionheart.Services.Training.PersonalRecords;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,7 +38,7 @@ public sealed class StrongImporter
 {
     private readonly ModelContext _context;
     private readonly IPersonalRecordDetector _records;
-    private readonly StrongMovementMap _map;
+    private readonly MovementMap _map;
     private readonly TimeZoneInfo _zone;
     private readonly TimeProvider _clock;
 
@@ -45,7 +46,7 @@ public sealed class StrongImporter
     public StrongImporter(
         ModelContext context,
         IPersonalRecordDetector records,
-        StrongMovementMap map,
+        MovementMap map,
         TimeZoneInfo zone,
         TimeProvider clock)
     {
@@ -58,7 +59,7 @@ public sealed class StrongImporter
 
     public Task<Result<StrongImportReport, Problem>> ImportAsync(
         string exportPath, Guid userId, CancellationToken ct) =>
-        AthleteAsync(userId, ct)
+        _context.KnownAthleteAsync(userId, ct)
             .BindAsync(_ => StrongExportReader.Read(exportPath, _zone))
             .BindAsync(Mapped)
             .MapAsync(export => UnimportedAsync(userId, export, ct))
@@ -67,17 +68,6 @@ public sealed class StrongImporter
             .MapAsync(staged => CommitAsync(staged, ct));
 
     // ---- Guard ----
-
-    /// <remarks>
-    /// Named here rather than reusing <c>AthleteIdAsync</c>, which answers from an
-    /// <c>IdentityUser</c>: this is given a raw id on the command line, and a mistyped one should
-    /// say so rather than fail later as a foreign-key violation.
-    /// </remarks>
-    private async Task<Result<Guid, Problem>> AthleteAsync(Guid userId, CancellationToken ct) =>
-        await _context.LionheartUsers.AnyAsync(user => user.UserID == userId, ct)
-            ? Result<Guid, Problem>.Success(userId)
-            : Result<Guid, Problem>.Failure(new Problem.NotFound(
-                $"No Lionheart athlete with id {userId}. Imported sessions hang off one, so there is nothing to attach these to."));
 
     private Result<MappedExport, Problem> Mapped(IReadOnlyList<StrongWorkout> workouts) =>
         _map.Cover(workouts.SelectMany(workout => workout.Sets).Select(set => set.Exercise))
@@ -121,7 +111,7 @@ public sealed class StrongImporter
             .ToList();
 
         var movementIds = applied.ToDictionary(
-            mapping => mapping.StrongName,
+            mapping => mapping.Name,
             mapping => catalogue.IdOf(mapping.Movement),
             StringComparer.OrdinalIgnoreCase);
 
@@ -129,7 +119,7 @@ public sealed class StrongImporter
             pending,
             catalogue,
             [.. pending.Workouts.Select(workout => StrongSessions.ToSession(workout, userId, movementIds, now))],
-            [.. applied.Where(mapping => mapping.IsUnsure).OrderBy(mapping => mapping.StrongName, StringComparer.OrdinalIgnoreCase)]);
+            [.. applied.Where(mapping => mapping.IsUnsure).OrderBy(mapping => mapping.Name, StringComparer.OrdinalIgnoreCase)]);
     }
 
     /// <summary>

@@ -325,6 +325,8 @@ everything else about it.
 | Embedding provider | An OpenAI-compatible server, configured independently of chat under `Embedding__*` — Anthropic serves no embeddings endpoint, so there is deliberately no provider choice here. Model pinned in `Embedding__Model`; dimension mismatch is a hard error, never a silent rescore |
 | Entity vs facet resolution | Facets snap semantically (embeddings); movements/equipment stay lexical — no embedding column on those tables, and exact names dominate in practice |
 | Strong history | The athlete's Strong export imports as completed sessions (owner request 2026-11-03). Distinct from the abandoned legacy Lionheart data, which stays abandoned. Warm-ups become freeform sets; drop and failure sets are lifts with their kind in the notes — no set-kind field until the owner decides one is wanted |
+| Coached-programme history | The 2023–24 programme spreadsheets import as completed sessions in completed programmes (owner request 2026-11-03). Only rows whose weight the athlete entered are sets; a spreadsheet-computed weight is a prescription. Records are rebuilt over the whole history rather than detected incrementally, because this history is older than every standing record |
+| Retracted records and the rebuild | A rebuild refuses while any record is withdrawn: the set behind it is still in its session, so a replay would award it again. Preserving a withdrawal through a rebuild needs a rule for which sets it covers, which is the owner's call |
 
 ## Status & roadmap — source of truth
 
@@ -669,6 +671,42 @@ begun or ended and whether a target was met are client readings, never stored. M
 and/or inside an instant window, in every standing — what marks the sets that set a record. The
 subject filter runs in SQL: `record.Subject == subject` translates to the converted
 `MovementDataId` column, with the converter applied to the parameter.
+
+### ✅ Coached-programme history import and record rebuild
+
+`dotnet run -- import-coached-sheets <training-os/derived/sets.tsv> --user <athlete-guid>`
+(`Services/CoachedSheets/`), packaged like the Strong import and sharing its movement catalogue,
+map reader and name-based ids (`Services/Import/`). It reads training-os's set log and takes only
+the `sheet:<sheet>#w<week>` rows; the `strong:` rows are counted and left to `import-strong`.
+
+- **Performed sets only.** The Jamal V5 template asks for the top set's weight and computes every
+  back-off from it — and some whole days from the one-rep maxes on its Start sheet — so a computed
+  weight (303.6, 288.486) is a prescription, never a bar load. `coached-sheets.json` lists every
+  such row with its formula, plus the few typed rows the evidence says were not lifted (a 100 lb
+  placeholder, a 2 lb typo, two rows the athlete's note contradicts). They are left out and named in
+  the session's notes; a day whose every weight was computed (seven of the Jamal days) becomes no
+  session, so only the decisions file records it. Each entry states how many sets it covers, and a run refuses if the log no
+  longer holds exactly that many. A "CLUSTER SET (1+1)" row becomes its singles.
+- **Sessions.** One per training-os session id (date, sheet, day), at **noon** on its date in the
+  machine's zone, as an `Instant` — the sheets carry dates only, and a duration would be invented.
+  The id is a v5 UUID of the athlete and that session id, so a second run adds nothing. Each sheet is
+  a `CompletedTrainingProgram` and its sessions are `InProgram`; the notes open with the programme,
+  week and day, then the coach's notes per row, then the rows not counted. RPE comes only from an
+  "RPE Actual" column; a prescribed RPE stays in the notes.
+- **Movements** come from `coached-movements.json`, keyed by training-os slug, spelled as the Strong
+  map spells them so shared lifts reuse one movement. Variations stay separate. The deadlift's stance
+  is never written in the sheets; it maps to conventional `Deadlift / Barbell` and is flagged.
+- **Records rebuilt.** Inside the import's transaction, `PersonalRecordRebuild.ReplayAsync` deletes
+  the athlete's records and runs every completed session through `PersonalRecordDetector` in one
+  batch, oldest first. A newer record that an older set already beats was never a record and is
+  dropped; one that beats the older best stays, now behind it, and the older one is beaten on its
+  date. A run that adds no session leaves the records alone.
+
+`dotnet run -- rebuild-records --user <athlete-guid>` runs the same rebuild on its own, for any
+later change to how sets are read. It writes nothing when the result equals what is held, so ids
+survive a no-op. Against the athlete's database copy of 2026-11-03 it reported all 3,440 records
+unchanged; after the import, 3,674 records, of which 3,158 were unchanged, 74 restated behind a 2023
+predecessor, 208 dropped and 442 new.
 
 ### Traps — non-obvious failures already paid for
 

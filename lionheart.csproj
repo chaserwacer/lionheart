@@ -56,11 +56,15 @@
     <InternalsVisibleTo Include="lionheart.Tests" />
   </ItemGroup>
 
-  <!-- The Strong import's movement map is athlete-editable data, read from the assembly so the
-       map a run uses is always the one in the tree that built it, and never published as content. -->
+  <!-- The imports' movement maps and sheet decisions are athlete-editable data, read from the
+       assembly so the file a run uses is always the one in the tree that built it, and never
+       published as content. -->
   <ItemGroup>
     <Content Remove="Services\Strong\strong-movements.json" />
+    <Content Remove="Services\CoachedSheets\*.json" />
     <EmbeddedResource Include="Services\Strong\strong-movements.json" LogicalName="lionheart.Services.Strong.strong-movements.json" />
+    <EmbeddedResource Include="Services\CoachedSheets\coached-movements.json" LogicalName="lionheart.Services.CoachedSheets.coached-movements.json" />
+    <EmbeddedResource Include="Services\CoachedSheets\coached-sheets.json" LogicalName="lionheart.Services.CoachedSheets.coached-sheets.json" />
   </ItemGroup>
 
   <ItemGroup>

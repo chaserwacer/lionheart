@@ -6,6 +6,7 @@ using lionheart.Model.Training;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
+using lionheart.Services.Import;
 using lionheart.Services.Strong;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
@@ -78,7 +79,7 @@ public class StrongImportTests : IDisposable
     [Fact]
     public async Task A_movement_the_athlete_already_has_is_reused_however_he_capitalised_it()
     {
-        var curl = await PlantMovementAsync("bicep curl", " DUMBELL ");
+        var curl = await _database.PlantMovementAsync("bicep curl", " DUMBELL ");
 
         var report = ResultAssert.Succeeded(await ImportAsync(FourWorkouts));
 
@@ -255,7 +256,7 @@ public class StrongImportTests : IDisposable
             ResultAssert.Succeeded(await Importer(context, map).ImportAsync(oneWorkout.Path, live.UserId, CancellationToken.None));
         }
 
-        Assert.Equal(await ChainsAsync(live), await ChainsAsync(_database));
+        Assert.Equal(await live.ChainsAsync(), await _database.ChainsAsync());
     }
 
     // ---- Refusals: nothing written ----
@@ -265,7 +266,7 @@ public class StrongImportTests : IDisposable
     {
         // A record already standing from June would be compared against a January workout, and
         // its chain would claim it beat a session older than itself.
-        var squat = await PlantMovementAsync("Squat", "Barbell");
+        var squat = await _database.PlantMovementAsync("Squat", "Barbell");
         await PlantRecordAsync(squat, WeightUnit.Pounds, new DateTime(2025, 6, 1, 12, 0, 0, DateTimeKind.Utc));
         using var export = new ExportFile(Set("2025-01-10 17:00:00", "Squat (Barbell)", "1", 225, 5));
 
@@ -281,7 +282,7 @@ public class StrongImportTests : IDisposable
     {
         // Same movement and kind, but held in kilograms: pounds sets can neither beat it nor be
         // compared against it, so the order of the two histories cannot matter.
-        var squat = await PlantMovementAsync("Squat", "Barbell");
+        var squat = await _database.PlantMovementAsync("Squat", "Barbell");
         await PlantRecordAsync(squat, WeightUnit.Kilograms, new DateTime(2025, 6, 1, 12, 0, 0, DateTimeKind.Utc));
         using var export = new ExportFile(Set("2025-01-10 17:00:00", "Squat (Barbell)", "1", 225, 5));
 
@@ -319,7 +320,7 @@ public class StrongImportTests : IDisposable
     private Task<Result<StrongImportReport, Problem>> ImportAsync(string path) =>
         ImportAsync(path, ResultAssert.Succeeded(StrongMovementMap.Shipped()));
 
-    private async Task<Result<StrongImportReport, Problem>> ImportAsync(string path, StrongMovementMap map)
+    private async Task<Result<StrongImportReport, Problem>> ImportAsync(string path, MovementMap map)
     {
         await using var context = _database.CreateContext();
         return await Importer(context, map).ImportAsync(path, _database.UserId, CancellationToken.None);
@@ -330,29 +331,6 @@ public class StrongImportTests : IDisposable
         await using var context = _database.CreateContext();
         var sessions = await context.Sessions.OfType<CompletedTrainingSession>().AsNoTracking().ToListAsync();
         return sessions.Single(session => session.Date == day);
-    }
-
-    private async Task<Guid> PlantMovementAsync(string movementBase, string equipment)
-    {
-        await using var context = _database.CreateContext();
-        var movement = new MovementData
-        {
-            MovementDataID = Guid.NewGuid(),
-            UserID = _database.UserId,
-            EquipmentID = Guid.NewGuid(),
-            Equipment = new Equipment { EquipmentID = Guid.NewGuid(), Name = equipment, UserID = _database.UserId },
-            MovementBaseID = Guid.NewGuid(),
-            MovementBase = new MovementBase
-            {
-                MovementBaseID = Guid.NewGuid(), Name = movementBase, UserID = _database.UserId,
-                Description = string.Empty, MuscleGroups = [],
-            },
-        };
-        movement.EquipmentID = movement.Equipment.EquipmentID;
-        movement.MovementBaseID = movement.MovementBase.MovementBaseID;
-        context.MovementDatas.Add(movement);
-        await context.SaveChangesAsync();
-        return movement.MovementDataID;
     }
 
     private async Task PlantRecordAsync(Guid movement, WeightUnit unit, DateTime achievedAt)
@@ -406,36 +384,4 @@ public class StrongImportTests : IDisposable
                 .Order()
         ];
     }
-
-    /// <summary>
-    /// Every record in a database, described without its ids, which two databases never share:
-    /// the movement by name, what it holds, when, where it stands, and when the one it replaced was set.
-    /// </summary>
-    /// <remarks>
-    /// Instants are compared as instants. A predecessor's date is copied from the record in memory,
-    /// which is UTC-kinded when the record was made in the same batch and unkinded when it was read
-    /// back from storage — the same moment either way, and both read back as UTC by the clients.
-    /// </remarks>
-    private static async Task<IReadOnlyList<string>> ChainsAsync(RemodelDatabase database)
-    {
-        await using var context = database.CreateContext();
-        var names = await context.MovementDatas
-            .Select(movement => new { movement.MovementDataID, movement.MovementBase.Name })
-            .ToDictionaryAsync(movement => movement.MovementDataID, movement => movement.Name);
-        var records = await context.PersonalRecords.AsNoTracking().ToListAsync();
-
-        return
-        [
-            .. records
-                .Select(record => string.Join(" | ",
-                    record.Subject is RecordSubject.Movement movement ? names[movement.MovementDataId] : "trail",
-                    record.Achievement,
-                    Instant(record.AchievedAt),
-                    record.Standing is RecordStanding.Beaten beaten ? $"beaten {Instant(beaten.At)}" : record.Standing.GetType().Name,
-                    record.Lineage is RecordLineage.Replaced replaced ? Instant(replaced.AchievedAt) : "first"))
-                .Order(StringComparer.Ordinal)
-        ];
-    }
-
-    private static string Instant(DateTime at) => DateTime.SpecifyKind(at, DateTimeKind.Utc).ToString("O");
 }
