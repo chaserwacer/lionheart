@@ -99,6 +99,9 @@ enum SetCommand: Equatable, Sendable {
     /// Whether this set counts as work — toward totals, targets and records. A warm-up does not.
     var isWork: Bool { kind.isWork }
 
+    /// Whether this set takes a place in the plan. See `SetKind.takesAPlace`.
+    var takesAPlace: Bool { kind.takesAPlace }
+
     /// Which entry shape this set is, so a screen can offer the same one again without
     /// reconstructing the set. `.trailRun` and `.freeform` are shapes a movement never carries.
     var modality: SetModality {

@@ -440,7 +440,10 @@ warm-up is never a precedent, so the set after a ramp opens on the work. The row
 A lift is working, warm-up, drop or failure. Warm-ups are numbered apart and marked "W", answer no
 target, count toward no total and never badge a record — the server keeps them out of every record
 for the same reason. History, a movement's page and the training load read finished sessions the
-same way: their counts, totals, lines and charts are the work. The kind is chosen in the entry row's set-type menu, beside the measure, and a
+same way: their counts, totals, lines and charts are the work. A drop set counts toward totals and
+records but takes no place in the plan (`SetKind.takesAPlace`): it extends the set before it, so it
+answers no target, does not raise a routine's count, and the set after it is read against last
+time's next working set. The kind is chosen in the entry row's set-type menu, beside the measure, and a
 warm-up ramp logs its steps as warm-ups.
 
 ### Plates and warm-ups

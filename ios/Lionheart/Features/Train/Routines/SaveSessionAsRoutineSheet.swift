@@ -75,7 +75,7 @@ struct SaveSessionAsRoutineSheet: View {
         let movements = Self.movementOrder(of: session)
         let names = movements.prefix(4).map { library.fullName(of: $0) }.joined(separator: ", ")
         let more = movements.count > 4 ? " +\(movements.count - 4)" : ""
-        let workingSets = session.sets.count(where: \.kind.isWork)
+        let workingSets = session.sets.count(where: \.kind.takesAPlace)
 
         return Button {
             chosen = id

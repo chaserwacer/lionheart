@@ -36,7 +36,7 @@ struct SetGuide: Equatable, Sendable {
         let position = workout.workingSetCount(on: movementDataId)
         // Said only when the fields differ from it: a row opened on last time's numbers already
         // shows them, and the line is for comparing once the athlete has changed one.
-        let prior = draft.kind.isWork
+        let prior = draft.kind.takesAPlace
             ? previous.flatMap { performance in
                 performance.workingSet(at: position).map { LastTime(set: $0, day: performance.date) }
             }

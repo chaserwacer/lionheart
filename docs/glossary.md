@@ -38,7 +38,7 @@ first and then in the code.
 | **Record rebuild** | Re-detecting an athlete's records from scratch over every completed session, oldest first — what keeps the chains right when history arrives out of order. Writes nothing when the records are already right. |
 | **Retracting a record** | Withdrawing the standing record because the set behind it was not real, which puts back whatever it beat. The only edit an athlete makes to a record. |
 | **Set kind** | What a lift was for: working, warm-up, drop or failure. A warm-up sets no record and counts toward no total or target; drop and failure sets count like working sets. |
-| **Working set** | A set that is the work rather than preparation for it — every kind but the warm-up. |
+| **Working set** | A set that takes a place in the plan: a working or failure set, the nth of its movement, read against the nth target, a routine's count and last time's nth working set. A warm-up prepares and a drop set extends the set before it, so neither takes a place; a drop set still counts toward totals and records. |
 | **Routine** | A session trained again and again, saved: a name and an order of movements with a working-set count each, and no weights. A workout starts from one in a tap. |
 | **Routine origin** | Whether a session was trained from a routine, and which: ad hoc, or from a routine. Kept when the routine is deleted. |
 | **Previous performance** | A movement's sets from the most recent completed session holding it — "last time". |

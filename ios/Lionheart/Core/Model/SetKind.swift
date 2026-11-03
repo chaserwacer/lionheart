@@ -47,6 +47,17 @@ enum SetKind: Hashable, Sendable {
         }
     }
 
+    /// Whether the set takes a place in the plan — the nth working set of a movement, which a target,
+    /// a routine's count and last time's set at the same position are read against. A warm-up
+    /// prepares for the work and a drop set extends the set before it, so neither takes one; a drop
+    /// set still counts toward totals and records, which `isWork` answers.
+    var takesAPlace: Bool {
+        switch self {
+        case .working, .failure, .unrecognised: true
+        case .warmUp, .drop: false
+        }
+    }
+
     /// The kinds the entry row offers.
     static let offered: [SetKind] = [.working, .warmUp, .drop, .failure]
 

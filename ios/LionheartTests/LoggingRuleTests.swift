@@ -370,6 +370,22 @@ struct WorkoutSummaryTests {
             addedMovementDataIds: [Self.dip], routine: routine)
 
         #expect(!Self.summary(workout).departsFromRoutine)
+        #expect(Self.summary(workout).movements.first?.workingSets == 2)
+        #expect(WorkoutReading.of(workout).movements.first?.progress == .within(logged: 2, of: 2))
+    }
+
+    @Test("A drop set takes no place, so the next set is compared with last time's next working set")
+    func aDropSetTakesNoPlace() {
+        let workout = AWorkout.live(sets: [
+            AWorkout.lift(reps: 8, weight: 160, unit: .pounds),
+            AWorkout.lift(reps: 10, weight: 115, unit: .pounds, kind: .drop),
+        ])
+
+        let next = SetDefaults.nextSet(on: AWorkout.bench, in: workout, previous: PreviousColumnTests.lastTime).liftPart
+
+        #expect(workout.workingSetCount(on: AWorkout.bench) == 1)
+        #expect(next?.weight == 160)
+        #expect(next?.reps == 6)
     }
 
     @Test("A workout trained exactly as its routine offers no update")

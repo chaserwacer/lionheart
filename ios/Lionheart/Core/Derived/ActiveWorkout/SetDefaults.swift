@@ -78,7 +78,7 @@ enum SetDefaults {
     private static func precedents(
         on movementDataId: UUID, in workout: ActiveWorkout, previous: PreviousPerformance?
     ) -> (last: SetCommand?, target: SetPrescription?, prior: SetEntry?) {
-        let last = workout.sets.last { $0.movementDataId == movementDataId && $0.command.isWork }
+        let last = workout.sets.last { $0.movementDataId == movementDataId && $0.command.takesAPlace }
         let target = WorkoutReading.of(workout)
             .movements.first { $0.movementDataId == movementDataId }?
             .nextTarget

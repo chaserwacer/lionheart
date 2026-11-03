@@ -140,17 +140,11 @@ struct WorkoutSummary: Equatable, Sendable, Identifiable {
     /// of time or skipped it today, which is not a decision to drop it from the routine; taking it
     /// out of the workout is. A movement added today and never trained is left out, and so is one
     /// only warmed up on. A drop set extends the set before it rather than being one of the
-    /// routine's sets, as the server counts a routine saved from a session.
+    /// routine's sets (`SetKind.takesAPlace`), as the server counts a routine saved from a session.
     private static func routineMovements(of reading: WorkoutReading, routine: WorkoutRoutine?) -> [RoutineMovement] {
         reading.movements.compactMap { movement in
-            let trained = movement.sets.count(where: {
-                switch $0.logged.command.kind {
-                case .working, .failure, .unrecognised: true
-                case .warmUp, .drop: false
-                }
-            })
-            let sets = trained > 0
-                ? trained
+            let sets = movement.workingSetCount > 0
+                ? movement.workingSetCount
                 : routine?.workingSets(of: movement.movementDataId) ?? 0
             guard sets > 0 else { return nil }
             return RoutineMovement(

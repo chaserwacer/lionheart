@@ -47,9 +47,9 @@ struct WorkoutReading: Equatable, Sendable {
 
         var id: UUID { movementDataId }
 
-        /// How many sets so far were the work, which is what targets and the plan count. A warm-up
-        /// answers nothing.
-        var workingSetCount: Int { sets.count(where: { $0.logged.command.isWork }) }
+        /// How many sets so far took a place in the plan, which is what targets and the plan count.
+        /// A warm-up answers nothing, and a drop set belongs to the set before it.
+        var workingSetCount: Int { sets.count(where: { $0.logged.command.takesAPlace }) }
 
         /// How many working sets the movement is meant to get: one per target, else the routine's
         /// count, else none.
@@ -170,13 +170,20 @@ struct WorkoutReading: Equatable, Sendable {
             ?? movements.last?.movementDataId
     }
 
-    /// Numbers each set within its kind of work (`SetKind.numbers`), and pairs each working set
-    /// with the target it answers: the nth working set, the nth target.
+    /// Numbers each set within its kind of work (`SetKind.numbers`), and pairs each set that takes
+    /// a place in the plan with the target it answers: the nth such set, the nth target.
     private static func numbered(_ logged: [LoggedSet], against targets: [SetPrescription]) -> [NumberedSet] {
-        zip(logged, SetKind.numbers(of: logged.map(\.command.kind))).map { performed, number in
-            let target = performed.command.isWork && number <= targets.count ? targets[number - 1] : nil
-            return NumberedSet(number: number, logged: performed, target: target)
-        }
+        let places = logged.reduce(into: (places: [Int?](), taken: 0)) { state, performed in
+            guard performed.command.takesAPlace else { state.places.append(nil); return }
+            state.places.append(state.taken)
+            state.taken += 1
+        }.places
+        return zip(zip(logged, SetKind.numbers(of: logged.map(\.command.kind))), places)
+            .map { pair, place in
+                let (performed, number) = pair
+                let target = place.flatMap { $0 < targets.count ? targets[$0] : nil }
+                return NumberedSet(number: number, logged: performed, target: target)
+            }
     }
 
     private static func firstAppearances(of ids: [UUID]) -> [UUID] {
