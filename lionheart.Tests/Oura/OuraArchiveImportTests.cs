@@ -79,6 +79,40 @@ public class OuraArchiveImportTests : IDisposable
         Assert.Equal(50, activity.Reading.Score);
     }
 
+    [Theory]
+    [InlineData("vO2_max")]
+    [InlineData("daily_cardiovascular_age")]
+    public async Task The_cardio_collections_the_archive_never_held_say_so(string collection)
+    {
+        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.ArchiveDirectory));
+
+        var outcome = Assert.Single(report.Collections, c => c.Collection == collection).Outcome;
+        Assert.Equal($"{collection}.jsonl", Assert.IsType<OuraCollectionOutcome.NoArchiveFile>(outcome).ExpectedName);
+    }
+
+    [Fact]
+    public async Task Importing_again_fills_in_the_classification_on_days_stored_without_one()
+    {
+        // The backfill path: days imported before the classification was kept hold no timeline,
+        // and the same archive read again hands each its own, keyed by Oura's id as always.
+        await ImportAsync(RecordedPayloads.ArchiveDirectory);
+        await using (var context = _database.CreateContext())
+        {
+            foreach (var day in await context.OuraDailyActivity.ToListAsync())
+            {
+                day.Apply(day.Day, day.Reading with { Timeline = null });
+            }
+            await context.SaveChangesAsync();
+        }
+
+        await ImportAsync(RecordedPayloads.ArchiveDirectory);
+
+        await using var reread = _database.CreateContext();
+        var days = await reread.OuraDailyActivity.ToListAsync();
+        Assert.Equal(2, days.Count);
+        Assert.All(days, day => Assert.Equal(288, day.Reading.Timeline?.Classes.Length));
+    }
+
     [Fact]
     public async Task Running_the_import_twice_stores_nothing_the_second_time()
     {

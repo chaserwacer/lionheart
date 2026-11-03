@@ -49,8 +49,9 @@ namespace lionheart.Data
         public DbSet<FacetValue> FacetValues { get; set; }
         public DbSet<FocusPin> FocusPins { get; set; }
 
-        // Oura — design in docs/oura-integration.md. One table per collection: six documents that
-        // describe a calendar day, four that describe events within one.
+        // Oura — design in docs/oura-integration.md. One table per collection: eight documents that
+        // describe a calendar day, four that describe events within one, and the all-day heart-rate
+        // series stored as one run per UTC day.
         public DbSet<OuraDailyActivity> OuraDailyActivity { get; set; }
         public DbSet<OuraDailyReadiness> OuraDailyReadiness { get; set; }
         public DbSet<OuraDailySleep> OuraDailySleep { get; set; }
@@ -61,6 +62,9 @@ namespace lionheart.Data
         public DbSet<OuraWorkout> OuraWorkouts { get; set; }
         public DbSet<OuraSession> OuraSessions { get; set; }
         public DbSet<OuraTag> OuraTags { get; set; }
+        public DbSet<OuraVo2Max> OuraVo2Max { get; set; }
+        public DbSet<OuraDailyCardiovascularAge> OuraDailyCardiovascularAge { get; set; }
+        public DbSet<OuraHeartRateDay> OuraHeartRateDays { get; set; }
 
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {

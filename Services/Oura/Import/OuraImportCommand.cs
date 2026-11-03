@@ -67,10 +67,10 @@ internal static class OuraImportCommand
             Console.WriteLine(collection.Outcome switch
             {
                 OuraCollectionOutcome.Read read =>
-                    $"{collection.Collection,-16} {read.Stored,6} stored of {read.Lines,6} lines"
+                    $"{collection.Collection,-24} {read.Stored,6} stored of {read.Lines,6} lines"
                     + (read.Rejected.Count is 0 ? string.Empty : $", {read.Rejected.Count} rejected"),
                 OuraCollectionOutcome.NoArchiveFile missing =>
-                    $"{collection.Collection,-16}      - no {missing.ExpectedName} in the archive",
+                    $"{collection.Collection,-24}      - no {missing.ExpectedName} in the archive",
                 _ => throw new UnreachableException()
             });
         }

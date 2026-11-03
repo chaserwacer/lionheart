@@ -14,6 +14,8 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
     case stress(OuraDay.Stress)
     case bloodOxygen(OuraDay.Spo2)
     case resilience(OuraDay.Resilience)
+    case vo2Max(OuraDay.Vo2Max)
+    case cardiovascularAge(OuraDay.CardiovascularAge)
 
     var id: String { title }
 
@@ -25,6 +27,8 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
         case .stress: "Stress"
         case .bloodOxygen: "Blood oxygen"
         case .resilience: "Resilience"
+        case .vo2Max: "VO₂max"
+        case .cardiovascularAge: "Cardiovascular age"
         }
     }
 
@@ -36,7 +40,7 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
         case .readiness(let readiness): readiness.score
         case .sleep(let sleep): sleep.score
         case .activity(let activity): activity.score
-        case .stress, .bloodOxygen, .resilience: nil
+        case .stress, .bloodOxygen, .resilience, .vo2Max, .cardiovascularAge: nil
         }
     }
 
@@ -152,6 +156,18 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
                     Figure(label: "Stress", value: MeasurementText.plain($0))
                 },
             ].compactMap(\.self)
+
+        case .vo2Max(let estimate):
+            // Oura's estimate from heart rate and walking, not a test; the label says so.
+            return [Figure(label: "Estimate, ml/kg/min", value: "\(estimate.value)")]
+
+        case .cardiovascularAge(let age):
+            return [
+                age.vascularAge.map { Figure(label: "Predicted, years", value: "\($0)") },
+                age.pulseWaveVelocity.map {
+                    Figure(label: "Pulse-wave velocity", value: MeasurementText.plain($0) + " m/s")
+                },
+            ].compactMap(\.self)
         }
     }
 
@@ -170,6 +186,8 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
         if let stress = day.stress { panels.append(.stress(stress)) }
         if let spo2 = day.spo2 { panels.append(.bloodOxygen(spo2)) }
         if let resilience = day.resilience { panels.append(.resilience(resilience)) }
+        if let vo2Max = day.vo2Max { panels.append(.vo2Max(vo2Max)) }
+        if let age = day.cardiovascularAge { panels.append(.cardiovascularAge(age)) }
         return panels
     }
 }

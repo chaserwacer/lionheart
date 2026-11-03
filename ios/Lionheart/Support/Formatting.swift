@@ -262,6 +262,26 @@ enum Formatting {
         }
     }
 
+    // MARK: - Cardio and habits
+
+    /// A time of day from minutes after midnight, on a 24-hour clock: `23:30`, `07:05`. Wraps, so a
+    /// mean bedtime of 25:10 reads `01:10`.
+    static func clockTime(minutesAfterMidnight minutes: Double) -> String {
+        let whole = (Int(minutes.rounded()) % 1440 + 1440) % 1440
+        return String(format: "%02d:%02d", whole / 60, whole % 60)
+    }
+
+    /// A change between two spans, signed with a true minus: `+12`, `−3.5`, `±0`.
+    static func change(_ value: Double, fractionDigits: Int = 0) -> String {
+        let scale = pow(10, Double(fractionDigits))
+        return (value * scale).rounded() == 0 ? "±0" : signed(value, fractionDigits: fractionDigits)
+    }
+
+    /// Minutes in words, the way a sitting or a session length is read: `48 min`, `1 h 20 min`.
+    static func minutes(_ value: Double) -> String {
+        MeasurementText.spelledDuration(seconds: value * 60)
+    }
+
     private static func whole(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(0)).grouping(.never))
     }

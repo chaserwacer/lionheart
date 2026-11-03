@@ -110,6 +110,15 @@ internal sealed class WireReader
 
     public int Int(int? value, string field) => value ?? Defect(field, "missing", 0);
 
+    /// <summary>A count or rate that cannot be zero or below — a heart rate, a VO2max.</summary>
+    public int Positive(int? value, string field) =>
+        value switch
+        {
+            null => Defect(field, "missing", 1),
+            <= 0 => Defect(field, $"not positive: {value}", 1),
+            _ => value.Value,
+        };
+
     public double Double(double? value, string field) => value ?? Defect(field, "missing", 0d);
 
     public string Text(string? value, string field) =>

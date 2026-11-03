@@ -16,6 +16,10 @@ struct TodaySnapshot: Equatable, Sendable {
     /// The ring's reading, for `day` — or, on today, for the newest day it has filed, which the
     /// screen labels when it is not today.
     let recovery: RecoveryReading?
+    /// The newest main sleep filed on or before the recovery's day — the night its figures were
+    /// read from, or the last one the ring scored when it filed a readiness without a night — with
+    /// its clock time, for the hypnogram.
+    let night: OuraEvent<OuraSleepPeriod>?
     /// What was trained or skipped on `day`, in the server's order. On today it leaves out what is still
     /// to come and what is in progress, which have their own answers below.
     let sessionsOnDay: [TrainingSession]
@@ -106,6 +110,11 @@ extension TodaySnapshot {
         return TodaySnapshot(
             day: day,
             recovery: recoveryDay.flatMap { RecoveryReading.reading(for: $0, days: ouraDays, nights: nights, today: today) },
+            night: recoveryDay.flatMap { recoveryDay in
+                nights
+                    .filter { $0.reading.isMainSleep && $0.day <= recoveryDay && $0.day >= earliestFallback }
+                    .max { $0.day < $1.day }
+            },
             sessionsOnDay: onDay,
             lastCompleted: isToday && !performedToday ? lastCompleted(in: sessions, onOrBefore: today) : nil,
             nextPlanned: isToday ? nextPlanned(in: sessions, onOrAfter: today) : nil,

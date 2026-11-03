@@ -2,7 +2,7 @@ import Foundation
 
 /// Everything the ring recorded about one calendar day.
 ///
-/// Six collections, each independently absent. Oura files them separately and the ring is off the
+/// Eight collections, each independently absent. Oura files them separately and the ring is off the
 /// finger for stretches, so a day with a sleep score and no readiness is an ordinary row rather
 /// than a damaged one — which is why every panel is an optional value and not a zeroed struct.
 ///
@@ -21,6 +21,8 @@ struct OuraDay: Equatable, Sendable, Identifiable {
     let spo2: Spo2?
     let stress: Stress?
     let resilience: Resilience?
+    let vo2Max: Vo2Max?
+    let cardiovascularAge: CardiovascularAge?
 
     var id: CalendarDay { date }
 
@@ -28,6 +30,20 @@ struct OuraDay: Equatable, Sendable, Identifiable {
     var isEmpty: Bool {
         activity == nil && readiness == nil && sleep == nil
             && spo2 == nil && stress == nil && resilience == nil
+            && vo2Max == nil && cardiovascularAge == nil
+    }
+
+    /// Oura's VO2max estimate, ml/kg/min — an estimate from heart rate and walking, not a test.
+    struct Vo2Max: Equatable, Sendable {
+        let value: Int
+        let estimatedAt: Date?
+    }
+
+    /// Oura's predicted vascular age, and the pulse-wave velocity (m/s) it derives from it. A model
+    /// output; the two are independently absent.
+    struct CardiovascularAge: Equatable, Sendable {
+        let vascularAge: Int?
+        let pulseWaveVelocity: Double?
     }
 
     /// How much the athlete moved, and Oura's score for it.
@@ -152,7 +168,29 @@ extension OuraDay: Decodable {
             sleep: container.lenient(Sleep.self, "sleep"),
             spo2: container.lenient(Spo2.self, "spo2"),
             stress: container.lenient(Stress.self, "stress"),
-            resilience: container.lenient(Resilience.self, "resilience"))
+            resilience: container.lenient(Resilience.self, "resilience"),
+            vo2Max: container.lenient(Vo2Max.self, "vo2Max"),
+            cardiovascularAge: container.lenient(CardiovascularAge.self, "cardiovascularAge"))
+    }
+}
+
+extension OuraDay.Vo2Max: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        guard let value = container.lenient(Int.self, "vo2Max") else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath, debugDescription: "A VO2max estimate without its value."))
+        }
+        self.init(value: value, estimatedAt: container.instant("estimatedAt"))
+    }
+}
+
+extension OuraDay.CardiovascularAge: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        self.init(
+            vascularAge: container.lenient(Int.self, "vascularAge"),
+            pulseWaveVelocity: container.lenient(Double.self, "pulseWaveVelocity"))
     }
 }
 

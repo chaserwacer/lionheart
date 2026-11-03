@@ -39,6 +39,60 @@ public class OuraPersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_heart_rate_day_round_trips_its_samples_with_their_instants_and_sources()
+    {
+        var day = new DateOnly(2026, 3, 14);
+        var reading = new HeartRateDayReading(
+        [
+            new HeartRateSample(new DateTimeOffset(2026, 3, 14, 0, 2, 51, TimeSpan.Zero), 52, "sleep"),
+            new HeartRateSample(new DateTimeOffset(2026, 3, 14, 17, 40, 5, TimeSpan.Zero), 141, "workout"),
+        ]);
+
+        await using (var context = _database.CreateContext())
+        {
+            context.OuraHeartRateDays.Add(new OuraHeartRateDay(_database.UserId, day, reading));
+            await context.SaveChangesAsync();
+        }
+
+        await using var reread = _database.CreateContext();
+        var stored = await reread.OuraHeartRateDays.SingleAsync();
+
+        Assert.Equal(day, stored.Day);
+        Assert.Equal(reading, stored.Reading);
+    }
+
+    [Fact]
+    public async Task A_heart_rate_window_crossing_a_UTC_midnight_reads_both_days_and_only_what_is_inside_it()
+    {
+        // Callers ask in instants and never see the UTC day a run is stored under, so a workout at
+        // 19:30 in New York — past midnight in UTC — must come back whole.
+        await using (var context = _database.CreateContext())
+        {
+            context.OuraHeartRateDays.AddRange(
+                new OuraHeartRateDay(_database.UserId, new DateOnly(2026, 3, 14), new HeartRateDayReading(
+                [
+                    new HeartRateSample(new DateTimeOffset(2026, 3, 14, 23, 0, 0, TimeSpan.Zero), 70, "awake"),
+                    new HeartRateSample(new DateTimeOffset(2026, 3, 14, 23, 55, 0, TimeSpan.Zero), 150, "workout"),
+                ])),
+                new OuraHeartRateDay(_database.UserId, new DateOnly(2026, 3, 15), new HeartRateDayReading(
+                [
+                    new HeartRateSample(new DateTimeOffset(2026, 3, 15, 0, 5, 0, TimeSpan.Zero), 155, "workout"),
+                    new HeartRateSample(new DateTimeOffset(2026, 3, 15, 1, 0, 0, TimeSpan.Zero), 80, "awake"),
+                ])));
+            await context.SaveChangesAsync();
+        }
+
+        await using var reread = _database.CreateContext();
+        var workout = new TimeWindow(
+            new DateTimeOffset(2026, 3, 14, 19, 30, 0, TimeSpan.FromHours(-4)),
+            new DateTimeOffset(2026, 3, 14, 20, 30, 0, TimeSpan.FromHours(-4)));
+
+        var samples = await reread.OuraHeartRateDays.SamplesAsync(_database.UserId, workout, CancellationToken.None);
+
+        Assert.Equal([150, 155], samples.Select(sample => sample.Bpm));
+    }
+
+    [Fact]
     public async Task A_sleep_period_round_trips_its_sample_runs_including_the_gaps_in_them()
     {
         // Materialization through a JSON column breaks silently, and a run of samples with holes
@@ -269,7 +323,9 @@ public class OuraPersistenceTests : IDisposable
             LowActivityTimeSeconds: 12000,
             MediumActivityTimeSeconds: 2160,
             HighActivityTimeSeconds: 60,
-            NonWearTimeSeconds: 4140);
+            NonWearTimeSeconds: 4140,
+            Timeline: new ActivityTimeline(
+                new DateTimeOffset(2026, 3, 14, 4, 0, 0, TimeSpan.FromHours(-4)), "1111222333445532"));
 
         public static SleepPeriodReading SleepReading => new(
             Period: new Interval(Bedtime, Bedtime.AddHours(8)),

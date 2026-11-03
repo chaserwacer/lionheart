@@ -62,9 +62,10 @@ public class OuraSyncServiceTests : IAsyncLifetime
         ResultAssert.Succeeded(await Sync());
 
         Assert.Equal(
-            ["daily_activity", "daily_readiness", "daily_resilience", "daily_sleep", "daily_spo2",
-             "daily_stress", "session", "sleep", "tag", "workout"],
-            _api.RequestedUris.Select(CollectionOf).Order());
+            ["daily_activity", "daily_cardiovascular_age", "daily_readiness", "daily_resilience",
+             "daily_sleep", "daily_spo2", "daily_stress", "heartrate", "session", "sleep", "tag",
+             "vO2_max", "workout"],
+            _api.RequestedUris.Select(CollectionOf).Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -123,6 +124,145 @@ public class OuraSyncServiceTests : IAsyncLifetime
         await using var context = _database.CreateContext();
         Assert.Equal(3, await context.OuraSleepPeriods.CountAsync());
     }
+
+    // ---- The all-day heart-rate series ----
+
+    [Fact]
+    public async Task Heart_rate_is_asked_for_in_whole_UTC_days_through_the_day_after_the_range()
+    {
+        // The athlete's evening is the next UTC day anywhere west of Greenwich, so the window runs
+        // to the midnight two days past the last day asked for. Instants go as UTC with a Z: a +hh
+        // offset would arrive as a space unless escaped.
+        _api.AnswersEverythingElseEmpty();
+
+        await Sync();
+
+        var uri = UriFor("heartrate");
+        Assert.Contains("start_datetime=2026-07-25T00:00:00Z", uri);
+        Assert.Contains("end_datetime=2026-08-02T00:00:00Z", uri);
+    }
+
+    [Fact]
+    public async Task A_range_longer_than_a_slice_is_asked_for_in_consecutive_slices()
+    {
+        _api.AnswersEverythingElseEmpty();
+        var quarter = new DayRange(new DateOnly(2026, 5, 1), new DateOnly(2026, 7, 31));
+
+        ResultAssert.Succeeded(await SyncService().SyncAsync(_user, quarter, CancellationToken.None));
+
+        var asked = _api.RequestedUris.Where(uri => CollectionOf(uri) == "heartrate").ToList();
+        Assert.Equal(
+            ["start_datetime=2026-05-01T00:00:00Z&end_datetime=2026-05-31T00:00:00Z",
+             "start_datetime=2026-05-31T00:00:00Z&end_datetime=2026-06-30T00:00:00Z",
+             "start_datetime=2026-06-30T00:00:00Z&end_datetime=2026-07-30T00:00:00Z",
+             "start_datetime=2026-07-30T00:00:00Z&end_datetime=2026-08-02T00:00:00Z"],
+            asked.Select(uri => uri.Split('?')[1]));
+    }
+
+    [Fact]
+    public async Task Heart_rate_samples_are_stored_as_one_run_per_UTC_day_oldest_first()
+    {
+        _api.AnswersEverythingElseEmpty().RespondsTo("heartrate", FakeOuraApi.Page(string.Join(",",
+            Beat("2026-07-26T23:55:00+00:00", 58, "awake"),
+            Beat("2026-07-26T23:50:00+00:00", 57, "awake"),
+            Beat("2026-07-27T00:05:00+00:00", 49, "sleep"))));
+
+        var report = ResultAssert.Succeeded(await Sync());
+
+        var tally = Assert.Single(report.Collections, c => c.Collection == "heartrate");
+        Assert.Equal(3, tally.Received);
+        Assert.Equal(3, tally.Stored);
+
+        await using var context = _database.CreateContext();
+        var days = await context.OuraHeartRateDays.OrderBy(day => day.Day).ToListAsync();
+        Assert.Equal([new DateOnly(2026, 7, 26), new DateOnly(2026, 7, 27)], days.Select(day => day.Day));
+        Assert.Equal([57, 58], days[0].Reading.Samples.Select(sample => sample.Bpm));
+        Assert.Equal("sleep", Assert.Single(days[1].Reading.Samples).Source);
+    }
+
+    [Fact]
+    public async Task A_re_synced_heart_rate_day_is_replaced_by_what_Oura_now_holds()
+    {
+        // Whole UTC days are what make this safe: the slice covers the day entirely, so the answer
+        // is the day as Oura holds it now rather than part of it.
+        _api.AnswersEverythingElseEmpty().RespondsTo("heartrate", FakeOuraApi.Page(
+            Beat("2026-07-26T10:00:00+00:00", 70, "awake")));
+        await Sync();
+
+        _api.AnswersEverythingElseEmpty().RespondsTo("heartrate", FakeOuraApi.Page(string.Join(",",
+            Beat("2026-07-26T10:00:00+00:00", 71, "awake"),
+            Beat("2026-07-26T10:05:00+00:00", 72, "awake"))));
+        await Sync();
+
+        await using var context = _database.CreateContext();
+        var day = Assert.Single(await context.OuraHeartRateDays.ToListAsync());
+        Assert.Equal([71, 72], day.Reading.Samples.Select(sample => sample.Bpm));
+    }
+
+    [Fact]
+    public async Task An_unreadable_heart_rate_sample_is_reported_and_the_rest_of_its_day_is_stored()
+    {
+        _api.AnswersEverythingElseEmpty().RespondsTo("heartrate", FakeOuraApi.Page(string.Join(",",
+            Beat("2026-07-26T10:00:00+00:00", 70, "awake"),
+            """{"timestamp":"2026-07-26T10:05:00+00:00","source":"awake"}""")));
+
+        var report = ResultAssert.Succeeded(await Sync());
+
+        var tally = Assert.Single(report.Collections, c => c.Collection == "heartrate");
+        Assert.Equal(2, tally.Received);
+        Assert.Equal(1, tally.Stored);
+        Assert.Contains("bpm: missing", Assert.Single(tally.Rejected));
+    }
+
+    [Fact]
+    public async Task A_heart_rate_sample_outside_the_slice_it_came_back_in_is_not_filed()
+    {
+        // Oura does not document whether its window ends are inclusive; a sample on the closing
+        // midnight belongs to the next slice, which files it with the rest of its day.
+        _api.AnswersEverythingElseEmpty().RespondsTo("heartrate", FakeOuraApi.Page(
+            Beat("2026-08-02T00:00:00+00:00", 60, "sleep")));
+
+        var report = ResultAssert.Succeeded(await Sync());
+
+        Assert.Equal(0, Assert.Single(report.Collections, c => c.Collection == "heartrate").Stored);
+    }
+
+    [Theory]
+    [InlineData("vO2_max")]
+    [InlineData("daily_cardiovascular_age")]
+    [InlineData("heartrate")]
+    public async Task A_schema_only_collection_Oura_refuses_is_reported_and_the_run_still_succeeds(string collection)
+    {
+        // These three are mapped from Oura's published schema with no recorded payload behind
+        // them. A credential without their scope, or a page that does not parse, must cost that
+        // collection and nothing else.
+        _api.AnswersEverythingElseEmpty()
+            .RespondsTo("sleep", FakeOuraApi.Page(string.Join(",", RecordedPayloads.Lines("sleep"))))
+            .RespondsTo(collection, "{\"detail\":\"Missing scope\"}", HttpStatusCode.Forbidden);
+
+        var report = ResultAssert.Succeeded(await Sync());
+
+        var refused = Assert.Single(report.Collections, c => c.Collection == collection);
+        Assert.Contains("could not be read", Assert.Single(refused.Rejected));
+        Assert.Equal(3, Assert.Single(report.Collections, c => c.Collection == "sleep").Stored);
+    }
+
+    [Fact]
+    public async Task A_page_that_does_not_parse_on_a_schema_only_collection_is_reported_not_fatal()
+    {
+        // A VO2max that arrives as a fraction, where the schema says integer, fails the whole page.
+        _api.AnswersEverythingElseEmpty().RespondsTo("vO2_max", FakeOuraApi.Page(
+            """{"id":"6f1b0c7e-2f6e-4f0b-9a5e-0d6f3c0b1a11","day":"2026-07-26","timestamp":"2026-07-26T07:14:00-04:00","vo2_max":46.5}"""));
+
+        var report = ResultAssert.Succeeded(await Sync());
+
+        Assert.Contains("could not be read",
+            Assert.Single(Assert.Single(report.Collections, c => c.Collection == "vO2_max").Rejected));
+    }
+
+    /// <summary>One heart-rate row in Oura's documented shape (OpenAPI 1.43, PublicHeartRateRow).</summary>
+    private static string Beat(string at, int bpm, string source) =>
+        $$"""{"timestamp":"{{at}}","timestamp_unix":0,"bpm":{{bpm}},"source":"{{source}}"}""";
 
     // ---- Untrusted upstream ----
 
