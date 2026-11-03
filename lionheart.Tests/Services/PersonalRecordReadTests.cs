@@ -240,6 +240,43 @@ public class PersonalRecordReadTests : IAsyncLifetime
         _athletes.RecordsAsync(service => service.GetHistoryAsync(
             _athletes.Owner, new RecordHistoryQuery(_bench, kind, bracket), default));
 
+    [Fact]
+    public async Task The_chat_tool_gives_a_movement_one_headline_line_with_its_id()
+    {
+        // The whole standing set is over a thousand records; handed to the model whole it cost
+        // dollars a call. A line names the headline records and the id to ask for the rest.
+        await LogAsync(First, new LiftSetCommand(_bench, 5, 225, WeightUnit.Pounds, null));
+        await LogAsync(Second, new LiftSetCommand(_bench, 3, 255, WeightUnit.Pounds, null));
+
+        var digest = Assert.Single(await _athletes.RecordsAsync(service =>
+            ((PersonalRecordService)service).GetPersonalRecordsForChatAsync(_athletes.Owner)));
+
+        Assert.Equal(_bench, digest.MovementDataId);
+        Assert.StartsWith("Bench Press", digest.Subject);
+        Assert.Contains("heaviest 255 lb × 3 (2026-09-10)", digest.Records);
+        Assert.Contains("3RM 255 lb × 3", digest.Records);
+        Assert.Contains("5RM 225 lb × 5 (2026-09-03)", digest.Records);
+        Assert.DoesNotContain("2RM", digest.Records);
+    }
+
+    [Fact]
+    public async Task The_chat_tool_answers_for_the_25_movements_set_most_recently()
+    {
+        var movements = new List<Guid>();
+        for (var day = 0; day < 26; day++)
+        {
+            var movement = await _athletes.PlantMovementAsync(_athletes.OwnerId, $"Lift {day:00}");
+            movements.Add(movement);
+            await LogAsync(First.AddDays(day), new LiftSetCommand(movement, 5, 100, WeightUnit.Pounds, null));
+        }
+
+        var digests = await _athletes.RecordsAsync(service => ((PersonalRecordService)service).GetPersonalRecordsForChatAsync(_athletes.Owner));
+
+        Assert.Equal(25, digests.Count);
+        Assert.Equal(movements[25], digests[0].MovementDataId);
+        Assert.DoesNotContain(digests, digest => digest.MovementDataId == movements[0]);
+    }
+
     private Task LogAsync(DateTimeOffset performed, params SetCommand[] sets) =>
         _athletes.SessionsAsync(service => service.LogCompletedAsync(
             _athletes.Owner,
