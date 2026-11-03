@@ -27,6 +27,8 @@ final class AppContainer {
     let outbox: WorkoutOutbox
     let train: TrainStore
     let movements: MovementLibraryStore
+    let routines: RoutineStore
+    let bodyweight: BodyweightStore
 
     private let tokens: TokenProvider
     private let memory: ReadMemory
@@ -55,7 +57,8 @@ final class AppContainer {
         // Built before the workout store, which names the current movement on the Lock Screen and
         // so needs to be able to ask this for a title. Nothing here reaches back the other way.
         let movements = MovementLibraryStore(
-            movements: MovementsAPI(client: client), records: PersonalRecordsAPI(client: client))
+            movements: MovementsAPI(client: client), records: PersonalRecordsAPI(client: client),
+            sessions: sessions)
         self.movements = movements
         let outbox = WorkoutOutbox(sessions: sessions)
         self.outbox = outbox
@@ -71,6 +74,8 @@ final class AppContainer {
             onServerUnanswered: { reachability.record(answered: false) })
         self.activeWorkout = activeWorkout
         train = TrainStore(sessions: sessions, activeWorkout: activeWorkout, outbox: outbox)
+        routines = RoutineStore(routines: RoutinesAPI(client: client))
+        bodyweight = BodyweightStore(bodyweight: BodyweightAPI(client: client))
         history = HistoryStore(
             sessions: TrainingSessionsAPI(client: client),
             library: movements,
@@ -105,10 +110,13 @@ final class AppContainer {
         // empties the screen it was loading into. The profile gate is reset for a sharper reason
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
-        auth.onSignOut { [profile, today, train, movements, history, focus, chat, body, ouraSync, memory] in
+        auth.onSignOut {
+            [profile, today, train, routines, bodyweight, movements, history, focus, chat, body, ouraSync, memory] in
             profile.reset()
             today.reset()
             train.reset()
+            routines.reset()
+            bodyweight.reset()
             movements.reset()
             history.reset()
             focus.reset()
@@ -194,6 +202,8 @@ final class AppContainer {
         await withDiscardingTaskGroup { group in
             if today.state.isWaitingOnServer { group.addTask { await self.today.refresh() } }
             if train.state.isWaitingOnServer { group.addTask { await self.train.refresh() } }
+            if routines.state.isWaitingOnServer { group.addTask { await self.routines.refresh() } }
+            if bodyweight.state.isWaitingOnServer { group.addTask { await self.bodyweight.refresh() } }
             if history.state.isWaitingOnServer { group.addTask { await self.history.refresh() } }
             if focus.state.isWaitingOnServer { group.addTask { await self.focus.refresh() } }
             if body.state.isWaitingOnServer { group.addTask { await self.body.refresh() } }

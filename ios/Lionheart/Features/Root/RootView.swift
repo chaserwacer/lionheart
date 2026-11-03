@@ -69,6 +69,10 @@ private struct SignedInTabs: View {
     /// workout bar taps *into* a screen, and that navigation has to be able to move the selection.
     @State private var selection: Destination = .today
     @State private var isWorkoutPresented = false
+    /// The readout of a workout just finished, waiting for the logging surface to finish leaving:
+    /// one sheet cannot be presented while the one it replaces is still being dismissed.
+    @State private var finishedSummary: WorkoutSummary?
+    @State private var shownSummary: WorkoutSummary?
     @Environment(\.scenePhase) private var scenePhase
 
     enum Destination: Hashable {
@@ -95,6 +99,8 @@ private struct SignedInTabs: View {
                     activeWorkout: container.activeWorkout,
                     outbox: container.outbox,
                     library: container.movements,
+                    routines: container.routines,
+                    bodyweight: container.bodyweight,
                     openWorkout: { isWorkoutPresented = true })
             } label: {
                 TabLabel("Train", systemImage: "record.circle")
@@ -141,10 +147,21 @@ private struct SignedInTabs: View {
         // bar, from Continue or after a launch, and the row's own Log sat under the keys. As a sheet
         // the toolbar is there on the first focus. Swiping it down is the now-playing gesture, and
         // loses nothing Close would not.
-        .sheet(isPresented: $isWorkoutPresented) {
+        .sheet(isPresented: $isWorkoutPresented, onDismiss: {
+            shownSummary = finishedSummary
+            finishedSummary = nil
+        }) {
             ActiveWorkoutView(
                 store: container.activeWorkout,
-                library: container.movements)
+                library: container.movements,
+                bodyweight: container.bodyweight,
+                routines: container.routines,
+                finished: { finishedSummary = $0 },
+                history: container.history,
+                focus: container.focus)
+        }
+        .sheet(item: $shownSummary) { summary in
+            WorkoutSummaryView(summary: summary, library: container.movements, routines: container.routines)
         }
     }
 }

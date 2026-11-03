@@ -34,7 +34,7 @@ enum SetFigures: Equatable, Sendable {
     static func of(_ command: SetCommand) -> SetFigures {
         switch command {
         case .lift(let set):
-            .measured(lift(reps: set.reps, weight: set.weight, unit: set.unit, rpe: set.rpe))
+            .measured(lift(reps: set.reps, weight: set.weight, unit: set.unit, rpe: set.rpe, kind: set.kind))
         case .distanceTime(let set):
             .measured(timed(set.distance, set.unit, set.duration, gain: nil, rpe: set.rpe))
         case .trailRun(let set):
@@ -47,7 +47,7 @@ enum SetFigures: Equatable, Sendable {
     static func of(_ entry: SetEntry) -> SetFigures {
         switch entry {
         case .lift(let set):
-            .measured(lift(reps: set.reps, weight: set.weight, unit: set.unit, rpe: set.rpe))
+            .measured(lift(reps: set.reps, weight: set.weight, unit: set.unit, rpe: set.rpe, kind: set.kind))
         case .distanceTime(let set):
             .measured(timed(set.distance, set.unit, set.duration, gain: nil, rpe: set.rpe))
         case .trailRun(let set):
@@ -61,14 +61,22 @@ enum SetFigures: Equatable, Sendable {
         }
     }
 
-    private static func lift(reps: Int, weight: Double, unit: WeightUnit, rpe: Rpe) -> Measured {
-        Measured(
+    /// A drop or failure set says so in the extra column; a warm-up says so in the set's number,
+    /// which is where the row's reader looks to tell preparation from work.
+    private static func lift(reps: Int, weight: Double, unit: WeightUnit, rpe: Rpe, kind: SetKind) -> Measured {
+        let marked: String? = switch kind {
+        case .drop: "drop"
+        case .failure: "failure"
+        case .working, .warmUp, .unrecognised: nil
+        }
+        return Measured(
             amount: Formatting.measure(weight),
             unit: unit.abbreviation,
             work: "× \(reps)",
-            extra: nil,
+            extra: marked,
             rpe: rpe.value,
-            spoken: "\(Formatting.weight(weight, unit)) for \(Formatting.count(reps, "rep"))")
+            spoken: "\(Formatting.weight(weight, unit)) for \(Formatting.count(reps, "rep"))"
+                + (marked.map { ", \($0) set" } ?? ""))
     }
 
     private static func timed(

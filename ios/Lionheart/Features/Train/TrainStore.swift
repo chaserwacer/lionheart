@@ -164,16 +164,21 @@ final class TrainStore {
         }
     }
 
-    /// An unplanned start — the athlete simply began training.
+    /// An unplanned start — the athlete simply began training, from a routine where one is given.
+    ///
+    /// A routine needs nothing from the server to start: its movements and set counts are in hand,
+    /// and a start that cannot reach the server begins as a deferred start like any other, opening
+    /// its session — named for the routine — when the server answers.
     @discardableResult
-    func startUnplanned() async -> Bool {
+    func startUnplanned(from routine: Routine? = nil) async -> Bool {
         guard !isWorkoutInFlight else { return false }
         action = .running
         let moment = now()
+        let plan = routine.map(WorkoutRoutine.init)
 
         do {
             let started = try await withinPatience { [sessions] in
-                try await sessions.startUnplanned(at: moment)
+                try await sessions.startUnplanned(at: moment, routineId: plan?.routineId)
             }
             guard let active = started.activeSession else {
                 action = .refused(.unavailable("That session did not become an active one."))
@@ -184,7 +189,8 @@ final class TrainStore {
                 startedAt: active.startedAt,
                 prescriptions: [],
                 notes: active.envelope.notes,
-                plannedSessionId: nil)
+                plannedSessionId: nil,
+                routine: plan)
             return true
         } catch let error where Self.isUnreachable(error) {
             adopt(
@@ -192,7 +198,8 @@ final class TrainStore {
                 startedAt: moment,
                 prescriptions: [],
                 notes: "",
-                plannedSessionId: nil)
+                plannedSessionId: nil,
+                routine: plan)
             return true
         } catch {
             action = ActionState.refusal(from: error)
@@ -251,10 +258,11 @@ final class TrainStore {
     /// Begins a workout that already happened. Nothing is sent: `POST /completed` carries the whole
     /// thing when the athlete finishes, which is why this one works with no connection at all.
     @discardableResult
-    func beginAfterTheFact(startedAt: Date) -> Bool {
+    func beginAfterTheFact(startedAt: Date, from routine: Routine? = nil) -> Bool {
         guard !isWorkoutInFlight else { return false }
         action = .idle
-        return activeWorkout.begin(destination: .afterTheFact, startedAt: startedAt)
+        return activeWorkout.begin(
+            destination: .afterTheFact, startedAt: startedAt, routine: routine.map(WorkoutRoutine.init))
     }
 
     /// Takes over an active session the server holds but this device has no document for — one
@@ -291,14 +299,16 @@ final class TrainStore {
         startedAt: Date,
         prescriptions: [SetPrescription],
         notes: String,
-        plannedSessionId: UUID?
+        plannedSessionId: UUID?,
+        routine: WorkoutRoutine? = nil
     ) {
         activeWorkout.begin(
             destination: destination,
             startedAt: startedAt,
             prescriptions: prescriptions,
             notes: notes,
-            plannedSessionId: plannedSessionId)
+            plannedSessionId: plannedSessionId,
+            routine: routine)
         action = .idle
     }
 }

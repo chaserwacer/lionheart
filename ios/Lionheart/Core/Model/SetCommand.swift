@@ -29,6 +29,25 @@ enum SetCommand: Equatable, Sendable {
         let weight: Double
         let unit: WeightUnit
         let rpe: Rpe
+        /// Working unless the athlete said otherwise, which is what nearly every set is.
+        let kind: SetKind
+
+        init(
+            movementDataId: UUID, reps: Int, weight: Double, unit: WeightUnit, rpe: Rpe,
+            kind: SetKind = .working
+        ) {
+            self.movementDataId = movementDataId
+            self.reps = reps
+            self.weight = weight
+            self.unit = unit
+            self.rpe = rpe
+            self.kind = kind
+        }
+
+        /// The same lift as another kind of set.
+        func marked(_ kind: SetKind) -> Lift {
+            Lift(movementDataId: movementDataId, reps: reps, weight: weight, unit: unit, rpe: rpe, kind: kind)
+        }
     }
 
     struct DistanceTime: Equatable, Sendable {
@@ -69,6 +88,17 @@ enum SetCommand: Equatable, Sendable {
         }
     }
 
+    /// What the set was for. Only a lift has a kind; everything else is the work itself.
+    var kind: SetKind {
+        switch self {
+        case .lift(let set): set.kind
+        case .distanceTime, .trailRun, .freeform: .working
+        }
+    }
+
+    /// Whether this set counts as work — toward totals, targets and records. A warm-up does not.
+    var isWork: Bool { kind.isWork }
+
     /// Which entry shape this set is, so a screen can offer the same one again without
     /// reconstructing the set. `.trailRun` and `.freeform` are shapes a movement never carries.
     var modality: SetModality {
@@ -107,7 +137,9 @@ extension SetCommand: Codable {
                 reps: container.lenient("reps", or: 0),
                 weight: container.lenient("weight", or: 0),
                 unit: WeightUnit(wire: container.lenient(Int.self, "unit")),
-                rpe: Rpe(wire: container.lenient(Double.self, "rpe"))))
+                rpe: Rpe(wire: container.lenient(Double.self, "rpe")),
+                // A document written before sets had a kind holds working sets.
+                kind: SetKind(wire: container.lenient(Int.self, "kind"))))
 
         case "distanceTime":
             self = .distanceTime(DistanceTime(
@@ -146,6 +178,7 @@ extension SetCommand: Codable {
             try container.encode(set.weight, forKey: WireKey(stringValue: "weight"))
             try container.encode(set.unit.wire, forKey: WireKey(stringValue: "unit"))
             try container.encode(set.rpe.value, forKey: WireKey(stringValue: "rpe"))
+            try container.encode(set.kind.wire, forKey: WireKey(stringValue: "kind"))
 
         case .distanceTime(let set):
             try container.encode("distanceTime", forKey: .type)

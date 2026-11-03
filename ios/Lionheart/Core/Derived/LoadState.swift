@@ -75,6 +75,16 @@ enum LoadState<Value: Equatable & Sendable>: Equatable, Sendable {
         case .recalled(let value, let asOf): .stale(value, .unreachable(asOf: asOf))
         }
     }
+
+    /// The same state with its value edited — what a write the server confirmed does to the value
+    /// on screen. A stale value stays stale: one edited row does not make the rest current.
+    func editing(_ edit: (Value) -> Value) -> LoadState {
+        switch self {
+        case .loading, .unavailable: self
+        case .loaded(let value): .loaded(edit(value))
+        case .stale(let value, let staleness): .stale(edit(value), staleness)
+        }
+    }
 }
 
 /// Why a value on screen is not current.

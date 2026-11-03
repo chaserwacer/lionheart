@@ -41,12 +41,19 @@ struct WorkoutTotals: Equatable, Sendable {
 
     var isEmpty: Bool { setCount == 0 }
 
+    /// Warm-ups are left out of every figure, as the server leaves them out of every record: they
+    /// are preparation, and two hard sets with a warm-up ramp before them are two sets of work.
     static func of(_ sets: [LoggedSet]) -> WorkoutTotals {
-        let lifts = sets.compactMap(\.command.liftPart)
-        let covered = sets.compactMap(\.command.coveredPart)
+        of(commands: sets.map(\.command))
+    }
+
+    static func of(commands: [SetCommand]) -> WorkoutTotals {
+        let work = commands.filter(\.isWork)
+        let lifts = work.compactMap(\.liftPart)
+        let covered = work.compactMap(\.coveredPart)
 
         return WorkoutTotals(
-            setCount: sets.count,
+            setCount: work.count,
             weights: weightTotals(of: lifts),
             distances: distanceTotals(of: covered),
             movingDuration: covered.reduce(0) { $0 + $1.duration })

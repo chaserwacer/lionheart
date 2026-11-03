@@ -28,6 +28,8 @@ struct SetDraft: Equatable, Sendable {
     var elevationGainMeters: String = ""
 
     var rpe: Rpe = .unrated
+    /// What the lift is for. Working unless the athlete marks it otherwise; only a lift has one.
+    var kind: SetKind = .working
     var text: String = ""
 
     /// Seeds the fields from a set — the previous one on this movement, or its target.
@@ -47,6 +49,7 @@ struct SetDraft: Equatable, Sendable {
             weight = Self.weightField(set.weight)
             reps = Self.field(set.reps)
             weightUnit = set.unit
+            kind = set.kind
         case .distanceTime(let set):
             distance = Self.field(set.distance)
             distanceUnit = set.unit
@@ -66,9 +69,11 @@ struct SetDraft: Equatable, Sendable {
     /// Where no weight carries forward — the first set on a movement just picked, or a target with
     /// no load — the weight starts empty. Its nought would be a placeholder rather than a set that
     /// happened, and typing over it gives "0100".
-    init(next movementDataId: UUID, in workout: ActiveWorkout) {
-        self.init(from: SetDefaults.nextSet(on: movementDataId, in: workout))
-        if !SetDefaults.carriesWeightForward(on: movementDataId, in: workout) { weight = "" }
+    init(next movementDataId: UUID, in workout: ActiveWorkout, previous: PreviousPerformance? = nil) {
+        self.init(from: SetDefaults.nextSet(on: movementDataId, in: workout, previous: previous))
+        if !SetDefaults.carriesWeightForward(on: movementDataId, in: workout, previous: previous) {
+            weight = ""
+        }
     }
 
     /// The set these fields amount to, or `nil` while they do not amount to one yet.
@@ -87,7 +92,8 @@ struct SetDraft: Equatable, Sendable {
                 reps: reps,
                 weight: weight,
                 unit: weightUnit,
-                rpe: rpe))
+                rpe: rpe,
+                kind: kind))
 
         case .distanceTime:
             guard let movementDataId, let distance = Self.number(distance), distance > 0

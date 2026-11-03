@@ -21,6 +21,8 @@ struct TrainingPlan: Equatable, Sendable {
     let upcoming: [TrainingSession.Planned]
     /// Planned for a day gone by and never started or skipped, most recent first.
     let missed: [TrainingSession.Planned]
+    /// Sessions completed in the window, most recent first — what a routine can be saved from.
+    let completed: [TrainingSession.Completed]
 
     var hasNothingPlanned: Bool { today.isEmpty && upcoming.isEmpty && missed.isEmpty }
 
@@ -34,7 +36,9 @@ struct TrainingPlan: Equatable, Sendable {
             upcoming: planned.filter { $0.plannedFor > day }
                 .sorted { $0.plannedFor < $1.plannedFor },
             missed: planned.filter { $0.plannedFor < day }
-                .sorted { $0.plannedFor > $1.plannedFor })
+                .sorted { $0.plannedFor > $1.plannedFor },
+            completed: sessions.compactMap(\.completedSession)
+                .sorted { ($0.period.startTime ?? .distantPast) > ($1.period.startTime ?? .distantPast) })
     }
 
     /// The plan without the sessions in `held`: nothing on it offers to start or resume training
@@ -46,7 +50,8 @@ struct TrainingPlan: Equatable, Sendable {
             inProgress: inProgress.flatMap { held.contains($0.envelope.trainingSessionId) ? nil : $0 },
             today: today.filter(isFree),
             upcoming: upcoming.filter(isFree),
-            missed: missed.filter(isFree))
+            missed: missed.filter(isFree),
+            completed: completed)
     }
 
     /// Every session id the device's workouts stand for on the server: the session each is logged

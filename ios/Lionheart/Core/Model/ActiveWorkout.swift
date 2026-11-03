@@ -105,9 +105,10 @@ struct ActiveWorkout: Equatable, Sendable {
     ///     movement, the prescriptions, and sync as a four-case state.
     /// 3 — the movements the athlete added, so one picked before any set exists is part of the
     ///     workout.
-    /// 4 — this one: a live workout whose session is not open on the server yet (a deferred start),
-    ///     and the planned session a workout was started from.
-    static let currentVersion = 4
+    /// 4 — a live workout whose session is not open on the server yet (a deferred start), and the
+    ///     planned session a workout was started from.
+    /// 5 — this one: the routine a workout was started from, and a kind on every lift.
+    static let currentVersion = 5
 
     let version: Int
     let destination: WorkoutDestination
@@ -138,6 +139,12 @@ struct ActiveWorkout: Equatable, Sendable {
     /// and because the plan can be lost in the meantime (started or skipped somewhere else), in
     /// which case the workout opens a session of its own and this is how the athlete is told.
     let plannedSessionId: UUID?
+    /// The routine this workout was started from, or `nil` for one started without one.
+    ///
+    /// Its movements are added to the workout when it starts, so they have sections like any pick;
+    /// what this keeps is the rest of what the routine says — how many working sets each movement
+    /// gets, and which routine the finished session belongs to.
+    let routine: WorkoutRoutine?
 
     init(
         destination: WorkoutDestination,
@@ -150,6 +157,7 @@ struct ActiveWorkout: Equatable, Sendable {
         addedMovementDataIds: [UUID] = [],
         notes: String = "",
         plannedSessionId: UUID? = nil,
+        routine: WorkoutRoutine? = nil,
         version: Int = Self.currentVersion
     ) {
         self.version = version
@@ -163,6 +171,7 @@ struct ActiveWorkout: Equatable, Sendable {
         self.addedMovementDataIds = addedMovementDataIds
         self.notes = notes
         self.plannedSessionId = plannedSessionId
+        self.routine = routine
     }
 
     /// How long the session has been running at `now`. Never negative, so a device clock that moved
@@ -228,6 +237,7 @@ struct ActiveWorkout: Equatable, Sendable {
             addedMovementDataIds: addedMovementDataIds,
             notes: notes,
             plannedSessionId: plannedSessionId,
+            routine: routine,
             version: version)
     }
 
@@ -324,6 +334,7 @@ struct ActiveWorkout: Equatable, Sendable {
             addedMovementDataIds: addedMovementDataIds ?? self.addedMovementDataIds,
             notes: notes ?? self.notes,
             plannedSessionId: plannedSessionId,
+            routine: routine,
             version: version)
     }
 }
@@ -420,6 +431,7 @@ extension ActiveWorkout: Codable {
         case addedMovementDataIds
         case notes
         case plannedSessionId
+        case routine
         /// Version 1's single session id, read so a workout started under the foundation build is
         /// not thrown away on the first launch of this one.
         case sessionId
@@ -456,6 +468,7 @@ extension ActiveWorkout: Codable {
             ?? Self.addedBeforeTheListExisted(current: current, sets: sets, prescriptions: prescriptions)
         notes = (try? container.decode(String.self, forKey: .notes)) ?? ""
         plannedSessionId = try? container.decode(UUID.self, forKey: .plannedSessionId)
+        routine = try? container.decode(WorkoutRoutine.self, forKey: .routine)
     }
 
     /// What a document written before version 3 had added, recovered from the one trace it kept.
@@ -495,5 +508,6 @@ extension ActiveWorkout: Codable {
         try container.encode(addedMovementDataIds, forKey: .addedMovementDataIds)
         try container.encode(notes, forKey: .notes)
         try container.encodeIfPresent(plannedSessionId, forKey: .plannedSessionId)
+        try container.encodeIfPresent(routine, forKey: .routine)
     }
 }

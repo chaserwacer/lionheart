@@ -4,13 +4,16 @@ import SwiftUI
 ///
 /// The tab answers one question — what am I training, and how do I start — so the first section is
 /// always the answer to it: continue what is running, resume what the server has, or start one of
-/// the three ways. Everything below that is the plan.
+/// the three ways. The routines come next, because starting from one is how most sessions begin, and
+/// then bodyweight and the plan.
 struct TrainView: View {
     let store: TrainStore
     let activeWorkout: ActiveWorkoutStore
     /// Finished workouts the server does not have yet, listed under the start section.
     let outbox: WorkoutOutbox
     let library: MovementLibraryStore
+    let routines: RoutineStore
+    let bodyweight: BodyweightStore
     /// Opens the logging surface. Held by the root so the bar and this tab open the same sheet
     /// rather than two.
     let openWorkout: () -> Void
@@ -19,6 +22,10 @@ struct TrainView: View {
     @State private var route: [Route] = []
     @State private var asked: AskedTransition?
     @State private var discarding: FinishedWorkout?
+    /// The routine editor, open on a new routine or an existing one.
+    @State private var editingRoutine: RoutineEditing?
+    @State private var isSaveFromSessionAsked = false
+    @State private var deletingRoutine: Routine?
 
     /// A transition waiting on the athlete's confirmation. Hung on the `List` rather than on a row,
     /// so there is one dialog rather than one per session.
@@ -33,6 +40,7 @@ struct TrainView: View {
     /// `navigationDestination` registers per type and a second screen must not silently win.
     enum Route: Hashable {
         case plannedSession(UUID)
+        case bodyweight
     }
 
     var body: some View {
@@ -40,6 +48,8 @@ struct TrainView: View {
             List {
                 startSection
                 if !outbox.finished.isEmpty { finishedSection }
+                routinesSection
+                bodyweightSection
                 switch store.state {
                 case .loading:
                     loadingSections
@@ -54,7 +64,12 @@ struct TrainView: View {
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
             .navigationTitle("Train")
-            .refreshable { await store.refresh() }
+            .refreshable {
+                async let plan: Void = store.refresh()
+                async let saved: Void = routines.refresh()
+                async let weighed: Void = bodyweight.refresh()
+                _ = await (plan, saved, weighed)
+            }
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .plannedSession(let id):
@@ -63,12 +78,47 @@ struct TrainView: View {
                         store: store,
                         library: library,
                         openWorkout: openWorkout)
+                case .bodyweight:
+                    BodyweightView(store: bodyweight)
                 }
             }
         }
         .task {
-            await store.refresh()
+            async let plan: Void = store.refresh()
+            async let saved: Void = routines.refresh()
+            async let weighed: Void = bodyweight.refreshIfNeeded()
+            _ = await (plan, saved, weighed)
             await library.refreshIfNeeded()
+        }
+        .sheet(item: $editingRoutine) { editing in
+            RoutineEditorView(editing: editing, routines: routines, library: library)
+        }
+        .sheet(isPresented: $isSaveFromSessionAsked) {
+            SaveSessionAsRoutineSheet(
+                sessions: store.plan?.completed ?? [], routines: routines, library: library)
+        }
+        .confirmationDialog(
+            "Delete this routine?",
+            isPresented: Binding(get: { deletingRoutine != nil }, set: { if !$0 { deletingRoutine = nil } }),
+            titleVisibility: .visible,
+            presenting: deletingRoutine
+        ) { routine in
+            Button("Delete \(routine.name)", role: .destructive) {
+                Task { await routines.delete(routine.routineId) }
+                deletingRoutine = nil
+            }
+        } message: { _ in
+            Text("Sessions trained from it keep their sets. Comparisons with it stop.")
+        }
+        .alert(
+            "Refused",
+            isPresented: Binding(
+                get: { routines.action.refusal != nil && editingRoutine == nil && !isSaveFromSessionAsked },
+                set: { if !$0 { routines.dismissRefusal() } })
+        ) {
+            Button("OK") { routines.dismissRefusal() }
+        } message: {
+            if let refusal = routines.action.refusal { Text(refusal.message) }
         }
         .sheet(isPresented: $isPastWorkoutAsked) {
             LogPastWorkoutSheet(store: store, openWorkout: openWorkout)
@@ -115,6 +165,107 @@ struct TrainView: View {
             }
         } message: { _ in
             Text("The server would not take it, and this phone holds the only copy. This cannot be undone.")
+        }
+    }
+
+    // MARK: - Routines
+
+    /// The saved sessions, each one tap from a workout. A long press edits or deletes; the two ways
+    /// to make one sit under the list, the past session first because it is the faster.
+    @ViewBuilder
+    private var routinesSection: some View {
+        Section {
+            switch routines.state {
+            case .loading:
+                SkeletonRows(count: 2)
+            case .unavailable(let failure):
+                Text(failure.message)
+                    .font(.footnote)
+                    .foregroundStyle(Color(.secondaryLabel))
+            case .loaded(let list), .stale(let list, _):
+                ForEach(list) { routineRow($0) }
+            }
+            Menu {
+                Button("From a past session") { isSaveFromSessionAsked = true }
+                Button("Empty routine") { editingRoutine = .new }
+            } label: {
+                Text("New routine")
+            }
+        } header: {
+            Text("Routines")
+        } footer: {
+            if case .stale(_, let staleness) = routines.state, case .unreachable(let asOf) = staleness {
+                Text("\(Formatting.asOf(asOf)). A routine starts without the server.")
+            }
+        }
+    }
+
+    private func routineRow(_ routine: Routine) -> some View {
+        Button {
+            Task { if await store.startUnplanned(from: routine) { openWorkout() } }
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(routine.name)
+                    .font(.headline)
+                    .foregroundStyle(Color(.label))
+                Text(routineDetail(routine))
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .lineLimit(2)
+            }
+            .padding(.vertical, 2)
+        }
+        .disabled(store.isWorkoutInFlight || store.action.isRunning)
+        .accessibilityHint("Starts a workout from this routine")
+        .contextMenu {
+            Button {
+                Task { if await store.startUnplanned(from: routine) { openWorkout() } }
+            } label: {
+                Label("Start", systemImage: "play")
+            }
+            .disabled(store.isWorkoutInFlight)
+            Button {
+                editingRoutine = .existing(routine)
+            } label: {
+                Label("Edit", systemImage: "square.and.pencil")
+            }
+            Button(role: .destructive) {
+                deletingRoutine = routine
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) { deletingRoutine = routine } label: { Label("Delete", systemImage: "trash") }
+            Button { editingRoutine = .existing(routine) } label: { Label("Edit", systemImage: "square.and.pencil") }
+        }
+    }
+
+    /// "Dip, Bench press, Row… · 12 sets · last Tue 28 Oct".
+    private func routineDetail(_ routine: Routine) -> String {
+        let names = routine.movements.prefix(3).map { library.fullName(of: $0.movementDataId) }
+        let more = routine.movements.count > 3 ? " +\(routine.movements.count - 3)" : ""
+        var parts = ["\(names.joined(separator: ", "))\(more)", Formatting.count(routine.workingSetCount, "set")]
+        if let last = routine.lastSession {
+            parts.append("last \(Formatting.dayInline(last.envelope.date))")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    // MARK: - Bodyweight
+
+    private var bodyweightSection: some View {
+        Section {
+            NavigationLink(value: Route.bodyweight) {
+                LabeledContent("Bodyweight") {
+                    if let latest = bodyweight.series.latest {
+                        Text("\(Formatting.weight(latest.weight, latest.unit)) · \(Formatting.dayInline(latest.day))")
+                            .monospacedDigit()
+                    } else {
+                        Text("Not logged")
+                    }
+                }
+            }
         }
     }
 
