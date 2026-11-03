@@ -27,6 +27,18 @@ struct InjuriesAPI: Sendable {
             "/api/injury/update", body: UpdateInjuryRequest(injury, isActive: isActive))
     }
 
+    /// Starts tracking a new injury. The server opens it as active, with no events.
+    func create(_ draft: InjuryDraft) async throws -> Injury {
+        try await client.post("/api/injury/create", body: CreateInjuryRequest(draft))
+    }
+
+    /// Logs a treatment or a check-in against an injury. The route answers with the injury and all
+    /// its events, and stamps the event with the server's own clock — there is no way to backdate
+    /// one.
+    func addEvent(_ draft: InjuryEventDraft, to injuryId: UUID) async throws -> Injury {
+        try await client.post("/api/injury/add-event", body: CreateInjuryEventRequest(draft, injuryId: injuryId))
+    }
+
     func delete(id: UUID) async throws {
         try await client.delete("/api/injury/delete/\(id.uuidString)")
     }
@@ -34,6 +46,40 @@ struct InjuriesAPI: Sendable {
     /// Removes one treatment or check-in. The injury itself stays.
     func deleteEvent(id: UUID) async throws {
         try await client.delete("/api/injury/event/\(id.uuidString)")
+    }
+}
+
+/// `POST /api/injury/create`. The day travels as midnight with no offset, because the server reads
+/// it as a `DateTime` and keeps only its date — an offset could move it to the day either side.
+private struct CreateInjuryRequest: Encodable, Sendable {
+    let name: String
+    let injuryDate: String
+    let notes: String
+
+    init(_ draft: InjuryDraft) {
+        name = draft.name
+        injuryDate = "\(draft.startedOn.wire)T00:00:00"
+        notes = draft.notes
+    }
+}
+
+/// `POST /api/injury/add-event`. `injuryType` is the server's enum as an integer; no training
+/// session or movements are attached from here.
+private struct CreateInjuryEventRequest: Encodable, Sendable {
+    let injuryID: UUID
+    let trainingSessionID: UUID?
+    let notes: String
+    let painLevel: Int
+    let injuryType: Int
+    let movementIDs: [UUID]
+
+    init(_ draft: InjuryEventDraft, injuryId: UUID) {
+        injuryID = injuryId
+        trainingSessionID = nil
+        notes = draft.notes
+        painLevel = draft.painLevel
+        injuryType = draft.kind.wire
+        movementIDs = []
     }
 }
 

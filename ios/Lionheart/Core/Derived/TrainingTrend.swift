@@ -55,6 +55,72 @@ struct TrainingTrends: Equatable, Sendable {
     let strength: [StrengthSeries]
 
     var isEmpty: Bool { weeks.isEmpty && strength.isEmpty }
+
+    /// The weeks a load average spans: four is the chronic window training-load models use, long
+    /// enough that one heavy or missed week does not swing it.
+    static let loadAverageWeeks = 4
+
+    /// The mean sets per week over the four weeks ending on each week, from the fourth week on —
+    /// the line a week's bar is read against. Empty weeks count, because a week off is load too.
+    static func loadAverage(of weeks: [TrainingWeek]) -> [WeeklyLoad] {
+        weeks.indices.compactMap { index in
+            guard index + 1 >= loadAverageWeeks else { return nil }
+            let window = weeks[(index + 1 - loadAverageWeeks)...index]
+            return WeeklyLoad(
+                start: weeks[index].start,
+                sets: Double(window.reduce(0) { $0 + $1.setCount }) / Double(loadAverageWeeks))
+        }
+    }
+
+    /// One week's trailing average.
+    struct WeeklyLoad: Equatable, Sendable, Identifiable {
+        let start: CalendarDay
+        let sets: Double
+
+        var id: CalendarDay { start }
+    }
+
+    /// The last `weekCount` weeks and their four-week average, which reaches back past the first of
+    /// them so the line starts where the bars do.
+    func load(lastWeeks weekCount: Int) -> LoadWindow {
+        let reach = Array(weeks.suffix(weekCount + Self.loadAverageWeeks - 1))
+        let shown = Array(reach.suffix(weekCount))
+        return LoadWindow(
+            weeks: shown,
+            average: Self.loadAverage(of: reach),
+            sessions: shown.reduce(0) { $0 + $1.sessionCount },
+            sets: shown.reduce(0) { $0 + $1.setCount },
+            weeksTrained: shown.filter { $0.sessionCount > 0 }.count)
+    }
+
+    /// A span of weekly load as a screen reads it: the bars, the line, and the totals over them.
+    struct LoadWindow: Equatable, Sendable {
+        let weeks: [TrainingWeek]
+        let average: [WeeklyLoad]
+        let sessions: Int
+        let sets: Int
+        let weeksTrained: Int
+    }
+}
+
+extension StrengthSeries {
+    /// The series from `day` on, and what it came to: the latest top set, the best, and the change
+    /// in load from the first to the latest. `nil` when fewer than two sessions fall in the span.
+    func summary(since day: CalendarDay) -> Summary? {
+        let shown = points.filter { $0.day >= day }
+        guard shown.count >= Self.minimumPoints, let first = shown.first, let latest = shown.last,
+              let best = shown.max(by: { $0.weight < $1.weight })
+        else { return nil }
+        return Summary(points: shown, latest: latest, best: best, change: latest.weight - first.weight)
+    }
+
+    struct Summary: Equatable, Sendable {
+        let points: [Point]
+        let latest: Point
+        let best: Point
+        /// The latest top set's load less the first's, in the series' unit.
+        let change: Double
+    }
 }
 
 extension TrainingTrends {

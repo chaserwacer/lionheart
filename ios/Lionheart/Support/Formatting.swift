@@ -151,6 +151,88 @@ enum Formatting {
         "\(volume.formatted(.number.precision(.fractionLength(0...1)))) \(unit.abbreviation)"
     }
 
+    // MARK: - Recovery
+
+    /// A recovery figure as a number and the unit beside it, apart so the number can carry the
+    /// weight and the unit sit quieter.
+    static func figure(_ value: Double, of metric: RecoveryMetric) -> (number: String, unit: String?) {
+        switch metric {
+        case .readiness, .sleepScore: (whole(value), nil)
+        case .hrv: (whole(value), "ms")
+        case .lowestHeartRate: (whole(value), "bpm")
+        case .respiratoryRate: (value.formatted(.number.precision(.fractionLength(1))), "/min")
+        case .temperatureDeviation: (signed(value, fractionDigits: 2), "°C")
+        case .steps: (value.formatted(.number.precision(.fractionLength(0))), nil)
+        case .sleepDuration: (hoursAndMinutes(seconds: value), nil)
+        }
+    }
+
+    /// A figure as one string, for VoiceOver and the trend summary.
+    static func figureText(_ value: Double, of metric: RecoveryMetric) -> String {
+        let parts = figure(value, of: metric)
+        return parts.unit.map { "\(parts.number) \($0)" } ?? parts.number
+    }
+
+    /// How far a figure is from the athlete's baseline, signed, in the figure's own unit: `+8`,
+    /// `−2`, `−0:24`. A difference that rounds to nothing reads `±0` rather than `+0`.
+    static func deviation(_ value: Double, of metric: RecoveryMetric) -> String {
+        switch metric {
+        case .sleepDuration:
+            let minutes = Int((value / 60).rounded())
+            guard minutes != 0 else { return "±0:00" }
+            let size = abs(minutes)
+            return "\(minutes > 0 ? "+" : "−")\(size / 60):\(String(format: "%02d", size % 60))"
+        case .respiratoryRate, .temperatureDeviation:
+            return (value * 10).rounded() == 0 ? "±0" : signed(value, fractionDigits: 1)
+        case .readiness, .hrv, .lowestHeartRate, .sleepScore, .steps:
+            return value.rounded() == 0 ? "±0" : signed(value.rounded(), fractionDigits: 0)
+        }
+    }
+
+    /// The metric's name as a row label.
+    static func metricName(_ metric: RecoveryMetric) -> String {
+        switch metric {
+        case .readiness: "Readiness"
+        case .hrv: "HRV"
+        case .lowestHeartRate: "Lowest HR"
+        case .sleepDuration: "Asleep"
+        case .sleepScore: "Sleep score"
+        case .respiratoryRate: "Breathing"
+        case .temperatureDeviation: "Temperature"
+        case .steps: "Steps"
+        }
+    }
+
+    /// The metric spelled out, for a trend's title and VoiceOver.
+    static func metricTitle(_ metric: RecoveryMetric) -> String {
+        switch metric {
+        case .readiness: "Readiness"
+        case .hrv: "Heart rate variability"
+        case .lowestHeartRate: "Lowest heart rate"
+        case .sleepDuration: "Time asleep"
+        case .sleepScore: "Sleep score"
+        case .respiratoryRate: "Breathing rate"
+        case .temperatureDeviation: "Temperature deviation"
+        case .steps: "Steps"
+        }
+    }
+
+    private static func whole(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0)).grouping(.never))
+    }
+
+    /// A signed figure with a true minus sign, which sits at the width of a plus in a column.
+    private static func signed(_ value: Double, fractionDigits: Int) -> String {
+        let size = abs(value).formatted(.number.precision(.fractionLength(fractionDigits)))
+        return value < 0 ? "−\(size)" : "+\(size)"
+    }
+
+    /// Sleep as `7h 12m`, which reads at a glance where `25,920 s` or `7:12` would not.
+    static func hoursAndMinutes(seconds: Double) -> String {
+        let minutes = Int((seconds / 60).rounded())
+        return "\(minutes / 60)h \(String(format: "%02d", minutes % 60))m"
+    }
+
     // MARK: - Records
 
     /// A weight unit spelled out, for the places a unit is chosen rather than read beside a figure.

@@ -13,6 +13,7 @@ struct InjuryDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var asked: InjuryAction?
     @State private var deleting: InjuryEvent?
+    @State private var isLoggingEvent = false
 
     var body: some View {
         List {
@@ -40,6 +41,9 @@ struct InjuryDetailView: View {
         .navigationTitle(history.injury.name.nonEmpty ?? "Injury")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await store.refresh() }
+        .sheet(isPresented: $isLoggingEvent) {
+            InjuryEventSheet(injury: history.injury, store: store)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu("More", systemImage: "ellipsis.circle") {
@@ -147,6 +151,7 @@ struct InjuryDetailView: View {
     @ViewBuilder
     private var eventsSection: some View {
         Section("Events") {
+            Button("Log treatment or check-in") { isLoggingEvent = true }
             if history.events.isEmpty {
                 Text("Nothing logged against this yet.")
                     .foregroundStyle(Color(.secondaryLabel))

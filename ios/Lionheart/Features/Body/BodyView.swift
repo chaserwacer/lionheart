@@ -11,6 +11,9 @@ import SwiftUI
 /// `OuraPanel` and a new section here, not a redesign.
 struct BodyView: View {
     let store: BodyStore
+    let ouraSync: OuraSyncStore
+
+    @State private var isNewInjuryPresented = false
 
     var body: some View {
         NavigationStack {
@@ -29,6 +32,14 @@ struct BodyView: View {
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
             .navigationTitle("Body")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("New injury", systemImage: "plus") { isNewInjuryPresented = true }
+                }
+            }
+            .sheet(isPresented: $isNewInjuryPresented) {
+                NewInjurySheet(store: store)
+            }
             .refreshable { await store.refresh() }
             .navigationDestination(for: BodyRoute.self) { destination(for: $0) }
             // An injury action is the only thing on this tab that writes, and a 404 — the injury
@@ -101,39 +112,19 @@ struct BodyView: View {
         }
     }
 
+    /// The latest verdict and the sync control. The figures behind the verdict are Today's; here it
+    /// heads the records it is drawn from.
     @ViewBuilder
     private func recoverySection(_ snapshot: BodySnapshot) -> some View {
         Section("Recovery") {
-            if let reading = snapshot.latestReadiness {
-                HStack(alignment: .center, spacing: Tokens.cardPadding) {
-                    ReadinessGauge(reading: reading)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(reading.band.label).font(.headline)
-                        Text(Formatting.day(RelativeDay.of(reading.day, today: today)))
-                            .font(.subheadline)
-                            .foregroundStyle(Color(.secondaryLabel))
-                    }
-                }
-                .padding(.vertical, 4)
-
-                // Top-aligned so figures stay level when a label wraps at the larger Dynamic Type
-                // sizes.
-                // Contributor scores out of 100 rather than measurements — see `ReadinessReading`.
-                HStack(alignment: .top, spacing: Tokens.cardPadding) {
-                    if let restingHeartRate = reading.restingHeartRateBalance {
-                        StatTile(value: "\(restingHeartRate)", label: "Resting HR balance")
-                    }
-                    if let hrvBalance = reading.hrvBalance {
-                        StatTile(value: "\(hrvBalance)", label: "HRV balance")
-                    }
-                    if let sleep = reading.sleepScore {
-                        StatTile(value: "\(sleep)", label: "Sleep")
-                    }
-                }
+            if let recovery = snapshot.latestRecovery(today: today), let readiness = recovery.readiness {
+                RecoveryVerdictView(
+                    readiness: readiness, figure: recovery.readinessFigure, shownDay: today, today: today)
             } else {
-                Text("No Oura data in the last eight weeks")
+                Text("No Oura readiness in the last eight weeks.")
                     .foregroundStyle(Color(.secondaryLabel))
             }
+            OuraSyncRow(store: ouraSync, today: today)
         }
     }
 
@@ -190,7 +181,10 @@ struct BodyView: View {
     /// behind it. Six requests in parallel, and this is what stands in for all of them.
     @ViewBuilder
     private var loadingSections: some View {
-        Section("Recovery") { SkeletonRows(count: 1) }
+        Section("Recovery") {
+            SkeletonRows(count: 1)
+            OuraSyncRow(store: ouraSync, today: today)
+        }
         Section("Records") { SkeletonRows(count: 3) }
     }
 

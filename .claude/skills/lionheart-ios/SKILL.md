@@ -107,7 +107,8 @@ web app's custom look carried over. So **do not build a design system.** Use App
   it is the fastest way to a screen that looks like it belongs.
 - `Design/` therefore holds: `Tokens.swift` (the accent and the handful of spacing constants),
   `StatTile.swift`, `SetRow.swift`, `RestTimerBar.swift`, `ActiveWorkoutBar.swift`, and
-  `ReadinessGauge.swift`. If a seventh file wants in, check first whether SwiftUI already has it.
+  `Sparkline.swift`, plus the shared chrome and load-state rows. If another file wants in, check
+  first whether SwiftUI already has it.
 - **Haptics on the actions that matter** — completing a set, finishing a workout, hitting a record —
   through `Support/Haptics.swift`. A confirmation is a haptic plus the state visibly changing, never
   a toast for something the screen already shows.
