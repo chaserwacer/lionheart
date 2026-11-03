@@ -9,6 +9,8 @@ struct InjuriesView: View {
     let injuries: [Injury]
     let store: BodyStore
 
+    @State private var isNewInjuryPresented = false
+
     var body: some View {
         List {
             if injuries.isEmpty {
@@ -26,6 +28,14 @@ struct InjuriesView: View {
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)
         .navigationTitle("Injuries")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("New injury", systemImage: "plus") { isNewInjuryPresented = true }
+            }
+        }
+        .sheet(isPresented: $isNewInjuryPresented) {
+            NewInjurySheet(store: store)
+        }
         .refreshable { await store.refresh() }
     }
 

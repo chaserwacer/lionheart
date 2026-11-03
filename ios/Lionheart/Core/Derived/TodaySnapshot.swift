@@ -1,22 +1,41 @@
 import Foundation
 
-/// Everything the Today screen shows, derived from one window of sessions and one window of Oura
-/// days.
+/// Everything the Today screen shows for one day, derived from one window of sessions and one
+/// window of Oura days and nights.
 ///
-/// It is a named cluster rather than four loose properties on the store because the four answers
-/// are one reading of a moment: how the body is, what was last done, what is next. A screen that
-/// held them separately would be able to show a readiness from one refresh beside a session from
-/// another.
+/// It is a named cluster rather than loose properties on the store because the answers are one
+/// reading of a moment: how the body was, what was trained, what is next. A screen that held them
+/// separately could show a readiness from one refresh beside a session from another — or, now that
+/// the day can change, one day's recovery under another day's training.
+///
+/// The last, next and in-progress sessions are questions about *now*, so they are answered only
+/// when the day is today; a past day is read for what happened on it.
 struct TodaySnapshot: Equatable, Sendable {
-    /// The most recent Oura day with readiness on it, and nothing when the ring has not synced.
-    let readiness: ReadinessReading?
+    /// The day being read.
+    let day: CalendarDay
+    /// The ring's reading, for `day` — or, on today, for the newest day it has filed, which the
+    /// screen labels when it is not today.
+    let recovery: RecoveryReading?
+    /// What was trained or skipped on `day`, in the server's order. On today it leaves out what is still
+    /// to come and what is in progress, which have their own answers below.
+    let sessionsOnDay: [TrainingSession]
+    /// Today only: the latest completed session before today, when nothing is logged today.
     let lastCompleted: TrainingSession.Completed?
+    /// Today only.
     let nextPlanned: TrainingSession.Planned?
-    /// A session the athlete is in the middle of, if the server knows about one.
+    /// Today only: a session the athlete is in the middle of, if the server knows about one.
     let inProgress: TrainingSession.Active?
 
+    var readiness: ReadinessReading? { recovery?.readiness }
+
+    /// How far back Today will reach for a reading when the ring has not filed today. A fortnight
+    /// finds a ring left in a drawer for a few days; past it, a long gap reads as no data rather
+    /// than as an old score passed off as current.
+    static let recoveryFallbackDays = 13
+
     var isEmpty: Bool {
-        readiness == nil && lastCompleted == nil && nextPlanned == nil && inProgress == nil
+        recovery == nil && sessionsOnDay.isEmpty && lastCompleted == nil && nextPlanned == nil
+            && inProgress == nil
     }
 }
 
@@ -64,20 +83,42 @@ struct ReadinessReading: Equatable, Sendable {
 }
 
 extension TodaySnapshot {
-    /// Reads a Today snapshot out of one session window and one Oura window.
+    /// Reads a snapshot of `day` out of one session window and one Oura window.
     ///
-    /// The window is one request rather than four, so everything on the screen is the same moment.
-    /// `today` is injected rather than read from the clock, which is what lets this be tested.
+    /// The windows are one request each rather than one per card, so everything on the screen is
+    /// the same moment. `today` is injected rather than read from the clock, which is what lets this
+    /// be tested. `day` defaults to today.
     static func reading(
         sessions: [TrainingSession],
         ouraDays: [OuraDay],
-        today: CalendarDay
+        nights: [OuraEvent<OuraSleepPeriod>] = [],
+        today: CalendarDay,
+        day: CalendarDay? = nil
     ) -> TodaySnapshot {
-        TodaySnapshot(
-            readiness: latestReadiness(in: ouraDays),
-            lastCompleted: lastCompleted(in: sessions, onOrBefore: today),
-            nextPlanned: nextPlanned(in: sessions, onOrAfter: today),
-            inProgress: sessions.compactMap(\.activeCase).max { $0.startedAt < $1.startedAt })
+        let day = min(day ?? today, today)
+        let isToday = day == today
+        let earliestFallback = today.adding(days: -recoveryFallbackDays)
+        let recoveryDay = isToday
+            ? RecoveryReading.readingDay(
+                onOrBefore: today,
+                days: ouraDays.filter { $0.date >= earliestFallback },
+                nights: nights.filter { $0.day >= earliestFallback })
+            : day
+        let onDay = sessions
+            .filter { $0.date == day }
+            .filter { session in
+                guard isToday else { return true }
+                return session.plannedCase == nil && session.activeCase == nil
+            }
+        let performedToday = onDay.contains { $0.completedCase != nil }
+
+        return TodaySnapshot(
+            day: day,
+            recovery: recoveryDay.flatMap { RecoveryReading.reading(for: $0, days: ouraDays, nights: nights) },
+            sessionsOnDay: onDay,
+            lastCompleted: isToday && !performedToday ? lastCompleted(in: sessions, onOrBefore: today) : nil,
+            nextPlanned: isToday ? nextPlanned(in: sessions, onOrAfter: today) : nil,
+            inProgress: isToday ? sessions.compactMap(\.activeCase).max { $0.startedAt < $1.startedAt } : nil)
     }
 
     /// The most recent day that actually carries a readiness score.

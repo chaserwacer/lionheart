@@ -74,6 +74,36 @@ final class BodyStore {
         action = .idle
     }
 
+    // MARK: - Logging an injury
+
+    /// Starts tracking an injury, then re-reads the tab.
+    ///
+    /// Thrown rather than kept in `action`, because the form asking is a sheet: the tab's alert
+    /// cannot present over it, and the sheet has to stay up holding what was typed while it says
+    /// why the server refused.
+    ///
+    /// - Throws: `LoadFailure` when the server refuses or cannot be reached; `CancellationError`
+    ///   when the sheet went away first.
+    func createInjury(_ draft: InjuryDraft) async throws {
+        try await submit { _ = try await self.injuries.create(draft) }
+    }
+
+    /// Logs a treatment or a check-in against `injury`, then re-reads the tab.
+    ///
+    /// - Throws: as `createInjury(_:)`.
+    func addEvent(_ draft: InjuryEventDraft, to injury: Injury) async throws {
+        try await submit { _ = try await self.injuries.addEvent(draft, to: injury.injuryId) }
+    }
+
+    private func submit(_ write: () async throws -> Void) async throws {
+        do {
+            try await write()
+        } catch {
+            throw try LoadFailure.from(error)
+        }
+        await refresh()
+    }
+
     // MARK: - Acting on an injury
 
     /// Resolves an injury or takes it back up, which is one route and two directions.

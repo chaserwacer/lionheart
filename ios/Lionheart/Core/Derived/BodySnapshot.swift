@@ -30,23 +30,20 @@ struct BodySnapshot: Equatable, Sendable {
         ouraDays.isEmpty && wellness.isEmpty && injuries.isEmpty && nights.isEmpty
     }
 
-    /// The most recent Oura day carrying a readiness score, which is what the top of the screen
-    /// leads with.
-    ///
-    /// It reuses `TodaySnapshot.latestReadiness` rather than repeating the rule, so the two screens
-    /// cannot make different claims about the athlete's recovery.
-    var latestReadiness: ReadinessReading? { TodaySnapshot.latestReadiness(in: ouraDays) }
-
     var activeInjuries: [Injury] { injuries.filter(\.isActive) }
     var resolvedInjuries: [Injury] { injuries.filter { !$0.isActive } }
 
     /// The night's main sleep for a day, where Oura scored one.
-    ///
-    /// A day can hold several sleep periods — naps and stretches of rest among them — and only one
-    /// is the night. Taking the longest instead would pick a long afternoon nap over a broken
-    /// night, which is why Oura's own flag decides it.
     func mainSleep(on day: CalendarDay) -> OuraSleepPeriod? {
-        nights[day]?.first { $0.reading.isMainSleep }?.reading
+        OuraSleepPeriod.mainSleep(on: day, in: nights[day] ?? [])
+    }
+
+    /// The recovery figures for the newest day the ring filed, against his baseline — the same
+    /// reading Today leads with, from the window this tab already holds.
+    func latestRecovery(today: CalendarDay) -> RecoveryReading? {
+        let allNights = nights.values.flatMap(\.self)
+        return RecoveryReading.readingDay(onOrBefore: today, days: ouraDays, nights: allNights)
+            .flatMap { RecoveryReading.reading(for: $0, days: ouraDays, nights: allNights) }
     }
 
     func workouts(on day: CalendarDay) -> [OuraWorkout] {

@@ -1,13 +1,20 @@
 import SwiftUI
 
-/// What should I do, and how am I?
+/// How am I, and what did I do — today, or any day before it.
 ///
-/// An inset-grouped `List`, which is what Fitness and Settings are made of: it gets separators,
-/// Dynamic Type, swipe actions and both appearances right, and it is the fastest route to a screen
-/// that looks like it belongs. Every decision on it — which readiness to show, which session counts
-/// as the last one — is a pure function in `Core/Derived/`; this file chooses words and containers.
+/// Read top to bottom the way a morning is: the day's verdict first, large; the figures behind it
+/// as a table, each against the athlete's own four-week baseline; then the training. Every
+/// decision on it — which day's recovery to show, which session is the last one, what counts as
+/// unusual — is a pure function in `Core/Derived/`; this file chooses words and containers.
+///
+/// The day steps back and forward from the toolbar, the way Health and Oura step through days. A
+/// past day is read for what happened on it; the questions about now — the next session, the one
+/// in progress, the plain-words log — belong to today only.
 struct TodayView: View {
     let store: TodayStore
+    let ouraSync: OuraSyncStore
+    /// Names the movements in each session's lines.
+    let library: MovementLibraryStore
     /// Passed through to Settings, which states it. Carried rather than re-read from the bundle
     /// so there is one place configuration is resolved.
     let apiBaseURL: URL
@@ -16,107 +23,172 @@ struct TodayView: View {
 
     @State private var isQuickLogPresented = false
     @State private var isSettingsPresented = false
+    @State private var isDayPickerPresented = false
+
+    /// Where the Today tab can navigate, registered once on the stack.
+    enum Route: Hashable {
+        case session(UUID)
+        case trend(RecoveryMetric, endingOn: CalendarDay)
+    }
 
     var body: some View {
+        let today = store.today
+        let day = store.selection.day(today: today)
+
         NavigationStack {
             List {
                 switch store.state {
                 case .loading:
-                    loadingRows
+                    loadingRows(isToday: store.selection.isToday)
                 case .unavailable(let failure):
                     unavailable(failure)
                 case .loaded(let snapshot):
-                    content(snapshot, staleBecause: nil)
+                    content(snapshot, today: today, staleBecause: nil)
                 case .stale(let snapshot, let failure):
-                    content(snapshot, staleBecause: failure)
+                    content(snapshot, today: today, staleBecause: failure)
                 }
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
-            .navigationTitle("Today")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Settings", systemImage: "gearshape") { isSettingsPresented = true }
-                }
-            }
+            // Lets a figure row be as short as its one line, so the whole table fits above the fold.
+            .environment(\.defaultMinListRowHeight, 36)
+            .navigationTitle(title(of: day, today: today))
+            .toolbar { toolbar(day: day, today: today) }
             .refreshable { await store.refresh() }
+            .navigationDestination(for: Route.self) { destination(for: $0) }
             .sheet(isPresented: $isQuickLogPresented) {
                 QuickLogSheet(store: store)
             }
             .sheet(isPresented: $isSettingsPresented) {
                 SettingsSheet(apiBaseURL: apiBaseURL, activeWorkout: activeWorkout)
             }
+            .sheet(isPresented: $isDayPickerPresented) {
+                DayPickerSheet(day: day, today: today) { chosen in
+                    Task { await store.show(DaySelection.of(chosen, today: today)) }
+                }
+            }
         }
         .task { await store.refresh() }
     }
 
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private func toolbar(day: CalendarDay, today: CalendarDay) -> some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarLeading) {
+            Button("Previous day", systemImage: "chevron.left") {
+                step(by: -1, today: today)
+            }
+            Button("Next day", systemImage: "chevron.right") {
+                step(by: 1, today: today)
+            }
+            .disabled(store.selection.isToday)
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button("Choose day", systemImage: "calendar") { isDayPickerPresented = true }
+            Button("Settings", systemImage: "gearshape") { isSettingsPresented = true }
+        }
+    }
+
+    private func step(by days: Int, today: CalendarDay) {
+        Task { await store.show(store.selection.stepped(by: days, today: today)) }
+    }
+
+    private func title(of day: CalendarDay, today: CalendarDay) -> String {
+        switch RelativeDay.of(day, today: today) {
+        case .today: "Today"
+        case .yesterday: "Yesterday"
+        case .tomorrow, .daysAgo, .inDays, .distant: Formatting.date(day)
+        }
+    }
+
+    @ViewBuilder
+    private func destination(for route: Route) -> some View {
+        switch route {
+        case .session(let id):
+            if let session = store.state.value.flatMap({ session(id, in: $0) }) {
+                SessionDetailView(session: session, catalogue: catalogue)
+            } else {
+                ContentUnavailableView {
+                    Text("Session not available")
+                } description: {
+                    Text("It is no longer on the day Today has loaded.")
+                }
+            }
+        case .trend(let metric, let endingOn):
+            MetricTrendView(
+                metric: metric,
+                endingOn: endingOn,
+                trend: { store.trends[$0] },
+                load: { await store.loadTrend($0) })
+        }
+    }
+
+    private func session(_ id: UUID, in snapshot: TodaySnapshot) -> TrainingSession? {
+        snapshot.sessionsOnDay.first { $0.id == id }
+            ?? snapshot.lastCompleted.map(TrainingSession.completed).flatMap { $0.id == id ? $0 : nil }
+    }
+
+    private var catalogue: MovementCatalogue { MovementCatalogue(library.all) }
+
     // MARK: - Loaded
 
     @ViewBuilder
-    private func content(_ snapshot: TodaySnapshot, staleBecause failure: LoadFailure?) -> some View {
+    private func content(
+        _ snapshot: TodaySnapshot, today: CalendarDay, staleBecause failure: LoadFailure?
+    ) -> some View {
         if let failure {
             // The value stays; the banner says it could not be updated. Blanking a loaded screen
             // because a refresh failed is the thing LoadState exists to prevent.
             StaleBanner(failure: failure)
         }
 
-        bodySection(snapshot.readiness)
-        quickLogSection
+        let isToday = snapshot.day == today
+        if isToday {
+            Section { OuraSyncRow(store: ouraSync, today: today) }
+        }
+
+        recoverySection(snapshot.recovery, day: snapshot.day, today: today)
         if let active = snapshot.inProgress { inProgressSection(active) }
-        lastSessionSection(snapshot.lastCompleted)
-        nextSessionSection(snapshot.nextPlanned)
+        trainingSection(snapshot, today: today)
+        if isToday {
+            nextSessionSection(snapshot.nextPlanned, today: today)
+            quickLogSection
+        }
     }
 
     @ViewBuilder
-    private func bodySection(_ reading: ReadinessReading?) -> some View {
-        Section("Readiness") {
-            if let reading {
-                HStack(alignment: .center, spacing: Tokens.cardPadding) {
-                    ReadinessGauge(reading: reading)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(reading.band.label)
-                            .font(.headline)
-                        Text(Formatting.day(RelativeDay.of(reading.day, today: today)))
-                            .font(.subheadline)
-                            .foregroundStyle(Color(.secondaryLabel))
+    private func recoverySection(_ recovery: RecoveryReading?, day: CalendarDay, today: CalendarDay) -> some View {
+        Section {
+            if let recovery {
+                if let readiness = recovery.readiness {
+                    NavigationLink(value: Route.trend(.readiness, endingOn: recovery.day)) {
+                        RecoveryVerdictView(
+                            readiness: readiness, figure: recovery.readinessFigure, shownDay: day, today: today)
                     }
                 }
-                .padding(.vertical, 4)
-
-                // Top-aligned so the figures line up when a label wraps to two lines at the larger
-                // Dynamic Type sizes; centred, a one-line label drops its number below its
-                // neighbours'.
-                // Contributor scores out of 100 comparing the day against the athlete's own
-                // baseline, not measurements — see `ReadinessReading`. "Balance" is in the label
-                // because a bare "Resting HR" would read as a heart rate, which this is not.
-                HStack(alignment: .top, spacing: Tokens.cardPadding) {
-                    if let restingHeartRate = reading.restingHeartRateBalance {
-                        StatTile(value: "\(restingHeartRate)", label: "Resting HR balance")
-                    }
-                    if let hrvBalance = reading.hrvBalance {
-                        StatTile(value: "\(hrvBalance)", label: "HRV balance")
-                    }
-                    if let sleep = reading.sleepScore {
-                        StatTile(value: "\(sleep)", label: "Sleep")
+                ForEach(recovery.figures) { figure in
+                    NavigationLink(value: Route.trend(figure.metric, endingOn: recovery.day)) {
+                        RecoveryFigureRow(reading: figure)
                     }
                 }
             } else {
-                Text("No Oura data in the last two weeks")
+                Text(day == today ? "No Oura data in the last two weeks." : "No Oura data for this day.")
                     .foregroundStyle(Color(.secondaryLabel))
+            }
+        } header: {
+            Text("Recovery")
+        } footer: {
+            if let recovery, !recovery.figures.isEmpty {
+                Text(footer(for: recovery, shownDay: day, today: today))
             }
         }
     }
 
-    private var quickLogSection: some View {
-        Section {
-            Button {
-                isQuickLogPresented = true
-            } label: {
-                Text("Log in plain words")
-            }
-        } footer: {
-            Text("Free text, parsed into structured entries.")
-        }
+    private func footer(for recovery: RecoveryReading, shownDay: CalendarDay, today: CalendarDay) -> String {
+        let against = "Deviations are against the \(MetricBaseline.windowDays) days before. Orange is outside the usual range, in the worse direction."
+        guard recovery.readiness == nil, recovery.day != shownDay else { return against }
+        return "From \(Formatting.day(RelativeDay.of(recovery.day, today: today)).lowercased()). \(against)"
     }
 
     @ViewBuilder
@@ -132,39 +204,37 @@ struct TodayView: View {
     }
 
     @ViewBuilder
-    private func lastSessionSection(_ session: TrainingSession.Completed?) -> some View {
-        Section("Last session") {
-            if let session {
-                let summary = SessionSummary.of(session)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(Formatting.day(RelativeDay.of(summary.day, today: today)))
-                        .font(.headline)
-                    Text(detail(of: summary))
-                        .font(.subheadline)
-                        .foregroundStyle(Color(.secondaryLabel))
-                    if summary.hasNotes {
-                        Text(summary.notes)
-                            .font(.footnote)
-                            .foregroundStyle(Color(.secondaryLabel))
-                            .lineLimit(3)
-                    }
+    private func trainingSection(_ snapshot: TodaySnapshot, today: CalendarDay) -> some View {
+        Section("Training") {
+            ForEach(snapshot.sessionsOnDay) { session in
+                NavigationLink(value: Route.session(session.id)) {
+                    TrainingDayRow(session: session, catalogue: catalogue)
                 }
-                .padding(.vertical, 2)
-            } else {
-                Text("Nothing logged yet.")
+            }
+            if let last = snapshot.lastCompleted {
+                let session = TrainingSession.completed(last)
+                NavigationLink(value: Route.session(session.id)) {
+                    TrainingDayRow(
+                        session: session,
+                        catalogue: catalogue,
+                        dayLabel: "Last session · \(Formatting.day(RelativeDay.of(session.date, today: today)))")
+                }
+            }
+            if snapshot.sessionsOnDay.isEmpty, snapshot.lastCompleted == nil, snapshot.inProgress == nil {
+                Text(snapshot.day == today ? "Nothing logged." : "Nothing logged on this day.")
                     .foregroundStyle(Color(.secondaryLabel))
             }
         }
     }
 
     @ViewBuilder
-    private func nextSessionSection(_ session: TrainingSession.Planned?) -> some View {
-        Section("Next session") {
-            if let session {
+    private func nextSessionSection(_ session: TrainingSession.Planned?, today: CalendarDay) -> some View {
+        if let session {
+            Section("Next session") {
                 let summary = PlanSummary.of(session)
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(Formatting.day(RelativeDay.of(summary.plannedFor, today: today)))
-                        .font(.headline)
+                        .font(.subheadline.weight(.semibold))
                     Text(detail(of: summary))
                         .font(.subheadline)
                         .foregroundStyle(Color(.secondaryLabel))
@@ -176,23 +246,16 @@ struct TodayView: View {
                     }
                 }
                 .padding(.vertical, 2)
-            } else {
-                Text("Nothing planned.")
-                    .foregroundStyle(Color(.secondaryLabel))
             }
         }
     }
 
-    private func detail(of summary: SessionSummary) -> String {
-        var parts = [Formatting.count(summary.setCount, "set")]
-        if summary.movementCount > 0 {
-            parts.append(Formatting.count(summary.movementCount, "movement"))
+    private var quickLogSection: some View {
+        Section {
+            Button("Log in plain words") { isQuickLogPresented = true }
+        } footer: {
+            Text("Free text, parsed into structured entries.")
         }
-        if let duration = summary.duration {
-            parts.append(Formatting.duration(seconds: duration))
-        }
-        if summary.hasEffort { parts.append("effort rated") }
-        return parts.joined(separator: " · ")
     }
 
     private func detail(of summary: PlanSummary) -> String {
@@ -206,17 +269,16 @@ struct TodayView: View {
 
     // MARK: - Not loaded
 
-    /// The screen's own shape while its two requests are out, under the headers the content will
-    /// arrive under — so the cards appear in place rather than pushing a spinner off the screen.
-    ///
-    /// Quick log is not among them: it needs nothing from the server and is drawn and usable
-    /// already, which is the point of it being a sheet over plain words.
+    /// The screen's own shape while its requests are out, under the headers the content will
+    /// arrive under — so the rows appear in place rather than pushing a spinner off the screen.
     @ViewBuilder
-    private var loadingRows: some View {
-        Section("Readiness") { SkeletonRows(count: 1) }
-        quickLogSection
-        Section("Last session") { SkeletonRows(count: 1) }
-        Section("Next session") { SkeletonRows(count: 1) }
+    private func loadingRows(isToday: Bool) -> some View {
+        if isToday {
+            Section { OuraSyncRow(store: ouraSync, today: store.today) }
+        }
+        Section("Recovery") { SkeletonRows(count: 3) }
+        Section("Training") { SkeletonRows(count: 1) }
+        if isToday { quickLogSection }
     }
 
     @ViewBuilder
@@ -232,8 +294,47 @@ struct TodayView: View {
         }
         .listRowBackground(Color.clear)
     }
+}
 
-    /// Today, read once per body evaluation. It comes from the device's calendar rather than from a
-    /// session, because the question "is this yesterday" is asked about the athlete's day.
-    private var today: CalendarDay { CalendarDay(Date()) }
+/// A month calendar for jumping to a day, with the future closed off.
+private struct DayPickerSheet: View {
+    let today: CalendarDay
+    let choose: (CalendarDay) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var date: Date
+
+    init(day: CalendarDay, today: CalendarDay, choose: @escaping (CalendarDay) -> Void) {
+        self.today = today
+        self.choose = choose
+        _date = State(initialValue: day.middayDate())
+    }
+
+    var body: some View {
+        NavigationStack {
+            DatePicker("Day", selection: $date, in: ...today.middayDate(), displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .padding(.horizontal)
+                .navigationTitle("Go to day")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Go") {
+                            choose(CalendarDay(date))
+                            dismiss()
+                        }
+                    }
+                    ToolbarItem(placement: .bottomBar) {
+                        Button("Today") {
+                            choose(today)
+                            dismiss()
+                        }
+                    }
+                }
+        }
+        .presentationDetents([.medium, .large])
+    }
 }

@@ -189,6 +189,25 @@ struct CalendarDay: Hashable, Comparable, Sendable {
         calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12)) ?? Date()
     }
 
+    /// Midnight at the start of this day in `calendar` — where a window of instants over the day
+    /// begins.
+    func startDate(in calendar: Calendar = .current) -> Date {
+        calendar.startOfDay(for: middayDate(in: calendar))
+    }
+
+    /// The day `days` away, in the calendar's own day arithmetic so a daylight-saving change
+    /// cannot skip or repeat one.
+    func adding(days: Int, in calendar: Calendar = .current) -> CalendarDay {
+        guard let moved = calendar.date(byAdding: .day, value: days, to: middayDate(in: calendar))
+        else { return self }
+        return CalendarDay(moved, in: calendar)
+    }
+
+    /// Whole days from this day to `other`: positive when `other` is later.
+    func days(until other: CalendarDay, in calendar: Calendar = .current) -> Int {
+        calendar.dateComponents([.day], from: startDate(in: calendar), to: other.startDate(in: calendar)).day ?? 0
+    }
+
     static func < (lhs: Self, rhs: Self) -> Bool {
         (lhs.year, lhs.month, lhs.day) < (rhs.year, rhs.month, rhs.day)
     }

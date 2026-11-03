@@ -120,10 +120,43 @@ teardown, so this type never has to know what screens exist.
 
 ## Today: one window, four answers
 
-Two requests in parallel (`async let`), and one of them answers three of the screen's four
-questions. A single wide session window — 90 days back, 45 forward — gives the last completed
-session, the next planned one and anything in progress, so the cards cannot disagree with each
-other the way three separate reads could. `TodaySnapshot.reading` does the picking, purely.
+Three requests in parallel (`async let`): sessions, Oura days and Oura nights. On today, a single
+wide session window — 90 days back, 45 forward — gives the last completed session, the next planned
+one and anything in progress, so the cards cannot disagree with each other the way three separate
+reads could. `TodaySnapshot.reading` does the picking, purely.
+
+### Any day, not only today
+
+The day steps back and forward from the toolbar, and a calendar jumps further. The selection is
+`DaySelection` — `.today`, which follows the clock across midnight, or a fixed past day — and there
+is no future case, because a day that has not happened has nothing to read. A past day reads only
+the sessions around it and keeps those dated on it; the questions about *now* (next, in progress,
+the plain-words log) are answered on today only. Changing the day drops the old snapshot rather
+than keeping it as stale: a stale value is the same day not yet refreshed, and one day's recovery
+under another day's title would be wrong, not old. The server already serves everything per day
+(`/days`, `/sleep` windowed on the clock, the session window), so no new read was needed for it.
+
+### Recovery against his own baseline
+
+The screen leads with readiness as the verdict and then a table of recovery figures — HRV, lowest
+heart rate, time asleep, breathing from the night's main sleep; sleep score, temperature, steps from
+the day — each with its deviation from the 28 days before and a sparkline of them. The baseline
+excludes the day itself, needs seven readings, and a figure outside one standard deviation in the
+worse direction is the one thing coloured (orange). These are **measurements** from the sleep
+period, deliberately not the readiness contributors called "HRV balance", which are already Oura's
+comparison and would make the deviation a comparison of a comparison. Temperature is likewise
+already a deviation, so it shows no second one. Every figure opens its trend: daily points, a
+seven-day mean, over 30 days, 90 days or a year, read on demand and held by key in `TodayStore`.
+
+### Oura sync
+
+`OuraSyncStore` is app-wide, because Today and Body both show the control. A sync reads the
+coverage (`GET /api/oura/days/latest`), syncs from the newest stored day **inclusive** through
+today, then reads the coverage again; the newest day is re-pulled because it is usually still
+accruing, and the server's upsert makes that free. Coming back to the foreground syncs when the
+store is behind, at most once per half hour whatever the outcome, so a rejected token is not asked
+about on every return. **A rejected Oura token arrives as a 502** with the server's sentence naming
+the token — never a 401, which would be this app's own session — and the row shows that sentence.
 
 The window reaching into the future works because the server matches each lifecycle state on its
 own time-truth: a completed session on its stamped start instant, a planned or skipped one on the
@@ -327,8 +360,13 @@ owner's brief: native, like Apple Music, and explicitly not the web app's custom
 - `List(.insetGrouped)` is the default screen.
 
 `Design/` holds only what stock SwiftUI has no answer for: `Tokens`, `ActiveWorkoutBar`,
-`ReadinessGauge` (the stock `Gauge` plus Oura's band colour), `StatTile`, `SetRow`, `RestTimerBar`
-and `LoadStateRows` (the loading row and stale banner three tabs share).
+`Sparkline` (a stock `Chart` with every axis removed), `StatTile`, `SetRow`, `RestTimerBar` and
+`LoadStateRows` (the loading row and stale banner three tabs share).
+
+Colour carries a verdict in one way only: orange marks a recovery figure, or a readiness band,
+that asks for attention. Oura's other bands read in the secondary label colour — a traffic light's
+yellow does not read as text on a light background — and the accent is kept for what can be tapped
+and for the one line on a chart the eye should follow.
 
 A note on the plist: the app supplies its own `Info.plist`, so `INFOPLIST_KEY_*` build settings do
 not reach it. `UILaunchScreen` has to be declared there explicitly or the app runs letterboxed in
@@ -378,8 +416,9 @@ Deliberate, and left for the agents that own them.
    what it sent, and mirroring the parser's whole output in Swift types would make every member of
    it something the client could silently drop. Re-encoding may reorder an object's keys, which is
    safe only because the server sets `AllowOutOfOrderMetadataProperties`.
-4. **Wellness and injuries are fetched by nothing yet.** `WellnessAPI` and `InjuriesAPI` exist
-   because the Body tab needs them next; Today does not read them.
+4. **Wellness is read, never written.** The Body tab lists wellness entries and has no form for
+   one; injuries and their events are created there, but an event cannot be backdated — the server
+   stamps it with its own clock.
 5. **`PUT /prescriptions` is unwritten.** The rest of the lifecycle — the three creates,
    `/start`, `/complete`, `/skip`, `PUT /sets` and `PATCH /notes` — is in `TrainingSessionsAPI`
    and driven by the Train tab. Nothing in the app plans a session yet, so the one route that

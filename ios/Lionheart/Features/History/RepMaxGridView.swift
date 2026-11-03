@@ -87,16 +87,16 @@ struct RepMaxGridView: View {
     }
 }
 
-/// Bordered for a standing rep max, prominent for one set in the latest session — two stock
-/// styles, so the emphasis follows the accent and the appearance without a colour of its own.
+/// Bordered in the label colour for a standing rep max, and in the accent for one set in the latest
+/// session. The stock bordered style either way, so the fill, shape and pressed state stay the
+/// system's; only the tint marks the newest. A filled accent cell per record set in one session
+/// turned a strong day into a block of solid red, louder than anything else in the app.
 private struct CellProminence: ViewModifier {
     let isNewest: Bool
 
     func body(content: Content) -> some View {
-        if isNewest {
-            content.buttonStyle(.borderedProminent)
-        } else {
-            content.buttonStyle(.bordered)
-        }
+        content
+            .buttonStyle(.bordered)
+            .tint(isNewest ? Tokens.accent : Color(.label))
     }
 }

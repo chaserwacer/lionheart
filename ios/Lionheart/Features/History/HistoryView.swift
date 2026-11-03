@@ -11,6 +11,7 @@ struct HistoryView: View {
 
     @State private var query = ""
     @State private var asked: AskedTransition?
+    @ScaledMetric(relativeTo: .body) private var loadChartHeight: CGFloat = 64
 
     /// A transition waiting on the athlete's confirmation.
     ///
@@ -165,9 +166,26 @@ struct HistoryView: View {
 
     /// Records and trends. Hidden while searching, because a search is about the log and two
     /// navigation rows above the results would be noise in the way.
+    ///
+    /// The training load leads as a chart rather than a link, because the shape of the last four
+    /// months is the first thing a log of hundreds of sessions should say; the chart opens Trends.
     @ViewBuilder
     private func readings(_ snapshot: HistorySnapshot) -> some View {
+        let weeks = Array(snapshot.trends.weeks.suffix(Self.loadWeeksShown + TrainingTrends.loadAverageWeeks - 1))
+        let shown = Array(weeks.suffix(Self.loadWeeksShown))
+        let average = TrainingTrends.loadAverage(of: weeks)
+
         Section {
+            NavigationLink(value: HistoryRoute.trends) {
+                VStack(alignment: .leading, spacing: 8) {
+                    loadSummary(shown, average: average)
+                    if shown.contains(where: { $0.setCount > 0 }) {
+                        WeeklyLoadChart(weeks: shown, average: average, showsAxes: false)
+                            .frame(height: loadChartHeight)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
             NavigationLink(value: HistoryRoute.records) {
                 LabeledContent {
                     let held = snapshot.records.reduce(0) { $0 + $1.records.count }
@@ -177,11 +195,31 @@ struct HistoryView: View {
                     Text("Personal records")
                 }
             }
-            NavigationLink(value: HistoryRoute.trends) {
-                Text("Trends")
-            }
         }
     }
+
+    /// The load in two figures: this week's sets and the four-week average it is read against.
+    private func loadSummary(_ weeks: [TrainingWeek], average: [TrainingTrends.WeeklyLoad]) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("This week").font(.caption).foregroundStyle(Color(.secondaryLabel))
+                Text("\(weeks.last?.setCount ?? 0) sets").font(.title3.weight(.semibold).monospacedDigit())
+            }
+            if let latest = average.last {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("4-week average").font(.caption).foregroundStyle(Color(.secondaryLabel))
+                    Text("\(Int(latest.sets.rounded())) sets")
+                        .font(.title3.monospacedDigit())
+                        .foregroundStyle(Color(.secondaryLabel))
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Four months: long enough to see a block and a deload, short enough that a week is a bar.
+    private static let loadWeeksShown = 16
 
     @ViewBuilder
     private func months(of log: SessionLog) -> some View {
