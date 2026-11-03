@@ -25,7 +25,10 @@ enum Rpe: Equatable, Sendable {
 }
 
 /// How a set's weight was measured. Integer-valued on the wire, and the order is the server's.
-enum WeightUnit: Equatable, Sendable {
+///
+/// `Hashable` because a trend series is keyed by the movement *and* the unit it was loaded in: an
+/// athlete who switched from pounds to kilograms gets two series rather than one line with a cliff.
+enum WeightUnit: Equatable, Hashable, Sendable {
     case kilograms
     case pounds
     case unrecognised(Int)

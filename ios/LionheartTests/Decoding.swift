@@ -126,4 +126,185 @@ enum Oura {
          "readinessData":null,"sleepData":null,"activityData":null,"resilienceData":null}
         """
     }
+
+    /// A day with sleep and nothing else — the shape that proves the panels arrive independently.
+    static func dayWithSleepOnly(date: String, sleepScore: Int = 74) -> String {
+        """
+        {"objectID":"44444444-4444-4444-4444-444444444445","date":"\(date)",
+         "readinessData":null,
+         "sleepData":{"sleepScore":\(sleepScore),"deepSleep":4800,"efficiency":91,
+           "remSleep":5400,"totalSleep":26100},
+         "activityData":null,"resilienceData":null}
+        """
+    }
+}
+
+/// Self-reported wellness, as `GET /api/wellness/get-range` sends it.
+///
+/// `overallScore` is written into the fixture rather than computed, because the claim under test is
+/// that the client prints the server's number instead of deriving a second one.
+enum Wellness {
+    static func reading(
+        date: String,
+        motivation: Int = 4,
+        stress: Int = 2,
+        mood: Int = 4,
+        energy: Int = 4,
+        overall: Double = 3.75
+    ) -> String {
+        """
+        {"stateID":"55555555-5555-5555-5555-555555555555",
+         "userID":"66666666-6666-6666-6666-666666666666","date":"\(date)",
+         "motivationScore":\(motivation),"stressScore":\(stress),"moodScore":\(mood),
+         "energyScore":\(energy),"overallScore":\(overall)}
+        """
+    }
+}
+
+/// Injuries and the events logged against them.
+enum Tracked {
+    static let injuryId = "77777777-7777-7777-7777-777777777777"
+
+    static func injury(
+        id: String = Self.injuryId,
+        name: String = "Right shoulder impingement",
+        injuryDate: String = "2026-01-20",
+        isActive: Bool = true,
+        events: String = "[]"
+    ) -> String {
+        """
+        {"injuryID":"\(id)","name":"\(name)","notes":"Aggravated by overhead pressing.",
+         "injuryDate":"\(injuryDate)","isActive":\(isActive),"injuryEvents":\(events)}
+        """
+    }
+
+    /// `injuryType` is 0 for a treatment and 1 for a check-in — integer-valued, like every enum on
+    /// this wire.
+    static func event(
+        id: String,
+        painLevel: Int,
+        kind: Int = 1,
+        createdAt: String = "2026-02-01T09:00:00",
+        notes: String = ""
+    ) -> String {
+        """
+        {"injuryEventID":"\(id)","trainingSessionID":null,"movementIDs":[],"notes":"\(notes)",
+         "painLevel":\(painLevel),"injuryType":\(kind),"creationTime":"\(createdAt)"}
+        """
+    }
+}
+
+/// The movement catalogue, which is the only thing that can put a name on a set.
+enum Catalogue {
+    static func movement(
+        id: String,
+        base: String,
+        equipment: String = "Barbell",
+        modifier: String? = nil
+    ) -> String {
+        let modifierId = "88888888-8888-8888-8888-888888888888"
+        let modifierJson = modifier.map {
+            #"{"movementModifierID":"\#(modifierId)","name":"\#($0)"}"#
+        } ?? "null"
+        return """
+        {"movementDataID":"\(id)","equipmentID":"99999999-9999-9999-9999-999999999999",
+         "equipment":{"equipmentID":"99999999-9999-9999-9999-999999999999",
+           "name":"\(equipment)","enabled":true},
+         "movementBaseID":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+         "movementBase":{"movementBaseID":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+           "name":"\(base)","description":"","muscleGroups":[]},
+         "movementModifierID":\(modifier == nil ? "null" : "\"\(modifierId)\""),
+         "movementModifier":\(modifierJson)}
+        """
+    }
+}
+
+/// Chat conversations and their turns.
+///
+/// `role` is the discriminator the transcript depends on: 0 the athlete, 1 the model, 2 a stored
+/// tool result, 3 the system prompt. Without it a client has to guess the speaker from the ordering
+/// of a projection that merges two tables.
+enum Chat {
+    static let conversationId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+
+    static func conversation(
+        id: String = Self.conversationId,
+        name: String = "Should I press overhead?",
+        lastUpdate: String = "2026-03-04T18:05:00",
+        messages: String = "[]"
+    ) -> String {
+        """
+        {"chatConversationID":"\(id)","createdAt":"2026-03-04T17:00:00",
+         "lastUpdate":"\(lastUpdate)","name":"\(name)","messages":\(messages)}
+        """
+    }
+
+    /// What the list route actually sends: no turns at all, spelled `null`.
+    static func conversationWithNullMessages(id: String = Self.conversationId) -> String {
+        """
+        {"chatConversationID":"\(id)","createdAt":"2026-03-04T17:00:00",
+         "lastUpdate":"2026-03-04T18:05:00","name":"Listed","messages":null}
+        """
+    }
+
+    static func message(
+        id: String,
+        role: Int,
+        content: String,
+        createdAt: String = "2026-03-04T17:30:00"
+    ) -> String {
+        """
+        {"chatMessageItemID":"\(id)","chatConversationID":"\(Self.conversationId)",
+         "creationTime":"\(createdAt)","tokenCount":19,"content":"\(content)","role":\(role)}
+        """
+    }
+}
+
+/// Personal records, as the summaries route groups them.
+enum Records {
+    static func summary(
+        movementId: String,
+        base: String,
+        strength: String = "null",
+        volume: String = "null"
+    ) -> String {
+        """
+        {"movementDataID":"\(movementId)",
+         "movementData":\(Catalogue.movement(id: movementId, base: base)),
+         "strengthPR":\(strength),"volumePR":\(volume),"lastPRDate":"2026-03-01T18:00:00"}
+        """
+    }
+
+    /// `prType` is 0 for strength and 1 for volume. `volume` is the server's own product of weight
+    /// and reps, written here as a value the client must print rather than recompute.
+    static func record(
+        id: String,
+        movementId: String,
+        kind: Int,
+        weight: Double,
+        reps: Int,
+        volume: Double,
+        previousAt: String = "null"
+    ) -> String {
+        """
+        {"personalRecordID":"\(id)","movementDataID":"\(movementId)",
+         "movementData":\(Catalogue.movement(id: movementId, base: "Bench Press")),
+         "prType":\(kind),"weight":\(weight),"weightUnit":0,"reps":\(reps),"volume":\(volume),
+         "createdAt":"2026-03-04T18:00:00","previousPRCreatedAt":\(previousAt),
+         "previousPersonalRecordID":null,"isActive":true}
+        """
+    }
+}
+
+/// The athlete context card, as the profile route sends it.
+enum ContextCard {
+    static func card(
+        stable: String = "Trains four times a week around a shoulder.",
+        recent: String = "Wellness: latest 2026-03-03 overall 4.0."
+    ) -> String {
+        """
+        {"stableProfileText":"\(stable)","stableProfileAsOf":"2026-03-01T06:00:00",
+         "recentStateText":"\(recent)","recentStateAsOf":"2026-03-04T06:00:00"}
+        """
+    }
 }

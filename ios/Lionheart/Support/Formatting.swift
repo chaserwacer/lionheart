@@ -39,6 +39,46 @@ enum Formatting {
         day.middayDate(in: calendar).formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
     }
 
+    /// A month as a section header — "October 2026".
+    static func month(_ day: CalendarDay, calendar: Calendar = .current) -> String {
+        day.middayDate(in: calendar).formatted(.dateTime.month(.wide).year())
+    }
+
+
+    /// What a session log row says under its headline, or `nil` where the state has nothing to
+    /// count. The facts come from `Core/`; this only chooses the words and the separator.
+    static func sessionFacts(_ facts: LoggedSessionFacts) -> String? {
+        switch facts {
+        case .performed(let setCount, let duration, let hasEffort):
+            var parts = [count(setCount, "set")]
+            if let duration { parts.append(self.duration(seconds: duration)) }
+            if hasEffort { parts.append("effort rated") }
+            return parts.joined(separator: " · ")
+        case .inProgress(let setCount):
+            return "\(count(setCount, "set")) so far"
+        case .prescribed(let prescriptions):
+            return prescriptions == 0 ? "No prescriptions" : count(prescriptions, "prescription")
+        case .none:
+            return nil
+        }
+    }
+
+
+    /// A facet's axis in the athlete's words. The axes are a fixed set, so these are a fixed list;
+    /// an axis this build has not heard of is named by its wire value rather than hidden, because
+    /// the facet's own value is still worth reading.
+    static func facetAxis(_ axis: FacetAxis) -> String {
+        switch axis {
+        case .modality: "Modality"
+        case .movementPattern: "Pattern"
+        case .muscleRegion: "Region"
+        case .intent: "Intent"
+        case .lifeDomain: "Life domain"
+        case .bodyState: "Body state"
+        case .unrecognised(let wire): "Axis \(wire)"
+        }
+    }
+
     /// A count with its noun, pluralised. The noun is passed in singular.
     static func count(_ value: Int, _ singular: String, plural: String? = nil) -> String {
         value == 1 ? "1 \(singular)" : "\(value) \(plural ?? singular + "s")"

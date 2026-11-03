@@ -15,7 +15,11 @@ import Observation
 final class AppContainer {
     let configuration: APIConfiguration
     let auth: AuthStore
+    let profile: ProfileStore
     let today: TodayStore
+    let history: HistoryStore
+    let coach: CoachStore
+    let body: BodyStore
     let activeWorkout: ActiveWorkoutStore
 
     private let tokens: TokenProvider
@@ -28,10 +32,22 @@ final class AppContainer {
         self.configuration = configuration
         self.tokens = tokens
         auth = AuthStore(identity: IdentityAPI(client: client), tokens: tokens)
+        profile = ProfileStore(users: UserAPI(client: client))
         today = TodayStore(
             sessions: TrainingSessionsAPI(client: client),
             oura: OuraAPI(client: client),
             interpretation: InterpretationAPI(client: client))
+        history = HistoryStore(
+            sessions: TrainingSessionsAPI(client: client),
+            movements: MovementsAPI(client: client),
+            records: PersonalRecordsAPI(client: client))
+        coach = CoachStore(
+            chat: ChatAPI(client: client),
+            profile: ProfileAPI(client: client))
+        body = BodyStore(
+            oura: OuraAPI(client: client),
+            wellness: WellnessAPI(client: client),
+            injuries: InjuriesAPI(client: client))
         activeWorkout = ActiveWorkoutStore()
     }
 
@@ -44,8 +60,16 @@ final class AppContainer {
         hasStarted = true
 
         // Registered before the session is settled, so a sign-out during the first load still
-        // empties the screen it was loading into.
-        auth.onSignOut { [today] in today.reset() }
+        // empties the screen it was loading into. The profile gate is reset for a sharper reason
+        // than the screens are: left settled, the next athlete on this device would walk straight
+        // into the tabs on an account that has no profile behind them.
+        auth.onSignOut { [profile, today, history, coach, body] in
+            profile.reset()
+            today.reset()
+            history.reset()
+            coach.reset()
+            body.reset()
+        }
 
         async let restored: Void = auth.restore()
         async let workout: Void = activeWorkout.restore()

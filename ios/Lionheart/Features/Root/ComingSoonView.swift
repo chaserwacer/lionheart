@@ -33,33 +33,3 @@ struct TrainView: View {
             whatIsComing: "Programs, planned sessions, starting a workout and the exercise library.")
     }
 }
-
-struct HistoryView: View {
-    var body: some View {
-        ComingSoonView(
-            title: "History",
-            question: "What have I done?",
-            systemImage: "list.bullet.rectangle",
-            whatIsComing: "The session log, personal records and trends over time.")
-    }
-}
-
-struct CoachView: View {
-    var body: some View {
-        ComingSoonView(
-            title: "Coach",
-            question: "What does it mean?",
-            systemImage: "bubble.left.and.text.bubble.right",
-            whatIsComing: "The chat, and the analyses it draws on.")
-    }
-}
-
-struct BodyView: View {
-    var body: some View {
-        ComingSoonView(
-            title: "Body",
-            question: "What is my body doing?",
-            systemImage: "heart.text.square",
-            whatIsComing: "Oura days, wellness entries and injuries.")
-    }
-}
