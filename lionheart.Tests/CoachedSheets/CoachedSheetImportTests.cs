@@ -111,6 +111,31 @@ public class CoachedSheetImportTests : IDisposable
         Assert.DoesNotContain(await _database.RecordsAsync(), record => record.Kind == new RecordKind.RepMax(2));
     }
 
+    [Fact]
+    public async Task A_programme_reads_a_shared_slug_its_own_way()
+    {
+        // training-os gives every deadlift one slug; the Jamal block pulled conventional and
+        // Blake's MK.2 pulled sumo, so the same slug lands on two movements and two record chains.
+        using var log = new LogFile(
+            Set("2023-04-10", "your-program-rpe", 12, "DAY 1", "deadlift-barbell", "DEADLIFT", 430, 1),
+            Set("2023-12-18", "mk-2", 1, "Monday", "deadlift-barbell", "Deadlift", 463, 3));
+        var map = Map(
+            ("deadlift-barbell", "Deadlift", "Barbell", ""),
+            ("sumo-deadlift-barbell", "Sumo Deadlift", "Barbell", ""));
+
+        ResultAssert.Succeeded(await ImportAsync(log.Path, map: map, decisions: DecisionsWithSumoMk2()));
+
+        await using var context = _database.CreateContext();
+        var names = await context.MovementDatas
+            .Select(movement => new { movement.MovementDataID, movement.MovementBase.Name })
+            .ToDictionaryAsync(movement => movement.MovementDataID, movement => movement.Name);
+        var pulls = (await SessionsAsync())
+            .SelectMany(session => session.Sets.Cast<LiftSet>())
+            .Select(set => (names[set.MovementDataId], set.Weight))
+            .Order();
+        Assert.Equal([("Deadlift", 430.0), ("Sumo Deadlift", 463.0)], pulls);
+    }
+
     // ---- Re-running ----
 
     [Fact]

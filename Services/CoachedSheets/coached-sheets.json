@@ -3,6 +3,9 @@
 // embeds it, so the next run picks the change up.
 //
 // "programs": each sheet (training-os's slug for it) and the completed programme its sessions join.
+//   "readAs" maps a training-os slug to the one this sheet means by it. Blake's sheets write
+//   "Deadlift" or "Heave" for a pull the athlete did sumo (their 463 x 3 and 474 x 3 are past his
+//   463 conventional single), while the Jamal block's deadlifts were conventional, as he recalls.
 //
 // "templateText": openings of notes a spreadsheet template prints on every row. They are dropped
 //   from session notes because they describe the template, not the session.
@@ -26,10 +29,10 @@
 {
   "programs": [
     { "sheet": "your-program-rpe", "title": "Jamal V5 — Your Program (RPE)", "summary": "Twelve-week RPE powerlifting template (Jamal V5), sheet \"Your Program (RPE)\". Imported from training-os's derived set log; the athlete entered each day's top-set weights, and the template computed the rest.", "tags": ["coached", "powerlifting", "spreadsheet"] },
-    { "sheet": "disabled", "title": "Perfect Powerlifting — disabled", "summary": "Coached by Blake Rossi (Perfect Powerlifting), sheet \"disabled\". Imported from training-os's derived set log.", "tags": ["coached", "powerlifting", "spreadsheet"] },
-    { "sheet": "mk-2", "title": "Perfect Powerlifting — MK.2", "summary": "Coached by Blake Rossi (Perfect Powerlifting), sheet \"MK.2\". Imported from training-os's derived set log.", "tags": ["coached", "powerlifting", "spreadsheet"] },
-    { "sheet": "dont-take-3-months-for-this-one", "title": "Perfect Powerlifting — dont take 3 months for this one", "summary": "Coached by Blake Rossi (Perfect Powerlifting), sheet \"dont take 3 months for this one\". Imported from training-os's derived set log.", "tags": ["coached", "powerlifting", "spreadsheet"] },
-    { "sheet": "chase-vs-his-opps", "title": "Perfect Powerlifting — chase vs his opps", "summary": "Coached by Blake Rossi (Perfect Powerlifting), sheet \"chase vs his opps\". Imported from training-os's derived set log.", "tags": ["coached", "powerlifting", "spreadsheet"] }
+    { "sheet": "disabled", "title": "Perfect Powerlifting — disabled", "summary": "Coached by Blake Rossi (Perfect Powerlifting), sheet \"disabled\". Imported from training-os's derived set log.", "tags": ["coached", "powerlifting", "spreadsheet"], "readAs": { "deadlift-barbell": "sumo-deadlift-barbell", "paused-deadlift": "paused-sumo-deadlift", "1-5-deadlift": "sumo-1-5-deadlift", "tempo-deadlift": "tempo-sumo-deadlift", "tempo-1-5-deadlift": "tempo-1-5-sumo-deadlift" } },
+    { "sheet": "mk-2", "title": "Perfect Powerlifting — MK.2", "summary": "Coached by Blake Rossi (Perfect Powerlifting), sheet \"MK.2\". Imported from training-os's derived set log.", "tags": ["coached", "powerlifting", "spreadsheet"], "readAs": { "deadlift-barbell": "sumo-deadlift-barbell", "paused-deadlift": "paused-sumo-deadlift", "1-5-deadlift": "sumo-1-5-deadlift", "tempo-deadlift": "tempo-sumo-deadlift", "tempo-1-5-deadlift": "tempo-1-5-sumo-deadlift" } },
+    { "sheet": "dont-take-3-months-for-this-one", "title": "Perfect Powerlifting — dont take 3 months for this one", "summary": "Coached by Blake Rossi (Perfect Powerlifting), sheet \"dont take 3 months for this one\". Imported from training-os's derived set log.", "tags": ["coached", "powerlifting", "spreadsheet"], "readAs": { "deadlift-barbell": "sumo-deadlift-barbell", "paused-deadlift": "paused-sumo-deadlift", "1-5-deadlift": "sumo-1-5-deadlift", "tempo-deadlift": "tempo-sumo-deadlift", "tempo-1-5-deadlift": "tempo-1-5-sumo-deadlift" } },
+    { "sheet": "chase-vs-his-opps", "title": "Perfect Powerlifting — chase vs his opps", "summary": "Coached by Blake Rossi (Perfect Powerlifting), sheet \"chase vs his opps\". Imported from training-os's derived set log.", "tags": ["coached", "powerlifting", "spreadsheet"], "readAs": { "deadlift-barbell": "sumo-deadlift-barbell", "paused-deadlift": "paused-sumo-deadlift", "1-5-deadlift": "sumo-1-5-deadlift", "tempo-deadlift": "tempo-sumo-deadlift", "tempo-1-5-deadlift": "tempo-1-5-sumo-deadlift" } }
   ],
   "templateText": [
     "PLEASE CHECK THE FAQ PAGE",

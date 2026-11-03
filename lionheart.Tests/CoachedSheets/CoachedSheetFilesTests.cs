@@ -44,11 +44,19 @@ public class CoachedSheetFilesTests
     }
 
     [Fact]
-    public void The_deadlift_stance_the_sheets_never_state_is_flagged_rather_than_assumed_silently()
+    public void Blakes_sheets_pull_sumo_and_the_Jamal_block_pulls_conventional()
     {
-        var movement = ResultAssert.Succeeded(Movements.Cover(["deadlift-barbell", "paused-deadlift"]));
+        // The sheets never state the stance; the athlete does. Blake's 463 x 3 and 474 x 3 are past
+        // his 463 conventional single, and he pulled conventional while running Jamal.
+        var decisions = ResultAssert.Succeeded(SheetDecisions.Shipped());
+        var movements = ResultAssert.Succeeded(Movements.Cover(["deadlift-barbell", "sumo-deadlift-barbell"]));
 
-        Assert.All(movement.Values, mapping => Assert.True(mapping.IsUnsure));
+        Assert.All(
+            new[] { "disabled", "mk-2", "dont-take-3-months-for-this-one", "chase-vs-his-opps" },
+            sheet => Assert.Equal("sumo-deadlift-barbell", decisions.Programs[sheet].Reading("deadlift-barbell")));
+        Assert.Equal("deadlift-barbell", decisions.Programs["your-program-rpe"].Reading("deadlift-barbell"));
+        Assert.Equal("Sumo Deadlift", movements["sumo-deadlift-barbell"].Movement.Base);
+        Assert.Equal("Deadlift", movements["deadlift-barbell"].Movement.Base);
     }
 
     // ---- The sheet decisions ----

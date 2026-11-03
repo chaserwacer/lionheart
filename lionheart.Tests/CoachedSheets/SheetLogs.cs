@@ -59,6 +59,21 @@ internal static class SheetLogs
             notPerformed,
         })));
 
+    /// <summary>The same two programmes, with MK.2 reading its deadlift as sumo, as Blake's sheets do.</summary>
+    public static SheetDecisions DecisionsWithSumoMk2() =>
+        ResultAssert.Succeeded(SheetDecisions.Parse(JsonSerializer.Serialize(new
+        {
+            programs = new object[]
+            {
+                new
+                {
+                    sheet = "mk-2", title = "Perfect Powerlifting — MK.2", summary = "Coached by Blake Rossi.", tags = new[] { "coached" },
+                    readAs = new Dictionary<string, string> { ["deadlift-barbell"] = "sumo-deadlift-barbell" },
+                },
+                new { sheet = "your-program-rpe", title = "Jamal V5 — Your Program (RPE)", summary = "RPE template.", tags = new[] { "coached" } },
+            },
+        })));
+
     /// <summary>A not-performed entry as the decisions file states one.</summary>
     public static object NotPerformed(
         string source, string date, string exercise, double weight, int reps, int sets, string kind = "computed") =>
