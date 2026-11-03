@@ -23,12 +23,13 @@ struct PersonalRecordsView: View {
                 .listRowBackground(Color.clear)
             } else {
                 ForEach(records) { movement in
-                    Section(movement.movement?.displayName ?? "Unknown movement") {
+                    let name = movement.movement?.displayName ?? "Unknown movement"
+                    Section(name) {
                         if let strength = movement.strength {
-                            RecordRow(record: strength)
+                            RecordRow(record: strength, movementName: name)
                         }
                         if let volume = movement.volume {
-                            RecordRow(record: volume)
+                            RecordRow(record: volume, movementName: name)
                         }
                     }
                 }
@@ -43,8 +44,13 @@ struct PersonalRecordsView: View {
 ///
 /// "Previously" is the fact that turns a number into progress. It is absent on a first record,
 /// which is why it is an optional date and not a zero-length gap.
+///
+/// Copying is its whole menu: there is no route that edits or revokes a record.
 private struct RecordRow: View {
     let record: PersonalRecord
+    /// Carried only so a copied record says which movement it is on; the section header says it on
+    /// screen, and a number on the pasteboard with no movement attached is useless.
+    let movementName: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -64,6 +70,13 @@ private struct RecordRow: View {
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(record.kind.label) record, \(headline)")
+        .contextMenu {
+            Button {
+                Clipboard.copy("\(movementName) · \(record.kind.label) \(headline)")
+            } label: {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+        }
     }
 
     private var headline: String {

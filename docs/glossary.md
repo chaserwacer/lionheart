@@ -84,3 +84,7 @@ first and then in the code.
 | **Movement catalogue** | Movement names by id, so a set — which carries only a `movementDataId` — can say what it was. |
 | **Coach turn** | One thing in the Coach transcript: something said, a question in flight, or a question the server did not keep because the exchange failed. |
 | **Oura panel** | One collection of an Oura day as a screen shows it — its score, where Oura issues one, and the figures behind it. |
+| **Session transition** | A lifecycle move a session row can offer directly — start, skip or delete. Which ones a row offers is read from its state, because the server refuses the others. |
+| **Injury action** | What an injury row can offer: resolve, take up again, or delete. Resolving and reopening are one route in two directions, so a row offers exactly one of them. |
+| **Action state** | Where a one-shot action the athlete asked for stands: waiting, out, or refused with the server's own words. A refusal is stated, never swallowed. |
+| **Confirmation** | What a destructive action asks before it happens — the question, the consequence, and the word on the button, written once and used by every screen that offers the action. |

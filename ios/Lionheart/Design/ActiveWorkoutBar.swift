@@ -17,6 +17,9 @@ struct ActiveWorkoutBar: View {
     /// The movement being worked through, resolved by the caller: the bar is in `Design/` and does
     /// not reach for a store to turn an id into a name.
     let movementTitle: String?
+    /// Whether the slot holding the bar is the single-line one beside a minimized tab bar. The
+    /// caller knows the placement; the bar only knows how much room it has.
+    let isCondensed: Bool
     let open: () -> Void
 
     var body: some View {
@@ -28,28 +31,34 @@ struct ActiveWorkoutBar: View {
                         .foregroundStyle(Tokens.accent)
                         .accessibilityHidden(true)
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(headline)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color(.label))
-                            .lineLimit(1)
-                        status(at: context.date)
-                            .font(.caption)
-                            .foregroundStyle(Color(.secondaryLabel))
-                            .lineLimit(1)
+                    if isCondensed {
+                        condensedLine(at: context.date)
+                    } else {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(headline)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color(.label))
+                                .lineLimit(1)
+                            status(at: context.date)
+                                .font(.caption)
+                                .foregroundStyle(Color(.secondaryLabel))
+                                .lineLimit(1)
+                        }
                     }
 
                     Spacer(minLength: 8)
 
                     trailing(at: context.date)
 
-                    Image(systemName: "chevron.up")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color(.tertiaryLabel))
-                        .accessibilityHidden(true)
+                    if !isCondensed {
+                        Image(systemName: "chevron.up")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color(.tertiaryLabel))
+                            .accessibilityHidden(true)
+                    }
                 }
                 .padding(.horizontal, Tokens.cardPadding)
-                .padding(.vertical, 10)
+                .padding(.vertical, isCondensed ? 6 : 10)
                 .contentShape(.rect)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(spoken(at: context.date))
@@ -57,6 +66,24 @@ struct ActiveWorkoutBar: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    /// The one line the condensed slot has room for. Anything the athlete has to act on takes it;
+    /// otherwise it is the movement, which is what they glance down for. Nothing is lost by the
+    /// squeeze, because the spoken label is the same either way and the full bar is one scroll away.
+    @ViewBuilder
+    private func condensedLine(at now: Date) -> some View {
+        if WorkoutAttention.isNeeded(for: workout, savedToDisk: isPersisted) {
+            status(at: now)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.orange)
+                .lineLimit(1)
+        } else {
+            Text(headline)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color(.label))
+                .lineLimit(1)
+        }
     }
 
     /// The movement under the athlete's thumb, which is what they are looking for when they glance
@@ -149,7 +176,8 @@ struct ActiveWorkoutBar: View {
 /// it, because the selection is `@State` outside the `TabView` — and each tab's navigation stack
 /// returns to its root, which happens under a full-screen cover either way.
 ///
-/// The iOS 18 path keeps deciding inside the inset, where an `EmptyView` genuinely costs no height.
+/// The iOS 18 path keeps deciding inside the inset, where an `EmptyView` genuinely costs no height,
+/// and supplies the floating glass chrome the iOS 26 slot provides for free.
 struct WorkoutAccessory: ViewModifier {
     let workout: ActiveWorkout?
     let isPersisted: Bool
@@ -159,33 +187,73 @@ struct WorkoutAccessory: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            if workout == nil {
-                content
+            if let workout {
+                content.tabViewBottomAccessory {
+                    PlacedWorkoutBar(
+                        workout: workout,
+                        isPersisted: isPersisted,
+                        movementTitle: movementTitle,
+                        open: open)
+                }
             } else {
-                content.tabViewBottomAccessory { bar }
+                content
             }
         } else {
             content.safeAreaInset(edge: .bottom, spacing: 0) {
-                // On iOS 18 the bar supplies its own background, which the iOS 26 accessory slot
-                // provides for it. An EmptyView here insets by nothing, so no workout costs no
-                // space.
-                if workout != nil {
-                    bar
-                        .background(.bar)
-                        .overlay(alignment: .top) { Divider() }
+                if let workout {
+                    ActiveWorkoutBar(
+                        workout: workout,
+                        isPersisted: isPersisted,
+                        movementTitle: movementTitle,
+                        isCondensed: false,
+                        open: open)
+                        .glassChrome(in: .capsule, interactive: true)
+                        .padding(.horizontal, Tokens.cardPadding)
+                        .padding(.bottom, 6)
+                        // The inset's content region includes the home indicator, so a floating
+                        // capsule laid out in it runs off the bottom of the screen. Seen and fixed
+                        // on `RestTimerBar`, which is built the same way; this path has no iOS 18
+                        // runtime to see it on, so it matches that one deliberately.
+                        .safeAreaPadding(.bottom)
                 }
             }
         }
     }
+}
 
-    @ViewBuilder
-    private var bar: some View {
-        if let workout {
-            ActiveWorkoutBar(
-                workout: workout,
-                isPersisted: isPersisted,
-                movementTitle: movementTitle,
-                open: open)
+/// The bar, told how much room its slot has.
+///
+/// `tabViewBottomAccessory` hands the placement down through the environment, and it changes as the
+/// tab bar minimizes: `.expanded` above a full tab bar, `.inline` on one line beside a minimized
+/// one. Reading it here rather than in `ActiveWorkoutBar` keeps an iOS 26-only type out of `Design/`
+/// and leaves the bar a function of how much space it has.
+@available(iOS 26.0, *)
+private struct PlacedWorkoutBar: View {
+    let workout: ActiveWorkout
+    let isPersisted: Bool
+    let movementTitle: String?
+    let open: () -> Void
+
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+
+    var body: some View {
+        ActiveWorkoutBar(
+            workout: workout,
+            isPersisted: isPersisted,
+            movementTitle: movementTitle,
+            isCondensed: isCondensed,
+            open: open)
+    }
+
+    /// No placement yet means the slot has not resolved one, which happens before the first layout;
+    /// the roomier bar is the safer thing to draw then, because it is the one that fits an expanded
+    /// slot and merely crops in an inline one.
+    private var isCondensed: Bool {
+        guard let placement else { return false }
+        switch placement {
+        case .inline: return true
+        case .expanded: return false
+        @unknown default: return false
         }
     }
 }

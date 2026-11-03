@@ -78,6 +78,15 @@ final class MovementLibraryStore {
         defaults.set(next.map(\.uuidString), forKey: Self.recentsKey)
     }
 
+    /// Forgets that a movement was used, taking it out of the recent list.
+    ///
+    /// The recent list exists to save taps mid-workout, so one movement opened by mistake makes it
+    /// worse rather than better. Removing it is the device's own business — recency is not a server
+    /// derivation — and the movement itself is untouched.
+    func forgetUsed(_ id: UUID) {
+        defaults.set(recentIds.filter { $0 != id }.map(\.uuidString), forKey: Self.recentsKey)
+    }
+
     /// Loads the catalogue and the records together, replacing any load already running.
     func refresh() async {
         load?.cancel()

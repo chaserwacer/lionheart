@@ -52,26 +52,38 @@ final class ActiveWorkoutStore {
 
     private let document: ActiveWorkoutDocument
     private let sessions: any WorkoutSessionWriting
+    private let activity: any WorkoutActivityPresenting
     private let now: @Sendable () -> Date
     private let onRestFinished: @MainActor () -> Void
+    private let movementTitle: @MainActor (UUID) -> String?
 
     private var pushHandle: Task<Void, Never>?
     private var restHandle: Task<Void, Never>?
+    private var mirrorHandle: Task<Void, Never>?
 
+    /// - Parameter activity: the Lock Screen's copy of this workout. Defaults to one that shows
+    ///   nothing, so a test exercises the store without another process in it.
     /// - Parameter onRestFinished: run when a rest runs out, for the haptic. Injected rather than
     ///   called directly so that nothing in this type reaches for UIKit, and because a rest that
     ///   ran out while the app was closed should not buzz on the next launch — only a rest this
     ///   store watched out announces itself.
+    /// - Parameter movementTitle: turns the current movement's id into the name the Lock Screen
+    ///   shows. Injected for the same reason the haptic is: the movement library is another store,
+    ///   and this one should not reach for it.
     init(
         document: ActiveWorkoutDocument = ActiveWorkoutDocument(),
         sessions: any WorkoutSessionWriting,
+        activity: any WorkoutActivityPresenting = NoWorkoutActivity(),
         now: @escaping @Sendable () -> Date = { Date() },
-        onRestFinished: @escaping @MainActor () -> Void = {}
+        onRestFinished: @escaping @MainActor () -> Void = {},
+        movementTitle: @escaping @MainActor (UUID) -> String? = { _ in nil }
     ) {
         self.document = document
         self.sessions = sessions
+        self.activity = activity
         self.now = now
         self.onRestFinished = onRestFinished
+        self.movementTitle = movementTitle
     }
 
     // MARK: - Lifetime
@@ -84,6 +96,10 @@ final class ActiveWorkoutStore {
     func restore() async {
         workout = await Self.read(from: document)
         isPersisted = true
+        // Reconciles whatever ActivityKit kept alive across the launch, and runs even when there
+        // is no document — that empty case is what clears an activity left behind by a workout
+        // completed or discarded while the app was not running.
+        mirror()
         armRestTimer()
         if workout?.sync.isWorthPushing == true { schedulePush() }
     }
@@ -133,6 +149,10 @@ final class ActiveWorkoutStore {
         isPersisted = true
         finish = .idle
         document.clear()
+        // An activity surviving a sign-out would leave the last athlete's session counting down on
+        // the Lock Screen of a signed-out phone, which is the one leak this teardown exists to
+        // prevent.
+        mirror()
     }
 
     // MARK: - Logging
@@ -403,6 +423,10 @@ final class ActiveWorkoutStore {
         isPersisted = true
         finish = .idle
         document.clear()
+        // Completed and discarded both arrive here, and both have to take the Lock Screen's copy
+        // with them: an activity outliving a discarded workout counts down a rest that will never
+        // end.
+        mirror()
     }
 
     private func mark(_ sync: WorkoutSyncState) {
@@ -433,10 +457,39 @@ final class ActiveWorkoutStore {
     ///
     /// The order is the whole point and is easy to reverse by accident: publishing first would
     /// render a workout that is not yet on disk, so a crash in between would lose something the
-    /// athlete had already seen confirmed.
+    /// athlete had already seen confirmed. The Lock Screen comes last of the three for the same
+    /// reason it comes last everywhere: it is a mirror, and a mirror of something not yet saved is
+    /// the one ordering that could show the athlete a set that is about to be lost.
     private func adopt(_ next: ActiveWorkout) {
         isPersisted = document.write(next)
         workout = next
+        mirror()
+    }
+
+    // MARK: - The Lock Screen's copy
+
+    /// Hands the Lock Screen whatever the workout now is, in order.
+    ///
+    /// Each call waits on the one before it, because two mutations a few milliseconds apart could
+    /// otherwise have their cross-process writes land in the other order — leaving a countdown on
+    /// screen for a rest the athlete has already skipped. The projection is derived synchronously
+    /// so each link carries the state it was made for.
+    ///
+    /// The chain is deliberately never cancelled: the last thing a sign-out or a completion
+    /// enqueues is the instruction to end the activity.
+    private func mirror() {
+        let projection = WorkoutActivityProjection.of(
+            workout,
+            movementTitle: workout?.currentMovementDataId.flatMap { movementTitle($0) },
+            isPersisted: isPersisted,
+            at: now())
+
+        let presenting = activity
+        let previous = mirrorHandle
+        mirrorHandle = Task {
+            await previous?.value
+            await presenting.present(projection)
+        }
     }
 
     /// Reading the file off the main actor. `@concurrent` states the offload rather than relying on

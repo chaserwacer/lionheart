@@ -24,6 +24,9 @@ struct ActiveWorkoutView: View {
     @State private var isFinishPresented = false
     @State private var isDiscardAsked = false
     @State private var editing: LoggedSet?
+    /// The set whose deletion is waiting on a yes. Hung on the surface rather than on a row,
+    /// because a dialog per set is a dialog whose owner SwiftUI picks.
+    @State private var deleting: LoggedSet?
 
     /// How long a rest to start after a set. The athlete's own preference, so it lives with the
     /// view and is handed to the store when a set is logged — the store does not read preferences.
@@ -76,6 +79,26 @@ struct ActiveWorkoutView: View {
         } message: {
             Text("Every set you have logged will be deleted. This cannot be undone.")
         }
+        // A set is work the athlete did, typed in a gym, and `PUT /sets` replaces the whole list —
+        // so a deleted set is gone on the server too, with nothing to undo it. The ask is one tap
+        // on an action taken once or twice a session.
+        .confirmationDialog(
+            "Delete this set?",
+            isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+            titleVisibility: .visible,
+            presenting: deleting
+        ) { logged in
+            Button("Delete set", role: .destructive) {
+                store.remove(logged.id)
+                deleting = nil
+            }
+        } message: { logged in
+            if let numbers = Formatting.set(logged.command) {
+                Text("\(numbers). This cannot be undone.")
+            } else {
+                Text("This cannot be undone.")
+            }
+        }
     }
 
     /// The elapsed clock, in the title's place and ticking.
@@ -105,6 +128,12 @@ struct ActiveWorkoutView: View {
             Button("Finish") { isFinishPresented = true }
                 .fontWeight(.semibold)
                 .disabled(store.workout == nil)
+        }
+        // Finish ends the workout; the menu behind it holds a sync and a discard. On iOS 26
+        // adjacent items share one glass capsule, and a committing action reading as part of the
+        // same control as an overflow menu is how a workout gets discarded by accident.
+        if #available(iOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu("More", systemImage: "ellipsis.circle") {
@@ -146,8 +175,6 @@ struct ActiveWorkoutView: View {
                     rest: workout.rest,
                     extend: { store.extendRest(by: $0) },
                     skip: { store.skipRest() })
-                    .background(.bar)
-                    .overlay(alignment: .top) { Divider() }
             }
         }
     }
@@ -203,22 +230,11 @@ struct ActiveWorkoutView: View {
     ) -> some View {
         Section {
             ForEach(movement.sets) { numbered in
-                SetRow(
+                loggedSetRow(
+                    numbered.logged,
                     number: numbered.number,
-                    command: numbered.logged.command,
                     target: numbered.target,
-                    record: SetRecordOutcome.of(
-                        numbered.logged.command,
-                        against: library.records(for: movement.movementDataId)))
-                    .contentShape(.rect)
-                    .onTapGesture { editing = numbered.logged }
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            store.remove(numbered.logged.id)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
+                    records: library.records(for: movement.movementDataId))
             }
 
             if let target = movement.nextTarget {
@@ -254,20 +270,7 @@ struct ActiveWorkoutView: View {
     private func otherSection(_ reading: WorkoutReading) -> some View {
         Section("Other work") {
             ForEach(Array(reading.unattached.enumerated()), id: \.element.id) { index, set in
-                SetRow(
-                    number: index + 1,
-                    command: set.command,
-                    target: nil,
-                    record: .notApplicable)
-                    .contentShape(.rect)
-                    .onTapGesture { editing = set }
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            store.remove(set.id)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
+                loggedSetRow(set, number: index + 1, target: nil, records: nil)
             }
             ForEach(Array(reading.looseTargets.enumerated()), id: \.offset) { _, target in
                 Label(Formatting.target(target), systemImage: "target")
@@ -312,6 +315,67 @@ struct ActiveWorkoutView: View {
                 Text("Nothing is sent until you finish. Tap Finish to save the whole session.")
             }
         }
+    }
+
+    // MARK: - A set already logged
+
+    /// One logged set, with the three things that can be done to it.
+    ///
+    /// A tap still opens the edit sheet, because that is the gesture that was already here and the
+    /// one the athlete will try first. The long press reaches the same sheet in a named way and adds
+    /// the two actions a sheet is overkill for: logging the same set again — three sets of five at
+    /// the same weight is the commonest thing in a gym — and deleting it.
+    private func loggedSetRow(
+        _ logged: LoggedSet, number: Int, target: SetPrescription?, records: MovementRecords?
+    ) -> some View {
+        SetRow(
+            number: number,
+            command: logged.command,
+            target: target,
+            record: SetRecordOutcome.of(logged.command, against: records))
+            .contentShape(.rect)
+            .onTapGesture { editing = logged }
+            .contextMenu {
+                Button {
+                    editing = logged
+                } label: {
+                    Label("Edit set", systemImage: "square.and.pencil")
+                }
+                Button {
+                    repeatSet(logged)
+                } label: {
+                    Label("Log it again", systemImage: "plus.square.on.square")
+                }
+                Button(role: .destructive) {
+                    deleting = logged
+                } label: {
+                    Label("Delete set", systemImage: "trash")
+                }
+            }
+            .swipeActions(edge: .leading) {
+                Button {
+                    editing = logged
+                } label: {
+                    Label("Edit", systemImage: "square.and.pencil")
+                }
+                .tint(Tokens.accent)
+            }
+            .swipeActions(edge: .trailing) {
+                Button(role: .destructive) {
+                    deleting = logged
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+    }
+
+    /// Logs the same set again, exactly as the Log button would.
+    ///
+    /// The command carries its own movement, so this lands under the right header wherever the row
+    /// was pressed, and the rest clock and the haptic are the same because this *is* a set being
+    /// logged — a quieter version of it would make the athlete check whether it worked.
+    private func repeatSet(_ logged: LoggedSet) {
+        log(logged.command, on: logged.command.movementDataId)
     }
 
     // MARK: - Doing

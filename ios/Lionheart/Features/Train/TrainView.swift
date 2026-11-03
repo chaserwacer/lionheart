@@ -15,6 +15,16 @@ struct TrainView: View {
 
     @State private var isPastWorkoutAsked = false
     @State private var route: [Route] = []
+    @State private var asked: AskedTransition?
+
+    /// A transition waiting on the athlete's confirmation. Hung on the `List` rather than on a row,
+    /// so there is one dialog rather than one per session.
+    private struct AskedTransition: Identifiable {
+        let transition: SessionTransition
+        let session: TrainingSession.Planned
+
+        var id: UUID { session.envelope.trainingSessionId }
+    }
 
     /// Where this tab can navigate. One case today, and an enum rather than a bare value because
     /// `navigationDestination` registers per type and a second screen must not silently win.
@@ -28,7 +38,7 @@ struct TrainView: View {
                 startSection
                 switch store.state {
                 case .loading:
-                    loadingSection
+                    loadingSections
                 case .unavailable(let failure):
                     unavailableSection(failure)
                 case .loaded(let plan):
@@ -58,15 +68,56 @@ struct TrainView: View {
         .sheet(isPresented: $isPastWorkoutAsked) {
             LogPastWorkoutSheet(store: store, openWorkout: openWorkout)
         }
+        .confirmationDialog(
+            asked?.transition.confirmation?.question ?? "",
+            isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
+            titleVisibility: .visible,
+            presenting: asked
+        ) { asked in
+            if let confirmation = asked.transition.confirmation {
+                Button(confirmation.proceed, role: .destructive) {
+                    carryOut(asked.transition, on: asked.session)
+                }
+            }
+        } message: { asked in
+            if let confirmation = asked.transition.confirmation { Text(confirmation.warning) }
+        }
+        // Every one of these transitions can be refused — the session was started or skipped on the
+        // web app, or deleted from under this window — and the list looks the same either way.
         .alert(
-            "That did not start",
+            "That did not happen",
             isPresented: Binding(
-                get: { if case .refused = store.starting { true } else { false } },
+                get: { store.action.refusal != nil },
                 set: { if !$0 { store.dismissRefusal() } })
         ) {
             Button("OK") { store.dismissRefusal() }
         } message: {
-            if case .refused(let failure) = store.starting { Text(failure.message) }
+            if let refusal = store.action.refusal { Text(refusal.message) }
+        }
+    }
+
+    // MARK: - Acting on a planned session
+
+    /// Runs a transition, or asks first when it cannot be undone.
+    private func ask(_ transition: SessionTransition, about session: TrainingSession.Planned) {
+        guard transition.confirmation != nil else {
+            carryOut(transition, on: session)
+            return
+        }
+        asked = AskedTransition(transition: transition, session: session)
+    }
+
+    private func carryOut(_ transition: SessionTransition, on session: TrainingSession.Planned) {
+        asked = nil
+        Task {
+            switch transition {
+            case .start:
+                if await store.start(planned: session) { openWorkout() }
+            case .skip:
+                await store.skip(session)
+            case .delete:
+                await store.delete(session)
+            }
         }
     }
 
@@ -92,7 +143,7 @@ struct TrainView: View {
                     Label("Start a workout", systemImage: "play.circle")
                         .fontWeight(.semibold)
                 }
-                .disabled(isStarting)
+                .disabled(store.action.isRunning)
 
                 Button {
                     isPastWorkoutAsked = true
@@ -126,21 +177,12 @@ struct TrainView: View {
         }
     }
 
-    private var isStarting: Bool {
-        if case .starting = store.starting { return true }
-        return false
-    }
-
     // MARK: - The plan
 
     @ViewBuilder
     private func planSections(_ plan: TrainingPlan, staleBecause failure: LoadFailure?) -> some View {
         if let failure {
-            Section {
-                Label(failure.message, systemImage: "arrow.triangle.2.circlepath.exclamationmark")
-                    .font(.footnote)
-                    .foregroundStyle(Color(.secondaryLabel))
-            }
+            StaleBanner(failure: failure)
         }
 
         if !plan.today.isEmpty {
@@ -174,6 +216,7 @@ struct TrainView: View {
     private func plannedRow(_ session: TrainingSession.Planned) -> some View {
         let summary = PlanSummary.of(session)
         let day = Formatting.day(RelativeDay.of(summary.plannedFor, today: CalendarDay(Date())))
+
         return NavigationLink(value: Route.plannedSession(session.envelope.trainingSessionId)) {
             VStack(alignment: .leading, spacing: 4) {
                 // What the athlete called it leads, where they called it anything, and the day goes
@@ -188,6 +231,45 @@ struct TrainView: View {
                     .foregroundStyle(Color(.secondaryLabel))
             }
             .padding(.vertical, 2)
+        }
+        .contextMenu { menu(for: session) }
+        // Starting leads from the leading edge and skipping from the trailing one, which is where
+        // iOS puts the constructive and the destructive gesture everywhere else.
+        .swipeActions(edge: .leading) {
+            Button {
+                ask(.start, about: session)
+            } label: {
+                Label("Start", systemImage: "play.fill")
+            }
+            .tint(.green)
+            .disabled(store.isWorkoutInFlight)
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                ask(.skip, about: session)
+            } label: {
+                Label("Skip", systemImage: "xmark")
+            }
+        }
+    }
+
+    /// The long press: every transition this session's state allows, and nothing it does not.
+    ///
+    /// The state is read through `SessionLog.kind` so that a session planned for a day gone by is
+    /// treated as the log treats it — missed, and still startable, because training it late is
+    /// normal.
+    @ViewBuilder
+    private func menu(for session: TrainingSession.Planned) -> some View {
+        let kind = SessionLog.kind(of: .planned(session), today: CalendarDay(Date()))
+
+        ForEach(SessionTransition.offered(on: kind)) { transition in
+            Button(role: transition.isDestructive ? .destructive : nil) {
+                ask(transition, about: session)
+            } label: {
+                Label(transition.label, systemImage: transition.systemImage)
+            }
+            // A second workout would give the device two to log into and a way to reach only one.
+            .disabled(transition == .start && store.isWorkoutInFlight)
         }
     }
 
@@ -216,13 +298,10 @@ struct TrainView: View {
 
     // MARK: - Not loaded
 
-    private var loadingSection: some View {
-        Section {
-            HStack(spacing: 10) {
-                ProgressView()
-                Text("Loading").foregroundStyle(Color(.secondaryLabel))
-            }
-        }
+    /// The plan's own shape, in grey. The start section above it is drawn and usable already —
+    /// logging a workout you already did needs no server at all — so only the plan waits.
+    private var loadingSections: some View {
+        Section("Coming up") { SkeletonRows(count: 3) }
     }
 
     private func unavailableSection(_ failure: LoadFailure) -> some View {

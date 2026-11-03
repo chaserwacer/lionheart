@@ -22,18 +22,14 @@ final class TrainStore {
     private static let lookAhead: TimeInterval = 90 * 86_400
 
     private(set) var state: LoadState<TrainingPlan> = .loading
-    private(set) var starting: StartState = .idle
 
-    /// Where beginning a workout stands.
+    /// Where the transition the athlete last asked for stands — starting, skipping or deleting a
+    /// session.
     ///
     /// `.refused` carries the server's own words: a 409 here means the session is not in the state
     /// the transition needs — most often because it was started or skipped somewhere else — and the
-    /// athlete is told rather than left looking at a button that did nothing.
-    enum StartState: Equatable, Sendable {
-        case idle
-        case starting
-        case refused(LoadFailure)
-    }
+    /// athlete is told rather than left looking at a row that did nothing.
+    private(set) var action: ActionState = .idle
 
     private let sessions: TrainingSessionsAPI
     private let activeWorkout: ActiveWorkoutStore
@@ -67,11 +63,11 @@ final class TrainStore {
         load?.cancel()
         load = nil
         state = .loading
-        starting = .idle
+        action = .idle
     }
 
     func dismissRefusal() {
-        starting = .idle
+        action = .idle
     }
 
     private func reload() async {
@@ -101,7 +97,7 @@ final class TrainStore {
     @discardableResult
     func start(planned session: TrainingSession.Planned) async -> Bool {
         guard !isWorkoutInFlight else { return false }
-        starting = .starting
+        action = .running
 
         do {
             let started = try await sessions.start(
@@ -109,7 +105,7 @@ final class TrainStore {
             guard let active = started.activeSession else {
                 // The route answered 2xx with something that is not an active session. Adopting it
                 // would push sets at a session that will refuse them.
-                starting = .refused(.unavailable("That session did not become an active one."))
+                action = .refused(.unavailable("That session did not become an active one."))
                 return false
             }
             adopt(
@@ -119,7 +115,7 @@ final class TrainStore {
                 notes: active.envelope.notes)
             return true
         } catch {
-            starting = refusal(from: error)
+            action = ActionState.refusal(from: error)
             return false
         }
     }
@@ -128,12 +124,12 @@ final class TrainStore {
     @discardableResult
     func startUnplanned() async -> Bool {
         guard !isWorkoutInFlight else { return false }
-        starting = .starting
+        action = .running
 
         do {
             let started = try await sessions.startUnplanned(at: now())
             guard let active = started.activeSession else {
-                starting = .refused(.unavailable("That session did not become an active one."))
+                action = .refused(.unavailable("That session did not become an active one."))
                 return false
             }
             adopt(
@@ -143,20 +139,36 @@ final class TrainStore {
                 notes: active.envelope.notes)
             return true
         } catch {
-            starting = refusal(from: error)
+            action = ActionState.refusal(from: error)
             return false
         }
     }
 
     /// Planned → Skipped. Terminal, and the session is kept: the skip is data.
     func skip(_ session: TrainingSession.Planned) async {
-        starting = .starting
+        await write { _ = try await self.sessions.skip(id: session.envelope.trainingSessionId) }
+    }
+
+    /// Removes a planned session entirely — the remedy for one planned by mistake, or for one the
+    /// athlete will not do and does not want kept as a skip, which a skip would be.
+    func delete(_ session: TrainingSession.Planned) async {
+        await write { try await self.sessions.delete(id: session.envelope.trainingSessionId) }
+    }
+
+    /// One transition that does not hand this device a workout, then a re-read of the window.
+    ///
+    /// Starting is not one of these: it ends by adopting the session into `ActiveWorkoutStore` and
+    /// answers whether it got that far, so it keeps its own body.
+    private func write(_ transition: () async throws -> Void) async {
+        guard !action.isRunning else { return }
+        action = .running
+
         do {
-            _ = try await sessions.skip(id: session.envelope.trainingSessionId)
-            starting = .idle
+            try await transition()
+            action = .idle
             await refresh()
         } catch {
-            starting = refusal(from: error)
+            action = ActionState.refusal(from: error)
         }
     }
 
@@ -165,7 +177,7 @@ final class TrainStore {
     @discardableResult
     func beginAfterTheFact(startedAt: Date) -> Bool {
         guard !isWorkoutInFlight else { return false }
-        starting = .idle
+        action = .idle
         return activeWorkout.begin(destination: .afterTheFact, startedAt: startedAt)
     }
 
@@ -181,7 +193,7 @@ final class TrainStore {
 
         do {
             let sets = try WorkoutResumption.sets(of: session, loggedAt: session.startedAt)
-            starting = .idle
+            action = .idle
             return activeWorkout.begin(
                 destination: .liveSession(session.envelope.trainingSessionId),
                 startedAt: session.startedAt,
@@ -190,7 +202,7 @@ final class TrainStore {
         } catch {
             switch error {
             case .cannotRestate(let type):
-                starting = .refused(.refused(
+                action = .refused(.refused(
                     "This session has a set of a kind this version cannot edit (\(type)). "
                         + "Finish it on the web app so nothing is lost."))
             }
@@ -209,11 +221,6 @@ final class TrainStore {
             startedAt: startedAt,
             prescriptions: prescriptions,
             notes: notes)
-        starting = .idle
-    }
-
-    private func refusal(from error: any Error) -> StartState {
-        if error is CancellationError { return .idle }
-        return .refused((try? LoadFailure.from(error)) ?? .unavailable(String(describing: error)))
+        action = .idle
     }
 }
