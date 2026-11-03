@@ -1,5 +1,6 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
+using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.User;
 using Microsoft.EntityFrameworkCore;
 using Programs = lionheart.Model.Training.Programs;
@@ -14,6 +15,19 @@ namespace lionheart.Data;
 /// </summary>
 public static class RemodelConfiguration
 {
+    /// <summary>
+    /// Columns recomputed by <see cref="ModelContext"/> on every save from the record they
+    /// describe, so a lookup column cannot drift from the achievement it was read off.
+    /// </summary>
+    /// <remarks>
+    /// Shadow properties, and deliberately not named after the members they duplicate: EF matches
+    /// a shadow property to a CLR property of the same name and maps that instead, which defeats
+    /// the <c>Ignore</c> that keeps the computed member out of the schema.
+    /// </remarks>
+    internal const string RecordKindColumn = "KindName";
+    internal const string RecordBracketColumn = "KindBracket";
+    internal const string RecordIsStandingColumn = "Stands";
+
     public static void Apply(ModelBuilder modelBuilder)
     {
         ConfigureSessions(modelBuilder);
@@ -21,7 +35,60 @@ public static class RemodelConfiguration
         ConfigureContexts(modelBuilder);
         ConfigureAnalyzableEntries(modelBuilder);
         ConfigureFacetValues(modelBuilder);
+        ConfigurePersonalRecords(modelBuilder);
     }
+
+    private static void ConfigurePersonalRecords(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PersonalRecord>(record =>
+        {
+            record.ToTable("PersonalRecords");
+            record.HasKey(r => r.PersonalRecordId);
+            record.HasOne<LionheartUser>().WithMany(u => u.PersonalRecords).HasForeignKey(r => r.UserId);
+
+            // Fill-state ↔ scalar column, the same shape a session's program membership takes:
+            // trail running persists as Guid.Empty so the domain never sees a nullable movement
+            // id. No relational FK on purpose — the sentinel would violate it.
+            record.Property(r => r.Subject)
+                .HasConversion(s => SubjectToGuid(s), g => GuidToSubject(g))
+                .HasColumnName("MovementDataId");
+
+            record.Property(r => r.Achievement).HasJsonConversion();
+            record.Property(r => r.Standing).HasJsonConversion();
+            record.Property(r => r.Lineage).HasJsonConversion();
+
+            // Read off the achievement and the standing rather than mapped from them: the CLR
+            // members are computed, and a settable duplicate is what lets the two disagree.
+            record.Ignore(r => r.Key);
+            record.Ignore(r => r.Kind);
+            record.Ignore(r => r.IsStanding);
+            record.Property<string>(RecordKindColumn).IsRequired();
+            record.Property<int>(RecordBracketColumn);
+            record.Property<bool>(RecordIsStandingColumn);
+
+            // What the records screen and detection both ask for: this athlete's current records.
+            record.HasIndex(nameof(PersonalRecord.UserId), RecordIsStandingColumn);
+
+            // What a history read asks for: one chain, newest first.
+            record.HasIndex(nameof(PersonalRecord.UserId), RecordKindColumn, RecordBracketColumn);
+
+            // No unique index over the standing records, though the invariant it would carry —
+            // at most one record of a kind standing on a subject — is the one this aggregate is
+            // built on. A hand-over demotes one row and inserts another inside a single
+            // transaction, and SQLite enforces a unique index statement by statement with no
+            // deferred form, so the insert is refused while the row it replaces is still
+            // standing. The invariant lives in PersonalRecord.Succeeding instead, which writes
+            // both halves and is the only way to add a record over an existing one.
+        });
+    }
+
+    private static Guid SubjectToGuid(RecordSubject subject) =>
+        subject is RecordSubject.Movement movement ? movement.MovementDataId : Guid.Empty;
+
+    private static RecordSubject GuidToSubject(Guid movementDataId) =>
+        movementDataId == Guid.Empty
+            ? new RecordSubject.TrailRunning()
+            : new RecordSubject.Movement(movementDataId);
 
     private static void ConfigureSessions(ModelBuilder modelBuilder)
     {

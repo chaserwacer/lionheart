@@ -268,6 +268,24 @@ the Island composites its content elsewhere, and `simctl` cannot lock the screen
 itself the activity's creation, its content, its four render passes and its reconciliation at the
 next launch were read out of the ActivityKit and WidgetKit logs.
 
+## Personal records: one unit at a time
+
+The server establishes records when a session's sets become final; the client reads them, shows
+them, and withdraws one when the athlete says the set was not real. Three rules shape it:
+
+- **The unit is part of a record's identity.** A movement logged in pounds and kilograms holds a
+  record of each kind in each, and weights never convert. Everything that groups or looks records
+  up keys on `RecordKey` — subject, kind, unit — never on the kind alone. The movement screen reads
+  one unit at a time behind a segmented control, and a history narrows the route's every-unit
+  answer to the record's own key. Distances carry no unit in their key: they rank in meters.
+- **The rep-max grid is a grid.** One cell per rep count from one to twelve, held or not, so an
+  untested count reads as a gap rather than closing up. The server orders a summary newest first,
+  so the rep order is made on the device.
+- **The live badge says only what beat a standing record.** A set competes for the heaviest set,
+  the rep max at its own rep count and the best set volume, in its own unit, against the records as
+  they stood when the workout began. Firsts of their kind, session volume and the distance records
+  are left to the server, which decides them on completion.
+
 ## Design
 
 There is no design system. Apple's is the design system, which is the direct expression of the
@@ -341,7 +359,3 @@ Deliberate, and left for the agents that own them.
 6. **No movement is created on the device.** The exercise library reads `GET /api/movement-datas`
    and nothing writes to it: a movement needs an equipment and a base chosen or invented first,
    which is catalogue curation rather than training, and the web app already does it.
-7. **Personal records are never written.** `PersonalRecordService` only reads, and nothing in the
-   application produces a `PRAttemptResult` — so `GET /api/personal-records/summaries` answers
-   with an empty list for every athlete. `SetRecordOutcome` is correct and tested against the two
-   `PersonalRecordType` rules, and it is dormant until the server starts awarding records.

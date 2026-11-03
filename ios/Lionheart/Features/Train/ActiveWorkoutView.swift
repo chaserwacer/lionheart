@@ -234,7 +234,7 @@ struct ActiveWorkoutView: View {
                     numbered.logged,
                     number: numbered.number,
                     target: numbered.target,
-                    records: library.records(for: movement.movementDataId))
+                    records: library.records(for: numbered.logged.command))
             }
 
             if let target = movement.nextTarget {
@@ -326,7 +326,7 @@ struct ActiveWorkoutView: View {
     /// the two actions a sheet is overkill for: logging the same set again — three sets of five at
     /// the same weight is the commonest thing in a gym — and deleting it.
     private func loggedSetRow(
-        _ logged: LoggedSet, number: Int, target: SetPrescription?, records: MovementRecords?
+        _ logged: LoggedSet, number: Int, target: SetPrescription?, records: SubjectRecords?
     ) -> some View {
         SetRow(
             number: number,
@@ -422,10 +422,9 @@ struct ActiveWorkoutView: View {
 
         if let movementDataId {
             library.noteUsed(movementDataId)
-            if let records = library.records(for: movementDataId),
-               SetRecordOutcome.of(command, against: records).isWorthSaying {
-                Haptics.achievement()
-            }
+        }
+        if SetRecordOutcome.of(command, against: library.records(for: command)).isWorthSaying {
+            Haptics.achievement()
         }
 
         // Re-seeded from the set just logged rather than kept as typed, so a correction made before

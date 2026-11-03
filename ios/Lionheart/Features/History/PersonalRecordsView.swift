@@ -1,16 +1,16 @@
 import SwiftUI
 
-/// The numbers, by movement.
+/// The numbers, by movement — and by trail running, which names no movement.
 ///
-/// Two records per movement — heaviest weight, and most weight times reps in one set — because the
-/// server tracks exactly those two and they answer different questions. Volume is printed as the
-/// server sent it, never recomputed here: one number, one source.
-///
-/// Empty is the expected state on a fresh database and says so plainly. It is also, today, the
-/// *only* state: nothing on the server writes a `PersonalRecord`, so until that write path lands
-/// this screen is honest about having nothing rather than implying the athlete has set no records.
+/// One row per subject rather than one per record: a movement with a rep-max grid holds a dozen
+/// records or more, and a flat list of every one of them buries the question this screen answers,
+/// which is "where do I stand on the bench". Each row carries the subject's headline figure and
+/// opens into its records.
 struct PersonalRecordsView: View {
-    let records: [MovementRecords]
+    let records: [SubjectRecords]
+    let catalogue: MovementCatalogue
+
+    @State private var query = ""
 
     var body: some View {
         List {
@@ -18,81 +18,66 @@ struct PersonalRecordsView: View {
                 ContentUnavailableView {
                     Label("No records yet", systemImage: "trophy")
                 } description: {
-                    Text("A record appears here when a logged set beats your best on that movement.")
+                    Text("A record appears here when a completed session beats your best — a heavier set, a new rep max, a longer or faster run.")
                 }
                 .listRowBackground(Color.clear)
+            } else if shown.isEmpty {
+                ContentUnavailableView.search(text: query)
+                    .listRowBackground(Color.clear)
             } else {
-                ForEach(records) { movement in
-                    let name = movement.movement?.displayName ?? "Unknown movement"
-                    Section(name) {
-                        if let strength = movement.strength {
-                            RecordRow(record: strength, movementName: name)
-                        }
-                        if let volume = movement.volume {
-                            RecordRow(record: volume, movementName: name)
+                Section {
+                    ForEach(shown) { held in
+                        NavigationLink(value: HistoryRoute.recordSubject(held.subject)) {
+                            SubjectRow(held: held, name: held.subject.name(in: catalogue))
                         }
                     }
+                } footer: {
+                    Text("Most recently set first.")
                 }
             }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Personal records")
+        .searchable(text: $query, prompt: "Movement")
+    }
+
+    /// The subjects whose name matches the search, in the server's order — most recently set first.
+    private var shown: [SubjectRecords] {
+        guard let wanted = query.nonEmpty else { return records }
+        return records.filter { $0.subject.name(in: catalogue).localizedStandardContains(wanted) }
     }
 }
 
-/// One standing record, with how long the last one stood.
-///
-/// "Previously" is the fact that turns a number into progress. It is absent on a first record,
-/// which is why it is an optional date and not a zero-length gap.
-///
-/// Copying is its whole menu: there is no route that edits or revokes a record.
-private struct RecordRow: View {
-    let record: PersonalRecord
-    /// Carried only so a copied record says which movement it is on; the section header says it on
-    /// screen, and a number on the pasteboard with no movement attached is useless.
-    let movementName: String
+/// One subject: its name, its headline figure, and how much it holds.
+private struct SubjectRow: View {
+    let held: SubjectRecords
+    let name: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            LabeledContent {
-                Text(headline)
-                    .font(.headline.monospacedDigit())
-            } label: {
-                Text(record.kind.label)
-            }
+        let reading = RecordReading.of(held)
 
-            if let achievedAt = record.achievedAt {
-                Text(subtitle(achievedAt))
-                    .font(.caption)
-                    .foregroundStyle(Color(.secondaryLabel))
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name)
+                    .font(.headline)
+                if let headline = reading.headline {
+                    Text("\(headline.achievement.kind.label) \(Formatting.achievement(headline.achievement))")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(Color(.secondaryLabel))
+                }
+                if let last = held.lastAchievedAt {
+                    Text("Last set \(Formatting.recordDate(last))")
+                        .font(.caption)
+                        .foregroundStyle(Color(.secondaryLabel))
+                }
             }
+            Spacer(minLength: 8)
+            Text("\(held.records.count)")
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(Color(.secondaryLabel))
+                .accessibilityLabel(Formatting.count(held.records.count, "record"))
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(record.kind.label) record, \(headline)")
-        .contextMenu {
-            Button {
-                Clipboard.copy("\(movementName) · \(record.kind.label) \(headline)")
-            } label: {
-                Label("Copy", systemImage: "doc.on.doc")
-            }
-        }
-    }
-
-    private var headline: String {
-        switch record.kind {
-        case .strength, .unrecognised:
-            "\(MeasurementText.plain(record.weight)) \(record.unit.abbreviation) × \(record.reps)"
-        case .volume:
-            "\(MeasurementText.plain(record.volume)) \(record.unit.abbreviation) (\(MeasurementText.plain(record.weight)) × \(record.reps))"
-        }
-    }
-
-    private func subtitle(_ achievedAt: Date) -> String {
-        let set = "Set \(achievedAt.formatted(.dateTime.month(.abbreviated).day().year()))"
-        guard let previous = record.previousAchievedAt else { return "\(set) · first on record" }
-        let days = Int(achievedAt.timeIntervalSince(previous) / 86_400)
-        guard days > 0 else { return set }
-        return "\(set) · beat a record that stood \(Formatting.count(days, "day"))"
     }
 }

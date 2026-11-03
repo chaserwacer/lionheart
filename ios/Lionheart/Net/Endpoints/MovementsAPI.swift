@@ -1,6 +1,6 @@
 import Foundation
 
-/// The movement catalogue and the records hanging off it — what the exercise library reads.
+/// The movement catalogue — what the exercise library reads.
 ///
 /// Read-only on purpose. Creating a movement needs an equipment and a movement base chosen or
 /// invented first, which is catalogue curation rather than training, and the web app already does
@@ -16,14 +16,5 @@ struct MovementsAPI: Sendable {
     /// Every movement the athlete has configured.
     func movements() async throws -> [MovementData] {
         try await client.get("/api/movement-datas", as: LenientList<MovementData>.self).elements
-    }
-
-    /// The records standing against each movement the athlete has any for.
-    ///
-    /// Movements with no record are simply absent, so an empty answer is the normal state of a new
-    /// account rather than a failure.
-    func records() async throws -> [MovementRecords] {
-        try await client.get(
-            "/api/personal-records/summaries", as: LenientList<MovementRecords>.self).elements
     }
 }

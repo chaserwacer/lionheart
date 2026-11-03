@@ -21,15 +21,19 @@ final class MovementLibraryStore {
 
     private(set) var state: LoadState<[MovementData]> = .loading
 
-    /// The records, by movement. A dictionary rather than a list because every read is by id.
-    private(set) var records: [UUID: MovementRecords] = [:]
+    /// The standing records, by subject. A dictionary rather than a list because every read is by
+    /// subject — and trail running is a subject, so a run logged mid-workout looks up the same way
+    /// a lift does.
+    private(set) var records: [RecordSubject: SubjectRecords] = [:]
 
     private let movements: MovementsAPI
+    private let personalRecords: PersonalRecordsAPI
     private let defaults: UserDefaults
     private var load: Task<Void, Never>?
 
-    init(movements: MovementsAPI, defaults: UserDefaults = .standard) {
+    init(movements: MovementsAPI, records: PersonalRecordsAPI, defaults: UserDefaults = .standard) {
         self.movements = movements
+        self.personalRecords = records
         self.defaults = defaults
     }
 
@@ -70,7 +74,12 @@ final class MovementLibraryStore {
         return movement(id)?.title ?? "Unknown movement"
     }
 
-    func records(for id: UUID) -> MovementRecords? { records[id] }
+    /// The records standing on the subject a set competes on, or `nil` for a set that has none.
+    func records(for command: SetCommand) -> SubjectRecords? {
+        command.recordSubject.flatMap { records[$0] }
+    }
+
+    func records(on movementDataId: UUID) -> SubjectRecords? { records[.movement(movementDataId)] }
 
     /// Remembers that a movement was just used, moving it to the front.
     func noteUsed(_ id: UUID) {
@@ -114,14 +123,14 @@ final class MovementLibraryStore {
         do {
             // Independent, both wanted, a known number of them.
             async let catalogue = movements.movements()
-            async let summaries = movements.records()
+            async let summaries = personalRecords.summaries()
 
             let loaded = try await catalogue
             let found = try await summaries
 
             state = state.applying(.success(loaded))
             records = Dictionary(
-                found.map { ($0.movementDataId, $0) }, uniquingKeysWith: { first, _ in first })
+                found.map { ($0.subject, $0) }, uniquingKeysWith: { first, _ in first })
         } catch is CancellationError {
             return
         } catch {

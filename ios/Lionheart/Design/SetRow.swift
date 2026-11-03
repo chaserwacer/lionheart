@@ -73,12 +73,9 @@ struct SetRow: View {
         return parts.joined(separator: ", ")
     }
 
+    /// Spoken as what was beaten — "New 5-rep max, heaviest set" — because the trophy alone says
+    /// only that something was.
     private static func recordLabel(_ record: SetRecordOutcome) -> String {
-        switch record {
-        case .strength: "Heaviest yet"
-        case .volume: "Best volume yet"
-        case .both: "Heaviest and best volume yet"
-        case .notApplicable, .noRecordYet, .none: ""
-        }
+        record.beaten.map { "New \($0.label.lowercased())" }.joined(separator: ", ")
     }
 }

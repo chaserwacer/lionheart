@@ -116,9 +116,7 @@ struct MovementPicker: View {
     }
 
     private func copyText(for movement: MovementData) -> String {
-        guard let heaviest = library.records(for: movement.movementDataId)?.strength else {
-            return movement.title
-        }
+        guard let heaviest = heaviestSet(on: movement) else { return movement.title }
         return "\(movement.title) · best \(Formatting.weight(heaviest.weight, heaviest.unit))"
     }
 
@@ -136,8 +134,7 @@ struct MovementPicker: View {
                         .foregroundStyle(Color(.secondaryLabel))
                 }
                 Spacer(minLength: 8)
-                if let records = library.records(for: movement.movementDataId),
-                   let heaviest = records.strength {
+                if let heaviest = heaviestSet(on: movement) {
                     // The standing record, where there is one: it is the number the athlete is
                     // about to aim at. Shown with its unit, because a record's unit is the
                     // athlete's and a bare figure is the wrong number half the time.
@@ -151,6 +148,15 @@ struct MovementPicker: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+    }
+
+    /// The heaviest set standing in the unit the athlete lifted this movement in most recently —
+    /// the number they are about to aim at. One unit only: the other unit's record is a different
+    /// record, and printing the larger figure would be the wrong number half the time.
+    private func heaviestSet(on movement: MovementData) -> Achievement.Lift? {
+        let lifting = library.records(on: movement.movementDataId).map(RecordReading.of)?.lifting
+        guard case .heaviestSet(let lift) = lifting?.first?.heaviestSet?.achievement else { return nil }
+        return lift
     }
 
     @ViewBuilder

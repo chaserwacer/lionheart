@@ -10,6 +10,7 @@ using lionheart.Model.Chat;
 using lionheart.Model.Profile;
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
+using lionheart.Model.Training.PersonalRecords;
 using Programs = lionheart.Model.Training.Programs;
 using Sessions = lionheart.Model.Training.Sessions;
 
@@ -65,14 +66,24 @@ namespace lionheart.Data
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
-            StampDerivedTimeColumns();
+            StampDerivedColumns();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
         public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
         {
-            StampDerivedTimeColumns();
+            StampDerivedColumns();
             return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        /// <summary>
+        /// Recomputes every column that duplicates something the domain derives, so none of them
+        /// can disagree with what it was read off.
+        /// </summary>
+        private void StampDerivedColumns()
+        {
+            StampDerivedTimeColumns();
+            StampRecordLookupColumns();
         }
 
         /// <summary>
@@ -93,6 +104,26 @@ namespace lionheart.Data
                     _ => null
                 };
                 if (period is not null) entry.Property("StartTime").CurrentValue = period.StartTimeUtc;
+            }
+        }
+
+        /// <summary>
+        /// A record's kind, its bracket and whether it stands live inside JSON columns the
+        /// database can neither index nor read. Stamping them out again on every save is what
+        /// lets a standing read and a history read be indexed queries instead of deserializing
+        /// every record the athlete holds.
+        /// </summary>
+        private void StampRecordLookupColumns()
+        {
+            foreach (var entry in ChangeTracker.Entries<PersonalRecord>())
+            {
+                if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
+
+                var kind = entry.Entity.Kind;
+                entry.Property(RemodelConfiguration.RecordKindColumn).CurrentValue = kind.Name;
+                entry.Property(RemodelConfiguration.RecordBracketColumn).CurrentValue = kind.Bracket;
+                entry.Property(RemodelConfiguration.RecordIsStandingColumn).CurrentValue =
+                    entry.Entity.IsStanding;
             }
         }
 
@@ -204,30 +235,8 @@ namespace lionheart.Data
                 .WithMany(u => u.Equipments)
                 .HasForeignKey(e => e.UserID);
 
-            // Personal Records
-            modelBuilder.Entity<PersonalRecord>()
-                .HasKey(pr => pr.PersonalRecordID);
-
-            modelBuilder.Entity<PersonalRecord>()
-                .HasOne<LionheartUser>()
-                .WithMany(u => u.PersonalRecords)
-                .HasForeignKey(pr => pr.UserID);
-
-            modelBuilder.Entity<PersonalRecord>()
-                .HasOne(pr => pr.MovementData)
-                .WithMany()
-                .HasForeignKey(pr => pr.MovementDataID)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<PersonalRecord>()
-                .HasOne(pr => pr.PreviousPersonalRecord)
-                .WithMany()
-                .HasForeignKey(pr => pr.PreviousPersonalRecordID)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            // Index for fast lookup of active PRs by user and movement data
-            modelBuilder.Entity<PersonalRecord>()
-                .HasIndex(pr => new { pr.UserID, pr.MovementDataID, pr.PRType, pr.IsActive });
+            // Personal records are mapped with the rest of the training domain, in
+            // RemodelConfiguration.
 
             // Access Tokens
             modelBuilder.Entity<ApiAccessToken>()

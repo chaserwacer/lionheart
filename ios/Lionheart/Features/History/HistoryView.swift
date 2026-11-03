@@ -24,14 +24,6 @@ struct HistoryView: View {
         var id: UUID { session.sessionId }
     }
 
-    /// Where History can navigate. One `navigationDestination` per value type, registered once —
-    /// register two for the same type and the later one silently wins.
-    private enum Route: Hashable {
-        case session(UUID)
-        case records
-        case trends
-    }
-
     var body: some View {
         NavigationStack {
             List {
@@ -51,7 +43,7 @@ struct HistoryView: View {
             .searchable(text: $query, prompt: "Movement or note")
             .minimizingSearchField()
             .refreshable { await store.refresh() }
-            .navigationDestination(for: Route.self) { destination(for: $0) }
+            .navigationDestination(for: HistoryRoute.self) { destination(for: $0) }
             .confirmationDialog(
                 asked?.transition.confirmation?.question ?? "",
                 isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
@@ -68,18 +60,20 @@ struct HistoryView: View {
                     Text("\(asked.session.headline) · \(confirmation.warning)")
                 }
             }
-            // A refusal is the one outcome the list itself cannot show: the row is still there
-            // whether the server took the transition or refused it.
-            .alert(
-                "That did not happen",
-                isPresented: Binding(
-                    get: { store.action.refusal != nil },
-                    set: { if !$0 { store.dismissRefusal() } })
-            ) {
-                Button("OK") { store.dismissRefusal() }
-            } message: {
-                if let refusal = store.action.refusal { Text(refusal.message) }
-            }
+        }
+        // A refusal is the one outcome a list cannot show: the row is still there whether the
+        // server took the action or refused it. Hung on the stack rather than on the log, because
+        // a record is retracted from a pushed screen and an alert from a view underneath the top
+        // of the stack has nowhere to present.
+        .alert(
+            "That did not happen",
+            isPresented: Binding(
+                get: { store.action.refusal != nil },
+                set: { if !$0 { store.dismissRefusal() } })
+        ) {
+            Button("OK") { store.dismissRefusal() }
+        } message: {
+            if let refusal = store.action.refusal { Text(refusal.message) }
         }
         .task { await store.refresh() }
     }
@@ -108,7 +102,7 @@ struct HistoryView: View {
     }
 
     @ViewBuilder
-    private func destination(for route: Route) -> some View {
+    private func destination(for route: HistoryRoute) -> some View {
         switch route {
         case .session(let id):
             if let snapshot = store.state.value, let session = snapshot.session(id) {
@@ -122,7 +116,20 @@ struct HistoryView: View {
                     description: Text("It is no longer in the window History has loaded."))
             }
         case .records:
-            PersonalRecordsView(records: store.state.value?.records ?? [])
+            PersonalRecordsView(
+                records: store.state.value?.records ?? [],
+                catalogue: store.state.value?.catalogue ?? MovementCatalogue())
+        case .recordSubject(let subject):
+            SubjectRecordsView(
+                subject: subject,
+                held: store.state.value?.records(on: subject),
+                catalogue: store.state.value?.catalogue ?? MovementCatalogue(),
+                store: store)
+        case .recordHistory(let key):
+            RecordHistoryView(
+                key: key,
+                name: key.subject.name(in: store.state.value?.catalogue ?? MovementCatalogue()),
+                store: store)
         case .trends:
             TrendsView(trends: store.state.value?.trends ?? TrainingTrends(weeks: [], strength: []))
         }
@@ -159,15 +166,16 @@ struct HistoryView: View {
     @ViewBuilder
     private func readings(_ snapshot: HistorySnapshot) -> some View {
         Section {
-            NavigationLink(value: Route.records) {
+            NavigationLink(value: HistoryRoute.records) {
                 LabeledContent {
-                    Text(snapshot.records.isEmpty ? "None yet" : "\(snapshot.records.count)")
+                    let held = snapshot.records.reduce(0) { $0 + $1.records.count }
+                    Text(held == 0 ? "None yet" : "\(held)")
                         .monospacedDigit()
                 } label: {
                     Label("Personal records", systemImage: "trophy")
                 }
             }
-            NavigationLink(value: Route.trends) {
+            NavigationLink(value: HistoryRoute.trends) {
                 Label("Trends", systemImage: "chart.xyaxis.line")
             }
         }
@@ -178,7 +186,7 @@ struct HistoryView: View {
         ForEach(log.months) { month in
             Section(Formatting.month(month.start)) {
                 ForEach(month.sessions) { session in
-                    NavigationLink(value: Route.session(session.sessionId)) {
+                    NavigationLink(value: HistoryRoute.session(session.sessionId)) {
                         SessionRow(session: session, today: today)
                     }
                     .contextMenu { menu(for: session) }

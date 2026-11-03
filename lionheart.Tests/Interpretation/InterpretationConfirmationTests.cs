@@ -6,6 +6,7 @@ using lionheart.Model.Training;
 using lionheart.Model.Training.Sets;
 using lionheart.Services;
 using lionheart.Services.Interpretation;
+using lionheart.Services.Training.PersonalRecords;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
@@ -225,7 +226,7 @@ public class InterpretationConfirmationTests : IDisposable
             new InterpretationResolver(
                 new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context))),
                 new FacetResolver(context, _embeddings)),
-            new InterpretationCommitter(context, _embeddings));
+            new InterpretationCommitter(context, _embeddings, new PersonalRecordDetector(context, TimeProvider.System)));
 
     private static ParsedInterpretation Draft(params string[] movementNames) => new(
         [

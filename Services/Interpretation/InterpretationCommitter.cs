@@ -5,6 +5,7 @@ using lionheart.Model.Contexts;
 using lionheart.Model.Interpretation;
 using lionheart.Model.Training.Sessions;
 using lionheart.Services.Embedding;
+using lionheart.Services.Training.PersonalRecords;
 
 namespace lionheart.Services.Interpretation;
 
@@ -26,21 +27,37 @@ public sealed class InterpretationCommitter : IInterpretationCommitter
 {
     private readonly ModelContext _context;
     private readonly IEmbeddingGenerator _embeddings;
+    private readonly IPersonalRecordDetector _records;
 
-    public InterpretationCommitter(ModelContext context, IEmbeddingGenerator embeddings)
+    public InterpretationCommitter(
+        ModelContext context, IEmbeddingGenerator embeddings, IPersonalRecordDetector records)
     {
         _context = context;
         _embeddings = embeddings;
+        _records = records;
     }
 
     public Task<Result<Committed, Problem>> CommitAsync(ResolvedInterpretation interpretation) =>
         EmbedSummariesAsync(CollectProjections(interpretation))
             .BindAsync(entries => WriteAsync(interpretation, entries));
 
+    /// <summary>
+    /// A session logged as text sets the same records one logged through the form does, so the
+    /// third write path that produces a completed session stages them too — the records belong to
+    /// the training, not to the route it arrived on.
+    /// </summary>
+    /// <remarks>
+    /// Every session in the run goes to the detector in one call, not one per session. One
+    /// utterance can yield two sessions on the same movement, and a detector asked session by
+    /// session reads what stands before each — a read that cannot see the record the previous
+    /// session staged but has not saved, so both would be written standing.
+    /// </remarks>
     private async Task<Result<Committed, Problem>> WriteAsync(
         ResolvedInterpretation interpretation, IReadOnlyList<AnalyzableEntry> entries)
     {
         foreach (var session in interpretation.Sessions) _context.Sessions.Add(session);
+        await _records.StageAsync(interpretation.Sessions, CancellationToken.None);
+
         foreach (var context in interpretation.Contexts) _context.Contexts.Add(context);
         _context.AnalyzableEntries.AddRange(entries);
 

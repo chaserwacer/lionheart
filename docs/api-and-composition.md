@@ -116,9 +116,9 @@ preserved 422 for both. 422 means a well-formed request that is semantically inv
 of them is — an upstream LLM failure is not the client's request being wrong.
 
 **Two refusals were wearing the wrong case** purely to inherit that 422, and are reclassified by
-what they actually are: Oura's "earliest date after end date" is `Invalid` (400); "cannot revert an
-inactive personal record" is `Conflict` (409). A `Problem` ADT only pays for itself if the case
-carries the meaning.
+what they actually are: Oura's "earliest date after end date" is `Invalid` (400); refusing to
+withdraw a personal record that no longer stands is `Conflict` (409). A `Problem` ADT only pays
+for itself if the case carries the meaning.
 
 **`AddWellnessState` keeps its 200-vs-201 distinction.** The migration collapsed both branches to
 201; updating an existing state is 200, creating one is 201. The old code was right. The other

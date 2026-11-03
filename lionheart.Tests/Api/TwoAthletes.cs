@@ -1,6 +1,8 @@
 using lionheart.Data;
+using lionheart.Model.Training;
 using lionheart.Model.User;
 using lionheart.Services.Contexts;
+using lionheart.Services.Training.PersonalRecords;
 using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.Sessions;
 using lionheart.Tests.Persistence;
@@ -61,10 +63,22 @@ public sealed class TwoAthletes : IDisposable
 
     public ModelContext CreateContext() => _database.CreateContext();
 
+    /// <remarks>
+    /// Wired with the real detector, not a stand-in. Completing a session establishes records in
+    /// the same save, so a fake here would leave every completion test asserting against a write
+    /// path the application does not have.
+    /// </remarks>
     public async Task<T> SessionsAsync<T>(Func<ITrainingSessionService, Task<T>> act)
     {
         using var context = CreateContext();
-        return await act(new TrainingSessionService(context, TimeProvider.System));
+        return await act(new TrainingSessionService(
+            context, TimeProvider.System, new PersonalRecordDetector(context, TimeProvider.System)));
+    }
+
+    public async Task<T> RecordsAsync<T>(Func<IPersonalRecordService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        return await act(new PersonalRecordService(context, TimeProvider.System));
     }
 
     public async Task<T> ProgramsAsync<T>(Func<ITrainingProgramService, Task<T>> act)
@@ -77,6 +91,36 @@ public sealed class TwoAthletes : IDisposable
     {
         using var context = CreateContext();
         return await act(new ContextService(context, TimeProvider.System));
+    }
+
+    /// <summary>
+    /// Plants a real movement for an athlete, because a record's subject is only eligible when the
+    /// movement behind it is theirs.
+    /// </summary>
+    public async Task<Guid> PlantMovementAsync(Guid userId, string name)
+    {
+        var movementDataId = Guid.NewGuid();
+        var equipment = new Equipment { EquipmentID = Guid.NewGuid(), Name = "Barbell", UserID = userId };
+        var movementBase = new MovementBase
+        {
+            MovementBaseID = Guid.NewGuid(),
+            Name = name,
+            UserID = userId,
+            Description = string.Empty,
+            MuscleGroups = [],
+        };
+
+        await PlantAsync(context => context.MovementDatas.Add(new MovementData
+        {
+            MovementDataID = movementDataId,
+            UserID = userId,
+            EquipmentID = equipment.EquipmentID,
+            Equipment = equipment,
+            MovementBaseID = movementBase.MovementBaseID,
+            MovementBase = movementBase,
+        }));
+
+        return movementDataId;
     }
 
     /// <summary>Plants a record no route can create — another athlete's, or a state only reachable by transition.</summary>

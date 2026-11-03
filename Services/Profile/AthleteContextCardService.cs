@@ -164,8 +164,7 @@ namespace lionheart.Services.Profile
 
             var sessionsYear = await CountCompletedSessionsSinceAsync(userId, yearAgo);
 
-            var activePrCount = await _context.PersonalRecords
-                .CountAsync(p => p.UserID == userId && p.IsActive);
+            var standingRecordCount = await StandingRecordCountAsync(userId);
 
             var chronicInjuries = await _context.Injuries
                 .Where(i => i.UserID == userId)
@@ -198,7 +197,7 @@ namespace lionheart.Services.Profile
                     $"Baselines (trailing 12mo): {string.Join(", ", baselines)} " +
                     $"(n={Math.Max(readinessYear.Count, restingRates.Count)} days).");
             }
-            facts.Add($"Training history: {sessionsYear} sessions logged in the last 12 months; {activePrCount} active PRs on record.");
+            facts.Add($"Training history: {sessionsYear} sessions logged in the last 12 months; {standingRecordCount} personal records currently standing.");
             if (chronicInjuries.Count > 0)
             {
                 var injuryList = string.Join("; ", chronicInjuries.Select(i =>
@@ -268,7 +267,7 @@ namespace lionheart.Services.Profile
 
             var acuteSessions = await CountCompletedSessionsSinceAsync(userId, weekAgo);
             var chronicSessions = await CountCompletedSessionsSinceAsync(userId, monthAgo);
-            var activePrCount = await _context.PersonalRecords.CountAsync(p => p.UserID == userId && p.IsActive);
+            var standingRecordCount = await StandingRecordCountAsync(userId);
 
             // Acute:chronic workload ratio using a 1-week acute vs 4-week (weekly-averaged) chronic load proxy.
             double chronicWeekly = chronicSessions / 4.0;
@@ -332,7 +331,7 @@ namespace lionheart.Services.Profile
                 $"oura: 7d readiness/sleep/HRV/stress means present (n={Math.Max(readinessWeek.Count, sleepWeek.Count)}); per-night detail (stages, hypnogram, HRV curve), workouts, sessions and tags NOT loaded -> the /api/oura routes.",
                 $"training: 7d count + acute:chronic present; no drill-in tool available yet — do not attempt to fetch per-session detail.",
                 $"injuries: {activeInjuries.Count} active summarized; full event history NOT loaded -> GetUserInjuries(filters).",
-                $"PRs: {activePrCount} active PRs counted; current values/progression NOT loaded -> GetPersonalRecords()."
+                $"Personal records: {standingRecordCount} standing records counted; the numbers and their progression NOT loaded -> GetPersonalRecords(), or GetPersonalRecordsForMovement(movementDataId) for one movement."
             });
 
             card.RecentStateVersion += 1;
@@ -447,5 +446,14 @@ namespace lionheart.Services.Profile
                 .OfType<CompletedTrainingSession>()
                 .CountAsync(s => s.UserId == userId && EF.Property<DateTime>(s, "StartTime") >= cutoff);
         }
+
+        /// <summary>
+        /// How many records the athlete currently holds, read off the save-stamped standing
+        /// column rather than the JSON the standing itself lives in.
+        /// </summary>
+        private Task<int> StandingRecordCountAsync(Guid userId) =>
+            _context.PersonalRecords.CountAsync(record =>
+                record.UserId == userId
+                && EF.Property<bool>(record, RemodelConfiguration.RecordIsStandingColumn));
     }
 }

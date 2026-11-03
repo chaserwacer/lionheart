@@ -42,6 +42,43 @@ what happens at the storage layer no matter how the route is shaped; per-index e
 illusion of granularity over the identical write, and would add index-drift hazards for nothing. The
 client already holds the whole session.
 
+## Personal records — `/api/personal-records`
+
+Read-shaped but for one transition. Records are **never created through a route**: they are
+established when a session's sets become final, so `POST /completed`, `POST /{id}/complete` and the
+interpretation engine's commit each stage them into the same save as the session itself. The only
+write here is the athlete saying a record was not real.
+
+| Verb | Route | Query / body | Answers |
+|---|---|---|---|
+| GET | `/` | — | every standing record, flat, newest first |
+| GET | `/summaries` | — | the standing records grouped by subject |
+| GET | `/summaries/{movementDataId}` | — | one movement's standing records, 404 if it is not the athlete's |
+| GET | `/history` | `MovementDataId?`, `Kind`, `Bracket?` | one chain, newest first, beaten and retracted links included |
+| POST | `/{personalRecordId}/retract` | — | `Restored \| NothingStands` |
+
+A record's **subject** is one movement or trail running, and it crosses the wire as an optional
+`movementDataId` — absent meaning trail running — for the same reason program membership does: a
+flat shape generates a far better TypeScript client. The domain's two cases are restored at the
+service boundary.
+
+An **achievement** is polymorphic on `$type`, one case per kind, each carrying only what its own
+presentation needs plus the figures the server derives (an estimated one-rep max, a pace). The
+movement itself is **not** embedded — both clients hold a movement catalogue, and the movement is a
+different aggregate.
+
+A movement holds **one record per kind per weight unit**, because weights never convert and the
+unit is therefore part of a record's identity rather than a comparability test. A movement logged
+in both reads back with a kilograms record and a pounds record of the same kind, each carrying its
+own unit inside the achievement. `/history` takes no unit and answers with every unit's chain of
+that kind, newest first, which is the progression a screen wants; a client showing one unit filters
+on the achievement's own.
+
+A **retraction** answers with a discriminated outcome rather than a nullable record, so a client can
+tell "your previous record stands again" from "this subject now holds no record of that kind".
+Retracting a record that no longer stands is a `Conflict`, so 409: the same request was legitimate
+while it stood.
+
 ## Contexts — `/api/contexts`
 
 Two creates rather than one polymorphic body — flat request shapes generate a far better TypeScript

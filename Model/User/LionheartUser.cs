@@ -1,6 +1,7 @@
 using lionheart.Model.Chat;
 using lionheart.Model.InjuryManagement;
 using lionheart.Model.Training;
+using lionheart.Model.Training.PersonalRecords;
 using lionheart.WellBeing;
 using Microsoft.AspNetCore.Identity;
 namespace lionheart.Model.User

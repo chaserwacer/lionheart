@@ -908,51 +908,51 @@ namespace lionheart.Migrations
                     b.ToTable("MovementModifiers");
                 });
 
-            modelBuilder.Entity("lionheart.Model.Training.PersonalRecord", b =>
+            modelBuilder.Entity("lionheart.Model.Training.PersonalRecords.PersonalRecord", b =>
                 {
-                    b.Property<Guid>("PersonalRecordID")
+                    b.Property<Guid>("PersonalRecordId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime>("AchievedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsActive")
+                    b.Property<string>("Achievement")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("KindBracket")
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid>("MovementDataID")
+                    b.Property<string>("KindName")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("PRType")
+                    b.Property<string>("Lineage")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Standing")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Stands")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime?>("PreviousPRCreatedAt")
+                    b.Property<Guid>("Subject")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("MovementDataId");
+
+                    b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("PreviousPersonalRecordID")
-                        .HasColumnType("TEXT");
+                    b.HasKey("PersonalRecordId");
 
-                    b.Property<int>("Reps")
-                        .HasColumnType("INTEGER");
+                    b.HasIndex("UserId", "Stands");
 
-                    b.Property<Guid>("UserID")
-                        .HasColumnType("TEXT");
+                    b.HasIndex("UserId", "KindName", "KindBracket");
 
-                    b.Property<double>("Weight")
-                        .HasColumnType("REAL");
-
-                    b.Property<int>("WeightUnit")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("PersonalRecordID");
-
-                    b.HasIndex("MovementDataID");
-
-                    b.HasIndex("PreviousPersonalRecordID");
-
-                    b.HasIndex("UserID", "MovementDataID", "PRType", "IsActive");
-
-                    b.ToTable("PersonalRecords");
+                    b.ToTable("PersonalRecords", (string)null);
                 });
 
             modelBuilder.Entity("lionheart.Model.Training.Programs.TrainingProgram", b =>
@@ -1481,28 +1481,13 @@ namespace lionheart.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("lionheart.Model.Training.PersonalRecord", b =>
+            modelBuilder.Entity("lionheart.Model.Training.PersonalRecords.PersonalRecord", b =>
                 {
-                    b.HasOne("lionheart.Model.Training.MovementData", "MovementData")
-                        .WithMany()
-                        .HasForeignKey("MovementDataID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("lionheart.Model.Training.PersonalRecord", "PreviousPersonalRecord")
-                        .WithMany()
-                        .HasForeignKey("PreviousPersonalRecordID")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany("PersonalRecords")
-                        .HasForeignKey("UserID")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("MovementData");
-
-                    b.Navigation("PreviousPersonalRecord");
                 });
 
             modelBuilder.Entity("lionheart.Model.Training.Programs.TrainingProgram", b =>
