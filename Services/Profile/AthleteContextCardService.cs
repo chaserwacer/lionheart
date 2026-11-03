@@ -44,8 +44,15 @@ namespace lionheart.Services.Profile
         /// <summary>Recent State is considered stale after this long and is lazily recomputed on read.</summary>
         private static readonly TimeSpan RecentStateMaxAge = TimeSpan.FromHours(6);
 
-        /// <summary>One sentence is all that is asked for; the budget only has to not truncate it.</summary>
-        private const int NarrativeTokenBudget = 512;
+        /// <summary>
+        /// One sentence is all that is asked for, but the budget has to cover more than the
+        /// sentence: on a provider whose thinking cannot be switched off, the output cap counts
+        /// reasoning tokens too, and a cap that reasoning exhausts comes back as a truncated turn
+        /// rather than an answer. The narrative is a deliberate best-effort — a failure leaves the
+        /// card without its sentence instead of failing the card — so too small a number here
+        /// fails silently, which is why it is generous rather than snug.
+        /// </summary>
+        private const int NarrativeTokenBudget = 4096;
 
         private readonly ModelContext _context = context;
         private readonly NarrativeChatClient _narrativeClient = narrativeClient;
@@ -129,10 +136,31 @@ namespace lionheart.Services.Profile
             var yearAgo = DateOnly.FromDateTime(now).AddDays(-365);
 
             // Baseline biometrics over the trailing year (deterministic; numbers never come from the LLM).
-            var ouraYear = await _context.DailyOuraDatas
-                .Where(o => o.UserID == userId && o.Date >= yearAgo)
-                .Select(o => new { o.ReadinessData.RestingHeartRate, o.ReadinessData.HrvBalance, o.ReadinessData.ReadinessScore })
+            // Readings live in a JSON column, so the day range narrows in SQL and the members are
+            // read in memory. A contributor Oura could not compute is skipped rather than counted
+            // as zero — see Mean below.
+            var readinessYear = await _context.OuraDailyReadiness
+                .AsNoTracking()
+                .Where(o => o.UserId == userId && o.Day >= yearAgo)
+                .Select(o => o.Reading)
                 .ToListAsync();
+
+            // The athlete's real resting heart rate, in beats per minute, from the nights
+            // themselves. Oura's readiness contributor of the same name is a 1-100 score for how
+            // that night's resting rate compared to his own baseline, not a rate — it runs the
+            // full 1 to 100 across this history while his actual lowest rates run 36 to 94. The
+            // card goes into the model's standing context, so a score presented as bpm is a number
+            // it would reason with and get wrong.
+            var nightsYear = await _context.OuraSleepPeriods
+                .AsNoTracking()
+                .Where(o => o.UserId == userId && o.Day >= yearAgo)
+                .Select(o => o.Reading)
+                .ToListAsync();
+
+            var restingRates = nightsYear
+                .Where(night => night.IsMainSleep)
+                .Select(night => night.LowestHeartRate)
+                .ToList();
 
             var sessionsYear = await CountCompletedSessionsSinceAsync(userId, yearAgo);
 
@@ -155,12 +183,20 @@ namespace lionheart.Services.Profile
                 if (lhUser.Weight > 0) bio.Add($"weight {lhUser.Weight:0.#}");
                 if (bio.Count > 0) facts.Add($"Athlete: {string.Join(", ", bio)}.");
             }
-            if (ouraYear.Count > 0)
+            if (readinessYear.Count > 0 || restingRates.Count > 0)
             {
+                var baselines = new List<string>();
+                if (restingRates.Count > 0)
+                    baselines.Add($"lowest overnight HR ~{Mean(restingRates):0} bpm");
+                if (readinessYear.Count > 0)
+                {
+                    baselines.Add($"HRV balance ~{Mean(readinessYear.Select(r => r.Contributors.HrvBalance)):0}/100");
+                    baselines.Add($"readiness ~{Mean(readinessYear.Select(r => r.Score)):0}/100");
+                }
+
                 facts.Add(
-                    $"Baselines (trailing 12mo): resting HR ~{Avg(ouraYear.Select(o => (double)o.RestingHeartRate)):0}, " +
-                    $"HRV balance ~{Avg(ouraYear.Select(o => (double)o.HrvBalance)):0}, " +
-                    $"readiness ~{Avg(ouraYear.Select(o => (double)o.ReadinessScore)):0} (n={ouraYear.Count} days).");
+                    $"Baselines (trailing 12mo): {string.Join(", ", baselines)} " +
+                    $"(n={Math.Max(readinessYear.Count, restingRates.Count)} days).");
             }
             facts.Add($"Training history: {sessionsYear} sessions logged in the last 12 months; {activePrCount} active PRs on record.");
             if (chronicInjuries.Count > 0)
@@ -200,15 +236,25 @@ namespace lionheart.Services.Profile
                 .OrderByDescending(w => w.Date)
                 .ToListAsync();
 
-            var ouraWeek = await _context.DailyOuraDatas
-                .Where(o => o.UserID == userId && o.Date >= weekAgo)
-                .Select(o => new
-                {
-                    o.ReadinessData.ReadinessScore,
-                    o.SleepData.SleepScore,
-                    o.ReadinessData.HrvBalance,
-                    o.ResilienceData.Stress
-                })
+            var readinessWeek = await _context.OuraDailyReadiness
+                .AsNoTracking()
+                .Where(o => o.UserId == userId && o.Day >= weekAgo)
+                .Select(o => o.Reading)
+                .ToListAsync();
+
+            var sleepWeek = await _context.OuraDailySleep
+                .AsNoTracking()
+                .Where(o => o.UserId == userId && o.Day >= weekAgo)
+                .Select(o => o.Reading)
+                .ToListAsync();
+
+            // Stress now comes from Oura's own stress document rather than the resilience level's
+            // stress contributor: it is a measured share of the day in seconds, and unlike
+            // resilience it is a collection this athlete's history actually covers.
+            var stressWeek = await _context.OuraDailyStress
+                .AsNoTracking()
+                .Where(o => o.UserId == userId && o.Day >= weekAgo)
+                .Select(o => o.Reading)
                 .ToListAsync();
 
             var activeInjuries = await _context.Injuries
@@ -242,13 +288,14 @@ namespace lionheart.Services.Profile
                 lines.Add("Wellness: no entries in the last 7 days.");
             }
 
-            if (ouraWeek.Count > 0)
+            if (readinessWeek.Count > 0 || sleepWeek.Count > 0 || stressWeek.Count > 0)
             {
                 lines.Add(
-                    $"Oura (7d means): readiness {Avg(ouraWeek.Select(o => (double)o.ReadinessScore)):0}, " +
-                    $"sleep {Avg(ouraWeek.Select(o => (double)o.SleepScore)):0}, " +
-                    $"HRV balance {Avg(ouraWeek.Select(o => (double)o.HrvBalance)):0}, " +
-                    $"stress {Avg(ouraWeek.Select(o => o.Stress)):0.0} (n={ouraWeek.Count}).");
+                    $"Oura (7d means): readiness {Mean(readinessWeek.Select(r => r.Score)):0}/100, " +
+                    $"sleep {Mean(sleepWeek.Select(s => s.Score)):0}/100, " +
+                    $"HRV balance {Mean(readinessWeek.Select(r => r.Contributors.HrvBalance)):0}/100, " +
+                    $"stressful minutes/day {Mean(stressWeek.Select(s => s.StressHighSeconds)) / 60:0} " +
+                    $"(n={Math.Max(readinessWeek.Count, sleepWeek.Count)}).");
             }
             else
             {
@@ -282,7 +329,7 @@ namespace lionheart.Services.Profile
             card.CoverageManifest = string.Join("\n", new[]
             {
                 $"wellness: 7d summary + latest entry present (as-of {today:yyyy-MM-dd}); per-day history NOT loaded -> GetWellnessStates(dateRange).",
-                $"oura: 7d readiness/sleep/HRV/stress means present (n={ouraWeek.Count}); per-night detail NOT loaded -> GetDailyOuraDataRange(dateRange).",
+                $"oura: 7d readiness/sleep/HRV/stress means present (n={Math.Max(readinessWeek.Count, sleepWeek.Count)}); per-night detail (stages, hypnogram, HRV curve), workouts, sessions and tags NOT loaded -> the /api/oura routes.",
                 $"training: 7d count + acute:chronic present; no drill-in tool available yet — do not attempt to fetch per-session detail.",
                 $"injuries: {activeInjuries.Count} active summarized; full event history NOT loaded -> GetUserInjuries(filters).",
                 $"PRs: {activePrCount} active PRs counted; current values/progression NOT loaded -> GetPersonalRecords()."
@@ -353,6 +400,17 @@ namespace lionheart.Services.Profile
             var list = values as ICollection<double> ?? values.ToList();
             return list.Count == 0 ? 0 : list.Average();
         }
+
+        /// <summary>
+        /// The mean of the readings Oura actually computed, ignoring the days it could not.
+        /// </summary>
+        /// <remarks>
+        /// An absent reading is not a zero. Averaging it as one would drag a baseline down in
+        /// proportion to the days the ring recorded nothing, and these figures go into the model's
+        /// standing context, where a quietly wrong number is reasoned with rather than questioned.
+        /// </remarks>
+        private static double Mean(IEnumerable<int?> readings) =>
+            Avg(readings.Where(reading => reading.HasValue).Select(reading => (double)reading!.Value));
 
         private const string BaseInstructions = """
             You are Lionheart, an intelligent training coach and analyst.

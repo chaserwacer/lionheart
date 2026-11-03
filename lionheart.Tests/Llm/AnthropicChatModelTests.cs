@@ -241,11 +241,32 @@ public sealed class AnthropicChatModelTests : IDisposable
     {
         _server.Responds(CannedAnthropic.Text("ok"));
 
-        await Respond();
+        await Respond(ChatTurnRequest.Conversation(
+            "You are a coach.", [new ModelMessage.UserSaid("how did last week go?")], [], 1024));
 
         var sent = Request(Assert.Single(_server.ReceivedRequests));
         Assert.False(
             sent.TryGetProperty("output_config", out var config) && config.TryGetProperty("effort", out _));
+    }
+
+    /// <summary>
+    /// Prose asks for the minimum. Its facts arrive already decided, so there is nothing to reason
+    /// about — and on this provider thinking cannot be switched off while the output cap counts
+    /// reasoning tokens, so a prose call that reasoned freely would spend its budget before writing
+    /// anything. The Athlete Context Card's narrative is best-effort and fails silently, so that
+    /// would show up as a card quietly missing its sentence rather than as an error.
+    /// </summary>
+    [Fact]
+    public async Task Prose_asks_for_the_lowest_reasoning_effort()
+    {
+        _server.Responds(CannedAnthropic.Text("ok"));
+
+        await Respond();
+
+        Assert.Equal(
+            "low",
+            Request(Assert.Single(_server.ReceivedRequests))
+                .GetProperty("output_config").GetProperty("effort").GetString());
     }
 
     /// <summary>
@@ -285,6 +306,156 @@ public sealed class AnthropicChatModelTests : IDisposable
         Assert.Equal("object", schema.GetProperty("type").GetString());
         Assert.Equal("integer", schema.GetProperty("properties").GetProperty("days").GetProperty("type").GetString());
         Assert.Equal(["days"], schema.GetProperty("required").EnumerateArray().Select(n => n.GetString()));
+    }
+
+    /// <summary>
+    /// A tool parameter with a nested complex type makes NJsonSchema emit a <c>$ref</c> into a root
+    /// <c>definitions</c> block — <c>GetInjuryRequest.DateRange</c> is the live example, and the
+    /// whole registry is offered on every chat round. Sending only <c>properties</c> and
+    /// <c>required</c> ships a reference that resolves to nothing, so either the request is
+    /// rejected or the model is told nothing about that parameter's shape. The schema this
+    /// application generated has to arrive whole.
+    /// </summary>
+    [Fact]
+    public async Task A_schema_with_definitions_keeps_them_so_a_ref_still_resolves()
+    {
+        _server.Responds(CannedAnthropic.Text("ok"));
+
+        await _server.CreateChatModel().RespondAsync(new ChatTurnRequest(
+            "You are a coach.",
+            [new ModelMessage.UserSaid("which injuries?")],
+            [new ToolDefinition("get_injuries", "Gets injuries.",
+                """
+                {
+                  "$schema": "http://json-schema.org/draft-04/schema#",
+                  "title": "GetInjuryRequest",
+                  "type": "object",
+                  "properties": {
+                    "DateRange": { "oneOf": [ { "type": "null" }, { "$ref": "#/definitions/DateRangeRequest" } ] }
+                  },
+                  "required": [],
+                  "definitions": {
+                    "DateRangeRequest": {
+                      "type": "object",
+                      "required": ["StartDate", "EndDate"],
+                      "properties": {
+                        "StartDate": { "type": "string", "format": "date-time" },
+                        "EndDate": { "type": "string", "format": "date-time" }
+                      }
+                    }
+                  }
+                }
+                """)],
+            new OutputContract.FreeText(),
+            ReasoningDepth.Standard,
+            1024));
+
+        var schema = Assert.Single(
+            Request(Assert.Single(_server.ReceivedRequests)).GetProperty("tools").EnumerateArray())
+            .GetProperty("input_schema");
+
+        var referenced = schema.GetProperty("properties").GetProperty("DateRange")
+            .GetProperty("oneOf").EnumerateArray().Last().GetProperty("$ref").GetString();
+        Assert.Equal("#/definitions/DateRangeRequest", referenced);
+
+        var target = schema.GetProperty("definitions").GetProperty("DateRangeRequest");
+        Assert.Equal("object", target.GetProperty("type").GetString());
+        Assert.Equal(
+            ["StartDate", "EndDate"],
+            target.GetProperty("required").EnumerateArray().Select(n => n.GetString()));
+
+        // Everything describing the shape is sent; the dialect declaration is not. A meta-keyword
+        // the API never asked about says nothing about a parameter and is what a strict validator
+        // would reject, so NJsonSchema's draft-04 marker stays behind while `title` — inert, and
+        // useful to a reader — goes.
+        Assert.False(schema.TryGetProperty("$schema", out _));
+        Assert.Equal("GetInjuryRequest", schema.GetProperty("title").GetString());
+    }
+
+    // ---- Shapes the API insists on, reachable from stored history ----
+
+    /// <summary>
+    /// A turn that spends its whole budget thinking answers with empty text, which this provider
+    /// reports as a success and the chat layer stores verbatim. Replayed as an empty text block it
+    /// would be rejected, so one such answer would retire the conversation permanently — every
+    /// later request in it would fail. The empty message carries nothing, so it is dropped.
+    /// </summary>
+    [Fact]
+    public async Task An_empty_stored_answer_is_not_replayed_as_an_empty_text_block()
+    {
+        _server.Responds(CannedAnthropic.Text("ok"));
+
+        await Respond(new ChatTurnRequest(
+            "You are a coach.",
+            [
+                new ModelMessage.UserSaid("how did last week go?"),
+                new ModelMessage.AssistantSaid("   "),
+                new ModelMessage.UserSaid("still there?"),
+            ],
+            [],
+            new OutputContract.FreeText(),
+            ReasoningDepth.Standard,
+            1024));
+
+        var messages = Request(Assert.Single(_server.ReceivedRequests))
+            .GetProperty("messages").EnumerateArray().ToList();
+
+        Assert.Equal(2, messages.Count);
+        Assert.DoesNotContain(
+            messages.SelectMany(m => m.GetProperty("content").EnumerateArray())
+                .Where(block => block.GetProperty("type").GetString() == "text")
+                .Select(block => block.GetProperty("text").GetString()),
+            string.IsNullOrWhiteSpace);
+    }
+
+    /// <summary>
+    /// Nothing left to send is refused by name rather than sent as an empty transcript. A
+    /// whitespace-only message is not validated on the way in, and a user turn over the input
+    /// budget is skipped by the history packer like any other — either would otherwise come back
+    /// rejected and reach the athlete as a gateway failure naming no cause.
+    /// </summary>
+    [Fact]
+    public async Task A_transcript_with_nothing_left_in_it_is_refused_rather_than_sent()
+    {
+        _server.Responds(CannedAnthropic.Text("ok"));
+
+        var problem = ResultAssert.Failed(await Respond(new ChatTurnRequest(
+            "You are a coach.",
+            [new ModelMessage.UserSaid("   ")],
+            [],
+            new OutputContract.FreeText(),
+            ReasoningDepth.Standard,
+            1024)));
+
+        Assert.IsType<lionheart.Functional.Problem.Invalid>(problem);
+        Assert.Empty(_server.ReceivedRequests);
+    }
+
+    /// <summary>
+    /// History is packed newest-first under a token budget, which can skip an oversized user
+    /// message while keeping an older assistant one. The API requires the first message to be in
+    /// the user role; a leading assistant message is a reply to a turn no longer in the window.
+    /// </summary>
+    [Fact]
+    public async Task History_that_would_open_on_an_assistant_turn_starts_at_the_user_instead()
+    {
+        _server.Responds(CannedAnthropic.Text("ok"));
+
+        await Respond(new ChatTurnRequest(
+            "You are a coach.",
+            [
+                new ModelMessage.AssistantSaid("a reply whose question fell out of the window"),
+                new ModelMessage.UserSaid("and now this"),
+            ],
+            [],
+            new OutputContract.FreeText(),
+            ReasoningDepth.Standard,
+            1024));
+
+        var messages = Request(Assert.Single(_server.ReceivedRequests))
+            .GetProperty("messages").EnumerateArray().ToList();
+
+        Assert.Equal("user", Assert.Single(messages).GetProperty("role").GetString());
     }
 
     // ---- Echoing a turn back ----

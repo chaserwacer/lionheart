@@ -24,7 +24,6 @@ namespace lionheart.Data
         public DbSet<LionheartUser> LionheartUsers { get; set; }
         public DbSet<WellnessState> WellnessStates { get; set; }
         public DbSet<ApiAccessToken> ApiAccessTokens { get; set; }
-        public DbSet<DailyOuraData> DailyOuraDatas { get; set; }
         public DbSet<MovementBase> MovementBases { get; set; }
         public DbSet<Equipment> Equipments { get; set; }
         public DbSet<MuscleGroup> MuscleGroups { get; set;}
@@ -46,6 +45,19 @@ namespace lionheart.Data
         public DbSet<Context> Contexts { get; set; }
         public DbSet<AnalyzableEntry> AnalyzableEntries { get; set; }
         public DbSet<FacetValue> FacetValues { get; set; }
+
+        // Oura — design in docs/oura-integration.md. One table per collection: six documents that
+        // describe a calendar day, four that describe events within one.
+        public DbSet<OuraDailyActivity> OuraDailyActivity { get; set; }
+        public DbSet<OuraDailyReadiness> OuraDailyReadiness { get; set; }
+        public DbSet<OuraDailySleep> OuraDailySleep { get; set; }
+        public DbSet<OuraDailySpo2> OuraDailySpo2 { get; set; }
+        public DbSet<OuraDailyStress> OuraDailyStress { get; set; }
+        public DbSet<OuraDailyResilience> OuraDailyResilience { get; set; }
+        public DbSet<OuraSleepPeriod> OuraSleepPeriods { get; set; }
+        public DbSet<OuraWorkout> OuraWorkouts { get; set; }
+        public DbSet<OuraSession> OuraSessions { get; set; }
+        public DbSet<OuraTag> OuraTags { get; set; }
 
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
@@ -77,6 +89,7 @@ namespace lionheart.Data
                     Sessions.CompletedTrainingSession completed => completed.Period,
                     Context context => context.Period,
                     AnalyzableEntry analyzable => analyzable.Period,
+                    IOuraEvent ouraEvent => ouraEvent.Period,
                     _ => null
                 };
                 if (period is not null) entry.Property("StartTime").CurrentValue = period.StartTimeUtc;
@@ -224,24 +237,6 @@ namespace lionheart.Data
                 .WithMany(u => u.ApiAccessTokens)
                 .HasForeignKey(a => a.UserID);
 
-            // Daily Oura Info
-            modelBuilder.Entity<DailyOuraData>()
-                .HasKey(a => a.ObjectID);
-
-            modelBuilder.Entity<DailyOuraData>()
-                .HasOne<LionheartUser>()
-                .WithMany(u => u.DailyOuraInfos)
-                .HasForeignKey(a => a.UserID);
-
-            modelBuilder.Entity<DailyOuraData>()
-                .OwnsOne(o => o.ReadinessData);
-            modelBuilder.Entity<DailyOuraData>()
-                .OwnsOne(o => o.ResilienceData);
-            modelBuilder.Entity<DailyOuraData>()
-                .OwnsOne(o => o.SleepData);
-            modelBuilder.Entity<DailyOuraData>()
-                .OwnsOne(o => o.ActivityData);
-
             // Chat Conversations
             modelBuilder.Entity<LHChatConversation>()
                 .HasKey(c => c.ChatConversationID);
@@ -291,6 +286,7 @@ namespace lionheart.Data
                 .IsUnique();
 
             RemodelConfiguration.Apply(modelBuilder);
+            OuraConfiguration.Apply(modelBuilder);
         }
     }
 }

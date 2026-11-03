@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace lionheart.Data;
 
 /// <summary>
-/// Column-level conversions for the training domain: polymorphic records as JSON TEXT
-/// (discriminated via [JsonDerivedType] attributes on the abstract bases) and embedding
-/// vectors as BLOBs.
+/// Column-level conversions used by the training domain and the Oura tables alike: records as
+/// JSON TEXT (polymorphic ones discriminated via [JsonDerivedType] attributes on the abstract
+/// bases) and embedding vectors as BLOBs.
 /// </summary>
 public static class ValueConversions
 {

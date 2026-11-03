@@ -288,7 +288,13 @@ returns with the interpretation engine).
 
 ## Out of scope (unchanged for now)
 
-Chat, Oura, Profile, Wellness, Injury.
+Chat, Profile, Wellness, Injury.
+
+Oura was out of scope for the remodel and has since been reworked on its own terms — ten
+collections, a new model and an import of the athlete's archived history. It reuses this domain's
+`Period` for events and stamps `StartTime` the same way, but it does **not** feed
+`AnalyzableEntry`, and `docs/oura-integration.md` carries the reasoning for that along with
+everything else about it.
 
 ## Decision log
 

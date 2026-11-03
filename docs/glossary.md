@@ -32,7 +32,12 @@ first and then in the code.
 | **Exertion context** | Physical effort outside training. Carries effort ratings. |
 | **State context** | A body or life state. Its valence lives in its decoration. |
 | **Wellness state** | A self-reported daily reading the athlete enters. |
-| **Oura day** | One day of wearable data: sleep, readiness, activity, stress, SpO2, and the night's periods. |
+| **Oura day** | One day of wearable data: the six daily documents Oura files under that date — activity, readiness, sleep, SpO2, stress, resilience. |
+| **Oura document** | One record as Oura issued it, keyed by Oura's own id. Either a day document or an event. |
+| **Reading** | The measurement half of an Oura document — what the ring recorded, as against which day it belongs to. |
+| **Sleep period** | One stretch of sleep Oura scored: a night, a nap, or rest. Zero to many per day, and the day it is filed under is the day the athlete woke. |
+| **Sample run** | An evenly spaced series the ring recorded across one period — the overnight heart-rate or HRV curve. Carries its interval and start, and its gaps are real. |
+| **Hypnogram** | The sleep stage per five-minute slot, kept as Oura's own digit-per-slot encoding. |
 | **Readiness** | Oura's own composite score for how recovered the body is. Not Lionheart's judgement. |
 | **Injury** | A tracked problem with a body part, and the events logged against it over time. |
 

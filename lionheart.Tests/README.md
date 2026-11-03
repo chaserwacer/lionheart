@@ -40,10 +40,19 @@ test; do not introduce a third gate.
 | `Domain/` | Invariants of the sealed hierarchies — no I/O |
 | `Serialization/` | The JSON storage format: round trips, hand-written literal fixtures, malformed payloads |
 | `Persistence/` | Real in-memory SQLite through the full `ModelContext` |
+| `Functional/` | The monad layer's own combinators — the walks and the partition |
 | `Llm/` | Chat and model-output contracts against both providers' faked wire APIs, plus the language-model configuration — no network |
+| `Oura/` | The Oura collections: mapping, import, paging, persistence and reads (`docs/oura-integration.md`) |
 | `Interpretation/` | The Parse → Resolve → Commit engine, against fakes and (live) a real model |
 | `LocalModel/` | Chat-layer checks against a real LM Studio server |
 | `Support/` | Fixtures: domain samples, a fake server per provider, canned responses, a test toolbox |
+
+`Oura/Archive/` and `Oura/Damaged/` are fixture **files**, not string literals, and both are copied
+to the output directory. The archive is a miniature of the athlete's own recorded Oura responses —
+real bytes, so what the mapping tests assert is what a live pull would produce, which matters
+because the pull itself cannot be run without his credential. `Damaged/` holds records broken on
+purpose. Point the importer at a directory the way production does rather than hand-feeding it
+lines; `RecordedPayloads` resolves both paths.
 
 `Serialization/StorageFormatTests.cs` is deliberately redundant with the round-trip tests:
 round trips use the serializer as its own oracle, so a serializer-level change round-trips
