@@ -18,7 +18,7 @@ struct WellnessHistoryView: View {
                 ContentUnavailableView {
                     Label("No wellness entries", systemImage: "face.smiling")
                 } description: {
-                    Text("A daily reading of mood, energy, motivation and stress gives the coach something your training does not say.")
+                    Text("A daily reading of mood, energy, motivation and stress gives Lionheart a signal your training does not carry.")
                 }
                 .listRowBackground(Color.clear)
             } else {

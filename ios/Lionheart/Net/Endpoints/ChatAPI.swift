@@ -3,7 +3,7 @@ import Foundation
 /// The chat routes, read off `Endpoints/ChatEndpoints/` — they predate the remodel and are not in
 /// `docs/api-surface.md`, which is why the paths carry verbs.
 ///
-/// Two behaviours of `POST /message/process` shape the whole Coach screen and are worth knowing
+/// Two behaviours of `POST /message/process` shape the whole Chat screen and are worth knowing
 /// before changing it:
 ///
 /// - **It is one blocking round trip for the whole exchange.** The model answers over the athlete's

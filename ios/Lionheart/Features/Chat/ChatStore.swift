@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The Coach tab's data: the conversation on screen, the list to switch between, and the context
+/// The Chat tab's data: the conversation on screen, the list to switch between, and the context
 /// card the model is given.
 ///
 /// **Every model call this store makes is serial, deliberately.** In development the chat provider
@@ -12,8 +12,8 @@ import Observation
 /// let` would be a defect rather than an improvement.
 @Observable
 @MainActor
-final class CoachStore {
-    private(set) var state: CoachConversationState = .loading
+final class ChatStore {
+    private(set) var state: ChatConversationState = .loading
     private(set) var conversations: [ChatConversation] = []
     private(set) var contextCard: LoadState<AthleteContextCard> = .loading
 
@@ -168,7 +168,7 @@ final class CoachStore {
     }
 
     private func runExchange(_ words: String) async {
-        let pending = CoachTurn.pending(id: UUID(), text: words)
+        let pending = ChatTurn.pending(id: UUID(), text: words)
 
         do {
             let conversation = try await conversationToPostInto(titledBy: words)
@@ -192,7 +192,7 @@ final class CoachStore {
     }
 
     /// Puts the athlete's words back where they can resend them.
-    private func handed(_ pending: CoachTurn, back failure: LoadFailure) {
+    private func handed(_ pending: ChatTurn, back failure: LoadFailure) {
         guard let conversation = state.conversation else {
             state = .unavailable(failure)
             return

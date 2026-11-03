@@ -24,7 +24,7 @@ public sealed class AnthropicChatModelTests : IDisposable
     private Task<lionheart.Functional.Result<ModelTurn, lionheart.Functional.Problem>> Respond(
         ChatTurnRequest? request = null) =>
         _server.CreateChatModel().RespondAsync(
-            request ?? ChatTurnRequest.Prose("You are a coach.", "how did last week go?", 1024));
+            request ?? ChatTurnRequest.Prose("You are a training analyst.", "how did last week go?", 1024));
 
     // ---- Reading a turn ----
 
@@ -166,7 +166,7 @@ public sealed class AnthropicChatModelTests : IDisposable
         await Respond();
 
         var sent = Request(Assert.Single(_server.ReceivedRequests));
-        Assert.Equal("You are a coach.", sent.GetProperty("system").GetString());
+        Assert.Equal("You are a training analyst.", sent.GetProperty("system").GetString());
         Assert.DoesNotContain(
             sent.GetProperty("messages").EnumerateArray(),
             message => message.GetProperty("role").GetString() == "system");
@@ -242,7 +242,7 @@ public sealed class AnthropicChatModelTests : IDisposable
         _server.Responds(CannedAnthropic.Text("ok"));
 
         await Respond(ChatTurnRequest.Conversation(
-            "You are a coach.", [new ModelMessage.UserSaid("how did last week go?")], [], 1024));
+            "You are a training analyst.", [new ModelMessage.UserSaid("how did last week go?")], [], 1024));
 
         var sent = Request(Assert.Single(_server.ReceivedRequests));
         Assert.False(
@@ -288,7 +288,7 @@ public sealed class AnthropicChatModelTests : IDisposable
         _server.Responds(CannedAnthropic.Text("ok"));
 
         await _server.CreateChatModel().RespondAsync(new ChatTurnRequest(
-            "You are a coach.",
+            "You are a training analyst.",
             [new ModelMessage.UserSaid("how many sets?")],
             [new ToolDefinition("count_sets", "Counts sets.",
                 """{"type":"object","properties":{"days":{"type":"integer"}},"required":["days"]}""")],
@@ -322,7 +322,7 @@ public sealed class AnthropicChatModelTests : IDisposable
         _server.Responds(CannedAnthropic.Text("ok"));
 
         await _server.CreateChatModel().RespondAsync(new ChatTurnRequest(
-            "You are a coach.",
+            "You are a training analyst.",
             [new ModelMessage.UserSaid("which injuries?")],
             [new ToolDefinition("get_injuries", "Gets injuries.",
                 """
@@ -386,7 +386,7 @@ public sealed class AnthropicChatModelTests : IDisposable
         _server.Responds(CannedAnthropic.Text("ok"));
 
         await Respond(new ChatTurnRequest(
-            "You are a coach.",
+            "You are a training analyst.",
             [
                 new ModelMessage.UserSaid("how did last week go?"),
                 new ModelMessage.AssistantSaid("   "),
@@ -420,7 +420,7 @@ public sealed class AnthropicChatModelTests : IDisposable
         _server.Responds(CannedAnthropic.Text("ok"));
 
         var problem = ResultAssert.Failed(await Respond(new ChatTurnRequest(
-            "You are a coach.",
+            "You are a training analyst.",
             [new ModelMessage.UserSaid("   ")],
             [],
             new OutputContract.FreeText(),
@@ -442,7 +442,7 @@ public sealed class AnthropicChatModelTests : IDisposable
         _server.Responds(CannedAnthropic.Text("ok"));
 
         await Respond(new ChatTurnRequest(
-            "You are a coach.",
+            "You are a training analyst.",
             [
                 new ModelMessage.AssistantSaid("a reply whose question fell out of the window"),
                 new ModelMessage.UserSaid("and now this"),
@@ -538,10 +538,10 @@ public sealed class AnthropicChatModelTests : IDisposable
 
         var requested = Assert.IsType<ModelTurn.RequestedTools>(ResultAssert.Succeeded(
             await first.CreateChatModel().RespondAsync(
-                ChatTurnRequest.Prose("You are a coach.", "how many sets?", 1024))));
+                ChatTurnRequest.Prose("You are a training analyst.", "how many sets?", 1024))));
 
         await _server.CreateChatModel().RespondAsync(new ChatTurnRequest(
-            "You are a coach.",
+            "You are a training analyst.",
             [
                 new ModelMessage.UserSaid("how many sets?"),
                 new ModelMessage.AssistantActed(requested.Turn),

@@ -7,7 +7,7 @@ import Foundation
 /// distinct state because **the server did not keep it** — it adds the message to its change
 /// tracker and saves only once the model has answered, so a refused exchange loses the question
 /// entirely. Showing it as sent would be a lie the athlete would discover on the next refresh.
-enum CoachTurn: Equatable, Sendable, Identifiable {
+enum ChatTurn: Equatable, Sendable, Identifiable {
     case said(ChatMessage)
     /// The athlete's words, in flight. No server id yet, so it carries its own.
     case pending(id: UUID, text: String)
@@ -29,14 +29,14 @@ enum CoachTurn: Equatable, Sendable, Identifiable {
     }
 
     /// Whether the athlete said it. Total, so a turn added later has to decide rather than
-    /// defaulting to the coach's side of the conversation.
+    /// defaulting to the model's side of the conversation.
     var isFromAthlete: Bool {
         switch self {
         case .pending, .unsent: true
         case .said(let message):
             switch message.role {
             case .athlete: true
-            case .coach, .tool, .system, .unrecognised: false
+            case .model, .tool, .system, .unrecognised: false
             }
         }
     }

@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// What the coach knows about the athlete, in the athlete's own hands.
+/// What the model is given about the athlete, in the athlete's own hands.
 ///
-/// It is the premise behind every answer on the Coach screen, and an answer is only worth trusting
+/// It is the premise behind every answer on the Chat screen, and an answer is only worth trusting
 /// if its premise is inspectable. The two tiers are shown separately with their as-of instants,
 /// because that is the difference that matters: advice drawn from a Recent State computed six hours
 /// ago reads differently once you can see when it was computed.
@@ -11,7 +11,7 @@ import SwiftUI
 /// and injuries — it is regenerated from them and is never a source of truth, so editing it here
 /// would be editing a shadow.
 struct ContextCardSheet: View {
-    let store: CoachStore
+    let store: ChatStore
 
     @Environment(\.dismiss) private var dismiss
 
@@ -30,7 +30,7 @@ struct ContextCardSheet: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("What the coach knows")
+            .navigationTitle("Athlete context")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -54,7 +54,7 @@ struct ContextCardSheet: View {
                 ContentUnavailableView {
                     Label("Nothing to summarise yet", systemImage: "person.text.rectangle")
                 } description: {
-                    Text("The coach builds this from your sessions, wellness entries, Oura days and injuries. Log a few and it fills in.")
+                    Text("Lionheart builds this from your sessions, wellness entries, Oura days and injuries. Log a few and it fills in.")
                 }
                 .listRowBackground(Color.clear)
             }

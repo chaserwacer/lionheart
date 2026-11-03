@@ -18,7 +18,7 @@ final class AppContainer {
     let profile: ProfileStore
     let today: TodayStore
     let history: HistoryStore
-    let coach: CoachStore
+    let chat: ChatStore
     let body: BodyStore
     let activeWorkout: ActiveWorkoutStore
     let train: TrainStore
@@ -59,7 +59,7 @@ final class AppContainer {
             sessions: TrainingSessionsAPI(client: client),
             movements: MovementsAPI(client: client),
             records: PersonalRecordsAPI(client: client))
-        coach = CoachStore(
+        chat = ChatStore(
             chat: ChatAPI(client: client),
             profile: ProfileAPI(client: client))
         body = BodyStore(
@@ -80,13 +80,13 @@ final class AppContainer {
         // empties the screen it was loading into. The profile gate is reset for a sharper reason
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
-        auth.onSignOut { [profile, today, train, movements, history, coach, body, activeWorkout] in
+        auth.onSignOut { [profile, today, train, movements, history, chat, body, activeWorkout] in
             profile.reset()
             today.reset()
             train.reset()
             movements.reset()
             history.reset()
-            coach.reset()
+            chat.reset()
             body.reset()
             // The workout goes too, document and all: it belongs to the session the signed-out
             // credential owned, and one the next sign-in could adopt would push one athlete's sets

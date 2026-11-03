@@ -31,7 +31,7 @@ enum ProfileDraftProblem: Equatable, Sendable, Hashable {
 
     var message: String {
         switch self {
-        case .nameMissing: "Give a name the coach can call you by."
+        case .nameMissing: "The name to address you by."
         case .ageImplausible:
             "An age between \(Self.plausibleAges.lowerBound) and \(Self.plausibleAges.upperBound)."
         case .weightImplausible: "A body weight, in whatever unit you log your lifts in."

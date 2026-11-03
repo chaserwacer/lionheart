@@ -11,7 +11,7 @@ namespace lionheart.Endpoints.ProfileEndpoints;
 /// Hands the athlete the context card the chat model is given about them.
 /// </summary>
 /// <remarks>
-/// A coaching answer is only worth trusting if its premises are inspectable, and the card is the
+/// An answer is only worth trusting if its premises are inspectable, and the card is the
 /// premise behind every one of them: it is what the model is told about this athlete before the
 /// conversation starts. That is what this route is for.
 /// <para>

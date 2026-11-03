@@ -23,15 +23,15 @@ struct ChatRoleTests {
                 """))
 
         // The answer is first in the array. Index parity would call it the athlete's.
-        #expect(conversation.messages[0].role == .coach)
+        #expect(conversation.messages[0].role == .model)
         #expect(conversation.messages[1].role == .athlete)
     }
 
-    @Test("Only the athlete's and the coach's turns reach the transcript")
+    @Test("Only the athlete's and the model's turns reach the transcript")
     func toolAndSystemTurnsAreNotConversation() {
         #expect(ChatRole.athlete.isShownInTranscript)
-        #expect(ChatRole.coach.isShownInTranscript)
-        // A tool result rendered as coaching advice is the failure this answer prevents.
+        #expect(ChatRole.model.isShownInTranscript)
+        // A tool result rendered as the model's answer is the failure this answer prevents.
         #expect(!ChatRole.tool.isShownInTranscript)
         #expect(!ChatRole.system.isShownInTranscript)
         #expect(!ChatRole.unrecognised(9).isShownInTranscript)
@@ -104,9 +104,9 @@ struct ChatRoleTests {
     }
 }
 
-/// The Coach screen's state, whose job is to never lose the athlete's question.
-@Suite("Coach conversation state")
-struct CoachConversationStateTests {
+/// The Chat screen's state, whose job is to never lose the athlete's question.
+@Suite("Chat conversation state")
+struct ChatConversationStateTests {
     private static func conversation(messages: String = "[]") throws -> ChatConversation {
         try Decoding.decode(ChatConversation.self, Chat.conversation(messages: messages))
     }
@@ -115,7 +115,7 @@ struct CoachConversationStateTests {
     func aFailedReadKeepsTheTranscript() throws {
         // Losing a transcript to a timed-out refresh would lose the one thing the athlete came
         // back to read.
-        let reading = CoachConversationState.reading(try Self.conversation(
+        let reading = ChatConversationState.reading(try Self.conversation(
             messages: "[\(Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01", role: 0, content: "A question"))]"))
 
         let after = reading.applying(.failure(.offline("dropped")))
@@ -126,7 +126,7 @@ struct CoachConversationStateTests {
 
     @Test("A failed first read has nothing to keep, so it is unavailable")
     func aFailedFirstReadIsUnavailable() {
-        #expect(CoachConversationState.loading.applying(.failure(.notFound))
+        #expect(ChatConversationState.loading.applying(.failure(.notFound))
             == .unavailable(.notFound))
     }
 
@@ -134,8 +134,8 @@ struct CoachConversationStateTests {
     func thePendingQuestionIsShown() throws {
         // An exchange takes tens of seconds. A screen that swallowed the question for that long
         // reads as broken.
-        let pending = CoachTurn.pending(id: UUID(), text: "Should I press overhead?")
-        let state = CoachConversationState.awaitingReply(try Self.conversation(), pending: pending)
+        let pending = ChatTurn.pending(id: UUID(), text: "Should I press overhead?")
+        let state = ChatConversationState.awaitingReply(try Self.conversation(), pending: pending)
 
         #expect(state.turns == [pending])
         #expect(state.isAwaitingReply)
@@ -146,9 +146,9 @@ struct CoachConversationStateTests {
     func aRefusedQuestionIsHandedBack() throws {
         // The server stages the athlete's message and saves it only once the model has answered,
         // so a refused exchange leaves no record of the question at all.
-        let unsent = CoachTurn.unsent(
+        let unsent = ChatTurn.unsent(
             id: UUID(), text: "Should I press overhead?", failure: .offline("dropped"))
-        let state = CoachConversationState.refused(try Self.conversation(), unsent: unsent)
+        let state = ChatConversationState.refused(try Self.conversation(), unsent: unsent)
 
         #expect(state.unsentText == "Should I press overhead?")
         #expect(state.acceptsTyping)
@@ -157,52 +157,52 @@ struct CoachConversationStateTests {
 
     @Test("Nothing is handed back when nothing failed")
     func noUnsentTextInTheOrdinaryStates() throws {
-        #expect(CoachConversationState.loading.unsentText == nil)
-        #expect(CoachConversationState.none.unsentText == nil)
-        #expect(CoachConversationState.reading(try Self.conversation()).unsentText == nil)
-        #expect(CoachConversationState.unavailable(.notFound).unsentText == nil)
+        #expect(ChatConversationState.loading.unsentText == nil)
+        #expect(ChatConversationState.none.unsentText == nil)
+        #expect(ChatConversationState.reading(try Self.conversation()).unsentText == nil)
+        #expect(ChatConversationState.unavailable(.notFound).unsentText == nil)
     }
 
     @Test("The composer is open in every state except a reply in flight")
     func onlyAnOutstandingReplyLocksTheComposer() throws {
-        #expect(CoachConversationState.none.acceptsTyping)
-        #expect(CoachConversationState.reading(try Self.conversation()).acceptsTyping)
-        #expect(!CoachConversationState.loading.acceptsTyping)
-        #expect(!CoachConversationState.unavailable(.notFound).acceptsTyping)
+        #expect(ChatConversationState.none.acceptsTyping)
+        #expect(ChatConversationState.reading(try Self.conversation()).acceptsTyping)
+        #expect(!ChatConversationState.loading.acceptsTyping)
+        #expect(!ChatConversationState.unavailable(.notFound).acceptsTyping)
     }
 
     @Test("No conversation is an empty state, with no conversation behind it")
     func noneCarriesNothing() {
-        #expect(CoachConversationState.none.conversation == nil)
-        #expect(CoachConversationState.none.turns.isEmpty)
+        #expect(ChatConversationState.none.conversation == nil)
+        #expect(ChatConversationState.none.turns.isEmpty)
     }
 }
 
 /// Which side of the conversation a turn sits on.
-@Suite("Coach turns")
-struct CoachTurnTests {
+@Suite("Chat turns")
+struct ChatTurnTests {
     @Test("A pending and an unsent turn are both the athlete's")
     func theAthletesOwnTurnsAreTheirs() {
         let id = UUID()
 
-        #expect(CoachTurn.pending(id: id, text: "x").isFromAthlete)
-        #expect(CoachTurn.unsent(id: id, text: "x", failure: .notFound).isFromAthlete)
+        #expect(ChatTurn.pending(id: id, text: "x").isFromAthlete)
+        #expect(ChatTurn.unsent(id: id, text: "x", failure: .notFound).isFromAthlete)
     }
 
-    @Test("A coach turn is not the athlete's, whatever its position")
-    func aCoachTurnIsNotTheAthletes() throws {
+    @Test("A model turn is not the athlete's, whatever its position")
+    func aModelTurnIsNotTheAthletes() throws {
         let message = try Decoding.decode(
             ChatMessage.self,
             Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee02", role: 1, content: "An answer"))
 
-        #expect(!CoachTurn.said(message).isFromAthlete)
+        #expect(!ChatTurn.said(message).isFromAthlete)
     }
 
     @Test("A turn keeps its own identity across the states it moves through")
     func aTurnsIdentitySurvivesFailing() {
         let id = UUID()
-        let pending = CoachTurn.pending(id: id, text: "x")
-        let unsent = CoachTurn.unsent(id: id, text: "x", failure: .notFound)
+        let pending = ChatTurn.pending(id: id, text: "x")
+        let unsent = ChatTurn.unsent(id: id, text: "x", failure: .notFound)
 
         // The same bubble, not a second one appearing beside it.
         #expect(pending.id == unsent.id)
@@ -215,12 +215,12 @@ struct CoachTurnTests {
 struct ConversationTitleTests {
     @Test("A short question is the title unchanged")
     func shortQuestionsAreKeptWhole() {
-        #expect(CoachStore.title(from: "Am I recovered?") == "Am I recovered?")
+        #expect(ChatStore.title(from: "Am I recovered?") == "Am I recovered?")
     }
 
     @Test("A long question is clipped on a word boundary, not mid-word")
     func longQuestionsAreClippedOnAWord() {
-        let title = CoachStore.title(
+        let title = ChatStore.title(
             from: "Given my last few sessions and my shoulder, should I press overhead this week?")
 
         #expect(title.hasSuffix("…"))
@@ -230,7 +230,7 @@ struct ConversationTitleTests {
 
     @Test("Newlines and runs of spaces collapse, so a title stays one line")
     func whitespaceIsCollapsed() {
-        #expect(CoachStore.title(from: "How   am\nI\tdoing?") == "How am I doing?")
+        #expect(ChatStore.title(from: "How   am\nI\tdoing?") == "How am I doing?")
     }
 }
 

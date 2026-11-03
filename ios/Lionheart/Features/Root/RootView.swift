@@ -47,7 +47,7 @@ private struct SignedInTabs: View {
     @State private var isWorkoutPresented = false
 
     enum Destination: Hashable {
-        case today, train, history, coach, body
+        case today, train, history, chat, body
     }
 
     var body: some View {
@@ -65,8 +65,8 @@ private struct SignedInTabs: View {
             Tab("History", systemImage: "list.bullet.rectangle", value: Destination.history) {
                 HistoryView(store: container.history)
             }
-            Tab("Coach", systemImage: "bubble.left.and.text.bubble.right", value: Destination.coach) {
-                CoachView(store: container.coach)
+            Tab("Chat", systemImage: "bubble.left.and.text.bubble.right", value: Destination.chat) {
+                ChatView(store: container.chat)
             }
             Tab("Body", systemImage: "heart.text.square", value: Destination.body) {
                 BodyView(store: container.body)
