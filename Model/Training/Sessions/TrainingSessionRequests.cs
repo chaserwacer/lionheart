@@ -51,6 +51,16 @@ public sealed record StartSessionRequest(DateTimeOffset StartedAt);
 public sealed record CompleteSessionRequest(PeriodCommand Period, PerceivedEffortCommand? Effort);
 
 /// <summary>
+/// Completed → Completed: corrects a session after the fact. The sets, when it happened and the
+/// notes are restated whole, for the reason <see cref="ReplaceSetsRequest"/> gives for sets; the
+/// effort, the program and the routine stay as they were.
+/// </summary>
+public sealed record ReviseSessionRequest(
+    IReadOnlyList<SetCommand> Sets,
+    PeriodCommand Period,
+    string Notes);
+
+/// <summary>
 /// Replaces a session's whole ordered set list. There is deliberately no per-set route: the sets
 /// persist as one JSON column, so a whole-list write is what happens at the storage layer however
 /// the route is shaped, and per-index routes would add index-drift hazards for nothing.

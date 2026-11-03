@@ -74,8 +74,9 @@ public sealed class TwoAthletes : IDisposable
     public async Task<T> SessionsAsync<T>(Func<ITrainingSessionService, Task<T>> act)
     {
         using var context = CreateContext();
+        var detector = new PersonalRecordDetector(context, TimeProvider.System);
         return await act(new TrainingSessionService(
-            context, TimeProvider.System, new PersonalRecordDetector(context, TimeProvider.System)));
+            context, TimeProvider.System, detector, new PersonalRecordRebuild(context, detector)));
     }
 
     public async Task<T> RecordsAsync<T>(Func<IPersonalRecordService, Task<T>> act)

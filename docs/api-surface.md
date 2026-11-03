@@ -25,13 +25,26 @@ directly* in any of the three live states, because logging after the fact is the
 | POST | `/{id}/start` | Planned → Active | `StartedAt` |
 | POST | `/{id}/complete` | Active → Completed | `Period`, `Effort` |
 | POST | `/{id}/skip` | Planned → Skipped | — |
+| POST | `/{id}/revise` | Completed → Completed (corrected) | `Sets[]`, `Period`, `Notes` |
 | GET | `/{id}` | — | — |
 | GET | `?from=&to=` | — | window over the stamped `StartTime` column |
 | PATCH | `/{id}/notes` | any state | `Notes` |
 | DELETE | `/{id}` | — | — |
 
 A transition requested from the wrong source state is a **domain refusal** (a `Problem` case), never
-an exception and never a silent no-op. `Completed` and `Skipped` are terminal.
+an exception and never a silent no-op. `Completed` and `Skipped` are terminal; a completed session
+can still be **corrected** in place.
+
+**Revising a completed session.** `POST /{id}/revise` restates the sets, the period and the notes
+whole and answers with the session; the effort, the program and the routine stay as they were. Any
+other lifecycle state is a 409. A set the revision leaves as it was keeps the source and facets it
+was stored with. When the sets change or the start moves, the athlete's records are re-detected over
+his whole history in the same transaction (the `rebuild-records` replay), because a record is judged
+against what stood before it; a notes-only revision or a moved end touches no record. Such a
+revision also drops the session's decoration and its analysis projection, which described the old
+sets. While any record is withdrawn the replay would award it again, so a revision that reaches the
+records is then a 409 naming the withdrawn records, and nothing is written. Record ids change when a
+rebuild changes anything, so a client re-reads the records it holds after a revision.
 
 **Routine origin.** Every session view carries `routineId` beside `trainingProgramId`: the routine it
 was trained from, or `null` when it was ad hoc. `POST /active` and `POST /completed` take an optional
@@ -114,6 +127,21 @@ A **retraction** answers with a discriminated outcome rather than a nullable rec
 tell "your previous record stands again" from "this subject now holds no record of that kind".
 Retracting a record that no longer stands is a `Conflict`, so 409: the same request was legitimate
 while it stood.
+
+## Wellness — `/api/wellness`
+
+Pre-remodel routes (`Endpoints/WellnessEndpoints/`), kept as they are: a wellness state is the
+athlete's own daily rating, one per day.
+
+| Verb | Route | Body / query | Answers |
+|---|---|---|---|
+| POST | `/add` | `{ date, energy, motivation, mood, stress }`, each rating 1–5 | 201 for a new day, 200 when the day's entry is replaced; the `WellnessState` |
+| GET | `/get-range?startDate=&endDate=` | `DateRangeRequest`, both ends included | the day's entries, oldest first |
+| GET | `/get?date=` | — | the day's entry, or a placeholder with `overallScore: -1` |
+
+`date` is a `DateTime` whose calendar day is the key; the client sends midnight of the day. A
+rating outside 1–5 is a 400 naming the field. `overallScore` is the server's mean of the four with
+stress inverted (`6 − stress`), to two places.
 
 ## Routines — `/api/training/routines`
 

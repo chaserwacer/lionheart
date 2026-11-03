@@ -29,6 +29,8 @@ public interface ITrainingSessionService
 
     Task<Result<TrainingSessionView, Problem>> ReplacePrescriptionsAsync(IdentityUser user, Guid sessionId, ReplacePrescriptionsRequest request, CancellationToken ct);
 
+    Task<Result<TrainingSessionView, Problem>> ReviseAsync(IdentityUser user, Guid sessionId, ReviseSessionRequest request, CancellationToken ct);
+
     Task<Result<TrainingSessionView, Problem>> UpdateNotesAsync(IdentityUser user, Guid sessionId, SessionNotesRequest request, CancellationToken ct);
 
     Task<Result<TrainingSessionView, Problem>> GetAsync(IdentityUser user, Guid sessionId, CancellationToken ct);
@@ -48,13 +50,15 @@ public sealed class TrainingSessionService : ITrainingSessionService
     private readonly ModelContext _context;
     private readonly TimeProvider _clock;
     private readonly IPersonalRecordDetector _records;
+    private readonly PersonalRecordRebuild _rebuild;
 
     public TrainingSessionService(
-        ModelContext context, TimeProvider clock, IPersonalRecordDetector records)
+        ModelContext context, TimeProvider clock, IPersonalRecordDetector records, PersonalRecordRebuild rebuild)
     {
         _context = context;
         _clock = clock;
         _records = records;
+        _rebuild = rebuild;
     }
 
     public Task<Result<TrainingSessionView, Problem>> PlanAsync(
@@ -115,6 +119,15 @@ public sealed class TrainingSessionService : ITrainingSessionService
                 .Traverse(prescription => prescription.ToPrescription())
                 .Bind(prescriptions => WithPrescriptions(session, prescriptions))
                 .BindAsync(updated => ReplaceAsync(session, updated, ct)));
+
+    public Task<Result<TrainingSessionView, Problem>> ReviseAsync(
+        IdentityUser user, Guid sessionId, ReviseSessionRequest request, CancellationToken ct) =>
+        OwnedAsync(user, sessionId, ct)
+            .BindAsync(session => Revisable(session)
+                .Bind(completed => request.Sets.Traverse(set => set.ToEntry())
+                    .Bind(sets => request.Period.ToPeriod()
+                        .Map(period => SessionRevision.Of(completed, sets, period, request.Notes))))
+                .BindAsync(revision => CommitRevisionAsync(session, revision, ct)));
 
     public Task<Result<TrainingSessionView, Problem>> UpdateNotesAsync(
         IdentityUser user, Guid sessionId, SessionNotesRequest request, CancellationToken ct) =>
@@ -306,6 +319,11 @@ public sealed class TrainingSessionService : ITrainingSessionService
             ? Result<TrainingSession, Problem>.Success(active with { Sets = sets })
             : Refusal(session, "given sets", "active");
 
+    private static Result<CompletedTrainingSession, Problem> Revisable(TrainingSession session) =>
+        session is CompletedTrainingSession completed
+            ? Result<CompletedTrainingSession, Problem>.Success(completed)
+            : Refusal<CompletedTrainingSession>(session, "revised", "completed");
+
     private static Result<TrainingSession, Problem> WithPrescriptions(
         TrainingSession session, IReadOnlyList<SetPrescription> prescriptions) =>
         session is PlannedTrainingSession planned
@@ -388,6 +406,48 @@ public sealed class TrainingSessionService : ITrainingSessionService
         await _records.StageAsync([completed], ct);
         return await ReplaceAsync(previous, completed, ct);
     }
+
+    /// <summary>
+    /// Saves a correction, re-detecting the athlete's records over his whole history in the same
+    /// transaction when it reaches them.
+    /// </summary>
+    /// <remarks>
+    /// A rebuild rather than detection on this one session, because a record is judged against what
+    /// stood before it: lowering last month's top set can make a later set the record, and moving a
+    /// session's day can reorder a chain. The rebuild refuses while a record is withdrawn, since a
+    /// replay would award it again, and the correction is refused with it, writing nothing — a
+    /// session whose sets no longer agree with its records is the state this prevents.
+    /// </remarks>
+    private Task<Result<TrainingSessionView, Problem>> CommitRevisionAsync(
+        TrainingSession previous, SessionRevision revision, CancellationToken ct) =>
+        revision.AffectsRecords
+            ? _context.InTransactionAsync(
+                () => _rebuild.ReplayableAsync(previous.UserId, ct)
+                    .BindAsync(_ => ReplaceReachingRecordsAsync(previous, revision.Revised, ct))
+                    .BindAsync(view => _rebuild.ReplayAsync(previous.UserId, ct).MapAsync(_ => view))
+                    .MapErrorAsync(RecordsRefusal),
+                ct)
+            : ReplaceAsync(previous, revision.Revised, ct);
+
+    /// <summary>
+    /// Writes a correction that reached the records, taking the analysis projection with the sets
+    /// it summarised.
+    /// </summary>
+    private async Task<Result<TrainingSessionView, Problem>> ReplaceReachingRecordsAsync(
+        TrainingSession previous, CompletedTrainingSession revised, CancellationToken ct)
+    {
+        await _context.StageProjectionRemovalAsync(previous.TrainingSessionId, ct);
+        return await ReplaceAsync(previous, revised, ct);
+    }
+
+    /// <summary>A refusal from the records, said as the reason the correction was not saved.</summary>
+    private static Problem RecordsRefusal(Problem problem) => problem switch
+    {
+        Problem.Conflict conflict => new Problem.Conflict(
+            "This change reaches your personal records, which are re-detected over the whole history, "
+            + "so the session was not changed. " + conflict.What),
+        _ => problem,
+    };
 
     private async Task<Result<Unit, Problem>> RemoveAsync(TrainingSession session, CancellationToken ct)
     {
