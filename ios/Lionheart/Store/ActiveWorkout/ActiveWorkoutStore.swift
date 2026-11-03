@@ -32,17 +32,22 @@ final class ActiveWorkoutStore {
     /// window costs nothing but the time the device is the only copy.
     private static let coalescingWindow = Duration.milliseconds(900)
 
-    /// How long finishing or discarding waits on the server before settling without it.
+    /// How long a hand-over waits on the server before settling without it.
     ///
     /// The athlete is watching a spinner, and a Mac asleep behind Tailscale holds a request open
     /// for the system's whole minute rather than refusing it. Running out is safe because every
     /// step of a hand-over is safe to run again: a finish given up on goes to the outbox, whose
-    /// delivery first asks what the server already holds.
-    private static let handOverPatience = Duration.seconds(12)
+    /// delivery first asks what the server already holds. Both limits are `Deadline`'s, with what
+    /// it does and does not promise.
+    struct Patience: Equatable, Sendable {
+        /// For a session opening already in flight, before it is cancelled. What a cancelled
+        /// opening may have left on the server is found by the hand-over's own read.
+        let opening: Duration
+        /// For a finish or a discard.
+        let handOver: Duration
 
-    /// How long a hand-over waits for a session opening already in flight before cancelling it.
-    /// What a cancelled opening may have left on the server is found by the hand-over's own read.
-    private static let openingPatience = Duration.seconds(5)
+        static let standard = Patience(opening: .seconds(5), handOver: .seconds(12))
+    }
 
     /// The workout in flight, or nothing. `nil` is right here rather than a case: there is no third
     /// state, and the bar renders nothing for the absent one.
@@ -74,6 +79,8 @@ final class ActiveWorkoutStore {
     private let restAlarm: any RestAlarmScheduling
     private let now: @Sendable () -> Date
     private let onRestFinished: @MainActor () -> Void
+    private let onServerUnanswered: @MainActor () -> Void
+    private let patience: Patience
     private let movementTitle: @MainActor (UUID) -> String?
 
     private var pushHandle: Task<Void, Never>?
@@ -106,6 +113,10 @@ final class ActiveWorkoutStore {
     /// - Parameter movementTitle: turns the current movement's id into the name the Lock Screen
     ///   shows. Injected for the same reason the haptic is: the movement library is another store,
     ///   and this one should not reach for it.
+    /// - Parameter onServerUnanswered: run when a hand-over settles without the server, so the
+    ///   app starts asking after it. A finish that ran out of patience on a weak connection never
+    ///   saw a request fail, and without this nothing would notice the server come back to take
+    ///   the workout from the outbox.
     init(
         document: ActiveWorkoutDocument = ActiveWorkoutDocument(),
         sessions: any WorkoutSessionWriting,
@@ -114,7 +125,9 @@ final class ActiveWorkoutStore {
         restAlarm: any RestAlarmScheduling = NoRestAlarm(),
         now: @escaping @Sendable () -> Date = { Date() },
         onRestFinished: @escaping @MainActor () -> Void = {},
-        movementTitle: @escaping @MainActor (UUID) -> String? = { _ in nil }
+        movementTitle: @escaping @MainActor (UUID) -> String? = { _ in nil },
+        onServerUnanswered: @escaping @MainActor () -> Void = {},
+        patience: Patience = .standard
     ) {
         self.document = document
         self.sessions = sessions
@@ -125,6 +138,8 @@ final class ActiveWorkoutStore {
         self.now = now
         self.onRestFinished = onRestFinished
         self.movementTitle = movementTitle
+        self.onServerUnanswered = onServerUnanswered
+        self.patience = patience
     }
 
     // MARK: - Lifetime
@@ -449,12 +464,12 @@ final class ActiveWorkoutStore {
         adopt(current.opened(as: sessionId))
     }
 
-    /// Waits for an opening in flight to land, cancelling it once `openingPatience` has passed.
+    /// Waits for an opening in flight to land, cancelling it once `patience.opening` has passed.
     private func settleOpening() async {
         guard let inFlight = opening else { return }
         let request = inFlight.request
         let landed = try? await Deadline.waiting(
-            atMost: Self.openingPatience, expiring: { CancellationError() }
+            atMost: patience.opening, expiring: { CancellationError() }
         ) {
             // Awaiting a task's value does not end when the waiter is cancelled; cancelling the
             // request does, which is what lets the deadline win.
@@ -502,7 +517,7 @@ final class ActiveWorkoutStore {
         guard let workout else { return .notFinished }
 
         do {
-            try await Deadline.waiting(atMost: Self.handOverPatience, expiring: Self.outOfPatience) {
+            try await Deadline.waiting(atMost: patience.handOver, expiring: Self.outOfPatience) {
                 [delivery] in
                 try await delivery.deliver(workout, endingAt: end, effort: effort, mayHaveLanded: false)
             }
@@ -515,6 +530,7 @@ final class ActiveWorkoutStore {
             guard self.workout != nil else { return .notFinished }
             let failure = (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))
             if case .offline = failure {
+                onServerUnanswered()
                 return holdForDelivery(FinishedWorkout(workout: workout, endedAt: end, effort: effort))
             }
             finish = .refused(failure)
@@ -552,9 +568,14 @@ final class ActiveWorkoutStore {
         await settleOpening()
 
         let withdrawn = self.workout ?? workout
-        _ = try? await Deadline.waiting(atMost: Self.handOverPatience, expiring: Self.outOfPatience) {
-            [delivery] in
-            await delivery.withdraw(withdrawn)
+        do {
+            try await Deadline.waiting(atMost: patience.handOver, expiring: Self.outOfPatience) {
+                [delivery] in
+                await delivery.withdraw(withdrawn)
+            }
+        } catch {
+            // The withdrawal itself never throws; only running out of patience does.
+            onServerUnanswered()
         }
         clearLocally()
     }

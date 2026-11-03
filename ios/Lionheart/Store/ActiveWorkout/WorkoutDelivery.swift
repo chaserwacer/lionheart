@@ -141,6 +141,9 @@ struct WorkoutDelivery: Sendable {
             case .completed?:
                 return
             case nil:
+                // An earlier delivery may have taken this same path and landed without its
+                // answer; the session is gone either way, so the workout is found by its start.
+                if case .completed = try await nearby(workout) { return }
                 try await logWhole(workout, period: period, effort: effort)
             case .active?, .planned?, .skipped?, .unrecognised?:
                 throw failure

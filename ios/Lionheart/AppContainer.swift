@@ -66,7 +66,8 @@ final class AppContainer {
             activity: WorkoutLiveActivity(),
             restAlarm: RestNotification(),
             onRestFinished: { Haptics.restFinished() },
-            movementTitle: { movements.movement($0)?.title })
+            movementTitle: { movements.movement($0)?.title },
+            onServerUnanswered: { reachability.record(answered: false) })
         self.activeWorkout = activeWorkout
         train = TrainStore(sessions: sessions, activeWorkout: activeWorkout, outbox: outbox)
         history = HistoryStore(

@@ -12,15 +12,22 @@ struct DeferredStartTests {
     private static let plan = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
 
     private static func aStore(
-        _ server: ARecordingServer = ARecordingServer()
+        _ server: ARecordingServer = ARecordingServer(),
+        patience: ActiveWorkoutStore.Patience = .standard,
+        onServerUnanswered: @escaping @MainActor () -> Void = {}
     ) -> (ActiveWorkoutStore, ActiveWorkoutDocument, ARecordingServer, WorkoutOutbox) {
         let document = ActiveWorkoutDocument(
             directoryURL: URL.temporaryDirectory.appending(path: UUID().uuidString))
         let (outbox, _) = anOutbox(sending: server)
         let store = ActiveWorkoutStore(
-            document: document, sessions: server, outbox: outbox, now: { AWorkout.start })
+            document: document, sessions: server, outbox: outbox, now: { AWorkout.start },
+            onServerUnanswered: onServerUnanswered, patience: patience)
         return (store, document, server, outbox)
     }
+
+    /// Short enough that a test of running out does not wait out the real limits.
+    private static let impatient = ActiveWorkoutStore.Patience(
+        opening: .milliseconds(100), handOver: .milliseconds(300))
 
     private static func beginDeferred(
         _ store: ActiveWorkoutStore, fromPlan plan: UUID? = nil
@@ -266,6 +273,69 @@ struct DeferredStartTests {
         #expect(outcome == .delivered)
         #expect(server.logged == [[.freeform(text: "a set")]])
         #expect(document.read() == nil)
+    }
+
+    @Test("A deleted session's workout that already landed whole is not logged again")
+    func aLandedWholeWorkoutIsNotLoggedTwice() async {
+        // An earlier delivery took the same path and its answer was lost.
+        let server = ARecordingServer()
+        server.failPushes = APIError.notFound(detail: nil)
+        server.sessionIsGone = true
+        server.sessionsAround = [
+            ARecordingServer.aCompletedSession(id: UUID(), startedAt: AWorkout.start, setCount: 1),
+        ]
+        let (store, _, _, _) = Self.aStore(server)
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+        store.log(.freeform(text: "a set"), restingFor: nil)
+
+        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+
+        #expect(outcome == .delivered)
+        #expect(server.logged.isEmpty)
+    }
+
+    @Test("An opening still out when the athlete finishes is given up on in time")
+    func aSlowOpeningIsGivenUpOn() async {
+        let server = ARecordingServer()
+        server.openingTakes = .seconds(30)
+        let (store, _, _, _) = Self.aStore(server, patience: Self.impatient)
+        Self.beginDeferred(store)
+        store.log(.freeform(text: "a set"), restingFor: nil)
+        let opening = Task { await store.syncNow() }
+        try? await Task.sleep(for: .milliseconds(50))
+        let clock = ContinuousClock()
+        let began = clock.now
+
+        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+
+        // The opening was cancelled before it was answered, and the finish found nothing on the
+        // server, so the workout landed whole.
+        #expect(clock.now - began < .seconds(5))
+        #expect(outcome == .delivered)
+        #expect(server.unplannedStarts.isEmpty)
+        #expect(server.logged == [[.freeform(text: "a set")]])
+        await opening.value
+    }
+
+    @Test("A finish that runs out of patience is set down, and the server is asked after")
+    func aSlowFinishIsHeldAndReported() async {
+        let server = ARecordingServer()
+        server.windowReadTakes = .seconds(30)
+        var unanswered = 0
+        let (store, _, _, outbox) = Self.aStore(
+            server, patience: Self.impatient, onServerUnanswered: { unanswered += 1 })
+        Self.beginDeferred(store)
+        store.log(.freeform(text: "a set"), restingFor: nil)
+        let clock = ContinuousClock()
+        let began = clock.now
+
+        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+
+        #expect(clock.now - began < .seconds(5))
+        #expect(outcome == .heldForDelivery)
+        #expect(outbox.finished.count == 1)
+        // What makes the app probe, so the outbox goes out when signal returns.
+        #expect(unanswered == 1)
     }
 
     @Test("Discarding a deferred start removes a session it opened without hearing back")

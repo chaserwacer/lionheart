@@ -265,7 +265,9 @@ same transaction the finish runs, safe to repeat for the same reason opening is.
 opened lands whole through `POST /completed`; a live session deleted elsewhere does too. The server
 being away stops a delivery run; a fault of the server's skips that one and tries the rest; a 409, 400
 or 404 marks it refused, with the server's words, for the athlete to discard. A finish or discard
-waits on the server for twelve seconds and then settles without it.
+waits on the server for twelve seconds and then settles without it — longer by up to ten when a
+token renewal is already out, which a deadline cannot cancel because other requests share it — and
+marks the server unreachable, so the probe notices its return and the outbox goes out then.
 
 Train leaves out of its plan every session the device is already holding — a plan started offline is
 still planned on the server, and a session finished offline is still active there.
