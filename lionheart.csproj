@@ -62,9 +62,11 @@
   <ItemGroup>
     <Content Remove="Services\Strong\strong-movements.json" />
     <Content Remove="Services\CoachedSheets\*.json" />
+    <Content Remove="Services\Training\Patterns\movement-patterns.json" />
     <EmbeddedResource Include="Services\Strong\strong-movements.json" LogicalName="lionheart.Services.Strong.strong-movements.json" />
     <EmbeddedResource Include="Services\CoachedSheets\coached-movements.json" LogicalName="lionheart.Services.CoachedSheets.coached-movements.json" />
     <EmbeddedResource Include="Services\CoachedSheets\coached-sheets.json" LogicalName="lionheart.Services.CoachedSheets.coached-sheets.json" />
+    <EmbeddedResource Include="Services\Training\Patterns\movement-patterns.json" LogicalName="lionheart.Services.Training.Patterns.movement-patterns.json" />
   </ItemGroup>
 
   <ItemGroup>

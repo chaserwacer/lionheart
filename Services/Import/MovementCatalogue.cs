@@ -72,7 +72,6 @@ internal sealed class MovementCatalogue
             Name = name.Base,
             UserID = _userId,
             Description = string.Empty,
-            MuscleGroups = [],
         });
 
         var equipment = Named(_equipment, e => e.Name, name.Equipment) ?? Staged(_equipment, new Equipment

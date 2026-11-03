@@ -190,6 +190,10 @@ namespace lionheart.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Classification")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -206,26 +210,6 @@ namespace lionheart.Migrations
                     b.HasIndex("UserID");
 
                     b.ToTable("MovementBases");
-                });
-
-            modelBuilder.Entity("MuscleGroup", b =>
-                {
-                    b.Property<Guid>("MuscleGroupID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("MovementBaseID")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("MuscleGroupID");
-
-                    b.HasIndex("MovementBaseID");
-
-                    b.ToTable("MuscleGroups");
                 });
 
             modelBuilder.Entity("lionheart.Model.Analysis.AnalyzableEntry", b =>
@@ -1029,6 +1013,10 @@ namespace lionheart.Migrations
                     b.Property<DateTime>("PinnedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -1492,13 +1480,6 @@ namespace lionheart.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MuscleGroup", b =>
-                {
-                    b.HasOne("MovementBase", null)
-                        .WithMany("MuscleGroups")
-                        .HasForeignKey("MovementBaseID");
-                });
-
             modelBuilder.Entity("lionheart.Model.Analysis.AnalyzableEntry", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
@@ -1864,11 +1845,6 @@ namespace lionheart.Migrations
                         .HasForeignKey("UserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("MovementBase", b =>
-                {
-                    b.Navigation("MuscleGroups");
                 });
 
             modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>

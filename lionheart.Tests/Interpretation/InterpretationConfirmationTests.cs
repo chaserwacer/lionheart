@@ -41,8 +41,7 @@ public class InterpretationConfirmationTests : IDisposable
             MovementBaseID = _frontSquatId,
             Name = "Front Squat",
             UserID = _database.UserId,
-            Description = string.Empty,
-            MuscleGroups = []
+            Description = string.Empty
         });
         context.Equipments.Add(new Equipment
         {

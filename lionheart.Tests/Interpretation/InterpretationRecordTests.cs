@@ -192,7 +192,6 @@ public class InterpretationRecordTests : IDisposable
             Name = "Bench Press",
             UserID = _database.UserId,
             Description = string.Empty,
-            MuscleGroups = [],
         };
 
         using var context = _database.CreateContext();

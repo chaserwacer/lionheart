@@ -1,4 +1,5 @@
 using lionheart.Functional;
+using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Training.Focus;
@@ -10,15 +11,25 @@ namespace lionheart.Model.Training.Focus;
 /// <summary>A target set as a client states it.</summary>
 public sealed record LiftTargetRequest(double Weight, WeightUnit Unit, int Reps);
 
-/// <summary>Pins a movement. A pin is always born pinned, and the server stamps when.</summary>
+/// <summary>
+/// Pins a movement: as the priority lift of the family named, or for emphasis when none is. A pin
+/// is always born pinned, and the server stamps when.
+/// </summary>
+/// <remarks>The family crosses as an optional value for the reason the target does.</remarks>
 public sealed record PinFocusRequest(
     Guid MovementDataId,
     DateOnly Starts,
     DateOnly Ends,
     int SessionsPerWeek,
-    LiftTargetRequest? Target)
+    LiftTargetRequest? Target,
+    PatternFamily? Priority = null)
 {
     public Result<FocusTerms, Problem> ToTerms() => StatedFocusTerms.Of(Starts, Ends, SessionsPerWeek, Target);
+
+    public Result<FocusRole, Problem> ToRole() =>
+        Priority is { } family
+            ? FocusRole.Priority.For(family)
+            : Result<FocusRole, Problem>.Success(new FocusRole.Emphasis());
 }
 
 /// <summary>

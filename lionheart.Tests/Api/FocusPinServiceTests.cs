@@ -1,5 +1,6 @@
 using lionheart.Functional;
 using lionheart.Model.Training.Focus;
+using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
 using lionheart.Tests.Support;
 using Microsoft.EntityFrameworkCore;
@@ -229,6 +230,80 @@ public class FocusPinServiceTests : IAsyncLifetime
         Assert.Equal(
             [latePinned.FocusPinId, earlyPinned.FocusPinId, lateUnpinned.FocusPinId],
             (await ListAsync()).Select(pin => pin.FocusPinId));
+    }
+
+    // ---- Priorities ----
+
+    [Fact]
+    public async Task A_pin_with_no_family_is_for_emphasis()
+    {
+        var pinned = ResultAssert.Succeeded(await PinAsync(Pin()));
+
+        Assert.IsType<FocusRole.Emphasis>(pinned.Role);
+    }
+
+    [Fact]
+    public async Task A_new_push_priority_lets_the_standing_one_go_the_day_before_it_starts()
+    {
+        var bench = await _athletes.PlantMovementAsync(_athletes.OwnerId, "Bench Press");
+        var dips = ResultAssert.Succeeded(await PinAsync(Pin() with { Priority = PatternFamily.Push }));
+        var emphasis = ResultAssert.Succeeded(await PinAsync(Pin()));
+
+        var benchPriority = ResultAssert.Succeeded(await PinAsync(
+            PinOn(bench) with { Starts = Starts.AddDays(42), Priority = PatternFamily.Push }));
+
+        var listed = await ListAsync();
+        Assert.Equal(new FocusStatus.Unpinned(Starts.AddDays(41)), listed.Single(pin => pin.FocusPinId == dips.FocusPinId).Status);
+        Assert.IsType<FocusStatus.Pinned>(listed.Single(pin => pin.FocusPinId == emphasis.FocusPinId).Status);
+        Assert.IsType<FocusStatus.Pinned>(listed.Single(pin => pin.FocusPinId == benchPriority.FocusPinId).Status);
+        Assert.Equal(PatternFamily.Push, Assert.IsType<FocusRole.Priority>(benchPriority.Role).Family);
+    }
+
+    [Fact]
+    public async Task A_priority_starting_before_the_standing_one_lets_it_go_on_its_own_first_day()
+    {
+        var bench = await _athletes.PlantMovementAsync(_athletes.OwnerId, "Bench Press");
+        var dips = ResultAssert.Succeeded(await PinAsync(Pin() with { Priority = PatternFamily.Push }));
+
+        ResultAssert.Succeeded(await PinAsync(PinOn(bench) with { Starts = Starts.AddDays(-10), Priority = PatternFamily.Push }));
+
+        Assert.Equal(
+            new FocusStatus.Unpinned(Starts),
+            (await ListAsync()).Single(pin => pin.FocusPinId == dips.FocusPinId).Status);
+    }
+
+    [Fact]
+    public async Task A_pull_priority_leaves_the_push_priority_standing()
+    {
+        var row = await _athletes.PlantMovementAsync(_athletes.OwnerId, "Seated Row");
+        var dips = ResultAssert.Succeeded(await PinAsync(Pin() with { Priority = PatternFamily.Push }));
+
+        ResultAssert.Succeeded(await PinAsync(PinOn(row) with { Priority = PatternFamily.Pull }));
+
+        Assert.IsType<FocusStatus.Pinned>((await ListAsync()).Single(pin => pin.FocusPinId == dips.FocusPinId).Status);
+    }
+
+    [Fact]
+    public async Task A_lift_that_trains_another_family_is_refused_as_its_priority_and_nothing_is_let_go()
+    {
+        var curl = await _athletes.PlantMovementAsync(_athletes.OwnerId, "Bicep Curl");
+        var dips = ResultAssert.Succeeded(await PinAsync(Pin() with { Priority = PatternFamily.Push }));
+
+        var refusal = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(
+            await PinAsync(PinOn(curl) with { Priority = PatternFamily.Push })));
+
+        Assert.Equal("Priority", Assert.Single(refusal.Fields).Field);
+        Assert.Equal(dips, Assert.Single(await ListAsync()));
+    }
+
+    [Fact]
+    public async Task Core_is_not_a_family_a_priority_is_chosen_for()
+    {
+        var refusal = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(
+            await PinAsync(Pin() with { Priority = PatternFamily.Core })));
+
+        Assert.Equal("Priority", Assert.Single(refusal.Fields).Field);
+        Assert.Empty(await StoredPinsAsync());
     }
 
     // ---- Fixtures ----

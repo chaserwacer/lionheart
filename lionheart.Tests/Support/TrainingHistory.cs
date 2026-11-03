@@ -33,7 +33,7 @@ internal static class TrainingHistory
             MovementBase = new MovementBase
             {
                 MovementBaseID = Guid.NewGuid(), Name = movementBase, UserID = userId,
-                Description = string.Empty, MuscleGroups = [],
+                Description = string.Empty,
             },
         };
         movement.EquipmentID = movement.Equipment.EquipmentID;

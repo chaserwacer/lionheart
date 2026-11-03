@@ -147,8 +147,7 @@ public sealed class MovementResolver : IMovementResolver
                     MovementBaseID = entityId,
                     Name = trimmed,
                     UserID = userId,
-                    Description = string.Empty,
-                    MuscleGroups = []
+                    Description = string.Empty
                 });
                 break;
             case ReferenceKind.Equipment:

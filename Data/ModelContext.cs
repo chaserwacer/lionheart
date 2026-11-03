@@ -32,7 +32,6 @@ namespace lionheart.Data
         public DbSet<ApiAccessToken> ApiAccessTokens { get; set; }
         public DbSet<MovementBase> MovementBases { get; set; }
         public DbSet<Equipment> Equipments { get; set; }
-        public DbSet<MuscleGroup> MuscleGroups { get; set;}
         public DbSet<MovementData> MovementDatas { get; set; }
         public DbSet<MovementModifier> MovementModifiers { get; set; }
         public DbSet<PersonalRecord> PersonalRecords { get; set; }
@@ -263,13 +262,12 @@ namespace lionheart.Data
                 .WithMany(u => u.MovementBases)
                 .HasForeignKey(m => m.UserID);
 
+            // JSON for the reason a focus pin's terms are: EF cannot bind a complex property to the
+            // classification's constructor, and nothing filters on it in SQL. Only the athlete's own
+            // statement is stored; the map file answers for every base without one.
             modelBuilder.Entity<MovementBase>()
-                .HasMany(mb => mb.MuscleGroups);
-
-
-
-            modelBuilder.Entity<MuscleGroup>()
-                .HasKey(m => m.MuscleGroupID);
+                .Property(mb => mb.Classification)
+                .HasJsonConversion();
 
             modelBuilder.Entity<Equipment>()
                 .HasKey(e => e.EquipmentID);

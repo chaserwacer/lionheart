@@ -27,8 +27,7 @@ public class InterpretationResolverTests : IDisposable
             MovementBaseID = Guid.NewGuid(),
             Name = "Bench Press",
             UserID = _database.UserId,
-            Description = string.Empty,
-            MuscleGroups = []
+            Description = string.Empty
         });
         context.Equipments.Add(new Equipment
         {

@@ -31,8 +31,7 @@ public class MovementResolverTests : IDisposable
                 MovementBaseID = Guid.NewGuid(),
                 Name = name,
                 UserID = _database.UserId,
-                Description = string.Empty,
-                MuscleGroups = []
+                Description = string.Empty
             });
         }
 
@@ -193,8 +192,7 @@ public class MovementResolverTests : IDisposable
                 MovementBaseID = Guid.NewGuid(),
                 Name = "Bench Press",
                 UserID = otherUserId,
-                Description = string.Empty,
-                MuscleGroups = []
+                Description = string.Empty
             });
             await seed.SaveChangesAsync();
         }

@@ -2,6 +2,7 @@ using System.Text.Json;
 using lionheart.Functional;
 using lionheart.Model.BodyMeasurements;
 using lionheart.Model.Training;
+using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Routines;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
@@ -134,7 +135,7 @@ public class LoggingWireTests
     {
         var dto = new MovementDataDTO(
             Movement, Guid.Empty, new EquipmentDTO(Guid.Empty, "Bodyweight", true), Guid.Empty,
-            new MovementBaseDTO(Guid.Empty, "Dip", string.Empty, []), null, null,
+            new MovementBaseDTO(Guid.Empty, "Dip", string.Empty, new ClassificationStanding.Unclassified()), null, null,
             new MovementSetup("belt, 2 plates", AddsToBodyweight: true));
 
         using var body = JsonDocument.Parse(JsonSerializer.Serialize(dto, Wire));

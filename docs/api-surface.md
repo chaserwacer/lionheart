@@ -218,7 +218,7 @@ client. An unpinned pin is kept as history; delete is for a pin made by mistake.
 | Verb | Route | Body | Answers |
 |---|---|---|---|
 | GET | `/` | — | every pin, `FocusPinView[]`: pinned first, then by `starts`, latest first |
-| POST | `/` | `MovementDataId`, `Starts`, `Ends`, `SessionsPerWeek`, `Target?` | 201 with the view; 404 if the movement is not the athlete's |
+| POST | `/` | `MovementDataId`, `Starts`, `Ends`, `SessionsPerWeek`, `Target?`, `Priority?` (`push` \| `pull` \| `legs`) | 201 with the view; 404 if the movement is not the athlete's |
 | PATCH | `/{id}` | `Starts`, `Ends`, `SessionsPerWeek`, `Target?` — the terms, replaced whole | 200 with the view; 409 if unpinned |
 | POST | `/{id}/unpin` | `On` (a date) | 200 with the view; 409 if already unpinned |
 | DELETE | `/{id}` | — | 204 |
@@ -230,6 +230,7 @@ status likewise:
 ```
 FocusPinView {
   focusPinId, movementDataId,
+  role: { "$type": "emphasis" } | { "$type": "priority", family: "push" | "pull" | "legs" },
   starts: "yyyy-MM-dd", ends: "yyyy-MM-dd",
   sessionsPerWeek,
   target: { "$type": "none" } | { "$type": "lift", weight, unit, reps },
@@ -246,6 +247,85 @@ pin's life — a different movement is a different focus.
 **Readings, not states.** Whether a horizon has begun or passed, and whether the target was met,
 are read by the client against today and the training log, the way a planned session is read as
 missed. None of them is stored, so none of them can disagree with the log.
+
+**Priorities.** A pin with `Priority` is that family's priority lift for its horizon; without one it
+is for emphasis. Pinning a priority lets the family's pinned priority go in the same commit, unpinned
+the day before the new horizon starts (or on its own first day, if the new one starts earlier). A
+movement whose classification trains another family is a 400 on `Priority`, and so is `core`; an
+unclassified movement is taken at the athlete's word.
+
+### Priorities — `GET /api/training/priorities/{day}`
+
+`PriorityReport { window, families: [FamilyPriority], cardio: CardioMeasure }` for the seven days
+ending on `{day}`. Each `FamilyPriority { family, lift }` has `lift` `$type` `none` (nothing pinned and
+no compound lift of the family in eight weeks) or `chosen`:
+`{ movementDataId, name, choice, progress, sessionsLastFourWeeks, series }`. `choice` is `pinned`
+(carrying the `FocusPinView` in force on the day) or `mostTrained` (`sessions` in eight weeks).
+`progress` is `notTrained` | `noEstimate` (trained, no set of 1–12 reps at a load) | `firstBack`
+(`best`, nothing in the twelve weeks before) | `compared` (`best`, `priorBest` of the twelve weeks
+before, `allTimeBest` before the window, `change`, `isNewBest`, `isLifetimeBest`), each with `unit` and
+`onSystemLoad`. Estimates are Epley on the load moved: bodyweight plus plate for a movement whose
+setup adds to bodyweight, with bodyweight on a day the newest on or before it and the first weighing
+standing in before any. `series` is `SessionBest { day, estimatedOneRepMax, load, reps }` for each
+session of the last twelve weeks and the window.
+
+## Movement patterns and volume
+
+### Classification — `/api/movement-bases/{id}/classification`
+
+| Verb | Body | Answers |
+|---|---|---|
+| PUT | `{ pattern, primary: [muscle], secondary: [muscle] }` | 200 `MovementBaseDTO` — the athlete's statement replaces the map's entry |
+| DELETE | — | 200 `MovementBaseDTO` — the statement withdrawn, so the map answers again |
+
+Patterns travel as `horizontalPush`, `verticalPush`, `horizontalPull`, `verticalPull`, `squat`,
+`hinge`, `singleLeg`, `isolation`, `other`; muscle groups as `chest`, `frontDelts`, `sideDelts`,
+`rearDelts`, `triceps`, `lats`, `upperBack`, `biceps`, `forearms`, `quads`, `hamstrings`, `glutes`,
+`adductors`, `calves`, `lowerBack`, `abs`. No primary group, or a group both primary and secondary, is
+a 400 naming `Primary` or `Secondary`; another athlete's base is a 404. Every `MovementBaseDTO` (and
+so every `MovementDataDTO`'s `movementBase`) carries `classification`: `$type` `unclassified` or
+`classified` `{ classification: { pattern, primary, secondary }, source }`, `source` being `athlete`,
+`map`, or `mapUnsure` with its `reason`. The map is `Services/Training/Patterns/movement-patterns.json`.
+
+### Weekly volume — `GET /api/training/volume/{day}`
+
+`TrainingVolume` for the seven days ending on `{day}`: `families` (push, pull, legs:
+`{ family, hardSets, target: 8, lastTrained? }`), `patterns` (all nine: `{ pattern, hardSets, target?,
+lastTrained? }`, `target` 4 for the seven compound patterns and absent for isolation and other),
+`muscles` (all sixteen: `{ muscle, direct, indirect, sets, target: 4, lastTrained? }`, `sets` being
+`direct + indirect / 2`), `unplaced` (`{ movementDataId, name, hardSets }` for movements nothing
+classifies) and `upNext`. A hard set is a working, drop or failure lift; `lastTrained` looks back
+over the whole log. `upNext` is `$type` `nothingLogged` or `train`
+`{ families, lastTrained?, trainedToday, readiness }`, `families` the one to three trained longest
+ago, together when last trained the same day; `readiness` is `notRead`, `usual { score }` or
+`low { score, usualLow, usualHigh }` — Oura's readiness score under the tenth percentile of its
+last 90 days.
+
+## Training score — `/api/training/score`
+
+| Verb | Route | Answers |
+|---|---|---|
+| GET | `/{day}` | `TrainingScore` for the seven days ending on `{day}` |
+| GET | `/weeks?from=&to=` | `WeeklyScore[]`, one per Sunday in the range, oldest first; more than 52 Sundays is a 400 on `To` |
+
+`TrainingScore { window, value, unknown: [part], lifting, cardio, progress, consistency }`. Each part
+carries `points` and `outOf` and the measurements it was read from:
+
+- `lifting` (35): `families` as in weekly volume; each family pays `min(1, hardSets / 8)` of a third.
+- `cardio` (25): `points` null when unknown; `measure` `$type` `measured { zone2Minutes, zone2Target:
+  150, highIntensityMinutes, highIntensityTarget: 20, sessions, heartRateDays }` or `unknown { reason:
+  noHeartRate | noMaximumHeartRate | sessionsUnrecorded }`. Zone 2 pays 15, zones 4–5 pay 10, each
+  capped at its target, from the cardio report's sessions.
+- `progress` (20): `families` as in the priority report; each family pays a third — a new best over
+  the twelve weeks before whole, `firstBack` or a best within 5 % of it half, below or `noEstimate` a
+  quarter, `notTrained` or `none` nothing.
+- `consistency` (20): `sessionsPerBlock`, completed sessions in the window and the three seven-day
+  blocks before it, each paying `min(1, sessions / 3)` of a quarter; `target` 3.
+
+`value` is the points earned over the points of the parts that could be read; a part with no data is
+in `unknown` rather than counted as zero, and a score with any part unknown reads at most 89.
+`WeeklyScore { window, value, unknown, liftingPoints, cardioPoints?, progressPoints,
+consistencyPoints }`. Chat reads the same through the `GetTrainingScore` tool.
 
 ## Oura — `/api/oura`
 
