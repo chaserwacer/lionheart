@@ -80,10 +80,43 @@ It is never swallowed and never retried.
 
 ## Load state: a failed refresh keeps the value
 
-`LoadState` has four cases: `.loading`, `.loaded`, `.unavailable`, and `.stale(value, failure)`.
+`LoadState` has four cases: `.loading`, `.loaded`, `.unavailable`, and `.stale(value, staleness)`.
 The fourth is the point. Pull to refresh in a basement is the common case, and blanking a loaded
 screen because the network dropped is both the easy thing to write and the thing an athlete notices
-immediately. The transition rule is one pure function, `applying(_:)`, so no store re-decides it.
+immediately. The transition rules are pure functions, `applying(_:)`, so no store re-decides them.
+`Staleness` is two sentences: a refresh the server answered with a fault (its own words), or a
+server that could not be reached, where the screen shows what the device last knew and the one
+useful thing to say is when that was — "As of 14:02", instrument-style.
+
+### Remembered reads
+
+Every read a screen depends on — Today (keyed by the day shown, so the current day keeps one answer
+whatever its date), Train's plan, History and its record chains, Body, the movement catalogue, the
+record summaries and the profile gate — goes through `APIClient.get(_:remembering:)`. It keeps the
+response **as the server sent it** under the signed-in account in `ReadMemory`, and when a request
+never gets an answer it decodes the kept bytes instead and answers `Remembered.recalled(value,
+asOf:)`; a store folds that into `.stale(value, .unreachable(asOf:))`. Keeping bytes rather than
+values means no wire type grows an encoder, and the lenient decoder reads an old answer the way it
+reads a fresh one. A server that *answered* with a fault is reachable and its failure is thrown as
+usual. These reads wait `HTTP.readPatience` (10 s), not the system's minute: a Mac asleep behind
+Tailscale leaves a connection hanging rather than refusing it.
+
+The memory is per sign-in, not per device: answers live under an id minted after a sign-in and
+deleted with everything under it at sign-out, and a request that lands after a sign-out keeps
+nothing. Chat has nothing to remember — every answer is the model reading the server — so it says
+plainly that it needs a connection.
+
+### Knowing the server is there
+
+`ServerReachability` learns from the requests the app actually makes, not from the phone's network
+state: any answer of the server's own means reachable, no answer means not. `tailscale serve`
+answers a 502 of its own, with no problem document, when the backend behind it is down, and
+`HTTP.isGatewayStandIn` reads that as no answer too. While the server is away and the app is in the
+foreground it probes with one cheap read on a widening interval (5 s up to a minute), and at once on
+returning to the foreground. When the server answers again `AppContainer.serverReturned` runs in
+order: the workout in flight syncs (a deferred start opens its session), the outbox delivers, and
+every screen not current is read again. There is no push on the free developer tier, so nothing
+happens while the app is suspended.
 
 ## Auth: one refresh, whatever the burst
 
@@ -206,6 +239,42 @@ of which only `failed` and `refused` are worth saying out loud — while
 `ActiveWorkoutStore.isPersisted` is about the **disk** (a force-quit would lose it). They fail
 independently and want different words.
 
+### Starting and finishing with no connection
+
+Starting a workout needs no server. `TrainStore` gives `POST /active` or `POST /{id}/start` six
+seconds; a start that cannot reach the server begins the workout on the device as a **deferred
+start** (`WorkoutDestination.deferredStart`), logged exactly like any other, holding the plan it came
+from. The first push that reaches the server opens its session (`WorkoutDelivery.open`) and moves
+the workout onto it, so a relaunch after that is an ordinary live workout.
+
+Opening must never happen twice, because a request can land and its answer be lost. So before it
+writes, every step that could repeat earlier work first asks what the server already holds
+(`ServerCopy`), recognising the device's own workout by its **start instant**, which the device
+chose and the server stores as sent — the one key both sides share without a client-chosen id. A
+completed session must also hold the workout's set count, because a past workout's start is a time
+the athlete picked to the minute and two can share one. The plan is read first: still planned, it
+is started; started elsewhere at another instant, skipped or gone, the workout opens a session of
+its own and the logging surface says so. A refused plan start is read back before it is believed,
+since the 409 may be the device's own earlier start landing late. One opening is in flight at a
+time, and a finish or discard holds pushes off while it hands the workout over.
+
+Finishing with no connection is not refused: the finished workout is set down in the **outbox**
+(`WorkoutOutbox`, one file per workout under `finished-workouts/`) and the active slot is freed.
+Train lists what is waiting under "Not yet on the server". Delivery is `WorkoutDelivery.deliver`, the
+same transaction the finish runs, safe to repeat for the same reason opening is. A workout never
+opened lands whole through `POST /completed`; a live session deleted elsewhere does too. The server
+being away stops a delivery run; a fault of the server's skips that one and tries the rest; a 409, 400
+or 404 marks it refused, with the server's words, for the athlete to discard. A finish or discard
+waits on the server for twelve seconds and then settles without it.
+
+Train leaves out of its plan every session the device is already holding — a plan started offline is
+still planned on the server, and a session finished offline is still active there.
+
+Signing out deletes the workout and the outbox, and the confirmation says what that loses. A
+sign-out the **server** forces, by refusing the refresh token, keeps both: `AccountCustody` records
+a digest of the signed-in email, and the next sign-in keeps them for the same account and empties
+them for any other.
+
 `ActiveWorkout.version` exists so a document written by an older build is recognised as an older
 shape, and one written by a *newer* build is refused rather than half-read — a downgraded build that
 half-understood a future shape would write it back truncated, which is how logged sets get lost for
@@ -219,7 +288,7 @@ there; an unplanned workout has none, so picking a movement records it in
 logging loses nothing. A pick with nothing logged on it can be removed; one with a set cannot,
 because the set is the record; `ActiveWorkout.canDrop(_:)` is that rule, stated once. Picking a
 movement the workout already holds moves the athlete to it without moving its section. Version 3 of
-the document added the list. A version 2 document whose current movement no set or target names
+the document added the list; version 4 added the deferred start and the plan a workout came from. A version 2 document whose current movement no set or target names
 restores with that movement added: usually a pick not yet logged on, occasionally a movement whose
 only set was deleted, which comes back as an empty section the athlete can remove.
 

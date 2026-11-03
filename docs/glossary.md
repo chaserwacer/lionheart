@@ -76,13 +76,21 @@ first and then in the code.
 | **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |
 | **Rest clock** | The countdown between sets. |
-| **Load state** | A screen's enum for what it has: not loaded, loaded, or unavailable with a reason. Never flags plus an optional error. |
+| **Load state** | A screen's enum for what it has: not loaded, loaded, unavailable with a reason, or stale — a value that is not current. Never flags plus an optional error. |
+| **Staleness** | Why a value on screen is not current: a refresh the server answered with a fault, or a server that could not be reached, marked with the time the value dates from ("As of 14:02"). |
+| **Remembered read** | A screen's read whose last answer the device keeps for the signed-in account, and shows, marked with its time, when the server cannot be reached. Forgotten at sign-out. |
+| **Server reachability** | Whether the server is answering, learned from the app's own requests rather than the phone's network. Its return is what sends waiting work and refreshes screens. |
 | **Set command** | A set as the athlete states it — the numbers, and nothing the server owns. Smaller than a set entry, which also carries its source and facets. |
 | **Logged set** | A set command in the workout in flight, with the device's own id and the moment it was logged. Neither is sent; they exist so a row can be addressed and a rest recovered. |
 | **Set modality** | Which of the four shapes a set is being logged in. A property of the set, not of the movement — the same treadmill is lifted on and run on. |
-| **Workout destination** | Where a workout's sets are going to land: an active session already on the server, or a `POST /completed` that carries the whole thing at the end. |
+| **Workout destination** | Where a workout's sets are going to land: an active session already on the server, a deferred start whose session the server has not opened yet, or a `POST /completed` that carries the whole thing at the end. |
+| **Deferred start** | A live workout started with no connection. Logged like any other; its session is opened on the server by the first push that reaches it. |
+| **Server copy** | What the server already holds of a workout the device sent without hearing back, recognised by the workout's start instant (and, for a completed one, its set count), so a repeated start or delivery never makes a second session. |
+| **Finished workout** | A workout the athlete finished that the server has not taken yet, held in the outbox with its end and effort: waiting, or refused with the server's reason. |
+| **Outbox** | Where finished workouts wait for the server, one file each, delivered oldest first whenever it answers. |
+| **Account custody** | Whose the work held on the device is, kept through a sign-out the server forces so the same athlete signing back in finds it. |
 | **Sync state** | Whether what has been logged has reached the server: synced, pending, failed, or refused. Only the last two are worth saying out loud. |
-| **Sign-out consequence** | What signing out costs the workout on the device, stated in the sign-out confirmation: nothing, nothing Train cannot resume, the sets not yet synced, or a whole past workout. Signing out deletes the workout document, so the answer depends on what the server already holds. |
+| **Sign-out consequence** | What signing out costs the workout on the device, stated in the sign-out confirmation: nothing, nothing Train cannot resume, the sets not yet synced, a workout the server has never seen, or a whole past workout — plus any finished workouts still waiting. Signing out deletes the workout document and the outbox, so the answer depends on what the server already holds. |
 | **Logging surface** | The set-by-set sheet the workout bar opens into. |
 | **Profile gate** | The root's answer to whether a signed-in athlete may see the tabs: undetermined, absent, present, or unreachable. An Identity account without a Lionheart profile is refused by every training write, while reads answer empty — which is why the gate asks rather than waiting to be refused. |
 | **Session log** | History's list of sessions, grouped by month, newest first. A row reads as completed, in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. |
