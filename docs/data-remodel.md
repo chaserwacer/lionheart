@@ -586,7 +586,7 @@ way they happened.
 | The unit is part of a record's identity | Which is what stops a movement locking to the first unit logged. Without it a kilograms lift could neither beat a pounds record nor become one, so a unit switch would end that movement's progression for good. A movement holds one record per kind per unit, each set and beaten within its own — the same keying the iOS trends chart already uses so a unit switch starts a new line |
 | Distances do convert | The four units are exact definitions of one quantity and two are metric spellings of one scale; refusing to relate 5 km to 5000 m would be a defect |
 | The rep-max grid stops at twelve | Past that the number describes work capacity, which the volume records answer. A 23-rep set sets no rep max and still competes everywhere else |
-| Trail running is its own subject | A trail set names no movement, and 10 km on the flat is not the record 8 km over 600 m of climb set |
+| Trail running is its own subject | A trail set names no movement to hang a record off, and a route's distance is whatever the route was where an interval's is a number the athlete chose, so a season of trail runs ranks against itself rather than against the treadmill. Terrain is not part of the identity: two routes of one distance and different climb share a record, because climb is not a bracket anyone logs deliberately |
 | Best pace is a record, the pace number is not stored | The set holding the best pace is a different set from the longest or the fastest, so it needs a row; the pace itself is a function of the distance and the time beside it |
 | Zero load or zero reps raises nothing | A zero can never beat another zero, so admitting it plants a record that can only be equalled. Bodyweight-reps records are a kind this does not have |
 | No unique index over the standing records | SQLite checks a unique index one statement at a time with no deferred form, so a hand-over's insert is refused while the row it replaces still stands. `PersonalRecord.Succeeding` writes both halves instead |
@@ -596,6 +596,15 @@ shuffling columns, which the scaffolded version would have done. Applied to the 
 33 rows survived — 17 as `heaviestSet` and 16 as `bestSetVolume`, 20 standing and 13 beaten, with
 their chains intact. Nothing migrates as retracted, because the legacy flag could not tell a record
 the athlete beat from one they withdrew.
+
+**Migration `DateBeatenRecordsBySuccessor`** corrects the one thing that migration got wrong: it dated
+each beaten record's end by the record's own date, when the date it stopped standing — its earliest
+successor's — was available by following the lineage back. A follow-up rather than an edit, because
+the first had already run against the dev database and a migration file must keep describing what
+ran. It touches only rows still carrying that stamp, so it is a no-op on anything the detector has
+written. Against the dev database it corrects 8 of the 13 beaten rows; the other 5 are branches the
+legacy writer abandoned, which nothing points back at, and keep their own date. Not applied there
+yet — nothing in the app migrates at startup, so it lands on the next `dotnet ef database update`.
 
 ### Traps — non-obvious failures already paid for
 

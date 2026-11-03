@@ -1,3 +1,4 @@
+using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.PersonalRecords;
@@ -143,6 +144,103 @@ public class PersonalRecordRetractionTests : IAsyncLifetime
             235,
             Assert.IsType<HeaviestSetView>(
                 standing.Single(record => record.Achievement is HeaviestSetView).Achievement).Weight);
+    }
+
+    // ---- After two requests raced to succeed the same record ----
+    //
+    // No relational constraint can refuse two successors of one record, so this state is
+    // reachable, and once in it every retraction is still the athlete's to make. Each one used to
+    // reach Restore on a predecessor that was no longer beaten and fault the request.
+
+    [Fact]
+    public async Task Withdrawing_the_second_of_two_raced_successors_leaves_the_restored_record_standing()
+    {
+        var (predecessor, first, second) = await RaceAsync();
+        ResultAssert.Succeeded(await RetractAsync(first));
+
+        var outcome = ResultAssert.Succeeded(await RetractAsync(second));
+
+        // The predecessor already stands again, so withdrawing the duplicate leaves it alone.
+        var restored = Assert.IsType<RetractionOutcome.Restored>(outcome).Record;
+        Assert.Equal(predecessor, restored.PersonalRecordId);
+        var heaviest = await HeaviestAsync();
+        Assert.Equal(predecessor, Assert.Single(heaviest, record => record.IsStanding).PersonalRecordId);
+        Assert.IsType<RecordStanding.Retracted>(heaviest.Single(r => r.PersonalRecordId == second).Standing);
+    }
+
+    [Fact]
+    public async Task Withdrawing_a_raced_successor_whose_predecessor_was_itself_withdrawn_restores_nothing()
+    {
+        // A withdrawn record never comes back — it is a number the athlete said was never real —
+        // so with the predecessor gone too, nothing stands for the bench's heaviest set.
+        var (predecessor, first, second) = await RaceAsync();
+        ResultAssert.Succeeded(await RetractAsync(first));
+        ResultAssert.Succeeded(await RetractAsync(predecessor));
+
+        var outcome = ResultAssert.Succeeded(await RetractAsync(second));
+
+        Assert.IsType<RetractionOutcome.NothingStands>(outcome);
+        var heaviest = await HeaviestAsync();
+        Assert.DoesNotContain(heaviest, record => record.IsStanding);
+        Assert.IsType<RecordStanding.Retracted>(
+            heaviest.Single(r => r.PersonalRecordId == predecessor).Standing);
+    }
+
+    [Fact]
+    public async Task Withdrawing_one_raced_successor_answers_with_the_record_it_had_beaten()
+    {
+        var (predecessor, first, _) = await RaceAsync();
+
+        var outcome = ResultAssert.Succeeded(await RetractAsync(first));
+
+        Assert.Equal(
+            predecessor,
+            Assert.IsType<RetractionOutcome.Restored>(outcome).Record.PersonalRecordId);
+    }
+
+    /// <summary>
+    /// A standing 225 succeeded twice over, by two contexts that each read it standing — the
+    /// state two completions racing to beat the same record leave behind.
+    /// </summary>
+    private async Task<(Guid Predecessor, Guid First, Guid Second)> RaceAsync()
+    {
+        await LogAsync(First, 225);
+        var predecessor = await StandingHeaviestIdAsync();
+
+        // The race itself: both contexts read the 225 standing before either saves, so each hands
+        // it over to its own successor, and the second save rewrites the same "beaten" over the
+        // first — leaving both successors standing.
+        using var one = _athletes.CreateContext();
+        using var other = _athletes.CreateContext();
+        var first = await SucceedAsync(one, predecessor, 235);
+        var second = await SucceedAsync(other, predecessor, 245);
+        await one.SaveChangesAsync();
+        await other.SaveChangesAsync();
+
+        Assert.Equal(2, (await HeaviestAsync()).Count(record => record.IsStanding));
+        return (predecessor, first, second);
+    }
+
+    private static async Task<Guid> SucceedAsync(ModelContext context, Guid predecessor, double weight)
+    {
+        var held = await context.PersonalRecords.SingleAsync(r => r.PersonalRecordId == predecessor);
+        var successor = PersonalRecord.Succeeding(
+            Guid.CreateVersion7(),
+            new Achievement.HeaviestSet(new LiftPerformance(weight, WeightUnit.Pounds, 5)),
+            Second.UtcDateTime,
+            held);
+
+        context.PersonalRecords.Add(successor);
+        return successor.PersonalRecordId;
+    }
+
+    private async Task<IReadOnlyList<PersonalRecord>> HeaviestAsync()
+    {
+        using var context = _athletes.CreateContext();
+        var mine = await context.PersonalRecords.AsNoTracking()
+            .Where(record => record.UserId == _athletes.OwnerId)
+            .ToListAsync();
+        return [.. mine.Where(record => record.Achievement is Achievement.HeaviestSet)];
     }
 
     private Task<Result<RetractionOutcome, Problem>> RetractAsync(Guid personalRecordId) =>

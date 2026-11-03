@@ -175,8 +175,8 @@ public class RecordCandidateTests
     [Fact]
     public void A_trail_run_claims_against_trail_running_rather_than_against_a_movement()
     {
-        // A trail set names no movement, and 10 km on the flat is not the record 8 km over 600 m
-        // of climb set — so the two are never ranked against each other.
+        // A trail set names no movement to hang a record off, so trail running is a subject of its
+        // own and a trail run is never ranked against a measured treadmill effort.
         var candidates = From(
             TrailRun(8, DistanceUnit.Kilometers, TimeSpan.FromMinutes(70)),
             Measured(Treadmill, 10, DistanceUnit.Kilometers, TimeSpan.FromMinutes(50)));

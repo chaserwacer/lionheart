@@ -141,7 +141,7 @@ public sealed class PersonalRecord
     {
         if (Standing is not RecordStanding.Beaten)
             throw new InvalidOperationException(
-                "Only a record the athlete beat comes back; a withdrawn one stays withdrawn.");
+                $"Only a record the athlete beat comes back, and this one is {Standing.GetType().Name.ToLowerInvariant()}.");
 
         Standing = new RecordStanding.Current();
     }

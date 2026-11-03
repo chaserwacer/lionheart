@@ -162,9 +162,12 @@ public abstract record RetractionOutcome
 {
     private protected RetractionOutcome() { }
 
-    /// <summary>The record the withdrawn one had beaten, standing again.</summary>
+    /// <summary>
+    /// The record standing for this subject and kind once the withdrawn one is gone — ordinarily
+    /// the one it had beaten, back again.
+    /// </summary>
     public sealed record Restored(PersonalRecordView Record) : RetractionOutcome;
 
-    /// <summary>The withdrawn record was the first of its kind, so the subject now holds none.</summary>
+    /// <summary>Nothing stands for this subject and kind once the withdrawn record is gone.</summary>
     public sealed record NothingStands : RetractionOutcome;
 }
