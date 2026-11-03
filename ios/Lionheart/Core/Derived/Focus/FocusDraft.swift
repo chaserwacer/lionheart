@@ -42,11 +42,6 @@ struct FocusDraft: Equatable, Sendable {
             sessionsPerWeek: sessionsPerWeek,
             target: target)
     }
-
-    /// The terms of a pin already held, for a revision that starts from them.
-    static func of(_ pin: FocusPin) -> FocusDraft {
-        FocusDraft(horizon: pin.horizon, sessionsPerWeek: pin.sessionsPerWeek, target: pin.target)
-    }
 }
 
 /// The horizons a pin is usually set for. A start and an end are what is stored; these are the

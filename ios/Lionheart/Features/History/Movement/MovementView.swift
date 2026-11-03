@@ -72,12 +72,12 @@ struct MovementView: View {
         .toolbar { focusButton(name: name) }
         .refreshable {
             await history.refresh()
-            await history.loadEstablished(.movement(movementDataId))
+            await history.loadEstablished(on: movementDataId)
         }
         .task(id: movementDataId) {
             await history.refreshIfNeeded()
             await focus.refreshIfNeeded()
-            await history.loadEstablished(.movement(movementDataId))
+            await history.loadEstablished(on: movementDataId)
         }
         .retractionDialog(asking: $asked, name: name, store: history)
         .navigationDestination(item: $opened) { key in

@@ -115,7 +115,8 @@ final class MovementLibraryStore {
         }
         covering = task
         await task.value
-        covering = nil
+        // Only its own handle: a second caller may have started the next read meanwhile.
+        if covering == task { covering = nil }
     }
 
     /// Hands an id a name was not found for to `cover`, once. Deferred to a task of its own because

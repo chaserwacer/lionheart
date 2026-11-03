@@ -37,8 +37,6 @@ struct RecordMarks: Equatable, Sendable {
         let sets: [SessionDetail.IndexedSet]
     }
 
-    static let none = RecordMarks(bySet: [:], sessionVolumes: [])
-
     var isEmpty: Bool { bySet.isEmpty && sessionVolumes.isEmpty }
 
     /// The records a set established, the most worth saying first.

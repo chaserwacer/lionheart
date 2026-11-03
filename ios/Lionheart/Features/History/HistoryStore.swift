@@ -7,10 +7,12 @@ import Observation
 /// It is the app's one reading of the log: Today opens a movement's page and a session's records
 /// from it as well, so the two tabs cannot show a movement two ways.
 ///
-/// The window, the records and the movement catalogue are read in parallel (`async let`). The
-/// catalogue is the app-wide one in `MovementLibraryStore` rather than a copy of its own, so Today
-/// and History name a movement the same way, and a set naming a movement it does not hold asks it
-/// to read itself again (`cover`) rather than reading "Unknown movement".
+/// The window and the records are read in parallel (`async let`). The movement catalogue is the
+/// app-wide one in `MovementLibraryStore` rather than a copy of its own, so Today and History name a
+/// movement the same way; it is read only when nothing is loaded yet, and a set naming a movement
+/// it does not hold asks it to read itself again (`cover`) rather than reading "Unknown movement".
+/// Re-reading it on every refresh would re-read the record summaries it loads alongside, which
+/// this store already reads itself.
 ///
 /// The window is one read that the log *and* the trends are derived from, so a session cannot
 /// appear in the log and be missing from the chart.
@@ -133,25 +135,37 @@ final class HistoryStore {
         }
     }
 
-    /// Reads the records one movement or one session established. A failed re-read keeps what was
-    /// shown, and is read again after the await for the reason `loadHistory` is.
-    func loadEstablished(_ asked: EstablishedRecords) async {
+    /// Reads every record one movement established, for the marks in its history.
+    func loadEstablished(on movementDataId: UUID) async {
+        await loadEstablished(.movement(movementDataId)) {
+            try await self.records.established(on: movementDataId)
+        }
+    }
+
+    /// Reads every record one session established, for the marks in its detail. The session is
+    /// handed in rather than looked up, because a detail opened from Today may hold a session this
+    /// store has not read yet.
+    func loadEstablished(by session: TrainingSession) async {
+        guard let start = session.startedAt else {
+            // A session that never began set no record: a record is dated by its session's start.
+            established[.session(session.id)] = .loaded([])
+            return
+        }
+        await loadEstablished(.session(session.id)) {
+            try await self.records.established(
+                from: start, to: session.endedAt ?? start,
+                remembering: .establishedRecords(session: session.id))
+        }
+    }
+
+    /// One established-records read into its slot. A failed re-read keeps what was shown, and the
+    /// slot is read again after the await for the reason `loadHistory` reads its chain again.
+    private func loadEstablished(
+        _ asked: EstablishedRecords, _ read: () async throws -> Remembered<[PersonalRecord]>
+    ) async {
         do {
-            let read: Remembered<[PersonalRecord]>
-            switch asked {
-            case .movement(let id):
-                read = try await records.established(on: id)
-            case .session(let id):
-                guard let session = state.value?.session(id), let start = session.startedAt else {
-                    // A session with no start instant set no record, since a record is dated by it.
-                    established[asked] = .loaded([])
-                    return
-                }
-                let end = session.endedAt ?? start
-                read = try await records.established(
-                    from: start, to: end, remembering: .establishedRecords(session: id))
-            }
-            established[asked] = (established[asked] ?? .loading).applying(read)
+            let answer = try await read()
+            established[asked] = (established[asked] ?? .loading).applying(answer)
         } catch is CancellationError {
             return
         } catch {
@@ -205,7 +219,7 @@ final class HistoryStore {
                 to: moment.addingTimeInterval(Double(Self.lookAheadDays) * 86_400),
                 remembering: .historySessions)
             async let bySubject = records.summaries(remembering: .recordSummaries)
-            async let catalogue: Void = library.refresh()
+            async let catalogue: Void = library.refreshIfNeeded()
 
             let (sessionsRead, recordsRead, _) = try await (window, bySubject, catalogue)
             func derived() -> Remembered<HistorySnapshot> {

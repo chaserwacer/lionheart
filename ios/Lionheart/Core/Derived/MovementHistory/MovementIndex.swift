@@ -21,10 +21,6 @@ struct MovementIndex: Equatable, Sendable {
         return entries.filter { $0.name.localizedStandardContains(wanted) }
     }
 
-    func entry(_ movementDataId: UUID) -> Entry? {
-        entries.first { $0.movementDataId == movementDataId }
-    }
-
     static func of(
         _ sessions: [TrainingSession], catalogue: MovementCatalogue, today: CalendarDay
     ) -> MovementIndex {

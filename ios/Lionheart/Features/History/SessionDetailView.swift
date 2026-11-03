@@ -68,7 +68,7 @@ struct SessionDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task(id: session.id) {
             guard case .completed = session else { return }
-            await history.loadEstablished(.session(session.id))
+            await history.loadEstablished(by: session)
         }
     }
 

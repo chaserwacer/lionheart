@@ -26,9 +26,6 @@ struct MovementCatalogue: Equatable, Sendable {
         Set(ids.filter { namesById[$0] == nil })
     }
 
-    /// Every movement, for a screen that lists them.
-    var movements: [MovementData] { Array(namesById.values) }
-
     /// What to print for a set's movement. `nil` is a set shape with no movement identity at all —
     /// a trail run, a freeform log — which is a different thing from a movement this catalogue
     /// could not resolve.
