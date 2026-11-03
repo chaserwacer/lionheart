@@ -283,8 +283,8 @@ a later Postgres/pgvector swap stays contained in the storage layer.
 **No backfill** (decided 2026-07-19, superseding the earlier backfill plan): legacy
 training data was abandoned and the legacy model/tables dropped outright. Surviving
 legacy entities: `MovementData`/`MovementBase`/`MovementModifier`, `Equipment`,
-`MuscleGroup`, `PersonalRecord` (its lift-set source pointer removed; PR *detection*
-returns with the interpretation engine).
+`MuscleGroup`, `PersonalRecord` — the last of which has since been remodelled outright rather
+than extended, and its detection built (step 7 below).
 
 ## Out of scope (unchanged for now)
 
@@ -422,7 +422,7 @@ faked at the wire, with their own SDK in the path, and each fake hands out an `I
 consumer under test is wired exactly as the app wires it. What the port bought was one tool loop
 instead of two, not a test double.
 
-### 🟨 Step 3 — Interpretation engine (core landed; PR detection + chat tools remain)
+### 🟨 Step 3 — Interpretation engine (core landed; chat tools for sessions/contexts remain)
 
 **Embedding infrastructure (new).** Nothing in the repo generated vectors before this step
 — the deleted ingestion pipeline resolved names with Levenshtein only. Embeddings now come
@@ -493,7 +493,8 @@ written.
 - **The confirmation round-trip is one-directional.** `AwaitingConfirmation` carries the
   draft back so the user's choices can be re-resolved without re-parsing, but the resume
   path lands with the endpoints (open question 3).
-- **PR detection** still to come: evaluate committed lift sets against `PersonalRecords`.
+- **Record detection** landed in step 7 below, and the committer stages records for every
+  completed session it writes.
 - **Chat tools** for sessions/contexts still to come; when the training drill-in tool
   exists, restore the athlete-context-card coverage manifest line that currently says
   there is none.
@@ -531,6 +532,62 @@ Chosen first because it validates the facet vocabulary + resolution chain end to
 + time window in SQL; cosine over BLOB vectors in-app). MCP tool = this primitive with
 `FacetAxis` as enum params. Then the remaining analytics (sentiment arc, avoidance map,
 hidden-cost, eras, rivalry, ROI) as consumers.
+
+### ✅ Step 7 — Personal records, remodelled and detected
+
+The deferral recorded above ("PR *detection* returns with the interpretation engine", 2026-07-20)
+is lifted. The surviving pre-remodel entity was **remodelled rather than extended**: it was a
+mutable class with data annotations, a two-value `Strength | Volume` enum, and weight-unit-reps
+always present, which cannot express a distance record without becoming an enum beside a bag of
+nullable columns — the shape these standards exist to prevent.
+
+**Domain** (`Model/Training/PersonalRecords/`):
+
+- `PersonalRecord` — a `sealed class`, the one entity in this domain that is not a record, because
+  its standing genuinely changes. Everything it holds is immutable.
+- `RecordSubject` — `Movement(id)` or `TrailRunning`, persisted as a Guid with `Guid.Empty` for
+  trail running, the same fill-state-to-scalar shape `ProgramMembership` takes.
+- `Achievement` — the kind fused with its measurement, seven sealed cases, so a heaviest-set
+  record cannot hold a distance. Each case answers `Kind`, `Rank` and `Beats`.
+- `RecordKind` — the lookup identity: `HeaviestSet`, `BestSetVolume`, `RepMax(reps)`,
+  `BestSessionVolume`, `LongestDistance`, `FastestTime(meters)`, `BestPace`.
+- `LiftPerformance`, `SessionVolume`, `DistanceEffort` — the measurements, carrying the derived
+  figures (volume, estimated one-rep max, pace, distance bracket) as `[JsonIgnore]`d members so
+  none of them reaches storage.
+- `RecordStanding` — `Current | Beaten(at) | Retracted(at)`. Three states rather than `IsActive`,
+  because a record the athlete beat and one they withdrew read nothing alike.
+- `RecordLineage` — `FirstOfItsKind | Replaced(id, achievedAt)`.
+
+**Detection** happens when a session's sets become final, which is the one moment they stop
+changing: `TrainingSessionService.LogCompletedAsync`, `.CompleteAsync`, and
+`InterpretationCommitter` (a session logged as text sets the same records one logged through the
+form does). `PersonalRecordDetector.StageAsync` stages into the caller's unit of work rather than
+saving, so the session and its records land in one save or neither does. Nothing in detection is a
+refusal: the session has already been accepted, so a candidate on a movement that is not the
+athlete's simply raises no record.
+
+**One record per kind per completion.** A session whose third, fourth and fifth sets each beat the
+standing record adds one link, holding the best of them. The sets in between never stood as
+records, so a row each would read as several records set in the same instant with no way to tell
+which held.
+
+**Settled rules worth not relitigating:**
+
+| Rule | Why |
+|---|---|
+| Weights never convert | 225 lb is the larger number and the lighter lift. A set in a unit the record is not held in does not beat it, and both clients compare the same way |
+| Distances do convert | The four units are exact definitions of one quantity and two are metric spellings of one scale; refusing to relate 5 km to 5000 m would be a defect |
+| The rep-max grid stops at twelve | Past that the number describes work capacity, which the volume records answer. A 23-rep set sets no rep max and still competes everywhere else |
+| Trail running is its own subject | A trail set names no movement, and 10 km on the flat is not the record 8 km over 600 m of climb set |
+| Best pace is a record, the pace number is not stored | The set holding the best pace is a different set from the longest or the fastest, so it needs a row; the pace itself is a function of the distance and the time beside it |
+| Zero load or zero reps raises nothing | A zero can never beat another zero, so admitting it plants a record that can only be equalled. Bodyweight-reps records are a kind this does not have |
+| No unique index over the standing records | SQLite checks a unique index one statement at a time with no deferred form, so a hand-over's insert is refused while the row it replaces still stands. `PersonalRecord.Succeeding` writes both halves instead |
+
+**Migration `PersonalRecordComprehensive`** copies the existing rows into the new shape rather than
+shuffling columns, which the scaffolded version would have done. Applied to the dev database: all
+33 rows survived — 17 as `heaviestSet` and 16 as `bestSetVolume`, 20 standing and 13 beaten, with
+their chains intact. Nothing migrates as retracted, because the legacy flag could not tell a record
+the athlete beat from one they withdrew.
 
 ### Traps — non-obvious failures already paid for
 
@@ -611,7 +668,6 @@ Numbered for reference; nothing here is decided. **Ask Chase rather than choosin
 2. **Re-decoration / backfill entry point** — needs an update path on both the entity and its
    `AnalyzableEntry` projection; `InterpretationCommitter` is create-only today. Three skipped
    specs in `lionheart.Tests/Llm/InterpretationContractTests.cs` light up when this lands.
-3. **PR detection** — evaluate committed lift sets against `PersonalRecords`.
-4. **Chat tools** for sessions/contexts; when the training drill-in tool exists, restore the
+3. **Chat tools** for sessions/contexts; when the training drill-in tool exists, restore the
    athlete-context-card coverage-manifest line that currently says there is none.
 5. **Step 5** balance ledger, then **step 6** retrieval primitive + MCP surface.

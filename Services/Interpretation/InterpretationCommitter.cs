@@ -5,6 +5,7 @@ using lionheart.Model.Contexts;
 using lionheart.Model.Interpretation;
 using lionheart.Model.Training.Sessions;
 using lionheart.Services.Embedding;
+using lionheart.Services.Training.PersonalRecords;
 
 namespace lionheart.Services.Interpretation;
 
@@ -26,21 +27,34 @@ public sealed class InterpretationCommitter : IInterpretationCommitter
 {
     private readonly ModelContext _context;
     private readonly IEmbeddingGenerator _embeddings;
+    private readonly IPersonalRecordDetector _records;
 
-    public InterpretationCommitter(ModelContext context, IEmbeddingGenerator embeddings)
+    public InterpretationCommitter(
+        ModelContext context, IEmbeddingGenerator embeddings, IPersonalRecordDetector records)
     {
         _context = context;
         _embeddings = embeddings;
+        _records = records;
     }
 
     public Task<Result<Committed, Problem>> CommitAsync(ResolvedInterpretation interpretation) =>
         EmbedSummariesAsync(CollectProjections(interpretation))
             .BindAsync(entries => WriteAsync(interpretation, entries));
 
+    /// <summary>
+    /// A session logged as text sets the same records one logged through the form does, so the
+    /// third write path that produces a completed session stages them too — the records belong to
+    /// the training, not to the route it arrived on.
+    /// </summary>
     private async Task<Result<Committed, Problem>> WriteAsync(
         ResolvedInterpretation interpretation, IReadOnlyList<AnalyzableEntry> entries)
     {
-        foreach (var session in interpretation.Sessions) _context.Sessions.Add(session);
+        foreach (var session in interpretation.Sessions)
+        {
+            _context.Sessions.Add(session);
+            await _records.StageAsync(session, CancellationToken.None);
+        }
+
         foreach (var context in interpretation.Contexts) _context.Contexts.Add(context);
         _context.AnalyzableEntries.AddRange(entries);
 

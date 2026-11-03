@@ -23,6 +23,15 @@ first and then in the code.
 | **Training program** | A block of training with a title and dates. Planned, active or completed. |
 | **Membership** | Whether a session stands alone or belongs to a program. A fill-state, not a nullable key. |
 | **Provenance** | Whether a record came from the athlete or was assisted by the model. Orthogonal to lifecycle. |
+| **Personal record** | The best an athlete has done at one thing: a subject, a kind, and the performance holding it. Established when a session's sets become final, never edited afterwards — only withdrawn. |
+| **Record subject** | What a record is held against: one movement data, or trail running, which names no movement. |
+| **Record kind** | Which question a record answers — heaviest set, best set volume, rep max at a rep count, best session volume, longest distance, fastest time at a distance, best pace. |
+| **Achievement** | A record's kind fused with the performance that holds it, so a heaviest-set record cannot hold a distance. |
+| **Rep-max grid** | A movement's best weight at each rep count from one to twelve. The thing most lifters actually train against. |
+| **Record standing** | Whether a record is the current one, one the athlete beat, or one they withdrew. Three states, because "beaten" and "withdrawn" read nothing alike. |
+| **Record lineage** | What a record replaced — nothing, for the first of its kind — carrying the predecessor's date so "how long the last one stood" answers without a second read. |
+| **Retracting a record** | Withdrawing the standing record because the set behind it was not real, which puts back whatever it beat. The only edit an athlete makes to a record. |
+| **Estimated one-rep max** | A single rep implied by a set, by Epley. Derived from the stored weight and reps on the way out, never stored. |
 
 ## Body and context
 

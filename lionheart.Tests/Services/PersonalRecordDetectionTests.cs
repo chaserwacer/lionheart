@@ -1,0 +1,279 @@
+using lionheart.Model.Analysis;
+using lionheart.Model.Training.PersonalRecords;
+using lionheart.Model.Training.Sessions;
+using lionheart.Model.Training.Sets;
+using lionheart.Tests.Api;
+using lionheart.Tests.Support;
+using Microsoft.EntityFrameworkCore;
+
+namespace lionheart.Tests.Services;
+
+/// <summary>
+/// Completing a session establishes the records its sets set, against a real database and through
+/// the route an athlete actually uses.
+/// </summary>
+public class PersonalRecordDetectionTests : IAsyncLifetime
+{
+    private static readonly DateTimeOffset Performed = new(2026, 9, 10, 17, 0, 0, TimeSpan.FromHours(-4));
+
+    private readonly TwoAthletes _athletes = new();
+    private Guid _bench;
+
+    public async Task InitializeAsync() =>
+        _bench = await _athletes.PlantMovementAsync(_athletes.OwnerId, "Bench Press");
+
+    public Task DisposeAsync()
+    {
+        _athletes.Dispose();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task A_first_session_establishes_the_records_its_sets_set()
+    {
+        await LogAsync(Lift(weight: 225, reps: 5));
+
+        var records = await StandingAsync();
+
+        // Heaviest set, best set volume, the session total, and one rep max at five reps.
+        Assert.Equal(4, records.Count);
+        Assert.Equal(
+            new LiftPerformance(225, WeightUnit.Pounds, 5),
+            Standing<Achievement.HeaviestSet>(records).Lift);
+        Assert.Equal(5, Standing<Achievement.RepMax>(records).Lift.Reps);
+        Assert.All(records, record => Assert.IsType<RecordLineage.FirstOfItsKind>(record.Lineage));
+    }
+
+    [Fact]
+    public async Task A_record_is_dated_the_day_it_was_performed_rather_than_the_day_it_was_logged()
+    {
+        // A session logged a fortnight late set its records on the day it happened; stamping the
+        // write instant would put the whole progression in the wrong week.
+        await LogAsync(Lift(225, 5));
+
+        var heaviest = StandingRecord<Achievement.HeaviestSet>(await StandingAsync());
+
+        Assert.Equal(Performed.UtcDateTime, heaviest.AchievedAt);
+    }
+
+    [Fact]
+    public async Task Beating_a_record_leaves_the_old_one_beaten_and_pointed_at()
+    {
+        await LogAsync(Lift(225, 5));
+        await LogAsync(Lift(245, 5));
+
+        var heaviest = StandingRecord<Achievement.HeaviestSet>(await StandingAsync());
+
+        Assert.Equal(245, Assert.IsType<Achievement.HeaviestSet>(heaviest.Achievement).Lift.Weight);
+        var replaced = Assert.IsType<RecordLineage.Replaced>(heaviest.Lineage);
+        Assert.Equal(Performed.UtcDateTime, replaced.AchievedAt);
+
+        var beaten = await ChainAsync(new RecordKind.HeaviestSet());
+        Assert.Equal(2, beaten.Count);
+        Assert.IsType<RecordStanding.Beaten>(beaten.Single(r => !r.IsStanding).Standing);
+    }
+
+    [Fact]
+    public async Task A_session_whose_sets_each_beat_the_record_adds_one_link_rather_than_one_per_set()
+    {
+        // The sets in between never stood as records, so a row each would read as four records set
+        // in the same instant with no way to tell which actually held.
+        await LogAsync(Lift(225, 5));
+        await LogAsync(Lift(230, 5), Lift(235, 5), Lift(240, 5));
+
+        var chain = await ChainAsync(new RecordKind.HeaviestSet());
+
+        Assert.Equal(2, chain.Count);
+        Assert.Equal(
+            240,
+            Assert.IsType<Achievement.HeaviestSet>(
+                chain.Single(record => record.IsStanding).Achievement).Lift.Weight);
+        Assert.Equal(
+            225,
+            Assert.IsType<Achievement.HeaviestSet>(
+                chain.Single(record => !record.IsStanding).Achievement).Lift.Weight);
+    }
+
+    [Fact]
+    public async Task A_session_that_beats_nothing_writes_nothing()
+    {
+        await LogAsync(Lift(225, 5));
+        var before = (await StandingAsync()).Select(record => record.PersonalRecordId).ToList();
+
+        await LogAsync(Lift(205, 5));
+
+        using var context = _athletes.CreateContext();
+        var all = await context.PersonalRecords.CountAsync();
+        // The lighter session still took the three-rep-max row it is the first of... except it was
+        // five reps again, so nothing at all is new.
+        Assert.Equal(before.Count, all);
+    }
+
+    [Fact]
+    public async Task A_rep_count_never_trained_before_opens_its_own_grid_row()
+    {
+        await LogAsync(Lift(225, 5));
+        await LogAsync(Lift(255, 3));
+
+        var grid = (await StandingAsync())
+            .Select(record => record.Achievement)
+            .OfType<Achievement.RepMax>()
+            .ToList();
+
+        Assert.Equal(2, grid.Count);
+        Assert.Equal(225, grid.Single(max => max.Lift.Reps == 5).Lift.Weight);
+        Assert.Equal(255, grid.Single(max => max.Lift.Reps == 3).Lift.Weight);
+    }
+
+    [Fact]
+    public async Task A_bigger_number_in_the_other_unit_does_not_take_the_record()
+    {
+        // 225 lb stands; 100 kg is a heavier lift and a smaller number, and nothing converts.
+        await LogAsync(Lift(225, 5));
+        await LogAsync(Lift(100, 5, WeightUnit.Kilograms));
+
+        var heaviest = Standing<Achievement.HeaviestSet>(await StandingAsync());
+
+        Assert.Equal(225, heaviest.Lift.Weight);
+        Assert.Equal(WeightUnit.Pounds, heaviest.Lift.Unit);
+        Assert.Single(await ChainAsync(new RecordKind.HeaviestSet()));
+    }
+
+    [Fact]
+    public async Task A_set_on_a_movement_that_is_not_the_athletes_sets_no_record()
+    {
+        // The session write never checks a set's movement id, so without this a mistyped one would
+        // open a record on a movement that does not exist.
+        var strangers = await _athletes.PlantMovementAsync(_athletes.StrangerId, "Someone else's bench");
+
+        await LogAsync(Lift(225, 5, movementDataId: strangers));
+
+        Assert.Empty(await StandingAsync());
+    }
+
+    [Fact]
+    public async Task Completing_an_active_session_establishes_its_records_too()
+    {
+        var started = ResultAssert.Succeeded(await _athletes.SessionsAsync(service =>
+            service.StartUnplannedAsync(
+                _athletes.Owner, new StartUnplannedSessionRequest(Performed, "bench day", null), default)));
+
+        ResultAssert.Succeeded(await _athletes.SessionsAsync(service =>
+            service.ReplaceSetsAsync(
+                _athletes.Owner,
+                started.TrainingSessionId,
+                new ReplaceSetsRequest([Command(225, 5)]),
+                default)));
+
+        // Nothing is a record until the sets are final: an active session's sets are replaced
+        // whole on every write, so a record set from one would have to be taken away again.
+        Assert.Empty(await StandingAsync());
+
+        ResultAssert.Succeeded(await _athletes.SessionsAsync(service =>
+            service.CompleteAsync(
+                _athletes.Owner,
+                started.TrainingSessionId,
+                new CompleteSessionRequest(new PeriodCommand(Performed, null), null),
+                default)));
+
+        Assert.Equal(4, (await StandingAsync()).Count);
+    }
+
+    [Fact]
+    public async Task A_refused_completion_establishes_nothing()
+    {
+        // The staged-failure guarantee: the transition is refused before anything is staged, so no
+        // record exists for a session that never completed.
+        var planned = ResultAssert.Succeeded(await _athletes.SessionsAsync(service =>
+            service.PlanAsync(
+                _athletes.Owner,
+                new PlanSessionRequest(
+                    DateOnly.FromDateTime(Performed.DateTime), [], "tomorrow", null),
+                default)));
+
+        ResultAssert.Failed(await _athletes.SessionsAsync(service =>
+            service.CompleteAsync(
+                _athletes.Owner,
+                planned.TrainingSessionId,
+                new CompleteSessionRequest(new PeriodCommand(Performed, null), null),
+                default)));
+
+        Assert.Empty(await StandingAsync());
+    }
+
+    [Fact]
+    public async Task Trail_running_holds_its_records_apart_from_a_measured_treadmill_effort()
+    {
+        var treadmill = await _athletes.PlantMovementAsync(_athletes.OwnerId, "Treadmill");
+
+        await LogAsync(
+            new TrailRunSetCommand(8, DistanceUnit.Kilometers, TimeSpan.FromMinutes(70), 600, null),
+            new DistanceTimeSetCommand(treadmill, 10, DistanceUnit.Kilometers, TimeSpan.FromMinutes(50), null));
+
+        var bySubject = (await StandingAsync()).GroupBy(record => record.Subject).ToList();
+
+        Assert.Equal(2, bySubject.Count);
+        var trail = bySubject.Single(group => group.Key is RecordSubject.TrailRunning);
+        Assert.Equal(
+            8,
+            trail.Select(record => record.Achievement)
+                .OfType<Achievement.LongestDistance>()
+                .Single().Effort.Distance);
+    }
+
+    [Fact]
+    public async Task One_athletes_records_are_invisible_to_another()
+    {
+        await LogAsync(Lift(225, 5));
+
+        using var context = _athletes.CreateContext();
+        Assert.Empty(await context.PersonalRecords
+            .Where(record => record.UserId == _athletes.StrangerId)
+            .ToListAsync());
+    }
+
+    // ---- Logging a session the way the route does ----
+
+    private Task LogAsync(params SetCommand[] sets) =>
+        _athletes.SessionsAsync(service => service.LogCompletedAsync(
+            _athletes.Owner,
+            new LogCompletedSessionRequest(
+                [.. sets], new PeriodCommand(Performed, null), null, "logged", null),
+            default));
+
+    private SetCommand Lift(
+        double weight, int reps, WeightUnit unit = WeightUnit.Pounds, Guid? movementDataId = null) =>
+        new LiftSetCommand(movementDataId ?? _bench, reps, weight, unit, null);
+
+    private SetCommand Command(double weight, int reps) => Lift(weight, reps);
+
+    private async Task<IReadOnlyList<PersonalRecord>> StandingAsync()
+    {
+        using var context = _athletes.CreateContext();
+        var mine = await context.PersonalRecords
+            .AsNoTracking()
+            .Where(record => record.UserId == _athletes.OwnerId)
+            .ToListAsync();
+
+        return [.. mine.Where(record => record.IsStanding)];
+    }
+
+    /// <summary>Every record ever set of one kind on the bench, newest first.</summary>
+    private async Task<IReadOnlyList<PersonalRecord>> ChainAsync(RecordKind kind)
+    {
+        using var context = _athletes.CreateContext();
+        var all = await context.PersonalRecords.AsNoTracking()
+            .Where(record => record.UserId == _athletes.OwnerId)
+            .ToListAsync();
+
+        return [.. all.Where(record => record.Kind == kind).OrderByDescending(record => record.AchievedAt)
+            .ThenByDescending(record => record.PersonalRecordId)];
+    }
+
+    private static T Standing<T>(IReadOnlyList<PersonalRecord> records) where T : Achievement =>
+        Assert.Single(records.Select(record => record.Achievement).OfType<T>());
+
+    private static PersonalRecord StandingRecord<T>(IReadOnlyList<PersonalRecord> records)
+        where T : Achievement =>
+        Assert.Single(records, record => record.Achievement is T);
+}

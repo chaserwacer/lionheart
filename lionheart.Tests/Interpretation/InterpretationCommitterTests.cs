@@ -4,6 +4,7 @@ using lionheart.Model.Contexts;
 using lionheart.Model.Interpretation;
 using lionheart.Model.Training.Sessions;
 using lionheart.Services.Interpretation;
+using lionheart.Services.Training.PersonalRecords;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,7 @@ public class InterpretationCommitterTests : IDisposable
     private async Task<Result<Committed, Problem>> CommitAsync(ResolvedInterpretation interpretation)
     {
         using var context = _database.CreateContext();
-        return await new InterpretationCommitter(context, _embeddings).CommitAsync(interpretation);
+        return await new InterpretationCommitter(context, _embeddings, new PersonalRecordDetector(context, TimeProvider.System)).CommitAsync(interpretation);
     }
 
     private static ResolvedInterpretation Only(CompletedTrainingSession session) =>

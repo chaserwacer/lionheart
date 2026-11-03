@@ -4,6 +4,8 @@ using System.Text.Json.Serialization.Metadata;
 using lionheart.Endpoints;
 using lionheart.Functional;
 using lionheart.Model.Interpretation;
+using lionheart.Model.Training.PersonalRecords;
+using lionheart.Model.Training.Sets;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
@@ -36,6 +38,41 @@ public class ResponseDiscriminatorTests
             Result<InterpretationOutcome, Problem>.Success(outcome)));
 
         Assert.Equal(discriminator, JsonDocument.Parse(body).RootElement.GetProperty("$type").GetString());
+    }
+
+    [Theory]
+    [InlineData("restored")]
+    [InlineData("nothingStands")]
+    public async Task ARetractionResponseNamesItsCase(string discriminator)
+    {
+        // The client has to tell "your previous record stands again" from "this subject now holds
+        // no record", and the case is the only thing that says which.
+        RetractionOutcome outcome = discriminator is "restored"
+            ? new RetractionOutcome.Restored(new PersonalRecordView(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                new HeaviestSetView(225, WeightUnit.Pounds, 5, 262.5),
+                DateTime.UnixEpoch,
+                null,
+                RecordStandingView.Standing))
+            : new RetractionOutcome.NothingStands();
+
+        var body = await WriteAsync(Endpoint.ToActionResult(
+            Result<RetractionOutcome, Problem>.Success(outcome)));
+
+        Assert.Equal(discriminator, JsonDocument.Parse(body).RootElement.GetProperty("$type").GetString());
+    }
+
+    [Fact]
+    public async Task AnAchievementNamesItsKindOnTheWire()
+    {
+        // Seven kinds behind one slot: without the discriminator a records screen cannot tell a
+        // rep max from a longest distance.
+        var body = await WriteAsync(
+            AchievementView.Of(new Achievement.RepMax(new LiftPerformance(225, WeightUnit.Pounds, 5))),
+            typeof(AchievementView));
+
+        Assert.Equal("repMax", JsonDocument.Parse(body).RootElement.GetProperty("$type").GetString());
     }
 
     /// <summary>
