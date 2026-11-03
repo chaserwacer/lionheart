@@ -40,13 +40,19 @@ final class AppContainer {
             sessions: sessions,
             oura: OuraAPI(client: client),
             interpretation: InterpretationAPI(client: client))
-        // The haptic is handed in rather than reached for, so nothing in `Store/` imports UIKit.
+        // Built before the workout store, which names the current movement on the Lock Screen and
+        // so needs to be able to ask this for a title. Nothing here reaches back the other way.
+        let movements = MovementLibraryStore(movements: MovementsAPI(client: client))
+        self.movements = movements
+        // The haptic and the movement's name are handed in rather than reached for, so nothing in
+        // `Store/ActiveWorkout/` imports UIKit or depends on another store.
         let activeWorkout = ActiveWorkoutStore(
             sessions: sessions,
-            onRestFinished: { Haptics.restFinished() })
+            activity: WorkoutLiveActivity(),
+            onRestFinished: { Haptics.restFinished() },
+            movementTitle: { movements.movement($0)?.title })
         self.activeWorkout = activeWorkout
         train = TrainStore(sessions: sessions, activeWorkout: activeWorkout)
-        movements = MovementLibraryStore(movements: MovementsAPI(client: client))
         history = HistoryStore(
             sessions: TrainingSessionsAPI(client: client),
             movements: MovementsAPI(client: client),
