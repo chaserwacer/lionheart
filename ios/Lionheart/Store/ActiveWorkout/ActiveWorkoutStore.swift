@@ -53,6 +53,7 @@ final class ActiveWorkoutStore {
     private let document: ActiveWorkoutDocument
     private let sessions: any WorkoutSessionWriting
     private let activity: any WorkoutActivityPresenting
+    private let restAlarm: any RestAlarmScheduling
     private let now: @Sendable () -> Date
     private let onRestFinished: @MainActor () -> Void
     private let movementTitle: @MainActor (UUID) -> String?
@@ -63,6 +64,8 @@ final class ActiveWorkoutStore {
 
     /// - Parameter activity: the Lock Screen's copy of this workout. Defaults to one that shows
     ///   nothing, so a test exercises the store without another process in it.
+    /// - Parameter restAlarm: what buzzes when the rest runs out, held by the system so it fires
+    ///   with the app suspended. Defaults to one that never does, for the same reason.
     /// - Parameter onRestFinished: run when a rest runs out, for the haptic. Injected rather than
     ///   called directly so that nothing in this type reaches for UIKit, and because a rest that
     ///   ran out while the app was closed should not buzz on the next launch — only a rest this
@@ -74,6 +77,7 @@ final class ActiveWorkoutStore {
         document: ActiveWorkoutDocument = ActiveWorkoutDocument(),
         sessions: any WorkoutSessionWriting,
         activity: any WorkoutActivityPresenting = NoWorkoutActivity(),
+        restAlarm: any RestAlarmScheduling = NoRestAlarm(),
         now: @escaping @Sendable () -> Date = { Date() },
         onRestFinished: @escaping @MainActor () -> Void = {},
         movementTitle: @escaping @MainActor (UUID) -> String? = { _ in nil }
@@ -81,6 +85,7 @@ final class ActiveWorkoutStore {
         self.document = document
         self.sessions = sessions
         self.activity = activity
+        self.restAlarm = restAlarm
         self.now = now
         self.onRestFinished = onRestFinished
         self.movementTitle = movementTitle
@@ -153,6 +158,13 @@ final class ActiveWorkoutStore {
         // the Lock Screen of a signed-out phone, which is the one leak this teardown exists to
         // prevent.
         mirror()
+
+        // A rest alert that already *fired* is still sitting in Notification Centre naming their
+        // last movement, which `mirror` cannot reach — it withdraws what is pending, and this one
+        // has been delivered. Only sign-out does this: after an ordinary rest the athlete saw the
+        // alert, and pulling it out from under them when they open the app would be worse.
+        let scheduling = restAlarm
+        inOrder { await scheduling.forgetDelivered() }
     }
 
     // MARK: - Logging
@@ -466,29 +478,47 @@ final class ActiveWorkoutStore {
         mirror()
     }
 
-    // MARK: - The Lock Screen's copy
+    // MARK: - The copies outside this store
 
-    /// Hands the Lock Screen whatever the workout now is, in order.
+    /// Hands the workout to everything outside this store that holds a copy of it, in order.
+    ///
+    /// There are two: the Live Activity, drawn by another process, and the alert the system holds
+    /// to fire when the rest runs out. Both are second representations of the same state and both
+    /// have the same failure — one left behind, counting down or buzzing about a rest the athlete
+    /// skipped — so both go through this one call rather than through schedule-and-cancel pairs
+    /// scattered over the store. Every way a workout can change already funnels into `adopt`,
+    /// `restore`, `clearLocally` and `reset`, which is what makes a single call here sufficient.
     ///
     /// Each call waits on the one before it, because two mutations a few milliseconds apart could
-    /// otherwise have their cross-process writes land in the other order — leaving a countdown on
-    /// screen for a rest the athlete has already skipped. The projection is derived synchronously
-    /// so each link carries the state it was made for.
-    ///
-    /// The chain is deliberately never cancelled: the last thing a sign-out or a completion
-    /// enqueues is the instruction to end the activity.
+    /// otherwise land in the other order — leaving a countdown on screen, or an alarm in the
+    /// system, for a rest that is already over. Both answers are derived synchronously so each
+    /// link carries the state it was made for.
     private func mirror() {
+        let title = workout?.currentMovementDataId.flatMap { movementTitle($0) }
+        let moment = now()
+
         let projection = WorkoutActivityProjection.of(
-            workout,
-            movementTitle: workout?.currentMovementDataId.flatMap { movementTitle($0) },
-            isPersisted: isPersisted,
-            at: now())
+            workout, movementTitle: title, isPersisted: isPersisted, at: moment)
+        let alarm = PendingRestAlarm.of(workout, movementTitle: title, at: moment)
 
         let presenting = activity
+        let scheduling = restAlarm
+        inOrder {
+            await presenting.present(projection)
+            await scheduling.schedule(alarm)
+        }
+    }
+
+    /// Runs `step` after everything already handed to the copies outside this store.
+    ///
+    /// The chain itself, in one place because two callers need it. It is never cancelled: the last
+    /// thing a sign-out enqueues is the instruction to take those copies down, and cancelling here
+    /// is how an orphaned activity or a stray alarm would survive one.
+    private func inOrder(_ step: @escaping @MainActor () async -> Void) {
         let previous = mirrorHandle
         mirrorHandle = Task {
             await previous?.value
-            await presenting.present(projection)
+            await step()
         }
     }
 

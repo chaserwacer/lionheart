@@ -49,6 +49,7 @@ final class AppContainer {
         let activeWorkout = ActiveWorkoutStore(
             sessions: sessions,
             activity: WorkoutLiveActivity(),
+            restAlarm: RestNotification(),
             onRestFinished: { Haptics.restFinished() },
             movementTitle: { movements.movement($0)?.title })
         self.activeWorkout = activeWorkout
