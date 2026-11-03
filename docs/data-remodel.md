@@ -631,14 +631,26 @@ set aside — the domain has nowhere to hold a rest.
   catalogue ignoring case and surrounding spaces. Judgement calls carry an `unsure` reason and are
   listed by every run that applies them. An unmapped name refuses the import before anything is
   written.
-- **Re-runnable.** A session's id is a name-based (v5) UUID of the athlete, the workout's start and
-  its name, so a workout already held is recognised and skipped.
+- **Re-runnable.** A session's id is a name-based (v5) UUID of the athlete and the workout's start,
+  so a workout already held is recognised and skipped, and renaming it in Strong does not import it
+  again. A session deleted here does come back on the next run, and a mapping corrected after a
+  workout was imported does not reach it.
 - **Records as if logged live.** The new sessions go through `PersonalRecordDetector` in one batch,
   oldest first. The import refuses — writing nothing — if a record already standing on an identity
   the new sessions contest was set after the earliest of them, since the replay could not then run
   in the order things happened.
 - **All or nothing.** Movements, sessions and records commit in one transaction; any unreadable
   line refuses the whole export, naming every such line.
+
+**Running it.** From the checkout whose `Data/lionheart.db` is meant — the connection string is
+relative, so a run from a worktree writes that worktree's copy and reports success. The run prints
+the time zone it read times in; the zone is baked into the session ids, so a wrong one cannot be put
+right by running again. Against the athlete's database as of 2026-11-03 it refuses: ten records
+standing from the legacy app, all stamped 2026-03-23 16:30:32 (the moment that data was loaded, not
+when he lifted), duplicate the Strong workout of 2026-03-20 on five movements. Withdrawing one puts
+back a predecessor stamped the same instant, so clearing them is fifteen withdrawals. Whether to
+withdraw them, delete them, or have the import treat them otherwise is the owner's decision; nothing
+is decided here.
 
 ### Traps — non-obvious failures already paid for
 

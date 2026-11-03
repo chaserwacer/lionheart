@@ -9,10 +9,10 @@ namespace lionheart.Services.Strong;
 /// movement it names or stages it, without saving.
 /// </summary>
 /// <remarks>
-/// The movement services each find-or-create one name per call and save as they go, which suits a
-/// form and not an import: a hundred names would be a hundred saves, and an import that fails
-/// halfway would leave the catalogue half-grown. This reads the catalogue once and stages
-/// everything into the caller's unit of work.
+/// The movement services each find-or-create one name per call, take a signed-in identity, and
+/// save as they go, which suits a form and not an import of a hundred names. This reads the
+/// catalogue once and stages everything into the caller's unit of work, so the import's own
+/// transaction decides when any of it is written.
 /// <para>
 /// Names match the way the rest of the application matches them — ignoring case and surrounding
 /// spaces — so "Dumbell" in the athlete's catalogue is reused rather than joined by a second

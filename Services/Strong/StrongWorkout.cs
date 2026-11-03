@@ -22,13 +22,16 @@ public sealed record StrongWorkoutKey(DateTime Start, string Name)
     /// <remarks>
     /// A name-based (version 5) id rather than the time-ordered ones the session service mints, so
     /// a second import can tell a workout it already holds by key alone: the id is the "already
-    /// imported" check, the way Oura's own document ids are for the Oura import. The athlete is
-    /// part of the name, so one export imported for two athletes cannot collide. Formatted in the
+    /// imported" check, the way Oura's own document ids are for the Oura import. Derived from the
+    /// athlete and the start only: Strong lets a workout be renamed after the fact, and a rename
+    /// between two exports must not import the workout again, while one athlete cannot start two
+    /// workouts in the same second. The athlete is part of it, so one export imported for two
+    /// athletes cannot collide. Formatted in the
     /// invariant culture: ':' in a date format is the culture's time separator, and an id that
     /// moved with the machine's locale would import the history a second time.
     /// </remarks>
     public Guid SessionIdFor(Guid userId) =>
-        NameBasedId(string.Create(CultureInfo.InvariantCulture, $"{userId:D}|{Start:yyyy-MM-dd HH:mm:ss}|{Name}"));
+        NameBasedId(string.Create(CultureInfo.InvariantCulture, $"{userId:D}|{Start:yyyy-MM-dd HH:mm:ss}"));
 
     /// <summary>
     /// The namespace every Strong workout id is derived under. Fixed forever: changing it would

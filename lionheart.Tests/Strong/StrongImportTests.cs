@@ -146,8 +146,19 @@ public class StrongImportTests : IDisposable
 
         // The expected value is Python's uuid5 over the same namespace and name, an implementation
         // independent of this one.
-        Assert.Equal(Guid.Parse("c2cbf534-1114-5ca4-9dbd-26b9bc2866dc"), key.SessionIdFor(athlete));
+        Assert.Equal(Guid.Parse("30cd98cc-e812-5511-801f-d278ad06eed7"), key.SessionIdFor(athlete));
         Assert.NotEqual(key.SessionIdFor(athlete), key.SessionIdFor(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void A_workout_renamed_in_Strong_keeps_its_id()
+    {
+        var start = new DateTime(2024, 8, 20, 15, 0, 1);
+        var athlete = Guid.NewGuid();
+
+        Assert.Equal(
+            new StrongWorkoutKey(start, "Afternoon Workout").SessionIdFor(athlete),
+            new StrongWorkoutKey(start, "RIT Legs").SessionIdFor(athlete));
     }
 
     [Fact]
@@ -161,7 +172,7 @@ public class StrongImportTests : IDisposable
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fi-FI");
-            Assert.Equal(Guid.Parse("c2cbf534-1114-5ca4-9dbd-26b9bc2866dc"), key.SessionIdFor(athlete));
+            Assert.Equal(Guid.Parse("30cd98cc-e812-5511-801f-d278ad06eed7"), key.SessionIdFor(athlete));
         }
         finally
         {

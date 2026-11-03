@@ -167,8 +167,9 @@ public sealed class StrongImporter
             : Result<StagedImport, Problem>.Failure(new Problem.Conflict(
                 $"{later.Count} standing record(s) were set after workouts this import would add, so the history "
                 + "cannot be replayed oldest first: each would be compared against workouts older than itself, "
-                + "and the chains would claim records beat sessions that came before them. Withdraw them before "
-                + "importing; nothing has been written:\n"
+                + "and the chains would claim records beat sessions that came before them. Nothing has been written. "
+                + "Withdrawing one puts back the record it beat, which may be just as late, so run again until "
+                + "this list is empty:\n"
                 + string.Join("\n", later.Select(record => $"  {Describe(record, staged.Catalogue)}"))));
     }
 

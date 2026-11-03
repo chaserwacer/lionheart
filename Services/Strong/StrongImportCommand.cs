@@ -62,6 +62,7 @@ internal static class StrongImportCommand
 
     private static int Describe(StrongImportReport report)
     {
+        Console.WriteLine($"Times read in {TimeZoneInfo.Local.Id}.");
         Console.WriteLine($"{report.WorkoutsInExport} workouts in the export, {report.AlreadyImported} already imported.");
         Console.WriteLine($"{report.SessionsCreated} sessions created.");
         Console.WriteLine(
