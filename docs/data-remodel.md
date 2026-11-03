@@ -324,6 +324,7 @@ everything else about it.
 | Live-test gating | One mechanism: `Category=LocalModel` trait selects, `[LmStudioFact]` skips with the failing key named (2026-07-20) |
 | Embedding provider | An OpenAI-compatible server, configured independently of chat under `Embedding__*` — Anthropic serves no embeddings endpoint, so there is deliberately no provider choice here. Model pinned in `Embedding__Model`; dimension mismatch is a hard error, never a silent rescore |
 | Entity vs facet resolution | Facets snap semantically (embeddings); movements/equipment stay lexical — no embedding column on those tables, and exact names dominate in practice |
+| Strong history | The athlete's Strong export imports as completed sessions (owner request 2026-11-03). Distinct from the abandoned legacy Lionheart data, which stays abandoned. Warm-ups become freeform sets; drop and failure sets are lifts with their kind in the notes — no set-kind field until the owner decides one is wanted |
 
 ## Status & roadmap — source of truth
 
@@ -610,6 +611,34 @@ ran. It touches only rows still carrying that stamp, so it is a no-op on anythin
 written. Against the dev database it corrects 8 of the 13 beaten rows; the other 5 are branches the
 legacy writer abandoned, which nothing points back at, and keep their own date. Not applied there
 yet — nothing in the app migrates at startup, so it lands on the next `dotnet ef database update`.
+
+### ✅ Strong history import
+
+`dotnet run -- import-strong <strong-export.csv> --user <athlete-guid>`, packaged like the Oura
+archive import (`Services/Strong/`). Each Strong workout becomes a `CompletedTrainingSession`
+(`Provenance.User`, standalone, `NotDecorated`, effort not reported) over `Interval(start, start +
+duration)`, the start placed at the machine's time zone as it applied on that date. Sets are
+`LiftSet`s in pounds with Strong's RPE; set and workout notes, a non-default workout name, and which
+sets were drop sets or taken to failure go into the session notes. Rest-timer rows are counted and
+set aside — the domain has nowhere to hold a rest.
+
+- **Set kinds without a schema change.** A warm-up is a `FreeformSet` holding its own words
+  ("Warm-up — Bench Press (Barbell): 155 lb × 13"): it must not set a record, a freeform set raises
+  none, and the stored session then reads exactly as the detector saw it. Drop and failure sets
+  were performed at the weight stated, so they are lifts and count toward records.
+- **Movements** come from `Services/Strong/strong-movements.json`, an athlete-editable map from
+  every Strong exercise name to base / equipment / modifier, matched against the athlete's
+  catalogue ignoring case and surrounding spaces. Judgement calls carry an `unsure` reason and are
+  listed by every run that applies them. An unmapped name refuses the import before anything is
+  written.
+- **Re-runnable.** A session's id is a name-based (v5) UUID of the athlete, the workout's start and
+  its name, so a workout already held is recognised and skipped.
+- **Records as if logged live.** The new sessions go through `PersonalRecordDetector` in one batch,
+  oldest first. The import refuses — writing nothing — if a record already standing on an identity
+  the new sessions contest was set after the earliest of them, since the replay could not then run
+  in the order things happened.
+- **All or nothing.** Movements, sessions and records commit in one transaction; any unreadable
+  line refuses the whole export, naming every such line.
 
 ### Traps — non-obvious failures already paid for
 

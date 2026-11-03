@@ -18,6 +18,7 @@ first and then in the code.
 | **Prescription** | A target set on a planned session — the intended reps, weight, distance or duration. |
 | **Movement data** | The identity of a thing you do: a movement base plus equipment plus a modifier. Records hang off it. |
 | **Movement base** | The bare exercise, before equipment: "bench press", "deadlift". |
+| **Strong movement map** | The athlete-editable file saying which movement each exercise name in a Strong export becomes. |
 | **Rpe** | Rate of perceived exertion for a set. Rated or unrated — never a nullable number. |
 | **Perceived effort ratings** | The athlete's own read on a session, as a cluster, not loose fields. |
 | **Training program** | A block of training with a title and dates. Planned, active or completed. |

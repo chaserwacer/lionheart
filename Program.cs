@@ -23,6 +23,7 @@ using lionheart.Services.Training.Sessions;
 using lionheart.Endpoints.OpenApi;
 using lionheart.Services.Oura;
 using lionheart.Services.Oura.Import;
+using lionheart.Services.Strong;
 
 // Load .env into the process environment before the host reads configuration, so the Llm__,
 // Anthropic__, LmStudio__ and Embedding__ keys flow through the default environment-variable
@@ -30,10 +31,15 @@ using lionheart.Services.Oura.Import;
 DotNetEnv.Env.TraversePath().Load();
 
 // A one-off command runs instead of the server, and before it is built: the web host refuses to
-// start without LM Studio configured, which an archive import has no use for.
+// start without LM Studio configured, which an import has no use for.
 if (args is [OuraImportCommand.Verb, ..])
 {
     return await OuraImportCommand.RunAsync(args, CancellationToken.None);
+}
+
+if (args is [StrongImportCommand.Verb, ..])
+{
+    return await StrongImportCommand.RunAsync(args, CancellationToken.None);
 }
 
 var builder = WebApplication.CreateBuilder(args);
