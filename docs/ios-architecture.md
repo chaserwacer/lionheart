@@ -497,7 +497,8 @@ owner's brief: native, like Apple Music, and explicitly not the web app's custom
 `Design/` holds only what stock SwiftUI has no answer for: `Tokens`, `ActiveWorkoutBar`,
 `Sparkline` (a stock `Chart` with every axis removed), `StatTile`, `SetRow`, `RestTimerBar` and
 `LoadStateRows` (the loading row and stale banner three tabs share), and `MovementLines` (a
-session's movements as log-book lines, figures aligned down one column, which Today and History share).
+session's movements as log-book lines, figures aligned down one column, which Today and History share),
+and `SummaryFigures` (a span's headline figures as columns, or labelled rows when they would not fit).
 
 Colour carries a verdict in one way only: orange marks a recovery figure, or a readiness band,
 that asks for attention. Oura's other bands read in the secondary label colour — a traffic light's
