@@ -8,8 +8,8 @@ namespace lionheart.Model.Profile
     /// <remarks>
     /// The card is a <b>derived materialized view</b> over the canonical source tables
     /// (<see cref="lionheart.WellBeing.WellnessState"/>, <see cref="lionheart.Model.InjuryManagement.Injury"/>,
-    /// <see cref="lionheart.Model.Oura.OuraDailyReadiness"/>, <see cref="lionheart.Model.Training.TrainingSession"/>,
-    /// <see cref="lionheart.Model.Training.PersonalRecord"/>, ...). It is never a source of truth and is
+    /// <see cref="lionheart.Model.Oura.OuraDailyReadiness"/>, <see cref="lionheart.Model.Training.Sessions.TrainingSession"/>,
+    /// <see cref="lionheart.Model.Training.PersonalRecords.PersonalRecord"/>, ...). It is never a source of truth and is
     /// regenerable from scratch at any time, which keeps it auditable, idempotent and versioned.
     ///
     /// It carries two memory tiers with different lifecycles (see docs/athlete-context-card.md):

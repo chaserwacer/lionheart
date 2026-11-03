@@ -1,125 +1,115 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using lionheart.Model.Training.Sets;
-
-namespace lionheart.Model.Training;
+namespace lionheart.Model.Training.PersonalRecords;
 
 /// <summary>
-/// Represents a Personal Record (PR) for a user.
-/// A PR is tracked for each unique <see cref="MovementData"/>.
+/// The best an athlete has done at one thing: a subject, a question asked about it, and the
+/// performance that currently answers it, with the chain back through everything it replaced.
 /// </summary>
-public class PersonalRecord
+/// <remarks>
+/// A sealed class rather than a record, unlike almost everything else in this domain, because a
+/// record has identity and a lifecycle: its <see cref="Standing"/> changes when a later session
+/// beats it or the athlete withdraws it. Give a mutating entity value equality and two freshly
+/// built ones compare equal while the hash of a tracked one moves as it changes, which breaks
+/// change tracking. Everything it holds is an immutable record; only the standing moves, and only
+/// through the three transitions below.
+/// <para>
+/// Records are established when a session's sets become final, and exactly one record of a kind is
+/// written per completion — the best of that session's candidates. The sets a session beat its own
+/// record with never stood as records, so writing one row each would make the history read as
+/// several records set in the same instant with no way to tell which of them actually held.
+/// </para>
+/// </remarks>
+public sealed class PersonalRecord
 {
-    [Key]
-    [Required]
-    public required Guid PersonalRecordID { get; init; }
-
-    [Required]
-    public required Guid UserID { get; init; }
-
-    [Required]
-    public required Guid MovementDataID { get; set; }
-
-    [ForeignKey("MovementDataID")]
-    public required MovementData MovementData { get; set; }
-
-    [Required]
-    public required PersonalRecordType PRType { get; init; }
-    
-    [Required]
-    public required double Weight { get; set; }
-    [Required]
-    public required WeightUnit WeightUnit { get; set; }
-    [Required]
-    public required int Reps { get; set; }
-    public double Volume => Weight * Reps;
-
-    [Required]
-    public required DateTime CreatedAt { get; init; }
-
-    /// <summary>
-    /// When the previous PR was achieved (if any).
-    /// This helps track how long it took to beat the previous PR.
-    /// </summary>
-    public DateTime? PreviousPRCreatedAt { get; set; }
-
-    /// <summary>
-    /// Reference to the previous PR that was beaten.
-    /// Used for reverting if a set is decreased.
-    /// </summary>
-    public Guid? PreviousPersonalRecordID { get; set; }
-
-    [ForeignKey("PreviousPersonalRecordID")]
-    public PersonalRecord? PreviousPersonalRecord { get; set; }
-
-    /// <summary>
-    /// Whether this PR is currently active (the current record).
-    /// When a new PR is set, the old one becomes inactive.
-    /// </summary>
-    [Required]
-    public required bool IsActive { get; set; } = true;
-
-    public PersonalRecordDTO ToDTO()
+    private PersonalRecord(
+        Guid personalRecordId,
+        Guid userId,
+        RecordSubject subject,
+        Achievement achievement,
+        DateTime achievedAt,
+        RecordStanding standing,
+        RecordLineage lineage)
     {
-        return new PersonalRecordDTO(
-            PersonalRecordID: PersonalRecordID,
-            MovementDataID: MovementDataID,
-            MovementData: MovementData.ToDTO(),
-            PRType: PRType,
-            Weight: Weight,
-            WeightUnit: WeightUnit,
-            Reps: Reps,
-            Volume: Volume,
-            CreatedAt: CreatedAt,
-            PreviousPRCreatedAt: PreviousPRCreatedAt,
-            PreviousPersonalRecordID: PreviousPersonalRecordID,
-            IsActive: IsActive
-        );
+        PersonalRecordId = personalRecordId;
+        UserId = userId;
+        Subject = subject;
+        Achievement = achievement;
+        AchievedAt = achievedAt;
+        Standing = standing;
+        Lineage = lineage;
     }
-}
 
+    public Guid PersonalRecordId { get; private init; }
 
-public enum PersonalRecordType
-{
+    public Guid UserId { get; private init; }
+
+    public RecordSubject Subject { get; private init; }
+
+    /// <summary>What this record is the best of, and the performance holding it.</summary>
+    public Achievement Achievement { get; private init; }
+
     /// <summary>
-    /// Maximum weight lifted (1RM or any rep count, comparing weight only).
+    /// When the session behind it was performed — not when the row was written.
     /// </summary>
-    Strength,
+    /// <remarks>
+    /// A session logged a fortnight after the fact set its records on the day it happened. Stamping
+    /// the write instant instead would put every backfilled record in the wrong week and make a
+    /// progression read as a flurry.
+    /// </remarks>
+    public DateTime AchievedAt { get; private init; }
+
+    public RecordStanding Standing { get; private set; }
+
+    public RecordLineage Lineage { get; private init; }
+
+    /// <summary>Which record this is, for matching a session's candidates against what stands.</summary>
+    public RecordKind Kind => Achievement.Kind;
+
+    public bool IsStanding => Standing is RecordStanding.Current;
 
     /// <summary>
-    /// Maximum volume (weight * reps).
+    /// The first record of its kind on a subject.
     /// </summary>
-    Volume
+    public static PersonalRecord FirstOf(
+        Guid personalRecordId, Guid userId, RecordSubject subject, Achievement achievement, DateTime achievedAt) =>
+        new(
+            personalRecordId,
+            userId,
+            subject,
+            achievement,
+            achievedAt,
+            new RecordStanding.Current(),
+            new RecordLineage.FirstOfItsKind());
+
+    /// <summary>
+    /// A record that takes over from <paramref name="beaten"/>, which this leaves beaten.
+    /// </summary>
+    /// <remarks>
+    /// Both halves of the hand-over happen here so a new record and the demotion of the one it
+    /// replaced cannot be staged apart — two standing records of one kind is the state this
+    /// aggregate exists to make impossible.
+    /// </remarks>
+    public static PersonalRecord Succeeding(
+        Guid personalRecordId, Achievement achievement, DateTime achievedAt, PersonalRecord beaten)
+    {
+        beaten.Standing = new RecordStanding.Beaten(achievedAt);
+
+        return new PersonalRecord(
+            personalRecordId,
+            beaten.UserId,
+            beaten.Subject,
+            achievement,
+            achievedAt,
+            new RecordStanding.Current(),
+            new RecordLineage.Replaced(beaten.PersonalRecordId, beaten.AchievedAt));
+    }
+
+    /// <summary>
+    /// Withdraws this record, because the set behind it was not real.
+    /// </summary>
+    public void Retract(DateTime at) => Standing = new RecordStanding.Retracted(at);
+
+    /// <summary>
+    /// Puts this record back as the current one, after the record that beat it was withdrawn.
+    /// </summary>
+    public void Restore() => Standing = new RecordStanding.Current();
 }
-
-public record PersonalRecordDTO(
-    Guid PersonalRecordID,
-    Guid MovementDataID,
-    MovementDataDTO MovementData,
-    PersonalRecordType PRType,
-    double Weight,
-    WeightUnit WeightUnit,
-    int Reps,
-    double Volume,
-    DateTime CreatedAt,
-    DateTime? PreviousPRCreatedAt,
-    Guid? PreviousPersonalRecordID,
-    bool IsActive
-);
-
-public record MovementDataPRSummary(
-    Guid MovementDataID,
-    MovementDataDTO MovementData,
-    PersonalRecordDTO? StrengthPR,
-    PersonalRecordDTO? VolumePR,
-    DateTime? LastPRDate
-);
-
-public record PRAttemptResult(
-    bool IsNewStrengthPR,
-    bool IsNewVolumePR,
-    PersonalRecordDTO? NewStrengthPR,
-    PersonalRecordDTO? NewVolumePR,
-    PersonalRecordDTO? PreviousStrengthPR,
-    PersonalRecordDTO? PreviousVolumePR
-);

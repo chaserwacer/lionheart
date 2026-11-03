@@ -5,6 +5,7 @@ using lionheart.Model.Training;
 using lionheart.Services;
 using lionheart.Services.Embedding;
 using lionheart.Services.Interpretation;
+using lionheart.Services.Training.PersonalRecords;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
@@ -59,7 +60,7 @@ public class LmStudioEngineTests : IDisposable
             new InterpretationResolver(
                 new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context))),
                 new FacetResolver(context, embeddings)),
-            new InterpretationCommitter(context, embeddings));
+            new InterpretationCommitter(context, embeddings, new PersonalRecordDetector(context, TimeProvider.System)));
     }
 
     [LmStudioFact]

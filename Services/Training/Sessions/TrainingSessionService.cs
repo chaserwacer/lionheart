@@ -5,6 +5,7 @@ using lionheart.Model.Analysis;
 using lionheart.Model.Training;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
+using lionheart.Services.Training.PersonalRecords;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,11 +47,14 @@ public sealed class TrainingSessionService : ITrainingSessionService
 {
     private readonly ModelContext _context;
     private readonly TimeProvider _clock;
+    private readonly IPersonalRecordDetector _records;
 
-    public TrainingSessionService(ModelContext context, TimeProvider clock)
+    public TrainingSessionService(
+        ModelContext context, TimeProvider clock, IPersonalRecordDetector records)
     {
         _context = context;
         _clock = clock;
+        _records = records;
     }
 
     public Task<Result<TrainingSessionView, Problem>> PlanAsync(
@@ -76,7 +80,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
                 .BindAsync(membership => request.Sets.Traverse(set => set.ToEntry())
                     .Bind(sets => request.Period.ToPeriod()
                         .Map(period => NewCompleted(userId, request, membership, sets, period))))
-                .BindAsync(session => AddAsync(session, ct)));
+                .BindAsync(session => AddCompletedAsync(session, ct)));
 
     public Task<Result<TrainingSessionView, Problem>> StartAsync(
         IdentityUser user, Guid sessionId, StartSessionRequest request, CancellationToken ct) =>
@@ -89,7 +93,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
         OwnedAsync(user, sessionId, ct)
             .BindAsync(session => request.Period.ToPeriod()
                 .Bind(period => Completed(session, period, Effort(request.Effort)))
-                .BindAsync(completed => ReplaceAsync(session, completed, ct)));
+                .BindAsync(completed => ReplaceWithCompletedAsync(session, completed, ct)));
 
     public Task<Result<TrainingSessionView, Problem>> SkipAsync(
         IdentityUser user, Guid sessionId, CancellationToken ct) =>
@@ -239,14 +243,14 @@ public sealed class TrainingSessionService : ITrainingSessionService
             })
             : Refusal(session, "started", "planned");
 
-    private static Result<TrainingSession, Problem> Completed(
+    private static Result<CompletedTrainingSession, Problem> Completed(
         TrainingSession session, Period period, EffortState effort) =>
         session is ActiveTrainingSession active
             // Sessions are decorated on completion (docs/data-remodel.md), but the interpretation
             // engine decorates text and only ever creates — nothing can annotate an
             // already-structured session yet. Completing therefore lands NotDecorated, and the
             // session stays out of AnalyzableEntry until the re-decoration path exists.
-            ? Result<TrainingSession, Problem>.Success(
+            ? Result<CompletedTrainingSession, Problem>.Success(
                 new CompletedTrainingSession(active.Sets, period, effort, new NotDecorated())
                 {
                     TrainingSessionId = active.TrainingSessionId,
@@ -256,7 +260,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
                     Membership = active.Membership,
                     CreatedAt = active.CreatedAt,
                 })
-            : Refusal(session, "completed", "active");
+            : Refusal<CompletedTrainingSession>(session, "completed", "active");
 
     private static Result<TrainingSession, Problem> Skipped(TrainingSession session) =>
         session is PlannedTrainingSession planned
@@ -282,8 +286,12 @@ public sealed class TrainingSessionService : ITrainingSessionService
             ? Result<TrainingSession, Problem>.Success(planned with { Prescriptions = prescriptions })
             : Refusal(session, "given prescriptions", "planned");
 
-    private static Result<TrainingSession, Problem> Refusal(TrainingSession session, string action, string from) =>
-        Result<TrainingSession, Problem>.Failure(new Problem.Conflict(
+    private static Result<TrainingSession, Problem> Refusal(
+        TrainingSession session, string action, string from) =>
+        Refusal<TrainingSession>(session, action, from);
+
+    private static Result<T, Problem> Refusal<T>(TrainingSession session, string action, string from) =>
+        Result<T, Problem>.Failure(new Problem.Conflict(
             $"A {Lifecycle(session)} session cannot be {action}; only a {from} session can."));
 
     private static string Lifecycle(TrainingSession session) => session switch
@@ -333,6 +341,26 @@ public sealed class TrainingSessionService : ITrainingSessionService
         await _context.SaveChangesAsync(ct);
 
         return Result<TrainingSessionView, Problem>.Success(TrainingSessionView.Of(next));
+    }
+
+    /// <summary>
+    /// Completing a session also establishes whatever records its sets just set, in the same
+    /// save: a record is a fact about a session that happened, so a save that fails must leave
+    /// neither the session nor the records it would have produced.
+    /// </summary>
+    private async Task<Result<TrainingSessionView, Problem>> AddCompletedAsync(
+        CompletedTrainingSession completed, CancellationToken ct)
+    {
+        await _records.StageAsync(completed, ct);
+        return await AddAsync(completed, ct);
+    }
+
+    /// <inheritdoc cref="AddCompletedAsync"/>
+    private async Task<Result<TrainingSessionView, Problem>> ReplaceWithCompletedAsync(
+        TrainingSession previous, CompletedTrainingSession completed, CancellationToken ct)
+    {
+        await _records.StageAsync(completed, ct);
+        return await ReplaceAsync(previous, completed, ct);
     }
 
     private async Task<Result<Unit, Problem>> RemoveAsync(TrainingSession session, CancellationToken ct)

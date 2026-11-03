@@ -1,188 +1,242 @@
-using lionheart.Functional;
 using lionheart.Data;
-using lionheart.Model.Training;
+using lionheart.Functional;
+using lionheart.Model.Training.PersonalRecords;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Tools;
 
-namespace lionheart.Services;
+namespace lionheart.Services.Training.PersonalRecords;
 
 public interface IPersonalRecordService
 {
-    /// <summary>
-    /// Gets all active personal records for a user.
-    /// </summary>
-    Task<Result<List<PersonalRecordDTO>, Problem>> GetPersonalRecordsAsync(IdentityUser user);
+    /// <summary>Every record currently standing for the athlete, across every subject.</summary>
+    Task<Result<IReadOnlyList<PersonalRecordView>, Problem>> GetStandingAsync(
+        IdentityUser user, CancellationToken ct);
+
+    /// <summary>The standing records grouped by what they are held against.</summary>
+    Task<Result<IReadOnlyList<SubjectRecordsView>, Problem>> GetBySubjectAsync(
+        IdentityUser user, CancellationToken ct);
+
+    /// <summary>One movement's standing records.</summary>
+    Task<Result<SubjectRecordsView, Problem>> GetForMovementAsync(
+        IdentityUser user, Guid movementDataId, CancellationToken ct);
 
     /// <summary>
-    /// Gets the PR summary for a specific MovementData.
+    /// Everything ever recorded for one subject and kind, newest first — the progression, with
+    /// what was beaten and what was withdrawn both visible.
     /// </summary>
-    Task<Result<MovementDataPRSummary, Problem>> GetPRSummaryForMovementDataAsync(IdentityUser user, Guid movementDataId);
+    Task<Result<IReadOnlyList<PersonalRecordView>, Problem>> GetHistoryAsync(
+        IdentityUser user, RecordHistoryQuery query, CancellationToken ct);
 
     /// <summary>
-    /// Gets all PR summaries for all MovementDatas the user has PRs for.
+    /// Withdraws the standing record, putting back whatever it replaced.
     /// </summary>
-    Task<Result<List<MovementDataPRSummary>, Problem>> GetAllPRSummariesAsync(IdentityUser user);
-
-    /// <summary>
-    /// Reverts a PR to its previous state.
-    /// </summary>
-    Task<Result<PersonalRecordDTO?, Problem>> RevertToPreviousAsync(IdentityUser user, Guid personalRecordId);
-
-    /// <summary>
-    /// Gets the history of PRs for a specific MovementData and type.
-    /// </summary>
-    Task<Result<List<PersonalRecordDTO>, Problem>> GetPRHistoryAsync(IdentityUser user, Guid movementDataId, PersonalRecordType prType);
+    Task<Result<RetractionOutcome, Problem>> RetractAsync(
+        IdentityUser user, Guid personalRecordId, CancellationToken ct);
 }
+
+/// <summary>
+/// Reading records, and the one write the athlete makes against them directly.
+/// </summary>
+/// <remarks>
+/// Records are never created here: they are established by a session's sets becoming final, which
+/// is <see cref="IPersonalRecordDetector"/>'s job. The only thing an athlete can do to a record
+/// from outside a session is say it was not real.
+/// </remarks>
 [ToolProvider]
-public class PersonalRecordService : IPersonalRecordService
+public sealed class PersonalRecordService : IPersonalRecordService
 {
     private readonly ModelContext _context;
+    private readonly TimeProvider _clock;
 
-    public PersonalRecordService(ModelContext context)
+    public PersonalRecordService(ModelContext context, TimeProvider clock)
     {
         _context = context;
-    }
-    [Tool(Name = "GetPersonalRecords", Description = "Get all active personal records for the user.")]
-    public async Task<Result<List<PersonalRecordDTO>, Problem>> GetPersonalRecordsAsync(IdentityUser user)
-    {
-        var userGuid = Guid.Parse(user.Id);
-        var records = await _context.PersonalRecords
-            .Where(pr => pr.UserID == userGuid && pr.IsActive)
-            .Include(pr => pr.MovementData)
-                .ThenInclude(md => md.Equipment)
-            .Include(pr => pr.MovementData)
-                .ThenInclude(md => md.MovementBase)
-            .Include(pr => pr.MovementData)
-                .ThenInclude(md => md.MovementModifier)
-            .OrderByDescending(pr => pr.CreatedAt)
-            .ToListAsync();
-
-        return Result<List<PersonalRecordDTO>, Problem>.Success(records.Select(r => r.ToDTO()).ToList());
-    }
-    [Tool(Name = "GetPRSummaryForMovementData", Description = "Get PR summary for a specific MovementData.")]
-    public async Task<Result<MovementDataPRSummary, Problem>> GetPRSummaryForMovementDataAsync(IdentityUser user, Guid movementDataId)
-    {
-        var userGuid = Guid.Parse(user.Id);
-
-        var movementData = await _context.MovementDatas
-            .Include(md => md.Equipment)
-            .Include(md => md.MovementBase)
-            .Include(md => md.MovementModifier)
-            .FirstOrDefaultAsync(md => md.MovementDataID == movementDataId && md.UserID == userGuid);
-
-        if (movementData == null)
-        {
-            return Result<MovementDataPRSummary, Problem>.Failure(new Problem.NotFound("MovementData not found."));
-        }
-
-        var strengthPR = await _context.PersonalRecords
-            .Where(pr => pr.UserID == userGuid && pr.MovementDataID == movementDataId && pr.PRType == PersonalRecordType.Strength && pr.IsActive)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.Equipment)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.MovementBase)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.MovementModifier)
-            .FirstOrDefaultAsync();
-
-        var volumePR = await _context.PersonalRecords
-            .Where(pr => pr.UserID == userGuid && pr.MovementDataID == movementDataId && pr.PRType == PersonalRecordType.Volume && pr.IsActive)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.Equipment)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.MovementBase)
-            .Include(pr => pr.MovementData).ThenInclude(md => md.MovementModifier)
-            .FirstOrDefaultAsync();
-
-        var lastPRDate = new[] { strengthPR?.CreatedAt, volumePR?.CreatedAt }
-            .Where(d => d.HasValue)
-            .Max();
-
-        return Result<MovementDataPRSummary, Problem>.Success(new MovementDataPRSummary(
-            movementDataId,
-            movementData.ToDTO(),
-            strengthPR?.ToDTO(),
-            volumePR?.ToDTO(),
-            lastPRDate
-        ));
-    }
-    public async Task<Result<List<MovementDataPRSummary>, Problem>> GetAllPRSummariesAsync(IdentityUser user)
-    {
-        var userGuid = Guid.Parse(user.Id);
-
-        // Get all MovementDatas that have active PRs
-        var movementDataIds = await _context.PersonalRecords
-            .Where(pr => pr.UserID == userGuid && pr.IsActive)
-            .Select(pr => pr.MovementDataID)
-            .Distinct()
-            .ToListAsync();
-
-        var summaries = new List<MovementDataPRSummary>();
-        foreach (var movementDataId in movementDataIds)
-        {
-            // A movement whose summary cannot be built is simply absent from the list rather
-            // than failing the whole page.
-            if (await GetPRSummaryForMovementDataAsync(user, movementDataId)
-                is Success<MovementDataPRSummary, Problem> summary)
-            {
-                summaries.Add(summary.Value);
-            }
-        }
-
-        return Result<List<MovementDataPRSummary>, Problem>.Success(summaries.OrderByDescending(s => s.LastPRDate).ToList());
+        _clock = clock;
     }
 
-    public Task<Result<PersonalRecordDTO?, Problem>> RevertToPreviousAsync(IdentityUser user, Guid personalRecordId) =>
-        FindRevertableAsync(Guid.Parse(user.Id), personalRecordId)
-            // A record that has already been reverted collides with the state it is in, rather
-            // than being a malformed ask: the same request was legitimate a moment earlier.
+    // Reading records cannot refuse — an athlete's own records are either there or they are not —
+    // so the reads are total and the Result arrives at the edge, around the two asks that can be
+    // wrong: a movement that is not this athlete's, and a kind nobody defined.
+
+    public async Task<Result<IReadOnlyList<PersonalRecordView>, Problem>> GetStandingAsync(
+        IdentityUser user, CancellationToken ct) =>
+        Result<IReadOnlyList<PersonalRecordView>, Problem>.Success(
+            Views(Ordered(await StandingAsync(user, ct))));
+
+    public async Task<Result<IReadOnlyList<SubjectRecordsView>, Problem>> GetBySubjectAsync(
+        IdentityUser user, CancellationToken ct) =>
+        Result<IReadOnlyList<SubjectRecordsView>, Problem>.Success(
+            Grouped(await StandingAsync(user, ct)));
+
+    public Task<Result<SubjectRecordsView, Problem>> GetForMovementAsync(
+        IdentityUser user, Guid movementDataId, CancellationToken ct) =>
+        OwnMovementAsync(user, movementDataId, ct)
+            .MapAsync(async subject => SubjectRecordsView.Of(
+                subject,
+                [.. (await StandingAsync(user, ct)).Where(record => record.Subject == subject)]));
+
+    public Task<Result<IReadOnlyList<PersonalRecordView>, Problem>> GetHistoryAsync(
+        IdentityUser user, RecordHistoryQuery query, CancellationToken ct) =>
+        query.Asked()
+            .MapAsync(asked => HistoryAsync(Guid.Parse(user.Id), asked, ct));
+
+    public Task<Result<RetractionOutcome, Problem>> RetractAsync(
+        IdentityUser user, Guid personalRecordId, CancellationToken ct) =>
+        OwnRecordAsync(Guid.Parse(user.Id), personalRecordId, ct)
+            // Withdrawing a record that no longer stands collides with the state it is in rather
+            // than being a malformed ask: the same request was legitimate while it stood, and a
+            // beaten record is history the athlete is not being asked to revise.
             .EnsureAsync(
-                pr => pr.IsActive,
-                _ => new Problem.Conflict("Cannot revert an inactive personal record."))
-            .MapAsync(RevertAsync);
+                record => record.IsStanding,
+                _ => new Problem.Conflict("Only the standing record can be retracted."))
+            .BindAsync(record => RetractAsync(record, ct));
 
-    private async Task<Result<PersonalRecord, Problem>> FindRevertableAsync(Guid userId, Guid personalRecordId)
+    // ---- Reads ----
+
+    /// <remarks>
+    /// Read on the identity's own id rather than through <c>AthleteIdAsync</c>, which is the rule
+    /// every other read in this domain follows: an account with no Lionheart profile yet is
+    /// refused by the writes and answered empty by the reads, so a new athlete's records screen
+    /// says "no records yet" instead of a conflict they cannot act on from there.
+    /// </remarks>
+    private async Task<IReadOnlyList<PersonalRecord>> StandingAsync(
+        IdentityUser user, CancellationToken ct)
     {
-        var pr = await _context.PersonalRecords
-            .Include(pr => pr.PreviousPersonalRecord)
-            .Include(pr => pr.MovementData)
-                .ThenInclude(md => md.Equipment)
-            .Include(pr => pr.MovementData)
-                .ThenInclude(md => md.MovementBase)
-            .Include(pr => pr.MovementData)
-                .ThenInclude(md => md.MovementModifier)
-            .FirstOrDefaultAsync(pr => pr.PersonalRecordID == personalRecordId && pr.UserID == userId);
+        var userId = Guid.Parse(user.Id);
 
-        return pr is null
-            ? Result<PersonalRecord, Problem>.Failure(new Problem.NotFound("Personal record not found."))
-            : Result<PersonalRecord, Problem>.Success(pr);
+        return await _context.PersonalRecords
+            .AsNoTracking()
+            .Where(record => record.UserId == userId
+                             && EF.Property<bool>(record, RemodelConfiguration.RecordIsStandingColumn))
+            .ToListAsync(ct);
+    }
+
+    /// <remarks>
+    /// The kind narrows in SQL and the subject in app. A subject is a fill-state behind a value
+    /// converter, and a record's <c>==</c> is an operator call rather than an equality node, so
+    /// the predicate would not translate — and the kind columns have already cut the read to one
+    /// movement's worth of rows.
+    /// </remarks>
+    private async Task<IReadOnlyList<PersonalRecordView>> HistoryAsync(
+        Guid userId, SubjectAndKind asked, CancellationToken ct)
+    {
+        var ofThatKind = await _context.PersonalRecords
+            .AsNoTracking()
+            .Where(record => record.UserId == userId)
+            .Where(record => EF.Property<string>(record, RemodelConfiguration.RecordKindColumn) == asked.Kind.Name
+                             && EF.Property<int>(record, RemodelConfiguration.RecordBracketColumn) == asked.Kind.Bracket)
+            .ToListAsync(ct);
+
+        return Views(
+            ofThatKind
+                .Where(record => record.Subject == asked.Subject)
+                // Two records of one kind can carry the same instant — two sessions logged with
+                // the same period. The version-7 id breaks the tie by the order they were
+                // written, so a chain never comes back in a different order twice.
+                .OrderByDescending(record => record.AchievedAt)
+                .ThenByDescending(record => record.PersonalRecordId));
     }
 
     /// <summary>
-    /// Steps the PR back one link in its own chain. A record that was the first of its kind has
-    /// nothing behind it to restore, which is why nothing comes back in that case.
+    /// The movement as a subject, or a refusal. Ownership is part of the lookup rather than a
+    /// check after it: another athlete's movement has to be indistinguishable from one that does
+    /// not exist, the same rule sessions follow.
     /// </summary>
-    private async Task<PersonalRecordDTO?> RevertAsync(PersonalRecord pr)
+    private async Task<Result<RecordSubject, Problem>> OwnMovementAsync(
+        IdentityUser user, Guid movementDataId, CancellationToken ct)
     {
-        pr.IsActive = false;
-        if (pr.PreviousPersonalRecord is not null) pr.PreviousPersonalRecord.IsActive = true;
+        var userId = Guid.Parse(user.Id);
+        var exists = await _context.MovementDatas
+            .AnyAsync(movement => movement.MovementDataID == movementDataId
+                                  && movement.UserID == userId, ct);
 
-        await _context.SaveChangesAsync();
-        return pr.PreviousPersonalRecord?.ToDTO();
+        return exists
+            ? Result<RecordSubject, Problem>.Success(new RecordSubject.Movement(movementDataId))
+            : Result<RecordSubject, Problem>.Failure(new Problem.NotFound("Movement not found."));
     }
 
-    public async Task<Result<List<PersonalRecordDTO>, Problem>> GetPRHistoryAsync(IdentityUser user, Guid movementDataId, PersonalRecordType prType)
+    private async Task<Result<PersonalRecord, Problem>> OwnRecordAsync(
+        Guid userId, Guid personalRecordId, CancellationToken ct)
     {
-        var userGuid = Guid.Parse(user.Id);
+        var record = await _context.PersonalRecords
+            .FirstOrDefaultAsync(r => r.PersonalRecordId == personalRecordId && r.UserId == userId, ct);
 
-        var history = await _context.PersonalRecords
-            .Where(pr => pr.UserID == userGuid && pr.MovementDataID == movementDataId && pr.PRType == prType)
-            .Include(pr => pr.MovementData)
-                .ThenInclude(md => md.Equipment)
-            .Include(pr => pr.MovementData)
-                .ThenInclude(md => md.MovementBase)
-            .Include(pr => pr.MovementData)
-                .ThenInclude(md => md.MovementModifier)
-            .OrderByDescending(pr => pr.CreatedAt)
-            .ToListAsync();
-
-        return Result<List<PersonalRecordDTO>, Problem>.Success(history.Select(h => h.ToDTO()).ToList());
+        return record is null
+            ? Result<PersonalRecord, Problem>.Failure(new Problem.NotFound("Personal record not found."))
+            : Result<PersonalRecord, Problem>.Success(record);
     }
 
+    // ---- The one write ----
+
+    /// <summary>
+    /// Steps a subject's record back one link.
+    /// </summary>
+    /// <remarks>
+    /// Because only the standing record can be withdrawn, the record behind it is always one the
+    /// athlete beat rather than one they had already withdrawn, so restoring it is total: there is
+    /// no chain to walk and no state in which the restored record would be a number nobody stands
+    /// behind. A record that was the first of its kind has nothing behind it, which is what
+    /// <see cref="RetractionOutcome.NothingStands"/> says.
+    /// </remarks>
+    private async Task<Result<RetractionOutcome, Problem>> RetractAsync(
+        PersonalRecord record, CancellationToken ct)
+    {
+        record.Retract(_clock.GetUtcNow().UtcDateTime);
+
+        var restored = record.Lineage is RecordLineage.Replaced replaced
+            ? await _context.PersonalRecords.FirstOrDefaultAsync(
+                r => r.PersonalRecordId == replaced.PersonalRecordId, ct)
+            : null;
+        restored?.Restore();
+
+        await _context.SaveChangesAsync(ct);
+
+        return Result<RetractionOutcome, Problem>.Success(
+            restored is null
+                ? new RetractionOutcome.NothingStands()
+                : new RetractionOutcome.Restored(PersonalRecordView.Of(restored)));
+    }
+
+    private static IReadOnlyList<PersonalRecordView> Views(IEnumerable<PersonalRecord> records) =>
+        [.. records.Select(PersonalRecordView.Of)];
+
+    /// <summary>
+    /// Newest first, and then by kind and bracket.
+    /// </summary>
+    /// <remarks>
+    /// Every record one session set carries that session's instant, so the date alone leaves the
+    /// order of a movement's four fresh records undefined — and a rep-max grid reads as a grid
+    /// only if its rows come back in rep order.
+    /// </remarks>
+    private static IEnumerable<PersonalRecord> Ordered(IEnumerable<PersonalRecord> records) =>
+        records
+            .OrderByDescending(record => record.AchievedAt)
+            .ThenBy(record => record.Kind.Name, StringComparer.Ordinal)
+            .ThenBy(record => record.Kind.Bracket);
+
+    // ---- Chat tools ----
+    //
+    // Separate from the routes' own methods because the registry binds a tool's arguments from the
+    // model's JSON and injects only the signed-in athlete: a CancellationToken parameter would be
+    // bound from JSON and described to the model as if it were an argument. The model is handed
+    // the empty answer rather than a refusal it can do nothing about.
+
+    [Tool(Name = "GetPersonalRecords", Description = "Every personal record the athlete currently holds, newest first: heaviest set, best set volume, each rep max, best session volume, longest distance, fastest time at a distance and best pace.")]
+    public Task<IReadOnlyList<PersonalRecordView>> GetPersonalRecordsForChatAsync(IdentityUser user) =>
+        GetStandingAsync(user, CancellationToken.None).MatchAsync(records => records, _ => []);
+
+    [Tool(Name = "GetPersonalRecordsForMovement", Description = "The records the athlete currently holds on one movement, given its movement data id.")]
+    public Task<IReadOnlyList<PersonalRecordView>> GetPersonalRecordsForMovementForChatAsync(
+        IdentityUser user, Guid movementDataId) =>
+        GetForMovementAsync(user, movementDataId, CancellationToken.None)
+            .MatchAsync(subject => subject.Records, _ => []);
+
+    private static IReadOnlyList<SubjectRecordsView> Grouped(IReadOnlyList<PersonalRecord> standing) =>
+    [
+        .. standing
+            .GroupBy(record => record.Subject)
+            .Select(subject => SubjectRecordsView.Of(subject.Key, [.. subject]))
+            .OrderByDescending(view => view.LastAchievedAt)
+    ];
 }
