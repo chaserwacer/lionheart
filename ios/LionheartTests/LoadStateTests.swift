@@ -19,13 +19,13 @@ struct LoadStateTests {
 
         let after = loaded.applying(.failure(.offline("no route to host")))
 
-        #expect(after == .stale(7, .offline("no route to host")))
+        #expect(after == .stale(7, .refreshFailed(.offline("no route to host"))))
         #expect(after.value == 7)
     }
 
     @Test("A second failed refresh keeps the same value and replaces only the reason")
     func repeatedFailuresDoNotErodeTheValue() {
-        let stale = State.stale(7, .offline("first"))
+        let stale = State.stale(7, .refreshFailed(.offline("first")))
 
         let after = stale.applying(.failure(.unavailable("second")))
 
@@ -51,9 +51,9 @@ struct LoadStateTests {
     @Test("A success replaces whatever was there, including a stale value")
     func aSuccessClearsStaleness() {
         #expect(State.loading.applying(.success(1)) == .loaded(1))
-        #expect(State.stale(7, .offline("x")).applying(.success(9)) == .loaded(9))
+        #expect(State.stale(7, .refreshFailed(.offline("x"))).applying(.success(9)) == .loaded(9))
         #expect(State.unavailable(.notFound).applying(.success(3)) == .loaded(3))
-        #expect(State.stale(7, .offline("x")).applying(.success(9)).failure == nil)
+        #expect(State.stale(7, .refreshFailed(.offline("x"))).applying(.success(9)).failure == nil)
     }
 
     @Test("Only the states that hold a value answer with one")
@@ -61,7 +61,7 @@ struct LoadStateTests {
         #expect(State.loading.value == nil)
         #expect(State.unavailable(.notFound).value == nil)
         #expect(State.loaded(4).value == 4)
-        #expect(State.stale(4, .notFound).value == 4)
+        #expect(State.stale(4, .refreshFailed(.notFound)).value == 4)
     }
 
     @Test("Only the states that failed answer with a reason")
@@ -69,7 +69,7 @@ struct LoadStateTests {
         #expect(State.loading.failure == nil)
         #expect(State.loaded(4).failure == nil)
         #expect(State.unavailable(.notFound).failure == .notFound)
-        #expect(State.stale(4, .offline("x")).failure == .offline("x"))
+        #expect(State.stale(4, .refreshFailed(.offline("x"))).failure == .offline("x"))
     }
 }
 

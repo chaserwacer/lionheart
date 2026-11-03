@@ -100,7 +100,7 @@ struct PeriodRequest: Encodable, Sendable {
 /// absent on purpose: when the ratings were written down is the server's bookkeeping, not a fact
 /// the client is authorized to assert. An instance with nothing in it means the same thing as
 /// sending none at all, which the server settles rather than the client.
-struct PerceivedEffortRequest: Encodable, Sendable, Equatable {
+struct PerceivedEffortRequest: Codable, Sendable, Equatable {
     let accumulatedFatigue: Int?
     let difficultyRating: Int?
     let engagementRating: Int?

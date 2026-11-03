@@ -32,8 +32,8 @@ struct RecordHistoryView: View {
                 .listRowBackground(Color.clear)
             case .loaded(let history):
                 content(history, staleBecause: nil)
-            case .stale(let history, let failure):
-                content(history, staleBecause: failure)
+            case .stale(let history, let staleness):
+                content(history, staleBecause: staleness)
             }
         }
         .listStyle(.insetGrouped)
@@ -45,9 +45,9 @@ struct RecordHistoryView: View {
     }
 
     @ViewBuilder
-    private func content(_ history: RecordHistory, staleBecause failure: LoadFailure?) -> some View {
-        if let failure {
-            StaleBanner(failure: failure)
+    private func content(_ history: RecordHistory, staleBecause staleness: Staleness?) -> some View {
+        if let staleness {
+            StaleBanner(staleness)
         }
 
         if history.links.isEmpty {

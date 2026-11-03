@@ -11,8 +11,16 @@ struct UserAPI: Sendable {
     let client: APIClient
 
     /// Whether this identity has a Lionheart profile, and the name to greet them by if it does.
-    func profileBoot() async throws -> AthleteProfileBoot {
-        try await client.get("/api/user/has-created-profile")
+    ///
+    /// Remembered, because it decides whether the tabs exist at all: a launch with no signal has to
+    /// be able to answer it from what the server said last.
+    func profileBoot(remembering key: ReadKey) async throws -> Remembered<AthleteProfileBoot> {
+        try await client.get("/api/user/has-created-profile", remembering: key)
+    }
+
+    /// The last answer kept under `key`, without asking the server.
+    func recalledProfileBoot(_ key: ReadKey) -> AthleteProfileBoot? {
+        client.recall(key, as: AthleteProfileBoot.self)?.value
     }
 
     /// Creates the profile. Answers 201 with the new profile, or 409 if one already exists — which

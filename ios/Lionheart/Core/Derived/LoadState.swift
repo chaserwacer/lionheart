@@ -7,16 +7,16 @@ import Foundation
 ///
 /// `.stale` is the case that earns its keep: **a failed refresh must never blank a value already on
 /// screen.** Pull to refresh in a lift with no signal is the common case, and the right answer is
-/// last week's readiness with a note that it could not be updated, not an empty screen. The rule
-/// lives in `applying(_:)` so it is one pure function rather than a decision each store re-makes.
+/// last week's readiness marked with when it dates from, not an empty screen. The rules live in
+/// `applying(_:)` so they are pure functions rather than a decision each store re-makes.
 enum LoadState<Value: Equatable & Sendable>: Equatable, Sendable {
     /// Nothing asked for yet, or the first ask is still out.
     case loading
     case loaded(Value)
     /// Never had a value, and the last attempt failed.
     case unavailable(LoadFailure)
-    /// Has a value, and the most recent refresh of it failed.
-    case stale(Value, LoadFailure)
+    /// Has a value that is not current, for the reason given.
+    case stale(Value, Staleness)
 
     /// The value this state holds, if any. `.stale` answers with it, which is the point.
     var value: Value? {
@@ -31,7 +31,25 @@ enum LoadState<Value: Equatable & Sendable>: Equatable, Sendable {
         switch self {
         case .loading, .loaded: nil
         case .unavailable(let failure): failure
-        case .stale(_, let failure): failure
+        case .stale(_, let staleness): staleness.failure
+        }
+    }
+
+    /// Whether a value is on screen that is known not to be current, which is what the server's
+    /// return should replace.
+    var isStale: Bool {
+        switch self {
+        case .stale: true
+        case .loading, .loaded, .unavailable: false
+        }
+    }
+
+    /// Whether the screen is short of the server's current answer, with a value or without one —
+    /// what a read when the server returns could put right.
+    var isWaitingOnServer: Bool {
+        switch self {
+        case .stale, .unavailable: true
+        case .loading, .loaded: false
         }
     }
 
@@ -45,7 +63,36 @@ enum LoadState<Value: Equatable & Sendable>: Equatable, Sendable {
             return .loaded(value)
         case .failure(let failure):
             guard let held = value else { return .unavailable(failure) }
-            return .stale(held, failure)
+            return .stale(held, .refreshFailed(failure))
+        }
+    }
+
+    /// Where this state goes when a remembered read answers: current, or recalled from the device
+    /// because the server could not be reached, in which case the value is marked with its time.
+    func applying(_ reading: Remembered<Value>) -> LoadState {
+        switch reading {
+        case .current(let value): .loaded(value)
+        case .recalled(let value, let asOf): .stale(value, .unreachable(asOf: asOf))
+        }
+    }
+}
+
+/// Why a value on screen is not current.
+///
+/// Two cases because they are two different sentences. A server that answered with a fault says
+/// nothing about how old the screen is, only that it could not be refreshed; a server that could
+/// not be reached at all leaves the device showing what it last knew, and the one useful thing to
+/// say is when that was.
+enum Staleness: Equatable, Sendable {
+    /// The last refresh failed, for the reason given. The value is the last one loaded.
+    case refreshFailed(LoadFailure)
+    /// The server could not be reached. The value is the last answer it gave, at `asOf`.
+    case unreachable(asOf: Date)
+
+    var failure: LoadFailure {
+        switch self {
+        case .refreshFailed(let failure): failure
+        case .unreachable: .offline("The server could not be reached.")
         }
     }
 }

@@ -23,12 +23,25 @@ struct TrainingSessionsAPI: Sendable {
     /// screen's "next session" depends on.
     func sessions(from: Date, to: Date) async throws -> [TrainingSession] {
         try await client.get(
-            Self.root,
-            query: [
-                URLQueryItem(name: "from", value: WireDate.wire(from: from)),
-                URLQueryItem(name: "to", value: WireDate.wire(from: to)),
-            ],
-            as: LenientList<TrainingSession>.self).elements
+            Self.root, query: Self.window(from, to), as: LenientList<TrainingSession>.self).elements
+    }
+
+    /// The same window as a screen reads it: the answer is kept under `key`, and given back with
+    /// its time when the server cannot be reached.
+    func sessions(
+        from: Date, to: Date, remembering key: ReadKey
+    ) async throws -> Remembered<[TrainingSession]> {
+        try await client.get(
+            Self.root, query: Self.window(from, to), as: LenientList<TrainingSession>.self,
+            remembering: key
+        ).map(\.elements)
+    }
+
+    private static func window(_ from: Date, _ to: Date) -> [URLQueryItem] {
+        [
+            URLQueryItem(name: "from", value: WireDate.wire(from: from)),
+            URLQueryItem(name: "to", value: WireDate.wire(from: to)),
+        ]
     }
 
     func session(id: UUID) async throws -> TrainingSession {

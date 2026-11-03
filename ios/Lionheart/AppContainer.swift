@@ -15,6 +15,7 @@ import Observation
 final class AppContainer {
     let configuration: APIConfiguration
     let auth: AuthStore
+    let reachability: ServerReachability
     let profile: ProfileStore
     let today: TodayStore
     let history: HistoryStore
@@ -22,21 +23,30 @@ final class AppContainer {
     let body: BodyStore
     let ouraSync: OuraSyncStore
     let activeWorkout: ActiveWorkoutStore
+    let outbox: WorkoutOutbox
     let train: TrainStore
     let movements: MovementLibraryStore
 
     private let tokens: TokenProvider
+    private let memory: ReadMemory
+    private let users: UserAPI
     private var hasStarted = false
 
     init(configuration: APIConfiguration = APIConfiguration()) {
         let tokens = TokenProvider(configuration: configuration)
-        let client = APIClient(configuration: configuration, tokens: tokens)
+        let reachability = ServerReachability()
+        let memory = ReadMemory()
+        let client = APIClient(
+            configuration: configuration, tokens: tokens, memory: memory, reachability: reachability)
         let sessions = TrainingSessionsAPI(client: client)
 
         self.configuration = configuration
         self.tokens = tokens
+        self.reachability = reachability
+        self.memory = memory
+        users = UserAPI(client: client)
         auth = AuthStore(identity: IdentityAPI(client: client), tokens: tokens)
-        profile = ProfileStore(users: UserAPI(client: client))
+        profile = ProfileStore(users: users)
         today = TodayStore(
             sessions: sessions,
             oura: OuraAPI(client: client),
@@ -46,16 +56,20 @@ final class AppContainer {
         let movements = MovementLibraryStore(
             movements: MovementsAPI(client: client), records: PersonalRecordsAPI(client: client))
         self.movements = movements
+        let outbox = WorkoutOutbox(sessions: sessions)
+        self.outbox = outbox
         // The haptic and the movement's name are handed in rather than reached for, so nothing in
         // `Store/ActiveWorkout/` imports UIKit or depends on another store.
         let activeWorkout = ActiveWorkoutStore(
             sessions: sessions,
+            outbox: outbox,
             activity: WorkoutLiveActivity(),
             restAlarm: RestNotification(),
             onRestFinished: { Haptics.restFinished() },
-            movementTitle: { movements.movement($0)?.title })
+            movementTitle: { movements.movement($0)?.title },
+            onServerUnanswered: { reachability.record(answered: false) })
         self.activeWorkout = activeWorkout
-        train = TrainStore(sessions: sessions, activeWorkout: activeWorkout)
+        train = TrainStore(sessions: sessions, activeWorkout: activeWorkout, outbox: outbox)
         history = HistoryStore(
             sessions: TrainingSessionsAPI(client: client),
             movements: MovementsAPI(client: client),
@@ -89,7 +103,7 @@ final class AppContainer {
         // empties the screen it was loading into. The profile gate is reset for a sharper reason
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
-        auth.onSignOut { [profile, today, train, movements, history, chat, body, ouraSync, activeWorkout] in
+        auth.onSignOut { [profile, today, train, movements, history, chat, body, ouraSync, memory] in
             profile.reset()
             today.reset()
             train.reset()
@@ -98,15 +112,35 @@ final class AppContainer {
             chat.reset()
             body.reset()
             ouraSync.reset()
-            // The workout goes too, document and all: it belongs to the session the signed-out
-            // credential owned, and one the next sign-in could adopt would push one athlete's sets
-            // at another athlete's session id.
+            // Every answer the screens remembered. The next athlete on this phone must never open
+            // onto the last one's readiness, offline or not.
+            memory.forget()
+        }
+        // The workout goes too, document and all, and the finished ones waiting to be delivered:
+        // they belong to the account, and ones the next sign-in could adopt would land one
+        // athlete's training in another's log. Not on a sign-out the server forces, which keeps
+        // them for the same athlete signing back in (`AccountCustody`).
+        auth.onAccountChange { [activeWorkout, outbox] in
             activeWorkout.reset()
+            outbox.reset()
+        }
+        auth.onSignIn { [weak self] in
+            Task { await self?.serverReturned() }
+        }
+
+        // The cheapest authenticated read there is, asked only while the server is away. The
+        // remembered one, for its short patience: a probe that waits the system's minute notices
+        // the server's return a minute late.
+        let users = users
+        reachability.probe { _ = try? await users.profileBoot(remembering: .profileBoot) }
+        reachability.onReturn { [weak self] in
+            Task { await self?.serverReturned() }
         }
 
         async let restored: Void = auth.restore()
         async let workout: Void = activeWorkout.restore()
-        _ = await (restored, workout)
+        async let finished: Void = outbox.restore()
+        _ = await (restored, workout, finished)
 
         // The movement catalogue is loaded here rather than by the Train tab alone, because the
         // workout bar names the movement being worked on and the bar is on every tab. Left to the
@@ -118,6 +152,39 @@ final class AppContainer {
         // launch of a signed-out app.
         if case .signedIn = auth.session {
             await movements.refreshIfNeeded()
+            await outbox.deliver()
+        }
+    }
+
+    /// The app came to the foreground. Whatever is waiting on the server is tried again: an
+    /// unreachable one is asked straight away, and a reachable one is handed what was left over.
+    func enteredForeground() async {
+        reachability.enteredForeground()
+        guard case .signedIn = auth.session, reachability.isReachable else { return }
+        await activeWorkout.serverReturned()
+        if outbox.hasDeliverableWork { await outbox.deliver() }
+    }
+
+    /// The server answered again after a spell of not answering, or an athlete has just signed in.
+    ///
+    /// The workout in flight is synced first (a deferred start opens its session here), then the
+    /// finished workouts are delivered, then every screen still showing what it last knew, or
+    /// nothing for want of the server, is read again — in that order, so the screens read a server
+    /// that already holds what was delivered.
+    private func serverReturned() async {
+        guard case .signedIn = auth.session else { return }
+
+        await activeWorkout.serverReturned()
+        await outbox.deliver()
+
+        if case .unreachable = profile.gate { await profile.refresh() }
+        await withDiscardingTaskGroup { group in
+            if today.state.isWaitingOnServer { group.addTask { await self.today.refresh() } }
+            if train.state.isWaitingOnServer { group.addTask { await self.train.refresh() } }
+            if history.state.isWaitingOnServer { group.addTask { await self.history.refresh() } }
+            if body.state.isWaitingOnServer { group.addTask { await self.body.refresh() } }
+            if movements.state.isWaitingOnServer { group.addTask { await self.movements.refresh() } }
+            if case .unavailable = chat.state { group.addTask { await self.chat.refresh() } }
         }
     }
 }

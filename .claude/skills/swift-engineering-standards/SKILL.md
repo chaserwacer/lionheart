@@ -44,7 +44,9 @@ Lionheart's truth is the server. The device holds three kinds of state and they 
 interchangeable:
 
 - **Server-owned, fetched per screen** — sessions, contexts, programs, Oura days, injuries. It lives
-  in the screen's store as a load-state enum, and the server is re-read rather than reconciled.
+  in the screen's store as a load-state enum, and the server is re-read rather than reconciled. Its
+  last answer is remembered on the device by `APIClient.get(_:remembering:)` for offline display,
+  never edited there.
 - **The active workout** — the one piece of state the device owns while it is in flight, because a
   set logged in a basement with no signal must not be lost. It lives in `Store/ActiveWorkout/`,
   persists to disk on every mutation, and reconciles to the server through the session's

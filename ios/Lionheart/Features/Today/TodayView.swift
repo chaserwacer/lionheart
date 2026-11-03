@@ -44,8 +44,8 @@ struct TodayView: View {
                     unavailable(failure)
                 case .loaded(let snapshot):
                     content(snapshot, today: today, staleBecause: nil)
-                case .stale(let snapshot, let failure):
-                    content(snapshot, today: today, staleBecause: failure)
+                case .stale(let snapshot, let staleness):
+                    content(snapshot, today: today, staleBecause: staleness)
                 }
             }
             .listStyle(.insetGrouped)
@@ -135,12 +135,12 @@ struct TodayView: View {
 
     @ViewBuilder
     private func content(
-        _ snapshot: TodaySnapshot, today: CalendarDay, staleBecause failure: LoadFailure?
+        _ snapshot: TodaySnapshot, today: CalendarDay, staleBecause staleness: Staleness?
     ) -> some View {
-        if let failure {
+        if let staleness {
             // The value stays; the banner says it could not be updated. Blanking a loaded screen
             // because a refresh failed is the thing LoadState exists to prevent.
-            StaleBanner(failure: failure)
+            StaleBanner(staleness)
         }
 
         let isToday = snapshot.day == today

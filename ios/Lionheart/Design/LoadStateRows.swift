@@ -93,20 +93,42 @@ private struct SkeletonRow: View {
 
 /// The note that a loaded screen is not current.
 ///
-/// The value stays on screen and this says it could not be updated — the other half of
+/// The value stays on screen and this says why it is not current — the other half of
 /// `LoadState.stale`, whose whole purpose is that a failed refresh in a basement does not blank
 /// last week's readiness.
+///
+/// An unreachable server is marked the way an instrument marks a held reading: the time it dates
+/// from, and nothing apologetic. A server that answered with a fault is a different sentence, its
+/// own words, because the screen's age is not the news there.
 struct StaleBanner: View {
-    let failure: LoadFailure
+    let staleness: Staleness
+
+    init(_ staleness: Staleness) {
+        self.staleness = staleness
+    }
 
     var body: some View {
         Section {
-            // `exclamationmark` leads: the symbol with the parts the other way round does not
-            // exist, and an `Image(systemName:)` naming a symbol that is not there draws nothing
-            // at all — the row then reads as a bare sentence with a gap where its icon should be.
-            Label(failure.message, systemImage: "exclamationmark.arrow.triangle.2.circlepath")
+            switch staleness {
+            case .unreachable(let asOf):
+                LabeledContent {
+                    Text("Server unreachable")
+                } label: {
+                    Text(Formatting.asOf(asOf))
+                        .monospacedDigit()
+                        .foregroundStyle(Color(.label))
+                }
                 .font(.footnote)
                 .foregroundStyle(Color(.secondaryLabel))
+            case .refreshFailed(let failure):
+                // `exclamationmark` leads: the symbol with the parts the other way round does not
+                // exist, and an `Image(systemName:)` naming a symbol that is not there draws
+                // nothing at all — the row then reads as a bare sentence with a gap where its icon
+                // should be.
+                Label(failure.message, systemImage: "exclamationmark.arrow.triangle.2.circlepath")
+                    .font(.footnote)
+                    .foregroundStyle(Color(.secondaryLabel))
+            }
         }
     }
 }

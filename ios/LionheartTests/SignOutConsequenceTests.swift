@@ -32,3 +32,31 @@ struct SignOutConsequenceTests {
         #expect(SignOutConsequence.of(AWorkout.retro(sets: [AWorkout.lift()])) == .pastWorkoutLost)
     }
 }
+
+/// Whose the work kept through a forced sign-out is.
+@Suite("Account custody")
+struct AccountCustodyTests {
+    private static func aCustody() -> AccountCustody {
+        AccountCustody(directoryURL: URL.temporaryDirectory.appending(path: UUID().uuidString))
+    }
+
+    @Test("The same account signing back in finds its work, however the address was typed")
+    func theSameAccountIsRecognised() {
+        let custody = Self.aCustody()
+        custody.hold(for: "chase@example.com")
+
+        #expect(custody.isHeld(for: " Chase@Example.com "))
+        #expect(!custody.isHeld(for: "someone@example.com"))
+    }
+
+    @Test("Nothing recorded, or released, is held for nobody")
+    func releasedCustodyHoldsForNobody() {
+        let custody = Self.aCustody()
+        #expect(!custody.isHeld(for: "chase@example.com"))
+
+        custody.hold(for: "chase@example.com")
+        custody.release()
+
+        #expect(!custody.isHeld(for: "chase@example.com"))
+    }
+}

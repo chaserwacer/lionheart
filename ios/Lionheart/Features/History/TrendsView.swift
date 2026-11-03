@@ -22,19 +22,40 @@ struct TrendsView: View {
 
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
 
-    /// How far back both charts reach, in weeks.
-    enum Span: Int, CaseIterable, Identifiable {
-        case quarter = 13
-        case half = 26
-        case year = 52
+    /// How far back both charts reach.
+    enum Span: CaseIterable, Identifiable {
+        case quarter
+        case half
+        case year
+        /// Everything the log holds, which reaches back past a year once a history is imported.
+        case all
 
-        var id: Int { rawValue }
+        var id: Self { self }
 
         var label: String {
             switch self {
             case .quarter: "3M"
             case .half: "6M"
             case .year: "1Y"
+            case .all: "All"
+            }
+        }
+
+        /// The span in weeks, for a log whose weekly counts are `trends.weeks`.
+        func weeks(in trends: TrainingTrends) -> Int {
+            switch self {
+            case .quarter: 13
+            case .half: 26
+            case .year: 52
+            case .all: max(trends.weeks.count, 1)
+            }
+        }
+
+        /// Whether the points are dense enough to want smaller marks.
+        var isLong: Bool {
+            switch self {
+            case .quarter, .half: false
+            case .year, .all: true
             }
         }
     }
@@ -72,7 +93,7 @@ struct TrendsView: View {
 
     @ViewBuilder
     private var weeklyLoadSection: some View {
-        let load = trends.load(lastWeeks: span.rawValue)
+        let load = trends.load(lastWeeks: span.weeks(in: trends))
 
         if !load.weeks.isEmpty {
             Section {
@@ -113,7 +134,7 @@ struct TrendsView: View {
                     .pickerStyle(.menu)
                 }
 
-                if let summary = series.summary(since: today.adding(days: -span.rawValue * 7)) {
+                if let summary = series.summary(since: today.adding(days: -span.weeks(in: trends) * 7)) {
                     let points = summary.points
                     strengthFigures(summary, unit: series.unit)
                     Chart(points) { point in
@@ -124,7 +145,7 @@ struct TrendsView: View {
                         PointMark(
                             x: .value("Day", point.day.middayDate()),
                             y: .value("Weight", point.weight))
-                        .symbolSize(span == .year ? 10 : 18)
+                        .symbolSize(span.isLong ? 10 : 18)
                         .foregroundStyle(Tokens.accent)
                     }
                     .chartYAxisLabel(series.unit.abbreviation)

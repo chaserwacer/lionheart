@@ -11,6 +11,8 @@ import SwiftUI
 struct RootView: View {
     let container: AppContainer
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         Group {
             switch container.auth.session {
@@ -29,7 +31,25 @@ struct RootView: View {
         }
         .tint(Tokens.accent)
         .environment(container.auth)
+        // Read by the screens that have to say what is waiting on the server: Settings, before a
+        // sign-out that would lose it, and Chat, which cannot work without it.
+        .environment(container.outbox)
+        .environment(container.reachability)
         .task { await container.start() }
+        // Coming back to the app is when the athlete expects it to have caught up, so whatever was
+        // waiting on the server is tried again then.
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active:
+                Task { await container.enteredForeground() }
+            case .background:
+                container.reachability.leftForeground()
+            case .inactive:
+                break
+            @unknown default:
+                break
+            }
+        }
     }
 }
 
@@ -71,6 +91,7 @@ private struct SignedInTabs: View {
                 TrainView(
                     store: container.train,
                     activeWorkout: container.activeWorkout,
+                    outbox: container.outbox,
                     library: container.movements,
                     openWorkout: { isWorkoutPresented = true })
             } label: {

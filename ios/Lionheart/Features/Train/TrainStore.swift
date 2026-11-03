@@ -8,6 +8,10 @@ import Observation
 /// server that the device does not adopt is an orphan nobody can reach, so the adoption happens in
 /// the same method, immediately, against the id the server just gave back.
 ///
+/// A start that cannot reach the server does not fail. The workout begins on the device as a
+/// deferred start, and its session is opened when the server answers (`ActiveWorkoutStore`); the
+/// athlete is in a gym, and what they came to do does not need the server yet.
+///
 /// Everything the tab decides is `TrainingPlan.reading`; this type does IO and turns each outcome
 /// into one state case.
 @Observable
@@ -21,6 +25,14 @@ final class TrainStore {
     private static let lookBack: TimeInterval = 30 * 86_400
     private static let lookAhead: TimeInterval = 90 * 86_400
 
+    /// How long the athlete waits on a start before the workout begins without the server.
+    ///
+    /// Long enough for a slow connection to answer, and short enough that a server that will never
+    /// answer is not a minute of watching a spinner: a Mac asleep behind Tailscale holds a
+    /// connection open until the system's own timeout. A start given up on may still have landed,
+    /// which the deferred start recognises when it opens its session (`ServerCopy`).
+    private static let startPatience = Duration.seconds(6)
+
     private(set) var state: LoadState<TrainingPlan> = .loading
 
     /// Where the transition the athlete last asked for stands — starting, skipping or deleting a
@@ -33,6 +45,7 @@ final class TrainStore {
 
     private let sessions: TrainingSessionsAPI
     private let activeWorkout: ActiveWorkoutStore
+    private let outbox: WorkoutOutbox
     private let now: @Sendable () -> Date
 
     private var load: Task<Void, Never>?
@@ -40,10 +53,12 @@ final class TrainStore {
     init(
         sessions: TrainingSessionsAPI,
         activeWorkout: ActiveWorkoutStore,
+        outbox: WorkoutOutbox,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.sessions = sessions
         self.activeWorkout = activeWorkout
+        self.outbox = outbox
         self.now = now
     }
 
@@ -51,6 +66,19 @@ final class TrainStore {
     /// than "start" when it is, because the device holds one workout and the server would
     /// cheerfully create a second session it could not reach.
     var isWorkoutInFlight: Bool { activeWorkout.workout != nil }
+
+    /// The plan, less the sessions this device is already holding a workout for.
+    ///
+    /// The server's answer can be older than the device's own work: a plan started with no signal
+    /// is still planned there, and a session finished with no signal is still active. Offering to
+    /// start or resume either would begin the same training twice.
+    func withoutHeld(_ plan: TrainingPlan) -> TrainingPlan {
+        let held = [activeWorkout.workout].compactMap { $0 } + outbox.finished.map(\.workout)
+        return plan.excluding(TrainingPlan.sessionIds(heldBy: held))
+    }
+
+    /// The loaded plan, less what the device holds.
+    var plan: TrainingPlan? { state.value.map(withoutHeld) }
 
     func refresh() async {
         load?.cancel()
@@ -75,9 +103,11 @@ final class TrainStore {
         do {
             let window = try await sessions.sessions(
                 from: moment.addingTimeInterval(-Self.lookBack),
-                to: moment.addingTimeInterval(Self.lookAhead))
-            state = state.applying(.success(
-                TrainingPlan.reading(sessions: window, today: CalendarDay(moment))))
+                to: moment.addingTimeInterval(Self.lookAhead),
+                remembering: .trainSessions)
+            state = state.applying(window.map {
+                TrainingPlan.reading(sessions: $0, today: CalendarDay(moment))
+            })
         } catch is CancellationError {
             return
         } catch {
@@ -98,10 +128,13 @@ final class TrainStore {
     func start(planned session: TrainingSession.Planned) async -> Bool {
         guard !isWorkoutInFlight else { return false }
         action = .running
+        let moment = now()
+        let planId = session.envelope.trainingSessionId
 
         do {
-            let started = try await sessions.start(
-                id: session.envelope.trainingSessionId, at: now())
+            let started = try await withinPatience { [sessions] in
+                try await sessions.start(id: planId, at: moment)
+            }
             guard let active = started.activeSession else {
                 // The route answered 2xx with something that is not an active session. Adopting it
                 // would push sets at a session that will refuse them.
@@ -112,7 +145,17 @@ final class TrainStore {
                 destination: .liveSession(active.envelope.trainingSessionId),
                 startedAt: active.startedAt,
                 prescriptions: session.prescriptions,
-                notes: active.envelope.notes)
+                notes: active.envelope.notes,
+                plannedSessionId: planId)
+            return true
+        } catch let error where Self.isUnreachable(error) {
+            adopt(
+                destination: .deferredStart(localId: UUID()),
+                startedAt: moment,
+                prescriptions: session.prescriptions,
+                // What the server would have copied from the plan onto the active session.
+                notes: session.envelope.notes,
+                plannedSessionId: planId)
             return true
         } catch {
             action = ActionState.refusal(from: error)
@@ -126,9 +169,12 @@ final class TrainStore {
     func startUnplanned() async -> Bool {
         guard !isWorkoutInFlight else { return false }
         action = .running
+        let moment = now()
 
         do {
-            let started = try await sessions.startUnplanned(at: now())
+            let started = try await withinPatience { [sessions] in
+                try await sessions.startUnplanned(at: moment)
+            }
             guard let active = started.activeSession else {
                 action = .refused(.unavailable("That session did not become an active one."))
                 return false
@@ -137,12 +183,39 @@ final class TrainStore {
                 destination: .liveSession(active.envelope.trainingSessionId),
                 startedAt: active.startedAt,
                 prescriptions: [],
-                notes: active.envelope.notes)
+                notes: active.envelope.notes,
+                plannedSessionId: nil)
+            return true
+        } catch let error where Self.isUnreachable(error) {
+            adopt(
+                destination: .deferredStart(localId: UUID()),
+                startedAt: moment,
+                prescriptions: [],
+                notes: "",
+                plannedSessionId: nil)
             return true
         } catch {
             action = ActionState.refusal(from: error)
             return false
         }
+    }
+
+    /// A start, given `startPatience` to answer. Running out reads as the server being
+    /// unreachable, which from the gym floor it is.
+    private func withinPatience(
+        _ start: @escaping @Sendable () async throws -> TrainingSession
+    ) async throws -> TrainingSession {
+        try await Deadline.waiting(
+            atMost: Self.startPatience,
+            expiring: { APIError.transport("The server did not answer the start in time.") },
+            for: start)
+    }
+
+    /// Whether a start failed because the server could not be reached, which is the one failure
+    /// that begins the workout anyway. A refusal is the server's answer and is stated instead.
+    private static func isUnreachable(_ error: any Error) -> Bool {
+        guard case .offline? = try? LoadFailure.from(error) else { return false }
+        return true
     }
 
     /// Planned → Skipped. Terminal, and the session is kept: the skip is data.
@@ -217,13 +290,15 @@ final class TrainStore {
         destination: WorkoutDestination,
         startedAt: Date,
         prescriptions: [SetPrescription],
-        notes: String
+        notes: String,
+        plannedSessionId: UUID?
     ) {
         activeWorkout.begin(
             destination: destination,
             startedAt: startedAt,
             prescriptions: prescriptions,
-            notes: notes)
+            notes: notes,
+            plannedSessionId: plannedSessionId)
         action = .idle
     }
 }

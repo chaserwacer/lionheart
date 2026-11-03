@@ -45,7 +45,7 @@ struct FinishWorkoutSheet: View {
     private static func proposedEnd(for workout: ActiveWorkout?) -> Date {
         guard let workout else { return Date() }
         switch workout.destination {
-        case .liveSession: return Date()
+        case .liveSession, .deferredStart: return Date()
         case .afterTheFact: return workout.startedAt.addingTimeInterval(3600)
         }
     }
@@ -101,7 +101,7 @@ struct FinishWorkoutSheet: View {
     @ViewBuilder
     private func timeSection(_ workout: ActiveWorkout) -> some View {
         switch workout.destination {
-        case .liveSession:
+        case .liveSession, .deferredStart:
             Section("When") {
                 LabeledContent("Started") { Text(workout.startedAt, style: .time) }
                 LabeledContent("Length") {
@@ -204,13 +204,21 @@ struct FinishWorkoutSheet: View {
             engagementRating: engagement,
             externalVariablesRating: externalVariables)
 
-        if await store.complete(effort: effort, endingAt: endedAt) {
+        switch await store.complete(effort: effort, endingAt: endedAt) {
+        case .delivered:
             Haptics.achievement()
             dismiss()
             // Completing is what establishes records, and the library's copy is what the next
             // workout's set rows are judged against and what the picker shows as the number to aim
             // at. Left alone it would hold the records as they stood at launch.
             await library.refresh()
+        case .heldForDelivery:
+            // Finished as far as the athlete is concerned; Train lists it until the server has it.
+            // The records cannot have moved yet, so there is nothing for the library to learn.
+            Haptics.achievement()
+            dismiss()
+        case .notFinished:
+            break
         }
     }
 }

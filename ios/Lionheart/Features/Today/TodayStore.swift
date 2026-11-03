@@ -102,23 +102,29 @@ final class TodayStore {
         let firstOuraDay = day.adding(days: -Self.ouraLookBackDays)
 
         do {
-            async let window = sessions.sessions(from: sessionWindow.0, to: sessionWindow.1)
-            async let ouraDays = oura.days(from: firstOuraDay, to: day)
+            async let window = sessions.sessions(
+                from: sessionWindow.0, to: sessionWindow.1,
+                remembering: .today("sessions", showing: day, today: today))
+            async let ouraDays = oura.days(
+                from: firstOuraDay, to: day, remembering: .today("oura-days", showing: day, today: today))
             // A night beginning before midnight is filed under the waking day, so the event window
             // starts a day before the first day read and ends at the end of the day shown.
             async let nights = oura.sleepPeriods(
-                from: firstOuraDay.adding(days: -1).startDate(), to: day.adding(days: 1).startDate())
+                from: firstOuraDay.adding(days: -1).startDate(), to: day.adding(days: 1).startDate(),
+                remembering: .today("nights", showing: day, today: today))
 
+            let (sessionsRead, ouraRead, nightsRead) = try await (window, ouraDays, nights)
             let snapshot = TodaySnapshot.reading(
-                sessions: try await window,
-                ouraDays: try await ouraDays,
-                nights: try await nights,
+                sessions: sessionsRead.value,
+                ouraDays: ouraRead.value,
+                nights: nightsRead.value,
                 today: today,
                 day: day)
             // A day changed while this was out has already reset the state; this answer is for the
             // old day and must not land under the new one.
             guard asked == selection else { return }
-            state = state.applying(.success(snapshot))
+            state = state.applying(.derived(
+                snapshot, from: [sessionsRead.asOf, ouraRead.asOf, nightsRead.asOf]))
         } catch is CancellationError {
             // The screen went away or a newer refresh took over. Nothing to say, and in particular
             // nothing to put on screen: the value already there is still the best one.
@@ -132,24 +138,32 @@ final class TodayStore {
 
     // MARK: - Trends
 
-    /// Reads one figure's trend. A failed re-read keeps the trend already shown.
+    /// Reads one figure's trend. A failed re-read keeps the trend already shown, and with no
+    /// server the last one read for the span is shown, marked with its time.
     func loadTrend(_ key: MetricTrendKey) async {
         let range = key.range()
-        let outcome: Result<MetricTrend, LoadFailure>
+        let today = self.today
+        let span = "trend-\(key.span.days)"
         do {
-            async let days = oura.days(from: range.from, to: range.to)
+            async let days = oura.days(
+                from: range.from, to: range.to,
+                remembering: .today("\(span).days", showing: key.endingOn, today: today))
             // Only the night figures need the nights, and a year of them is the heaviest read here.
-            let nights = key.metric.isReadFromTheNight
+            let nights: Remembered<[OuraEvent<OuraSleepPeriod>]> = key.metric.isReadFromTheNight
                 ? try await oura.sleepPeriods(
-                    from: range.from.adding(days: -1).startDate(), to: range.to.adding(days: 1).startDate())
-                : []
-            outcome = .success(MetricTrend.reading(key, days: try await days, nights: nights, today: today))
+                    from: range.from.adding(days: -1).startDate(), to: range.to.adding(days: 1).startDate(),
+                    remembering: .today("\(span).nights", showing: key.endingOn, today: today))
+                : .current([])
+            let daysRead = try await days
+            let trend = MetricTrend.reading(key, days: daysRead.value, nights: nights.value, today: today)
+            trends[key] = (trends[key] ?? .loading).applying(
+                .derived(trend, from: [daysRead.asOf, nights.asOf]))
         } catch is CancellationError {
             return
         } catch {
-            outcome = .failure((try? LoadFailure.from(error)) ?? .unavailable(String(describing: error)))
+            trends[key] = (trends[key] ?? .loading).applying(.failure(
+                (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))))
         }
-        trends[key] = (trends[key] ?? .loading).applying(outcome)
     }
 
     // MARK: - Quick log

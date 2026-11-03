@@ -2,15 +2,23 @@ import Foundation
 
 /// Where the sets of a workout are going to land on the server.
 ///
-/// Two cases because the two are genuinely different transactions, not one with a flag. A live
-/// workout has an `ActiveTrainingSession` already on the server and pushes its set list as the
-/// athlete logs, so nothing is riding on the device for longer than a coalescing window. A workout
-/// being written down afterwards has nothing on the server at all until it is finished, and then it
-/// lands whole through `POST /completed` — which is also why it works with no signal from first set
-/// to last.
+/// Three cases because they are genuinely different transactions, not one with a flag. A live
+/// workout has an `ActiveTrainingSession` on the server and pushes its set list as the athlete
+/// logs, so nothing is riding on the device for longer than a coalescing window. A live workout
+/// started with no connection is the same workout whose session the server has not opened yet: it
+/// is opened, and the sets pushed, the first time the server answers. A workout being written down
+/// afterwards has nothing on the server at all until it is finished, and then it lands whole
+/// through `POST /completed` — which is also why it works with no signal from first set to last.
 enum WorkoutDestination: Equatable, Sendable {
     /// The id of the active session this workout's sets replace on every push.
     case liveSession(UUID)
+    /// A live workout whose session the server has not opened yet, because it could not be reached
+    /// when the athlete started.
+    ///
+    /// `localId` is this device's name for the workout until the server gives it one. It is what
+    /// the Lock Screen's copy is keyed by in the meantime, and never reaches the server: the
+    /// server mints session ids itself.
+    case deferredStart(localId: UUID)
     /// Nothing on the server yet. `POST /completed` carries the sets, the period and the effort in
     /// one request when the athlete finishes.
     case afterTheFact
@@ -18,17 +26,23 @@ enum WorkoutDestination: Equatable, Sendable {
     var sessionId: UUID? {
         switch self {
         case .liveSession(let id): id
-        case .afterTheFact: nil
+        case .deferredStart, .afterTheFact: nil
         }
     }
 
-    /// Whether logging a set should try to reach the server at all.
-    var pushesAsItGoes: Bool {
+    /// Whether the athlete is training now, with a clock running, as against writing down a
+    /// workout that already happened. A deferred start is as live as any other; only the server
+    /// does not know yet.
+    var isLive: Bool {
         switch self {
-        case .liveSession: true
+        case .liveSession, .deferredStart: true
         case .afterTheFact: false
         }
     }
+
+    /// Whether logging a set should try to reach the server at all. A deferred start does: the
+    /// attempt is what opens its session.
+    var pushesAsItGoes: Bool { isLive }
 }
 
 /// Whether what has been logged has reached the server.
@@ -89,9 +103,11 @@ struct ActiveWorkout: Equatable, Sendable {
     /// 1 — the foundation's: a session id, a start instant and a synced flag.
     /// 2 — a destination rather than a bare id, the logged sets, the rest clock, the current
     ///     movement, the prescriptions, and sync as a four-case state.
-    /// 3 — this one: the movements the athlete added, so one picked before any set exists is part
-    ///     of the workout.
-    static let currentVersion = 3
+    /// 3 — the movements the athlete added, so one picked before any set exists is part of the
+    ///     workout.
+    /// 4 — this one: a live workout whose session is not open on the server yet (a deferred start),
+    ///     and the planned session a workout was started from.
+    static let currentVersion = 4
 
     let version: Int
     let destination: WorkoutDestination
@@ -116,6 +132,12 @@ struct ActiveWorkout: Equatable, Sendable {
     /// What the athlete typed about the session. Sent with `POST /completed`; for a live session it
     /// rides along to `PATCH /notes`.
     let notes: String
+    /// The planned session this workout was started from, or `nil` for one started without a plan.
+    ///
+    /// Held because a deferred start has to know which plan to start when the server is reached,
+    /// and because the plan can be lost in the meantime (started or skipped somewhere else), in
+    /// which case the workout opens a session of its own and this is how the athlete is told.
+    let plannedSessionId: UUID?
 
     init(
         destination: WorkoutDestination,
@@ -127,6 +149,7 @@ struct ActiveWorkout: Equatable, Sendable {
         prescriptions: [SetPrescription] = [],
         addedMovementDataIds: [UUID] = [],
         notes: String = "",
+        plannedSessionId: UUID? = nil,
         version: Int = Self.currentVersion
     ) {
         self.version = version
@@ -139,6 +162,7 @@ struct ActiveWorkout: Equatable, Sendable {
         self.prescriptions = prescriptions
         self.addedMovementDataIds = addedMovementDataIds
         self.notes = notes
+        self.plannedSessionId = plannedSessionId
     }
 
     /// How long the session has been running at `now`. Never negative, so a device clock that moved
@@ -203,6 +227,7 @@ struct ActiveWorkout: Equatable, Sendable {
             prescriptions: prescriptions,
             addedMovementDataIds: addedMovementDataIds,
             notes: notes,
+            plannedSessionId: plannedSessionId,
             version: version)
     }
 
@@ -256,17 +281,20 @@ struct ActiveWorkout: Equatable, Sendable {
     /// began. A live session's start is the server's, stamped when it created the session, and
     /// moving it on the device would make the period sent disagree with the session it completes.
     func starting(at startedAt: Date) -> ActiveWorkout {
-        ActiveWorkout(
-            destination: destination,
-            startedAt: startedAt,
-            sync: sync,
-            sets: sets,
-            rest: rest,
-            currentMovementDataId: currentMovementDataId,
-            prescriptions: prescriptions,
-            addedMovementDataIds: addedMovementDataIds,
-            notes: notes,
-            version: version)
+        with(startedAt: startedAt)
+    }
+
+    /// The workout once the server has opened its session: everything logged so far now belongs to
+    /// `sessionId`, and the next push replaces that session's sets with them.
+    func opened(as sessionId: UUID) -> ActiveWorkout {
+        with(destination: .liveSession(sessionId))
+    }
+
+    /// Whether this workout was started from a plan and is being logged as a session of its own,
+    /// because the plan was started or skipped somewhere else before the server heard of this one.
+    var hasLeftItsPlan: Bool {
+        guard let plannedSessionId, let sessionId = destination.sessionId else { return false }
+        return sessionId != plannedSessionId
     }
 
     /// The workout with some members replaced and the rest kept.
@@ -277,6 +305,8 @@ struct ActiveWorkout: Equatable, Sendable {
     /// cleared the current one instead of leaving the athlete where they were. There is no sentinel
     /// that reads as "leave this alone" for a value whose own absence is meaningful.
     private func with(
+        destination: WorkoutDestination? = nil,
+        startedAt: Date? = nil,
         sync: WorkoutSyncState? = nil,
         sets: [LoggedSet]? = nil,
         rest: RestClock? = nil,
@@ -284,8 +314,8 @@ struct ActiveWorkout: Equatable, Sendable {
         notes: String? = nil
     ) -> ActiveWorkout {
         ActiveWorkout(
-            destination: destination,
-            startedAt: startedAt,
+            destination: destination ?? self.destination,
+            startedAt: startedAt ?? self.startedAt,
             sync: sync ?? self.sync,
             sets: sets ?? self.sets,
             rest: rest ?? self.rest,
@@ -293,6 +323,7 @@ struct ActiveWorkout: Equatable, Sendable {
             prescriptions: prescriptions,
             addedMovementDataIds: addedMovementDataIds ?? self.addedMovementDataIds,
             notes: notes ?? self.notes,
+            plannedSessionId: plannedSessionId,
             version: version)
     }
 }
@@ -303,6 +334,7 @@ extension WorkoutDestination: Codable {
     private enum CodingKeys: String, CodingKey {
         case kind
         case sessionId
+        case localId
     }
 
     init(from decoder: any Decoder) throws {
@@ -310,6 +342,8 @@ extension WorkoutDestination: Codable {
         switch try container.decode(String.self, forKey: .kind) {
         case "liveSession":
             self = .liveSession(try container.decode(UUID.self, forKey: .sessionId))
+        case "deferredStart":
+            self = .deferredStart(localId: try container.decode(UUID.self, forKey: .localId))
         case "afterTheFact":
             self = .afterTheFact
         case let kind:
@@ -327,6 +361,9 @@ extension WorkoutDestination: Codable {
         case .liveSession(let id):
             try container.encode("liveSession", forKey: .kind)
             try container.encode(id, forKey: .sessionId)
+        case .deferredStart(let localId):
+            try container.encode("deferredStart", forKey: .kind)
+            try container.encode(localId, forKey: .localId)
         case .afterTheFact:
             try container.encode("afterTheFact", forKey: .kind)
         }
@@ -382,6 +419,7 @@ extension ActiveWorkout: Codable {
         case prescriptions
         case addedMovementDataIds
         case notes
+        case plannedSessionId
         /// Version 1's single session id, read so a workout started under the foundation build is
         /// not thrown away on the first launch of this one.
         case sessionId
@@ -417,6 +455,7 @@ extension ActiveWorkout: Codable {
         addedMovementDataIds = (try? container.decode([UUID].self, forKey: .addedMovementDataIds))
             ?? Self.addedBeforeTheListExisted(current: current, sets: sets, prescriptions: prescriptions)
         notes = (try? container.decode(String.self, forKey: .notes)) ?? ""
+        plannedSessionId = try? container.decode(UUID.self, forKey: .plannedSessionId)
     }
 
     /// What a document written before version 3 had added, recovered from the one trace it kept.
@@ -455,5 +494,6 @@ extension ActiveWorkout: Codable {
         try container.encode(prescriptions, forKey: .prescriptions)
         try container.encode(addedMovementDataIds, forKey: .addedMovementDataIds)
         try container.encode(notes, forKey: .notes)
+        try container.encodeIfPresent(plannedSessionId, forKey: .plannedSessionId)
     }
 }

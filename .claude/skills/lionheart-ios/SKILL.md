@@ -145,8 +145,11 @@ one failure that would make the owner stop using the app.
 - It pushes to the server with `PUT /{id}/sets` **after** persisting locally, coalesced so rapid
   logging produces one request, and it is not an error for that push to fail: the bar shows an
   unsynced state and the next push carries everything.
-- Finishing calls `POST /{id}/complete` with the period and the effort ratings. Only a 2xx clears the
-  local document.
+- Finishing calls `POST /{id}/complete` with the period and the effort ratings. Only a 2xx, or the
+  finished workout safely in the outbox when the server cannot be reached, clears the local
+  document. A workout started with no connection is a deferred start, opened on the server by its
+  first push that gets through; `docs/ios-architecture.md` → "Starting and finishing with no
+  connection" has the rules.
 - The rest clock is a stored `Task` in the store, not a `Timer`, and the *view* reads it through
   `TimelineView(.periodic)` so the tick redraws the clock and not the set list.
 - Its rules — next set from the prescription, running volume, whether this set beat a record — are

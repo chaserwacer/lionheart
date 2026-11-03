@@ -10,6 +10,8 @@ struct SettingsSheet: View {
     let activeWorkout: ActiveWorkoutStore
 
     @Environment(AuthStore.self) private var auth
+    /// Read only to count the finished workouts a sign-out would lose with everything else.
+    @Environment(WorkoutOutbox.self) private var outbox
     @Environment(\.dismiss) private var dismiss
 
     @State private var isConfirmingSignOut = false
@@ -58,7 +60,7 @@ struct SettingsSheet: View {
                     }
                 }
             } message: {
-                Text(SignOutConsequence.of(activeWorkout.workout).message)
+                Text(SignOutConsequence.of(activeWorkout.workout).message(undelivered: outbox.finished.count))
             }
         }
     }

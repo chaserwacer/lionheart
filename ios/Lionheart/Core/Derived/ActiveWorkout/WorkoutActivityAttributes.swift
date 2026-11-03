@@ -18,7 +18,8 @@ import Foundation
 /// Charts) and this is not one; the type is a value and its derivation is unit-tested without a
 /// host, which is the property that rule protects.
 struct WorkoutActivityAttributes: ActivityAttributes, Equatable, Sendable {
-    /// The live session this activity mirrors.
+    /// The live session this activity mirrors, or for a deferred start the device's own id for the
+    /// workout until the server opens its session.
     ///
     /// Fixed for the activity's life, and the whole of how a stale activity is reconciled at
     /// startup: ActivityKit activities outlive the app, so the next launch compares this against

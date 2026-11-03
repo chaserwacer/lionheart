@@ -31,21 +31,46 @@ final class AuthStore {
 
     private let identity: IdentityAPI
     private let tokens: TokenProvider
+    private let custody: AccountCustody
     private let now: @Sendable () -> Date
 
     /// Teardown for state that belongs to one signed-in session. Registered by the stores that
     /// hold it, because this type must not know what screens exist.
     private var sessionScopedTeardown: [@MainActor () -> Void] = []
+    /// Teardown for work the device holds for one account and nowhere else has; see
+    /// `AccountCustody`.
+    private var accountScopedTeardown: [@MainActor () -> Void] = []
+    private var signInHandlers: [@MainActor () -> Void] = []
 
-    init(identity: IdentityAPI, tokens: TokenProvider, now: @escaping @Sendable () -> Date = { Date() }) {
+    init(
+        identity: IdentityAPI,
+        tokens: TokenProvider,
+        custody: AccountCustody = AccountCustody(),
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
         self.identity = identity
         self.tokens = tokens
+        self.custody = custody
         self.now = now
     }
 
-    /// Hands `teardown` the job of emptying one store when the athlete signs out.
+    /// Hands `teardown` the job of emptying one store whenever the session ends, however it ends.
     func onSignOut(_ teardown: @escaping @MainActor () -> Void) {
         sessionScopedTeardown.append(teardown)
+    }
+
+    /// Hands `teardown` the job of emptying work the device holds for the account: run when the
+    /// athlete signs out, and when a sign-in after a forced sign-out is somebody else.
+    ///
+    /// Not run when the server forces the sign-out. That work exists nowhere else, and the same
+    /// athlete signing straight back in should find it waiting.
+    func onAccountChange(_ teardown: @escaping @MainActor () -> Void) {
+        accountScopedTeardown.append(teardown)
+    }
+
+    /// Hands `handler` whatever has to happen once an athlete has signed in.
+    func onSignIn(_ handler: @escaping @MainActor () -> Void) {
+        signInHandlers.append(handler)
     }
 
     /// Reads whatever the Keychain holds and settles the root. Called once, from the app's `.task`.
@@ -70,11 +95,15 @@ final class AuthStore {
 
         signIn = .submitting
         do {
-            let issued = try await identity.signIn(
-                email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password)
+            let account = email.trimmingCharacters(in: .whitespacesAndNewlines)
+            let issued = try await identity.signIn(email: account, password: password)
             isSessionPersisted = await tokens.adopt(issued.tokens(receivedAt: now()))
+            // Work kept through a forced sign-out is this account's to pick up, and nobody else's.
+            if !custody.isHeld(for: account) { tearDown(accountScopedTeardown) }
+            custody.hold(for: account)
             signIn = .editing
             session = .signedIn
+            for handler in signInHandlers { handler() }
         } catch is CancellationError {
             signIn = .editing
         } catch {
@@ -84,7 +113,9 @@ final class AuthStore {
 
     func signOut() async {
         await tokens.discard()
-        tearDownSessionScopedState()
+        tearDown(sessionScopedTeardown)
+        tearDown(accountScopedTeardown)
+        custody.release()
         signIn = .editing
         isSessionPersisted = true
         session = .signedOut
@@ -96,13 +127,15 @@ final class AuthStore {
         signIn = .editing
     }
 
+    /// The server refused the refresh token. The screens go, as on any sign-out; the work held for
+    /// the account stays, with its custody, for the next sign-in to settle.
     private func credentialsRejected() {
-        tearDownSessionScopedState()
+        tearDown(sessionScopedTeardown)
         signIn = .refused(.credentialsRejected)
         session = .signedOut
     }
 
-    private func tearDownSessionScopedState() {
-        for teardown in sessionScopedTeardown { teardown() }
+    private func tearDown(_ teardowns: [@MainActor () -> Void]) {
+        for teardown in teardowns { teardown() }
     }
 }

@@ -14,6 +14,13 @@ enum HTTP {
         case delete = "DELETE"
     }
 
+    /// How long a read the app cannot do without waits for the server before giving up: a
+    /// remembered screen read, and the token renewal every read waits on. A server that is there
+    /// answers these in well under a second; ten is generous for a weak signal, and far short of
+    /// the system's minute, which is how long a Mac asleep behind Tailscale leaves a connection
+    /// hanging rather than refusing it.
+    static let readPatience: TimeInterval = 10
+
     static func request(
         _ method: Method,
         path: String,
@@ -46,6 +53,10 @@ enum HTTP {
         let problem = try? Wire.decoder().decode(ProblemDocument.self, from: body)
         let detail = problem?.message
 
+        if isGatewayStandIn(status: status, problem: problem) {
+            return .transport("Lionheart's server is not answering behind its gateway.")
+        }
+
         switch status {
         case 400: return .invalid(fields: problem?.errors ?? [:], detail: detail)
         case 401: return .unauthenticated
@@ -56,6 +67,21 @@ enum HTTP {
         case 500, 503, 504: return .server(detail: detail)
         default: return .http(status: status, detail: detail)
         }
+    }
+
+    /// Whether a response came from the gateway in front of the server rather than the server.
+    ///
+    /// The server is reached through `tailscale serve`, which answers a 502 of its own when the
+    /// backend behind it is not listening — during a deploy, a crash loop, or a startup that threw.
+    /// The server's own 502 (an upstream such as Oura failing) always carries a problem document;
+    /// the gateway's never does. So a gateway status with no problem document means the same as no
+    /// answer at all: the server is not there, and every offline path should take it that way.
+    static func isGatewayStandIn(status: Int, body: Data) -> Bool {
+        isGatewayStandIn(status: status, problem: try? Wire.decoder().decode(ProblemDocument.self, from: body))
+    }
+
+    private static func isGatewayStandIn(status: Int, problem: ProblemDocument?) -> Bool {
+        [502, 503, 504].contains(status) && problem == nil
     }
 
     /// Runs `request` and returns its body and status, translating a transport failure into an

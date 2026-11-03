@@ -13,15 +13,19 @@ struct PersonalRecordsAPI: Sendable {
     ///
     /// The grouped read rather than the flat one: every screen that reads records asks "what are
     /// my numbers on this movement", and the flat list would make each of them re-group it.
-    func summaries() async throws -> [SubjectRecords] {
-        try await client.get("\(Self.root)/summaries", as: LenientList<SubjectRecords>.self).elements
+    /// Remembered under `key`.
+    func summaries(remembering key: ReadKey) async throws -> Remembered<[SubjectRecords]> {
+        try await client.get(
+            "\(Self.root)/summaries", as: LenientList<SubjectRecords>.self, remembering: key
+        ).map(\.elements)
     }
 
-    /// Every record ever set for one subject and kind, newest first, beaten and withdrawn included.
+    /// Every record ever set for one subject and kind, newest first, beaten and withdrawn included,
+    /// remembered so a chain once opened can be read again with no signal.
     ///
     /// The route takes no unit and answers every unit's chain of the kind; `RecordHistory` narrows
     /// it to one key.
-    func history(of key: RecordKey) async throws -> [PersonalRecord] {
+    func history(of key: RecordKey) async throws -> Remembered<[PersonalRecord]> {
         let subject = key.subject.movementDataId.map {
             [URLQueryItem(name: "movementDataId", value: $0.uuidString)]
         } ?? []
@@ -30,7 +34,9 @@ struct PersonalRecordsAPI: Sendable {
         return try await client.get(
             "\(Self.root)/history",
             query: subject + [URLQueryItem(name: "kind", value: key.kind.wireName)] + bracket,
-            as: LenientList<PersonalRecord>.self).elements
+            as: LenientList<PersonalRecord>.self,
+            remembering: .recordHistory(key)
+        ).map(\.elements)
     }
 
     /// Withdraws a standing record, putting back whatever it beat. A record that no longer stands

@@ -61,9 +61,10 @@ final class BodyStore {
     /// 290 KB (see `lookBackDays`) — worth paying when something could have changed, and not
     /// otherwise. Nothing on the device writes an Oura day or a wellness entry, and the two actions
     /// that do write here reload for themselves, so a tab switch has nothing to learn. Pull to
-    /// refresh stays the athlete's own way of asking, and a new ring sync is what it is for.
+    /// refresh stays the athlete's own way of asking, and a new ring sync is what it is for. A
+    /// screen that is not current is asked again, since it has something to learn.
     func refreshIfNeeded() async {
-        guard state.value == nil else { return }
+        guard state.value == nil || state.isStale else { return }
         await refresh()
     }
 
@@ -154,25 +155,31 @@ final class BodyStore {
         let earliest = CalendarDay(start)
 
         do {
-            async let days = oura.days(from: earliest, to: today)
+            async let days = oura.days(from: earliest, to: today, remembering: .bodyOuraDays)
             // A night beginning before midnight is filed under the waking day, so the event window
             // reaches a day further back than the day range to avoid clipping its first night.
-            async let nights = oura.sleepPeriods(from: start.addingTimeInterval(-86_400), to: moment)
-            async let ringWorkouts = oura.workouts(from: start, to: moment)
-            async let tags = oura.tags(from: start, to: moment)
-            async let readings = wellness.states(from: earliest, to: today)
+            async let nights = oura.sleepPeriods(
+                from: start.addingTimeInterval(-86_400), to: moment, remembering: .bodySleepPeriods)
+            async let ringWorkouts = oura.workouts(from: start, to: moment, remembering: .bodyOuraWorkouts)
+            async let tags = oura.tags(from: start, to: moment, remembering: .bodyOuraTags)
+            async let readings = wellness.states(from: earliest, to: today, remembering: .bodyWellness)
             // Every injury on record, active or not: there is no server-side filter, and a
             // resolved injury is still history worth reading. The snapshot narrows.
-            async let tracked = injuries.injuries()
+            async let tracked = injuries.injuries(remembering: .bodyInjuries)
 
+            let (daysRead, readingsRead, trackedRead) = try await (days, readings, tracked)
+            let (nightsRead, ringWorkoutsRead, tagsRead) = try await (nights, ringWorkouts, tags)
             let snapshot = BodySnapshot.reading(
-                ouraDays: try await days,
-                wellness: try await readings,
-                injuries: try await tracked,
-                nights: try await nights,
-                ringWorkouts: try await ringWorkouts,
-                tags: try await tags)
-            state = state.applying(.success(snapshot))
+                ouraDays: daysRead.value,
+                wellness: readingsRead.value,
+                injuries: trackedRead.value,
+                nights: nightsRead.value,
+                ringWorkouts: ringWorkoutsRead.value,
+                tags: tagsRead.value)
+            state = state.applying(.derived(snapshot, from: [
+                daysRead.asOf, readingsRead.asOf, trackedRead.asOf,
+                nightsRead.asOf, ringWorkoutsRead.asOf, tagsRead.asOf,
+            ]))
         } catch is CancellationError {
             return
         } catch {

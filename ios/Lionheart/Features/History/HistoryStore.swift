@@ -13,9 +13,11 @@ import Observation
 @Observable
 @MainActor
 final class HistoryStore {
-    /// How far back the log reaches. A year is what a lifter scrolls and what makes a trend a
-    /// trend; it is also small enough to be one request rather than a paged one.
-    private static let lookBackDays = 365
+    /// Where the log's window begins: before anything this athlete could have logged, so the
+    /// whole history is one read. An imported history reaches back years, and a log or a trend
+    /// that stops at a year hides the start of it. At a personal log's size the whole of it is
+    /// still one modest response, and it is what the device remembers for the tab offline.
+    private static let logBegins = Date(timeIntervalSince1970: 0)
     /// Far enough forward to show what is planned, which belongs below the past in the same log.
     private static let lookAheadDays = 45
 
@@ -98,15 +100,15 @@ final class HistoryStore {
     /// the screen's own can overlap, and applying to a stale copy would let the slower failure
     /// blank a chain the faster one had just loaded.
     func loadHistory(of key: RecordKey) async {
-        let outcome: Result<RecordHistory, LoadFailure>
         do {
-            outcome = .success(RecordHistory.reading(try await records.history(of: key), of: key))
+            let chain = try await records.history(of: key).map { RecordHistory.reading($0, of: key) }
+            histories[key] = (histories[key] ?? .loading).applying(chain)
         } catch is CancellationError {
             return
         } catch {
-            outcome = .failure((try? LoadFailure.from(error)) ?? .unavailable(String(describing: error)))
+            histories[key] = (histories[key] ?? .loading).applying(.failure(
+                (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))))
         }
-        histories[key] = (histories[key] ?? .loading).applying(outcome)
     }
 
     /// One transition, then a re-read of the window.
@@ -144,17 +146,20 @@ final class HistoryStore {
 
         do {
             async let window = sessions.sessions(
-                from: moment.addingTimeInterval(-Double(Self.lookBackDays) * 86_400),
-                to: moment.addingTimeInterval(Double(Self.lookAheadDays) * 86_400))
-            async let catalogue = movements.movements()
-            async let bySubject = records.summaries()
+                from: Self.logBegins,
+                to: moment.addingTimeInterval(Double(Self.lookAheadDays) * 86_400),
+                remembering: .historySessions)
+            async let catalogue = movements.movements(remembering: .movements)
+            async let bySubject = records.summaries(remembering: .recordSummaries)
 
+            let (sessionsRead, movementsRead, recordsRead) = try await (window, catalogue, bySubject)
             let snapshot = HistorySnapshot.reading(
-                sessions: try await window,
-                movements: try await catalogue,
-                records: try await bySubject,
+                sessions: sessionsRead.value,
+                movements: movementsRead.value,
+                records: recordsRead.value,
                 today: today)
-            state = state.applying(.success(snapshot))
+            state = state.applying(.derived(
+                snapshot, from: [sessionsRead.asOf, movementsRead.asOf, recordsRead.asOf]))
         } catch is CancellationError {
             return
         } catch {

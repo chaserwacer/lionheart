@@ -4,9 +4,9 @@ import Foundation
 ///
 /// Signing out deletes the workout document (`ActiveWorkoutStore.reset`), deliberately: a document
 /// the next sign-in could adopt would push one athlete's sets at another's session. So the honest
-/// answer depends on what the server already holds, and these are the four different answers — one
-/// per thing the athlete stands to lose, which is none, none that cannot be resumed, the sets not
-/// yet pushed, or everything.
+/// answer depends on what the server already holds, and these are the different answers — one per
+/// thing the athlete stands to lose: none, none that cannot be resumed, the sets not yet pushed, or
+/// everything.
 enum SignOutConsequence: Equatable, Sendable {
     /// No workout on this device.
     case nothingInFlight
@@ -15,6 +15,8 @@ enum SignOutConsequence: Equatable, Sendable {
     case resumableFromTrain
     /// A live session with sets the server does not have yet — pending, failed or refused.
     case unsyncedSetsLost
+    /// A workout started with no connection whose session the server has never opened.
+    case unopenedWorkoutLost
     /// A workout being written down afterwards. Nothing is sent until it is finished.
     case pastWorkoutLost
 
@@ -23,6 +25,8 @@ enum SignOutConsequence: Equatable, Sendable {
         switch workout.destination {
         case .afterTheFact:
             return .pastWorkoutLost
+        case .deferredStart:
+            return .unopenedWorkoutLost
         case .liveSession:
             switch workout.sync {
             case .synced: return .resumableFromTrain
@@ -40,8 +44,25 @@ enum SignOutConsequence: Equatable, Sendable {
             "The workout in progress leaves this device. Its sets are on the server, and Train can resume it."
         case .unsyncedSetsLost:
             "The workout in progress leaves this device, and sets not yet on the server are lost."
+        case .unopenedWorkoutLost:
+            "The workout in progress has not reached the server and is lost."
         case .pastWorkoutLost:
             "The past workout being logged is lost. Nothing is sent until it is finished."
+        }
+    }
+
+    /// The confirmation's message, counting the finished workouts still waiting to be delivered,
+    /// which leave the device with everything else.
+    func message(undelivered: Int) -> String {
+        guard undelivered > 0 else { return message }
+        let waiting = undelivered == 1
+            ? "A finished workout not yet on the server is lost."
+            : "\(undelivered) finished workouts not yet on the server are lost."
+        switch self {
+        case .nothingInFlight:
+            return waiting
+        case .resumableFromTrain, .unsyncedSetsLost, .unopenedWorkoutLost, .pastWorkoutLost:
+            return "\(message) \(waiting)"
         }
     }
 }

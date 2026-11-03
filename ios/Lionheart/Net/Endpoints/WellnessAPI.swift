@@ -8,13 +8,18 @@ import Foundation
 struct WellnessAPI: Sendable {
     let client: APIClient
 
-    func states(from: CalendarDay, to: CalendarDay) async throws -> [WellnessState] {
+    /// The entries in the range, remembered under `key`.
+    func states(
+        from: CalendarDay, to: CalendarDay, remembering key: ReadKey
+    ) async throws -> Remembered<[WellnessState]> {
         try await client.get(
             "/api/wellness/get-range",
             query: [
                 URLQueryItem(name: "startDate", value: "\(from.wire)T00:00:00"),
                 URLQueryItem(name: "endDate", value: "\(to.wire)T00:00:00"),
             ],
-            as: LenientList<WellnessState>.self).elements
+            as: LenientList<WellnessState>.self,
+            remembering: key
+        ).map(\.elements)
     }
 }

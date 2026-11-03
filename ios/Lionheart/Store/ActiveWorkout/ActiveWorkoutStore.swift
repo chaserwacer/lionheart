@@ -13,8 +13,12 @@ import Observation
 /// 1. **A set is on disk before it is on screen.** `adopt` writes, then publishes.
 /// 2. **A failed push is a state, not an error.** The bar says so and the next push carries
 ///    everything; nothing is thrown at a view and nothing is dropped.
-/// 3. **Only a 2xx on the completing route clears the document.** Until the server has the session,
-///    the device is the only copy.
+/// 3. **Nothing clears the document until another copy exists.** That is a 2xx on the completing
+///    route, or the finished workout safely set down in `WorkoutOutbox` when the server cannot be
+///    reached. Until one of those, the device's copy is the only one.
+///
+/// A workout started with no connection is a deferred start: it is logged exactly like any other,
+/// and its session is opened on the server by the first push that gets through.
 ///
 /// It owns exactly one workout. The server will happily hold several active sessions at once, so
 /// the guard against starting a second is here — see `begin`.
@@ -27,6 +31,23 @@ final class ActiveWorkoutStore {
     /// phone down after a set leaves it synced. Every push carries the whole list, so a longer
     /// window costs nothing but the time the device is the only copy.
     private static let coalescingWindow = Duration.milliseconds(900)
+
+    /// How long a hand-over waits on the server before settling without it.
+    ///
+    /// The athlete is watching a spinner, and a Mac asleep behind Tailscale holds a request open
+    /// for the system's whole minute rather than refusing it. Running out is safe because every
+    /// step of a hand-over is safe to run again: a finish given up on goes to the outbox, whose
+    /// delivery first asks what the server already holds. Both limits are `Deadline`'s, with what
+    /// it does and does not promise.
+    struct Patience: Equatable, Sendable {
+        /// For a session opening already in flight, before it is cancelled. What a cancelled
+        /// opening may have left on the server is found by the hand-over's own read.
+        let opening: Duration
+        /// For a finish or a discard.
+        let handOver: Duration
+
+        static let standard = Patience(opening: .seconds(5), handOver: .seconds(12))
+    }
 
     /// The workout in flight, or nothing. `nil` is right here rather than a case: there is no third
     /// state, and the bar renders nothing for the absent one.
@@ -52,16 +73,35 @@ final class ActiveWorkoutStore {
 
     private let document: ActiveWorkoutDocument
     private let sessions: any WorkoutSessionWriting
+    private let delivery: WorkoutDelivery
+    private let outbox: WorkoutOutbox
     private let activity: any WorkoutActivityPresenting
     private let restAlarm: any RestAlarmScheduling
     private let now: @Sendable () -> Date
     private let onRestFinished: @MainActor () -> Void
+    private let onServerUnanswered: @MainActor () -> Void
+    private let patience: Patience
     private let movementTitle: @MainActor (UUID) -> String?
 
     private var pushHandle: Task<Void, Never>?
     private var restHandle: Task<Void, Never>?
     private var mirrorHandle: Task<Void, Never>?
 
+    /// The request opening a deferred start's session while one is out, and the workout it is for.
+    ///
+    /// Deliberately not the push's own task. A push is cancelled and replaced every time a set is
+    /// logged, but an opening request cancelled on the device may still have landed on the server,
+    /// and a second one sent before the first's answer could be recognised would open a second
+    /// session. So every push joins the one in flight, and a finish or a discard waits on it
+    /// (`settleOpening`).
+    private var opening: (localId: UUID, request: Task<UUID, any Error>)?
+
+    /// Whether a finish or a discard is handing the workout over. No push starts meanwhile: the
+    /// hand-over does its own writes, and a push opening a deferred start beside it would make a
+    /// second session out of the same workout.
+    private var isHandingOver = false
+
+    /// - Parameter outbox: where a finished workout is set down when the server cannot be reached.
     /// - Parameter activity: the Lock Screen's copy of this workout. Defaults to one that shows
     ///   nothing, so a test exercises the store without another process in it.
     /// - Parameter restAlarm: what buzzes when the rest runs out, held by the system so it fires
@@ -73,22 +113,33 @@ final class ActiveWorkoutStore {
     /// - Parameter movementTitle: turns the current movement's id into the name the Lock Screen
     ///   shows. Injected for the same reason the haptic is: the movement library is another store,
     ///   and this one should not reach for it.
+    /// - Parameter onServerUnanswered: run when a hand-over settles without the server, so the
+    ///   app starts asking after it. A finish that ran out of patience on a weak connection never
+    ///   saw a request fail, and without this nothing would notice the server come back to take
+    ///   the workout from the outbox.
     init(
         document: ActiveWorkoutDocument = ActiveWorkoutDocument(),
         sessions: any WorkoutSessionWriting,
+        outbox: WorkoutOutbox,
         activity: any WorkoutActivityPresenting = NoWorkoutActivity(),
         restAlarm: any RestAlarmScheduling = NoRestAlarm(),
         now: @escaping @Sendable () -> Date = { Date() },
         onRestFinished: @escaping @MainActor () -> Void = {},
-        movementTitle: @escaping @MainActor (UUID) -> String? = { _ in nil }
+        movementTitle: @escaping @MainActor (UUID) -> String? = { _ in nil },
+        onServerUnanswered: @escaping @MainActor () -> Void = {},
+        patience: Patience = .standard
     ) {
         self.document = document
         self.sessions = sessions
+        delivery = WorkoutDelivery(sessions: sessions)
+        self.outbox = outbox
         self.activity = activity
         self.restAlarm = restAlarm
         self.now = now
         self.onRestFinished = onRestFinished
         self.movementTitle = movementTitle
+        self.onServerUnanswered = onServerUnanswered
+        self.patience = patience
     }
 
     // MARK: - Lifetime
@@ -115,6 +166,7 @@ final class ActiveWorkoutStore {
     /// quite happily, and the device can only hold one, so the extra one would be an orphan nobody
     /// could reach. Callers show "continue" rather than "start" instead of calling this.
     ///
+    /// - Parameter plannedSessionId: the planned session this workout is the training of, if any.
     /// - Returns: whether the workout began.
     @discardableResult
     func begin(
@@ -122,21 +174,40 @@ final class ActiveWorkoutStore {
         startedAt: Date,
         sets: [LoggedSet] = [],
         prescriptions: [SetPrescription] = [],
-        notes: String = ""
+        notes: String = "",
+        plannedSessionId: UUID? = nil
     ) -> Bool {
         guard workout == nil else { return false }
 
         adopt(ActiveWorkout(
             destination: destination,
             startedAt: startedAt,
-            // Resumed sets are already on the server; a workout that begins with none has nothing
-            // to push either way.
-            sync: .synced,
+            sync: Self.syncAtStart(of: destination),
             sets: sets,
             prescriptions: prescriptions,
-            notes: notes))
+            notes: notes,
+            plannedSessionId: plannedSessionId))
         finish = .idle
+        // A deferred start has a session to open, and trying straight away costs nothing: the
+        // server may well be back by the time the athlete has picked a movement.
+        if case .deferredStart = destination { schedulePush() }
         return true
+    }
+
+    /// Resumed sets are already on the server, and a workout that begins with none has nothing to
+    /// push — except a deferred start, whose session the server does not have yet.
+    private static func syncAtStart(of destination: WorkoutDestination) -> WorkoutSyncState {
+        switch destination {
+        case .liveSession, .afterTheFact: .synced
+        case .deferredStart: .pending
+        }
+    }
+
+    /// Pushes now if anything is waiting to reach the server. Called when the server is reachable
+    /// again, which is the moment a deferred start can be opened and a failed push can land.
+    func serverReturned() async {
+        guard workout?.sync.isWorthPushing == true else { return }
+        await syncNow()
     }
 
     /// Empties the store. Registered with `AuthStore`, so signing out cannot leave one athlete's
@@ -148,6 +219,10 @@ final class ActiveWorkoutStore {
     func reset() {
         pushHandle?.cancel()
         pushHandle = nil
+        // The one place an opening is cancelled: the credential it was sent with is gone, and the
+        // next athlete's workout must not wait on, or adopt, this one's session.
+        opening?.request.cancel()
+        opening = nil
         restHandle?.cancel()
         restHandle = nil
         workout = nil
@@ -300,7 +375,7 @@ final class ActiveWorkoutStore {
     /// pushes the deadline out, and every push carries the whole list anyway, so the one that
     /// eventually runs is never behind.
     private func schedulePush() {
-        guard workout?.destination.pushesAsItGoes == true else { return }
+        guard workout?.destination.pushesAsItGoes == true, !isHandingOver else { return }
 
         pushHandle?.cancel()
         pushHandle = Task { [weak self] in
@@ -321,8 +396,31 @@ final class ActiveWorkoutStore {
     }
 
     private func push() async {
-        guard let workout, let sessionId = workout.destination.sessionId else { return }
-        let pushed = workout.sets.map(\.command)
+        guard let workout, !isHandingOver else { return }
+
+        let sessionId: UUID
+        switch workout.destination {
+        case .afterTheFact:
+            return
+        case .liveSession(let id):
+            sessionId = id
+        case .deferredStart(let localId):
+            do {
+                sessionId = try await openSession(for: workout, localId: localId)
+            } catch is CancellationError {
+                return
+            } catch {
+                mark(refusalOrFailure(from: error))
+                return
+            }
+        }
+
+        // Read again rather than reusing the value above: opening a session is a round trip, and
+        // a set logged during it belongs in this push. Only while it is still this session's
+        // workout and nothing is handing it over.
+        guard let current = self.workout, current.destination.sessionId == sessionId, !isHandingOver
+        else { return }
+        let pushed = current.sets.map(\.command)
 
         do {
             _ = try await sessions.replaceSets(id: sessionId, with: pushed)
@@ -343,110 +441,156 @@ final class ActiveWorkoutStore {
         mark(.synced)
     }
 
-    /// Finishes the workout and hands it to the server.
+    /// The server's session for a deferred start, opened if it is not open yet.
     ///
-    /// Two different transactions, which is what `WorkoutDestination` exists to distinguish. A live
-    /// session has to have its sets pushed **first** — `POST /{id}/complete` carries only the
-    /// period and the effort, so completing over an unsynced set list would complete the session
-    /// without it. A workout logged after the fact is one `POST /completed` carrying everything.
+    /// The opening joins one already in flight rather than sending another (see `opening`), and the
+    /// workout is moved onto the session the moment it exists, so a force-quit after this point
+    /// relaunches into an ordinary live workout.
+    private func openSession(for workout: ActiveWorkout, localId: UUID) async throws -> UUID {
+        let request = opening.flatMap { $0.localId == localId ? $0.request : nil }
+            ?? Task { [delivery] in try await delivery.open(workout) }
+        opening = (localId, request)
+        // Released however it ends: an opening that failed must not answer the next attempt too.
+        defer { if opening?.request == request { opening = nil } }
+        let sessionId = try await request.value
+        adoptOpened(sessionId, for: localId)
+        return sessionId
+    }
+
+    /// Moves the deferred start `localId` onto the session the server opened for it — and nothing
+    /// else: an opening that lands after its workout was discarded must not claim the next one.
+    private func adoptOpened(_ sessionId: UUID, for localId: UUID) {
+        guard let current = workout, current.destination == .deferredStart(localId: localId) else { return }
+        adopt(current.opened(as: sessionId))
+    }
+
+    /// Waits for an opening in flight to land, cancelling it once `patience.opening` has passed.
+    private func settleOpening() async {
+        guard let inFlight = opening else { return }
+        let request = inFlight.request
+        let landed = try? await Deadline.waiting(
+            atMost: patience.opening, expiring: { CancellationError() }
+        ) {
+            // Awaiting a task's value does not end when the waiter is cancelled; cancelling the
+            // request does, which is what lets the deadline win.
+            try await withTaskCancellationHandler {
+                try await request.value
+            } onCancel: {
+                request.cancel()
+            }
+        }
+        if let landed { adoptOpened(landed, for: inFlight.localId) }
+    }
+
+    /// What finishing came to.
+    enum FinishOutcome: Equatable, Sendable {
+        /// The server has the workout.
+        case delivered
+        /// The server could not be reached, so the workout was set down in the outbox and will be
+        /// delivered when it can be.
+        case heldForDelivery
+        /// Not finished. `finish` says why, and the workout is still in flight.
+        case notFinished
+    }
+
+    /// Finishes the workout and hands it to the server, or, when the server cannot be reached, to
+    /// the outbox that will.
     ///
-    /// - Returns: whether the server took it. Only then is the local document cleared.
+    /// The transaction is `WorkoutDelivery.deliver`'s: a live session has its sets pushed before it
+    /// is completed, a workout logged after the fact is one `POST /completed`, and a deferred start
+    /// is whichever of those the server's state calls for. What this method adds is the device's
+    /// side: nothing is cleared until the server has the workout or the outbox holds it on disk.
     @discardableResult
-    func complete(effort: PerceivedEffortRequest?, endingAt end: Date) async -> Bool {
-        guard let workout else { return false }
+    func complete(effort: PerceivedEffortRequest?, endingAt end: Date) async -> FinishOutcome {
+        guard workout != nil, !isHandingOver else { return .notFinished }
         finish = .finishing
+        isHandingOver = true
+        defer { isHandingOver = false }
 
         // A coalescing push still waiting would otherwise race this one and land after the session
         // was completed, where it can only be refused.
         pushHandle?.cancel()
         pushHandle = nil
+        // An opening in flight lands first, so the finish reads a server that already shows it
+        // rather than opening the same workout a second time.
+        await settleOpening()
+        guard let workout else { return .notFinished }
 
         do {
-            switch workout.destination {
-            case .liveSession(let sessionId):
-                _ = try await sessions.replaceSets(id: sessionId, with: workout.sets.map(\.command))
-                if !workout.notes.isEmpty {
-                    // Notes ride their own route in every lifecycle state — they are commentary,
-                    // not state — so they go before the transition rather than with it. In the
-                    // chain rather than best-effort: silently dropping what the athlete wrote about
-                    // the session is worse than a refusal they can act on.
-                    _ = try await sessions.updateNotes(id: sessionId, to: workout.notes)
-                }
-                _ = try await sessions.complete(
-                    id: sessionId,
-                    period: .interval(from: workout.startedAt, to: end),
-                    effort: effort?.isEmpty == true ? nil : effort)
-
-            case .afterTheFact:
-                _ = try await sessions.logCompleted(
-                    sets: workout.sets.map(\.command),
-                    period: .interval(from: workout.startedAt, to: end),
-                    effort: effort?.isEmpty == true ? nil : effort,
-                    notes: workout.notes,
-                    programId: nil)
+            try await Deadline.waiting(atMost: patience.handOver, expiring: Self.outOfPatience) {
+                [delivery] in
+                try await delivery.deliver(workout, endingAt: end, effort: effort, mayHaveLanded: false)
             }
         } catch is CancellationError {
             finish = .idle
-            return false
+            return .notFinished
         } catch {
-            // A failure here does not establish that the workout did not land. If the server
-            // committed the completion and only the response was lost, the device's belief is
-            // wrong in the one direction that costs the athlete everything: it would offer to
-            // discard a workout the server is holding. So ask before concluding.
-            if await serverHasCompleted(workout.destination) {
-                clearLocally()
-                return true
-            }
-
+            // Signed out while the request was out: the workout went with the account, and setting
+            // it down now would hand it to whoever signs in next.
+            guard self.workout != nil else { return .notFinished }
             let failure = (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))
+            if case .offline = failure {
+                onServerUnanswered()
+                return holdForDelivery(FinishedWorkout(workout: workout, endedAt: end, effort: effort))
+            }
             finish = .refused(failure)
             if case .refused = failure { mark(.refused(failure.message)) }
-            return false
+            return .notFinished
         }
 
         clearLocally()
-        return true
+        return .delivered
     }
 
-    /// Whether the server already holds this workout as a completed session.
-    ///
-    /// Only ever consulted to avoid destroying work. A read that itself fails answers `false`,
-    /// which keeps the local document — the recoverable mistake. Answering `true` on a failed read
-    /// would clear the only copy on a guess.
-    private func serverHasCompleted(_ destination: WorkoutDestination) async -> Bool {
-        guard let sessionId = destination.sessionId else { return false }
-
-        guard let session = try? await sessions.session(id: sessionId) else { return false }
-        if case .completed = session { return true }
-        return false
+    /// Sets the finished workout down in the outbox and lets it go from here, in that order.
+    private func holdForDelivery(_ finished: FinishedWorkout) -> FinishOutcome {
+        guard outbox.hold(finished) else {
+            finish = .refused(.unavailable(
+                "Lionheart is not reachable, and the finished workout could not be saved on this phone."))
+            return .notFinished
+        }
+        clearLocally()
+        return .heldForDelivery
     }
 
     /// Abandons the workout, and removes the session it was holding.
     ///
     /// The delete is best-effort and the local clear is not. A session left active on the server is
     /// visible in the Train tab and can be discarded again from there; a workout the athlete cannot
-    /// dismiss is a dead end, and an accidental tap on "start" must not be one.
-    ///
-    /// **A session the server has already completed is never deleted.** The athlete reaches this
-    /// from a finish that looked refused, which a lost response produces just as readily as a
-    /// genuine failure — so "discard" can mean "throw away the workout I just saved". The local
-    /// copy still goes, because the server is holding the real one.
+    /// dismiss is a dead end, and an accidental tap on "start" must not be one. A session the
+    /// server has completed is never deleted; see `WorkoutDelivery.withdraw`.
     func discard() async {
-        guard let workout else { return }
+        guard let workout, !isHandingOver else { return }
+        isHandingOver = true
+        defer { isHandingOver = false }
         pushHandle?.cancel()
         pushHandle = nil
+        await settleOpening()
 
-        if let sessionId = workout.destination.sessionId {
-            let alreadySaved = await serverHasCompleted(workout.destination)
-            if !alreadySaved { try? await sessions.delete(id: sessionId) }
+        let withdrawn = self.workout ?? workout
+        do {
+            try await Deadline.waiting(atMost: patience.handOver, expiring: Self.outOfPatience) {
+                [delivery] in
+                await delivery.withdraw(withdrawn)
+            }
+        } catch {
+            // The withdrawal itself never throws; only running out of patience does.
+            onServerUnanswered()
         }
         clearLocally()
     }
 
+    /// A hand-over that ran out of patience reads as a server that could not be reached, which
+    /// from the gym floor it is.
+    private nonisolated static func outOfPatience() -> any Error {
+        APIError.transport("The server did not answer in time.")
+    }
+
     // MARK: -
 
-    /// Drops the local copy of the workout. The one thing it must never be called before is a 2xx
-    /// from the completing route — this is what makes the device's copy unrecoverable.
+    /// Drops the local copy of the workout. It must never be called before the server or the outbox
+    /// holds the workout (or the athlete has asked to throw it away): this is what makes the
+    /// device's copy unrecoverable.
     private func clearLocally() {
         restHandle?.cancel()
         restHandle = nil

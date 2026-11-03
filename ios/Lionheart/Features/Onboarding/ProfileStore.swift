@@ -24,6 +24,12 @@ final class ProfileStore {
     /// Asks the server whether this account has a profile. Safe to call again; the later answer
     /// wins by construction rather than by luck.
     func refresh() async {
+        // The first answer of a launch comes from the device when it has one. The gate stands in
+        // front of every tab, so a launch with no signal must not wait on the server to open the
+        // app; the read below corrects the gate if the server says otherwise.
+        if case .undetermined = gate, let recalled = users.recalledProfileBoot(.profileBoot) {
+            gate = gate.applying(.success(recalled))
+        }
         load?.cancel()
         let task = Task { await self.readBoot() }
         load = task
@@ -70,9 +76,12 @@ final class ProfileStore {
         creation = .editing
     }
 
+    /// Remembered, because this answer decides whether the tabs exist at all: a launch with no
+    /// signal opens on what the server said last rather than on a retry screen, and the athlete
+    /// can still log the workout they came to the gym for.
     private func readBoot() async {
         do {
-            gate = gate.applying(.success(try await users.profileBoot()))
+            gate = gate.applying(.success(try await users.profileBoot(remembering: .profileBoot).value))
         } catch is CancellationError {
             return
         } catch {

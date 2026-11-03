@@ -92,7 +92,7 @@ struct ActiveWorkoutBar: View {
     private var headline: String {
         if let movementTitle, !movementTitle.isEmpty { return movementTitle }
         switch workout.destination {
-        case .liveSession: return "Workout in progress"
+        case .liveSession, .deferredStart: return "Workout in progress"
         case .afterTheFact: return "Logging a past workout"
         }
     }
@@ -134,7 +134,7 @@ struct ActiveWorkoutBar: View {
     @ViewBuilder
     private func trailing(at now: Date) -> some View {
         switch workout.destination {
-        case .liveSession:
+        case .liveSession, .deferredStart:
             Text(Formatting.clock(seconds: workout.elapsed(at: now)))
                 .font(.body.monospacedDigit())
                 .foregroundStyle(Color(.label))
@@ -158,7 +158,7 @@ struct ActiveWorkoutBar: View {
             parts.append("resting, \(Int(workout.rest.remaining(at: now))) seconds left")
         }
         if !workout.sets.isEmpty { parts.append(Formatting.count(workout.sets.count, "set")) }
-        if case .liveSession = workout.destination {
+        if workout.destination.isLive {
             parts.append("\(Formatting.duration(seconds: workout.elapsed(at: now))) elapsed")
         }
         return parts.joined(separator: ", ")
