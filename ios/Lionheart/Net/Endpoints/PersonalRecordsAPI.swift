@@ -13,11 +13,7 @@ struct PersonalRecordsAPI: Sendable {
     ///
     /// The grouped read rather than the flat one: every screen that reads records asks "what are
     /// my numbers on this movement", and the flat list would make each of them re-group it.
-    func summaries() async throws -> [SubjectRecords] {
-        try await client.get("\(Self.root)/summaries", as: LenientList<SubjectRecords>.self).elements
-    }
-
-    /// The summaries as a screen reads them, remembered under `key`.
+    /// Remembered under `key`.
     func summaries(remembering key: ReadKey) async throws -> Remembered<[SubjectRecords]> {
         try await client.get(
             "\(Self.root)/summaries", as: LenientList<SubjectRecords>.self, remembering: key

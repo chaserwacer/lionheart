@@ -89,6 +89,15 @@ final class ARecordingServer: WorkoutSessionWriting, @unchecked Sendable {
     var failOpening: (any Error)?
     /// How long an unplanned start takes to answer, so a test can overlap two.
     var openingTakes: Duration = .zero
+    /// How long a read of the sessions around a start takes, so a test can act while one is out.
+    var windowReadTakes: Duration = .zero
+    /// Failures for the next whole-workout logs, one each, in order; the ones after succeed.
+    var failNextLogs: [any Error] = []
+    /// Makes a planned start land on the server and answer a refusal all the same — what a
+    /// device sees when its own earlier start landed after it stopped waiting for the answer.
+    var plannedStartLandsRefused = false
+    /// Makes a read of the session answer that it is gone.
+    var sessionIsGone = false
 
     /// What a read of the session answers. `nil` makes the read itself fail, which is the case the
     /// store must treat as "I cannot tell" rather than as "not completed".
@@ -100,18 +109,24 @@ final class ARecordingServer: WorkoutSessionWriting, @unchecked Sendable {
 
     func session(id: UUID) async throws -> TrainingSession {
         sessionReads.append(id)
+        if sessionIsGone { throw APIError.notFound(detail: nil) }
         guard let sessionOnServer else { throw APIError.transport("the read itself failed") }
         return sessionOnServer
     }
 
     func sessions(from: Date, to: Date) async throws -> [TrainingSession] {
         windowReads += 1
+        try await Task.sleep(for: windowReadTakes)
         guard let sessionsAround else { throw APIError.transport("The network is not reachable.") }
         return sessionsAround
     }
 
     func start(id: UUID, at startedAt: Date) async throws -> TrainingSession {
         plannedStarts.append(id)
+        if plannedStartLandsRefused {
+            sessionOnServer = Self.anActiveSession(id: id, startedAt: startedAt)
+            throw APIError.refused(detail: "A active session cannot be started.")
+        }
         if let failOpening { throw failOpening }
         return Self.anActiveSession(id: id, startedAt: startedAt)
     }
@@ -154,6 +169,7 @@ final class ARecordingServer: WorkoutSessionWriting, @unchecked Sendable {
         programId: UUID?
     ) async throws -> TrainingSession {
         if let failCompletion { throw failCompletion }
+        if !failNextLogs.isEmpty { throw failNextLogs.removeFirst() }
         efforts.append(effort)
         logged.append(sets)
         return Self.anActiveSession(id: AWorkout.session)
@@ -163,10 +179,15 @@ final class ARecordingServer: WorkoutSessionWriting, @unchecked Sendable {
         deletions.append(id)
     }
 
-    static func aCompletedSession(id: UUID, startedAt: Date = AWorkout.start) -> TrainingSession {
+    /// - Parameter setCount: how many sets it holds, which is part of how a finished workout is
+    ///   recognised among the server's sessions.
+    static func aCompletedSession(
+        id: UUID, startedAt: Date = AWorkout.start, setCount: Int = 0
+    ) -> TrainingSession {
         .completed(TrainingSession.Completed(
             envelope: anEnvelope(id),
-            sets: [],
+            sets: Array(
+                repeating: .freeform(SetEntry.Common(source: .formed, facets: [])), count: setCount),
             period: .instant(at: startedAt),
             effort: .notReported,
             decoration: .none))

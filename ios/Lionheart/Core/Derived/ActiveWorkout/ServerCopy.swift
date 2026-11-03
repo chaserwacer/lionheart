@@ -9,9 +9,12 @@ import Foundation
 /// server has and recognises its own work there.
 ///
 /// Recognition is by **start instant**. The device chooses a workout's start, sends exactly that
-/// instant, and the server stores it as sent; nothing else this athlete does lands on the same
-/// second. That makes the start the one key both sides already share, without the server having to
-/// accept a client-chosen id.
+/// instant, and the server stores it as sent, which makes the start the one key both sides already
+/// share without the server having to accept a client-chosen id. A live start is to the second and
+/// nothing else lands on it. A past workout's start is a time the athlete picked, to the minute,
+/// and two of them can share one; so a completed session must also hold as many sets as the
+/// workout to be it. Each set the device sends becomes one set on the server, and a completed
+/// session's sets do not change afterwards.
 enum ServerCopy: Equatable, Sendable {
     /// Nothing on the server is this workout.
     case absent
@@ -28,18 +31,18 @@ enum ServerCopy: Equatable, Sendable {
     static let tolerance: TimeInterval = 1
 
     /// This workout's copy among `sessions`, read from a window around its start.
-    static func among(_ sessions: [TrainingSession], startedAt: Date) -> ServerCopy {
-        sessions.lazy.map { carrying($0, startedAt: startedAt) }.first { $0 != .absent } ?? .absent
+    static func among(_ sessions: [TrainingSession], of workout: ActiveWorkout) -> ServerCopy {
+        sessions.lazy.map { carrying($0, workout) }.first { $0 != .absent } ?? .absent
     }
 
     /// What the plan a workout was started from says about it, or `nil` when the plan is no longer
     /// this workout's: started, skipped or completed somewhere else, or removed.
     ///
     /// - Parameter plan: the planned session as the server now holds it, or `nil` when it is gone.
-    static func ofPlan(_ plan: TrainingSession?, startedAt: Date) -> ServerCopy? {
+    static func ofPlan(_ plan: TrainingSession?, of workout: ActiveWorkout) -> ServerCopy? {
         guard let plan else { return nil }
         if case .planned(let planned) = plan { return .planWaiting(planned.envelope.trainingSessionId) }
-        let copy = carrying(plan, startedAt: startedAt)
+        let copy = carrying(plan, workout)
         switch copy {
         case .absent: return nil
         case .planWaiting, .active, .completed: return copy
@@ -50,14 +53,17 @@ enum ServerCopy: Equatable, Sendable {
     ///
     /// A session in any other state, or one that began at another instant, is not: a planned or
     /// skipped session has no start to compare, and an active one started elsewhere is somebody
-    /// else's workout even when it is the same athlete's.
-    private static func carrying(_ session: TrainingSession, startedAt: Date) -> ServerCopy {
+    /// else's workout even when it is the same athlete's. An active one's sets are not compared:
+    /// they are what the next push replaces.
+    private static func carrying(_ session: TrainingSession, _ workout: ActiveWorkout) -> ServerCopy {
         switch session {
         case .active(let active):
-            return isSameStart(active.startedAt, startedAt)
+            return isSameStart(active.startedAt, workout.startedAt)
                 ? .active(active.envelope.trainingSessionId) : .absent
         case .completed(let completed):
-            guard let start = completed.period.startTime, isSameStart(start, startedAt) else { return .absent }
+            guard let start = completed.period.startTime, isSameStart(start, workout.startedAt),
+                  completed.sets.count == workout.sets.count
+            else { return .absent }
             return .completed(completed.envelope.trainingSessionId)
         case .planned, .skipped, .unrecognised:
             return .absent

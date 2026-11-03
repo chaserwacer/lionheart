@@ -187,13 +187,13 @@ final class APIClient: Sendable {
 
     /// Runs one request and tells `ServerReachability` what it came to.
     ///
-    /// Only the transport's own verdict counts: a request that never completed says the server is
-    /// not reachable, and any answer at all, a 500 included, says it is. `HTTP.send` throws nothing
-    /// else but cancellation, which says neither.
+    /// A request that never completed says the server is not reachable, and so does the gateway
+    /// answering in its place (`HTTP.isGatewayStandIn`); any answer of the server's own, a 500
+    /// included, says it is. `HTTP.send` throws nothing else but cancellation, which says neither.
     private func reported(_ request: () async throws -> (Data, Int)) async throws -> (Data, Int) {
         do {
             let answer = try await request()
-            await reachability.record(answered: true)
+            await reachability.record(answered: !HTTP.isGatewayStandIn(status: answer.1, body: answer.0))
             return answer
         } catch let error as APIError {
             await reachability.record(answered: false)

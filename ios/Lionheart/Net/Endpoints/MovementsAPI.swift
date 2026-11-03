@@ -13,13 +13,8 @@ import Foundation
 struct MovementsAPI: Sendable {
     let client: APIClient
 
-    /// Every movement the athlete has configured.
-    func movements() async throws -> [MovementData] {
-        try await client.get("/api/movement-datas", as: LenientList<MovementData>.self).elements
-    }
-
-    /// The catalogue as a screen reads it, remembered under `key`. The picker needs it most with no
-    /// signal: without it a workout started in a basement has nothing to log against.
+    /// Every movement the athlete has configured, remembered under `key`. The picker needs it most
+    /// with no signal: without it a workout started in a basement has nothing to log against.
     func movements(remembering key: ReadKey) async throws -> Remembered<[MovementData]> {
         try await client.get(
             "/api/movement-datas", as: LenientList<MovementData>.self, remembering: key

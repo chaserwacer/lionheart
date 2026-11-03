@@ -8,11 +8,13 @@ import Testing
 struct ServerCopyTests {
     private static let ours = UUID()
     private static let start = AWorkout.start
+    private static let workout = ActiveWorkout(
+        destination: .deferredStart(localId: UUID()), startedAt: start, sync: .pending)
 
     @Test("An active session that began at this workout's start is this workout")
     func anActiveSessionAtTheSameStart() {
         let found = ServerCopy.among(
-            [ARecordingServer.anActiveSession(id: Self.ours, startedAt: Self.start)], startedAt: Self.start)
+            [ARecordingServer.anActiveSession(id: Self.ours, startedAt: Self.start)], of: Self.workout)
 
         #expect(found == .active(Self.ours))
     }
@@ -20,9 +22,22 @@ struct ServerCopyTests {
     @Test("A completed session is recognised by where its period begins")
     func aCompletedSessionByItsPeriod() {
         let found = ServerCopy.among(
-            [ARecordingServer.aCompletedSession(id: Self.ours, startedAt: Self.start)], startedAt: Self.start)
+            [ARecordingServer.aCompletedSession(id: Self.ours, startedAt: Self.start)], of: Self.workout)
 
         #expect(found == .completed(Self.ours))
+    }
+
+    @Test("A completed session at the same start holding other sets is another workout")
+    func aCompletedSessionWithOtherSets() {
+        // Two past workouts left at the default start: delivering the second must not read the
+        // first as already done, which would delete the second's only copy.
+        let delivered = ARecordingServer.aCompletedSession(id: UUID(), startedAt: Self.start, setCount: 3)
+        let workout = AWorkout.retro(sets: [AWorkout.words()])
+
+        #expect(ServerCopy.among([delivered], of: workout) == .absent)
+        #expect(ServerCopy.among(
+            [ARecordingServer.aCompletedSession(id: Self.ours, startedAt: Self.start, setCount: 1)],
+            of: workout) == .completed(Self.ours))
     }
 
     @Test("A session that began at another instant is somebody else's workout")
@@ -32,7 +47,7 @@ struct ServerCopyTests {
             ARecordingServer.aCompletedSession(id: UUID(), startedAt: Self.start.addingTimeInterval(30)),
         ]
 
-        #expect(ServerCopy.among(sessions, startedAt: Self.start) == .absent)
+        #expect(ServerCopy.among(sessions, of: Self.workout) == .absent)
     }
 
     @Test("A planned or skipped session has no start to recognise")
@@ -42,32 +57,32 @@ struct ServerCopyTests {
             ARecordingServer.aSkippedSession(id: UUID()),
         ]
 
-        #expect(ServerCopy.among(sessions, startedAt: Self.start) == .absent)
+        #expect(ServerCopy.among(sessions, of: Self.workout) == .absent)
     }
 
     @Test("A plan still planned is waiting to be this workout's")
     func aStillPlannedPlan() {
-        #expect(ServerCopy.ofPlan(ARecordingServer.aPlannedSession(id: Self.ours), startedAt: Self.start)
+        #expect(ServerCopy.ofPlan(ARecordingServer.aPlannedSession(id: Self.ours), of: Self.workout)
             == .planWaiting(Self.ours))
     }
 
     @Test("A plan this workout started or finished answers with that")
     func aPlanCarryingThisWorkout() {
         #expect(ServerCopy.ofPlan(
-            ARecordingServer.anActiveSession(id: Self.ours, startedAt: Self.start), startedAt: Self.start)
+            ARecordingServer.anActiveSession(id: Self.ours, startedAt: Self.start), of: Self.workout)
             == .active(Self.ours))
         #expect(ServerCopy.ofPlan(
-            ARecordingServer.aCompletedSession(id: Self.ours, startedAt: Self.start), startedAt: Self.start)
+            ARecordingServer.aCompletedSession(id: Self.ours, startedAt: Self.start), of: Self.workout)
             == .completed(Self.ours))
     }
 
     @Test("A plan skipped, started elsewhere or removed is no longer this workout's")
     func aLostPlan() {
-        #expect(ServerCopy.ofPlan(ARecordingServer.aSkippedSession(id: Self.ours), startedAt: Self.start) == nil)
+        #expect(ServerCopy.ofPlan(ARecordingServer.aSkippedSession(id: Self.ours), of: Self.workout) == nil)
         #expect(ServerCopy.ofPlan(
             ARecordingServer.anActiveSession(id: Self.ours, startedAt: Self.start.addingTimeInterval(-900)),
-            startedAt: Self.start) == nil)
-        #expect(ServerCopy.ofPlan(nil, startedAt: Self.start) == nil)
+            of: Self.workout) == nil)
+        #expect(ServerCopy.ofPlan(nil, of: Self.workout) == nil)
     }
 }
 

@@ -138,24 +138,32 @@ final class TodayStore {
 
     // MARK: - Trends
 
-    /// Reads one figure's trend. A failed re-read keeps the trend already shown.
+    /// Reads one figure's trend. A failed re-read keeps the trend already shown, and with no
+    /// server the last one read for the span is shown, marked with its time.
     func loadTrend(_ key: MetricTrendKey) async {
         let range = key.range()
-        let outcome: Result<MetricTrend, LoadFailure>
+        let today = self.today
+        let span = "trend-\(key.span.days)"
         do {
-            async let days = oura.days(from: range.from, to: range.to)
+            async let days = oura.days(
+                from: range.from, to: range.to,
+                remembering: .today("\(span).days", showing: key.endingOn, today: today))
             // Only the night figures need the nights, and a year of them is the heaviest read here.
-            let nights = key.metric.isReadFromTheNight
+            let nights: Remembered<[OuraEvent<OuraSleepPeriod>]> = key.metric.isReadFromTheNight
                 ? try await oura.sleepPeriods(
-                    from: range.from.adding(days: -1).startDate(), to: range.to.adding(days: 1).startDate())
-                : []
-            outcome = .success(MetricTrend.reading(key, days: try await days, nights: nights, today: today))
+                    from: range.from.adding(days: -1).startDate(), to: range.to.adding(days: 1).startDate(),
+                    remembering: .today("\(span).nights", showing: key.endingOn, today: today))
+                : .current([])
+            let daysRead = try await days
+            let trend = MetricTrend.reading(key, days: daysRead.value, nights: nights.value, today: today)
+            trends[key] = (trends[key] ?? .loading).applying(
+                .derived(trend, from: [daysRead.asOf, nights.asOf]))
         } catch is CancellationError {
             return
         } catch {
-            outcome = .failure((try? LoadFailure.from(error)) ?? .unavailable(String(describing: error)))
+            trends[key] = (trends[key] ?? .loading).applying(.failure(
+                (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))))
         }
-        trends[key] = (trends[key] ?? .loading).applying(outcome)
     }
 
     // MARK: - Quick log

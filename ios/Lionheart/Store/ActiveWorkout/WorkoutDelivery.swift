@@ -27,16 +27,32 @@ struct WorkoutDelivery: Sendable {
         case .active(let id):
             return id
         case .planWaiting(let plan):
-            do {
-                return try Self.activeId(await sessions.start(id: plan, at: workout.startedAt))
-            } catch let refusal as APIError where refusal.losesThePlan {
-                // Lost between the read and the start. The plan is no longer this workout's.
-                return try await openUnplanned(workout)
+            switch try await start(plan, for: workout) {
+            case .active(let id): return id
+            case .completed: throw Self.alreadyCompleted
+            case .absent, .planWaiting: return try await openUnplanned(workout)
             }
         case .absent:
             return try await openUnplanned(workout)
         case .completed:
-            throw APIError.refused(detail: "This workout is already recorded as completed.")
+            throw Self.alreadyCompleted
+        }
+    }
+
+    private static let alreadyCompleted = APIError.refused(detail: "This workout is already recorded as completed.")
+
+    /// Starts the plan a workout came from, and answers what the plan holds of the workout after:
+    /// `.active` with the session it became, `.completed` if the workout is already on it, or
+    /// `.absent` when it is no longer this workout's to start.
+    ///
+    /// A refusal is read back before it is believed. The plan may have been started or skipped
+    /// elsewhere, but the 409 may equally be this device's own earlier start, landed after the
+    /// device stopped waiting for its answer, and only the plan's start can tell the two apart.
+    private func start(_ plan: UUID, for workout: ActiveWorkout) async throws -> ServerCopy {
+        do {
+            return .active(try Self.activeId(await sessions.start(id: plan, at: workout.startedAt)))
+        } catch let refusal as APIError where refusal.losesThePlan {
+            return ServerCopy.ofPlan(try await session(plan), of: workout) ?? .absent
         }
     }
 
@@ -77,14 +93,11 @@ struct WorkoutDelivery: Sendable {
             case .active(let id):
                 try await complete(id, workout, period: period, effort: effort)
             case .planWaiting(let plan):
-                let id: UUID
-                do {
-                    id = try Self.activeId(await sessions.start(id: plan, at: workout.startedAt))
-                } catch let refusal as APIError where refusal.losesThePlan {
-                    try await logWhole(workout, period: period, effort: effort)
-                    return
+                switch try await start(plan, for: workout) {
+                case .active(let id): try await complete(id, workout, period: period, effort: effort)
+                case .completed: return
+                case .absent, .planWaiting: try await logWhole(workout, period: period, effort: effort)
                 }
-                try await complete(id, workout, period: period, effort: effort)
             case .absent:
                 // Never reached the server while it was being trained, so it lands the way a
                 // workout written down afterwards does: whole, in one request.
@@ -97,8 +110,10 @@ struct WorkoutDelivery: Sendable {
     /// `POST /{id}/complete` carries only the period and the effort, so completing over an unsynced
     /// list would complete the session without them.
     ///
-    /// A failure is not the end of it: if the server committed the completion and only the answer
-    /// was lost, the session reads back completed, and that is a delivery.
+    /// A failure is not the end of it. If the server committed the completion and only the answer
+    /// was lost, the session reads back completed, and that is a delivery. If the session is gone,
+    /// deleted somewhere else, the workout lands whole as a session of its own: the sets are real
+    /// whatever became of the session they were logged against.
     private func complete(
         _ id: UUID, _ workout: ActiveWorkout, period: PeriodRequest, effort: PerceivedEffortRequest?
     ) async throws {
@@ -113,11 +128,23 @@ struct WorkoutDelivery: Sendable {
             _ = try await sessions.complete(id: id, period: period, effort: effort)
         } catch is CancellationError {
             throw CancellationError()
-        } catch {
-            // A read that itself fails answers "not completed", which keeps the device's copy: the
+        } catch let failure {
+            // A read that itself fails answers "not delivered", which keeps the device's copy: the
             // recoverable mistake. Answering otherwise would clear the only copy on a guess.
-            if case .completed? = try? await sessions.session(id: id) { return }
-            throw error
+            let held: TrainingSession?
+            do {
+                held = try await session(id)
+            } catch {
+                throw failure
+            }
+            switch held {
+            case .completed?:
+                return
+            case nil:
+                try await logWhole(workout, period: period, effort: effort)
+            case .active?, .planned?, .skipped?, .unrecognised?:
+                throw failure
+            }
         }
     }
 
@@ -161,7 +188,7 @@ struct WorkoutDelivery: Sendable {
     /// the sessions around the start, for everything else.
     private func copy(of workout: ActiveWorkout) async throws -> ServerCopy {
         if let plan = workout.plannedSessionId,
-           let copy = ServerCopy.ofPlan(try await session(plan), startedAt: workout.startedAt) {
+           let copy = ServerCopy.ofPlan(try await session(plan), of: workout) {
             return copy
         }
         return try await nearby(workout)
@@ -180,7 +207,7 @@ struct WorkoutDelivery: Sendable {
         let found = try await sessions.sessions(
             from: workout.startedAt.addingTimeInterval(-Self.searchMargin),
             to: workout.startedAt.addingTimeInterval(Self.searchMargin))
-        return ServerCopy.among(found, startedAt: workout.startedAt)
+        return ServerCopy.among(found, of: workout)
     }
 
     /// The active session a start answered with. A 2xx carrying anything else would have the

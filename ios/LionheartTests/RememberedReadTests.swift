@@ -209,6 +209,29 @@ struct ServerReachabilityTests {
     }
 }
 
+/// The gateway in front of the server answering for it when the server is not running.
+@Suite("Gateway stand-in")
+struct GatewayStandInTests {
+    @Test("A gateway status with no problem document is the server not being there")
+    func theGatewaysOwnAnswerIsUnreachable() {
+        let body = Data("Bad Gateway".utf8)
+
+        #expect(HTTP.isGatewayStandIn(status: 502, body: body))
+        guard case .transport? = HTTP.failure(status: 502, body: body) else {
+            Issue.record("expected a transport failure")
+            return
+        }
+    }
+
+    @Test("The server's own 502, an upstream failing, is still the server's answer")
+    func theServersOwn502IsAnAnswer() {
+        let body = Data(#"{"title":"Upstream failure","detail":"Oura did not answer.","status":502}"#.utf8)
+
+        #expect(!HTTP.isGatewayStandIn(status: 502, body: body))
+        #expect(HTTP.failure(status: 502, body: body) == .upstream(detail: "Oura did not answer."))
+    }
+}
+
 /// Waiting for a start, but not for ever.
 @Suite("Deadline")
 struct DeadlineTests {

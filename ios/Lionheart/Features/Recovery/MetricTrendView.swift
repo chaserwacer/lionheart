@@ -50,8 +50,8 @@ struct MetricTrendView: View {
                 .listRowBackground(Color.clear)
             case .loaded(let trend):
                 content(trend, staleBecause: nil)
-            case .stale(let trend, let failure):
-                content(trend, staleBecause: failure)
+            case .stale(let trend, let staleness):
+                content(trend, staleBecause: staleness)
             }
         }
         .listStyle(.insetGrouped)
@@ -65,8 +65,8 @@ struct MetricTrendView: View {
     }
 
     @ViewBuilder
-    private func content(_ trend: MetricTrend, staleBecause failure: LoadFailure?) -> some View {
-        if let failure { StaleBanner(failure: failure) }
+    private func content(_ trend: MetricTrend, staleBecause staleness: Staleness?) -> some View {
+        if let staleness { StaleBanner(staleness) }
 
         if trend.points.count < 2 {
             ContentUnavailableView {

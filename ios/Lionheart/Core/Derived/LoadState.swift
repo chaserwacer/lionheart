@@ -44,6 +44,15 @@ enum LoadState<Value: Equatable & Sendable>: Equatable, Sendable {
         }
     }
 
+    /// Whether the screen is short of the server's current answer, with a value or without one —
+    /// what a read when the server returns could put right.
+    var isWaitingOnServer: Bool {
+        switch self {
+        case .stale, .unavailable: true
+        case .loading, .loaded: false
+        }
+    }
+
     /// Where this state goes when an attempt finishes.
     ///
     /// A success replaces whatever was there. A failure keeps a value if there is one and degrades
@@ -87,7 +96,6 @@ enum Staleness: Equatable, Sendable {
         }
     }
 }
-
 
 /// Why a screen could not get what it asked for.
 ///

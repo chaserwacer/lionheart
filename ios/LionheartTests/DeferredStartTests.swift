@@ -182,7 +182,42 @@ struct DeferredStartTests {
         #expect(store.workout?.destination == .liveSession(Self.plan))
     }
 
+    @Test("A refused start that was this device's own, landed late, is not opened again")
+    func aLateOwnStartIsRecognised() async {
+        let server = ARecordingServer()
+        server.sessionOnServer = ARecordingServer.aPlannedSession(id: Self.plan)
+        server.plannedStartLandsRefused = true
+        let (store, _, _, _) = Self.aStore(server)
+        Self.beginDeferred(store, fromPlan: Self.plan)
+
+        await store.syncNow()
+
+        // The 409 named the plan as started, and the plan's start is this workout's.
+        #expect(server.unplannedStarts.isEmpty)
+        #expect(store.workout?.destination == .liveSession(Self.plan))
+    }
+
     // MARK: - Finishing
+
+    @Test("The server returning while a finish is out does not open the workout beside it")
+    func aFinishInFlightHoldsOffPushes() async {
+        let server = ARecordingServer()
+        server.windowReadTakes = .milliseconds(200)
+        let (store, _, _, _) = Self.aStore(server)
+        Self.beginDeferred(store)
+        store.log(.freeform(text: "a set"), restingFor: nil)
+
+        async let outcome = store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+        try? await Task.sleep(for: .milliseconds(50))
+        // What the app does the moment any request is answered after a spell of none.
+        await store.serverReturned()
+
+        #expect(await outcome == .delivered)
+        // One session, the whole one the finish logged: no second opened by a push beside it.
+        #expect(server.logged == [[.freeform(text: "a set")]])
+        #expect(server.unplannedStarts.isEmpty)
+        #expect(server.pushedSets.isEmpty)
+    }
 
     @Test("Finished before the server was ever reached, it is set down for delivery")
     func finishingOfflineHoldsIt() async throws {
@@ -214,6 +249,23 @@ struct DeferredStartTests {
         #expect(server.logged == [[.freeform(text: "a set")]])
         #expect(server.unplannedStarts.isEmpty)
         #expect(server.completions == 0)
+    }
+
+    @Test("A live session deleted elsewhere is finished as a workout of its own")
+    func aDeletedSessionLandsWhole() async {
+        let server = ARecordingServer()
+        server.failPushes = APIError.notFound(detail: nil)
+        server.sessionIsGone = true
+        let (store, document, _, _) = Self.aStore(server)
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+        store.log(.freeform(text: "a set"), restingFor: nil)
+
+        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+
+        // The sets are real whatever became of the session they were logged against.
+        #expect(outcome == .delivered)
+        #expect(server.logged == [[.freeform(text: "a set")]])
+        #expect(document.read() == nil)
     }
 
     @Test("Discarding a deferred start removes a session it opened without hearing back")
@@ -286,7 +338,9 @@ struct WorkoutOutboxTests {
         // The earlier attempt landed and only its answer was lost; `POST /completed` sent again
         // would make a second session of the same sets.
         let server = ARecordingServer()
-        server.sessionsAround = [ARecordingServer.aCompletedSession(id: UUID(), startedAt: AWorkout.start)]
+        server.sessionsAround = [
+            ARecordingServer.aCompletedSession(id: UUID(), startedAt: AWorkout.start, setCount: 1),
+        ]
         let (outbox, _) = anOutbox(sending: server)
         #expect(outbox.hold(Self.aFinished()))
 
@@ -324,6 +378,35 @@ struct WorkoutOutboxTests {
         #expect(outbox.finished.map(\.delivery) == [.refused("A completed session cannot be completed.")])
         #expect(document.read().map(\.delivery) == [.refused("A completed session cannot be completed.")])
         #expect(!outbox.hasDeliverableWork)
+    }
+
+    @Test("One the server faults on does not hold up the ones behind it")
+    func aServerFaultSkipsOnlyThatOne() async {
+        let server = ARecordingServer()
+        server.failNextLogs = [APIError.server(detail: nil)]
+        let (outbox, _) = anOutbox(sending: server)
+        let faulted = Self.aFinished(AWorkout.retro(sets: [AWorkout.words("first")]))
+        #expect(outbox.hold(faulted))
+        #expect(outbox.hold(Self.aFinished(AWorkout.retro(sets: [AWorkout.words("second")]))))
+
+        await outbox.deliver()
+
+        #expect(server.logged == [[.freeform(text: "second")]])
+        // Still waiting rather than refused: a fault of the server's may clear next time.
+        #expect(outbox.finished.map(\.id) == [faulted.id])
+        #expect(outbox.hasDeliverableWork)
+    }
+
+    @Test("One the server will not accept is refused, so the athlete can let it go")
+    func anInvalidWorkoutIsRefused() async {
+        let server = ARecordingServer()
+        server.failNextLogs = [APIError.invalid(fields: [:], detail: "A set needs a movement.")]
+        let (outbox, _) = anOutbox(sending: server)
+        #expect(outbox.hold(Self.aFinished()))
+
+        await outbox.deliver()
+
+        #expect(outbox.finished.map(\.delivery) == [.refused("A set needs a movement.")])
     }
 
     @Test("Only a refused workout can be discarded")

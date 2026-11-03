@@ -93,21 +93,50 @@ final class WorkoutOutbox {
             } catch is CancellationError {
                 return
             } catch {
-                let failure = (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))
-                switch failure {
-                case .offline, .unavailable:
-                    // Not reached, or not answered properly: the ones behind it would meet the
-                    // same server. They wait for the next return together.
+                switch Self.verdict(on: error) {
+                case .serverAway:
+                    // The ones behind it would meet the same absent server. They wait for its
+                    // return together.
                     return
+                case .tryAgainLater:
+                    continue
                 case .refused(let reason):
                     settle(waiting.refused(reason))
-                case .notFound:
-                    settle(waiting.refused("The session it belongs to is no longer on the server."))
+                    continue
                 }
-                continue
             }
             document.remove(waiting.id)
             finished.removeAll { $0.id == waiting.id }
+        }
+    }
+
+    /// What one failed delivery means for it and for the ones behind it.
+    private enum Verdict {
+        /// Nothing can land now: the server is not there, or this device cannot speak for the
+        /// account. Every workout waits.
+        case serverAway
+        /// The server answered with a fault of its own. This one waits for the next run, and the
+        /// ones behind it are tried, so one workout the server chokes on holds up no other.
+        case tryAgainLater
+        /// The server will not take it, and sending it again cannot change that.
+        case refused(String)
+    }
+
+    /// Restates a delivery's failure, once, here: the outbox needs a finer reading than a screen,
+    /// because a request the server rejected for its content must not hold up the rest for ever.
+    private static func verdict(on error: any Error) -> Verdict {
+        guard let api = error as? APIError else { return .tryAgainLater }
+        switch api {
+        case .transport, .unauthenticated, .forbidden:
+            return .serverAway
+        case .server, .upstream, .http, .decoding:
+            return .tryAgainLater
+        case .refused(let detail):
+            return .refused(detail ?? "The server would not take it.")
+        case .invalid(_, let detail):
+            return .refused(detail ?? "The server did not accept it.")
+        case .notFound:
+            return .refused("What it belongs to is no longer on the server.")
         }
     }
 

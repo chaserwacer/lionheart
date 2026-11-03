@@ -102,7 +102,7 @@ final class AppContainer {
         // empties the screen it was loading into. The profile gate is reset for a sharper reason
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
-        auth.onSignOut { [profile, today, train, movements, history, chat, body, ouraSync, activeWorkout, outbox, memory] in
+        auth.onSignOut { [profile, today, train, movements, history, chat, body, ouraSync, memory] in
             profile.reset()
             today.reset()
             train.reset()
@@ -111,20 +111,27 @@ final class AppContainer {
             chat.reset()
             body.reset()
             ouraSync.reset()
-            // The workout goes too, document and all: it belongs to the session the signed-out
-            // credential owned, and one the next sign-in could adopt would push one athlete's sets
-            // at another athlete's session id. The finished ones waiting to be delivered go for
-            // the same reason.
-            activeWorkout.reset()
-            outbox.reset()
             // Every answer the screens remembered. The next athlete on this phone must never open
             // onto the last one's readiness, offline or not.
             memory.forget()
         }
+        // The workout goes too, document and all, and the finished ones waiting to be delivered:
+        // they belong to the account, and ones the next sign-in could adopt would land one
+        // athlete's training in another's log. Not on a sign-out the server forces, which keeps
+        // them for the same athlete signing back in (`AccountCustody`).
+        auth.onAccountChange { [activeWorkout, outbox] in
+            activeWorkout.reset()
+            outbox.reset()
+        }
+        auth.onSignIn { [weak self] in
+            Task { await self?.serverReturned() }
+        }
 
-        // The cheapest authenticated read there is, asked only while the server is away.
+        // The cheapest authenticated read there is, asked only while the server is away. The
+        // remembered one, for its short patience: a probe that waits the system's minute notices
+        // the server's return a minute late.
         let users = users
-        reachability.probe { _ = try? await users.profileBoot() }
+        reachability.probe { _ = try? await users.profileBoot(remembering: .profileBoot) }
         reachability.onReturn { [weak self] in
             Task { await self?.serverReturned() }
         }
@@ -157,11 +164,12 @@ final class AppContainer {
         if outbox.hasDeliverableWork { await outbox.deliver() }
     }
 
-    /// The server answered again after a spell of not answering.
+    /// The server answered again after a spell of not answering, or an athlete has just signed in.
     ///
     /// The workout in flight is synced first (a deferred start opens its session here), then the
-    /// finished workouts are delivered, then every screen still showing what it last knew is read
-    /// again — in that order, so the screens read a server that already holds what was delivered.
+    /// finished workouts are delivered, then every screen still showing what it last knew, or
+    /// nothing for want of the server, is read again — in that order, so the screens read a server
+    /// that already holds what was delivered.
     private func serverReturned() async {
         guard case .signedIn = auth.session else { return }
 
@@ -170,11 +178,12 @@ final class AppContainer {
 
         if case .unreachable = profile.gate { await profile.refresh() }
         await withDiscardingTaskGroup { group in
-            if today.state.isStale { group.addTask { await self.today.refresh() } }
-            if train.state.isStale { group.addTask { await self.train.refresh() } }
-            if history.state.isStale { group.addTask { await self.history.refresh() } }
-            if body.state.isStale { group.addTask { await self.body.refresh() } }
-            if movements.state.isStale { group.addTask { await self.movements.refresh() } }
+            if today.state.isWaitingOnServer { group.addTask { await self.today.refresh() } }
+            if train.state.isWaitingOnServer { group.addTask { await self.train.refresh() } }
+            if history.state.isWaitingOnServer { group.addTask { await self.history.refresh() } }
+            if body.state.isWaitingOnServer { group.addTask { await self.body.refresh() } }
+            if movements.state.isWaitingOnServer { group.addTask { await self.movements.refresh() } }
+            if case .unavailable = chat.state { group.addTask { await self.chat.refresh() } }
         }
     }
 }

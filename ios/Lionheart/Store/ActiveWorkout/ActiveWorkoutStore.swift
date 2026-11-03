@@ -32,6 +32,18 @@ final class ActiveWorkoutStore {
     /// window costs nothing but the time the device is the only copy.
     private static let coalescingWindow = Duration.milliseconds(900)
 
+    /// How long finishing or discarding waits on the server before settling without it.
+    ///
+    /// The athlete is watching a spinner, and a Mac asleep behind Tailscale holds a request open
+    /// for the system's whole minute rather than refusing it. Running out is safe because every
+    /// step of a hand-over is safe to run again: a finish given up on goes to the outbox, whose
+    /// delivery first asks what the server already holds.
+    private static let handOverPatience = Duration.seconds(12)
+
+    /// How long a hand-over waits for a session opening already in flight before cancelling it.
+    /// What a cancelled opening may have left on the server is found by the hand-over's own read.
+    private static let openingPatience = Duration.seconds(5)
+
     /// The workout in flight, or nothing. `nil` is right here rather than a case: there is no third
     /// state, and the bar renders nothing for the absent one.
     private(set) var workout: ActiveWorkout?
@@ -68,14 +80,19 @@ final class ActiveWorkoutStore {
     private var restHandle: Task<Void, Never>?
     private var mirrorHandle: Task<Void, Never>?
 
-    /// The request opening a deferred start's session, while one is out.
+    /// The request opening a deferred start's session while one is out, and the workout it is for.
     ///
-    /// Deliberately not the push's own task, and cancelled only by sign-out. A push is cancelled and
-    /// replaced every time a set is logged, but an opening request cancelled on the device may
-    /// still have landed on the server, and a second one sent before the first's answer could be
-    /// recognised would open a second session. So every push and every finish waits on the one in
-    /// flight.
-    private var opening: Task<UUID, any Error>?
+    /// Deliberately not the push's own task. A push is cancelled and replaced every time a set is
+    /// logged, but an opening request cancelled on the device may still have landed on the server,
+    /// and a second one sent before the first's answer could be recognised would open a second
+    /// session. So every push joins the one in flight, and a finish or a discard waits on it
+    /// (`settleOpening`).
+    private var opening: (localId: UUID, request: Task<UUID, any Error>)?
+
+    /// Whether a finish or a discard is handing the workout over. No push starts meanwhile: the
+    /// hand-over does its own writes, and a push opening a deferred start beside it would make a
+    /// second session out of the same workout.
+    private var isHandingOver = false
 
     /// - Parameter outbox: where a finished workout is set down when the server cannot be reached.
     /// - Parameter activity: the Lock Screen's copy of this workout. Defaults to one that shows
@@ -189,7 +206,7 @@ final class ActiveWorkoutStore {
         pushHandle = nil
         // The one place an opening is cancelled: the credential it was sent with is gone, and the
         // next athlete's workout must not wait on, or adopt, this one's session.
-        opening?.cancel()
+        opening?.request.cancel()
         opening = nil
         restHandle?.cancel()
         restHandle = nil
@@ -343,7 +360,7 @@ final class ActiveWorkoutStore {
     /// pushes the deadline out, and every push carries the whole list anyway, so the one that
     /// eventually runs is never behind.
     private func schedulePush() {
-        guard workout?.destination.pushesAsItGoes == true else { return }
+        guard workout?.destination.pushesAsItGoes == true, !isHandingOver else { return }
 
         pushHandle?.cancel()
         pushHandle = Task { [weak self] in
@@ -364,7 +381,7 @@ final class ActiveWorkoutStore {
     }
 
     private func push() async {
-        guard let workout else { return }
+        guard let workout, !isHandingOver else { return }
 
         let sessionId: UUID
         switch workout.destination {
@@ -372,9 +389,9 @@ final class ActiveWorkoutStore {
             return
         case .liveSession(let id):
             sessionId = id
-        case .deferredStart:
+        case .deferredStart(let localId):
             do {
-                sessionId = try await openSession(for: workout)
+                sessionId = try await openSession(for: workout, localId: localId)
             } catch is CancellationError {
                 return
             } catch {
@@ -384,8 +401,10 @@ final class ActiveWorkoutStore {
         }
 
         // Read again rather than reusing the value above: opening a session is a round trip, and
-        // a set logged during it belongs in this push.
-        guard let current = self.workout else { return }
+        // a set logged during it belongs in this push. Only while it is still this session's
+        // workout and nothing is handing it over.
+        guard let current = self.workout, current.destination.sessionId == sessionId, !isHandingOver
+        else { return }
         let pushed = current.sets.map(\.command)
 
         do {
@@ -412,17 +431,40 @@ final class ActiveWorkoutStore {
     /// The opening joins one already in flight rather than sending another (see `opening`), and the
     /// workout is moved onto the session the moment it exists, so a force-quit after this point
     /// relaunches into an ordinary live workout.
-    private func openSession(for workout: ActiveWorkout) async throws -> UUID {
-        let request = opening ?? Task { [delivery] in try await delivery.open(workout) }
-        opening = request
+    private func openSession(for workout: ActiveWorkout, localId: UUID) async throws -> UUID {
+        let request = opening.flatMap { $0.localId == localId ? $0.request : nil }
+            ?? Task { [delivery] in try await delivery.open(workout) }
+        opening = (localId, request)
         // Released however it ends: an opening that failed must not answer the next attempt too.
-        defer { if opening == request { opening = nil } }
+        defer { if opening?.request == request { opening = nil } }
         let sessionId = try await request.value
-
-        if let current = self.workout, case .deferredStart = current.destination {
-            adopt(current.opened(as: sessionId))
-        }
+        adoptOpened(sessionId, for: localId)
         return sessionId
+    }
+
+    /// Moves the deferred start `localId` onto the session the server opened for it — and nothing
+    /// else: an opening that lands after its workout was discarded must not claim the next one.
+    private func adoptOpened(_ sessionId: UUID, for localId: UUID) {
+        guard let current = workout, current.destination == .deferredStart(localId: localId) else { return }
+        adopt(current.opened(as: sessionId))
+    }
+
+    /// Waits for an opening in flight to land, cancelling it once `openingPatience` has passed.
+    private func settleOpening() async {
+        guard let inFlight = opening else { return }
+        let request = inFlight.request
+        let landed = try? await Deadline.waiting(
+            atMost: Self.openingPatience, expiring: { CancellationError() }
+        ) {
+            // Awaiting a task's value does not end when the waiter is cancelled; cancelling the
+            // request does, which is what lets the deadline win.
+            try await withTaskCancellationHandler {
+                try await request.value
+            } onCancel: {
+                request.cancel()
+            }
+        }
+        if let landed { adoptOpened(landed, for: inFlight.localId) }
     }
 
     /// What finishing came to.
@@ -453,8 +495,10 @@ final class ActiveWorkoutStore {
     /// side: nothing is cleared until the server has the workout or the outbox holds it on disk.
     @discardableResult
     func complete(effort: PerceivedEffortRequest?, endingAt end: Date) async -> FinishOutcome {
-        guard workout != nil else { return .notFinished }
+        guard workout != nil, !isHandingOver else { return .notFinished }
         finish = .finishing
+        isHandingOver = true
+        defer { isHandingOver = false }
 
         // A coalescing push still waiting would otherwise race this one and land after the session
         // was completed, where it can only be refused.
@@ -462,15 +506,21 @@ final class ActiveWorkoutStore {
         pushHandle = nil
         // An opening in flight lands first, so the finish reads a server that already shows it
         // rather than opening the same workout a second time.
-        _ = try? await opening?.value
+        await settleOpening()
         guard let workout else { return .notFinished }
 
         do {
-            try await delivery.deliver(workout, endingAt: end, effort: effort, mayHaveLanded: false)
+            try await Deadline.waiting(atMost: Self.handOverPatience, expiring: Self.outOfPatience) {
+                [delivery] in
+                try await delivery.deliver(workout, endingAt: end, effort: effort, mayHaveLanded: false)
+            }
         } catch is CancellationError {
             finish = .idle
             return .notFinished
         } catch {
+            // Signed out while the request was out: the workout went with the account, and setting
+            // it down now would hand it to whoever signs in next.
+            guard self.workout != nil else { return .notFinished }
             let failure = (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))
             if case .offline = failure {
                 return holdForDelivery(FinishedWorkout(workout: workout, endedAt: end, effort: effort))
@@ -502,13 +552,25 @@ final class ActiveWorkoutStore {
     /// dismiss is a dead end, and an accidental tap on "start" must not be one. A session the
     /// server has completed is never deleted; see `WorkoutDelivery.withdraw`.
     func discard() async {
-        guard let workout else { return }
+        guard let workout, !isHandingOver else { return }
+        isHandingOver = true
+        defer { isHandingOver = false }
         pushHandle?.cancel()
         pushHandle = nil
-        _ = try? await opening?.value
+        await settleOpening()
 
-        await delivery.withdraw(self.workout ?? workout)
+        let withdrawn = self.workout ?? workout
+        _ = try? await Deadline.waiting(atMost: Self.handOverPatience, expiring: Self.outOfPatience) {
+            [delivery] in
+            await delivery.withdraw(withdrawn)
+        }
         clearLocally()
+    }
+
+    /// A hand-over that ran out of patience reads as a server that could not be reached, which
+    /// from the gym floor it is.
+    private nonisolated static func outOfPatience() -> any Error {
+        APIError.transport("The server did not answer in time.")
     }
 
     // MARK: -
