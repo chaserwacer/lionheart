@@ -16,10 +16,20 @@ to reach the backend. They are independent, and both have a free answer.
 | Apps at once | 3 | unlimited |
 | Re-signing | re-run from Xcode weekly | only when the build expires |
 
-The free path is enough. The owner has already said reinstalling weekly is acceptable, and a
+**Decided 2026-11-03 (owner): stay on the free tier.** Reinstalling weekly is acceptable, and a
 personal app installed from the machine it is built on is exactly what the free tier is for. The
-$99 buys two things worth knowing about: TestFlight, so a new build arrives over the air without
-plugging in, and a 1-year lifetime so the weekly reinstall goes away.
+$99 would buy TestFlight (a build over the air, no cable) and a 1-year lifetime instead of seven
+days.
+
+Two consequences that bind any future work, so they are recorded here rather than rediscovered:
+
+- **Sign in with Apple is out.** The capability cannot be enabled on a free membership — it
+  cannot even be tested — so authentication stays ASP.NET Identity with bearer tokens in the
+  Keychain. That already means one password entry per install rather than per launch, which is
+  most of what Apple sign-in would have bought.
+- **Nothing may depend on a paid-only capability.** Push notifications, APNs-driven Live Activity
+  updates, and associated domains are all off the table. A Live Activity updated *locally* by the
+  app is fine; one that needs a push to change is not.
 
 ### The free path, start to finish
 
