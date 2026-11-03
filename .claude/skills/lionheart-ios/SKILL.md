@@ -203,8 +203,11 @@ xcodebuild -project Lionheart.xcodeproj -scheme Lionheart \
 
 A screen is not done until it has been seen running.
 
-1. Start the backend: `dotnet run --launch-profile http` from the repo root serves
-   `http://localhost:7025`. The simulator reaches the host's localhost directly; a physical phone
+1. Start the backend: `dotnet run --launch-profile lionheart` from the repo root serves
+   `http://localhost:7025` — the profile is named after the project, and there is no `http` profile.
+   A fresh database has no schema, so `dotnet ef database update` comes first, and an account needs
+   two calls (`/register` then `/api/user/create-profile`) because a login with no Lionheart profile
+   is refused by every training route. The simulator reaches the host's localhost directly; a physical phone
    needs the Mac's LAN address or a tunnel, set in `ios/Configs/Local.xcconfig`.
 2. Build, `xcrun simctl install "$UDID" <app>`, then
    `xcrun simctl launch --terminate-running-process "$UDID" com.chasebalmer.lionheart`.
