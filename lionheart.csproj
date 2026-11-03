@@ -56,6 +56,13 @@
     <InternalsVisibleTo Include="lionheart.Tests" />
   </ItemGroup>
 
+  <!-- The Strong import's movement map is athlete-editable data, read from the assembly so the
+       map a run uses is always the one in the tree that built it, and never published as content. -->
+  <ItemGroup>
+    <Content Remove="Services\Strong\strong-movements.json" />
+    <EmbeddedResource Include="Services\Strong\strong-movements.json" LogicalName="lionheart.Services.Strong.strong-movements.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Don't publish the SPA source files, but do show them in the project files list -->
     <Content Remove="$(SpaRoot)**" />
