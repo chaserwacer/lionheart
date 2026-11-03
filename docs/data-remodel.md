@@ -548,9 +548,11 @@ nullable columns — the shape these standards exist to prevent.
 - `RecordSubject` — `Movement(id)` or `TrailRunning`, persisted as a Guid with `Guid.Empty` for
   trail running, the same fill-state-to-scalar shape `ProgramMembership` takes.
 - `Achievement` — the kind fused with its measurement, seven sealed cases, so a heaviest-set
-  record cannot hold a distance. Each case answers `Kind`, `Rank` and `Beats`.
-- `RecordKind` — the lookup identity: `HeaviestSet`, `BestSetVolume`, `RepMax(reps)`,
+  record cannot hold a distance. Each case answers `Kind`, `HeldIn` and `Rank`.
+- `RecordKind` — which question: `HeaviestSet`, `BestSetVolume`, `RepMax(reps)`,
   `BestSessionVolume`, `LongestDistance`, `FastestTime(meters)`, `BestPace`.
+- `RecordKey` — what makes two records the same record: the subject, the kind, and the weight
+  unit where there is one. Distances carry none, since they rank in meters.
 - `LiftPerformance`, `SessionVolume`, `DistanceEffort` — the measurements, carrying the derived
   figures (volume, estimated one-rep max, pace, distance bracket) as `[JsonIgnore]`d members so
   none of them reaches storage.
@@ -566,16 +568,22 @@ saving, so the session and its records land in one save or neither does. Nothing
 refusal: the session has already been accepted, so a candidate on a movement that is not the
 athlete's simply raises no record.
 
-**One record per kind per completion.** A session whose third, fourth and fifth sets each beat the
-standing record adds one link, holding the best of them. The sets in between never stood as
-records, so a row each would read as several records set in the same instant with no way to tell
-which held.
+**One record per identity per session, and what stands is read once per commit.** A session whose
+third, fourth and fifth sets each beat the standing record adds one link, holding the best of
+them: the sets in between never stood as records, so a row each would read as several records set
+in the same instant with no way to tell which held. The detector therefore takes *every* session a
+caller is about to save, not one at a time — one utterance can yield two sessions on the same
+movement, and a detector asked session by session reads what stands before each, a read that
+cannot see the record the previous session staged but has not saved. Both would be written
+standing. Sessions in a batch are processed oldest first, so two of them on one movement chain the
+way they happened.
 
 **Settled rules worth not relitigating:**
 
 | Rule | Why |
 |---|---|
 | Weights never convert | 225 lb is the larger number and the lighter lift. A set in a unit the record is not held in does not beat it, and both clients compare the same way |
+| The unit is part of a record's identity | Which is what stops a movement locking to the first unit logged. Without it a kilograms lift could neither beat a pounds record nor become one, so a unit switch would end that movement's progression for good. A movement holds one record per kind per unit, each set and beaten within its own — the same keying the iOS trends chart already uses so a unit switch starts a new line |
 | Distances do convert | The four units are exact definitions of one quantity and two are metric spellings of one scale; refusing to relate 5 km to 5000 m would be a defect |
 | The rep-max grid stops at twelve | Past that the number describes work capacity, which the volume records answer. A 23-rep set sets no rep max and still competes everywhere else |
 | Trail running is its own subject | A trail set names no movement, and 10 km on the flat is not the record 8 km over 600 m of climb set |
@@ -670,4 +678,4 @@ Numbered for reference; nothing here is decided. **Ask Chase rather than choosin
    specs in `lionheart.Tests/Llm/InterpretationContractTests.cs` light up when this lands.
 3. **Chat tools** for sessions/contexts; when the training drill-in tool exists, restore the
    athlete-context-card coverage-manifest line that currently says there is none.
-5. **Step 5** balance ledger, then **step 6** retrieval primitive + MCP surface.
+4. **Step 5** balance ledger, then **step 6** retrieval primitive + MCP surface.

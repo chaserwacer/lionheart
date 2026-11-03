@@ -109,9 +109,9 @@ namespace lionheart.Data
 
         /// <summary>
         /// A record's kind, its bracket and whether it stands live inside JSON columns the
-        /// database cannot index or constrain. Stamping them out again on every save is what lets
-        /// the unique index refuse a second standing record of one kind — see
-        /// <see cref="RemodelConfiguration"/>.
+        /// database can neither index nor read. Stamping them out again on every save is what
+        /// lets a standing read and a history read be indexed queries instead of deserializing
+        /// every record the athlete holds.
         /// </summary>
         private void StampRecordLookupColumns()
         {

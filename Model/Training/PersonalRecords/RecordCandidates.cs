@@ -8,7 +8,8 @@ namespace lionheart.Model.Training.PersonalRecords;
 /// </summary>
 public sealed record RecordCandidate(RecordSubject Subject, Achievement Achievement)
 {
-    public RecordKind Kind => Achievement.Kind;
+    /// <summary>Which record this claims to be, unit included.</summary>
+    public RecordKey Key => new(Subject, Achievement.Kind, Achievement.HeldIn);
 }
 
 /// <summary>
@@ -19,10 +20,14 @@ public sealed record RecordCandidate(RecordSubject Subject, Achievement Achievem
 /// already stands: what a session achieved is a reading of the session alone, and it is the half
 /// worth testing without a database.
 /// <para>
-/// Candidates are generated per weight unit, not per movement, so a key can carry more than one.
-/// Weights never convert, so the session's best in kilograms and its best in pounds are different
-/// claims; which of them competes is settled against the standing record, which is the only thing
-/// that knows the unit the record is held in.
+/// Candidates are generated per weight unit, not per movement, because the unit is part of a
+/// record's identity: the session's best in kilograms and its best in pounds are two records, not
+/// two claims on one. A movement logged in both therefore sets and beats a record in each.
+/// </para>
+/// <para>
+/// A set that names no movement at all — <see cref="Guid.Empty"/>, which is the storage sentinel
+/// for trail running — raises no candidate. The session write does not check a set's movement id,
+/// so the sentinel can arrive on a lift, and a subject cannot be built from it.
 /// </para>
 /// <para>
 /// A set with no load or no reps — and an effort with no distance or no time — raises no
@@ -38,7 +43,7 @@ public static class RecordCandidates
 
     private static IEnumerable<RecordCandidate> FromLifts(IEnumerable<SetEntry> sets) =>
         from set in sets.OfType<LiftSet>()
-        where set.Weight > 0 && set.Reps > 0
+        where set.MovementDataId != Guid.Empty && set.Weight > 0 && set.Reps > 0
         group set by (set.MovementDataId, set.Unit) into loaded
         let subject = new RecordSubject.Movement(loaded.Key.MovementDataId)
         let lifts = loaded.Select(set => new LiftPerformance(set.Weight, set.Unit, set.Reps)).ToList()
@@ -69,6 +74,7 @@ public static class RecordCandidates
 
     private static IEnumerable<RecordCandidate> FromMeasuredEfforts(IEnumerable<SetEntry> sets) =>
         from set in sets.OfType<DistanceTimeSet>()
+        where set.MovementDataId != Guid.Empty
         let effort = new DistanceEffort(set.Distance, set.Unit, set.Duration)
         where double.IsFinite(effort.SecondsPerMeter)
         group effort by set.MovementDataId into covered

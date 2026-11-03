@@ -97,7 +97,15 @@ namespace lionheart.Migrations
                     legacy.""CreatedAt"",
                     CASE WHEN legacy.""IsActive"" = 1
                         THEN '{{""$type"":""standing""}}'
-                        ELSE '{{""$type"":""beaten"",""At"":""' || replace(legacy.""CreatedAt"", ' ', 'T') || '""}}'
+                        -- A record stopped standing when the one that took it was achieved, which
+                        -- is the earliest row pointing back at it. The legacy chains branch, so
+                        -- the earliest successor is the one that actually took it; where nothing
+                        -- points back at all, which is a branch the legacy writer abandoned, the
+                        -- record's own date is the only bound available.
+                        ELSE '{{""$type"":""beaten"",""At"":""' || replace(COALESCE(
+                                (SELECT MIN(successor.""CreatedAt"") FROM ""{PreRemodel}"" successor
+                                 WHERE successor.""PreviousPersonalRecordID"" = legacy.""PersonalRecordID""),
+                                legacy.""CreatedAt""), ' ', 'T') || '""}}'
                     END,
                     CASE WHEN legacy.""PreviousPersonalRecordID"" IS NULL
                         THEN '{{""$type"":""first""}}'

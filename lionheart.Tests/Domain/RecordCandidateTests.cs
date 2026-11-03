@@ -89,10 +89,10 @@ public class RecordCandidateTests
     }
 
     [Fact]
-    public void Two_units_on_one_movement_raise_a_claim_each()
+    public void Two_units_on_one_movement_raise_a_record_each_rather_than_two_claims_on_one()
     {
-        // Weights never convert, so the session's best in kilograms and its best in pounds are
-        // different claims; which competes is settled against the record's own unit.
+        // The unit is part of a record's identity, because weights never convert: the session's
+        // best in kilograms and its best in pounds are two records, not two bids for one.
         var candidates = From(
             Lift(Bench, 100, reps: 5, unit: WeightUnit.Kilograms),
             Lift(Bench, 225, reps: 5, unit: WeightUnit.Pounds));
@@ -103,6 +103,31 @@ public class RecordCandidateTests
         Assert.Equal(
             [WeightUnit.Kilograms, WeightUnit.Pounds],
             heaviest.Select(set => set.Lift.Unit).OrderBy(unit => unit));
+        Assert.Equal(
+            2,
+            candidates
+                .Where(candidate => candidate.Achievement is Achievement.HeaviestSet)
+                .Select(candidate => candidate.Key)
+                .Distinct()
+                .Count());
+    }
+
+    [Fact]
+    public void A_set_that_names_no_movement_claims_nothing()
+    {
+        // Guid.Empty is the storage sentinel for trail running, and the session write does not
+        // check a set's movement id — so it can arrive on a lift, where no subject can be built
+        // from it. Raising nothing is what keeps the session loggable.
+        Assert.Empty(From(Lift(Guid.Empty, 225, reps: 5)));
+        Assert.Empty(From(Measured(Guid.Empty, 5, DistanceUnit.Kilometers, TimeSpan.FromMinutes(25))));
+    }
+
+    [Fact]
+    public void A_sentinel_set_beside_a_real_one_leaves_the_real_one_claiming()
+    {
+        var candidates = From(Lift(Guid.Empty, 405, reps: 1), Lift(Bench, 225, reps: 5));
+
+        Assert.Equal(225, Single<Achievement.HeaviestSet>(candidates).Lift.Weight);
     }
 
     [Fact]

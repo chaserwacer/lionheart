@@ -67,6 +67,13 @@ presentation needs plus the figures the server derives (an estimated one-rep max
 movement itself is **not** embedded — both clients hold a movement catalogue, and the movement is a
 different aggregate.
 
+A movement holds **one record per kind per weight unit**, because weights never convert and the
+unit is therefore part of a record's identity rather than a comparability test. A movement logged
+in both reads back with a kilograms record and a pounds record of the same kind, each carrying its
+own unit inside the achievement. `/history` takes no unit and answers with every unit's chain of
+that kind, newest first, which is the progression a screen wants; a client showing one unit filters
+on the achievement's own.
+
 A **retraction** answers with a discriminated outcome rather than a nullable record, so a client can
 tell "your previous record stands again" from "this subject now holds no record of that kind".
 Retracting a record that no longer stands is a `Conflict`, so 409: the same request was legitimate

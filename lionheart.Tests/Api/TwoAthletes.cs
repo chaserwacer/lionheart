@@ -63,6 +63,11 @@ public sealed class TwoAthletes : IDisposable
 
     public ModelContext CreateContext() => _database.CreateContext();
 
+    /// <remarks>
+    /// Wired with the real detector, not a stand-in. Completing a session establishes records in
+    /// the same save, so a fake here would leave every completion test asserting against a write
+    /// path the application does not have.
+    /// </remarks>
     public async Task<T> SessionsAsync<T>(Func<ITrainingSessionService, Task<T>> act)
     {
         using var context = CreateContext();
@@ -70,11 +75,6 @@ public sealed class TwoAthletes : IDisposable
             context, TimeProvider.System, new PersonalRecordDetector(context, TimeProvider.System)));
     }
 
-    /// <remarks>
-    /// The real detector, not a stand-in. Completing a session establishes records in the same
-    /// save, so a fake here would leave every completion test asserting against a write path the
-    /// application does not have.
-    /// </remarks>
     public async Task<T> RecordsAsync<T>(Func<IPersonalRecordService, Task<T>> act)
     {
         using var context = CreateContext();
