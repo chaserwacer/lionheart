@@ -183,11 +183,11 @@ read is counted and described rather than failing the run — one malformed reco
 month of good days. Failing to reach Oura, to authenticate, or to read a page at all is a
 `Problem.Upstream` and does end the run, because nothing after it would mean anything.
 
-**The live pull is unverified.** Running it needs the athlete's Oura credential, which was
-deliberately not used. What *is* covered by tests is everything short of the network: the paging,
-the failure mapping, and — through the mapping both paths share — what a real Oura response turns
-into. The archived `.jsonl` files are recorded Oura responses, so a test that maps a recorded
-record is evidence about what the pull would do with it.
+**The live pull has run against the real API.** On 2026-11-03, the owner's first sync covered
+2026-07-25 to 2026-11-03 with the stored personal access token. It stored 1,184 documents across
+every collection and rejected none, so the token still works and paging returns more than one page.
+The tests cover everything short of the network: the paging, the failure mapping, and, through the
+mapping both paths share, what a real Oura response turns into.
 
 Two things a reader should know before trusting the pull:
 
@@ -198,7 +198,8 @@ Two things a reader should know before trusting the pull:
 - **Oura retired personal access tokens at the end of 2025** (reported by its own OpenAPI
   description; not verified against a live call here). The stored credential is still a personal
   access token, so the first live sync may answer 401. The client's message for 401 says so
-  explicitly rather than leaving a stale credential looking like an outage.
+  explicitly rather than leaving a stale credential looking like an outage. As of 2026-11-03 it
+  still works.
 
   **Decided 2026-11-03 (owner): stay on the personal access token until it actually stops
   working.** The retirement is documentation rather than an observed failure, the token may well
