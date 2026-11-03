@@ -125,7 +125,7 @@ final class AppContainer {
             outbox.reset()
         }
         auth.onSignIn { [weak self] in
-            Task { await self?.serverReturned() }
+            Task { await self?.signedIn() }
         }
 
         // The cheapest authenticated read there is, asked only while the server is away. The
@@ -163,6 +163,16 @@ final class AppContainer {
         guard case .signedIn = auth.session, reachability.isReachable else { return }
         await activeWorkout.serverReturned()
         if outbox.hasDeliverableWork { await outbox.deliver() }
+    }
+
+    /// An athlete has just signed in.
+    ///
+    /// The movement catalogue is loaded first and unconditionally. Sign-out leaves it `.loading`, which
+    /// `serverReturned` does not count as waiting on the server, so without this a sign-in left every
+    /// movement on Today reading "Unknown movement" until the Train tab happened to load it.
+    private func signedIn() async {
+        await movements.refresh()
+        await serverReturned()
     }
 
     /// The server answered again after a spell of not answering, or an athlete has just signed in.
