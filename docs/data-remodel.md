@@ -652,6 +652,24 @@ back a predecessor stamped the same instant, so clearing them is fifteen withdra
 withdraw them, delete them, or have the import treat them otherwise is the owner's decision; nothing
 is decided here.
 
+### ✅ Focus pins, and the records a movement or a session established
+
+**Focus pins** (`Model/Training/Focus/`, `/api/training/focus`): a movement pinned to emphasise
+over a horizon, at a number of sessions a week, with no target or a lift target. `FocusPin` is a
+sealed class like `PersonalRecord`; its `FocusTerms` (horizon, sessions a week, target) and its
+`FocusStatus` (`Pinned | Unpinned(on)`) are JSON columns. The terms are JSON rather than a complex
+type with a column each because EF cannot bind a complex property to a constructor parameter, so
+columns would have cost the domain constructors that exist only for EF; nothing queries a horizon
+in SQL. A pin's movement is a real foreign key (restricted, so a pinned movement cannot be deleted
+out from under its history) and is checked to be the athlete's on pinning. Whether a horizon has
+begun or ended and whether a target was met are client readings, never stored. Migration
+`FocusPins` adds the one table.
+
+**Established records** (`GET /api/personal-records/established`): every record on a movement
+and/or inside an instant window, in every standing — what marks the sets that set a record. The
+subject filter runs in SQL: `record.Subject == subject` translates to the converted
+`MovementDataId` column, with the converter applied to the parameter.
+
 ### Traps — non-obvious failures already paid for
 
 Read this before debugging something that "should obviously work".

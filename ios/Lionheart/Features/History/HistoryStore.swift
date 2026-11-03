@@ -1,12 +1,18 @@
 import Foundation
 import Observation
 
-/// Everything the History tab has: the session log, the records, and the trends drawn from the
-/// same window.
+/// Everything the History tab has: the session log, the records, and the readings drawn from the
+/// same window — and, because the window is the whole log, every movement's history too.
 ///
-/// Three requests in parallel (`async let`) because the screen needs all three and their count is
-/// known. The movement catalogue is one of them and is not optional dressing: a set carries only a
-/// `movementDataId`, so without the catalogue every row in the log reads "Unknown movement".
+/// It is the app's one reading of the log: Today opens a movement's page and a session's records
+/// from it as well, so the two tabs cannot show a movement two ways.
+///
+/// The window and the records are read in parallel (`async let`). The movement catalogue is the
+/// app-wide one in `MovementLibraryStore` rather than a copy of its own, so Today and History name a
+/// movement the same way; it is read only when nothing is loaded yet, and a set naming a movement
+/// it does not hold asks it to read itself again (`cover`) rather than reading "Unknown movement".
+/// Re-reading it on every refresh would re-read the record summaries it loads alongside, which
+/// this store already reads itself.
 ///
 /// The window is one read that the log *and* the trends are derived from, so a session cannot
 /// appear in the log and be missing from the chart.
@@ -31,8 +37,18 @@ final class HistoryStore {
     /// the screen so a retraction made on it re-reads the chain it was made from.
     private(set) var histories: [RecordKey: LoadState<RecordHistory>] = [:]
 
+    /// The records a movement's history or a session established, every standing, by what was
+    /// asked — what marks the sets that set one.
+    private(set) var established: [EstablishedRecords: LoadState<[PersonalRecord]>] = [:]
+
+    /// Which records were asked for: one movement's, or one session's.
+    enum EstablishedRecords: Hashable, Sendable {
+        case movement(UUID)
+        case session(UUID)
+    }
+
     private let sessions: TrainingSessionsAPI
-    private let movements: MovementsAPI
+    private let library: MovementLibraryStore
     private let records: PersonalRecordsAPI
     private let now: @Sendable () -> Date
 
@@ -40,12 +56,12 @@ final class HistoryStore {
 
     init(
         sessions: TrainingSessionsAPI,
-        movements: MovementsAPI,
+        library: MovementLibraryStore,
         records: PersonalRecordsAPI,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.sessions = sessions
-        self.movements = movements
+        self.library = library
         self.records = records
         self.now = now
     }
@@ -59,12 +75,20 @@ final class HistoryStore {
         await task.value
     }
 
+    /// Loads only if nothing is loaded yet — for a screen reached from another tab, such as a
+    /// movement's page opened from Today before History has been visited.
+    func refreshIfNeeded() async {
+        guard state.value == nil else { return }
+        await refresh()
+    }
+
     func reset() {
         load?.cancel()
         load = nil
         state = .loading
         action = .idle
         histories = [:]
+        established = [:]
     }
 
     // MARK: - Acting on a row
@@ -111,6 +135,47 @@ final class HistoryStore {
         }
     }
 
+    /// Reads every record one movement established, for the marks in its history.
+    func loadEstablished(on movementDataId: UUID) async {
+        await loadEstablished(.movement(movementDataId)) {
+            try await self.records.established(on: movementDataId)
+        }
+    }
+
+    /// Reads every record one session established, for the marks in its detail. The session is
+    /// handed in rather than looked up, because a detail opened from Today may hold a session this
+    /// store has not read yet.
+    func loadEstablished(by session: TrainingSession) async {
+        guard let start = session.startedAt else {
+            // A session that never began set no record: a record is dated by its session's start.
+            established[.session(session.id)] = .loaded([])
+            return
+        }
+        // A second either side: the instants travel as text at millisecond precision, and the
+        // server stores its own to the tick, so a bound on the instant itself can miss it.
+        await loadEstablished(.session(session.id)) {
+            try await self.records.established(
+                from: start.addingTimeInterval(-1), to: (session.endedAt ?? start).addingTimeInterval(1),
+                remembering: .establishedRecords(session: session.id))
+        }
+    }
+
+    /// One established-records read into its slot. A failed re-read keeps what was shown, and the
+    /// slot is read again after the await for the reason `loadHistory` reads its chain again.
+    private func loadEstablished(
+        _ asked: EstablishedRecords, _ read: () async throws -> Remembered<[PersonalRecord]>
+    ) async {
+        do {
+            let answer = try await read()
+            established[asked] = (established[asked] ?? .loading).applying(answer)
+        } catch is CancellationError {
+            return
+        } catch {
+            established[asked] = (established[asked] ?? .loading).applying(.failure(
+                (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))))
+        }
+    }
+
     /// One transition, then a re-read of the window.
     ///
     /// Re-reading rather than editing the snapshot in place: a transition answers with the session
@@ -140,6 +205,12 @@ final class HistoryStore {
         action = .idle
     }
 
+    /// Reads the window and the records with the catalogue, derives the snapshot, and — when a set
+    /// names a movement the catalogue does not hold — has the catalogue read itself again and
+    /// derives once more, so the log never ships a name it could have had.
+    ///
+    /// The catalogue's own staleness is not the log's: a catalogue remembered from yesterday names
+    /// today's sessions perfectly well, so only the window and the records date the screen.
     private func reload() async {
         let moment = now()
         let today = CalendarDay(moment)
@@ -149,17 +220,27 @@ final class HistoryStore {
                 from: Self.logBegins,
                 to: moment.addingTimeInterval(Double(Self.lookAheadDays) * 86_400),
                 remembering: .historySessions)
-            async let catalogue = movements.movements(remembering: .movements)
             async let bySubject = records.summaries(remembering: .recordSummaries)
+            async let catalogue: Void = library.refreshIfNeeded()
 
-            let (sessionsRead, movementsRead, recordsRead) = try await (window, catalogue, bySubject)
-            let snapshot = HistorySnapshot.reading(
-                sessions: sessionsRead.value,
-                movements: movementsRead.value,
-                records: recordsRead.value,
-                today: today)
-            state = state.applying(.derived(
-                snapshot, from: [sessionsRead.asOf, movementsRead.asOf, recordsRead.asOf]))
+            let (sessionsRead, recordsRead, _) = try await (window, bySubject, catalogue)
+            func derived() -> Remembered<HistorySnapshot> {
+                .derived(
+                    HistorySnapshot.reading(
+                        sessions: sessionsRead.value,
+                        catalogue: library.catalogue,
+                        records: recordsRead.value,
+                        today: today),
+                    from: [sessionsRead.asOf, recordsRead.asOf])
+            }
+
+            let first = derived()
+            state = state.applying(first)
+            let unnamed = library.catalogue.missing(first.value.referencedMovements)
+            guard !unnamed.isEmpty else { return }
+            await library.cover(unnamed)
+            try Task.checkCancellation()
+            state = state.applying(derived())
         } catch is CancellationError {
             return
         } catch {

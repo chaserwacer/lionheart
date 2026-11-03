@@ -19,6 +19,7 @@ final class AppContainer {
     let profile: ProfileStore
     let today: TodayStore
     let history: HistoryStore
+    let focus: FocusStore
     let chat: ChatStore
     let body: BodyStore
     let ouraSync: OuraSyncStore
@@ -72,8 +73,9 @@ final class AppContainer {
         train = TrainStore(sessions: sessions, activeWorkout: activeWorkout, outbox: outbox)
         history = HistoryStore(
             sessions: TrainingSessionsAPI(client: client),
-            movements: MovementsAPI(client: client),
+            library: movements,
             records: PersonalRecordsAPI(client: client))
+        focus = FocusStore(api: FocusAPI(client: client))
         chat = ChatStore(
             chat: ChatAPI(client: client),
             profile: ProfileAPI(client: client))
@@ -103,12 +105,13 @@ final class AppContainer {
         // empties the screen it was loading into. The profile gate is reset for a sharper reason
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
-        auth.onSignOut { [profile, today, train, movements, history, chat, body, ouraSync, memory] in
+        auth.onSignOut { [profile, today, train, movements, history, focus, chat, body, ouraSync, memory] in
             profile.reset()
             today.reset()
             train.reset()
             movements.reset()
             history.reset()
+            focus.reset()
             chat.reset()
             body.reset()
             ouraSync.reset()
@@ -192,6 +195,7 @@ final class AppContainer {
             if today.state.isWaitingOnServer { group.addTask { await self.today.refresh() } }
             if train.state.isWaitingOnServer { group.addTask { await self.train.refresh() } }
             if history.state.isWaitingOnServer { group.addTask { await self.history.refresh() } }
+            if focus.state.isWaitingOnServer { group.addTask { await self.focus.refresh() } }
             if body.state.isWaitingOnServer { group.addTask { await self.body.refresh() } }
             if movements.state.isWaitingOnServer { group.addTask { await self.movements.refresh() } }
             if case .unavailable = chat.state { group.addTask { await self.chat.refresh() } }

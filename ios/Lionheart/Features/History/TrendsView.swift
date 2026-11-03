@@ -18,47 +18,9 @@ struct TrendsView: View {
     /// Which strength series is drawn. Held here because it is view state: which movement you are
     /// looking at is not a fact about the athlete's training.
     @State private var selectedSeries: String?
-    @State private var span: Span = .half
+    @State private var span: LogSpan = .half
 
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
-
-    /// How far back both charts reach.
-    enum Span: CaseIterable, Identifiable {
-        case quarter
-        case half
-        case year
-        /// Everything the log holds, which reaches back past a year once a history is imported.
-        case all
-
-        var id: Self { self }
-
-        var label: String {
-            switch self {
-            case .quarter: "3M"
-            case .half: "6M"
-            case .year: "1Y"
-            case .all: "All"
-            }
-        }
-
-        /// The span in weeks, for a log whose weekly counts are `trends.weeks`.
-        func weeks(in trends: TrainingTrends) -> Int {
-            switch self {
-            case .quarter: 13
-            case .half: 26
-            case .year: 52
-            case .all: max(trends.weeks.count, 1)
-            }
-        }
-
-        /// Whether the points are dense enough to want smaller marks.
-        var isLong: Bool {
-            switch self {
-            case .quarter, .half: false
-            case .year, .all: true
-            }
-        }
-    }
 
     var body: some View {
         List {
@@ -72,7 +34,7 @@ struct TrendsView: View {
             } else {
                 Section {
                     Picker("Span", selection: $span) {
-                        ForEach(Span.allCases) { span in
+                        ForEach(LogSpan.allCases) { span in
                             Text(span.label).tag(span)
                         }
                     }
@@ -93,7 +55,7 @@ struct TrendsView: View {
 
     @ViewBuilder
     private var weeklyLoadSection: some View {
-        let load = trends.load(lastWeeks: span.weeks(in: trends))
+        let load = trends.load(lastWeeks: span.weeks(of: trends.weeks.count))
 
         if !load.weeks.isEmpty {
             Section {
@@ -133,8 +95,11 @@ struct TrendsView: View {
                     }
                     .pickerStyle(.menu)
                 }
+                NavigationLink(value: HistoryRoute.movement(series.movementDataId)) {
+                    Text("Movement history")
+                }
 
-                if let summary = series.summary(since: today.adding(days: -span.weeks(in: trends) * 7)) {
+                if let summary = series.summary(since: today.adding(days: -span.weeks(of: trends.weeks.count) * 7)) {
                     let points = summary.points
                     strengthFigures(summary, unit: series.unit)
                     Chart(points) { point in
@@ -189,37 +154,5 @@ struct TrendsView: View {
         guard let first = points.first, let last = points.last else { return "" }
         let unit = unit.abbreviation
         return "From \(MeasurementText.plain(first.weight)) \(unit) to \(MeasurementText.plain(last.weight)) \(unit) over \(Formatting.count(points.count, "session"))."
-    }
-}
-
-/// A span's headline figures, side by side as columns, each a caption over its figure — or one
-/// labelled row each when the columns would not fit, as at the accessibility sizes, so no figure
-/// truncates.
-private struct SummaryFigures: View {
-    let figures: [(label: String, value: String)]
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 20) {
-                ForEach(figures, id: \.label) { figure in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(figure.label)
-                            .font(.caption)
-                            .foregroundStyle(Color(.secondaryLabel))
-                        Text(figure.value)
-                            .font(.title3.weight(.semibold).monospacedDigit())
-                    }
-                    .fixedSize()
-                }
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(figures, id: \.label) { figure in
-                    LabeledContent(figure.label) {
-                        Text(figure.value).monospacedDigit()
-                    }
-                }
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 }

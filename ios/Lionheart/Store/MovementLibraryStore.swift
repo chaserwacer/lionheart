@@ -31,6 +31,17 @@ final class MovementLibraryStore {
     private let defaults: UserDefaults
     private var load: Task<Void, Never>?
 
+    /// Ids a current catalogue was read for and still did not hold: the server does not list them,
+    /// so asking again would answer the same. Not observed, because nothing renders from it.
+    @ObservationIgnored private var unlisted: Set<UUID> = []
+    /// Ids a name was asked for and not found, already handed to `cover`.
+    @ObservationIgnored private var noticed: Set<UUID> = []
+    /// The catalogue read `cover` has out, which a second caller waits on rather than repeating.
+    @ObservationIgnored private var covering: Task<Void, Never>?
+    /// How many reads have answered with the server's current catalogue — how `cover` tells a read
+    /// that landed from one cancelled by a newer refresh, which leaves the old value in place.
+    @ObservationIgnored private var currentReads = 0
+
     init(movements: MovementsAPI, records: PersonalRecordsAPI, defaults: UserDefaults = .standard) {
         self.movements = movements
         self.personalRecords = records
@@ -39,6 +50,9 @@ final class MovementLibraryStore {
 
     /// The whole catalogue, or nothing while it is still loading.
     var all: [MovementData] { state.value ?? [] }
+
+    /// The catalogue as names by id, for a screen naming the sets it holds.
+    var catalogue: MovementCatalogue { MovementCatalogue(all) }
 
     /// The movements used most recently, most recent first, filtered to ones that still exist.
     ///
@@ -69,9 +83,51 @@ final class MovementLibraryStore {
     /// A set logged against a movement the catalogue no longer lists still has to render — the
     /// movement could have been deleted on the web app mid-workout — so this is total rather than
     /// optional.
+    ///
+    /// A miss is also the signal that the catalogue is behind — a movement the Strong import or the
+    /// web app created after it was read — so it hands the id to `cover`, which reads the
+    /// catalogue again once. The name then arrives on the next render, and the placeholder stays
+    /// only for a movement the server genuinely does not list.
     func title(of id: UUID?) -> String {
         guard let id else { return "" }
-        return movement(id)?.title ?? "Unknown movement"
+        if let movement = movement(id) { return movement.title }
+        notice(id)
+        return "Unknown movement"
+    }
+
+    /// Makes sure the catalogue names every one of `ids`, reading it again — once — when it does
+    /// not.
+    ///
+    /// Screens that hold sets call this with the movements they reference, because a catalogue
+    /// loaded at sign-in knows nothing of a movement made since. An id the server still does not
+    /// list after a current read is remembered as unlisted, so a deleted movement costs one read and
+    /// not one per render. A read that could not reach the server proves nothing about an id, so
+    /// it leaves it to be asked about again.
+    func cover(_ ids: Set<UUID>) async {
+        if let running = covering { await running.value }
+        if state.value == nil { await refreshIfNeeded() }
+
+        let missing = catalogue.missing(ids).subtracting(unlisted)
+        guard !missing.isEmpty else { return }
+
+        let task = Task {
+            let readsBefore = self.currentReads
+            await self.refresh()
+            if self.currentReads > readsBefore {
+                self.unlisted.formUnion(self.catalogue.missing(missing))
+            }
+        }
+        covering = task
+        await task.value
+        // Only its own handle: a second caller may have started the next read meanwhile.
+        if covering == task { covering = nil }
+    }
+
+    /// Hands an id a name was not found for to `cover`, once. Deferred to a task of its own because
+    /// it is reached from a view's body, where reading the catalogue again must not happen inline.
+    private func notice(_ id: UUID) {
+        guard state.value != nil, !unlisted.contains(id), noticed.insert(id).inserted else { return }
+        Task { await self.cover([id]) }
     }
 
     /// The records standing on the subject a set competes on, or `nil` for a set that has none.
@@ -116,6 +172,10 @@ final class MovementLibraryStore {
         load = nil
         state = .loading
         records = [:]
+        unlisted = []
+        noticed = []
+        covering?.cancel()
+        covering = nil
         defaults.removeObject(forKey: Self.recentsKey)
     }
 
@@ -131,6 +191,7 @@ final class MovementLibraryStore {
             let found = try await summaries
 
             state = state.applying(loaded)
+            if case .current = loaded { currentReads += 1 }
             records = Dictionary(
                 found.value.map { ($0.subject, $0) }, uniquingKeysWith: { first, _ in first })
         } catch is CancellationError {

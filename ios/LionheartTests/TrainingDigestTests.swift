@@ -73,7 +73,7 @@ struct WeeklyLoadTests {
 
         let average = TrainingTrends.loadAverage(of: weeks)
 
-        #expect(average.map(\.sets) == [15, 20])
+        #expect(average.map(\.value) == [15, 20])
         #expect(average.first?.start == start.adding(days: 21))
     }
 

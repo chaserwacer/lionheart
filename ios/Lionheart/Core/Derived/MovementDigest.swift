@@ -7,6 +7,8 @@ import Foundation
 /// the count, since listing every pairing would be the detail screen again.
 struct MovementDigest: Equatable, Sendable, Identifiable {
     let order: Int
+    /// The movement the line is about; absent for the "Other work" line, which names none.
+    let movementDataId: UUID?
     let movementName: String
     let line: Line
 
@@ -34,11 +36,12 @@ struct MovementDigest: Equatable, Sendable, Identifiable {
         let detail = SessionDetail.of(sets, catalogue: catalogue)
         let movements = detail.blocks.map { block in
             MovementDigest(
-                order: block.order, movementName: block.movementName, line: line(of: block.sets.map(\.entry)))
+                order: block.order, movementDataId: block.movementDataId, movementName: block.movementName,
+                line: line(of: block.sets.map(\.entry)))
         }
         guard !detail.unattached.isEmpty else { return movements }
         return movements + [MovementDigest(
-            order: movements.count, movementName: "Other work", line: .counted(setCount: detail.unattached.count))]
+            order: movements.count, movementDataId: nil, movementName: "Other work", line: .counted(setCount: detail.unattached.count))]
     }
 
     static func line(of entries: [SetEntry]) -> Line {

@@ -15,6 +15,9 @@ struct TodayView: View {
     let ouraSync: OuraSyncStore
     /// Names the movements in each session's lines.
     let library: MovementLibraryStore
+    /// The whole log, which a movement's page opened from a training line reads.
+    let history: HistoryStore
+    let focus: FocusStore
     /// Passed through to Settings, which states it. Carried rather than re-read from the bundle
     /// so there is one place configuration is resolved.
     let apiBaseURL: URL
@@ -56,6 +59,9 @@ struct TodayView: View {
             .toolbar { toolbar(day: day, today: today) }
             .refreshable { await store.refresh() }
             .navigationDestination(for: Route.self) { destination(for: $0) }
+            .navigationDestination(for: HistoryRoute.self) { route in
+                HistoryDestination(route: route, history: history, focus: focus, library: library)
+            }
             .sheet(isPresented: $isQuickLogPresented) {
                 QuickLogSheet(store: store)
             }
@@ -107,7 +113,7 @@ struct TodayView: View {
         switch route {
         case .session(let id):
             if let session = store.state.value.flatMap({ session(id, in: $0) }) {
-                SessionDetailView(session: session, catalogue: catalogue)
+                SessionDetailView(session: session, catalogue: catalogue, history: history)
             } else {
                 ContentUnavailableView {
                     Text("Session not available")
@@ -129,7 +135,7 @@ struct TodayView: View {
             ?? snapshot.lastCompleted.map(TrainingSession.completed).flatMap { $0.id == id ? $0 : nil }
     }
 
-    private var catalogue: MovementCatalogue { MovementCatalogue(library.all) }
+    private var catalogue: MovementCatalogue { library.catalogue }
 
     // MARK: - Loaded
 
@@ -204,21 +210,34 @@ struct TodayView: View {
         }
     }
 
+    /// Each session as a head row that opens it, and each of its movements as a row of its own
+    /// that opens the movement's page — its history, charts and records.
+    ///
+    /// The movements the sessions name are handed to the catalogue to cover, keyed on the set of
+    /// them, so a movement made since the catalogue loaded is read for once rather than shown as
+    /// "Unknown movement".
     @ViewBuilder
     private func trainingSection(_ snapshot: TodaySnapshot, today: CalendarDay) -> some View {
+        let shown = snapshot.sessionsOnDay.map { ($0, nil as String?) }
+            + (snapshot.lastCompleted.map {
+                let session = TrainingSession.completed($0)
+                return [(session, "Last session · \(Formatting.day(RelativeDay.of(session.date, today: today)))")]
+            } ?? [])
+        let referenced = shown.reduce(into: Set<UUID>()) { $0.formUnion($1.0.referencedMovementIds) }
+
         Section("Training") {
-            ForEach(snapshot.sessionsOnDay) { session in
+            ForEach(shown, id: \.0.id) { session, dayLabel in
                 NavigationLink(value: Route.session(session.id)) {
-                    TrainingDayRow(session: session, catalogue: catalogue)
+                    TrainingDayRow(session: session, dayLabel: dayLabel)
                 }
-            }
-            if let last = snapshot.lastCompleted {
-                let session = TrainingSession.completed(last)
-                NavigationLink(value: Route.session(session.id)) {
-                    TrainingDayRow(
-                        session: session,
-                        catalogue: catalogue,
-                        dayLabel: "Last session · \(Formatting.day(RelativeDay.of(session.date, today: today)))")
+                ForEach(MovementDigest.of(session.sets, catalogue: catalogue)) { digest in
+                    if let movementDataId = digest.movementDataId {
+                        NavigationLink(value: HistoryRoute.movement(movementDataId)) {
+                            MovementLineRow(digest: digest)
+                        }
+                    } else {
+                        MovementLineRow(digest: digest)
+                    }
                 }
             }
             if snapshot.sessionsOnDay.isEmpty, snapshot.lastCompleted == nil, snapshot.inProgress == nil {
@@ -226,6 +245,7 @@ struct TodayView: View {
                     .foregroundStyle(Color(.secondaryLabel))
             }
         }
+        .task(id: referenced) { await library.cover(referenced) }
     }
 
     @ViewBuilder

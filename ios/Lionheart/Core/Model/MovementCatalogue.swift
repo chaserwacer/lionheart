@@ -20,6 +20,12 @@ struct MovementCatalogue: Equatable, Sendable {
 
     func movement(_ id: UUID) -> MovementData? { namesById[id] }
 
+    /// The ids among `ids` this catalogue has no movement for — what a screen holding them has to
+    /// ask the server about before it can name them.
+    func missing(_ ids: some Sequence<UUID>) -> Set<UUID> {
+        Set(ids.filter { namesById[$0] == nil })
+    }
+
     /// What to print for a set's movement. `nil` is a set shape with no movement identity at all —
     /// a trail run, a freeform log — which is a different thing from a movement this catalogue
     /// could not resolve.

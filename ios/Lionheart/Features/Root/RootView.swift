@@ -82,6 +82,8 @@ private struct SignedInTabs: View {
                     store: container.today,
                     ouraSync: container.ouraSync,
                     library: container.movements,
+                    history: container.history,
+                    focus: container.focus,
                     apiBaseURL: container.configuration.baseURL,
                     activeWorkout: container.activeWorkout)
             } label: {
@@ -98,7 +100,7 @@ private struct SignedInTabs: View {
                 TabLabel("Train", systemImage: "record.circle")
             }
             Tab(value: Destination.history) {
-                HistoryView(store: container.history)
+                HistoryView(store: container.history, focus: container.focus, library: container.movements)
             } label: {
                 TabLabel("History", systemImage: "clock.arrow.circlepath")
             }

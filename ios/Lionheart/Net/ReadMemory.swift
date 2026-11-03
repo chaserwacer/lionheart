@@ -128,6 +128,18 @@ extension ReadKey {
     static let bodyWellness = ReadKey("body.wellness")
     static let bodyInjuries = ReadKey("body.injuries")
 
+    static let focusPins = ReadKey("focus.pins")
+
+    /// The records one movement established, for its history.
+    static func establishedRecords(movement movementDataId: UUID) -> ReadKey {
+        ReadKey("records.established.movement.\(movementDataId.uuidString)")
+    }
+
+    /// The records one session established, for its detail.
+    static func establishedRecords(session sessionId: UUID) -> ReadKey {
+        ReadKey("records.established.session.\(sessionId.uuidString)")
+    }
+
     /// One record chain, by the identity the route is asked with.
     static func recordHistory(_ key: RecordKey) -> ReadKey {
         let subject = key.subject.movementDataId?.uuidString ?? "trail-running"

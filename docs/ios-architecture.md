@@ -91,7 +91,8 @@ useful thing to say is when that was — "As of 14:02", instrument-style.
 ### Remembered reads
 
 Every read a screen depends on — Today (keyed by the day shown, so the current day keeps one answer
-whatever its date), Train's plan, History and its record chains, Body, the movement catalogue, the
+whatever its date), Train's plan, History and its record chains, the focus pins, the records a
+movement or a session established, Body, the movement catalogue, the
 record summaries and the profile gate — goes through `APIClient.get(_:remembering:)`. It keeps the
 response **as the server sent it** under the signed-in account in `ReadMemory`, and when a request
 never gets an answer it decodes the kept bytes instead and answers `Remembered.recalled(value,
@@ -397,6 +398,63 @@ before and after a rest ran out in the background, the rest-end notification, an
 ending on Finish, discard and sign-out were all seen that way. The minimal presentation needs a
 second app's activity on the Island and has not been seen.
 
+## History: the training log, a movement's page, and the focus list
+
+History is where training is found again, and its first read is the athlete's **whole log** — every
+session from the epoch through 45 days ahead, about half a megabyte for two years and 206 sessions.
+Everything else on the tab is a reading of that one answer, so it costs no request of its own: the
+log, the consistency reading, the movement index, and every movement's history, charts and
+frequency. A per-movement route would have been a second account of data the device already holds,
+so none was added. `HistoryStore` is the app's one reading of the log; Today opens a movement's page
+from it too, through the same `HistoryDestination`, so a movement reads the same from either tab.
+
+**The log is a log book.** A completed session's row is its day and duration, each movement's
+`MovementDigest` line, and its session total — the volume per unit, since units never convert. The
+filter by movement is a search token: typing suggests movements as completions (iOS 26 does not show
+`suggestedTokens` while the field is minimized into the toolbar), and a chosen token keeps the
+sessions that performed that movement **by id**, so a paused squat never brings in the high-bar
+ones. Free text still matches names and notes.
+
+**Consistency is plain measurement.** Sessions per week over a span, the four-week average, the
+weeks trained, the median sessions in a week that had any, the current and longest run of weeks
+with a session, and a calendar of training days back to the first. The run is strict — one empty
+week ends it — and the week in progress cannot end one on a Monday morning. Nothing is coloured for
+a week missed.
+
+**A movement's page** is Strong's History, Charts and Records under a summary that is always there:
+sessions, sessions a week since the first and over the last twelve weeks, the last day, and the
+best estimated single. The estimate is Epley with **no estimate above twelve reps or at zero load**,
+which is the athlete's own analysis's rule; the server's records carry an uncapped Epley, which is
+harmless there because a record never sits above the twelve-rep max. Charts read one measure at a
+time in one weight unit, with gaps where a session had nothing to measure. Records reuses the
+records screen's sections (`SubjectRecordsSections`).
+
+**Record marks come from the server.** A set is marked when a record the server established — any
+standing, `GET /api/personal-records/established` — names it: the session that began at the
+record's instant, the movement, the load, the reps and the unit. The device does not re-run
+detection. A first of its kind marks nothing, for the reason the live badge stays quiet about one,
+and a withdrawn record marks nothing because the athlete said it was not real. A best session volume
+belongs to the session's work on a movement and is said under that movement, not on a set.
+
+**Focus lives in History**, because every figure on it is a reading of the log against what was
+meant: sessions done against the frequency the pin asks for, the estimated single before the
+horizon against the best inside it, the heaviest load at the target's reps against the target. The
+server stores only the pin and whether it is still pinned; whether its horizon has begun or passed
+and whether its target was met are read here (`FocusReading`), so a session logged late can never
+leave a stored "met" disagreeing with the log. The pins being worked on lead History; the list
+keeps the past ones.
+
+### Naming every movement
+
+A set carries only a `movementDataId`, and the catalogue loaded at sign-in knows nothing of a
+movement the Strong import or the web app made since. So the catalogue is one app-wide value in
+`MovementLibraryStore`, and a screen holding sets asks it to **cover** them: History after each
+read, Today keyed on the movements its sessions name, and any `title(of:)` that misses — which is
+how Train and the workout bar are covered without each asking. A miss reads the catalogue again
+once; an id a current catalogue still does not hold is remembered as unlisted and not asked about
+again, so a deleted movement costs one read rather than one per render. A read that could not reach
+the server proves nothing and leaves the id to be asked about again.
+
 ## Personal records: one unit at a time
 
 The server establishes records when a session's sets become final; the client reads them, shows
@@ -438,7 +496,9 @@ owner's brief: native, like Apple Music, and explicitly not the web app's custom
 
 `Design/` holds only what stock SwiftUI has no answer for: `Tokens`, `ActiveWorkoutBar`,
 `Sparkline` (a stock `Chart` with every axis removed), `StatTile`, `SetRow`, `RestTimerBar` and
-`LoadStateRows` (the loading row and stale banner three tabs share).
+`LoadStateRows` (the loading row and stale banner three tabs share), and `MovementLines` (a
+session's movements as log-book lines, figures aligned down one column, which Today and History share),
+and `SummaryFigures` (a span's headline figures as columns, or labelled rows when they would not fit).
 
 Colour carries a verdict in one way only: orange marks a recovery figure, or a readiness band,
 that asks for attention. Oura's other bands read in the secondary label colour — a traffic light's

@@ -78,6 +78,12 @@ struct LoggedSession: Equatable, Sendable, Identifiable {
     /// The movements the session touched, named — or the lifecycle word when it touched none.
     let headline: String
     let facts: LoggedSessionFacts
+    /// Each movement as a log-book line — its load and reps, or its top set — in the order done.
+    let lines: [MovementDigest]
+    /// What the sets came to: the count and the volume per unit.
+    let totals: WorkoutTotals
+    /// The movements the sets were performed on, which is what filtering the log by one reads.
+    let movementIds: Set<UUID>
     let notes: String
     /// Not `private`: `SessionLog.row(_:)` in the extension below is what builds it, and a private
     /// member would make the memberwise initialiser unreachable from there. It is still not for a
@@ -116,8 +122,21 @@ struct SessionLog: Equatable, Sendable {
     /// The log with only the rows matching `query`, and months that kept nothing dropped.
     func filtered(by query: String) -> SessionLog {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return self }
-        return SessionLog(months: months.compactMap { month in
-            let kept = month.sessions.filter { $0.matches(query) }
+        return keeping { $0.matches(query) }
+    }
+
+    /// The log with only the sessions that performed every one of `movements`.
+    ///
+    /// By identity, never by name: a paused squat and a high-bar squat are different movements,
+    /// and a filter for one must not bring in the other because their names share a word.
+    func filtered(byMovements movements: Set<UUID>) -> SessionLog {
+        guard !movements.isEmpty else { return self }
+        return keeping { movements.isSubset(of: $0.movementIds) }
+    }
+
+    private func keeping(_ isKept: (LoggedSession) -> Bool) -> SessionLog {
+        SessionLog(months: months.compactMap { month in
+            let kept = month.sessions.filter(isKept)
             return kept.isEmpty ? nil : Month(start: month.start, sessions: kept)
         })
     }
@@ -160,6 +179,9 @@ extension SessionLog {
             kind: kind,
             headline: headline,
             facts: facts(of: session),
+            lines: MovementDigest.of(session.sets, catalogue: catalogue),
+            totals: WorkoutTotals.of(entries: session.sets),
+            movementIds: Set(session.sets.compactMap(\.movementDataId)),
             notes: notes,
             searchText: ([headline, notes, kind.label] + movements).joined(separator: " "))
     }

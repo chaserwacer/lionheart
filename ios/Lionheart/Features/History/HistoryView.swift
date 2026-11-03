@@ -2,16 +2,27 @@ import SwiftUI
 
 /// What have I done?
 ///
-/// The session log is the screen, because that is the question: an inset-grouped `List` of sessions
-/// newest first, grouped by month, searchable. Records and trends are the two readings *of* that
-/// log, so they are destinations above it rather than a segmented control fighting the search
-/// field for the top of the screen.
+/// The training log is the screen, because that is the question: every session newest first,
+/// grouped by month, each row a log-book entry — the day, how long, each movement's load and reps,
+/// and what it came to. Above it, the three readings of the log that answer the athlete's goals:
+/// what he has pinned to emphasise, how consistently he trains, and the ways into a movement,
+/// the records and the trends. They are destinations above the log rather than a segmented control
+/// fighting the search field for the top of the screen, and they step aside while searching.
+///
+/// The log is filtered by movement with search tokens: typing suggests movements, and choosing one
+/// keeps the sessions that performed it — by identity, so a paused squat does not bring in the
+/// high-bar ones. Free text still matches names and notes.
 struct HistoryView: View {
     let store: HistoryStore
+    let focus: FocusStore
+    let library: MovementLibraryStore
 
     @State private var query = ""
+    @State private var tokens: [MovementToken] = []
     @State private var asked: AskedTransition?
-    @ScaledMetric(relativeTo: .body) private var loadChartHeight: CGFloat = 64
+    /// The stack's path, held so a context menu can push a movement's page.
+    @State private var path = NavigationPath()
+    @ScaledMetric(relativeTo: .body) private var consistencyChartHeight: CGFloat = 64
 
     /// A transition waiting on the athlete's confirmation.
     ///
@@ -26,11 +37,11 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 switch store.state {
                 case .loading:
-                    Section("Sessions") { SkeletonRows(count: 6, systemImage: "checkmark.circle.fill") }
+                    Section("Sessions") { SkeletonRows(count: 6) }
                 case .unavailable(let failure):
                     unavailable(failure)
                 case .loaded(let snapshot):
@@ -42,10 +53,22 @@ struct HistoryView: View {
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
             .navigationTitle("History")
-            .searchable(text: $query, prompt: "Movement or note")
+            .searchable(text: $query, tokens: $tokens, prompt: "Movement or note") { token in
+                Text(token.name)
+            }
+            // Movements as completions rather than as `suggestedTokens`, which iOS 26 does not show
+            // while the field is minimized into the toolbar.
+            .searchSuggestions {
+                ForEach(suggestedTokens) { token in
+                    Label(token.name, systemImage: "line.3.horizontal.decrease")
+                        .searchCompletion(token)
+                }
+            }
             .minimizingSearchField()
-            .refreshable { await store.refresh() }
-            .navigationDestination(for: HistoryRoute.self) { destination(for: $0) }
+            .refreshable { await refresh() }
+            .navigationDestination(for: HistoryRoute.self) { route in
+                HistoryDestination(route: route, history: store, focus: focus, library: library)
+            }
             .confirmationDialog(
                 asked?.transition.confirmation?.question ?? "",
                 isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
@@ -77,7 +100,13 @@ struct HistoryView: View {
         } message: {
             if let refusal = store.action.refusal { Text(refusal.message) }
         }
-        .task { await store.refresh() }
+        .task { await refresh() }
+    }
+
+    private func refresh() async {
+        async let log: Void = store.refresh()
+        async let pins: Void = focus.refresh()
+        _ = await (log, pins)
     }
 
     /// Runs a transition, or asks first when it is one that cannot be undone.
@@ -103,40 +132,20 @@ struct HistoryView: View {
         }
     }
 
-    @ViewBuilder
-    private func destination(for route: HistoryRoute) -> some View {
-        switch route {
-        case .session(let id):
-            if let snapshot = store.state.value, let session = snapshot.session(id) {
-                SessionDetailView(session: session, catalogue: snapshot.catalogue)
-            } else {
-                // Reachable: a refresh can land while a pushed row's session is no longer in the
-                // window. Saying so beats an empty screen with a title.
-                ContentUnavailableView {
-                    Text("Session not available")
-                } description: {
-                    Text("It is no longer in the window History has loaded.")
-                }
-            }
-        case .records:
-            PersonalRecordsView(
-                records: store.state.value?.records ?? [],
-                catalogue: store.state.value?.catalogue ?? MovementCatalogue())
-        case .recordSubject(let subject):
-            SubjectRecordsView(
-                subject: subject,
-                held: store.state.value?.records(on: subject),
-                catalogue: store.state.value?.catalogue ?? MovementCatalogue(),
-                store: store)
-        case .recordHistory(let key):
-            RecordHistoryView(
-                key: key,
-                name: key.subject.name(in: store.state.value?.catalogue ?? MovementCatalogue()),
-                store: store)
-        case .trends:
-            TrendsView(trends: store.state.value?.trends ?? TrainingTrends(weeks: [], strength: []))
-        }
+    // MARK: - Search
+
+    /// The movements the typed text names, offered as tokens: the ones trained most recently first,
+    /// and only while there is text, so an empty field suggests nothing.
+    private var suggestedTokens: [MovementToken] {
+        guard query.nonEmpty != nil, let index = store.state.value?.movements else { return [] }
+        let chosen = Set(tokens.map(\.id))
+        return index.matching(query)
+            .filter { !chosen.contains($0.movementDataId) }
+            .prefix(8)
+            .map { MovementToken(id: $0.movementDataId, name: $0.name) }
     }
+
+    private var isSearching: Bool { query.nonEmpty != nil || !tokens.isEmpty }
 
     // MARK: - Loaded
 
@@ -146,16 +155,30 @@ struct HistoryView: View {
             StaleBanner(staleness)
         }
 
-        let log = snapshot.log.filtered(by: query)
+        let log = snapshot.log
+            .filtered(byMovements: Set(tokens.map(\.id)))
+            .filtered(by: query)
 
         if isSearching {
+            ForEach(tokens) { token in
+                Section {
+                    NavigationLink(value: HistoryRoute.movement(token.id)) {
+                        LabeledContent(token.name) {
+                            let own = snapshot.movements.entries.first { $0.movementDataId == token.id }
+                            Text(Formatting.count(own?.sessionCount ?? 0, "session")).monospacedDigit()
+                        }
+                    }
+                }
+            }
             if log.isEmpty {
                 searchFoundNothing
             } else {
                 months(of: log)
             }
         } else {
-            readings(snapshot)
+            focusSection(snapshot)
+            consistencySection(snapshot)
+            readingsSection(snapshot)
             if snapshot.log.isEmpty {
                 nothingLoggedYet
             } else {
@@ -164,80 +187,118 @@ struct HistoryView: View {
         }
     }
 
-    /// The training load and the records. The load leads as a chart rather than a link, because the
-    /// shape of the last four months is the first thing a log of hundreds of sessions should say;
-    /// the chart opens Trends. Hidden while searching, because a search is about the log.
+    /// The pins being worked on, each a line of how it is going, opening the movement it emphasises.
+    /// Nothing at all when nothing is pinned — the focus list is still one row away below.
     @ViewBuilder
-    private func readings(_ snapshot: HistorySnapshot) -> some View {
-        let load = snapshot.trends.load(lastWeeks: Self.loadWeeksShown)
-        let shown = load.weeks
-        let average = load.average
+    private func focusSection(_ snapshot: HistorySnapshot) -> some View {
+        let today = CalendarDay(Date())
+        let current = (focus.state.value ?? [])
+            .map { FocusReading.of($0, history: snapshot.history(of: $0.movementDataId, today: today), today: today) }
+            .arrangedForReading().current
 
-        Section {
-            NavigationLink(value: HistoryRoute.trends) {
-                VStack(alignment: .leading, spacing: 8) {
-                    loadSummary(shown, average: average)
-                    if shown.contains(where: { $0.setCount > 0 }) {
-                        WeeklyLoadChart(weeks: shown, average: average, showsAxes: false)
-                            .frame(height: loadChartHeight)
+        if !current.isEmpty {
+            Section {
+                ForEach(current) { reading in
+                    NavigationLink(value: HistoryRoute.movement(reading.pin.movementDataId)) {
+                        FocusSummaryRow(reading: reading, name: snapshot.catalogue.name(for: reading.pin.movementDataId))
                     }
                 }
-                .padding(.vertical, 4)
+            } header: {
+                Text("Focus")
+            }
+        }
+    }
+
+    /// Sessions a week over the last four months, with this week, the four-week average and the
+    /// weeks that held a session. It opens the training calendar.
+    @ViewBuilder
+    private func consistencySection(_ snapshot: HistorySnapshot) -> some View {
+        let window = snapshot.consistency.window(lastWeeks: Self.consistencyWeeksShown)
+
+        if !window.weeks.isEmpty {
+            Section {
+                NavigationLink(value: HistoryRoute.consistency) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        SummaryFigures(figures: [
+                            ("This week", Formatting.count(window.weeks.last?.sessionCount ?? 0, "session")),
+                            ("4-week average", Formatting.rate(window.average.last?.value ?? 0)),
+                            ("Weeks trained", "\(window.weeksTrained) of \(window.weeks.count)"),
+                        ])
+                        if window.sessions > 0 {
+                            WeeklyLoadChart(
+                                weeks: window.weeks, average: window.average, counting: .sessions, showsAxes: false)
+                                .frame(height: consistencyChartHeight)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            } header: {
+                Text("Sessions per week")
+            }
+        }
+    }
+
+    /// Four months: long enough to see a block and a gap, short enough that a week is a bar.
+    private static let consistencyWeeksShown = 16
+
+    /// The ways into the log by something other than date.
+    private func readingsSection(_ snapshot: HistorySnapshot) -> some View {
+        Section {
+            NavigationLink(value: HistoryRoute.focus) {
+                LabeledContent("Focus") {
+                    let pinned = (focus.state.value ?? []).filter(\.isPinned).count
+                    Text(pinned == 0 ? "None pinned" : "\(pinned) pinned").monospacedDigit()
+                }
+            }
+            NavigationLink(value: HistoryRoute.movements) {
+                LabeledContent("Movements") {
+                    Text("\(snapshot.movements.entries.count)").monospacedDigit()
+                }
             }
             NavigationLink(value: HistoryRoute.records) {
-                LabeledContent {
+                LabeledContent("Personal records") {
                     let held = snapshot.records.reduce(0) { $0 + $1.records.count }
-                    Text(held == 0 ? "None yet" : "\(held)")
-                        .monospacedDigit()
-                } label: {
-                    Text("Personal records")
+                    Text(held == 0 ? "None yet" : "\(held)").monospacedDigit()
                 }
+            }
+            NavigationLink(value: HistoryRoute.trends) {
+                Text("Load and top sets")
             }
         }
     }
-
-    /// The load in two figures: this week's sets and the four-week average it is read against.
-    private func loadSummary(_ weeks: [TrainingWeek], average: [TrainingTrends.WeeklyLoad]) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 16) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("This week").font(.caption).foregroundStyle(Color(.secondaryLabel))
-                Text("\(weeks.last?.setCount ?? 0) sets").font(.title3.weight(.semibold).monospacedDigit())
-            }
-            if let latest = average.last {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("4-week average").font(.caption).foregroundStyle(Color(.secondaryLabel))
-                    Text("\(Int(latest.sets.rounded())) sets")
-                        .font(.title3.monospacedDigit())
-                        .foregroundStyle(Color(.secondaryLabel))
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    /// Four months: long enough to see a block and a deload, short enough that a week is a bar.
-    private static let loadWeeksShown = 16
 
     @ViewBuilder
     private func months(of log: SessionLog) -> some View {
         ForEach(log.months) { month in
-            Section(Formatting.month(month.start)) {
+            Section {
                 ForEach(month.sessions) { session in
                     NavigationLink(value: HistoryRoute.session(session.sessionId)) {
-                        SessionRow(session: session, today: today)
+                        LogRow(session: session, today: today)
                     }
                     .contextMenu { menu(for: session) }
                     .swipeActions(edge: .trailing) { swipes(for: session) }
                 }
+            } header: {
+                MonthHeader(month: month)
             }
         }
     }
 
-    /// The long press. Copying a session's own line is what gets it into a message or into a
-    /// question in Chat, and is the one action every row can offer whatever state it is in.
+    /// The long press: open any of the session's movements, act on the session, or copy its line —
+    /// which is what gets it into a message or a question in Chat.
     @ViewBuilder
     private func menu(for session: LoggedSession) -> some View {
+        let movements = session.lines.compactMap { line in
+            line.movementDataId.map { (id: $0, name: line.movementName) }
+        }
+        if !movements.isEmpty {
+            Section {
+                ForEach(movements, id: \.id) { movement in
+                    // A button that pushes, since a link inside a context menu does not navigate.
+                    Button(movement.name) { path.append(HistoryRoute.movement(movement.id)) }
+                }
+            }
+        }
         ForEach(transitions(on: session.kind)) { transition in
             Button(role: transition.isDestructive ? .destructive : nil) {
                 ask(transition, about: session)
@@ -271,14 +332,13 @@ struct HistoryView: View {
         SessionTransition.offered(on: kind).filter { $0 != .start }
     }
 
-    /// One session as a line of text, for the pasteboard: the day, what it was, and what it came to.
+    /// One session as text, for the pasteboard: the day and what it came to, then each movement's
+    /// line, then the notes.
     private func summary(of session: LoggedSession) -> String {
         let day = Formatting.day(RelativeDay.of(session.day, today: today))
-        let parts = [day, session.headline, Formatting.sessionFacts(session.facts)]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-        guard session.hasNotes else { return parts.joined(separator: " · ") }
-        return parts.joined(separator: " · ") + "\n" + session.notes
+        let head = [day, Formatting.sessionFacts(session.facts)].compactMap { $0 }.joined(separator: " · ")
+        let lines = session.lines.map { "\($0.movementName) \(MovementLines.line($0.line))" }
+        return ([head] + lines + (session.hasNotes ? [session.notes] : [])).joined(separator: "\n")
     }
 
     // MARK: - Empty and not loaded
@@ -296,7 +356,7 @@ struct HistoryView: View {
 
     private var searchFoundNothing: some View {
         Section {
-            ContentUnavailableView.search(text: query)
+            ContentUnavailableView.search(text: query.nonEmpty ?? tokens.map(\.name).joined(separator: ", "))
                 .listRowBackground(Color.clear)
         }
     }
@@ -309,14 +369,10 @@ struct HistoryView: View {
             Text(failure.message)
         } actions: {
             if failure.isWorthRetrying {
-                Button("Try again") { Task { await store.refresh() } }
+                Button("Try again") { Task { await refresh() } }
             }
         }
         .listRowBackground(Color.clear)
-    }
-
-    private var isSearching: Bool {
-        !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// Today from the device's calendar, read once per body evaluation: "is this yesterday" is a
@@ -324,8 +380,84 @@ struct HistoryView: View {
     private var today: CalendarDay { CalendarDay(Date()) }
 }
 
+/// A movement chosen to filter the log by, as a search token.
+struct MovementToken: Identifiable, Hashable {
+    let id: UUID
+    let name: String
+}
+
+/// A month's header: its name, and how many sessions it held — the month's count is the first
+/// thing a log read for consistency asks.
+private struct MonthHeader: View {
+    let month: SessionLog.Month
+
+    var body: some View {
+        let performed = month.sessions.filter(\.kind.isPerformed).count
+        HStack(alignment: .firstTextBaseline) {
+            Text(Formatting.month(month.start))
+            Spacer()
+            Text(Formatting.count(performed, "session"))
+                .monospacedDigit()
+        }
+    }
+}
+
 /// One session in the log.
-private struct SessionRow: View {
+///
+/// A session that happened reads as a log-book entry: the day and how long, each movement's line,
+/// and what it came to. Planned, missed and skipped sessions keep the shorter row with a state mark,
+/// since they have no work to list and their state is the news.
+private struct LogRow: View {
+    let session: LoggedSession
+    let today: CalendarDay
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        switch session.kind {
+        case .completed:
+            entry
+        case .inProgress, .skipped, .missed, .planned, .unrecognised:
+            StateRow(session: session, today: today)
+        }
+    }
+
+    private var entry: some View {
+        let heading = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+
+        return VStack(alignment: .leading, spacing: 5) {
+            heading {
+                Text(Formatting.date(session.day))
+                    .font(.subheadline.weight(.semibold))
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
+                if case .performed(_, let duration?, _) = session.facts {
+                    Text(Formatting.duration(seconds: duration))
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(Color(.secondaryLabel))
+                }
+            }
+            if !session.lines.isEmpty {
+                MovementLines(digests: session.lines)
+            }
+            Text(Formatting.totals(session.totals))
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(Color(.secondaryLabel))
+            if session.hasNotes {
+                Text(session.notes)
+                    .font(.footnote)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .lineLimit(2)
+            }
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A session that is not a finished one: its state mark, what it was, and the day.
+private struct StateRow: View {
     let session: LoggedSession
     let today: CalendarDay
 

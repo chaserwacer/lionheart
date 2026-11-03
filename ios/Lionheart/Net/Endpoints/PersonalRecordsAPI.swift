@@ -39,6 +39,35 @@ struct PersonalRecordsAPI: Sendable {
         ).map(\.elements)
     }
 
+    /// Every record a movement established, in every standing, newest first — what marks the sets
+    /// of its history that set one.
+    func established(on movementDataId: UUID) async throws -> Remembered<[PersonalRecord]> {
+        try await client.get(
+            "\(Self.root)/established",
+            query: [URLQueryItem(name: "movementDataId", value: movementDataId.uuidString)],
+            as: LenientList<PersonalRecord>.self,
+            remembering: .establishedRecords(movement: movementDataId)
+        ).map(\.elements)
+    }
+
+    /// Every record established inside a window of instants, in every standing.
+    ///
+    /// A record is dated with its session's start, so a session's own records are the window over
+    /// its period.
+    func established(from start: Date, to end: Date, remembering key: ReadKey) async throws
+        -> Remembered<[PersonalRecord]>
+    {
+        try await client.get(
+            "\(Self.root)/established",
+            query: [
+                URLQueryItem(name: "from", value: WireDate.wire(from: start)),
+                URLQueryItem(name: "to", value: WireDate.wire(from: end)),
+            ],
+            as: LenientList<PersonalRecord>.self,
+            remembering: key
+        ).map(\.elements)
+    }
+
     /// Withdraws a standing record, putting back whatever it beat. A record that no longer stands
     /// answers 409 with the server's own sentence, which arrives as `APIError.refused`.
     func retract(_ personalRecordId: UUID) async throws -> RetractionOutcome {

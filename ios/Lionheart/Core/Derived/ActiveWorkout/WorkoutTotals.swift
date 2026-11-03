@@ -52,6 +52,32 @@ struct WorkoutTotals: Equatable, Sendable {
             movingDuration: covered.reduce(0) { $0 + $1.duration })
     }
 
+    /// A finished session's sets, totalled by the same arithmetic as the workout in flight, so a
+    /// session reads the same total in the log as it did while it was being logged.
+    static func of(entries: [SetEntry]) -> WorkoutTotals {
+        let lifts = entries.compactMap { entry -> SetCommand.Lift? in
+            guard case .lift(let lift) = entry else { return nil }
+            return SetCommand.Lift(
+                movementDataId: lift.movementDataId, reps: lift.reps, weight: lift.weight,
+                unit: lift.unit, rpe: lift.rpe)
+        }
+        let covered = entries.compactMap { entry -> GroundCovered? in
+            switch entry {
+            case .distanceTime(let set):
+                GroundCovered(distance: set.distance, unit: set.unit, duration: set.duration)
+            case .trailRun(let set):
+                GroundCovered(distance: set.distance, unit: set.unit, duration: set.duration)
+            case .lift, .freeform, .unrecognised:
+                nil
+            }
+        }
+        return WorkoutTotals(
+            setCount: entries.count,
+            weights: weightTotals(of: lifts),
+            distances: distanceTotals(of: covered),
+            movingDuration: covered.reduce(0) { $0 + $1.duration })
+    }
+
     private static func weightTotals(of lifts: [SetCommand.Lift]) -> [WeightTotal] {
         let byUnit = Dictionary(grouping: lifts, by: \.unit.wire)
         return firstAppearances(of: lifts.map(\.unit.wire)).compactMap { key in

@@ -17,6 +17,7 @@ using lionheart.Services.Embedding;
 using lionheart.Services.Llm;
 using lionheart.Services.Interpretation;
 using lionheart.Services.Contexts;
+using lionheart.Services.Training.Focus;
 using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.PersonalRecords;
 using lionheart.Services.Training.Sessions;
@@ -119,6 +120,7 @@ builder.Services.AddTransient<IInterpretationEngine, InterpretationEngine>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
+builder.Services.AddTransient<IFocusPinService, FocusPinService>();
 builder.Services.AddTransient<IContextService, ContextService>();
 
 

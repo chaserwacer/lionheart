@@ -55,7 +55,16 @@ write here is the athlete saying a record was not real.
 | GET | `/summaries` | — | the standing records grouped by subject |
 | GET | `/summaries/{movementDataId}` | — | one movement's standing records, 404 if it is not the athlete's |
 | GET | `/history` | `MovementDataId?`, `Kind`, `Bracket?` | one chain, newest first, beaten and retracted links included |
+| GET | `/established` | `MovementDataId?`, `From?`, `To?` | every record set on that movement and/or achieved inside `[From, To]`, newest first, in every standing; 404 if the movement is not the athlete's, 400 if `To` precedes `From` |
 | POST | `/{personalRecordId}/retract` | — | `Restored \| NothingStands` |
+
+**Established records** are what a client marks sets with. Each filter is optional and an absent
+one filters nothing — unlike `/history`, where an absent movement means trail running, so with no
+movement the answer includes trail-running records. `From` and `To` are instants and both ends are
+included. A record's `achievedAt` is its session's start in UTC, so a session's records are the
+window `[start, start]`; a record does not name the session that set it, so that instant, the
+movement and the achievement's own figures are how a client finds the set. Beaten and retracted
+records come back too: a set that took a record still took it after a later session beat it.
 
 A record's **subject** is one movement or trail running, and it crosses the wire as an optional
 `movementDataId` — absent meaning trail running — for the same reason program membership does: a
@@ -98,6 +107,44 @@ client, and it matches the purpose-built-request rule.
 `POST /` → `PlannedTrainingProgram` (`Title`, `StartDate`, `EndDate`, `Tags[]`) ·
 `POST /{id}/activate` · `POST /{id}/complete` (`Summary`) ·
 `GET /{id}` · `GET /` · `PATCH /{id}` (title/dates/tags) · `DELETE /{id}`
+
+## Focus — `/api/training/focus`
+
+A **focus pin** names one of the athlete's movements to emphasise over a horizon, at a number of
+sessions a week, perhaps toward a target. Lifecycle: `pinned → unpinned`, unpinning dated by the
+client. An unpinned pin is kept as history; delete is for a pin made by mistake.
+
+| Verb | Route | Body | Answers |
+|---|---|---|---|
+| GET | `/` | — | every pin, `FocusPinView[]`: pinned first, then by `starts`, latest first |
+| POST | `/` | `MovementDataId`, `Starts`, `Ends`, `SessionsPerWeek`, `Target?` | 201 with the view; 404 if the movement is not the athlete's |
+| PATCH | `/{id}` | `Starts`, `Ends`, `SessionsPerWeek`, `Target?` — the terms, replaced whole | 200 with the view; 409 if unpinned |
+| POST | `/{id}/unpin` | `On` (a date) | 200 with the view; 409 if already unpinned |
+| DELETE | `/{id}` | — | 204 |
+
+`Target` is `{ weight, unit, reps }` or absent — a nullable object for the reason program
+membership crosses as a nullable id. The view sends it back as the domain's two cases, and the
+status likewise:
+
+```
+FocusPinView {
+  focusPinId, movementDataId,
+  starts: "yyyy-MM-dd", ends: "yyyy-MM-dd",
+  sessionsPerWeek,
+  target: { "$type": "none" } | { "$type": "lift", weight, unit, reps },
+  status: { "$type": "pinned" } | { "$type": "unpinned", on: "yyyy-MM-dd" },
+  pinnedAt
+}
+```
+
+`Ends` before `Starts`, `SessionsPerWeek` outside 1–7, a negative or non-finite target weight, an
+unknown unit, or target reps outside 1–30 are each a 400 naming the field (`Ends`,
+`SessionsPerWeek`, `Target.Weight`, `Target.Unit`, `Target.Reps`). The movement is fixed for a
+pin's life — a different movement is a different focus.
+
+**Readings, not states.** Whether a horizon has begun or passed, and whether the target was met,
+are read by the client against today and the training log, the way a planned session is read as
+missed. None of them is stored, so none of them can disagree with the log.
 
 ## Oura — `/api/oura`
 

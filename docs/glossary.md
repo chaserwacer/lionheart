@@ -35,6 +35,12 @@ first and then in the code.
 | **Record lineage** | What a record replaced — nothing, for the first of its kind — carrying the predecessor's date so "how long the last one stood" answers without a second read. |
 | **Retracting a record** | Withdrawing the standing record because the set behind it was not real, which puts back whatever it beat. The only edit an athlete makes to a record. |
 | **Estimated one-rep max** | A single rep implied by a set, by Epley. Derived from the stored weight and reps on the way out, never stored. |
+| **Established records** | Every record a movement or a window of time set, whatever became of each since — standing, beaten or withdrawn. What marks the sets that set a record. |
+| **Focus pin** | A movement the athlete has pinned to emphasise over a horizon, at a number of sessions a week, perhaps toward a target. Pinned or unpinned; an unpinned pin is kept as history. |
+| **Focus terms** | What a focus pin asks for: its horizon, its sessions a week and its target. Revised whole, and only while the pin is pinned. |
+| **Focus horizon** | The days a focus pin covers, first and last included. Whether it has begun or passed is read against today, never stored. |
+| **Focus target** | No target, or a lift target — a weight in its unit for a rep count. Whether it was met is read against the training log, never stored. |
+| **Unpinning** | Letting a focus go, on a day the athlete names. Once only; delete is for a pin made by mistake. |
 
 ## Body and context
 
@@ -93,7 +99,19 @@ first and then in the code.
 | **Sign-out consequence** | What signing out costs the workout on the device, stated in the sign-out confirmation: nothing, nothing Train cannot resume, the sets not yet synced, a workout the server has never seen, or a whole past workout — plus any finished workouts still waiting. Signing out deletes the workout document and the outbox, so the answer depends on what the server already holds. |
 | **Logging surface** | The set-by-set sheet the workout bar opens into. |
 | **Profile gate** | The root's answer to whether a signed-in athlete may see the tabs: undetermined, absent, present, or unreachable. An Identity account without a Lionheart profile is refused by every training write, while reads answer empty — which is why the gate asks rather than waiting to be refused. |
-| **Session log** | History's list of sessions, grouped by month, newest first. A row reads as completed, in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. |
+| **Session log** | History's list of sessions, grouped by month, newest first — the training log. A completed session reads as a log-book entry: its day and duration, a movement digest per movement, and its total. Other rows read as in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. Filtered by movement by identity, never by name. |
+| **Session total** | What a session's sets came to: the set count and the volume (weight × reps) in each unit lifted in. Units never convert. |
+| **Movement page** | One movement's screen: its history, its charts, its records, and how often it is trained. Reached from anywhere a movement is named. |
+| **Movement history** | Every session one movement was performed in, newest first, with that movement's sets — a filter over the whole log the device already holds. Variants are separate movements. |
+| **Movement measure** | What a movement's chart reads per session: the estimated one-rep max, the heaviest set, the best set volume, or the reps at one load. |
+| **Movement frequency** | Sessions a week on one movement, over every week since its first session and over the last twelve. |
+| **Movement index** | Every movement the log holds, most recently trained first, with its session count. |
+| **Consistency reading** | Training days, sessions per week, and the runs of weeks that held a session. Plain measurement — no streak, no target. |
+| **Week run** | Consecutive weeks that each held at least one session. The current run survives a week still in progress that has had nothing yet. |
+| **Record mark** | The sign on a set that established a record, read from the established records by the session's start instant, the movement and the set as performed. Firsts of their kind and withdrawn records carry none. |
+| **Focus reading** | A focus pin read against today and the log: where its horizon stands, sessions against the frequency asked, the estimated one-rep max before against since, the distance to its target, and the last session. |
+| **Catalogue coverage** | Making sure the movement catalogue names every movement a screen holds: a missing one has the catalogue read again once; one the server still does not list is not asked about again. |
+| **Log span** | How far back a reading of the log reaches: three months, six, a year, or all of it. |
 | **Movement catalogue** | Movement names by id, so a set — which carries only a `movementDataId` — can say what it was. |
 | **Chat turn** | One thing in the Chat transcript: something said, a question in flight, or a question the server did not keep because the exchange failed. |
 | **Oura panel** | One collection of an Oura day as a screen shows it — its score, where Oura issues one, and the figures behind it. |

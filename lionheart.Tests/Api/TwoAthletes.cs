@@ -2,6 +2,7 @@ using lionheart.Data;
 using lionheart.Model.Training;
 using lionheart.Model.User;
 using lionheart.Services.Contexts;
+using lionheart.Services.Training.Focus;
 using lionheart.Services.Training.PersonalRecords;
 using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.Sessions;
@@ -85,6 +86,12 @@ public sealed class TwoAthletes : IDisposable
     {
         using var context = CreateContext();
         return await act(new TrainingProgramService(context, TimeProvider.System));
+    }
+
+    public async Task<T> FocusAsync<T>(TimeProvider clock, Func<IFocusPinService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        return await act(new FocusPinService(context, clock));
     }
 
     public async Task<T> ContextsAsync<T>(Func<IContextService, Task<T>> act)

@@ -1,5 +1,7 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
+using lionheart.Model.Training;
+using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.User;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +38,32 @@ public static class RemodelConfiguration
         ConfigureAnalyzableEntries(modelBuilder);
         ConfigureFacetValues(modelBuilder);
         ConfigurePersonalRecords(modelBuilder);
+        ConfigureFocusPins(modelBuilder);
+    }
+
+    private static void ConfigureFocusPins(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<FocusPin>(pin =>
+        {
+            pin.ToTable("FocusPins");
+            pin.HasKey(p => p.FocusPinId);
+            pin.HasOne<LionheartUser>().WithMany().HasForeignKey(p => p.UserId);
+            pin.HasIndex(p => p.UserId);
+
+            // A pin always names a real movement, so unlike a record's subject there is no sentinel
+            // and the key can be relational. Restrict, so a movement with pins on it cannot vanish
+            // from under the history they are.
+            pin.HasOne<MovementData>().WithMany().HasForeignKey(p => p.MovementDataId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // JSON rather than a complex type with a column per member: EF cannot bind a complex
+            // property to a constructor parameter, so columns would cost the terms and the pin a
+            // constructor that exists only for EF. Nothing queries a horizon in SQL — the list is
+            // ordered in app, because the status it leads with is JSON too.
+            pin.Property(p => p.Terms).HasJsonConversion();
+            pin.Property(p => p.Status).HasJsonConversion();
+            pin.Ignore(p => p.IsPinned);
+        });
     }
 
     private static void ConfigurePersonalRecords(ModelBuilder modelBuilder)

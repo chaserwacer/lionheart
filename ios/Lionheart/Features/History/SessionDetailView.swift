@@ -8,22 +8,37 @@ import SwiftUI
 ///
 /// The sections differ by lifecycle state because the states carry different facts — there is no
 /// "duration: —" row on a planned session, because a planned session has no duration to be missing.
+///
+/// Each movement's header opens the movement's page, and a set that established a record carries
+/// the mark, read from the records the server says this session set (`RecordMarks`).
 struct SessionDetailView: View {
     let session: TrainingSession
     let catalogue: MovementCatalogue
+    /// Where the session's established records are read and held.
+    let history: HistoryStore
+
+    private var marks: RecordMarks {
+        let records = history.established[.session(session.id)]?.value ?? []
+        return RecordMarks.of(records, in: [RecordMarks.Session(
+            sessionId: session.id,
+            startedAt: session.startedAt,
+            sets: session.sets.enumerated().map { SessionDetail.IndexedSet(order: $0.offset, entry: $0.element) })])
+    }
 
     var body: some View {
+        let marks = marks
+
         List {
-            headerSection
+            headerSection(marks)
 
             switch session {
             case .completed(let completed):
-                performed(completed.sets)
+                performed(completed.sets, marks: marks)
                 periodSection(completed.period)
                 effortSection(completed.effort)
                 decorationSection(completed.decoration)
             case .active(let active):
-                performed(active.sets)
+                performed(active.sets, marks: marks)
                 Section("Started") {
                     LabeledContent("At") { Text(active.startedAt, style: .time) }
                 }
@@ -51,14 +66,32 @@ struct SessionDetailView: View {
         .environment(\.defaultMinListRowHeight, 34)
         .navigationTitle(Formatting.date(session.date))
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: session.id) {
+            guard case .completed = session else { return }
+            await history.loadEstablished(by: session)
+        }
     }
 
     // MARK: - Sections
 
-    /// The state, without the day: the navigation title already states it.
-    private var headerSection: some View {
+    /// The state, without the day: the navigation title already states it — then what the sets came
+    /// to, and how many of them set a record.
+    private func headerSection(_ marks: RecordMarks) -> some View {
         Section {
             LabeledContent("State", value: SessionLog.kind(of: session, today: CalendarDay(Date())).label)
+            if !session.sets.isEmpty {
+                LabeledContent("Total") {
+                    Text(Formatting.totals(WorkoutTotals.of(entries: session.sets))).monospacedDigit()
+                }
+            }
+            let recordSets = marks.markedSetCount(in: session.id)
+            let sessionVolumes = marks.sessionVolumeCount(in: session.id)
+            if recordSets > 0 || sessionVolumes > 0 {
+                LabeledContent("Records") {
+                    Text(Formatting.recordSummary(sets: recordSets, sessionVolumes: sessionVolumes))
+                        .multilineTextAlignment(.trailing)
+                }
+            }
             if session.envelope.provenance == .aiAssisted {
                 // Worth saying: a session the model helped structure reads differently from one the
                 // athlete typed out, and provenance is orthogonal to lifecycle on purpose.
@@ -68,7 +101,7 @@ struct SessionDetailView: View {
     }
 
     @ViewBuilder
-    private func performed(_ sets: [SetEntry]) -> some View {
+    private func performed(_ sets: [SetEntry], marks: RecordMarks) -> some View {
         let detail = SessionDetail.of(sets, catalogue: catalogue)
 
         if detail.isEmpty {
@@ -77,9 +110,18 @@ struct SessionDetailView: View {
             }
         } else {
             ForEach(detail.blocks) { block in
-                Section(block.movementName) {
+                Section {
                     ForEach(Array(block.sets.enumerated()), id: \.element.id) { position, set in
-                        SetRow(number: position + 1, entry: set.entry)
+                        SetRow(
+                            number: position + 1,
+                            entry: set.entry,
+                            record: marks.outcome(of: .init(sessionId: session.id, order: set.order)))
+                    }
+                } header: {
+                    MovementHeader(movementDataId: block.movementDataId, name: block.movementName)
+                } footer: {
+                    if marks.setSessionVolume(in: session.id, on: .movement(block.movementDataId)) {
+                        Text("Best session volume on this movement.")
                     }
                 }
             }
