@@ -56,6 +56,33 @@ client, and it matches the purpose-built-request rule.
 `POST /{id}/activate` · `POST /{id}/complete` (`Summary`) ·
 `GET /{id}` · `GET /` · `PATCH /{id}` (title/dates/tags) · `DELETE /{id}`
 
+## Oura — `/api/oura`
+
+Read-shaped: the native client is the consumer, so each route answers with the stored documents
+rather than anything computed. Design and the collections behind it: `docs/oura-integration.md`.
+
+| Verb | Route | Body / query | Answers |
+|---|---|---|---|
+| GET | `/days?from=&to=` | `DayRange` | one `OuraDayView` per day any collection covered |
+| GET | `/days/{day}` | — | that day's `OuraDayView`, or 404 |
+| GET | `/sleep?from=&to=` | `TimeWindow` | sleep periods, with stages, hypnogram and both overnight curves |
+| GET | `/workouts?from=&to=` | `TimeWindow` | workouts the ring saw or the athlete logged on it |
+| GET | `/sessions?from=&to=` | `TimeWindow` | guided meditation, breathing and rest |
+| GET | `/tags?from=&to=` | `TimeWindow` | tags the athlete marked |
+| POST | `/sync` | `DayRange` | `OuraSyncReport` — per-collection tallies, including what Oura sent that could not be read |
+
+**Two window types, deliberately.** The daily documents are keyed by the calendar day Oura files
+them under, so `/days` takes a `DayRange` of `DateOnly`; asking for them in instants would make the
+caller invent a time zone for midnight. Events occupy clock time and are windowed on the stamped
+`StartTime` column, so they take the same `TimeWindow` contexts and sessions do.
+
+**Absence is absence, not zero.** A collection Oura filed nothing for on a given day is null on the
+day view, and a day with nothing at all is missing from a range rather than present and empty.
+
+`/sync` answers 200 with its tallies rather than 204: it is the one write here whose outcome the
+caller cannot see any other way. A failure to reach Oura or to authenticate is `Problem.Upstream`,
+so 502; a missing stored credential is a `Conflict`, so 409.
+
 ## Interpretation engine — `/api/interpretation`
 
 - `POST /interpret` — `{ RawText, LoggedAt }` → `Committed | AwaitingConfirmation`

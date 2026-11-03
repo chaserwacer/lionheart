@@ -1,12 +1,17 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { DailyOuraDataDTO } from "$lib/api/ApiClient";
+    import {
+        fetchOuraDays,
+        score,
+        syncOura,
+        type OuraDayView,
+    } from "$lib/api/oura";
     import { goto } from "$app/navigation";
     import { bootUserDto, fetchBootUserDto } from "$lib/stores/stores";
 
     const baseUrl = "";
 
-    let historicalData = $state<DailyOuraDataDTO[]>([]);
+    let historicalData = $state<OuraDayView[]>([]);
     let loading = $state(false);
     let error = $state("");
     let syncing = $state(false);
@@ -19,7 +24,7 @@
     let startDate = $state(thirtyDaysAgo.toISOString().split("T")[0]);
     let endDate = $state(today.toISOString().split("T")[0]);
 
-    let selectedDataPoint = $state<DailyOuraDataDTO | null>(null);
+    let selectedDataPoint = $state<OuraDayView | null>(null);
     let modalOpen = $state(false);
     let activeTab = $state<"readiness" | "sleep" | "activity" | "resilience">("readiness");
 
@@ -36,32 +41,13 @@
         loading = true;
         error = "";
         try {
-            const response = await fetch(
-                "/api/oura/get-daily-oura-data-range",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        startDate,
-                        endDate,
-                    }),
-                },
+            const days = await fetchOuraDays(startDate, endDate);
+
+            // The route answers oldest first; this page reads newest first.
+            historicalData = days.toSorted(
+                (a, b) =>
+                    parseLocalDate(b.day).getTime() - parseLocalDate(a.day).getTime(),
             );
-
-            if (response.ok) {
-                historicalData = await response.json();
-
-                historicalData.sort((a, b) => {
-                    const dateA = parseLocalDate(a.date?.toString());
-                    const dateB = parseLocalDate(b.date?.toString());
-                    return dateB.getTime() - dateA.getTime();
-                });
-                console.log(historicalData);
-            } else {
-                error = "Failed to load Oura data";
-            }
         } catch (err) {
             error = "Error loading Oura data";
             console.error(err);
@@ -80,22 +66,8 @@
         syncing = true;
         error = "";
         try {
-            const response = await fetch("/api/oura/sync", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    startDate,
-                    endDate,
-                }),
-            });
-
-            if (response.ok) {
-                await loadHistoricalData();
-            } else {
-                error = "Failed to sync Oura data";
-            }
+            await syncOura(startDate, endDate);
+            await loadHistoricalData();
         } catch (err) {
             error = "Error syncing Oura data";
             console.error(err);
@@ -104,7 +76,7 @@
         }
     }
 
-    function openModal(data: DailyOuraDataDTO) {
+    function openModal(data: OuraDayView) {
         selectedDataPoint = data;
         modalOpen = true;
     }
@@ -114,14 +86,14 @@
         selectedDataPoint = null;
     }
 
-    function getScoreColor(score: number | undefined): string {
+    function getScoreColor(score: number | null | undefined): string {
         if (!score || score < 0) return "text-base-content/30";
         if (score >= 85) return "text-success";
         if (score >= 70) return "text-warning";
         return "text-error";
     }
 
-    function getProgressColor(score: number | undefined): string {
+    function getProgressColor(score: number | null | undefined): string {
         if (!score || score < 0) return "progress-base-300";
         if (score >= 85) return "progress-success";
         if (score >= 70) return "progress-warning";
@@ -287,7 +259,7 @@
                             <span
                                 class="text-xs font-bold uppercase tracking-widest text-base-content/50"
                             >
-                                {(data.date)}
+                                {data.day}
                             </span>
                         </div>
                         <svg
@@ -315,10 +287,10 @@
                             >
                             <span
                                 class="text-3xl font-display font-black {getScoreColor(
-                                    data.readinessData?.readinessScore,
+                                    data.readiness?.score,
                                 )} leading-none"
                             >
-                                {data.readinessData?.readinessScore ?? "-"}
+                                {data.readiness?.score ?? "-"}
                             </span>
                         </div>
                         <div class="flex flex-col gap-1">
@@ -328,10 +300,10 @@
                             >
                             <span
                                 class="text-3xl font-display font-black {getScoreColor(
-                                    data.sleepData?.sleepScore,
+                                    data.sleep?.score,
                                 )} leading-none"
                             >
-                                {data.sleepData?.sleepScore ?? "-"}
+                                {data.sleep?.score ?? "-"}
                             </span>
                         </div>
                         <div class="flex flex-col gap-1">
@@ -341,10 +313,10 @@
                             >
                             <span
                                 class="text-3xl font-display font-black {getScoreColor(
-                                    data.activityData?.activityScore,
+                                    data.activity?.score,
                                 )} leading-none"
                             >
-                                {data.activityData?.activityScore ?? "-"}
+                                {data.activity?.score ?? "-"}
                             </span>
                         </div>
                     </div>
@@ -356,14 +328,14 @@
                         <div>
                             <span class="text-base-content/50">Steps:</span>
                             <span class="font-bold ml-1"
-                                >{data.activityData?.steps?.toLocaleString() ??
+                                >{data.activity?.steps?.toLocaleString() ??
                                     "-"}</span
                             >
                         </div>
                         <div>
                             <span class="text-base-content/50">Temp:</span>
                             <span class="font-bold ml-1"
-                                >{data.readinessData?.temperatureDeviation ??
+                                >{data.readiness?.temperatureDeviation ??
                                     "-"}°</span
                             >
                         </div>
@@ -405,7 +377,7 @@
                         <div>
                             <h3 class="font-semibold text-lg">Oura Metrics</h3>
                             <p class="text-sm text-base-content/50">
-                                {formatDate(selectedDataPoint.date)}
+                                {formatDate(selectedDataPoint?.day)}
                             </p>
                         </div>
                     </div>
@@ -480,16 +452,16 @@
                     <div class="text-center mb-6">
                         <p
                             class="text-6xl font-bold {getScoreColor(
-                                selectedDataPoint.readinessData?.readinessScore,
+                                selectedDataPoint?.readiness?.score,
                             )}"
                         >
-                            {selectedDataPoint.readinessData?.readinessScore ??
+                            {selectedDataPoint?.readiness?.score ??
                                 "-"}
                         </p>
                         <p class="text-base-content/50 mt-1">Readiness Score</p>
                     </div>
                     <div class="space-y-4">
-                        {#each [{ label: "Sleep Balance", value: selectedDataPoint.readinessData?.sleepBalance }, { label: "Activity Balance", value: selectedDataPoint.readinessData?.activityBalance }, { label: "Recovery Index", value: selectedDataPoint.readinessData?.recoveryIndex }, { label: "HRV Balance", value: selectedDataPoint.readinessData?.hrvBalance }, { label: "Previous Night", value: selectedDataPoint.readinessData?.previousNight }, { label: "Previous Day Activity", value: selectedDataPoint.readinessData?.previousDayActivity }, { label: "Resting Heart Rate", value: selectedDataPoint.readinessData?.restingHeartRate }] as item}
+                        {#each [{ label: "Sleep Balance", value: selectedDataPoint?.readiness?.contributors?.sleepBalance }, { label: "Activity Balance", value: selectedDataPoint?.readiness?.contributors?.activityBalance }, { label: "Recovery Index", value: selectedDataPoint?.readiness?.contributors?.recoveryIndex }, { label: "HRV Balance", value: selectedDataPoint?.readiness?.contributors?.hrvBalance }, { label: "Previous Night", value: selectedDataPoint?.readiness?.contributors?.previousNight }, { label: "Previous Day Activity", value: selectedDataPoint?.readiness?.contributors?.previousDayActivity }, { label: "Resting Heart Rate", value: selectedDataPoint?.readiness?.contributors?.restingHeartRate }] as item}
                             <div class="flex items-center justify-between">
                                 <span class="text-sm">{item.label}</span>
                                 <div class="flex items-center gap-3 w-1/2">
@@ -512,7 +484,7 @@
                         >
                             <span class="text-sm">Temperature Deviation</span>
                             <span class="font-medium"
-                                >{selectedDataPoint.readinessData
+                                >{selectedDataPoint?.readiness
                                     ?.temperatureDeviation ?? "-"}°</span
                             >
                         </div>
@@ -521,15 +493,15 @@
                     <div class="text-center mb-6">
                         <p
                             class="text-6xl font-bold {getScoreColor(
-                                selectedDataPoint.sleepData?.sleepScore,
+                                selectedDataPoint?.sleep?.score,
                             )}"
                         >
-                            {selectedDataPoint.sleepData?.sleepScore ?? "-"}
+                            {selectedDataPoint?.sleep?.score ?? "-"}
                         </p>
                         <p class="text-base-content/50 mt-1">Sleep Score</p>
                     </div>
                     <div class="space-y-4">
-                        {#each [{ label: "Total Sleep", value: selectedDataPoint.sleepData?.totalSleep }, { label: "Efficiency", value: selectedDataPoint.sleepData?.efficiency }, { label: "Restfulness", value: selectedDataPoint.sleepData?.restfulness }, { label: "Timing", value: selectedDataPoint.sleepData?.timing }, { label: "Latency", value: selectedDataPoint.sleepData?.latency }, { label: "REM Sleep", value: selectedDataPoint.sleepData?.remSleep }, { label: "Deep Sleep", value: selectedDataPoint.sleepData?.deepSleep }] as item}
+                        {#each [{ label: "Total Sleep", value: selectedDataPoint?.sleep?.contributors?.totalSleep }, { label: "Efficiency", value: selectedDataPoint?.sleep?.contributors?.efficiency }, { label: "Restfulness", value: selectedDataPoint?.sleep?.contributors?.restfulness }, { label: "Timing", value: selectedDataPoint?.sleep?.contributors?.timing }, { label: "Latency", value: selectedDataPoint?.sleep?.contributors?.latency }, { label: "REM Sleep", value: selectedDataPoint?.sleep?.contributors?.remSleep }, { label: "Deep Sleep", value: selectedDataPoint?.sleep?.contributors?.deepSleep }] as item}
                             <div class="flex items-center justify-between">
                                 <span class="text-sm">{item.label}</span>
                                 <div class="flex items-center gap-3 w-1/2">
@@ -552,10 +524,10 @@
                     <div class="text-center mb-6">
                         <p
                             class="text-6xl font-bold {getScoreColor(
-                                selectedDataPoint.activityData?.activityScore,
+                                selectedDataPoint?.activity?.score,
                             )}"
                         >
-                            {selectedDataPoint.activityData?.activityScore ??
+                            {selectedDataPoint?.activity?.score ??
                                 "-"}
                         </p>
                         <p class="text-base-content/50 mt-1">Activity Score</p>
@@ -564,14 +536,14 @@
                     <div class="grid grid-cols-3 gap-4 mb-6">
                         <div class="bg-base-200 rounded-2xl p-4 text-center">
                             <p class="text-2xl font-bold">
-                                {selectedDataPoint.activityData?.steps?.toLocaleString() ??
+                                {selectedDataPoint?.activity?.steps?.toLocaleString() ??
                                     "-"}
                             </p>
                             <p class="text-xs text-base-content/50">Steps</p>
                         </div>
                         <div class="bg-base-200 rounded-2xl p-4 text-center">
                             <p class="text-2xl font-bold">
-                                {selectedDataPoint.activityData
+                                {selectedDataPoint?.activity
                                     ?.activeCalories ?? "-"}
                             </p>
                             <p class="text-xs text-base-content/50">
@@ -580,7 +552,7 @@
                         </div>
                         <div class="bg-base-200 rounded-2xl p-4 text-center">
                             <p class="text-2xl font-bold">
-                                {selectedDataPoint.activityData
+                                {selectedDataPoint?.activity
                                     ?.totalCalories ?? "-"}
                             </p>
                             <p class="text-xs text-base-content/50">
@@ -590,7 +562,7 @@
                     </div>
 
                     <div class="space-y-4">
-                        {#each [{ label: "Training Frequency", value: selectedDataPoint.activityData?.trainingFrequency }, { label: "Training Volume", value: selectedDataPoint.activityData?.trainingVolume }, { label: "Recovery Time", value: selectedDataPoint.activityData?.recoveryTime }, { label: "Stay Active", value: selectedDataPoint.activityData?.stayActive }, { label: "Move Every Hour", value: selectedDataPoint.activityData?.moveEveryHour }, { label: "Meet Daily Targets", value: selectedDataPoint.activityData?.meetDailyTargets }] as item}
+                        {#each [{ label: "Training Frequency", value: selectedDataPoint?.activity?.contributors?.trainingFrequency }, { label: "Training Volume", value: selectedDataPoint?.activity?.contributors?.trainingVolume }, { label: "Recovery Time", value: selectedDataPoint?.activity?.contributors?.recoveryTime }, { label: "Stay Active", value: selectedDataPoint?.activity?.contributors?.stayActive }, { label: "Move Every Hour", value: selectedDataPoint?.activity?.contributors?.moveEveryHour }, { label: "Meet Daily Targets", value: selectedDataPoint?.activity?.contributors?.meetDailyTargets }] as item}
                             <div class="flex items-center justify-between">
                                 <span class="text-sm">{item.label}</span>
                                 <div class="flex items-center gap-3 w-1/2">
@@ -612,15 +584,15 @@
                 {:else if activeTab === "resilience"}
                     <div class="text-center mb-6">
                         <p class="text-4xl font-bold text-accent">
-                            {selectedDataPoint.resilienceData
-                                ?.resilienceLevel ?? "-"}
+                            {selectedDataPoint?.resilience
+                                ?.level ?? "-"}
                         </p>
                         <p class="text-base-content/50 mt-1">
                             Resilience Level
                         </p>
                     </div>
                     <div class="space-y-4">
-                        {#each [{ label: "Sleep Recovery", value: selectedDataPoint.resilienceData?.sleepRecovery }, { label: "Daytime Recovery", value: selectedDataPoint.resilienceData?.daytimeRecovery }, { label: "Stress", value: selectedDataPoint.resilienceData?.stress }] as item}
+                        {#each [{ label: "Sleep Recovery", value: selectedDataPoint?.resilience?.contributors?.sleepRecovery }, { label: "Daytime Recovery", value: selectedDataPoint?.resilience?.contributors?.daytimeRecovery }, { label: "Stress", value: selectedDataPoint?.resilience?.contributors?.stress }] as item}
                             <div class="flex items-center justify-between">
                                 <span class="text-sm">{item.label}</span>
                                 <div class="flex items-center gap-3 w-1/2">
