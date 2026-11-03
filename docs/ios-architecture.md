@@ -135,18 +135,24 @@ Two derivations are judgement calls worth recording:
   the common case and nothing stops a mistyped date.
 - **A planned session dated before today has been missed**, not scheduled, and belongs to History.
 
-### Readiness, and why not the obvious route
+### Readiness, and why a window rather than today
 
-`GET /api/oura/get-daily-oura-data` answers **200 with a synthesized placeholder** when the day has
-no data — a zero readiness score and an empty object id. A client asking for today therefore cannot
-tell "not recovered" from "the ring has not synced", and rendering that placeholder would be a lie
-the athlete could train on.
+Absence is honest on every Oura route: a collection the ring filed nothing for arrives `null` on
+the day, a day it recorded nothing for is absent from a range, and asking for that day by date
+answers 404. So nothing in the client second-guesses a value — a readiness of zero is one Oura
+issued, and `latestReadiness` keeps it.
 
-So Today reads the **range** route instead, which returns only rows that exist, and
-`TodaySnapshot.latestReadiness` takes the most recent day that actually carries a score. A score of
-zero is dropped for the same reason: Oura does not issue a readiness of nought.
+Today still reads a **window** and takes the most recent day carrying a score, and the reason is
+the screen rather than the route: the reading's day is rendered beside the number, so an athlete
+who left the ring in a drawer for two days sees "78, three days ago" instead of nothing at all. A
+single-day read would make that day field pointless and would show silence on every morning before
+the ring syncs.
 
-There is no "latest readiness" route. If one is ever added, this is the derivation it replaces.
+Two numbers on that card are **contributor scores, not measurements**. Oura's readiness
+contributors are each 1–100 and compare the day against the athlete's own baseline, so
+`restingHeartRate` is how his resting rate compared and is not a heart rate — the rate itself is on
+the night, as `OuraSleepPeriod.lowestHeartRate`. `ReadinessReading` names them `…Balance` for that
+reason, and the cards that render them say "balance" too.
 
 ## The active workout
 

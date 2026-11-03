@@ -19,7 +19,12 @@ struct RootView: View {
             case .signedOut:
                 SignInView(auth: container.auth)
             case .signedIn:
-                SignedInTabs(container: container)
+                // Signed in is not the same as set up. An Identity account with no Lionheart
+                // profile is refused by every training write and answered with nothing by every
+                // read, so the gate stands in front of the tabs rather than inside them.
+                ProfileGateView(store: container.profile) {
+                    SignedInTabs(container: container)
+                }
             }
         }
         .tint(Tokens.accent)
@@ -57,13 +62,13 @@ private struct SignedInTabs: View {
                     openWorkout: { isWorkoutPresented = true })
             }
             Tab("History", systemImage: "list.bullet.rectangle", value: Destination.history) {
-                HistoryView()
+                HistoryView(store: container.history)
             }
             Tab("Coach", systemImage: "bubble.left.and.text.bubble.right", value: Destination.coach) {
-                CoachView()
+                CoachView(store: container.coach)
             }
             Tab("Body", systemImage: "heart.text.square", value: Destination.body) {
-                BodyView()
+                BodyView(store: container.body)
             }
         }
         .workoutAccessory(

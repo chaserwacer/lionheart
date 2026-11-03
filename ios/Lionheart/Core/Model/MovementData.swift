@@ -37,6 +37,18 @@ struct MovementData: Equatable, Sendable, Identifiable {
     /// The equipment, shown beside the title rather than inside it.
     var qualifier: String { equipmentName }
 
+    /// The whole movement as one phrase, for somewhere with room for only one — a section header,
+    /// a record row — where `title` and `qualifier` cannot sit side by side.
+    ///
+    /// The equipment is dropped when the title already says it, because a naive join reads
+    /// "Barbell row, barbell".
+    var displayName: String {
+        guard !qualifier.isEmpty, !title.localizedCaseInsensitiveContains(qualifier) else {
+            return title
+        }
+        return "\(title), \(qualifier.lowercased())"
+    }
+
     /// Whether this movement answers `query`, matched against everything the athlete can see.
     ///
     /// Case- and diacritic-insensitive so "incline" finds "Incline", and matched on each word

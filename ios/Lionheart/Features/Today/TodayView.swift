@@ -87,9 +87,16 @@ struct TodayView: View {
                 // Top-aligned so the figures line up when a label wraps to two lines at the larger
                 // Dynamic Type sizes; centred, a one-line label drops its number below its
                 // neighbours'.
+                // Contributor scores out of 100 comparing the day against the athlete's own
+                // baseline, not measurements — see `ReadinessReading`. "Balance" is in the label
+                // because a bare "Resting HR" would read as a heart rate, which this is not.
                 HStack(alignment: .top, spacing: Tokens.cardPadding) {
-                    StatTile(value: "\(reading.restingHeartRate)", label: "Resting HR")
-                    StatTile(value: "\(reading.hrvBalance)", label: "HRV balance")
+                    if let restingHeartRate = reading.restingHeartRateBalance {
+                        StatTile(value: "\(restingHeartRate)", label: "Resting HR balance")
+                    }
+                    if let hrvBalance = reading.hrvBalance {
+                        StatTile(value: "\(hrvBalance)", label: "HRV balance")
+                    }
                     if let sleep = reading.sleepScore {
                         StatTile(value: "\(sleep)", label: "Sleep")
                     }
