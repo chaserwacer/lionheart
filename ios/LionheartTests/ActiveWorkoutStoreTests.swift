@@ -180,6 +180,39 @@ struct ActiveWorkoutStoreTests {
         #expect(store.workout == workout)
     }
 
+    // MARK: - Choosing a movement
+
+    @Test("A movement picked in an unplanned workout is on disk, and still there after a restart")
+    func aPickedMovementSurvivesARestart() async throws {
+        let (store, document, server) = Self.aStore()
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+
+        store.add(AWorkout.bench)
+
+        #expect(document.read()?.addedMovementDataIds == [AWorkout.bench])
+        // Choosing a movement changes nothing the server holds.
+        #expect(server.pushedSets.isEmpty)
+
+        let relaunched = ActiveWorkoutStore(document: document, sessions: AServer())
+        await relaunched.restore()
+
+        let restored = try #require(relaunched.workout)
+        #expect(WorkoutReading.of(restored).movements.map(\.movementDataId) == [AWorkout.bench])
+        #expect(restored.currentMovementDataId == AWorkout.bench)
+    }
+
+    @Test("Removing a pick with nothing logged is persisted too")
+    func droppingAPickIsPersisted() {
+        let (store, document, _) = Self.aStore()
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+        store.add(AWorkout.bench)
+
+        store.drop(AWorkout.bench)
+
+        #expect(store.workout?.addedMovementDataIds.isEmpty == true)
+        #expect(document.read() == store.workout)
+    }
+
     // MARK: - Logging
 
     @Test("A logged set is on disk, not only on screen")

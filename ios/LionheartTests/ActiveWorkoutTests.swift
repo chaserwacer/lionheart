@@ -105,7 +105,8 @@ struct ActiveWorkoutDocumentTests {
             prescriptions: [AWorkout.liftTarget(), .freeform(text: "mobility")],
             rest: .running(since: AWorkout.start, duration: 120),
             sync: .failed("no signal"),
-            notes: "felt strong")
+            notes: "felt strong"
+        ).adding(AWorkout.squat)
 
         #expect(document.write(workout))
 
@@ -174,6 +175,69 @@ struct ActiveWorkoutDocumentTests {
         // Pending rather than synced: version 1's flag is not read, and the safe reading of "we do
         // not know" is that the next push should carry everything.
         #expect(restored?.sync == .pending)
+    }
+
+    @Test("A version 2 document still restores, and a movement it had picked keeps its section")
+    func aVersionTwoDocumentUpgrades() throws {
+        // Version 2 recorded a pick only as the current movement. A phone that updates with a
+        // workout in flight must find it, and the lift it had picked must still be there to log.
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data(#"""
+            {"version":2,"destination":{"kind":"liveSession","sessionId":"11111111-1111-1111-1111-111111111111"},
+             "startedAt":1772645400,"sync":{"kind":"synced"},"sets":[],"rest":{"idle":{}},
+             "currentMovementDataId":"33333333-3333-3333-3333-333333333333",
+             "prescriptions":[],"notes":""}
+            """#.utf8)
+            .write(to: directory.appending(path: "active-workout.json"))
+
+        let restored = try #require(ActiveWorkoutDocument(directoryURL: directory).read())
+
+        #expect(restored.destination == .liveSession(AWorkout.session))
+        #expect(restored.addedMovementDataIds == [AWorkout.squat])
+        #expect(WorkoutReading.of(restored).movements.map(\.movementDataId) == [AWorkout.squat])
+    }
+
+    @Test("A version 2 document's current movement is not added when a set already names it")
+    func aVersionTwoCurrentMovementWithSetsIsNotAdded() throws {
+        // Adding it would move its section ahead of the others on the first launch after updating.
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let written = AWorkout.live(sets: [AWorkout.lift(AWorkout.bench), AWorkout.lift(AWorkout.squat)])
+            .working(on: AWorkout.squat)
+        var json = try #require(
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(written)) as? [String: Any])
+        json["version"] = 2
+        json["addedMovementDataIds"] = nil
+        try JSONSerialization.data(withJSONObject: json)
+            .write(to: directory.appending(path: "active-workout.json"))
+
+        let restored = try #require(ActiveWorkoutDocument(directoryURL: directory).read())
+
+        #expect(restored.addedMovementDataIds.isEmpty)
+        #expect(restored.sets == written.sets)
+    }
+
+    @Test("A version 2 document's current movement is not added when only a target names it")
+    func aVersionTwoPrescribedCurrentMovementIsNotAdded() throws {
+        // The plan already gives it a section; adding it would make it removable, which a
+        // prescribed movement is not.
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let written = AWorkout.live(prescriptions: [AWorkout.liftTarget(AWorkout.squat)])
+            .working(on: AWorkout.squat)
+        var json = try #require(
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(written)) as? [String: Any])
+        json["version"] = 2
+        json["addedMovementDataIds"] = nil
+        try JSONSerialization.data(withJSONObject: json)
+            .write(to: directory.appending(path: "active-workout.json"))
+
+        let restored = try #require(ActiveWorkoutDocument(directoryURL: directory).read())
+
+        #expect(restored.addedMovementDataIds.isEmpty)
+        #expect(restored.currentMovementDataId == AWorkout.squat)
+        #expect(!restored.canDrop(AWorkout.squat))
     }
 
     @Test("Writing twice leaves the second workout, not both")
@@ -279,6 +343,60 @@ struct ActiveWorkoutValueTests {
         let after = workout.removing(second.id)
 
         #expect(after.sets.map(\.id) == [first.id, third.id])
+    }
+
+    @Test("Adding a movement moves the athlete onto it")
+    func addingAMovementWorksOnIt() {
+        let workout = AWorkout.live().adding(AWorkout.bench)
+
+        #expect(workout.addedMovementDataIds == [AWorkout.bench])
+        #expect(workout.currentMovementDataId == AWorkout.bench)
+    }
+
+    @Test("Adding a movement twice keeps its first place")
+    func addingTwiceKeepsThePlace() {
+        let workout = AWorkout.live().adding(AWorkout.bench).adding(AWorkout.squat).adding(AWorkout.bench)
+
+        #expect(workout.addedMovementDataIds == [AWorkout.bench, AWorkout.squat])
+        #expect(workout.currentMovementDataId == AWorkout.bench)
+    }
+
+    @Test("Dropping a pick with nothing logged takes it out, and off the athlete's hands")
+    func droppingAnUntouchedPick() {
+        let workout = AWorkout.live().adding(AWorkout.squat).adding(AWorkout.bench)
+
+        let after = workout.dropping(AWorkout.bench)
+
+        #expect(after.addedMovementDataIds == [AWorkout.squat])
+        #expect(after.currentMovementDataId == nil)
+    }
+
+    @Test("Dropping a movement that is not the current one leaves the athlete where they were")
+    func droppingAnotherMovementKeepsTheCurrentOne() {
+        let workout = AWorkout.live().adding(AWorkout.squat).adding(AWorkout.bench)
+
+        #expect(workout.dropping(AWorkout.squat).currentMovementDataId == AWorkout.bench)
+    }
+
+    @Test("Only a movement the athlete added, with nothing planned or logged on it, can be dropped")
+    func onlyAnUntouchedPickCanBeDropped() {
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift(AWorkout.squat)],
+            prescriptions: [AWorkout.liftTarget(AWorkout.treadmill)]
+        ).adding(AWorkout.bench)
+
+        #expect(workout.canDrop(AWorkout.bench))
+        #expect(!workout.canDrop(AWorkout.squat))
+        #expect(!workout.canDrop(AWorkout.treadmill))
+    }
+
+    @Test("A movement with a set logged on it cannot be dropped")
+    func aMovementWithASetStays() {
+        // The set is the record that it was trained; an intention cannot take it back.
+        let workout = AWorkout.live().adding(AWorkout.bench)
+            .appending(AWorkout.lift(AWorkout.bench), restingFor: nil)
+
+        #expect(workout.dropping(AWorkout.bench) == workout)
     }
 
     @Test("Clearing the current movement is possible, not just changing it")

@@ -87,9 +87,11 @@ struct ActiveWorkout: Equatable, Sendable {
     /// The shape of the persisted document.
     ///
     /// 1 — the foundation's: a session id, a start instant and a synced flag.
-    /// 2 — this one: a destination rather than a bare id, the logged sets, the rest clock, the
-    ///     current movement, the prescriptions, and sync as a four-case state.
-    static let currentVersion = 2
+    /// 2 — a destination rather than a bare id, the logged sets, the rest clock, the current
+    ///     movement, the prescriptions, and sync as a four-case state.
+    /// 3 — this one: the movements the athlete added, so one picked before any set exists is part
+    ///     of the workout.
+    static let currentVersion = 3
 
     let version: Int
     let destination: WorkoutDestination
@@ -105,6 +107,12 @@ struct ActiveWorkout: Equatable, Sendable {
     let currentMovementDataId: UUID?
     /// The targets of the planned session this was started from. Empty for an unplanned workout.
     let prescriptions: [SetPrescription]
+    /// The movements the athlete added themselves, in the order they added them.
+    ///
+    /// Held because choosing a movement is the athlete saying what they are about to train, and
+    /// that is true before the first set on it exists. Neither the sets nor the prescriptions can
+    /// say it, so without this an unplanned workout has nowhere to log its first lift.
+    let addedMovementDataIds: [UUID]
     /// What the athlete typed about the session. Sent with `POST /completed`; for a live session it
     /// rides along to `PATCH /notes`.
     let notes: String
@@ -117,6 +125,7 @@ struct ActiveWorkout: Equatable, Sendable {
         rest: RestClock = .idle,
         currentMovementDataId: UUID? = nil,
         prescriptions: [SetPrescription] = [],
+        addedMovementDataIds: [UUID] = [],
         notes: String = "",
         version: Int = Self.currentVersion
     ) {
@@ -128,6 +137,7 @@ struct ActiveWorkout: Equatable, Sendable {
         self.rest = rest
         self.currentMovementDataId = currentMovementDataId
         self.prescriptions = prescriptions
+        self.addedMovementDataIds = addedMovementDataIds
         self.notes = notes
     }
 
@@ -191,8 +201,49 @@ struct ActiveWorkout: Equatable, Sendable {
             rest: rest,
             currentMovementDataId: movementDataId,
             prescriptions: prescriptions,
+            addedMovementDataIds: addedMovementDataIds,
             notes: notes,
             version: version)
+    }
+
+    /// The workout with `movementDataId` added, and the athlete working on it.
+    ///
+    /// A movement the workout already holds — prescribed, logged on, or added before — only moves
+    /// the athlete to it. Its section stays where it is, because a pick is a way back to a movement
+    /// as much as a way to a new one, and sections jumping about mid-workout lose the athlete's
+    /// place.
+    func adding(_ movementDataId: UUID) -> ActiveWorkout {
+        guard !holds(movementDataId) else { return working(on: movementDataId) }
+        return with(addedMovementDataIds: addedMovementDataIds + [movementDataId])
+            .working(on: movementDataId)
+    }
+
+    /// Whether the athlete can take this movement back out: they added it, nothing was prescribed
+    /// for it and nothing has been logged on it.
+    ///
+    /// A set is the record that a movement was trained and a prescription is the plan, and neither
+    /// is something taking back a pick can undo. This is the one statement of that rule — the
+    /// surface asks it before offering Remove, and `dropping(_:)` asks it before doing anything.
+    func canDrop(_ movementDataId: UUID) -> Bool {
+        addedMovementDataIds.contains(movementDataId)
+            && !sets.contains { $0.movementDataId == movementDataId }
+            && !prescriptions.contains { $0.movementDataId == movementDataId }
+    }
+
+    /// The workout without a movement the athlete added by mistake. Anything `canDrop(_:)` refuses
+    /// is returned unchanged.
+    func dropping(_ movementDataId: UUID) -> ActiveWorkout {
+        guard canDrop(movementDataId) else { return self }
+
+        let dropped = with(addedMovementDataIds: addedMovementDataIds.filter { $0 != movementDataId })
+        return currentMovementDataId == movementDataId ? dropped.working(on: nil) : dropped
+    }
+
+    /// Whether the movement already has a section: prescribed, logged on, or added.
+    private func holds(_ movementDataId: UUID) -> Bool {
+        addedMovementDataIds.contains(movementDataId)
+            || prescriptions.contains { $0.movementDataId == movementDataId }
+            || sets.contains { $0.movementDataId == movementDataId }
     }
 
     func noting(_ notes: String) -> ActiveWorkout {
@@ -213,6 +264,7 @@ struct ActiveWorkout: Equatable, Sendable {
             rest: rest,
             currentMovementDataId: currentMovementDataId,
             prescriptions: prescriptions,
+            addedMovementDataIds: addedMovementDataIds,
             notes: notes,
             version: version)
     }
@@ -228,6 +280,7 @@ struct ActiveWorkout: Equatable, Sendable {
         sync: WorkoutSyncState? = nil,
         sets: [LoggedSet]? = nil,
         rest: RestClock? = nil,
+        addedMovementDataIds: [UUID]? = nil,
         notes: String? = nil
     ) -> ActiveWorkout {
         ActiveWorkout(
@@ -238,6 +291,7 @@ struct ActiveWorkout: Equatable, Sendable {
             rest: rest ?? self.rest,
             currentMovementDataId: currentMovementDataId,
             prescriptions: prescriptions,
+            addedMovementDataIds: addedMovementDataIds ?? self.addedMovementDataIds,
             notes: notes ?? self.notes,
             version: version)
     }
@@ -326,6 +380,7 @@ extension ActiveWorkout: Codable {
         case rest
         case currentMovementDataId
         case prescriptions
+        case addedMovementDataIds
         case notes
         /// Version 1's single session id, read so a workout started under the foundation build is
         /// not thrown away on the first launch of this one.
@@ -355,9 +410,31 @@ extension ActiveWorkout: Codable {
         sets = try container.decodeIfPresent([LoggedSet].self, forKey: .sets) ?? []
         sync = (try? container.decode(WorkoutSyncState.self, forKey: .sync)) ?? .pending
         rest = (try? container.decode(RestClock.self, forKey: .rest)) ?? .idle
-        currentMovementDataId = try? container.decode(UUID.self, forKey: .currentMovementDataId)
-        prescriptions = (try? container.decode([SetPrescription].self, forKey: .prescriptions)) ?? []
+        let current = try? container.decode(UUID.self, forKey: .currentMovementDataId)
+        let prescriptions = (try? container.decode([SetPrescription].self, forKey: .prescriptions)) ?? []
+        currentMovementDataId = current
+        self.prescriptions = prescriptions
+        addedMovementDataIds = (try? container.decode([UUID].self, forKey: .addedMovementDataIds))
+            ?? Self.addedBeforeTheListExisted(current: current, sets: sets, prescriptions: prescriptions)
         notes = (try? container.decode(String.self, forKey: .notes)) ?? ""
+    }
+
+    /// What a document written before version 3 had added, recovered from the one trace it kept.
+    ///
+    /// Version 2 held only the movement being worked on. One that no set and no target names is
+    /// almost always a movement the athlete picked and had not logged on yet — the workout in
+    /// flight on a phone that updates mid-session — and it is carried forward as added so it keeps
+    /// a section to log against. It can also be a movement whose only set was deleted, since
+    /// deleting a set leaves the current movement alone; that one comes back as an empty section
+    /// the athlete can remove, which loses nothing.
+    private static func addedBeforeTheListExisted(
+        current: UUID?, sets: [LoggedSet], prescriptions: [SetPrescription]
+    ) -> [UUID] {
+        guard let current,
+              !sets.contains(where: { $0.movementDataId == current }),
+              !prescriptions.contains(where: { $0.movementDataId == current })
+        else { return [] }
+        return [current]
     }
 
     /// Written by hand because `sessionId` is a key with no property behind it — version 1's
@@ -376,6 +453,7 @@ extension ActiveWorkout: Codable {
         try container.encode(rest, forKey: .rest)
         try container.encodeIfPresent(currentMovementDataId, forKey: .currentMovementDataId)
         try container.encode(prescriptions, forKey: .prescriptions)
+        try container.encode(addedMovementDataIds, forKey: .addedMovementDataIds)
         try container.encode(notes, forKey: .notes)
     }
 }

@@ -27,10 +27,7 @@ enum SetDefaults {
         in workout: ActiveWorkout,
         as modality: SetModality? = nil
     ) -> SetCommand {
-        let last = workout.sets.last { $0.movementDataId == movementDataId }?.command
-        let target = WorkoutReading.of(workout)
-            .movements.first { $0.movementDataId == movementDataId }?
-            .nextTarget
+        let (last, target) = precedents(on: movementDataId, in: workout)
 
         switch modality ?? last?.modality ?? target.flatMap(Self.modality(of:)) ?? .lift {
         case .lift, .trailRun:
@@ -46,6 +43,32 @@ enum SetDefaults {
         case .freeform:
             return .freeform(text: "")
         }
+    }
+
+    /// Whether the weight `nextSet` gives this movement is a value rather than a placeholder.
+    ///
+    /// A set already logged on it carries its weight, nought included: that is a bodyweight set
+    /// that happened. A target carries one only when it names a load, because a lift target saved
+    /// without a weight reads as nought and the two cannot be told apart. With neither, the nought
+    /// is the empty set's placeholder.
+    static func carriesWeightForward(on movementDataId: UUID, in workout: ActiveWorkout) -> Bool {
+        let (last, target) = precedents(on: movementDataId, in: workout)
+        if last != nil { return true }
+        switch target {
+        case .lift(let prescribed)?: return prescribed.targetWeight > 0
+        case .distanceTime?, .freeform?, .unrecognised?, nil: return false
+        }
+    }
+
+    /// Steps 1 and 2 of the rule: the last set on this movement, and its next target.
+    private static func precedents(
+        on movementDataId: UUID, in workout: ActiveWorkout
+    ) -> (last: SetCommand?, target: SetPrescription?) {
+        let last = workout.sets.last { $0.movementDataId == movementDataId }?.command
+        let target = WorkoutReading.of(workout)
+            .movements.first { $0.movementDataId == movementDataId }?
+            .nextTarget
+        return (last, target)
     }
 
     /// The weight unit the athlete has been using anywhere in this workout.

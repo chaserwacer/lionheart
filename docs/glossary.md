@@ -71,7 +71,8 @@ first and then in the code.
 
 | Word | What it means |
 |---|---|
-| **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement. The one piece of state the device owns. |
+| **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement, the movements the athlete added. The one piece of state the device owns. |
+| **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |
 | **Rest clock** | The countdown between sets. |
 | **Load state** | A screen's enum for what it has: not loaded, loaded, or unavailable with a reason. Never flags plus an optional error. |
@@ -80,7 +81,7 @@ first and then in the code.
 | **Set modality** | Which of the four shapes a set is being logged in. A property of the set, not of the movement — the same treadmill is lifted on and run on. |
 | **Workout destination** | Where a workout's sets are going to land: an active session already on the server, or a `POST /completed` that carries the whole thing at the end. |
 | **Sync state** | Whether what has been logged has reached the server: synced, pending, failed, or refused. Only the last two are worth saying out loud. |
-| **Logging surface** | The full-screen set-by-set screen the workout bar opens into. |
+| **Logging surface** | The set-by-set sheet the workout bar opens into. |
 | **Profile gate** | The root's answer to whether a signed-in athlete may see the tabs: undetermined, absent, present, or unreachable. An Identity account without a Lionheart profile is refused by every training write, while reads answer empty — which is why the gate asks rather than waiting to be refused. |
 | **Session log** | History's list of sessions, grouped by month, newest first. A row reads as completed, in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. |
 | **Movement catalogue** | Movement names by id, so a set — which carries only a `movementDataId` — can say what it was. |

@@ -172,6 +172,18 @@ shape, and one written by a *newer* build is refused rather than half-read — a
 half-understood a future shape would write it back truncated, which is how logged sets get lost for
 good.
 
+**A movement is in the workout once it is prescribed or added, not once it has a set.** The logging
+surface draws one section per movement and the entry row lives inside it, so a movement the workout
+does not hold has nowhere to log its first set. A planned session's prescriptions put its movements
+there; an unplanned workout has none, so picking a movement records it in
+`ActiveWorkout.addedMovementDataIds`, persisted like a set so a force-quit between picking and
+logging loses nothing. A pick with nothing logged on it can be removed; one with a set cannot,
+because the set is the record; `ActiveWorkout.canDrop(_:)` is that rule, stated once. Picking a
+movement the workout already holds moves the athlete to it without moving its section. Version 3 of
+the document added the list. A version 2 document whose current movement no set or target names
+restores with that movement added: usually a pick not yet logged on, occasionally a movement whose
+only set was deleted, which comes back as an empty section the athlete can remove.
+
 ### The bar, and both OS paths
 
 `ActiveWorkoutBar` is this app's now-playing bar. One view renders it on both paths —

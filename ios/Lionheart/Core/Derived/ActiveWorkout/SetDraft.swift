@@ -34,10 +34,9 @@ struct SetDraft: Equatable, Sendable {
     ///
     /// A zero measure comes through as an empty field, because a zero distance or a zero duration
     /// is a set that did not happen. **A lift's weight is the exception**: nought is what a pull-up,
-    /// a dip and a push-up weigh, and this initialiser only ever runs on a set that was actually
-    /// performed — a movement with no history seeds nothing and starts empty anyway. Emptying it
-    /// here cost a typed "0" on every single set of every bodyweight movement, which is the opposite
-    /// of the one-tap next set this whole type exists for.
+    /// a dip and a push-up weigh, and emptying it here cost a typed "0" on every single set of every
+    /// bodyweight movement, which is the opposite of the one-tap next set this whole type exists
+    /// for. A weight that is only a placeholder is emptied by `init(next:in:)` instead.
     init(from command: SetCommand) {
         modality = command.modality
         movementDataId = command.movementDataId
@@ -60,6 +59,16 @@ struct SetDraft: Equatable, Sendable {
         case .freeform(let words):
             text = words
         }
+    }
+
+    /// The entry row for the next set on a movement, by the carry-forward rule in `SetDefaults`.
+    ///
+    /// Where no weight carries forward — the first set on a movement just picked, or a target with
+    /// no load — the weight starts empty. Its nought would be a placeholder rather than a set that
+    /// happened, and typing over it gives "0100".
+    init(next movementDataId: UUID, in workout: ActiveWorkout) {
+        self.init(from: SetDefaults.nextSet(on: movementDataId, in: workout))
+        if !SetDefaults.carriesWeightForward(on: movementDataId, in: workout) { weight = "" }
     }
 
     /// The set these fields amount to, or `nil` while they do not amount to one yet.

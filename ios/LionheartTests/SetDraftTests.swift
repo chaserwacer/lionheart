@@ -75,6 +75,41 @@ struct SetDraftTests {
         #expect(next.command == pullUp)
     }
 
+    @Test("The first set on a movement with nothing to carry forward starts with every field empty")
+    func aFreshMovementStartsEmpty() {
+        // A placeholder nought in the weight is typed over into "0100".
+        let draft = SetDraft(next: AWorkout.bench, in: AWorkout.live().adding(AWorkout.bench))
+
+        #expect(draft.modality == .lift)
+        #expect(draft.weight.isEmpty)
+        #expect(draft.reps.isEmpty)
+    }
+
+    @Test("A bodyweight set already logged still carries its nought into the next row")
+    func aLoggedBodyweightSetStillSeedsItsNought() {
+        let workout = AWorkout.live(sets: [AWorkout.lift(AWorkout.bench, reps: 10, weight: 0)])
+
+        #expect(SetDraft(next: AWorkout.bench, in: workout).weight == "0")
+    }
+
+    @Test("A target with no load starts the weight empty, like no target at all")
+    func aZeroWeightTargetIsAPlaceholder() {
+        // A lift target saved without a weight reads as nought; seeding it gives "0100" again.
+        let workout = AWorkout.live(prescriptions: [AWorkout.liftTarget(AWorkout.bench, reps: 5, weight: 0)])
+
+        let draft = SetDraft(next: AWorkout.bench, in: workout)
+
+        #expect(draft.weight.isEmpty)
+        #expect(draft.reps == "5")
+    }
+
+    @Test("A target with a load seeds it")
+    func aLoadedTargetSeedsItsWeight() {
+        let workout = AWorkout.live(prescriptions: [AWorkout.liftTarget(AWorkout.bench, weight: 60)])
+
+        #expect(SetDraft(next: AWorkout.bench, in: workout).weight == "60")
+    }
+
     @Test("A lift with no reps has not happened")
     func aLiftNeedsReps() {
         #expect(!Self.aLiftDraft(reps: "", weight: "100").isLoggable)

@@ -39,7 +39,7 @@ struct ActiveWorkoutView: View {
                 if let workout = store.workout {
                     surface(workout, reading: WorkoutReading.of(workout))
                 } else {
-                    // The workout finished — most likely from the Finish sheet — and this cover is
+                    // The workout finished — most likely from the Finish sheet — and this sheet is
                     // on its way out. A spinner is less jarring than an empty list for one frame.
                     ProgressView().controlSize(.large)
                 }
@@ -56,6 +56,9 @@ struct ActiveWorkoutView: View {
         }
         .sheet(isPresented: $isPickerPresented) {
             MovementPicker(library: library) { movement in
+                // Added before the row opens: the row lives in the movement's section, and the
+                // section exists only once the workout holds the movement.
+                store.add(movement.movementDataId)
                 open(movement.movementDataId)
                 library.noteUsed(movement.movementDataId)
             }
@@ -105,8 +108,8 @@ struct ActiveWorkoutView: View {
     ///
     /// It has to be here rather than in `navigationTitle`, which takes a string evaluated once: a
     /// clock has to be a `TimelineView` to tick, and this is the only placement that puts one where
-    /// a title goes. It is also the only elapsed clock the athlete can see while this cover is up,
-    /// since the cover is over the workout bar.
+    /// a title goes. It is also the only elapsed clock the athlete can see while this sheet is up,
+    /// since the sheet is over the workout bar.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
@@ -261,9 +264,27 @@ struct ActiveWorkoutView: View {
             HStack {
                 Text(library.title(of: movement.movementDataId))
                 Spacer()
-                if !movement.targets.isEmpty {
-                    Text("\(movement.sets.count) of \(movement.targets.count)")
+                switch movement.progress {
+                case .unplanned:
+                    EmptyView()
+                case .within(let logged, let planned):
+                    Text("\(logged) of \(planned)")
                         .monospacedDigit()
+                        .accessibilityLabel("\(logged) of \(planned) planned sets")
+                case .beyond(let planned, let extra):
+                    Text("\(planned) of \(planned) +\(extra)")
+                        .monospacedDigit()
+                        .accessibilityLabel("All \(planned) planned sets, and \(extra) more")
+                }
+                // The picker lists near-identical movements side by side, so a wrong pick is
+                // ordinary. No confirmation: nothing is logged on it, and adding it back is a pick.
+                if workout.canDrop(movement.movementDataId) {
+                    // The draft is left as it is. The entry row reads it through a force-unwrapped
+                    // binding, so clearing it in the update that removes this section crashes; once
+                    // the section is gone nothing shows it, and the next `open` replaces it.
+                    Button("Remove") { store.drop(movement.movementDataId) }
+                        .font(.subheadline)
+                        .accessibilityLabel("Remove \(library.title(of: movement.movementDataId))")
                 }
             }
         }
@@ -412,7 +433,7 @@ struct ActiveWorkoutView: View {
     /// Opens the entry row on a movement, pre-filled by the carry-forward rule.
     private func open(_ movementDataId: UUID) {
         guard let workout = store.workout else { return }
-        draft = SetDraft(from: SetDefaults.nextSet(on: movementDataId, in: workout))
+        draft = SetDraft(next: movementDataId, in: workout)
         store.work(on: movementDataId)
     }
 

@@ -96,7 +96,14 @@ private struct SignedInTabs: View {
                 container.activeWorkout.workout?.currentMovementDataId ?? UUID())?.title) {
             isWorkoutPresented = true
         }
-        .fullScreenCover(isPresented: $isWorkoutPresented) {
+        // A sheet, not a full-screen cover, and measured rather than chosen for looks. Inside a
+        // `fullScreenCover`, iOS 26 gave the entry row's text fields no keyboard toolbar until
+        // something had been presented from within the cover — the field's `inputAccessoryView`
+        // was nil — so the number pad came up without Done and Log on every surface opened from the
+        // bar, from Continue or after a launch, and the row's own Log sat under the keys. As a sheet
+        // the toolbar is there on the first focus. Swiping it down is the now-playing gesture, and
+        // loses nothing Close would not.
+        .sheet(isPresented: $isWorkoutPresented) {
             ActiveWorkoutView(
                 store: container.activeWorkout,
                 library: container.movements)

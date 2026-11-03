@@ -104,7 +104,12 @@ struct SetEntryForm: View {
 
     private var liftFields: some View {
         HStack(alignment: .bottom, spacing: Tokens.cardPadding) {
-            field("Weight", text: $draft.weight, keyboard: .decimalPad, focus: .weight)
+            // Empty is the start of a movement with no load to carry forward, and a lift needs a
+            // weight to be logged — so the field says how to log one that has none. Short because
+            // the field is a third of the row: "0 for bodyweight" truncated to "0 for bodyw…".
+            field(
+                "Weight", text: $draft.weight, keyboard: .decimalPad, focus: .weight,
+                prompt: "0 if none")
             weightUnitMenu
             field("Reps", text: $draft.reps, keyboard: .numberPad, focus: .reps)
         }
@@ -160,13 +165,14 @@ struct SetEntryForm: View {
     /// the moment the field is filled and "102.5" with nothing saying what it is is exactly the
     /// kind of ambiguity a gym screen cannot afford.
     private func field(
-        _ label: String, text: Binding<String>, keyboard: UIKeyboardType, focus: Field
+        _ label: String, text: Binding<String>, keyboard: UIKeyboardType, focus: Field,
+        prompt: String? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(Color(.secondaryLabel))
-            TextField(label, text: text)
+            TextField(label, text: text, prompt: Text(prompt ?? label))
                 .textFieldStyle(.roundedBorder)
                 .keyboardType(keyboard)
                 .multilineTextAlignment(.center)
