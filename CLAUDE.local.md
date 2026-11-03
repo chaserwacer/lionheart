@@ -56,8 +56,9 @@ ln -sfn "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.
 
 `--git-common-dir` resolves to the main repo's `.git` regardless of worktree depth, so
 this works unedited from any worktree. `.env` is gitignored, so the symlink is never
-committed. Required keys: `LmStudio__BaseUrl`, `LmStudio__ApiKey`, `LmStudio__Model`,
-`LmStudio__EmbeddingModel` — the app throws at startup if any is missing.
+committed. `.env.example` is the full list. In development the required keys are
+`LmStudio__BaseUrl`, `LmStudio__ApiKey`, `LmStudio__Model` and the `Embedding__*` block — the
+app throws at startup naming the key if any is missing.
 
 ## UX/UI testing
 

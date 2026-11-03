@@ -1,27 +1,30 @@
 using System.Reflection;
 using System.Text.Json;
 using lionheart.Functional;
+using lionheart.Services.Llm;
 using Microsoft.AspNetCore.Identity;
 using Model.Chat.Tools;
 using NJsonSchema;
-using OpenAI.Chat;
 
 namespace Model.Tools
 {
     /// <summary>
-    /// Object providing functionality to map backend tools to OpenAI tool call definitions.
+    /// Turns a tool-annotated method into the <see cref="ToolDefinition"/> the model is offered.
     /// </summary>
-    public static class OpenAIToolMapper
+    /// <remarks>
+    /// The JSON Schema it produces is the application's own, not any vendor's: each chat provider
+    /// translates a <see cref="ToolDefinition"/> into its own tool shape, so adding a provider does
+    /// not touch this file.
+    /// </remarks>
+    public static class ToolSchemaMapper
     {
         /// <summary>
-        /// Maps a MethodInfo object to its corresponding ChatTool definition.
+        /// Maps a MethodInfo object to the tool definition describing it.
         /// </summary>
-        /// <param name="methodInfo"></param>
-        /// <returns></returns>
-        public static async Task<Result<ChatTool, Problem>> MapTool(MethodInfo methodInfo)
+        public static async Task<Result<ToolDefinition, Problem>> MapTool(MethodInfo methodInfo)
         {
             if (methodInfo is null)
-                return Result<ChatTool, Problem>.Failure(
+                return Result<ToolDefinition, Problem>.Failure(
                     new Problem.Unexpected("MethodInfo cannot be null."));
 
             var parameters = methodInfo.GetParameters();
@@ -43,15 +46,15 @@ namespace Model.Tools
             else
             {
                 if (parameters[0].ParameterType != typeof(IdentityUser))
-                    return Result<ChatTool, Problem>.Failure(new Problem.Unexpected(
+                    return Result<ToolDefinition, Problem>.Failure(new Problem.Unexpected(
                         $"First parameter of method '{methodInfo.Name}' is expected to be 'IdentityUser'."));
                 if (parameters.Length > 2)
-                    return Result<ChatTool, Problem>.Failure(new Problem.Unexpected(
+                    return Result<ToolDefinition, Problem>.Failure(new Problem.Unexpected(
                         $"Method '{methodInfo.Name}' must have at most two parameters."));
 
                 if (parameters[1].ParameterType == typeof(Guid) || parameters[1].ParameterType == typeof(string))
                 {
-                    var openAiSchema = new
+                    var scalarSchema = new
                     {
                         type = "object",
                         properties = new Dictionary<string, object>
@@ -65,7 +68,7 @@ namespace Model.Tools
                         required = new[] { parameters[1].Name ?? "request" }
                     };
 
-                    functionParameters = JsonSerializer.Serialize(openAiSchema, new JsonSerializerOptions
+                    functionParameters = JsonSerializer.Serialize(scalarSchema, new JsonSerializerOptions
                     {
                         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                         WriteIndented = false
@@ -79,15 +82,11 @@ namespace Model.Tools
                     functionParameters = schema.ToJson();
                 }
             }
-            var toolAttr = methodInfo.GetCustomAttribute<ToolAttribute>()!;
-            var tool = ChatTool.CreateFunctionTool(
-                functionName: toolAttr.Name,
-                functionDescription: toolAttr.Description,
-                functionParameters: BinaryData.FromString(functionParameters)
-            );
 
-            return Result<ChatTool, Problem>.Success(tool);
+            var toolAttr = methodInfo.GetCustomAttribute<ToolAttribute>()!;
+
+            return Result<ToolDefinition, Problem>.Success(
+                new ToolDefinition(toolAttr.Name, toolAttr.Description, functionParameters));
         }
     }
-
 }

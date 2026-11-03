@@ -1,139 +1,130 @@
 using System.Diagnostics;
 using lionheart.Functional;
-using lionheart.Data;
 using lionheart.Model.Chat;
-using lionheart.Services.Chat;
+using lionheart.Services.Llm;
 using Microsoft.AspNetCore.Identity;
 using Model.Chat.Completion;
+using Model.Chat.Tools;
 using Model.Tools;
-using OpenAI.Chat;
 
 namespace Services.Chat
 {
     /// <summary>
-    /// Interface defining behavior for a chat completion service.
-    /// This service is responsible for generating a LLM chat completion with custom settings and conversation history.
+    /// Runs one exchange with the chat model: offers it the tool registry, resolves each round of
+    /// tool calls it asks for, and stops when it answers.
     /// </summary>
     public interface IChatCompletionService
     {
-        /// <summary>
-        /// Generate chat completion based on request data.
-        /// </summary>
-        Task<Result<ChatCompletionResponse, Problem>> GenerateChatCompletionAsync(IdentityUser user, ChatCompletionRequest request);
+        Task<Result<ChatCompletionResponse, Problem>> GenerateChatCompletionAsync(
+            IdentityUser user, ChatCompletionRequest request, CancellationToken cancellationToken = default);
     }
-    public class ChatCompletionService(ChatClient chatClient, ChatToolCallExecutor toolCallExecutor) : IChatCompletionService
+
+    /// <summary>
+    /// The tool loop, and the only place that decides how many rounds a model gets and what a
+    /// failed tool is told.
+    /// </summary>
+    /// <remarks>
+    /// Provider-agnostic by construction: everything it says to a model it says through
+    /// <see cref="IChatModel"/>, so the same loop drives Anthropic and a local LM Studio server.
+    /// </remarks>
+    public class ChatCompletionService(
+        IChatModel chatModel,
+        ToolRegistry toolRegistry,
+        ChatToolCallExecutor toolCallExecutor) : IChatCompletionService
     {
         private const int CONTENT_WINDOWN_TOKENS = 400_000;
         private const int TOKEN_BUFFER = CONTENT_WINDOWN_TOKENS / 10;
         private const int MAX_ALLOWED_TOKENS = CONTENT_WINDOWN_TOKENS - TOKEN_BUFFER;
         private const int MAX_INPUT_TOKENS = MAX_ALLOWED_TOKENS / 4;
 
-        private readonly ChatClient _chatClient = chatClient;
+        /// <summary>
+        /// How many times the model may ask for tools before the exchange is abandoned. A model
+        /// that keeps calling tools without ever answering would otherwise bill a request per round
+        /// indefinitely.
+        /// </summary>
+        private const int MAX_TOOL_ROUNDS = 12;
+
+        private readonly IChatModel _chatModel = chatModel;
+        private readonly ToolRegistry _toolRegistry = toolRegistry;
         private readonly ChatToolCallExecutor _toolCallExecutor = toolCallExecutor;
 
-        /// <summary>
-        /// Generates a chat completion for the given user and request.
-        /// </summary>
         public Task<Result<ChatCompletionResponse, Problem>> GenerateChatCompletionAsync(
-            IdentityUser user, ChatCompletionRequest request) =>
-            HandleConversationHistory(request.Conversation)
-                .BindAsync(messages => CompleteAsync(user, request, messages));
+            IdentityUser user, ChatCompletionRequest request, CancellationToken cancellationToken = default) =>
+            Prompt(request.Conversation)
+                .BindAsync(prompt => lionheart.Functional.Result.UnfoldAsync(
+                    Exchange.Opening(request.Conversation.ChatConversationID, prompt),
+                    (exchange, ct) => AdvanceAsync(user, request, exchange, ct),
+                    cancellationToken));
 
         /// <summary>
-        /// Runs the model until it answers, resolving each round of tool calls in between.
+        /// One round: ask the model, and either finish with its answer or run what it asked for and
+        /// carry the conversation forward.
         /// </summary>
-        private async Task<Result<ChatCompletionResponse, Problem>> CompleteAsync(
-            IdentityUser user, ChatCompletionRequest request, List<ChatMessage> messages)
+        private Task<Result<Loop<Exchange, ChatCompletionResponse>, Problem>> AdvanceAsync(
+            IdentityUser user, ChatCompletionRequest request, Exchange exchange, CancellationToken cancellationToken) =>
+            // Not Upstream: nothing upstream failed, this application gave up. Upstream would reach
+            // the client as 502 "an upstream service failed", which tells the athlete to blame the
+            // model for a limit chosen here. Nothing is persisted at the cap, so the conversation
+            // survives intact and the turn can be asked again.
+            exchange.Rounds >= MAX_TOOL_ROUNDS
+                ? Task.FromResult(Result<Loop<Exchange, ChatCompletionResponse>, Problem>.Failure(
+                    new Problem.Unexpected(
+                        $"The chat model asked for tools {MAX_TOOL_ROUNDS} times without answering.")))
+                : _chatModel
+                    .RespondAsync(
+                        ChatTurnRequest.Conversation(
+                            exchange.SystemPrompt,
+                            exchange.Messages,
+                            _toolRegistry.GetAllToolDefinitions(),
+                            request.MaxOutputTokens),
+                        cancellationToken)
+                    .BindAsync(turn => ActOnAsync(user, exchange, turn, cancellationToken));
+
+        private async Task<Result<Loop<Exchange, ChatCompletionResponse>, Problem>> ActOnAsync(
+            IdentityUser user,
+            Exchange exchange,
+            ModelTurn turn,
+            CancellationToken cancellationToken)
         {
-            bool requiresAction;
-            var newlyGeneratedMessages = new List<LHChatMessage>();
-
-            do
+            switch (turn)
             {
-                requiresAction = false;
+                case ModelTurn.Answered answered:
+                    return Result<Loop<Exchange, ChatCompletionResponse>, Problem>.Success(
+                        new Loop<Exchange, ChatCompletionResponse>.Done(exchange.Concluded(answered)));
 
-                ChatCompletion completion;
-                switch (await _chatClient.CompleteAsResultAsync(messages, request.Options))
-                {
-                    case Success<ChatCompletion, Problem> completed:
-                        completion = completed.Value;
-                        break;
-                    case Failure<ChatCompletion, Problem> refused:
-                        return Result<ChatCompletionResponse, Problem>.Failure(refused.Problem);
-                    default:
-                        throw new UnreachableException();
-                }
+                case ModelTurn.RequestedTools requested:
+                    var outcomes = await RunToolsAsync(user, requested, cancellationToken);
+                    return Result<Loop<Exchange, ChatCompletionResponse>, Problem>.Success(
+                        new Loop<Exchange, ChatCompletionResponse>.Continue(
+                            exchange.After(requested, outcomes)));
 
-                switch (completion.FinishReason)
-                {
-                    case ChatFinishReason.Stop:
-                        {
-                            newlyGeneratedMessages.Add(new LHModelChatMessage{
-                                ChatMessageItemID = Guid.NewGuid(),
-                                ChatConversationID = request.Conversation.ChatConversationID,
-                                CreationTime = DateTime.UtcNow,
-                                TokenCount = completion.Usage.OutputTokenCount,
-                                Content = string.Join("", completion.Content.Select(c => c.Text))
-                            });
-                            return Result<ChatCompletionResponse, Problem>.Success(new ChatCompletionResponse
-                            {
-                                Completion = completion,
-                                CompletionGeneratedMessages = newlyGeneratedMessages,
-                                ModelFinalChatMessageID = newlyGeneratedMessages.Last().ChatMessageItemID
-                            });
-                        }
+                default:
+                    throw new UnreachableException();
+            }
+        }
 
-                    case ChatFinishReason.ToolCalls:
-                        {
-                            /*
-                            In order to save token usage, we will only persist the data the model retreived from tool calls.
-                            This means we will not save the intermediate assistant messages that request tool calls.
-                            */
+        /// <summary>
+        /// Every tool of one round, in order. Total rather than fallible: a tool that refuses does
+        /// not end the exchange, it answers with its reason instead, which is the model's only cue
+        /// to retry with different arguments or answer without it.
+        /// </summary>
+        private async Task<IReadOnlyList<ToolOutcome>> RunToolsAsync(
+            IdentityUser user,
+            ModelTurn.RequestedTools requested,
+            CancellationToken cancellationToken)
+        {
+            var outcomes = new List<ToolOutcome>(requested.Calls.Count);
 
+            foreach (var call in requested.Calls)
+            {
+                outcomes.Add(await _toolCallExecutor
+                    .ExecuteToolCallAsync(call, user, allowedToolNames: null, cancellationToken)
+                    .MatchAsync(
+                        produced => produced,
+                        refused => ToolOutcome.Refused(call.CallId, DescribeToolFailure(refused))));
+            }
 
-                            // add assistant message with tool calls to the conversation history.
-                            // dont save this for persistence.
-                            messages.Add(new AssistantChatMessage(completion));
-                     
-                            // add a new tool message for each tool call that is resolved.
-                            foreach (ChatToolCall toolCall in completion.ToolCalls)
-                            {
-                                switch (await _toolCallExecutor.ExecuteToolCallAsync(toolCall, user))
-                                {
-                                    case Success<ToolChatMessage, Problem> executed:
-                                        messages.Add(executed.Value);
-                                        newlyGeneratedMessages.Add(new LHChatToolCallResult{
-                                            ChatMessageItemID =  Guid.NewGuid(),
-                                            ChatConversationID = request.Conversation.ChatConversationID,
-                                            CreationTime = DateTime.UtcNow,
-                                            TokenCount = (executed.Value.Content?[0].Text ?? string.Empty).Length / 4,
-                                            Content = executed.Value.Content?[0].Text,
-                                        });
-                                        break;
-                                    case Failure<ToolChatMessage, Problem> refused:
-                                        messages.Add(new ToolChatMessage(toolCall.Id, DescribeToolFailure(refused.Problem)));
-                                        break;
-                                }
-                            }
-
-                            requiresAction = true;
-                            break;
-                        }
-
-                    case ChatFinishReason.Length:
-                        return Result<ChatCompletionResponse, Problem>.Failure(new Problem.Upstream(
-                            "Incomplete model output due to MaxTokens parameter or token limit exceeded."));
-                    case ChatFinishReason.ContentFilter:
-                        return Result<ChatCompletionResponse, Problem>.Failure(
-                            new Problem.Upstream("Omitted content due to a content filter flag."));
-                    default:
-                        return Result<ChatCompletionResponse, Problem>.Failure(
-                            new Problem.Upstream(completion.FinishReason.ToString()));
-                }
-            } while (requiresAction);
-
-            return Result<ChatCompletionResponse, Problem>.Failure(
-                new Problem.Upstream("Failed to generate chat completion."));
+            return outcomes;
         }
 
         /// <summary>
@@ -147,20 +138,19 @@ namespace Services.Chat
                 : $"Tool call failed: {problem.Description}";
 
         /// <summary>
-        /// Given a chat conversation, process and return the list of chat messages to be used in the completion.
-        /// This includes handling conversation history compression if needed.
+        /// The conversation history packed to fit the input budget, with the system prompt's own
+        /// budget reserved first.
         /// </summary>
-        private Result<List<ChatMessage>, Problem> HandleConversationHistory(LHChatConversation conversation)
+        private static Result<ChatPrompt, Problem> Prompt(LHChatConversation conversation)
         {
             var systemPrompt = conversation.ChatSystemMessage;
             if (systemPrompt.TokenCount > MAX_INPUT_TOKENS)
             {
-                return Result<List<ChatMessage>, Problem>.Failure(
+                return Result<ChatPrompt, Problem>.Failure(
                     new Problem.Unexpected("System prompt exceeds maximum allowed tokens."));
             }
 
-
-            // The system prompt now carries the Athlete Context Card, so its budget is reserved first
+            // The system prompt carries the Athlete Context Card, so its budget is reserved first
             // (it is never packed/dropped here). History then fills MAX_INPUT_TOKENS minus the card.
             var tokenCount = systemPrompt.TokenCount;
             var selected = new List<LHChatMessage>();
@@ -191,15 +181,95 @@ namespace Services.Chat
                 tokenCount += message.TokenCount;
             }
 
-            // Restore chronological order and prepend the (card-bearing) system prompt.
-            var compressedChatConversation = selected
-                .OrderBy(m => m.CreationTime)
-                .Select(m => m.ToChatMessage())
-                .ToList();
-            compressedChatConversation.Insert(0, systemPrompt.ToChatMessage());
-            return Result<List<ChatMessage>, Problem>.Success(compressedChatConversation);
-           
+            return Result<ChatPrompt, Problem>.Success(new ChatPrompt(
+                systemPrompt.Content ?? string.Empty,
+                [.. selected.OrderBy(m => m.CreationTime).Select(AsTurn)]));
         }
-            
+
+        /// <summary>
+        /// A stored message as the model should hear it again.
+        /// </summary>
+        private static ModelMessage AsTurn(LHChatMessage message) => message switch
+        {
+            LHUserChatMessage user => new ModelMessage.UserSaid(user.Content ?? string.Empty),
+            LHModelChatMessage model => new ModelMessage.AssistantSaid(model.Content ?? string.Empty),
+
+            // Replayed as an assistant statement rather than a tool result: the request that asked
+            // for it is deliberately not stored, and a tool result whose request is absent is
+            // rejected by every provider. See LHChatToolCallResult.
+            LHChatToolCallResult tool => new ModelMessage.AssistantSaid(tool.Content ?? string.Empty),
+
+            _ => throw new UnreachableException()
+        };
+
+        /// <summary>The unchanging half of every round: the system prompt and the packed history.</summary>
+        private sealed record ChatPrompt(string SystemPrompt, IReadOnlyList<ModelMessage> History);
+
+        /// <summary>
+        /// What one exchange carries from round to round: the conversation as the model will next
+        /// see it, the messages worth persisting, and how many rounds have gone by.
+        /// </summary>
+        private sealed record Exchange(
+            Guid ConversationId,
+            string SystemPrompt,
+            IReadOnlyList<ModelMessage> Messages,
+            IReadOnlyList<LHChatMessage> Generated,
+            int Rounds)
+        {
+            public static Exchange Opening(Guid conversationId, ChatPrompt prompt) =>
+                new(conversationId, prompt.SystemPrompt, prompt.History, [], 0);
+
+            /// <summary>
+            /// The next round's state: the model's request for tools and the results answering it
+            /// are appended to the conversation, and the results alone are kept for persistence.
+            /// </summary>
+            public Exchange After(ModelTurn.RequestedTools requested, IReadOnlyList<ToolOutcome> outcomes) =>
+                this with
+                {
+                    Messages =
+                    [
+                        .. Messages,
+                        new ModelMessage.AssistantActed(requested.Turn),
+                        new ModelMessage.ToolsAnswered(outcomes),
+                    ],
+                    // A failed call is told to the model in this exchange and then forgotten. It is
+                    // not stored, because stored messages are replayed as history on later turns,
+                    // where "that tool failed" is noise about a call the athlete never saw.
+                    Generated = [.. Generated, .. outcomes.Where(o => !o.Failed).Select(Persisted)],
+                    Rounds = Rounds + 1,
+                };
+
+            /// <summary>The model's answer, plus every tool result the exchange collected on the way.</summary>
+            public ChatCompletionResponse Concluded(ModelTurn.Answered answered)
+            {
+                var message = new LHModelChatMessage
+                {
+                    ChatMessageItemID = Guid.NewGuid(),
+                    ChatConversationID = ConversationId,
+                    CreationTime = DateTime.UtcNow,
+                    TokenCount = answered.OutputTokens,
+                    Content = answered.Text,
+                };
+
+                return new ChatCompletionResponse
+                {
+                    CompletionGeneratedMessages = [.. Generated, message],
+                    ModelFinalChatMessageID = message.ChatMessageItemID,
+                };
+            }
+
+            /// <summary>
+            /// A tool result, stored. The token count is an estimate because a tool result is this
+            /// application's own text, not something the model reported usage for.
+            /// </summary>
+            private LHChatToolCallResult Persisted(ToolOutcome outcome) => new()
+            {
+                ChatMessageItemID = Guid.NewGuid(),
+                ChatConversationID = ConversationId,
+                CreationTime = DateTime.UtcNow,
+                TokenCount = outcome.Content.Length / 4,
+                Content = outcome.Content,
+            };
+        }
     }
 }

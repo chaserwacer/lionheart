@@ -1,4 +1,3 @@
-using System.ClientModel;
 using lionheart.Data;
 using lionheart.Model.Analysis;
 using lionheart.Model.Interpretation;
@@ -10,9 +9,6 @@ using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using OpenAI;
-using OpenAI.Chat;
-using OpenAI.Embeddings;
 
 namespace lionheart.Tests.Interpretation;
 
@@ -21,6 +17,7 @@ namespace lionheart.Tests.Interpretation;
 /// parse, resolve and commit compose correctly with real model output rather than staged fakes.
 /// </summary>
 [Trait("Category", "LocalModel")]
+[Collection(LiveModelCollection.Name)]
 public class LmStudioEngineTests : IDisposable
 {
     private readonly RemodelDatabase _database = new();
@@ -54,11 +51,11 @@ public class LmStudioEngineTests : IDisposable
     {
         DotNetEnv.Env.TraversePath().Load();
         LmStudioFactAttribute.SkipUnlessAvailable();
-        var embeddings = new LmStudioEmbeddingGenerator(LmStudio.CreateEmbeddingClient());
+        var embeddings = new OpenAiCompatibleEmbeddingGenerator(LmStudio.CreateEmbeddingClient());
 
         return new InterpretationEngine(
             context,
-            new InterpretationParser(LmStudio.CreateChatClient()),
+            new InterpretationParser(LmStudio.CreateChatModel()),
             new InterpretationResolver(
                 new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context))),
                 new FacetResolver(context, embeddings)),

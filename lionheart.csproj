@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup Label="Web and API surface">
+    <PackageReference Include="Anthropic" Version="13.4.0" />
     <PackageReference Include="Ardalis.ApiEndpoints" Version="4.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.10" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.4.8" />
@@ -38,6 +39,13 @@
     <PackageReference Include="NJsonSchema" Version="11.3.2" />
     <PackageReference Include="NSwag.CodeGeneration.TypeScript" Version="14.4.0" />
     <PackageReference Include="NSwag.Core" Version="14.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The provider boundary is internal on purpose, but the raw-body guard in
+         Services/Llm/LmStudio is exactly the part most worth testing: LM Studio reports failures
+         as HTTP 200 with an error body, and only a test over the real transport proves it. -->
+    <InternalsVisibleTo Include="lionheart.Tests" />
   </ItemGroup>
 
   <ItemGroup>

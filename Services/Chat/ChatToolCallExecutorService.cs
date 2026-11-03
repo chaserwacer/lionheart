@@ -5,8 +5,8 @@ using System.Text.Json;
 using lionheart.Functional;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using lionheart.Services.Llm;
 using Model.Chat.Tools;
-using OpenAI.Chat;
 
 namespace Model.Tools
 {
@@ -23,38 +23,42 @@ namespace Model.Tools
         private readonly JsonSerializerOptions _jsonOptions = jsonOptions;
 
         /// <summary>
-        /// Executes a chat tool call and returns the corresponding tool chat message.
-        /// Always returns a ToolChatMessage (success or standardized error envelope) when possible.
+        /// Executes one tool the model asked for and returns what to send back to it.
         /// </summary>
-        public async Task<Result<ToolChatMessage, Problem>> ExecuteToolCallAsync(
-            ChatToolCall toolCall,
+        /// <remarks>
+        /// Every refusal here is something the model can act on — a tool that does not exist,
+        /// arguments that will not bind — so it comes back as a <see cref="Problem"/> for the caller
+        /// to put in front of the model rather than as a failed exchange.
+        /// </remarks>
+        public async Task<Result<ToolOutcome, Problem>> ExecuteToolCallAsync(
+            ToolInvocation toolCall,
             IdentityUser? user,
             ISet<string>? allowedToolNames = null,
             CancellationToken cancellationToken = default)
         {
             if (toolCall is null)
-                return Result<ToolChatMessage, Problem>.Failure(
-                    new Problem.Unexpected("Provided ChatToolCall is null."));
+                return Result<ToolOutcome, Problem>.Failure(
+                    new Problem.Unexpected("Provided tool invocation is null."));
 
-            if (string.IsNullOrWhiteSpace(toolCall.Id))
-                return Result<ToolChatMessage, Problem>.Failure(
-                    new Problem.Unexpected("Provided ChatToolCall is missing an Id."));
+            if (string.IsNullOrWhiteSpace(toolCall.CallId))
+                return Result<ToolOutcome, Problem>.Failure(
+                    new Problem.Unexpected("Provided tool invocation is missing a call id."));
 
-            var toolName = toolCall.FunctionName;
+            var toolName = toolCall.ToolName;
             if (string.IsNullOrWhiteSpace(toolName))
-                return Result<ToolChatMessage, Problem>.Failure(
-                    new Problem.Invalid("FunctionName", "Tool call is missing FunctionName."));
+                return Result<ToolOutcome, Problem>.Failure(
+                    new Problem.Invalid("ToolName", "Tool call is missing a tool name."));
 
             if (allowedToolNames is not null && !allowedToolNames.Contains(toolName))
-                return Result<ToolChatMessage, Problem>.Failure(
+                return Result<ToolOutcome, Problem>.Failure(
                     new Problem.Forbidden("This tool is not available in this conversation."));
 
             if (!_registry.TryGet(toolName, out var descriptor) || descriptor is null)
-                return Result<ToolChatMessage, Problem>.Failure(
+                return Result<ToolOutcome, Problem>.Failure(
                     new Problem.NotFound("No such tool is available."));
 
             if (descriptor.RequireAuthorization && user is null)
-                return Result<ToolChatMessage, Problem>.Failure(
+                return Result<ToolOutcome, Problem>.Failure(
                     new Problem.Unauthorized("You are not authorized to call this tool."));
 
 
@@ -67,25 +71,24 @@ namespace Model.Tools
             }
             catch (Exception ex)
             {
-                return Result<ToolChatMessage, Problem>.Failure(
+                return Result<ToolOutcome, Problem>.Failure(
                     new Problem.Unexpected($"Failed to resolve tool service from DI.  ({ex.GetType().Name})"));
             }
 
             object?[] args;
             try
             {
-                var functionArgsJson = toolCall.FunctionArguments?.ToString();
-                args = BindArguments(descriptor.MethodInfo, functionArgsJson, user, _jsonOptions);
+                args = BindArguments(descriptor.MethodInfo, toolCall.ArgumentsJson, user, _jsonOptions);
             }
             catch (ToolBindingException bex)
             {
-                return Result<ToolChatMessage, Problem>.Failure(
+                return Result<ToolOutcome, Problem>.Failure(
                     new Problem.Invalid("arguments", bex.Message));
             }
 
             var validationErrors = ValidateArguments(args);
             if (validationErrors.Count > 0)
-                return Result<ToolChatMessage, Problem>.Failure(new Problem.Invalid(validationErrors));
+                return Result<ToolOutcome, Problem>.Failure(new Problem.Invalid(validationErrors));
 
             object? invokeResult;
             try
@@ -94,18 +97,13 @@ namespace Model.Tools
             }
             catch (Exception ex)
             {
-                return Result<ToolChatMessage, Problem>.Failure(
+                return Result<ToolOutcome, Problem>.Failure(
                     new Problem.Unexpected($"Tool execution failed. ({ex.GetType().Name})"));
             }
 
             var unwrapped = await UnwrapAsync(invokeResult, cancellationToken).ConfigureAwait(false);
-            return Result<ToolChatMessage, Problem>.Success(ToToolMessage(toolCall.Id, unwrapped));
-        }
-
-        private ToolChatMessage ToToolMessage(string toolCallId, object? payload)
-        {
-            var json = JsonSerializer.Serialize(payload, _jsonOptions);
-            return new ToolChatMessage(toolCallId, json);
+            return Result<ToolOutcome, Problem>.Success(
+                ToolOutcome.Produced(toolCall.CallId, JsonSerializer.Serialize(unwrapped, _jsonOptions)));
         }
 
         private static object?[] BindArguments(MethodInfo method, string? functionArgsJson, IdentityUser? user, JsonSerializerOptions jsonOptions)

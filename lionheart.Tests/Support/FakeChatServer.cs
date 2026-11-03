@@ -2,6 +2,8 @@ using System.ClientModel;
 using System.ClientModel.Primitives;
 using System.Net;
 using System.Text;
+using lionheart.Services.Llm;
+using lionheart.Services.Llm.LmStudio;
 using OpenAI;
 using OpenAI.Chat;
 
@@ -11,11 +13,11 @@ namespace lionheart.Tests.Support;
 /// A stand-in for LM Studio's OpenAI-compatible endpoint, wired in as the SDK's HTTP transport.
 /// </summary>
 /// <remarks>
-/// Faking at the wire rather than behind an app-owned interface is deliberate: it needs no
-/// production seam at all, and it keeps the real SDK request building, the real response
-/// parsing, and — the part most likely to be wrong — <c>ChatCompletionResultExtensions.ToResult</c>,
-/// which reads the raw body to catch LM Studio answering a failure with HTTP 200. An interface
-/// fake would return a ChatCompletion that had never been through any of that.
+/// Faking at the wire rather than behind <see cref="IChatModel"/> is deliberate, even though the
+/// port would be the easier seam: it keeps the real SDK request building, the real response
+/// parsing, and — the part most likely to be wrong — <see cref="OpenAiCompletionResult.ToResult"/>,
+/// which reads the raw body to catch LM Studio answering a failure with HTTP 200. A fake port would
+/// return a turn that had never been through any of that.
 /// </remarks>
 public sealed class FakeChatServer : IDisposable
 {
@@ -65,6 +67,13 @@ public sealed class FakeChatServer : IDisposable
             Transport = new HttpClientPipelineTransport(new HttpClient(_handler, disposeHandler: false)),
             RetryPolicy = new ClientRetryPolicy(maxRetries: 0),
         });
+
+    /// <summary>
+    /// The LM Studio provider over this fake transport — the port as a consumer sees it, with the
+    /// real SDK still building the request and parsing the response underneath.
+    /// </summary>
+    public IChatModel CreateChatModel(string model = "test-model") =>
+        new LmStudioChatModel(CreateChatClient(model));
 
     public void Dispose() => _handler.Dispose();
 
