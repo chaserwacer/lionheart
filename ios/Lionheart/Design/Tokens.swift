@@ -15,4 +15,8 @@ enum Tokens {
 
     /// Inset for content that sits inside a card rather than a `List` row.
     static let cardPadding: CGFloat = 16
+
+    /// Corner radius for a piece of floating chrome too tall to be a capsule — the rest clock.
+    /// Capsules need no number, so this is the only radius in the app.
+    static let chromeCornerRadius: CGFloat = 22
 }

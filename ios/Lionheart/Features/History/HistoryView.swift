@@ -36,6 +36,7 @@ struct HistoryView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("History")
             .searchable(text: $query, prompt: "Movement or note")
+            .minimizingSearchField()
             .refreshable { await store.refresh() }
             .navigationDestination(for: Route.self) { destination(for: $0) }
         }

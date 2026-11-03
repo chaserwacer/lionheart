@@ -72,6 +72,7 @@ private struct SignedInTabs: View {
                 BodyView(store: container.body)
             }
         }
+        .minimizingTabBarOnScroll()
         .workoutAccessory(
             container.activeWorkout.workout,
             isPersisted: container.activeWorkout.isPersisted,

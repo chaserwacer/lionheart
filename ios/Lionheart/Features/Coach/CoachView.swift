@@ -18,6 +18,11 @@ struct CoachView: View {
     @State private var isConversationListPresented = false
     @FocusState private var isComposerFocused: Bool
 
+    /// The send button's diameter. A glyph in a circle has to be given a size, and a given size
+    /// does not grow with Dynamic Type on its own — so it is scaled, from a value that is already
+    /// the 44pt minimum touch target at the default text size.
+    @ScaledMetric private var sendDiameter: CGFloat = 44
+
     var body: some View {
         NavigationStack {
             Group {
@@ -127,6 +132,12 @@ struct CoachView: View {
         }
     }
 
+    /// The field and the send button, floating on glass over the transcript.
+    ///
+    /// Two sibling glass surfaces in one container rather than an opaque bar: it is the composer
+    /// every messaging app on this platform now has, and the transcript scrolling visibly under it
+    /// is what says the conversation continues below. The container is what makes them one piece of
+    /// glass — two separate ones this close together bend light against each other.
     private var composer: some View {
         VStack(spacing: 8) {
             if store.state.isAwaitingReply {
@@ -136,30 +147,34 @@ struct CoachView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            HStack(alignment: .bottom, spacing: 10) {
-                TextField("Ask the coach", text: $typed, axis: .vertical)
-                    .lineLimit(1...5)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 18))
-                    .focused($isComposerFocused)
-                    .disabled(!store.state.acceptsTyping)
+            GlassChromeGroup(spacing: 10) {
+                HStack(alignment: .bottom, spacing: 10) {
+                    TextField("Ask the coach", text: $typed, axis: .vertical)
+                        .lineLimit(1...5)
+                        .textFieldStyle(.plain)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .glassChrome(in: .capsule)
+                        .focused($isComposerFocused)
+                        .disabled(!store.state.acceptsTyping)
 
-                Button {
-                    send()
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title)
-                        .symbolRenderingMode(.hierarchical)
+                    Button {
+                        send()
+                    } label: {
+                        Image(systemName: "arrow.up")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(canSend ? Tokens.accent : Color(.tertiaryLabel))
+                            .frame(width: sendDiameter, height: sendDiameter)
+                            .glassChrome(in: .circle, interactive: true)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canSend)
+                    .accessibilityLabel("Send")
                 }
-                .disabled(!canSend)
-                .accessibilityLabel("Send")
             }
         }
         .padding(.horizontal, Tokens.cardPadding)
         .padding(.vertical, 10)
-        .background(.bar)
     }
 
     private var canSend: Bool {
