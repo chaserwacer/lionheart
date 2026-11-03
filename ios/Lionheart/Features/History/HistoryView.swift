@@ -197,7 +197,7 @@ struct HistoryView: View {
     }
 
     /// The long press. Copying a session's own line is what gets it into a message or into a
-    /// question for the coach, and is the one action every row can offer whatever state it is in.
+    /// question in Chat, and is the one action every row can offer whatever state it is in.
     @ViewBuilder
     private func menu(for session: LoggedSession) -> some View {
         ForEach(transitions(on: session.kind)) { transition in

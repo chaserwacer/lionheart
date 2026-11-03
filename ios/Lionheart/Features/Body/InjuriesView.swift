@@ -3,7 +3,7 @@ import SwiftUI
 /// Every injury on record, active first.
 ///
 /// Resolved injuries are kept and shown, in their own section: an injury that healed is history the
-/// coach reads against a new complaint, so hiding it would be throwing away the context that makes
+/// model reads against a new complaint, so hiding it would be throwing away the context that makes
 /// the next one legible.
 struct InjuriesView: View {
     let injuries: [Injury]
@@ -15,7 +15,7 @@ struct InjuriesView: View {
                 ContentUnavailableView {
                     Label("No injuries tracked", systemImage: "bandage")
                 } description: {
-                    Text("Tracking one keeps its events — treatments and check-ins — in one place the coach can read.")
+                    Text("Tracking one keeps its events — treatments and check-ins — in one place Lionheart can read.")
                 }
                 .listRowBackground(Color.clear)
             } else {

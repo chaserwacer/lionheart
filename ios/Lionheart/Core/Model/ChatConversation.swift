@@ -8,7 +8,7 @@ import Foundation
 /// user/model pair every later turn would be attributed to the wrong speaker.
 enum ChatRole: Equatable, Sendable {
     case athlete
-    case coach
+    case model
     /// The result of a tool the model called. Stored, but not a turn in the conversation the
     /// athlete is reading.
     case tool
@@ -18,7 +18,7 @@ enum ChatRole: Equatable, Sendable {
     init(wire: Int?) {
         switch wire {
         case 0: self = .athlete
-        case 1: self = .coach
+        case 1: self = .model
         case 2: self = .tool
         case 3: self = .system
         default: self = .unrecognised(wire ?? -1)
@@ -28,10 +28,10 @@ enum ChatRole: Equatable, Sendable {
     /// Whether this role's messages belong in the transcript the athlete scrolls.
     ///
     /// Total, so a role added later has to decide rather than defaulting into the conversation —
-    /// a tool result rendered as coaching advice is the failure this guards.
+    /// a tool result rendered as the model's answer is the failure this guards.
     var isShownInTranscript: Bool {
         switch self {
-        case .athlete, .coach: true
+        case .athlete, .model: true
         case .tool, .system, .unrecognised: false
         }
     }
@@ -67,7 +67,7 @@ extension ChatMessage: Decodable {
     }
 }
 
-/// A chat with the coach: its name, when it was last added to, and its turns.
+/// A conversation with the model: its name, when it was last added to, and its turns.
 ///
 /// `messages` is empty on the list route — which sends `null` for it — and populated on the single
 /// read. That is the server's shape rather than a thing worth two types: the list is for choosing a
