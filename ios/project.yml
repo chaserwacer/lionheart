@@ -1,0 +1,99 @@
+name: Lionheart
+
+options:
+  bundleIdPrefix: com.chasebalmer
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+  groupSortPosition: top
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    CLANG_ENABLE_MODULES: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+
+targets:
+  Lionheart:
+    type: application
+    platform: iOS
+    sources:
+      - path: Lionheart
+    configFiles:
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chasebalmer.lionheart
+        PRODUCT_NAME: Lionheart
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        DEVELOPMENT_ASSET_PATHS: ""
+        CODE_SIGN_STYLE: Automatic
+        # Code signing stays on even for the simulator, which signs ad-hoc and needs no team.
+        # Turning it off strips the application-identifier entitlement, and without that every
+        # Keychain write fails with errSecMissingEntitlement — so the athlete would appear to sign
+        # in and be signed out again on the next launch, with nothing saying why.
+    info:
+      path: Lionheart/Info.plist
+      properties:
+        CFBundleDisplayName: Lionheart
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UIUserInterfaceStyle: Automatic
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Declaring a launch screen is what tells iOS the app is built for the full display. Without
+        # it the app runs letterboxed in compatibility mode on every modern device — and because
+        # this project supplies its own Info.plist, the INFOPLIST_KEY_UILaunchScreen_Generation
+        # build setting never reaches it. An empty dictionary is the whole declaration.
+        UILaunchScreen: {}
+        # The API origin is a build setting, not a literal, so a device build can point at a LAN
+        # address or a tunnel without touching Swift. See Configs/Base.xcconfig.
+        LHAPIBaseURL: $(LH_API_BASE_URL)
+        # Narrow ATS exemption for loopback and LAN hosts only. The development backend is served
+        # over plain HTTP on localhost; NSAllowsArbitraryLoads would also permit it in Release,
+        # which is exactly what must not happen.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+
+  LionheartTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: LionheartTests
+    dependencies:
+      - target: Lionheart
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chasebalmer.lionheart.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Lionheart:
+    build:
+      targets:
+        Lionheart: all
+        LionheartTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - LionheartTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

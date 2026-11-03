@@ -1,0 +1,9 @@
+#include "Base.xcconfig"
+
+// The simulator reaches the host's loopback directly, so a backend started with
+// `dotnet run --launch-profile lionheart` is simply there.
+LH_API_BASE_URL = http:$(LH_SLASH)$(LH_SLASH)localhost:7025
+
+// A physical device cannot see the Mac's loopback. Point it somewhere reachable by overriding
+// LH_API_BASE_URL in Local.xcconfig, which is read last and wins.
+#include? "Local.xcconfig"

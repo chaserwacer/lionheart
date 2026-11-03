@@ -1,0 +1,14 @@
+// Settings shared by every configuration.
+//
+// LH_API_BASE_URL is the one setting a build has to get right: it is what the app talks to, and it
+// reaches Swift through the Info.plist key LHAPIBaseURL (see project.yml).
+//
+// A double slash begins a comment in an xcconfig file, so "http://host" would be truncated to
+// "http:". LH_SLASH exists only to smuggle the two slashes past the lexer; this is the standard
+// workaround and the reason the URLs below look assembled rather than written.
+LH_SLASH = /
+
+IPHONEOS_DEPLOYMENT_TARGET = 18.0
+TARGETED_DEVICE_FAMILY = 1
+SUPPORTS_MACCATALYST = NO
+SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO
