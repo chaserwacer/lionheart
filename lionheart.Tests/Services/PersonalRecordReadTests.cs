@@ -1,8 +1,10 @@
 using lionheart.Functional;
+using lionheart.Model.Training;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
+using lionheart.Services.Training.PersonalRecords;
 using lionheart.Tests.Api;
 using lionheart.Tests.Support;
 
@@ -146,6 +148,89 @@ public class PersonalRecordReadTests : IAsyncLifetime
 
         Assert.Null(Assert.Single(trail).MovementDataId);
     }
+
+    /// <summary>
+    /// Two links of one chain at one instant read successor first.
+    /// </summary>
+    /// <remarks>
+    /// One commit of two sessions with the same period writes exactly this. The ids are chosen so
+    /// the successor's sorts below its predecessor's: a version-7 id is random within a
+    /// millisecond, and ordering on it put the beaten record on top about a third of the time, so
+    /// pinning the unlucky draw is what makes this fail every time without the fix rather than
+    /// sometimes.
+    /// </remarks>
+    [Fact]
+    public async Task Two_links_of_a_chain_at_one_instant_read_with_the_successor_first()
+    {
+        var predecessorId = Guid.Parse("ffffffff-ffff-7fff-bfff-ffffffffffff");
+        var successorId = Guid.Parse("00000000-0000-7000-8000-000000000001");
+
+        await _athletes.PlantAsync(context =>
+        {
+            var predecessor = PersonalRecord.FirstOf(
+                predecessorId,
+                _athletes.OwnerId,
+                new RecordSubject.Movement(_bench),
+                new Achievement.HeaviestSet(new LiftPerformance(225, WeightUnit.Pounds, 5)),
+                First.UtcDateTime);
+            var successor = PersonalRecord.Succeeding(
+                successorId,
+                new Achievement.HeaviestSet(new LiftPerformance(245, WeightUnit.Pounds, 5)),
+                First.UtcDateTime,
+                predecessor);
+            context.PersonalRecords.AddRange(predecessor, successor);
+        });
+
+        var chain = ResultAssert.Succeeded(await HistoryAsync("heaviestSet", null));
+
+        Assert.Equal([successorId, predecessorId], chain.Select(record => record.PersonalRecordId));
+        Assert.Equal(
+            [RecordStandingView.Standing, RecordStandingView.Beaten],
+            chain.Select(record => record.Standing));
+    }
+
+    [Fact]
+    public async Task A_one_commit_pair_of_same_instant_sessions_reads_its_chain_in_the_order_it_happened()
+    {
+        // The realistic route to the same state: one detector call staging two sessions with one
+        // period, so both ids come out of the same millisecond. Two separate requests would not
+        // do — their ids land in different milliseconds and happen to sort by write order. Run
+        // enough times that a random tie-break would all but certainly lose at least once.
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            using var fresh = new TwoAthletes();
+            var bench = await fresh.PlantMovementAsync(fresh.OwnerId, "Bench Press");
+
+            using (var context = fresh.CreateContext())
+            {
+                await new PersonalRecordDetector(context, TimeProvider.System).StageAsync(
+                    [SessionOf(fresh.OwnerId, bench, 225), SessionOf(fresh.OwnerId, bench, 245)], default);
+                await context.SaveChangesAsync();
+            }
+
+            var chain = ResultAssert.Succeeded(await fresh.RecordsAsync(service => service.GetHistoryAsync(
+                fresh.Owner, new RecordHistoryQuery(bench, "heaviestSet", null), default)));
+
+            Assert.Equal(
+                [245d, 225d],
+                chain.Select(record => Assert.IsType<HeaviestSetView>(record.Achievement).Weight));
+        }
+    }
+
+    private static CompletedTrainingSession SessionOf(Guid userId, Guid movementDataId, double weight) =>
+        new(
+            [new LiftSet(movementDataId, 5, weight, WeightUnit.Pounds, Rpe.Unrated) { Source = new Formed(), Facets = [] }],
+            new Instant(First),
+            new EffortNotReported(),
+            new NotDecorated())
+        {
+            TrainingSessionId = Guid.NewGuid(),
+            UserId = userId,
+            Notes = string.Empty,
+            Provenance = Provenance.User,
+            Membership = new Standalone(),
+            CreatedAt = Some.Clock,
+        };
 
     private Task<Result<IReadOnlyList<PersonalRecordView>, Problem>> HistoryAsync(
         string kind, int? bracket) =>
