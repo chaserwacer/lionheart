@@ -20,7 +20,7 @@ namespace lionheart.Services.Llm;
 /// </remarks>
 public static class ChatModelFactory
 {
-    public static IChatModel Create(ChatProviderSettings settings, string model) => settings switch
+    public static IChatModel Create(ChatProviderSettings settings, string model, ILoggerFactory loggers) => settings switch
     {
         LmStudioSettings lmStudio => new LmStudioChatModel(new ChatClient(
             model: model,
@@ -28,7 +28,8 @@ public static class ChatModelFactory
             options: new OpenAIClientOptions { Endpoint = new Uri(lmStudio.BaseUrl) })),
 
         AnthropicSettings anthropic => new AnthropicChatModel(
-            new global::Anthropic.AnthropicClient { ApiKey = anthropic.ApiKey }, model),
+            new global::Anthropic.AnthropicClient { ApiKey = anthropic.ApiKey }, model,
+            loggers.CreateLogger<AnthropicChatModel>()),
 
         _ => throw new ArgumentOutOfRangeException(
             nameof(settings), settings, "No chat provider is configured for these settings.")

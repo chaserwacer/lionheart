@@ -167,6 +167,18 @@ public static class ResultExtensions
         public async Task<Result<T, TProblem>> TapErrorAsync(Action<TProblem> effect) =>
             (await source).TapError(effect);
 
+        /// <summary>
+        /// <see cref="TapErrorAsync(Action{TProblem})"/> for an effect that is itself I/O — recording
+        /// a failure somewhere durable — which is awaited before the failure passes on.
+        /// </summary>
+        [OverloadResolutionPriority(1)]
+        public async Task<Result<T, TProblem>> TapErrorAsync(Func<TProblem, Task> effect)
+        {
+            var awaited = await source;
+            if (awaited is Failure<T, TProblem> failure) await effect(failure.Problem);
+            return awaited;
+        }
+
         public async Task<Result<T, TProblem>> RecoverAsync(Func<TProblem, T> selector) =>
             (await source).Recover(selector);
 

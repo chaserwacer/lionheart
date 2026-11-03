@@ -133,6 +133,10 @@ extension ReadKey {
 
     static let focusPins = ReadKey("focus.pins")
 
+    /// The thread's newest page, so what Lionheart last said can be read back with no signal.
+    static let chatThread = ReadKey("chat.thread")
+    static let chatMemories = ReadKey("chat.memories")
+
     /// The records one movement established, for its history.
     static func establishedRecords(movement movementDataId: UUID) -> ReadKey {
         ReadKey("records.established.movement.\(movementDataId.uuidString)")

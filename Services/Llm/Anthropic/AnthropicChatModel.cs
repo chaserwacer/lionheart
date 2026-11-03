@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Exceptions;
@@ -33,10 +34,11 @@ namespace lionheart.Services.Llm.Anthropic;
 /// </item>
 /// </list>
 /// </remarks>
-public sealed class AnthropicChatModel(AnthropicClient client, string model) : IChatModel
+public sealed class AnthropicChatModel(AnthropicClient client, string model, ILogger logger) : IChatModel
 {
     private readonly AnthropicClient _client = client;
     private readonly string _model = model;
+    private readonly ILogger _logger = logger;
 
     public Task<Result<ModelTurn, Problem>> RespondAsync(
         ChatTurnRequest request, CancellationToken cancellationToken = default) =>
@@ -58,10 +60,41 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
 
         // Added only when tools are actually on offer: the SDK serialises an empty collection as
         // "tools": [], and a request that offers none should not carry the field at all.
-        return request.Tools.Count == 0
+        var offered = request.Tools.Count == 0
             ? parameters
             : parameters with { Tools = [.. request.Tools.Select(Describe)] };
+
+        // A round after a tool call also caches its tail, so the next round of the same exchange,
+        // seconds later, reads the tool results back instead of paying for them again.
+        return (request.Caching, request.Messages is [.., ModelMessage.ToolsAnswered]) switch
+        {
+            (PromptCaching.None, _) => offered,
+            (PromptCaching.Conversation, true) => offered with { CacheControl = RoundCache },
+            (PromptCaching.Conversation, false) => offered,
+            _ => throw new UnreachableException(),
+        };
     }
+
+    /// <summary>
+    /// The breakpoint on the athlete's latest words: everything up to them is the conversation as
+    /// it will be resent next time, and it is kept for an hour.
+    /// </summary>
+    /// <remarks>
+    /// An hour rather than the default five minutes, because the athlete comes back to a
+    /// conversation after ten or forty minutes far more often than within five, and the hour's
+    /// dearer write (2x input against 1.25x) is repaid by the first read inside it. Only this prefix
+    /// earns the hour. A tool round's request and results are replayed later as plain text, not in
+    /// the shape this exchange sent them, so nothing after the latest words is ever read again
+    /// once the exchange ends.
+    /// </remarks>
+    private static readonly Messages.CacheControlEphemeral HistoryCache = new() { Ttl = Messages.Ttl.Ttl1h };
+
+    /// <summary>
+    /// Automatic caching for a tool loop's tail, at the default five minutes: the API moves the
+    /// breakpoint to the last block, and the next round reads it within seconds. It follows the
+    /// hour-long breakpoint, which is the order the API requires of mixed lifetimes.
+    /// </summary>
+    private static readonly Messages.CacheControlEphemeral RoundCache = new();
 
     /// <summary>
     /// How the answer is asked for. A schema goes in <c>OutputConfig.Format</c>, never through a
@@ -162,11 +195,19 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
             .SkipWhile(message => !OpensATranscript(message))
             .ToList();
 
+        var latestWords = request.Caching is PromptCaching.Conversation
+            ? transcript.FindLastIndex(message => message is ModelMessage.UserSaid)
+            : -1;
+
         return transcript.Count == 0
             ? Result<IReadOnlyList<Messages.MessageParam>, Problem>.Failure(new Problem.Invalid(
                 "messages",
                 "There is nothing to send: the message is empty, or too large for the input budget."))
-            : transcript.Traverse(Transcribe);
+            : transcript
+                .Select((message, index) => (Message: message, IsLatestWords: index == latestWords))
+                .Traverse(turn => turn is { IsLatestWords: true, Message: ModelMessage.UserSaid said }
+                    ? Text(Messages.MessageParamRole.User, said.Text, HistoryCache)
+                    : Transcribe(turn.Message));
     }
 
     /// <summary>Whether a message says anything the model could read.</summary>
@@ -272,6 +313,12 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
         Result<Messages.MessageParam, Problem>.Success(
             Blocks(role, [new Messages.ContentBlockParam(new Messages.TextBlockParam(text), null)]));
 
+    /// <summary>A text turn with a cache breakpoint on its block.</summary>
+    private static Result<Messages.MessageParam, Problem> Text(
+        Messages.MessageParamRole role, string text, Messages.CacheControlEphemeral cache) =>
+        Result<Messages.MessageParam, Problem>.Success(
+            Blocks(role, [new Messages.ContentBlockParam(new Messages.TextBlockParam(text) { CacheControl = cache }, null)]));
+
     private static Messages.MessageParam Blocks(
         Messages.MessageParamRole role, IReadOnlyList<Messages.ContentBlockParam> blocks)
     {
@@ -291,8 +338,9 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
     {
         try
         {
-            return Result<Messages.Message, Problem>.Success(
-                await _client.Messages.Create(parameters, cancellationToken));
+            var message = await _client.Messages.Create(parameters, cancellationToken);
+            Account(message);
+            return Result<Messages.Message, Problem>.Success(message);
         }
         catch (AnthropicUnauthorizedException ex)
         {
@@ -334,6 +382,20 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
         static Result<Messages.Message, Problem> Upstream(string detail) =>
             Result<Messages.Message, Problem>.Failure(new Problem.Upstream(detail));
     }
+
+    /// <summary>
+    /// What the call cost, as the API reports it. The cache fields are the only evidence that
+    /// conversation caching is working: a regression that makes every request miss the cache
+    /// changes nothing but the bill, and these lines are where it shows.
+    /// </summary>
+    private void Account(Messages.Message message) =>
+        _logger.LogInformation(
+            "Anthropic {Model}: {Input} input, {CacheWrite} cache write, {CacheRead} cache read, {Output} output tokens.",
+            _model,
+            message.Usage?.InputTokens,
+            message.Usage?.CacheCreationInputTokens,
+            message.Usage?.CacheReadInputTokens,
+            message.Usage?.OutputTokens);
 
     /// <summary>
     /// Why the model stopped, and what the caller owes next. The stop reason is read before the

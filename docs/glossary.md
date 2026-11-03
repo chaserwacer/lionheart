@@ -97,6 +97,11 @@ first and then in the code.
 | **Interpretation** | Turning raw text into domain records: parse, resolve, commit. Versioned and re-runnable. |
 | **Utterance** | How an entry was logged — texted, with the raw words kept, or formed through the UI. |
 | **Athlete context card** | The standing per-user summary handed to the model, so a conversation starts knowing the athlete instead of re-reading everything. |
+| **Thread** | The athlete's one continuing chat with Lionheart, read back as a single transcript. Beside it, a **conversation** is a standalone chat he starts and names; nothing said in one is remembered. |
+| **Thread session** | The run of thread messages the model actually reads: it ends after three hours idle or once its transcript passes about 60k tokens, and its system prompt is frozen when it opens. |
+| **Memory** | What the athlete told the thread, distilled when a session ends: a dated goal, injury, preference, commitment, decision or fact, traced to the messages it came from. The context card is what his data shows; memory is what he said. |
+| **Consolidation** | Distilling an ended thread session into memory: one structured model call that remembers, revises or retires. |
+| **Supersede** | How a memory changes: a revision writes a new current version and keeps the old one, dated, as its history. |
 | **Quick log** | The one-field path: type what you did in plain words and let interpretation do the rest. |
 
 ## iOS client

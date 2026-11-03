@@ -68,9 +68,12 @@ namespace Model.Tools
                         required = new[] { parameters[1].Name ?? "request" }
                     };
 
+                    // Nulls are left out rather than written: a string has no format, and
+                    // "format": null is not JSON Schema, which Anthropic refuses the whole request over.
                     functionParameters = JsonSerializer.Serialize(scalarSchema, new JsonSerializerOptions
                     {
                         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
                         WriteIndented = false
                     });
                 }

@@ -13,6 +13,13 @@ namespace Model.Chat.Completion
     /// </remarks>
     public record ChatCompletionRequest
     {
+        /// <summary>
+        /// The output cap for one exchange. Reasoning models spend output tokens thinking before they
+        /// answer, so the cap has to cover both; both providers reason by default, and on Claude
+        /// Opus 5.5 thinking cannot be switched off.
+        /// </summary>
+        public const int ExchangeOutputTokens = 32_000;
+
         [Required]
         public required LHChatConversation Conversation { get; set; }
 

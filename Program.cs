@@ -29,6 +29,8 @@ using lionheart.Services.Oura;
 using lionheart.Services.Oura.Import;
 using lionheart.Services.Strong;
 using lionheart.Services.CoachedSheets;
+using lionheart.Services.Chat.Memory;
+using lionheart.Services.Chat.Thread;
 
 // Load .env into the process environment before the host reads configuration, so the Llm__,
 // Anthropic__, LmStudio__ and Embedding__ keys flow through the default environment-variable
@@ -89,12 +91,13 @@ var llm = LlmConfiguration.Read(configuration).Match(
 
 builder.Services.AddSingleton(llm);
 
-builder.Services.AddSingleton<IChatModel>(_ => ChatModelFactory.Create(llm.Chat, llm.Chat.Model));
+builder.Services.AddSingleton<IChatModel>(services =>
+    ChatModelFactory.Create(llm.Chat, llm.Chat.Model, services.GetRequiredService<ILoggerFactory>()));
 
 // A cheaper model for Athlete Context Card narratives, off the hot path. Wrapped so it and the
 // flagship chat model can be two singletons of the same type without DI ambiguity.
-builder.Services.AddSingleton(_ =>
-    new NarrativeChatClient(ChatModelFactory.Create(llm.Chat, llm.Chat.NarrativeModel)));
+builder.Services.AddSingleton(services => new NarrativeChatClient(
+    ChatModelFactory.Create(llm.Chat, llm.Chat.NarrativeModel, services.GetRequiredService<ILoggerFactory>())));
 
 // Embeddings always come from an OpenAI-compatible server. The model is pinned in configuration
 // because vectors from different models are incomparable: changing it invalidates every stored
@@ -128,6 +131,13 @@ builder.Services.AddTransient<IPersonalRecordDetector, PersonalRecordDetector>()
 builder.Services.AddTransient<IChatMessageService, ChatMessageService>();
 builder.Services.AddTransient<IChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
+builder.Services.AddTransient<ChatSystemPrompt>();
+builder.Services.AddTransient<IChatThreadService, ChatThreadService>();
+builder.Services.AddTransient<ISessionConsolidator, SessionConsolidator>();
+builder.Services.AddTransient<IChatMemoryService, ChatMemoryService>();
+builder.Services.AddTransient<IMemoryRecallService, MemoryRecallService>();
+builder.Services.AddTransient<MemoryVectors>();
+builder.Services.AddSingleton<ChatThreadGate>();
 builder.Services.AddTransient<IAthleteContextCardService, AthleteContextCardService>();
 builder.Services.AddTransient<IEmbeddingGenerator, OpenAiCompatibleEmbeddingGenerator>();
 builder.Services.AddTransient<IInterpretationParser, InterpretationParser>();
@@ -178,6 +188,13 @@ builder.Services.AddHttpClient();
 // would mean a second document and a generator that has to cope with a version NSwag does not.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options => options.DescribePolymorphicTypes());
+
+// Distils ended chat-thread sessions into memory between messages. Not under test, where nothing
+// should call a model on a timer.
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<SessionConsolidationService>();
+}
 
 // The Svelte app imports a generated API client, so it has to be regenerated whenever the
 // endpoints change. Development only — it writes into the source tree.
