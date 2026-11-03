@@ -36,7 +36,8 @@ public abstract record AchievementView
         Achievement.BestSetVolume best => new BestSetVolumeView(
             best.Lift.Volume, best.Lift.Unit, best.Lift.Weight, best.Lift.Reps),
         Achievement.RepMax repMax => new RepMaxView(
-            repMax.Lift.Reps, repMax.Lift.Weight, repMax.Lift.Unit, repMax.Lift.EstimatedOneRepMax),
+            repMax.Reps, repMax.Lift.Weight, repMax.Lift.Unit, repMax.Lift.EstimatedOneRepMax,
+            repMax.Lift.Reps),
         Achievement.BestSessionVolume session => new BestSessionVolumeView(
             session.Total.Volume, session.Total.Unit),
         Achievement.LongestDistance longest => new LongestDistanceView(
@@ -57,8 +58,17 @@ public sealed record HeaviestSetView(
 public sealed record BestSetVolumeView(
     double Volume, WeightUnit Unit, double Weight, int Reps) : AchievementView;
 
+/// <summary>
+/// <see cref="Reps"/> is the rep count the record is held at; <see cref="SetReps"/> is how many
+/// reps the set holding it had, which is more when the record is the front of a longer set.
+/// </summary>
+/// <remarks>
+/// <see cref="SetReps"/> is last and new beside a <see cref="Reps"/> that keeps its meaning, so a
+/// client reading only the bracket still files the record in the right cell. The estimate is the
+/// set's, as performed.
+/// </remarks>
 public sealed record RepMaxView(
-    int Reps, double Weight, WeightUnit Unit, double EstimatedOneRepMax) : AchievementView;
+    int Reps, double Weight, WeightUnit Unit, double EstimatedOneRepMax, int SetReps) : AchievementView;
 
 public sealed record BestSessionVolumeView(double Volume, WeightUnit Unit) : AchievementView;
 
@@ -121,9 +131,9 @@ public sealed record PersonalRecordView(
 /// Every record currently standing on one subject.
 /// </summary>
 /// <remarks>
-/// A list rather than a field per kind. With a rep-max grid a movement carries up to fifteen
-/// standing records, and naming each of them would make every new kind a wire break; the client
-/// switches on the achievement's own discriminator instead.
+/// A list rather than a field per kind. With a rep-max grid a movement carries up to fourteen
+/// standing records in each weight unit, and naming each of them would make every new kind a wire
+/// break; the client switches on the achievement's own discriminator instead.
 /// </remarks>
 public sealed record SubjectRecordsView(
     Guid? MovementDataId,

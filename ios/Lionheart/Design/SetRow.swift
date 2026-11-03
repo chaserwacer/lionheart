@@ -47,11 +47,11 @@ struct SetRow: View {
                     .accessibilityLabel(Formatting.rpe(value))
             }
 
-            if record.isWorthSaying {
+            if let beaten = Formatting.recordsBeaten(record) {
                 Image(systemName: "trophy.fill")
                     .font(.caption)
                     .foregroundStyle(.orange)
-                    .accessibilityLabel(Self.recordLabel(record))
+                    .accessibilityLabel(beaten)
             }
         }
         .accessibilityElement(children: .combine)
@@ -69,13 +69,8 @@ struct SetRow: View {
         }
         if let value = command.rpe.value { parts.append(Formatting.rpe(value)) }
         if let target { parts.append("target \(Formatting.target(target))") }
-        if record.isWorthSaying { parts.append(Self.recordLabel(record)) }
+        // Spoken as what was beaten, because the trophy alone says only that something was.
+        if let beaten = Formatting.recordsBeaten(record) { parts.append(beaten) }
         return parts.joined(separator: ", ")
-    }
-
-    /// Spoken as what was beaten — "New 5-rep max, heaviest set" — because the trophy alone says
-    /// only that something was.
-    private static func recordLabel(_ record: SetRecordOutcome) -> String {
-        record.beaten.map { "New \($0.label.lowercased())" }.joined(separator: ", ")
     }
 }

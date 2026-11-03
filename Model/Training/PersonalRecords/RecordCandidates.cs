@@ -53,24 +53,32 @@ public static class RecordCandidates
     private static IEnumerable<RecordCandidate> LiftRecords(
         RecordSubject subject, WeightUnit unit, IReadOnlyList<LiftPerformance> lifts)
     {
-        // Heavier wins; at equal weight the set that got more reps out of it is the better set.
-        var heaviest = lifts.OrderByDescending(lift => lift.Weight).ThenByDescending(lift => lift.Reps).First();
         var biggest = lifts.OrderByDescending(lift => lift.Volume).ThenByDescending(lift => lift.Weight).First();
         var total = new SessionVolume(lifts.Sum(lift => lift.Volume), unit);
 
         return
         [
-            new RecordCandidate(subject, new Achievement.HeaviestSet(heaviest)),
+            new RecordCandidate(subject, new Achievement.HeaviestSet(Heaviest(lifts))),
             new RecordCandidate(subject, new Achievement.BestSetVolume(biggest)),
             new RecordCandidate(subject, new Achievement.BestSessionVolume(total)),
+            // Each rep count's best is the heaviest of the sets long enough to hold it, so a
+            // heavier set of six takes the five-rep max from a lighter set of five.
             .. from lift in lifts
-               where lift.Reps <= RecordKind.HighestGradedRepCount
-               group lift by lift.Reps into graded
-               select new RecordCandidate(
-                   subject,
-                   new Achievement.RepMax(graded.OrderByDescending(lift => lift.Weight).First()))
+               from bracket in RecordKind.RepMax.HeldBy(lift.Reps)
+               group lift by bracket into held
+               select new RecordCandidate(subject, new Achievement.RepMax(held.Key.Reps, Heaviest(held)))
         ];
     }
+
+    /// <summary>
+    /// Heavier wins; at equal weight the set that got more reps out of it is the better set.
+    /// </summary>
+    /// <remarks>
+    /// One rule for the heaviest set and every rep max, because the heaviest set is the grid's
+    /// one-rep cell: the two must not pick different sets at a tie.
+    /// </remarks>
+    private static LiftPerformance Heaviest(IEnumerable<LiftPerformance> lifts) =>
+        lifts.OrderByDescending(lift => lift.Weight).ThenByDescending(lift => lift.Reps).First();
 
     private static IEnumerable<RecordCandidate> FromMeasuredEfforts(IEnumerable<SetEntry> sets) =>
         from set in sets.OfType<DistanceTimeSet>()

@@ -27,7 +27,8 @@ first and then in the code.
 | **Record subject** | What a record is held against: one movement data, or trail running, which names no movement. |
 | **Record kind** | Which question a record answers — heaviest set, best set volume, rep max at a rep count, best session volume, longest distance, fastest time at a distance, best pace. |
 | **Achievement** | A record's kind fused with the performance that holds it, so a heaviest-set record cannot hold a distance. |
-| **Rep-max grid** | A movement's best weight at each rep count from one to twelve. The thing most lifters actually train against. |
+| **Rep max** | The heaviest weight lifted for a rep count, in a set of that many reps or more: a set of seven holds the six-rep max too, because its first six reps were performed. Kept from two to twelve reps; the one-rep max is the heaviest set. |
+| **Rep-max grid** | A movement's best weight at each rep count from one to twelve, the first cell being the heaviest set. The thing most lifters actually train against. |
 | **Record standing** | Whether a record is the current one, one the athlete beat, or one they withdrew. Three states, because "beaten" and "withdrawn" read nothing alike. |
 | **Record chain** | Every record of one identity — subject, kind and weight unit — newest first: the one standing, the ones it beat, and any withdrawn. What a record's history shows. |
 | **Record lineage** | What a record replaced — nothing, for the first of its kind — carrying the predecessor's date so "how long the last one stood" answers without a second read. |

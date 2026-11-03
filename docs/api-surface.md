@@ -67,6 +67,12 @@ presentation needs plus the figures the server derives (an estimated one-rep max
 movement itself is **not** embedded — both clients hold a movement catalogue, and the movement is a
 different aggregate.
 
+A **rep max** sends its rep count as `reps` and the reps of the set holding it as `setReps`. A set
+holds the rep max at its own count and every count below it, so `setReps` is larger when the record
+is the front of a longer set ("6RM, from a set of 7"); its `estimatedOneRepMax` is that set's. Rep
+maxes run from two to twelve: the one-rep max is the heaviest set, and `/history` refuses `repMax`
+with a bracket outside that range.
+
 A movement holds **one record per kind per weight unit**, because weights never convert and the
 unit is therefore part of a record's identity rather than a comparability test. A movement logged
 in both reads back with a kilograms record and a pounds record of the same kind, each carrying its

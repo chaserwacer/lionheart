@@ -74,8 +74,8 @@ public class AchievementTests
     [Fact]
     public void Two_rep_maxes_at_different_rep_counts_are_different_records()
     {
-        var threeRepMax = new Achievement.RepMax(new LiftPerformance(255, WeightUnit.Pounds, 3));
-        var fiveRepMax = new Achievement.RepMax(new LiftPerformance(225, WeightUnit.Pounds, 5));
+        var threeRepMax = new Achievement.RepMax(3, new LiftPerformance(255, WeightUnit.Pounds, 3));
+        var fiveRepMax = new Achievement.RepMax(5, new LiftPerformance(225, WeightUnit.Pounds, 5));
 
         Assert.NotEqual(threeRepMax.Kind, fiveRepMax.Kind);
         Assert.False(threeRepMax.Beats(fiveRepMax));
@@ -172,6 +172,37 @@ public class AchievementTests
     }
 
     [Fact]
+    public void A_one_rep_max_is_asked_for_as_the_heaviest_set()
+    {
+        // Every set contains a single, so the one-rep max is the heaviest set by definition and
+        // no rep-max record at one rep can exist to be asked for.
+        var problem = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(RecordKind.Of("repMax", bracket: 1)));
+
+        Assert.Equal("bracket", Assert.Single(problem.Fields).Field);
+    }
+
+    [Fact]
+    public void A_rep_max_past_the_grids_last_count_is_refused()
+    {
+        var problem = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(RecordKind.Of("repMax", bracket: 13)));
+
+        Assert.Equal("bracket", Assert.Single(problem.Fields).Field);
+    }
+
+    [Theory]
+    [InlineData(7, new[] { 2, 3, 4, 5, 6, 7 })]
+    [InlineData(2, new[] { 2 })]
+    [InlineData(1, new int[0])]
+    [InlineData(12, new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 })]
+    [InlineData(20, new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 })]
+    public void A_set_holds_the_rep_max_at_its_own_count_and_every_count_below_it(int setReps, int[] held)
+    {
+        // A set of seven contains a set of six: the first six reps were actually performed. The
+        // single every set contains is the heaviest set's, and a set of twenty contains a twelve.
+        Assert.Equal(held, RecordKind.RepMax.HeldBy(setReps).Select(kind => kind.Reps));
+    }
+
+    [Fact]
     public void A_kind_nobody_defined_is_refused_rather_than_guessed() =>
         Assert.IsType<Problem.Invalid>(ResultAssert.Failed(RecordKind.Of("mostSetsEver", null)));
 
@@ -212,7 +243,7 @@ public class AchievementTests
         {
             new Achievement.HeaviestSet(lift),
             new Achievement.BestSetVolume(lift),
-            new Achievement.RepMax(lift),
+            new Achievement.RepMax(5, lift),
             new Achievement.BestSessionVolume(new SessionVolume(12400, WeightUnit.Pounds)),
             new Achievement.LongestDistance(effort),
             new Achievement.FastestTime(effort),
