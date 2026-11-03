@@ -218,9 +218,11 @@ struct MovementDecodingTests {
 
         let movement = try #require(movements.elements.first)
         #expect(movement.movementDataId == AWorkout.bench)
-        // The server lower-cases a modifier's name on the way in, so "incline" + "Bench press"
-        // has to come out of here reading like a name rather than like a bug.
-        #expect(movement.title == "Incline bench press")
+        // The server lower-cases a modifier's name on the way in, so its first letter is the one
+        // thing fixed here. The base keeps whatever case the server holds — this fixture stores
+        // "Bench press", so that is what shows; a base stored "Bench Press" would show that.
+        // Rewriting the base's case would be this client overruling the athlete's own naming.
+        #expect(movement.title == "Incline Bench press")
         #expect(movement.qualifier == "Dumbbell")
     }
 

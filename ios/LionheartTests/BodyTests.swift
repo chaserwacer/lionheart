@@ -304,12 +304,12 @@ struct MovementCatalogueTests {
         let movement = try Decoding.decode(MovementData.self, Catalogue.movement(
             id: Self.bench, base: "Bench Press", equipment: "Dumbbell", modifier: "Incline"))
 
-        // Sentence case, not title case: the server stores a modifier however it was created and
-        // lower-cases it on the way in, so "incline bench press" under "Back squat" is the defect
-        // this composes around. `title` and `qualifier` are what a screen with room for two shows.
-        #expect(movement.title == "Incline bench press")
+        // The server lower-cases a modifier on the way in, so only its first letter is fixed —
+        // everything else keeps the capitalisation the server holds. `title` and `qualifier` are
+        // what a screen with room for two shows; `displayName` is for one.
+        #expect(movement.title == "Incline Bench Press")
         #expect(movement.qualifier == "Dumbbell")
-        #expect(movement.displayName == "Incline bench press, dumbbell")
+        #expect(movement.displayName == "Incline Dumbbell Bench Press")
     }
 
     @Test("Equipment already in the name is not said twice")

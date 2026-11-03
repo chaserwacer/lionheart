@@ -20,16 +20,16 @@ struct MovementData: Equatable, Sendable, Identifiable {
 
     /// The movement as the athlete names it: the modifier qualifies the base.
     ///
-    /// The first letter is forced upper case because the server stores a modifier's name however it
-    /// was created and lower-cases it on the way in — "incline bench press" sitting under "Back
-    /// squat" in a list reads as a bug, and the capitalisation of a composed name is the client's
-    /// to get right.
+    /// Only the **modifier's** first letter is forced upper case. The server stores a modifier's
+    /// name lower-cased however it was created, so "incline bench press" sitting under "Back squat"
+    /// in a list reads as a bug — but everything else keeps the capitalisation the server holds,
+    /// because that is the athlete's own and this client has no better information about it.
     var title: String {
         guard let modifierName, !modifierName.isEmpty else { return baseName }
-        return Self.sentenceCased("\(modifierName) \(baseName.lowercased())")
+        return "\(Self.capitalisingFirst(modifierName)) \(baseName)"
     }
 
-    private static func sentenceCased(_ name: String) -> String {
+    private static func capitalisingFirst(_ name: String) -> String {
         guard let first = name.first else { return name }
         return first.uppercased() + name.dropFirst()
     }
@@ -38,15 +38,22 @@ struct MovementData: Equatable, Sendable, Identifiable {
     var qualifier: String { equipmentName }
 
     /// The whole movement as one phrase, for somewhere with room for only one — a section header,
-    /// a record row — where `title` and `qualifier` cannot sit side by side.
+    /// a record row — where `title` and `qualifier` cannot sit side by side. The equipment sits
+    /// where a lifter says it, between the modifier and the base.
     ///
-    /// The equipment is dropped when the title already says it, because a naive join reads
-    /// "Barbell row, barbell".
+    /// It is dropped when the name already contains the word, because a naive join reads
+    /// "Barbell Barbell Row".
     var displayName: String {
-        guard !qualifier.isEmpty, !title.localizedCaseInsensitiveContains(qualifier) else {
-            return title
+        let base = baseName.isEmpty ? "Unnamed movement" : baseName
+        var words: [String] = []
+        if let modifierName, !modifierName.isEmpty {
+            words.append(Self.capitalisingFirst(modifierName))
         }
-        return "\(title), \(qualifier.lowercased())"
+        if !equipmentName.isEmpty, !base.localizedCaseInsensitiveContains(equipmentName) {
+            words.append(equipmentName)
+        }
+        words.append(base)
+        return words.joined(separator: " ")
     }
 
     /// Whether this movement answers `query`, matched against everything the athlete can see.
