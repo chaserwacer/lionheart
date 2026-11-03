@@ -35,6 +35,23 @@ struct ConversationListSheet: View {
                                 pendingDeletion = conversation
                             }
                         }
+                        .contextMenu {
+                            Button {
+                                open(conversation)
+                            } label: {
+                                Label("Open", systemImage: "bubble.left.and.text.bubble.right")
+                            }
+                            Button {
+                                Clipboard.copy(conversation.title)
+                            } label: {
+                                Label("Copy title", systemImage: "doc.on.doc")
+                            }
+                            Button(role: .destructive) {
+                                pendingDeletion = conversation
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
@@ -62,6 +79,18 @@ struct ConversationListSheet: View {
                 }
             } message: { conversation in
                 Text("\(conversation.title) and everything in it. This cannot be undone.")
+            }
+            // The list looks the same whether the delete landed or was refused, so the refusal has
+            // to say so itself.
+            .alert(
+                "That conversation was not deleted",
+                isPresented: Binding(
+                    get: { store.action.refusal != nil },
+                    set: { if !$0 { store.dismissRefusal() } })
+            ) {
+                Button("OK") { store.dismissRefusal() }
+            } message: {
+                if let refusal = store.action.refusal { Text(refusal.message) }
             }
         }
     }

@@ -21,7 +21,10 @@ struct MovementPicker: View {
             Group {
                 switch library.state {
                 case .loading:
-                    ProgressView().controlSize(.large)
+                    // The shape of the list that is coming rather than a spinner in the middle of
+                    // an empty sheet: this sheet is opened mid-workout and the wait is a round trip.
+                    List { Section("Movements") { SkeletonRows(count: 8) } }
+                        .listStyle(.insetGrouped)
                 case .unavailable(let failure):
                     unavailable(failure)
                 case .loaded(let movements), .stale(let movements, _):
@@ -56,15 +59,67 @@ struct MovementPicker: View {
             List {
                 if query.isEmpty, !library.recent.isEmpty {
                     Section("Recent") {
-                        ForEach(library.recent) { row($0) }
+                        ForEach(library.recent) { movement in
+                            row(movement)
+                                // Only on the recent list, because that is the only list this can
+                                // take a movement out of. Swiping it off the catalogue would read
+                                // as deleting the movement, which this cannot do and should not.
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        library.forgetUsed(movement.movementDataId)
+                                    } label: {
+                                        Label("Forget", systemImage: "clock.badge.xmark")
+                                    }
+                                }
+                                .contextMenu { menu(for: movement, isRecent: true) }
+                        }
                     }
                 }
                 Section(query.isEmpty ? "All movements" : "Results") {
-                    ForEach(matches) { row($0) }
+                    ForEach(matches) { movement in
+                        row(movement)
+                            .contextMenu { menu(for: movement, isRecent: false) }
+                    }
                 }
             }
             .listStyle(.insetGrouped)
+            .refreshable { await library.refresh() }
         }
+    }
+
+    /// The long press.
+    ///
+    /// There is nothing here that changes a movement: the library is curated on the web app,
+    /// because a movement needs an equipment and a base chosen or invented first. What the device
+    /// does own is which movements are *recent*, and the record standing against one is the number
+    /// worth having on the pasteboard when the athlete is working out what to aim at.
+    @ViewBuilder
+    private func menu(for movement: MovementData, isRecent: Bool) -> some View {
+        Button {
+            select(movement)
+            dismiss()
+        } label: {
+            Label("Log a set of this", systemImage: "plus.circle")
+        }
+        Button {
+            Clipboard.copy(copyText(for: movement))
+        } label: {
+            Label("Copy", systemImage: "doc.on.doc")
+        }
+        if isRecent {
+            Button(role: .destructive) {
+                library.forgetUsed(movement.movementDataId)
+            } label: {
+                Label("Forget this one", systemImage: "clock.badge.xmark")
+            }
+        }
+    }
+
+    private func copyText(for movement: MovementData) -> String {
+        guard let heaviest = library.records(for: movement.movementDataId)?.strength else {
+            return movement.title
+        }
+        return "\(movement.title) · best \(Formatting.weight(heaviest.weight, heaviest.unit))"
     }
 
     private func row(_ movement: MovementData) -> some View {

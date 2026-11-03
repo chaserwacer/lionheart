@@ -13,7 +13,7 @@ struct PlannedSessionView: View {
     let openWorkout: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var isSkipAsked = false
+    @State private var asked: SessionTransition?
 
     var body: some View {
         Group {
@@ -31,6 +31,62 @@ struct PlannedSessionView: View {
         }
         .navigationTitle("Planned session")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if session != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    // The same two transitions the row on the tab offers under a long press. A
+                    // screen reached by a tap still needs them reachable without one more tap into
+                    // the page's body, which is where every first-party app puts a `Menu`.
+                    Menu("More", systemImage: "ellipsis.circle") {
+                        ForEach(destructiveTransitions) { transition in
+                            Button(role: .destructive) {
+                                asked = transition
+                            } label: {
+                                Label(transition.label, systemImage: transition.systemImage)
+                            }
+                        }
+                    }
+                    .disabled(store.action.isRunning)
+                }
+            }
+        }
+        .confirmationDialog(
+            asked?.confirmation?.question ?? "",
+            isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
+            titleVisibility: .visible,
+            presenting: asked
+        ) { transition in
+            if let confirmation = transition.confirmation {
+                Button(confirmation.proceed, role: .destructive) { carryOut(transition) }
+            }
+        } message: { transition in
+            if let confirmation = transition.confirmation { Text(confirmation.warning) }
+        }
+    }
+
+    /// Skip and delete, read from the lifecycle state rather than written out here, so this screen
+    /// and the row on the tab cannot come to offer different things.
+    private var destructiveTransitions: [SessionTransition] {
+        guard let session else { return [] }
+        let kind = SessionLog.kind(of: .planned(session), today: CalendarDay(Date()))
+        return SessionTransition.offered(on: kind).filter(\.isDestructive)
+    }
+
+    /// Carries the transition out and leaves, because the session this screen is about will not be
+    /// planned any more. A refusal keeps the screen: the alert that states it is on the tab behind.
+    private func carryOut(_ transition: SessionTransition) {
+        guard let session else { return }
+        asked = nil
+
+        Task {
+            switch transition {
+            case .skip: await store.skip(session)
+            case .delete: await store.delete(session)
+            // Starting has its own button on this screen, which opens the logging surface as well.
+            case .start: return
+            }
+            if store.action.refusal == nil { dismiss() }
+        }
     }
 
     private func content(_ session: TrainingSession.Planned) -> some View {
@@ -68,13 +124,14 @@ struct PlannedSessionView: View {
                     Label("Start this session", systemImage: "play.circle")
                         .fontWeight(.semibold)
                 }
-                .disabled(store.isWorkoutInFlight || isStarting)
+                .disabled(store.isWorkoutInFlight || store.action.isRunning)
 
                 Button(role: .destructive) {
-                    isSkipAsked = true
+                    asked = .skip
                 } label: {
-                    Label("Mark as skipped", systemImage: "xmark.circle")
+                    Label(SessionTransition.skip.label, systemImage: SessionTransition.skip.systemImage)
                 }
+                .disabled(store.action.isRunning)
             } footer: {
                 if store.isWorkoutInFlight {
                     Text("Finish the workout you are logging before starting another.")
@@ -84,22 +141,6 @@ struct PlannedSessionView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .confirmationDialog(
-            "Mark this session as skipped?",
-            isPresented: $isSkipAsked,
-            titleVisibility: .visible
-        ) {
-            Button(role: .destructive) {
-                Task {
-                    await store.skip(session)
-                    dismiss()
-                }
-            } label: {
-                Text("Mark as skipped")
-            }
-        } message: {
-            Text("A skipped session is kept — the skip is data. It cannot be un-skipped.")
-        }
     }
 
     /// The targets, grouped by movement in prescribed order, which is the order they will appear in
@@ -124,10 +165,5 @@ struct PlannedSessionView: View {
                 }
             }
         }
-    }
-
-    private var isStarting: Bool {
-        if case .starting = store.starting { return true }
-        return false
     }
 }

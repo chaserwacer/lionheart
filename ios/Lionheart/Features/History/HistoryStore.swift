@@ -21,6 +21,10 @@ final class HistoryStore {
 
     private(set) var state: LoadState<HistorySnapshot> = .loading
 
+    /// Where a transition asked for from a row stands. Separate from `state`, which is about the
+    /// screen's data: a skip that the server refuses must not make the log unavailable.
+    private(set) var action: ActionState = .idle
+
     private let sessions: TrainingSessionsAPI
     private let movements: MovementsAPI
     private let records: PersonalRecordsAPI
@@ -53,6 +57,47 @@ final class HistoryStore {
         load?.cancel()
         load = nil
         state = .loading
+        action = .idle
+    }
+
+    // MARK: - Acting on a row
+
+    /// Planned → Skipped, from a row.
+    func skip(_ sessionId: UUID) async {
+        await write { _ = try await self.sessions.skip(id: sessionId) }
+    }
+
+    /// Removes the session entirely — the remedy for one logged by mistake, and the only remedy for
+    /// one skipped by mistake, since there is no route back from skipped.
+    func delete(_ sessionId: UUID) async {
+        await write { try await self.sessions.delete(id: sessionId) }
+    }
+
+    /// One transition, then a re-read of the window.
+    ///
+    /// Re-reading rather than editing the snapshot in place: a transition answers with the session
+    /// in its new state, but the log, the trends and the records are one reading of one window, and
+    /// splicing a session into the first would leave the other two disagreeing with it.
+    ///
+    /// A refusal is kept and stated. Either of these can be refused for a reason the athlete needs
+    /// to hear — most often that the session was already started or skipped somewhere else, which
+    /// is a 409 — and a context-menu action that swallowed it would look exactly like one that
+    /// worked, since the row it acted on is still there either way.
+    private func write(_ transition: () async throws -> Void) async {
+        guard !action.isRunning else { return }
+        action = .running
+
+        do {
+            try await transition()
+            action = .idle
+            await refresh()
+        } catch {
+            action = ActionState.refusal(from: error)
+        }
+    }
+
+    func dismissRefusal() {
+        action = .idle
     }
 
     private func reload() async {
