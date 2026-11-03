@@ -22,9 +22,9 @@ struct TrendsView: View {
         List {
             if trends.isEmpty {
                 ContentUnavailableView {
-                    Label("Nothing to chart yet", systemImage: "chart.xyaxis.line")
+                    Text("No trend data")
                 } description: {
-                    Text("A few logged sessions are enough for a trend to show up here.")
+                    Text("Trends are drawn from completed sessions with logged sets, and none are logged.")
                 }
                 .listRowBackground(Color.clear)
             } else {
@@ -33,6 +33,7 @@ struct TrendsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
         .navigationTitle("Trends")
     }
 
@@ -43,14 +44,16 @@ struct TrendsView: View {
         if !trends.weeks.isEmpty {
             Section {
                 Chart(trends.weeks) { week in
+                    // A week-wide bar on a week-stepped axis. A bare date would plot each week as a
+                    // hairline at its first day under day labels, which reads as daily data.
                     BarMark(
-                        x: .value("Week", week.start.middayDate()),
+                        x: .value("Week", week.start.middayDate(), unit: .weekOfYear),
                         y: .value("Sets", week.setCount))
                     .foregroundStyle(Tokens.accent)
                 }
                 .chartYAxisLabel("Sets")
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                    AxisMarks(values: .stride(by: .weekOfYear, count: max(1, trends.weeks.count / 4))) { value in
                         AxisGridLine()
                         AxisValueLabel {
                             if let date = value.as(Date.self) {
@@ -85,7 +88,13 @@ struct TrendsView: View {
         if let series = shownSeries {
             Section {
                 if trends.strength.count > 1 {
-                    Picker("Movement", selection: $selectedSeries) {
+                    // Bound to the series actually drawn, so the menu names it before the athlete
+                    // has chosen one. The bare selection starts as `nil`, which no option is
+                    // tagged with, and a menu bound to it shows no movement at all.
+                    Picker("Movement", selection: Binding(
+                        get: { Optional(series.id) },
+                        set: { selectedSeries = $0 })
+                    ) {
                         ForEach(trends.strength) { option in
                             Text(option.movementName).tag(Optional(option.id))
                         }

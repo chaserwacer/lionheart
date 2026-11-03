@@ -77,7 +77,9 @@ public class PersonalRecordPersistenceTests : IDisposable
     [Fact]
     public async Task The_lookup_columns_are_stamped_off_the_record_rather_than_set_by_hand()
     {
-        var record = await SaveAsync(new Achievement.RepMax(new LiftPerformance(225, WeightUnit.Pounds, 5)));
+        // A five-rep max held by the front of a set of eight: the bracket is the record's rep
+        // count, not the set's.
+        var record = await SaveAsync(new Achievement.RepMax(5, new LiftPerformance(225, WeightUnit.Pounds, 8)));
 
         var id = RemodelDatabase.SqlGuid(record.PersonalRecordId);
         Assert.Equal("repMax", _database.ExecuteScalar($"select KindName from PersonalRecords where PersonalRecordId = '{id}'"));
@@ -141,8 +143,8 @@ public class PersonalRecordPersistenceTests : IDisposable
     {
         var movementDataId = await PlantMovementAsync();
 
-        await SaveAsync(new Achievement.RepMax(new LiftPerformance(225, WeightUnit.Pounds, 5)), movementDataId);
-        await SaveAsync(new Achievement.RepMax(new LiftPerformance(255, WeightUnit.Pounds, 3)), movementDataId);
+        await SaveAsync(new Achievement.RepMax(5, new LiftPerformance(225, WeightUnit.Pounds, 5)), movementDataId);
+        await SaveAsync(new Achievement.RepMax(3, new LiftPerformance(255, WeightUnit.Pounds, 3)), movementDataId);
 
         using var context = _database.CreateContext();
         Assert.Equal(2, await context.PersonalRecords.CountAsync());
@@ -210,21 +212,23 @@ public class PersonalRecordPersistenceTests : IDisposable
     /// whole suite green.
     /// </remarks>
     [Theory]
-    [InlineData("heaviestSet", "Lift", new[] { "Weight", "Unit", "Reps" })]
-    [InlineData("bestSetVolume", "Lift", new[] { "Weight", "Unit", "Reps" })]
-    [InlineData("repMax", "Lift", new[] { "Weight", "Unit", "Reps" })]
-    [InlineData("bestSessionVolume", "Total", new[] { "Volume", "Unit" })]
-    [InlineData("longestDistance", "Effort", new[] { "Distance", "Unit", "Duration" })]
-    [InlineData("fastestTime", "Effort", new[] { "Distance", "Unit", "Duration" })]
-    [InlineData("bestPace", "Effort", new[] { "Distance", "Unit", "Duration" })]
+    [InlineData("heaviestSet", new[] { "$type", "Lift" }, "Lift", new[] { "Weight", "Unit", "Reps" })]
+    [InlineData("bestSetVolume", new[] { "$type", "Lift" }, "Lift", new[] { "Weight", "Unit", "Reps" })]
+    // The rep count is stored beside the set because it is not read off it: a set of seven holds
+    // the six-rep max too.
+    [InlineData("repMax", new[] { "$type", "Reps", "Lift" }, "Lift", new[] { "Weight", "Unit", "Reps" })]
+    [InlineData("bestSessionVolume", new[] { "$type", "Total" }, "Total", new[] { "Volume", "Unit" })]
+    [InlineData("longestDistance", new[] { "$type", "Effort" }, "Effort", new[] { "Distance", "Unit", "Duration" })]
+    [InlineData("fastestTime", new[] { "$type", "Effort" }, "Effort", new[] { "Distance", "Unit", "Duration" })]
+    [InlineData("bestPace", new[] { "$type", "Effort" }, "Effort", new[] { "Distance", "Unit", "Duration" })]
     public void A_stored_achievement_carries_its_measurement_and_no_figure_read_off_it(
-        string kindName, string measure, string[] measured)
+        string kindName, string[] members, string measure, string[] measured)
     {
         var stored = JsonSerializer.Serialize(OfKind(kindName), ValueConversions.StorageJson);
 
         using var payload = JsonDocument.Parse(stored);
         Assert.Equal(
-            ["$type", measure],
+            members,
             payload.RootElement.EnumerateObject().Select(member => member.Name));
         Assert.Equal(
             measured,
@@ -243,7 +247,8 @@ public class PersonalRecordPersistenceTests : IDisposable
         {
             "heaviestSet" => new Achievement.HeaviestSet(lift),
             "bestSetVolume" => new Achievement.BestSetVolume(lift),
-            "repMax" => new Achievement.RepMax(lift),
+            // Held below the set's own count, so a round trip that lost the bracket would show.
+            "repMax" => new Achievement.RepMax(3, lift),
             "bestSessionVolume" => new Achievement.BestSessionVolume(new SessionVolume(12400, WeightUnit.Pounds)),
             "longestDistance" => new Achievement.LongestDistance(effort),
             "fastestTime" => new Achievement.FastestTime(effort),

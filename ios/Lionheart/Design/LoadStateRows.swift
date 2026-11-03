@@ -4,7 +4,7 @@ import SwiftUI
 /// first load in progress, and a loaded screen that could not be refreshed.
 ///
 /// `ContentUnavailableView` covers the empty and failed cases, and `ProgressView` covers the
-/// spinner — but the *rows* around them are this app's, and History, Coach, Train, Today and Body
+/// spinner — but the *rows* around them are this app's, and History, Chat, Train, Today and Body
 /// all draw them identically. Five copies of the stale banner would be five chances for one of them
 /// to start blanking its screen instead.
 

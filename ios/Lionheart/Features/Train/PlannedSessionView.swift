@@ -23,7 +23,7 @@ struct PlannedSessionView: View {
                 // The session left the loaded window — most likely it was just started or skipped,
                 // so this screen is on its way out.
                 ContentUnavailableView {
-                    Label("This session is no longer planned", systemImage: "calendar.badge.exclamationmark")
+                    Text("This session is no longer planned")
                 } description: {
                     Text("It may have been started, skipped or deleted somewhere else.")
                 }
@@ -121,7 +121,7 @@ struct PlannedSessionView: View {
                         }
                     }
                 } label: {
-                    Label("Start this session", systemImage: "play.circle")
+                    Text("Start this session")
                         .fontWeight(.semibold)
                 }
                 .disabled(store.isWorkoutInFlight || store.action.isRunning)
@@ -129,7 +129,7 @@ struct PlannedSessionView: View {
                 Button(role: .destructive) {
                     asked = .skip
                 } label: {
-                    Label(SessionTransition.skip.label, systemImage: SessionTransition.skip.systemImage)
+                    Text(SessionTransition.skip.label)
                 }
                 .disabled(store.action.isRunning)
             } footer: {
@@ -141,6 +141,7 @@ struct PlannedSessionView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
     }
 
     /// The targets, grouped by movement in prescribed order, which is the order they will appear in

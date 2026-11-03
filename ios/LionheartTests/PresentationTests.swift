@@ -74,6 +74,27 @@ struct FormattingTests {
         #expect(Formatting.count(3, "set") == "3 sets")
         #expect(Formatting.count(2, "prescription") == "2 prescriptions")
     }
+
+    @Test("A rep max reads at its own count and says when it was the front of a longer set")
+    func aCarriedRepMaxSaysWhichSet() {
+        let fromSeven = Achievement.repMax(
+            reps: 6, .init(weight: 180, unit: .kilograms, reps: 7, estimatedOneRepMax: 222))
+        let cleanSix = Achievement.repMax(
+            reps: 6, .init(weight: 185, unit: .kilograms, reps: 6, estimatedOneRepMax: 222))
+
+        #expect(Formatting.achievement(fromSeven) == "180 kg × 6")
+        #expect(Formatting.achievementDetail(fromSeven) == "From a set of 7 · estimated single ≈ 222 kg")
+        #expect(Formatting.achievementDetail(cleanSix) == "Estimated single ≈ 222 kg")
+    }
+
+    @Test("A set that beat several records says so in one sentence, not a list")
+    func recordsBeatenIsOneSentence() {
+        #expect(Formatting.recordsBeaten(.beats(.repMax(reps: 5), also: [])) == "New 5-rep max")
+        #expect(Formatting.recordsBeaten(.beats(.repMax(reps: 5), also: [.bestSetVolume]))
+            == "New 5-rep max and 1 more record")
+        #expect(Formatting.recordsBeaten(.none) == nil)
+        #expect(Formatting.recordsBeaten(.noRecordYet) == nil)
+    }
 }
 
 /// Where a quick-log entry stands.

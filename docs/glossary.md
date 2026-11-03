@@ -27,7 +27,8 @@ first and then in the code.
 | **Record subject** | What a record is held against: one movement data, or trail running, which names no movement. |
 | **Record kind** | Which question a record answers — heaviest set, best set volume, rep max at a rep count, best session volume, longest distance, fastest time at a distance, best pace. |
 | **Achievement** | A record's kind fused with the performance that holds it, so a heaviest-set record cannot hold a distance. |
-| **Rep-max grid** | A movement's best weight at each rep count from one to twelve. The thing most lifters actually train against. |
+| **Rep max** | The heaviest weight lifted for a rep count, in a set of that many reps or more: a set of seven holds the six-rep max too, because its first six reps were performed. Kept from two to twelve reps; the one-rep max is the heaviest set. |
+| **Rep-max grid** | A movement's best weight at each rep count from one to twelve, the first cell being the heaviest set. The thing most lifters actually train against. |
 | **Record standing** | Whether a record is the current one, one the athlete beat, or one they withdrew. Three states, because "beaten" and "withdrawn" read nothing alike. |
 | **Record chain** | Every record of one identity — subject, kind and weight unit — newest first: the one standing, the ones it beat, and any withdrawn. What a record's history shows. |
 | **Record lineage** | What a record replaced — nothing, for the first of its kind — carrying the predecessor's date so "how long the last one stood" answers without a second read. |
@@ -84,7 +85,7 @@ first and then in the code.
 | **Profile gate** | The root's answer to whether a signed-in athlete may see the tabs: undetermined, absent, present, or unreachable. An Identity account without a Lionheart profile is refused by every training write, while reads answer empty — which is why the gate asks rather than waiting to be refused. |
 | **Session log** | History's list of sessions, grouped by month, newest first. A row reads as completed, in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. |
 | **Movement catalogue** | Movement names by id, so a set — which carries only a `movementDataId` — can say what it was. |
-| **Coach turn** | One thing in the Coach transcript: something said, a question in flight, or a question the server did not keep because the exchange failed. |
+| **Chat turn** | One thing in the Chat transcript: something said, a question in flight, or a question the server did not keep because the exchange failed. |
 | **Oura panel** | One collection of an Oura day as a screen shows it — its score, where Oura issues one, and the figures behind it. |
 | **Session transition** | A lifecycle move a session row can offer directly — start, skip or delete. Which ones a row offers is read from its state, because the server refuses the others. |
 | **Injury action** | What an injury row can offer: resolve, take up again, or delete. Resolving and reopening are one route in two directions, so a row offers exactly one of them. |

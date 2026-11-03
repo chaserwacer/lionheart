@@ -31,37 +31,34 @@ struct SessionDetailView: View {
                 prescriptions(planned.prescriptions)
             case .skipped:
                 Section {
-                    Label("Skipped", systemImage: "slash.circle")
+                    Text("Skipped")
                         .foregroundStyle(Color(.secondaryLabel))
                 } footer: {
                     Text("A skipped session is kept on purpose — not training is part of the record.")
                 }
             case .unrecognised(let type, _):
                 Section {
-                    Label(
-                        "This version of Lionheart cannot read a \(type.nonEmpty ?? "session") of this kind",
-                        systemImage: "questionmark.circle")
-                    .foregroundStyle(Color(.secondaryLabel))
+                    Text("This version of Lionheart cannot read a \(type.nonEmpty ?? "session") of this kind")
+                        .foregroundStyle(Color(.secondaryLabel))
                 }
             }
 
             notesSection
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
+        // Lets a set row be as short as its one line; every other row here is taller anyway.
+        .environment(\.defaultMinListRowHeight, 34)
         .navigationTitle(Formatting.date(session.date))
         .navigationBarTitleDisplayMode(.inline)
     }
 
     // MARK: - Sections
 
+    /// The state, without the day: the navigation title already states it.
     private var headerSection: some View {
         Section {
-            let kind = SessionLog.kind(of: session, today: CalendarDay(Date()))
-            LabeledContent("State") {
-                Label(kind.label, systemImage: kind.systemImage)
-                    .labelStyle(.titleAndIcon)
-            }
-            LabeledContent("Day") { Text(Formatting.date(session.date)) }
+            LabeledContent("State", value: SessionLog.kind(of: session, today: CalendarDay(Date())).label)
             if session.envelope.provenance == .aiAssisted {
                 // Worth saying: a session the model helped structure reads differently from one the
                 // athlete typed out, and provenance is orthogonal to lifecycle on purpose.
@@ -82,14 +79,14 @@ struct SessionDetailView: View {
             ForEach(detail.blocks) { block in
                 Section(block.movementName) {
                     ForEach(Array(block.sets.enumerated()), id: \.element.id) { position, set in
-                        PerformedSetRow(number: position + 1, entry: set.entry)
+                        SetRow(number: position + 1, entry: set.entry)
                     }
                 }
             }
             if !detail.unattached.isEmpty {
-                Section("Logged in words") {
+                Section("Other work") {
                     ForEach(detail.unattached) { set in
-                        PerformedSetRow(number: set.order + 1, entry: set.entry)
+                        SetRow(number: set.order + 1, entry: set.entry)
                     }
                 }
             }
@@ -203,7 +200,7 @@ struct SessionDetailView: View {
     private func target(of prescription: SetPrescription) -> String {
         switch prescription {
         case .lift(let lift):
-            "\(lift.targetReps) × \(MeasurementText.plain(lift.targetWeight)) \(lift.unit.abbreviation)"
+            "\(MeasurementText.plain(lift.targetWeight)) \(lift.unit.abbreviation) × \(lift.targetReps)"
         case .distanceTime(let target):
             "\(MeasurementText.plain(target.targetDistance)) \(target.unit.abbreviation) in \(Formatting.clock(seconds: target.targetDuration))"
         case .freeform(let text):
@@ -211,38 +208,5 @@ struct SessionDetailView: View {
         case .unrecognised:
             "Not readable"
         }
-    }
-}
-
-/// One performed set: its number in the movement, what was done, and the RPE if it was rated.
-///
-/// An unrated set shows no RPE at all rather than a dash or a zero — the domain has two cases and
-/// this is where that distinction is finally visible.
-private struct PerformedSetRow: View {
-    let number: Int
-    let entry: SetEntry
-
-    var body: some View {
-        let reading = SetReading.of(entry)
-        LabeledContent {
-            if let rpe = reading.rpe {
-                Text("RPE \(MeasurementText.plain(rpe))")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(Color(.secondaryLabel))
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Text("\(number)")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(Color(.tertiaryLabel))
-                    .frame(minWidth: 16, alignment: .trailing)
-                Text(reading.measurement)
-                    .monospacedDigit()
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            reading.rpe.map { "Set \(number), \(reading.measurement), RPE \(MeasurementText.plain($0))" }
-                ?? "Set \(number), \(reading.measurement)")
     }
 }

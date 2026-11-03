@@ -77,8 +77,10 @@ public class PersonalRecordReadTests : IAsyncLifetime
             service.GetForMovementAsync(_athletes.Owner, _bench, default)));
 
         Assert.Equal(Second.UtcDateTime, summary.LastAchievedAt);
+        // The set of three took the two and the three; the four and the five stay with the set
+        // of five, set earlier — and the grid still arrives in rep order.
         Assert.Equal(
-            [3, 5],
+            [2, 3, 4, 5],
             summary.Records
                 .Select(record => record.Achievement)
                 .OfType<RepMaxView>()

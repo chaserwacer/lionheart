@@ -25,7 +25,7 @@ struct RestTimerBar: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = rest.remaining(at: context.date)
 
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 // Four things across one bar stop fitting at the accessibility text sizes, where
                 // the alternative to a second line is every word broken mid-syllable — "Res/ting",
                 // "Sk/ip". `ViewThatFits` picks by measuring rather than by a size threshold, so
@@ -55,7 +55,7 @@ struct RestTimerBar: View {
                     .accessibilityHidden(true)
             }
             .padding(.horizontal, Tokens.cardPadding)
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
             .glassChrome(in: .rect(cornerRadius: Tokens.chromeCornerRadius))
             .padding(.horizontal, Tokens.cardPadding)
             .padding(.bottom, 6)
@@ -68,10 +68,9 @@ struct RestTimerBar: View {
     }
 
     private var restingLabel: some View {
-        Label("Resting", systemImage: "hourglass")
+        Text("Resting")
             .font(.subheadline)
             .foregroundStyle(Color(.secondaryLabel))
-            .labelStyle(.titleAndIcon)
     }
 
     private func clock(_ remaining: TimeInterval) -> some View {

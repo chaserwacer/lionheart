@@ -1,6 +1,6 @@
 import Foundation
 
-/// The whole Coach screen: whether a conversation is open, its turns, and whether a reply is out.
+/// The whole Chat screen: whether a conversation is open, its turns, and whether a reply is out.
 ///
 /// It carries its own not-loaded and unavailable cases instead of sitting inside a `LoadState`,
 /// because the two would overlap: `LoadState.loaded(.idle)` and a bare `.idle` are the same screen
@@ -10,7 +10,7 @@ import Foundation
 /// screen genuinely differs while it holds: the composer is disabled, the athlete's question is on
 /// screen *unsaved*, and an exchange takes tens of seconds. A Boolean beside a transcript would let
 /// "waiting with nothing pending" be written.
-enum CoachConversationState: Equatable, Sendable {
+enum ChatConversationState: Equatable, Sendable {
     /// The first read is still out.
     case loading
     /// No conversation — the athlete has never asked anything, or just cleared the screen for a
@@ -19,10 +19,10 @@ enum CoachConversationState: Equatable, Sendable {
     case reading(ChatConversation)
     /// A question is out. The conversation carries everything already said; the pending turn is
     /// the question itself.
-    case awaitingReply(ChatConversation, pending: CoachTurn)
+    case awaitingReply(ChatConversation, pending: ChatTurn)
     /// The last exchange failed. The conversation is intact; the question is not in it, because
     /// the server did not keep it.
-    case refused(ChatConversation, unsent: CoachTurn)
+    case refused(ChatConversation, unsent: ChatTurn)
     /// Nothing could be read, and there is nothing already on screen to keep.
     case unavailable(LoadFailure)
 
@@ -43,8 +43,8 @@ enum CoachConversationState: Equatable, Sendable {
     }
 
     /// Everything to draw, oldest first.
-    var turns: [CoachTurn] {
-        let said = (conversation?.transcript ?? []).map(CoachTurn.said)
+    var turns: [ChatTurn] {
+        let said = (conversation?.transcript ?? []).map(ChatTurn.said)
         switch self {
         case .loading, .none, .unavailable, .reading: return said
         case .awaitingReply(_, let pending): return said + [pending]
@@ -75,7 +75,7 @@ enum CoachConversationState: Equatable, Sendable {
     /// The rule that matters is the same one `LoadState.applying` carries: **a failed read never
     /// discards a conversation already on screen.** Losing a transcript because a refresh timed out
     /// would lose the one thing the athlete came back to read.
-    func applying(_ result: Result<ChatConversation, LoadFailure>) -> CoachConversationState {
+    func applying(_ result: Result<ChatConversation, LoadFailure>) -> ChatConversationState {
         switch result {
         case .success(let conversation):
             return .reading(conversation)

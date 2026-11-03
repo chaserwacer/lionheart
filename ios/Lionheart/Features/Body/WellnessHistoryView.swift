@@ -16,9 +16,9 @@ struct WellnessHistoryView: View {
         List {
             if readings.isEmpty {
                 ContentUnavailableView {
-                    Label("No wellness entries", systemImage: "face.smiling")
+                    Text("No wellness entries")
                 } description: {
-                    Text("A daily reading of mood, energy, motivation and stress gives the coach something your training does not say.")
+                    Text("A daily reading of mood, energy, motivation and stress gives Lionheart a signal your training does not carry.")
                 }
                 .listRowBackground(Color.clear)
             } else {
@@ -42,6 +42,7 @@ struct WellnessHistoryView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
         .navigationTitle("Wellness")
         .refreshable { await refresh() }
     }

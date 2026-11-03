@@ -78,7 +78,7 @@ struct RecordHistory: Equatable, Sendable {
     /// distance arithmetic lived.
     private static func trendPoint(_ record: PersonalRecord) -> TrendPoint? {
         let measured: (Double, TrendMeasure)? = switch record.achievement {
-        case .heaviestSet(let lift), .repMax(let lift): (lift.weight, .weight(lift.unit))
+        case .heaviestSet(let lift), .repMax(_, let lift): (lift.weight, .weight(lift.unit))
         case .bestSetVolume(let set): (set.volume, .weight(set.unit))
         case .bestSessionVolume(let session): (session.volume, .weight(session.unit))
         case .longestDistance(let effort): (effort.distance, .distance(effort.unit))

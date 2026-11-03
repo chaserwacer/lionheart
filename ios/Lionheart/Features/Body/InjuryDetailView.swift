@@ -36,6 +36,7 @@ struct InjuryDetailView: View {
             eventsSection
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
         .navigationTitle(history.injury.name.nonEmpty ?? "Injury")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await store.refresh() }
@@ -182,7 +183,7 @@ private struct InjuryEventRow: View {
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(Color(.secondaryLabel))
             } label: {
-                Label(Self.kind(of: event), systemImage: systemImage)
+                Text(Self.kind(of: event))
                     .font(.subheadline)
             }
             if let createdAt = event.createdAt {
@@ -207,14 +208,6 @@ private struct InjuryEventRow: View {
         case .treatment: "Treatment"
         case .checkIn: "Check-in"
         case .unrecognised: "Event"
-        }
-    }
-
-    private var systemImage: String {
-        switch event.kind {
-        case .treatment: "cross.case"
-        case .checkIn: "checkmark.circle"
-        case .unrecognised: "questionmark.circle"
         }
     }
 }

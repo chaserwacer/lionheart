@@ -16,7 +16,7 @@ struct OuraDaysView: View {
         List {
             if days.isEmpty {
                 ContentUnavailableView {
-                    Label("No Oura days yet", systemImage: "moon.zzz")
+                    Text("No Oura days")
                 } description: {
                     Text("Days appear here once the ring has synced. Only days with real data are shown — a gap is a gap, not a zero.")
                 }
@@ -43,6 +43,7 @@ struct OuraDaysView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
         .navigationTitle("Oura days")
         .refreshable { await refresh() }
     }

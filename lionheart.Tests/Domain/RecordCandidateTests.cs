@@ -43,28 +43,70 @@ public class RecordCandidateTests
     }
 
     [Fact]
-    public void Each_rep_count_in_the_session_raises_its_own_rep_max()
+    public void A_set_holds_the_rep_max_at_its_own_count_and_every_count_below_it()
+    {
+        // A set of five contains a set of four, three and two: those reps were performed. The
+        // single it contains is the heaviest set's, so no rep max is held at one.
+        var fiver = new LiftPerformance(225, WeightUnit.Pounds, 5);
+
+        var candidates = From(Lift(Bench, 225, reps: 5));
+
+        Assert.Equal([(2, fiver), (3, fiver), (4, fiver), (5, fiver)], Grid(candidates));
+        Assert.Equal(fiver, Single<Achievement.HeaviestSet>(candidates).Lift);
+    }
+
+    [Fact]
+    public void Each_rep_count_is_held_by_the_heaviest_set_long_enough_to_contain_it()
+    {
+        // 185 for six is a six directly and a five from its front; 180 for seven is the only set
+        // long enough to hold a seven.
+        var sixAt185 = new LiftPerformance(185, WeightUnit.Kilograms, 6);
+        var sevenAt180 = new LiftPerformance(180, WeightUnit.Kilograms, 7);
+
+        var candidates = From(
+            Lift(Bench, 180, reps: 7, WeightUnit.Kilograms),
+            Lift(Bench, 185, reps: 6, WeightUnit.Kilograms));
+
+        Assert.Equal(
+            [(2, sixAt185), (3, sixAt185), (4, sixAt185), (5, sixAt185), (6, sixAt185), (7, sevenAt180)],
+            Grid(candidates));
+    }
+
+    [Fact]
+    public void Of_two_sets_at_one_rep_count_only_the_heavier_holds_it()
     {
         var candidates = From(
             Lift(Bench, 245, reps: 3),
             Lift(Bench, 225, reps: 5),
             Lift(Bench, 215, reps: 5));
 
-        var grid = All<Achievement.RepMax>(candidates);
+        var grid = Grid(candidates).ToDictionary(held => held.Reps, held => held.Lift);
 
-        Assert.Equal(2, grid.Count);
-        Assert.Equal(245, grid.Single(max => max.Lift.Reps == 3).Lift.Weight);
-        // Two sets at five reps: only the heavier one is the claim.
-        Assert.Equal(225, grid.Single(max => max.Lift.Reps == 5).Lift.Weight);
+        Assert.Equal(245, grid[3].Weight);
+        Assert.Equal(225, grid[5].Weight);
     }
 
     [Fact]
-    public void A_set_above_the_graded_rep_ceiling_sets_no_rep_max_and_still_counts_everywhere_else()
+    public void At_equal_weight_the_longer_set_holds_the_rep_max_as_it_holds_the_heaviest_set()
     {
-        // A 23-rep set is a fact about work capacity, which the volume records already answer.
+        // The heaviest set is the grid's one-rep cell, so a rep max at a tie picks the set the
+        // heaviest set would — otherwise the grid could name two sets for one weight.
+        var candidates = From(Lift(Bench, 225, reps: 5), Lift(Bench, 225, reps: 7));
+
+        Assert.All(Grid(candidates), held => Assert.Equal(7, held.Lift.Reps));
+    }
+
+    [Fact]
+    public void A_set_past_the_grids_last_count_holds_every_rep_max_up_to_it()
+    {
+        // A set of twenty-three contains a set of twelve, so it holds every count the grid keeps
+        // and still competes everywhere else.
         var candidates = From(Lift(Bench, 95, reps: 23));
 
-        Assert.Empty(All<Achievement.RepMax>(candidates));
+        Assert.Equal(
+            Enumerable.Range(2, 11),
+            Grid(candidates).Select(held => held.Reps));
+        Assert.All(Grid(candidates), held => Assert.Equal(new LiftPerformance(95, WeightUnit.Pounds, 23), held.Lift));
         Assert.Equal(95, Single<Achievement.HeaviestSet>(candidates).Lift.Weight);
         Assert.Equal(95 * 23, Single<Achievement.BestSetVolume>(candidates).Lift.Volume);
         Assert.Equal(95 * 23, Single<Achievement.BestSessionVolume>(candidates).Total.Volume);
@@ -75,7 +117,23 @@ public class RecordCandidateTests
     {
         var candidates = From(Lift(Bench, 135, reps: 12), Lift(Bench, 115, reps: 13));
 
-        Assert.Equal(12, Assert.Single(All<Achievement.RepMax>(candidates)).Lift.Reps);
+        Assert.Equal(12, Grid(candidates).Max(held => held.Reps));
+        Assert.All(Grid(candidates), held => Assert.Equal(135, held.Lift.Weight));
+    }
+
+    [Fact]
+    public void A_longer_set_in_one_unit_holds_nothing_in_the_other()
+    {
+        // The unit is part of a record's identity, and weights never convert: a kilograms set of
+        // eight says nothing about a pounds six.
+        var candidates = From(
+            Lift(Bench, 100, reps: 8, WeightUnit.Kilograms),
+            Lift(Bench, 225, reps: 5, WeightUnit.Pounds));
+
+        var pounds = All<Achievement.RepMax>(candidates).Where(max => max.Lift.Unit == WeightUnit.Pounds);
+
+        Assert.Equal([2, 3, 4, 5], pounds.Select(max => max.Reps).Order());
+        Assert.Equal(7, All<Achievement.RepMax>(candidates).Count(max => max.Lift.Unit == WeightUnit.Kilograms));
     }
 
     [Fact]
@@ -245,4 +303,8 @@ public class RecordCandidateTests
 
     private static IReadOnlyList<T> All<T>(IReadOnlyList<RecordCandidate> candidates) where T : Achievement =>
         [.. candidates.Select(candidate => candidate.Achievement).OfType<T>()];
+
+    /// <summary>Each rep max claimed, as its rep count and the set holding it, in rep order.</summary>
+    private static IReadOnlyList<(int Reps, LiftPerformance Lift)> Grid(IReadOnlyList<RecordCandidate> candidates) =>
+        [.. All<Achievement.RepMax>(candidates).OrderBy(max => max.Reps).Select(max => (max.Reps, max.Lift))];
 }

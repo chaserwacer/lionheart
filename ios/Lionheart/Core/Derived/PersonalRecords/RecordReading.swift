@@ -98,13 +98,14 @@ struct RecordReading: Equatable, Sendable {
             if case .repMax = $0.achievement { true } else { false }
         }
         let estimated = records.filter { $0.achievement.estimatedOneRepMax != nil }
+        let heaviestSet = newest(.heaviestSet)
 
         return Lifting(
             unit: unit,
-            heaviestSet: newest(.heaviestSet),
+            heaviestSet: heaviestSet,
             bestSetVolume: newest(.bestSetVolume),
             bestSessionVolume: newest(.bestSessionVolume),
-            grid: RepMaxGrid.of(repMaxes),
+            grid: RepMaxGrid.of(heaviestSet: heaviestSet, repMaxes: repMaxes),
             strongestEstimate: estimated
                 .max {
                     ($0.achievement.estimatedOneRepMax ?? 0) < ($1.achievement.estimatedOneRepMax ?? 0)
@@ -114,12 +115,7 @@ struct RecordReading: Equatable, Sendable {
     }
 
     private static func isSingle(_ record: PersonalRecord) -> Bool {
-        switch record.achievement {
-        case .heaviestSet(let lift), .repMax(let lift): lift.reps <= 1
-        case .bestSetVolume, .bestSessionVolume, .longestDistance, .fastestTime, .bestPace,
-             .unrecognised:
-            false
-        }
+        record.achievement.performedSet.map { $0.reps <= 1 } ?? false
     }
 
     private static func endurance(_ records: [PersonalRecord]) -> Endurance {

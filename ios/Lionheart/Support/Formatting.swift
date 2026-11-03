@@ -107,7 +107,7 @@ enum Formatting {
     static func set(_ command: SetCommand) -> String? {
         switch command {
         case .lift(let set):
-            return "\(set.reps) × \(weight(set.weight, set.unit))"
+            return "\(weight(set.weight, set.unit)) × \(set.reps)"
         case .distanceTime(let set):
             return "\(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
         case .trailRun(let set):
@@ -122,7 +122,7 @@ enum Formatting {
     static func target(_ prescription: SetPrescription) -> String {
         switch prescription {
         case .lift(let target):
-            let numbers = "\(target.targetReps) × \(weight(target.targetWeight, target.unit))"
+            let numbers = "\(weight(target.targetWeight, target.unit)) × \(target.targetReps)"
             guard let rpe = target.targetRpe.value else { return numbers }
             return "\(numbers) @ \(self.rpe(rpe))"
         case .distanceTime(let target):
@@ -172,11 +172,15 @@ enum Formatting {
         instant.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
-    /// What a record holds, as its headline figure — `245 lb × 1`, `26:45`, `5:21 /km`.
+    /// What a record holds, as its headline figure — `245 lb × 1`, `26:45`, `5:21 /km`. A rep max
+    /// reads at its own count, `180 kg × 6`, even when the set holding it was longer; the detail
+    /// line says which set.
     static func achievement(_ achievement: Achievement) -> String {
         switch achievement {
-        case .heaviestSet(let lift), .repMax(let lift):
-            "\(weight(lift.weight, lift.unit)) × \(lift.reps)"
+        case .heaviestSet(let lift):
+            self.lift(lift)
+        case .repMax(let reps, let lift):
+            "\(weight(lift.weight, lift.unit)) × \(reps)"
         case .bestSetVolume(let set):
             volume(set.volume, set.unit)
         case .bestSessionVolume(let session):
@@ -195,8 +199,12 @@ enum Formatting {
     /// The facts behind a record's headline, where it has any worth a second line.
     static func achievementDetail(_ achievement: Achievement) -> String? {
         switch achievement {
-        case .heaviestSet(let lift), .repMax(let lift):
+        case .heaviestSet(let lift):
             lift.reps > 1 ? "Estimated single \(estimate(lift.estimatedOneRepMax, lift.unit))" : nil
+        case .repMax(let reps, let lift):
+            lift.reps > reps
+                ? "\(longerSet(lift.reps)) · estimated single \(estimate(lift.estimatedOneRepMax, lift.unit))"
+                : "Estimated single \(estimate(lift.estimatedOneRepMax, lift.unit))"
         case .bestSetVolume(let set):
             "\(weight(set.weight, set.unit)) × \(set.reps)"
         case .bestSessionVolume, .unrecognised:
@@ -207,6 +215,30 @@ enum Formatting {
             distance(effort.distance, effort.unit)
         case .bestPace(let pace):
             "\(distance(pace.effort.distance, pace.effort.unit)) in \(clock(seconds: pace.effort.duration))"
+        }
+    }
+
+    /// One set as performed — `180 kg × 7`.
+    static func lift(_ lift: Achievement.Lift) -> String {
+        "\(weight(lift.weight, lift.unit)) × \(lift.reps)"
+    }
+
+    /// Where a record carried down from a longer set came from — `From a set of 7`.
+    static func longerSet(_ reps: Int) -> String {
+        "From a set of \(reps)"
+    }
+
+    /// What a logged set beat, as one sentence: the record most worth saying, and how many more —
+    /// "New 6-rep max and 4 more records". A set beats a rep max at every count it holds, so
+    /// naming each would read a set of twelve out as a list of eleven.
+    static func recordsBeaten(_ outcome: SetRecordOutcome) -> String? {
+        switch outcome {
+        case .notApplicable, .noRecordYet, .none:
+            nil
+        case .beats(let first, let also):
+            also.isEmpty
+                ? "New \(first.label.lowercased())"
+                : "New \(first.label.lowercased()) and \(count(also.count, "more record"))"
         }
     }
 

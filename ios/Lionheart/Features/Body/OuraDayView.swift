@@ -27,7 +27,7 @@ struct OuraDayView: View {
             let panels = OuraPanel.panels(of: day)
             if panels.isEmpty, night == nil {
                 ContentUnavailableView {
-                    Label("Nothing on this day", systemImage: "moon.zzz")
+                    Text("Nothing on this day")
                 } description: {
                     Text("The ring filed nothing for it.")
                 }
@@ -35,19 +35,14 @@ struct OuraDayView: View {
             } else {
                 ForEach(panels) { panel in
                     Section(panel.title) {
-                        if let score = panel.score {
-                            LabeledContent("Score") { Text("\(score)").monospacedDigit() }
-                        }
-                        ForEach(panel.figures) { figure in
-                            LabeledContent(figure.label) {
-                                Text(figure.value).monospacedDigit()
-                            }
-                        }
+                        let score = panel.score.map { OuraPanel.Figure(label: "Score", value: "\($0)") }
+                        FigureGrid(figures: (score.map { [$0] } ?? []) + panel.figures)
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
         .navigationTitle(Formatting.date(day.date))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -57,42 +52,39 @@ struct OuraDayView: View {
     @ViewBuilder
     private func nightSection(_ night: OuraSleepPeriod) -> some View {
         Section {
-            HStack(alignment: .top, spacing: Tokens.cardPadding) {
-                StatTile(
-                    value: MeasurementText.clock(seconds: Double(night.totalSleepSeconds)),
-                    label: "Asleep")
-                StatTile(value: "\(night.efficiency)%", label: "Efficiency")
-                if let hrv = night.averageHrv {
-                    StatTile(value: "\(hrv)", label: "Avg HRV")
-                }
-            }
-
-            ForEach(Self.stages(of: night)) { stage in
-                LabeledContent(stage.label) {
-                    Text(MeasurementText.clock(seconds: Double(stage.seconds)))
-                        .monospacedDigit()
-                }
-            }
-
-            // The rate Oura reports as zero on a period it took no reading across is shown as
-            // absent rather than as a heart rate of zero. The stored zero is still the honest
-            // record; it just is not a number to put on a screen.
-            if let lowest = night.lowestHeartRate {
-                LabeledContent("Lowest heart rate") { Text("\(lowest)").monospacedDigit() }
-            }
-            if let breath = night.averageBreath {
-                LabeledContent("Breathing rate") {
-                    Text("\(MeasurementText.plain(breath)) /min").monospacedDigit()
-                }
-            }
-            LabeledContent("Restless periods") {
-                Text("\(night.restlessPeriods)").monospacedDigit()
-            }
+            FigureGrid(figures: Self.summary(of: night))
+            FigureGrid(figures: Self.stages(of: night).map {
+                OuraPanel.Figure(label: $0.label, value: MeasurementText.clock(seconds: Double($0.seconds)))
+            })
+            FigureGrid(figures: Self.vitals(of: night))
         } header: {
             Text("The night")
         } footer: {
             Text(Self.nightFooter(night))
         }
+    }
+
+    /// The night in three figures: how long, how well, and the HRV it averaged.
+    private static func summary(of night: OuraSleepPeriod) -> [OuraPanel.Figure] {
+        [
+            OuraPanel.Figure(label: "Asleep", value: MeasurementText.clock(seconds: Double(night.totalSleepSeconds))),
+            OuraPanel.Figure(label: "Efficiency", value: "\(night.efficiency)%"),
+        ] + (night.averageHrv.map { [OuraPanel.Figure(label: "Avg HRV", value: "\($0)")] } ?? [])
+    }
+
+    /// What the body did across the night.
+    ///
+    /// The rate Oura reports as zero on a period it took no reading across is shown as absent
+    /// rather than as a heart rate of zero. The stored zero is still the honest record; it just is
+    /// not a number to put on a screen.
+    private static func vitals(of night: OuraSleepPeriod) -> [OuraPanel.Figure] {
+        [
+            night.lowestHeartRate.map { OuraPanel.Figure(label: "Lowest HR", value: "\($0)") },
+            night.averageBreath.map {
+                OuraPanel.Figure(label: "Breathing", value: "\(MeasurementText.plain($0)) /min")
+            },
+            OuraPanel.Figure(label: "Restless periods", value: "\(night.restlessPeriods)"),
+        ].compactMap(\.self)
     }
 
     /// The stage breakdown, and only the stages the night actually had.
@@ -127,7 +119,7 @@ struct OuraDayView: View {
         Section {
             ForEach(Array(tags.enumerated()), id: \.offset) { _, tag in
                 ForEach(tag.phrases, id: \.self) { phrase in
-                    Label(phrase, systemImage: "tag")
+                    Text(phrase)
                 }
             }
         } header: {
@@ -149,5 +141,29 @@ struct OuraDayView: View {
                 }
             }
         }
+    }
+}
+
+/// Figures as a grid of tiles, three or four across, wrapping as Dynamic Type widens them.
+///
+/// A day carries dozens of figures; as tiles the number leads and a whole panel reads at a glance,
+/// where a labelled row per figure would run to several screens. The minimum width scales with the
+/// text, so the column count drops at the accessibility sizes rather than any figure truncating.
+private struct FigureGrid: View {
+    let figures: [OuraPanel.Figure]
+
+    @ScaledMetric(relativeTo: .headline) private var minimumWidth: CGFloat = 92
+
+    var body: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: minimumWidth), spacing: Tokens.cardPadding, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: 10
+        ) {
+            ForEach(figures) { figure in
+                StatTile(value: figure.value, label: figure.label)
+            }
+        }
+        .padding(.vertical, 2)
     }
 }

@@ -41,7 +41,7 @@ private struct CreateProfileBody: Encodable, Sendable {
 /// The athlete context card route.
 ///
 /// Separate from `UserAPI` because it is not about the account: it is the analysis layer's standing
-/// summary, and it is the Coach screen that reads it.
+/// summary, and it is the Chat screen that reads it.
 struct ProfileAPI: Sendable {
     let client: APIClient
 
@@ -50,7 +50,7 @@ struct ProfileAPI: Sendable {
     /// The server materialises a missing card and refreshes a stale one on read, and each rebuild
     /// attempts a narrative sentence from the cheap model — so this call is occasionally slow, and
     /// where that model is a local server serving one request at a time it must not be made while a
-    /// chat exchange is in flight. `CoachStore` is what holds that order.
+    /// chat exchange is in flight. `ChatStore` is what holds that order.
     func contextCard() async throws -> AthleteContextCard {
         try await client.get("/api/profile/context-card")
     }

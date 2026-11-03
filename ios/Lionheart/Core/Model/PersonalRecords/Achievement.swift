@@ -10,7 +10,10 @@ import Foundation
 enum Achievement: Equatable, Sendable {
     case heaviestSet(Lift)
     case bestSetVolume(SetVolume)
-    case repMax(Lift)
+    /// The heaviest weight held for `reps` reps, by a set of exactly that many or the front of a
+    /// longer one — a set of seven contains a set of six. The `Lift` is the set as performed, so
+    /// its reps are at least `reps`, and more when the record was carried down from it.
+    case repMax(reps: Int, Lift)
     case bestSessionVolume(SessionVolume)
     case longestDistance(Distance)
     case fastestTime(meters: Int, Distance)
@@ -18,7 +21,7 @@ enum Achievement: Equatable, Sendable {
     /// A `$type` this build does not know. The record still renders, as a record it cannot show.
     case unrecognised(String)
 
-    /// One set, as the two single-set weight kinds hold it.
+    /// One set as performed, as the two single-set weight kinds hold it.
     struct Lift: Equatable, Sendable {
         let weight: Double
         let unit: WeightUnit
@@ -58,7 +61,7 @@ enum Achievement: Equatable, Sendable {
         switch self {
         case .heaviestSet: .heaviestSet
         case .bestSetVolume: .bestSetVolume
-        case .repMax(let lift): .repMax(reps: lift.reps)
+        case .repMax(let reps, _): .repMax(reps: reps)
         case .bestSessionVolume: .bestSessionVolume
         case .longestDistance: .longestDistance
         case .fastestTime(let meters, _): .fastestTime(meters: meters)
@@ -71,22 +74,26 @@ enum Achievement: Equatable, Sendable {
     /// Absent for the distance kinds, which rank in meters.
     var heldIn: WeightUnit? {
         switch self {
-        case .heaviestSet(let lift), .repMax(let lift): lift.unit
+        case .heaviestSet(let lift), .repMax(_, let lift): lift.unit
         case .bestSetVolume(let set): set.unit
         case .bestSessionVolume(let session): session.unit
         case .longestDistance, .fastestTime, .bestPace, .unrecognised: nil
         }
     }
 
-    /// The server's estimate of a single rep, for the kinds that carry one.
-    var estimatedOneRepMax: Double? {
+    /// The set holding a heaviest set or a rep max, as performed.
+    var performedSet: Lift? {
         switch self {
-        case .heaviestSet(let lift), .repMax(let lift): lift.estimatedOneRepMax
+        case .heaviestSet(let lift), .repMax(_, let lift): lift
         case .bestSetVolume, .bestSessionVolume, .longestDistance, .fastestTime, .bestPace,
              .unrecognised:
             nil
         }
     }
+
+    /// The server's estimate of a single rep, for the kinds that carry one. It is the performed
+    /// set's, so a rep max carried down from a longer set estimates from the whole set.
+    var estimatedOneRepMax: Double? { performedSet?.estimatedOneRepMax }
 }
 
 extension Achievement: Decodable {
@@ -94,11 +101,11 @@ extension Achievement: Decodable {
         let container = try decoder.container(keyedBy: WireKey.self)
         let type = container.wireType
 
-        func lift() -> Lift {
+        func lift(reps: Int) -> Lift {
             Lift(
                 weight: container.lenient("weight", or: 0),
                 unit: WeightUnit(wire: container.lenient(Int.self, "unit")),
-                reps: container.lenient("reps", or: 0),
+                reps: reps,
                 estimatedOneRepMax: container.lenient("estimatedOneRepMax", or: 0))
         }
 
@@ -111,9 +118,13 @@ extension Achievement: Decodable {
 
         switch type {
         case "heaviestSet":
-            self = .heaviestSet(lift())
+            self = .heaviestSet(lift(reps: container.lenient("reps", or: 0)))
         case "repMax":
-            self = .repMax(lift())
+            // `reps` is the rep count the record is held at and `setReps` the set's own. A body
+            // without `setReps` comes from a server whose rep maxes were all held by a set of
+            // exactly their count.
+            let reps: Int = container.lenient("reps", or: 0)
+            self = .repMax(reps: reps, lift(reps: container.lenient("setReps", or: reps)))
         case "bestSetVolume":
             self = .bestSetVolume(SetVolume(
                 volume: container.lenient("volume", or: 0),

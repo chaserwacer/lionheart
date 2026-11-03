@@ -10,8 +10,8 @@ import SwiftUI
 /// data through a tool loop and there is no streaming route, so a reply takes tens of seconds. The
 /// question stays on screen, a working row sits under it counting, and the composer says what is
 /// happening — anything less reads as hung.
-struct CoachView: View {
-    let store: CoachStore
+struct ChatView: View {
+    let store: ChatStore
 
     @State private var typed = ""
     @State private var isContextCardPresented = false
@@ -39,11 +39,11 @@ struct CoachView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // The grouped background every other tab gets from `List`. Without it the page is
-            // plain white, and a coach bubble — `secondarySystemGroupedBackground`, which *is*
+            // plain white, and a model bubble — `secondarySystemGroupedBackground`, which *is*
             // white in light mode — disappears into it. The two colours are a pair; using one
             // without the other is what makes the bubble invisible.
             .background(Color(.systemGroupedBackground))
-            .navigationTitle(store.state.conversation?.title ?? "Coach")
+            .navigationTitle(store.state.conversation?.title ?? "Chat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .safeAreaInset(edge: .bottom) { composer }
@@ -88,7 +88,7 @@ struct CoachView: View {
     // MARK: - Empty and not loaded
 
     /// The transcript's own shape while the last conversation is being read: two bubbles, the
-    /// athlete's and the coach's, in grey. The tab opens on a conversation that already exists far
+    /// athlete's and the model's, in grey. The tab opens on a conversation that already exists far
     /// more often than not, so this is what is almost always coming.
     private var loadingTranscript: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -108,17 +108,17 @@ struct CoachView: View {
 
     private var nothingAskedYet: some View {
         ContentUnavailableView {
-            Label("Ask the coach", systemImage: "bubble.left.and.text.bubble.right")
+            Label("Ask about your training", systemImage: "bubble.left.and.text.bubble.right")
         } description: {
-            Text("It answers over your own sessions, wellness and Oura days. Try asking what your last week looked like, or whether you are recovered enough to train.")
+            Text("Answers are drawn from your sessions, wellness entries and Oura days.")
         } actions: {
-            Button("What the coach knows about me") { isContextCardPresented = true }
+            Button("View athlete context") { isContextCardPresented = true }
         }
     }
 
     private func unavailable(_ failure: LoadFailure) -> some View {
         ContentUnavailableView {
-            Label("The coach is not available", systemImage: "exclamationmark.triangle")
+            Label("Chat unavailable", systemImage: "exclamationmark.triangle")
         } description: {
             Text(failure.message)
         } actions: {
@@ -139,7 +139,7 @@ struct CoachView: View {
             .disabled(store.state.isAwaitingReply)
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Button("What the coach knows", systemImage: "person.text.rectangle") {
+            Button("Athlete context", systemImage: "person.text.rectangle") {
                 isContextCardPresented = true
             }
             Button("New conversation", systemImage: "square.and.pencil") {
@@ -168,7 +168,7 @@ struct CoachView: View {
 
             GlassChromeGroup(spacing: 10) {
                 HStack(alignment: .bottom, spacing: 10) {
-                    TextField("Ask the coach", text: $typed, axis: .vertical)
+                    TextField("Ask a question", text: $typed, axis: .vertical)
                         .lineLimit(1...5)
                         .textFieldStyle(.plain)
                         .padding(.horizontal, 16)
@@ -210,17 +210,17 @@ struct CoachView: View {
     }
 }
 
-/// One turn. The athlete's words sit right and tinted, the coach's left and plain — the arrangement
+/// One turn. The athlete's words sit right and tinted, the model's left and plain — the arrangement
 /// every messaging app on this platform uses, so it needs no explaining.
 private struct TurnBubble: View {
-    let turn: CoachTurn
+    let turn: ChatTurn
 
     var body: some View {
         HStack {
             if turn.isFromAthlete { Spacer(minLength: 40) }
 
             VStack(alignment: turn.isFromAthlete ? .trailing : .leading, spacing: 4) {
-                Text(turn.isFromAthlete ? AttributedString(turn.text) : CoachProse.attributed(turn.text))
+                Text(turn.isFromAthlete ? AttributedString(turn.text) : ChatProse.attributed(turn.text))
                     .font(.body)
                     .foregroundStyle(turn.isFromAthlete ? Color.white : Color(.label))
                     .padding(.horizontal, 14)
@@ -254,7 +254,7 @@ private struct TurnBubble: View {
             if !turn.isFromAthlete { Spacer(minLength: 40) }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(turn.isFromAthlete ? "You said" : "The coach said")
+        .accessibilityLabel(turn.isFromAthlete ? "You said" : "Lionheart said")
         .accessibilityValue(turn.text)
     }
 
@@ -314,7 +314,7 @@ private struct WorkingRow: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 18))
-        .accessibilityLabel("The coach is working on an answer")
+        .accessibilityLabel("Lionheart is working on an answer")
     }
 
     /// Says what it is doing, not just that it is busy — and only mentions the tool loop once the

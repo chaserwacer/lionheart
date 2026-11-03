@@ -5,7 +5,7 @@ import SwiftUI
 /// A sheet rather than a sidebar: on a phone the transcript wants the whole screen, and switching
 /// conversations is something done occasionally rather than while reading.
 struct ConversationListSheet: View {
-    let store: CoachStore
+    let store: ChatStore
 
     @Environment(\.dismiss) private var dismiss
     @State private var pendingDeletion: ChatConversation?
@@ -17,7 +17,7 @@ struct ConversationListSheet: View {
                     ContentUnavailableView {
                         Label("No conversations yet", systemImage: "bubble.left.and.text.bubble.right")
                     } description: {
-                        Text("Asking the coach something starts one.")
+                        Text("Asking a question starts one.")
                     }
                     .listRowBackground(Color.clear)
                 } else {

@@ -35,12 +35,16 @@ public class PersonalRecordDetectionTests : IAsyncLifetime
 
         var records = await StandingAsync();
 
-        // Heaviest set, best set volume, the session total, and one rep max at five reps.
-        Assert.Equal(4, records.Count);
+        // Heaviest set, best set volume, the session total, and the rep maxes at two through five,
+        // every one of them held by the one set of five.
+        Assert.Equal(7, records.Count);
         Assert.Equal(
             new LiftPerformance(225, WeightUnit.Pounds, 5),
             Standing<Achievement.HeaviestSet>(records).Lift);
-        Assert.Equal(5, Standing<Achievement.RepMax>(records).Lift.Reps);
+        Assert.Equal(
+            [2, 3, 4, 5],
+            records.Select(record => record.Achievement).OfType<Achievement.RepMax>()
+                .Select(max => max.Reps).Order());
         Assert.All(records, record => Assert.IsType<RecordLineage.FirstOfItsKind>(record.Lineage));
     }
 
@@ -112,16 +116,58 @@ public class PersonalRecordDetectionTests : IAsyncLifetime
     public async Task A_rep_count_never_trained_before_opens_its_own_grid_row()
     {
         await LogAsync(Lift(225, 5));
+        await LogAsync(Lift(185, 8));
+
+        var grid = await GridAsync();
+
+        Assert.Equal(225, grid[5].Weight);
+        Assert.Equal(new LiftPerformance(185, WeightUnit.Pounds, 8), grid[8]);
+        Assert.Single(await ChainAsync(new RecordKind.RepMax(8)));
+    }
+
+    [Fact]
+    public async Task A_heavier_shorter_set_takes_the_rep_maxes_it_contains_and_leaves_the_longer_ones()
+    {
+        await LogAsync(Lift(225, 5));
         await LogAsync(Lift(255, 3));
 
-        var grid = (await StandingAsync())
-            .Select(record => record.Achievement)
-            .OfType<Achievement.RepMax>()
-            .ToList();
+        var grid = await GridAsync();
 
-        Assert.Equal(2, grid.Count);
-        Assert.Equal(225, grid.Single(max => max.Lift.Reps == 5).Lift.Weight);
-        Assert.Equal(255, grid.Single(max => max.Lift.Reps == 3).Lift.Weight);
+        Assert.Equal(new LiftPerformance(255, WeightUnit.Pounds, 3), grid[2]);
+        Assert.Equal(new LiftPerformance(255, WeightUnit.Pounds, 3), grid[3]);
+        Assert.Equal(new LiftPerformance(225, WeightUnit.Pounds, 5), grid[4]);
+        Assert.Equal(new LiftPerformance(225, WeightUnit.Pounds, 5), grid[5]);
+        // The three the set of five held is a link the set of three beat, not a separate record.
+        Assert.IsType<RecordLineage.Replaced>(
+            Assert.Single(await ChainAsync(new RecordKind.RepMax(3)), record => record.IsStanding).Lineage);
+    }
+
+    [Fact]
+    public async Task A_longer_set_beats_a_rep_max_held_by_a_shorter_one()
+    {
+        // 185 for eight is a heavier five than 180 for five, and the record says it came from the
+        // eight.
+        await LogAsync(Lift(180, 5));
+        await LogAsync(Lift(185, 8));
+
+        var fives = await ChainAsync(new RecordKind.RepMax(5));
+
+        Assert.Equal(2, fives.Count);
+        var standing = Assert.IsType<Achievement.RepMax>(Assert.Single(fives, record => record.IsStanding).Achievement);
+        Assert.Equal(new Achievement.RepMax(5, new LiftPerformance(185, WeightUnit.Pounds, 8)), standing);
+    }
+
+    [Fact]
+    public async Task A_single_sets_the_heaviest_set_and_no_rep_max()
+    {
+        // The one-rep max is the heaviest set: every set contains a single, so a rep max at one
+        // would be the same fact stored twice.
+        await LogAsync(Lift(275, 1));
+
+        var records = await StandingAsync();
+
+        Assert.Empty(records.Select(record => record.Achievement).OfType<Achievement.RepMax>());
+        Assert.Equal(275, Standing<Achievement.HeaviestSet>(records).Lift.Weight);
     }
 
     [Fact]
@@ -208,7 +254,8 @@ public class PersonalRecordDetectionTests : IAsyncLifetime
                 new CompleteSessionRequest(new PeriodCommand(Performed, null), null),
                 default)));
 
-        Assert.Equal(4, (await StandingAsync()).Count);
+        // Heaviest set, best set volume, session total, and the rep maxes at two through five.
+        Assert.Equal(7, (await StandingAsync()).Count);
     }
 
     [Fact]
@@ -307,6 +354,14 @@ public class PersonalRecordDetectionTests : IAsyncLifetime
                 .ThenByDescending(record => record.PersonalRecordId)
         ];
     }
+
+    /// <summary>The bench's standing rep maxes in pounds, by rep count, each with the set holding it.</summary>
+    private async Task<IReadOnlyDictionary<int, LiftPerformance>> GridAsync() =>
+        (await StandingAsync())
+            .Select(record => record.Achievement)
+            .OfType<Achievement.RepMax>()
+            .Where(max => max.Lift.Unit == WeightUnit.Pounds)
+            .ToDictionary(max => max.Reps, max => max.Lift);
 
     private static T Standing<T>(IReadOnlyList<PersonalRecord> records) where T : Achievement =>
         Assert.Single(records.Select(record => record.Achievement).OfType<T>());

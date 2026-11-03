@@ -549,8 +549,10 @@ nullable columns — the shape these standards exist to prevent.
   trail running, the same fill-state-to-scalar shape `ProgramMembership` takes.
 - `Achievement` — the kind fused with its measurement, seven sealed cases, so a heaviest-set
   record cannot hold a distance. Each case answers `Kind`, `HeldIn` and `Rank`.
-- `RecordKind` — which question: `HeaviestSet`, `BestSetVolume`, `RepMax(reps)`,
-  `BestSessionVolume`, `LongestDistance`, `FastestTime(meters)`, `BestPace`.
+- `RecordKind` — which question: `HeaviestSet`, `BestSetVolume`, `RepMax(reps)` for two to
+  twelve reps, `BestSessionVolume`, `LongestDistance`, `FastestTime(meters)`, `BestPace`. A rep
+  max's achievement holds its rep count beside the set holding it, since a set of seven holds the
+  six-rep max too; `RecordKind.RepMax.HeldBy` is where a set's reps become the counts it holds.
 - `RecordKey` — what makes two records the same record: the subject, the kind, and the weight
   unit where there is one. Distances carry none, since they rank in meters.
 - `LiftPerformance`, `SessionVolume`, `DistanceEffort` — the measurements, carrying the derived
@@ -585,7 +587,10 @@ way they happened.
 | Weights never convert | 225 lb is the larger number and the lighter lift. A set in a unit the record is not held in does not beat it, and both clients compare the same way |
 | The unit is part of a record's identity | Which is what stops a movement locking to the first unit logged. Without it a kilograms lift could neither beat a pounds record nor become one, so a unit switch would end that movement's progression for good. A movement holds one record per kind per unit, each set and beaten within its own — the same keying the iOS trends chart already uses so a unit switch starts a new line |
 | Distances do convert | The four units are exact definitions of one quantity and two are metric spellings of one scale; refusing to relate 5 km to 5000 m would be a defect |
-| The rep-max grid stops at twelve | Past that the number describes work capacity, which the volume records answer. A 23-rep set sets no rep max and still competes everywhere else |
+| A set holds the rep max at its own count and every count below it | Not inference: a set of seven *contains* a set of six — the first six reps were actually performed. It is how lifters speak ("hit 105 for six, so that's a five-rep PR too"), and it is what makes the grid read as a record table, weight never rising as reps rise; with exact counts a seven-rep max could sit heavier than the six. Within a session a count's best is the heaviest set with at least that many reps, the longer set winning a tie as it does for the heaviest set. The estimated one-rep max is the opposite — a single nobody lifted — so it stays derived and labelled. Carry-down never crosses units |
+| A carried record says which set it came from | The achievement keeps the rep count and the set as performed apart, and the wire sends both (`reps`, `setReps`): a five-rep max from a clean five and one from the front of an eight are the same record and different stories |
+| The one-rep max is the heaviest set | Every set contains a single, so with carry-down a rep max at one is the heaviest set by definition. Rep maxes run from two; the grid's first cell reads the heaviest-set record, and `repMax` with a bracket of one is refused toward `heaviestSet` |
+| The rep-max grid stops at twelve | Past that the number describes work capacity, which the volume records answer. A longer set still holds every rep max from two to twelve, because a set of twenty contains a set of twelve |
 | Trail running is its own subject | A trail set names no movement to hang a record off, and a route's distance is whatever the route was where an interval's is a number the athlete chose, so a season of trail runs ranks against itself rather than against the treadmill. Terrain is not part of the identity: two routes of one distance and different climb share a record, because climb is not a bracket anyone logs deliberately |
 | Best pace is a record, the pace number is not stored | The set holding the best pace is a different set from the longest or the fastest, so it needs a row; the pace itself is a function of the distance and the time beside it |
 | Zero load or zero reps raises nothing | A zero can never beat another zero, so admitting it plants a record that can only be equalled. Bodyweight-reps records are a kind this does not have |

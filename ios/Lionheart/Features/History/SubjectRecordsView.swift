@@ -33,14 +33,15 @@ struct SubjectRecordsView: View {
                 content(RecordReading.of(held), name: name)
             } else {
                 ContentUnavailableView {
-                    Label("Nothing stands here now", systemImage: "trophy")
+                    Text("No standing records")
                 } description: {
-                    Text("\(name) holds no records. The next completed session that sets one will show here.")
+                    Text("\(name) holds no records. The next completed session that sets one is listed here.")
                 }
                 .listRowBackground(Color.clear)
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
         .navigationTitle(name)
         .refreshable { await store.refresh() }
         .retractionDialog(asking: $asked, name: name, store: store)
@@ -87,13 +88,17 @@ struct SubjectRecordsView: View {
 
     @ViewBuilder
     private func liftingSections(_ lifting: RecordReading.Lifting, name: String) -> some View {
+        // The heaviest set is the grid's first cell, so it is a row here only when there is no grid
+        // to hold it — showing it in both would show one number twice.
+        let heaviestRow = lifting.grid.holdsRepMaxes ? nil : lifting.heaviestSet
+
         Section {
-            if let heaviest = lifting.heaviestSet {
-                RecordRow(record: heaviest, name: name, ask: ask)
+            if let heaviestRow {
+                RecordRow(record: heaviestRow, name: name, ask: ask)
             }
-            // Not repeated when it comes from the heaviest set, whose row already states it.
+            // Not repeated when it comes from the heaviest set's row, which already states it.
             if let estimate = lifting.strongestEstimate,
-               estimate.id != lifting.heaviestSet?.id,
+               estimate.id != heaviestRow?.id,
                let single = estimate.achievement.estimatedOneRepMax {
                 EstimateRow(record: estimate, single: single, unit: lifting.unit)
             }
@@ -107,13 +112,13 @@ struct SubjectRecordsView: View {
             Text("Best in \(Formatting.unitName(lifting.unit).lowercased())")
         }
 
-        if !lifting.grid.isEmpty {
+        if lifting.grid.holdsRepMaxes {
             Section {
                 RepMaxGridView(grid: lifting.grid, name: name, ask: ask, open: { opened = $0 })
             } header: {
                 Text("Rep maxes")
             } footer: {
-                Text("Your heaviest weight at each rep count, \(lifting.unit.abbreviation). The highlighted maxes were set in your latest session that set any. Tap one for its history.")
+                Text("Heaviest load at each rep count, \(lifting.unit.abbreviation). A set holds its own count and every count below it; the 1RM is the heaviest set. Filled: set in the latest session that set any.")
             }
         }
     }
@@ -247,9 +252,13 @@ private struct EstimateRow: View {
                 } label: {
                     Text("Estimated one-rep max")
                 }
-                Text("From your \(record.achievement.kind.label.lowercased()) of \(Formatting.achievement(record.achievement))")
-                    .font(.caption)
-                    .foregroundStyle(Color(.secondaryLabel))
+                // The set as performed, since the estimate is the whole set's: a six-rep max carried
+                // from a set of seven estimates from all seven.
+                if let set = record.achievement.performedSet {
+                    Text("From your set of \(Formatting.lift(set))")
+                        .font(.caption)
+                        .foregroundStyle(Color(.secondaryLabel))
+                }
             }
             .padding(.vertical, 2)
             .accessibilityElement(children: .combine)

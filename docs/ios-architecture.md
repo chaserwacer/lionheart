@@ -292,11 +292,19 @@ them, and withdraws one when the athlete says the set was not real. Three rules 
   answer to the record's own key. Distances carry no unit in their key: they rank in meters.
 - **The rep-max grid is a grid.** One cell per rep count from one to twelve, held or not, so an
   untested count reads as a gap rather than closing up. The server orders a summary newest first,
-  so the rep order is made on the device.
+  so the rep order is made on the device. The first cell is the heaviest-set record — every set
+  contains a single, so the server keeps no separate one-rep max — and the heaviest set is
+  therefore not repeated as a row above a grid that holds it. A set holds the rep max at its own
+  count and every count below it, so a cell held by the front of a longer set says "set of 7" under
+  its weight; the achievement decodes the rep count and the set's own reps apart. A movement whose
+  only lifting record is its heaviest set shows that as a row rather than one cell beside eleven
+  dashes.
 - **The live badge says only what beat a standing record.** A set competes for the heaviest set,
-  the rep max at its own rep count and the best set volume, in its own unit, against the records as
-  they stood when the workout began. Firsts of their kind, session volume and the distance records
-  are left to the server, which decides them on completion.
+  the rep max at every count it holds and the best set volume, in its own unit, against the records
+  as they stood when the workout began. Firsts of their kind, session volume and the distance
+  records are left to the server, which decides them on completion — so one set of twelve on a new
+  movement lights nothing rather than eleven badges. Several records beaten read as one sentence,
+  the most worth saying first: "New heaviest set and 5 more records".
 
 ## Design
 

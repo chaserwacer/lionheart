@@ -414,11 +414,38 @@ struct SetRecordOutcomeTests {
             == .beats(.repMax(reps: 5), also: [.bestSetVolume]))
     }
 
-    @Test("A heavier single beats the heaviest set and the one-rep max it has no record of stays quiet")
-    func aFirstRepMaxIsNotNews() {
-        // No 1RM stands in this book, so the single is the first of its kind there: the server
-        // will set one, but announcing firsts would make the badge mean nothing.
+    @Test("A heavier single beats the heaviest set, which is the one-rep max, and nothing more")
+    func aHeavierSingleIsTheHeaviestSet() {
         #expect(SetRecordOutcome.of(Self.set(230, 1), against: Self.pounds) == .beats(.heaviestSet, also: []))
+    }
+
+    @Test("A set beats the standing rep max at every count it holds, its own count named first")
+    func aSetBeatsEveryCountItHolds() {
+        // 185 × 6 holds the two through six; 180 × 7 holds the seven. A 190 six beats all that it
+        // holds, and not the seven it does not.
+        let book = ARecord.held([
+            ARecord.heaviest(185, 6, .kilograms),
+            ARecord.repMax(185, 2, .kilograms, setReps: 6),
+            ARecord.repMax(185, 3, .kilograms, setReps: 6),
+            ARecord.repMax(185, 4, .kilograms, setReps: 6),
+            ARecord.repMax(185, 5, .kilograms, setReps: 6),
+            ARecord.repMax(185, 6, .kilograms),
+            ARecord.repMax(180, 7, .kilograms),
+        ])
+
+        let outcome = SetRecordOutcome.of(Self.set(190, 6, .kilograms), against: book)
+
+        #expect(outcome == .beats(.heaviestSet, also: [6, 5, 4, 3, 2].map { .repMax(reps: $0) }))
+        #expect(Formatting.recordsBeaten(outcome) == "New heaviest set and 5 more records")
+    }
+
+    @Test("A rep max with nothing standing at its count is a first, and stays quiet")
+    func aFirstRepMaxIsNotNews() {
+        // Only the five stands, so a set of twelve beats the five and is the first of its kind at
+        // every other count: one badge, not eleven.
+        let fives = ARecord.held([ARecord.repMax(100, 5)])
+
+        #expect(SetRecordOutcome.of(Self.set(105, 12), against: fives) == .beats(.repMax(reps: 5), also: []))
     }
 
     @Test("A set in the other unit is not compared with this unit's records at all")
@@ -448,11 +475,12 @@ struct SetRecordOutcomeTests {
         #expect(SetRecordOutcome.of(Self.set(205, 5), against: book) == .none)
     }
 
-    @Test("Past twelve reps there is no rep max to beat, but the volume still counts")
-    func pastTheGridOnlyVolumeCounts() {
-        let thirteens = ARecord.held([ARecord.repMax(50, 12), ARecord.setVolume(50, 12)])
+    @Test("A set past twelve reps contains a set of twelve, so it contests the twelve-rep max")
+    func pastTheGridTheTwelveStillCounts() {
+        let twelves = ARecord.held([ARecord.repMax(50, 12), ARecord.setVolume(50, 12)])
 
-        #expect(SetRecordOutcome.of(Self.set(60, 13), against: thirteens) == .beats(.bestSetVolume, also: []))
+        #expect(SetRecordOutcome.of(Self.set(60, 13), against: twelves)
+            == .beats(.repMax(reps: 12), also: [.bestSetVolume]))
     }
 
     @Test("A set of nothing contests nothing, the server's own rule")

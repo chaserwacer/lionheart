@@ -172,6 +172,8 @@ struct ActiveWorkoutView: View {
             addSection(workout)
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
+        .environment(\.defaultMinListRowHeight, 34)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if workout.rest.isResting(at: Date()) {
                 RestTimerBar(
@@ -256,6 +258,7 @@ struct ActiveWorkoutView: View {
                 } label: {
                     Label(movement.sets.isEmpty ? "Log the first set" : "Add a set", systemImage: "plus")
                 }
+                .labelStyle(.titleOnly)
             }
         } header: {
             HStack {
@@ -289,6 +292,7 @@ struct ActiveWorkoutView: View {
                 Label(Formatting.target(target), systemImage: "target")
                     .font(.subheadline)
                     .foregroundStyle(Color(.secondaryLabel))
+                    .labelStyle(.titleOnly)
             }
         }
     }
@@ -328,6 +332,7 @@ struct ActiveWorkoutView: View {
                 Text("Nothing is sent until you finish. Tap Finish to save the whole session.")
             }
         }
+        .labelStyle(.titleOnly)
     }
 
     // MARK: - A set already logged
