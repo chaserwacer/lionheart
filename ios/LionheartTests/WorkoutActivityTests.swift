@@ -29,47 +29,6 @@ private final class ALockScreen: WorkoutActivityPresenting {
     var last: WorkoutActivityProjection?? { shown.last }
 }
 
-/// A server that accepts everything, so these tests are about the Lock Screen and not about sync.
-///
-/// Separate from the one in `ActiveWorkoutStoreTests` because that one is file-private and records
-/// a great deal this suite has no claim about; what matters here is only that the completing and
-/// discarding paths reach their end rather than bailing out on a failure.
-private struct AnAgreeableServer: WorkoutSessionWriting {
-    func session(id: UUID) async throws -> TrainingSession { Self.active(id) }
-    func replaceSets(id: UUID, with sets: [SetCommand]) async throws -> TrainingSession {
-        Self.active(id)
-    }
-    func updateNotes(id: UUID, to notes: String) async throws -> TrainingSession { Self.active(id) }
-    func complete(
-        id: UUID, period: PeriodRequest, effort: PerceivedEffortRequest?
-    ) async throws -> TrainingSession {
-        Self.active(id)
-    }
-    func logCompleted(
-        sets: [SetCommand],
-        period: PeriodRequest,
-        effort: PerceivedEffortRequest?,
-        notes: String,
-        programId: UUID?
-    ) async throws -> TrainingSession {
-        Self.active(AWorkout.session)
-    }
-    func delete(id: UUID) async throws {}
-
-    private static func active(_ id: UUID) -> TrainingSession {
-        .active(TrainingSession.Active(
-            envelope: TrainingSession.Envelope(
-                trainingSessionId: id,
-                notes: "",
-                provenance: .user,
-                trainingProgramId: nil,
-                createdAt: nil,
-                date: CalendarDay(year: 2026, month: 11, day: 2)),
-            startedAt: AWorkout.start,
-            sets: []))
-    }
-}
-
 @MainActor
 @Suite("Workout activity projection")
 struct WorkoutActivityProjectionTests {

@@ -232,6 +232,36 @@ is deliberately not `Sendable` while its `update` and `end` are nonisolated `asy
 project's `NonisolatedNonsendingByDefault: off` every isolated caller is a sending error;
 `LiveActivityHandle` is where that escape is contained and documented.
 
+### Hearing the rest end
+
+The rest clock is a stored `Task`, which stops running the moment the app is suspended — so a phone
+in a pocket between sets would show a correct countdown and never announce the end of it. The alert
+is therefore held by the system, as a local notification scheduled for the rest's end instant.
+**This needs no entitlement, no APNs and no paid membership**, which is what makes it the alert this
+app can actually have; only a *remote* notification needs those. Measured on the simulator: an
+ad-hoc-signed build with no team scheduled a 20-second rest alarm, and the system delivered it with
+the app backgrounded.
+
+It is a third representation of the same state, in the system this time, with the same failure as
+the other two — one left behind, buzzing about a rest that was skipped or a workout that was thrown
+away. So it goes through the same `mirror()` funnel, as `PendingRestAlarm.of(…)`, and `nil` is again
+the instruction to withdraw. Nothing in the store schedules or cancels directly.
+
+Two places it differs from the Live Activity, both deliberate. It is derived from the **rest** and
+not from the activity's projection, because a workout written down afterwards warrants no Lock
+Screen entry but is logged through the same surface and can arm a rest just the same. And sign-out
+additionally calls `forgetDelivered()`, because an alert that already *fired* is sitting in
+Notification Centre naming the last athlete's movement, which withdrawing a pending request cannot
+reach.
+
+Authorisation is asked for at the **first armed rest**, not at launch: that is the moment the
+permission is obviously for, and an app that prompts before the athlete has used it earns a refusal.
+A refusal costs the buzz and nothing else — the rest clock, the bar and the Lock Screen countdown
+are unaffected, which was checked by running with the prompt unanswered. A rest that ends while the
+app is in the foreground does not double up with the in-app haptic: with no
+`UNUserNotificationCenterDelegate` the system does not present a notification to a foreground app,
+which is the behaviour relied on here.
+
 **What has not been seen.** The Lock Screen and Island presentations were photographed from a
 throwaway harness rather than from the device: `simctl io screenshot` captures the framebuffer and
 the Island composites its content elsewhere, and `simctl` cannot lock the screen. On the device
