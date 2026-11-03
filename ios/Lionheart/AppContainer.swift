@@ -28,6 +28,7 @@ final class AppContainer {
     let cardio: CardioStore
     let habits: HabitsStore
     let diary: DiaryStore
+    let wellness: WellnessStore
     let activeWorkout: ActiveWorkoutStore
     let outbox: WorkoutOutbox
     let train: TrainStore
@@ -100,6 +101,7 @@ final class AppContainer {
         habits = HabitsStore(habits: HabitsAPI(client: client))
         diary = DiaryStore(
             oura: OuraAPI(client: client), cardio: CardioAPI(client: client), wellness: WellnessAPI(client: client))
+        wellness = WellnessStore(wellness: WellnessAPI(client: client), oura: OuraAPI(client: client))
     }
 
     /// Settles the signed-in root and reads back anything that survived the last run.
@@ -119,6 +121,11 @@ final class AppContainer {
             await habits.refreshLoaded()
             await diary.refreshLoaded()
         }
+        // A rating shows on Body's row for it and on the day it rates.
+        wellness.onLogged { [body, diary] in
+            await body.refresh()
+            await diary.refreshLoaded()
+        }
 
         // Registered before the session is settled, so a sign-out during the first load still
         // empties the screen it was loading into. The profile gate is reset for a sharper reason
@@ -126,7 +133,7 @@ final class AppContainer {
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
             [profile, today, train, routines, bodyweight, movements, history, focus, chat, thread, chatMemory,
-             body, ouraSync, cardio, habits, diary, memory] in
+             body, ouraSync, cardio, habits, diary, wellness, memory] in
             profile.reset()
             today.reset()
             train.reset()
@@ -143,6 +150,7 @@ final class AppContainer {
             cardio.reset()
             habits.reset()
             diary.reset()
+            wellness.reset()
             // Every answer the screens remembered. The next athlete on this phone must never open
             // onto the last one's readiness, offline or not.
             memory.forget()

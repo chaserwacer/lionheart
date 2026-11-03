@@ -158,11 +158,11 @@ struct LegacyWireShapeTests {
             Oura.day(date: "2026-03-04", readinessScore: "83", resilience: Oura.resilience))
 
         #expect(day.date == CalendarDay(year: 2026, month: 3, day: 4))
-        #expect(day.readiness?.score == 83)
+        #expect(day.readiness?.score == OuraScore(83))
         // A contributor score out of 100 comparing the day against the athlete's own baseline.
         // It is not a heart rate, and 81 is the value that makes that unmistakable.
-        #expect(day.readiness?.contributors.restingHeartRate == 81)
-        #expect(day.sleep?.contributors.totalSleep == 90)
+        #expect(day.readiness?.contributors.restingHeartRate == OuraScore(81))
+        #expect(day.sleep?.contributors.totalSleep == OuraScore(90))
         #expect(day.activity?.steps == 9000)
         #expect(day.spo2?.averagePercentage == 96.5)
         #expect(day.stress?.daySummary == "normal")

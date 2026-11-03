@@ -65,6 +65,12 @@ enum Formatting {
         return "\(start) – \(end)"
     }
 
+    /// What a span of days covers, said under the control that picks it: "Last 90 days: 6 Aug –
+    /// 3 Nov".
+    static func spanCaption(_ span: TrendSpan, endingOn today: CalendarDay, calendar: Calendar = .current) -> String {
+        "Last \(span.days) days: \(Formatting.span(from: today.adding(days: 1 - span.days, in: calendar), to: today, today: today, calendar: calendar))"
+    }
+
     /// A month as a section header — "October 2026".
     static func month(_ day: CalendarDay, calendar: Calendar = .current) -> String {
         day.middayDate(in: calendar).formatted(.dateTime.month(.wide).year())

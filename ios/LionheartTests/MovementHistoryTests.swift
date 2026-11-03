@@ -197,7 +197,7 @@ struct SessionLogMovementTests {
         let filtered = log.filtered(byMovements: [UUID(uuidString: Self.pausedSquat)!])
 
         #expect(filtered.sessionCount == 1)
-        #expect(filtered.months.first?.sessions.first?.day == CalendarDay(year: 2026, month: 10, day: 1))
+        #expect(filtered.weeks.first?.sessions.first?.day == CalendarDay(year: 2026, month: 10, day: 1))
         // A text search for the word both share would keep both, which is why the filter is by id.
         #expect(log.filtered(by: "squat").sessionCount == 2)
     }

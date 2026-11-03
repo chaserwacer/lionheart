@@ -11,8 +11,10 @@ struct BodyView: View {
     let ouraSync: OuraSyncStore
     let cardio: CardioStore
     let habits: HabitsStore
+    let wellness: WellnessStore
 
     @State private var isNewInjuryPresented = false
+    @State private var isWellnessPresented = false
 
     var body: some View {
         NavigationStack {
@@ -33,11 +35,20 @@ struct BodyView: View {
             .navigationTitle("Body")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("New injury", systemImage: "plus") { isNewInjuryPresented = true }
+                    // The two things logged by hand here: how the day feels, and an injury.
+                    Menu {
+                        Button("Log wellness") { isWellnessPresented = true }
+                        Button("New injury") { isNewInjuryPresented = true }
+                    } label: {
+                        Label("Add", systemImage: "plus")
+                    }
                 }
             }
             .sheet(isPresented: $isNewInjuryPresented) {
                 NewInjurySheet(store: store)
+            }
+            .sheet(isPresented: $isWellnessPresented) {
+                WellnessEntrySheet(store: wellness, existing: store.state.value?.wellness ?? [])
             }
             .refreshable { await store.refresh() }
             .navigationDestination(for: BodyRoute.self) { destination(for: $0) }
@@ -100,7 +111,7 @@ struct BodyView: View {
         case .dayActivity(let day):
             DayActivityView(day: day, store: habits)
         case .wellness:
-            WellnessHistoryView(readings: snapshot?.wellness ?? [], refresh: { await store.refresh() })
+            WellnessHistoryView(store: wellness)
         case .injuries:
             InjuriesView(injuries: snapshot?.injuries ?? [], store: store)
         case .injury(let id):
@@ -169,11 +180,7 @@ struct BodyView: View {
                 }
                 if let day {
                     NavigationLink(value: BodyRoute.ouraDay(day.date)) {
-                        LabeledContent {
-                            Text(Self.scores(of: day)).font(.subheadline.monospacedDigit())
-                        } label: {
-                            Text("Scores and contributors")
-                        }
+                        QuestionRow(title: "Oura's scores and contributors", detail: Self.scores(of: day).nonEmpty)
                     }
                 }
             } header: {
@@ -202,21 +209,23 @@ struct BodyView: View {
         }
     }
 
+    /// The aerobic base's two minute figures, in words: a week's means over the last four weeks.
     private var cardioLine: String? {
         guard let base = cardio.reports[.quarter]?.value?.aerobicBase else { return nil }
-        return [
-            base.zone2MinutesPerWeek.recent.map { "Z2 \(Int($0.rounded())) min/wk" },
-            base.cardioMinutesPerWeek.recent.map { "\(Int($0.rounded())) min/wk" },
-            base.vo2Max.recent.map { "VO₂max \(Int($0.rounded()))" },
-        ].compactMap(\.self).joined(separator: " · ").nonEmpty
+        let figures = [
+            base.cardioMinutesPerWeek.recent.map { "\(Int($0.rounded())) min of cardio" },
+            base.zone2MinutesPerWeek.recent.map { "\(Int($0.rounded())) in zone 2" },
+        ].compactMap(\.self)
+        return figures.isEmpty ? nil : "A week, last 4 weeks: " + figures.joined(separator: ", ")
     }
 
     private var movementLine: String? {
         guard let weekdays = habits.reports[.month]?.value?.current.weekdays else { return nil }
-        return [
-            weekdays.longestSittingMinutes.map { "Longest sitting \(Formatting.minutes($0))" },
+        let figures = [
             weekdays.steps.map { "\(Int($0).formatted()) steps" },
-        ].compactMap(\.self).joined(separator: " · ").nonEmpty.map { "Weekdays: \($0)" }
+            weekdays.longestSittingMinutes.map { "longest sitting \(Formatting.minutes($0))" },
+        ].compactMap(\.self)
+        return figures.isEmpty ? nil : "Mean weekday, last 30 days: " + figures.joined(separator: ", ")
     }
 
     @ViewBuilder
@@ -247,7 +256,9 @@ struct BodyView: View {
             }
             NavigationLink(value: BodyRoute.wellness) {
                 LabeledContent {
-                    Text(count(snapshot.wellness.count, "entry", plural: "entries")).monospacedDigit()
+                    Text(snapshot.wellness.first.map { "Last rated \(Formatting.date($0.date))" }
+                         ?? "None in 8 weeks")
+                        .monospacedDigit()
                 } label: {
                     Text("Wellness")
                 }

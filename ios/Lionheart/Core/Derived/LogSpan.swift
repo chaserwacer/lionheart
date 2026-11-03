@@ -14,9 +14,9 @@ enum LogSpan: CaseIterable, Hashable, Sendable, Identifiable {
 
     var label: String {
         switch self {
-        case .quarter: "3M"
-        case .half: "6M"
-        case .year: "1Y"
+        case .quarter: "3 months"
+        case .half: "6 months"
+        case .year: "1 year"
         case .all: "All"
         }
     }

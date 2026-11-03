@@ -27,7 +27,7 @@ struct RecoveryVerdictView: View {
                     .font(.subheadline)
                     .foregroundStyle(Color(.secondaryLabel))
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("\(readiness.score)")
+                    Text(readiness.score.description)
                         .font(.largeTitle.weight(.semibold).monospacedDigit())
                     Text(readiness.band.label)
                         .font(.headline)
@@ -53,7 +53,7 @@ struct RecoveryVerdictView: View {
         .padding(.vertical, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
-        .accessibilityValue("\(readiness.score), \(readiness.band.label)\(comparison.map { ", \($0)" } ?? "")")
+        .accessibilityValue("\(readiness.score.description), \(readiness.band.label)\(comparison.map { ", \($0)" } ?? "")")
     }
 
     private var title: String {

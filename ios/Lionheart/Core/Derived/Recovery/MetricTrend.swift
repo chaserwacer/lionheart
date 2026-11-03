@@ -11,9 +11,9 @@ enum TrendSpan: Int, CaseIterable, Hashable, Sendable, Identifiable {
 
     var label: String {
         switch self {
-        case .month: "30D"
-        case .quarter: "90D"
-        case .year: "1Y"
+        case .month: "30 days"
+        case .quarter: "90 days"
+        case .year: "1 year"
         }
     }
 }

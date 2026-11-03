@@ -73,27 +73,76 @@ struct SessionLogTests {
 
     // MARK: - Grouping
 
-    @Test("The log is grouped by month, newest month first, newest session first within it")
-    func theLogIsReadBackwards() throws {
+    @Test("The log is grouped by Monday-to-Sunday week, newest first, and by day within it")
+    func theLogIsReadBackwardsByWeek() throws {
+        // 2026-03-03 is a Tuesday and 03-01 the Sunday before it, so they fall in different weeks.
         let sessions = try Decoding.list(TrainingSession.self, """
             [\(Session.completed(id: "11111111-1111-1111-1111-111111111111", date: "2026-02-10")),
              \(Session.completed(id: "11111111-1111-1111-1111-111111111112", date: "2026-03-01")),
-             \(Session.completed(id: "11111111-1111-1111-1111-111111111113", date: "2026-03-03"))]
+             \(Session.completed(id: "11111111-1111-1111-1111-111111111113", date: "2026-03-03")),
+             \(Session.completed(id: "11111111-1111-1111-1111-111111111114", date: "2026-03-02"))]
             """)
 
         let log = SessionLog.reading(
-            sessions: sessions, catalogue: try Self.catalogue(), today: Self.today)
+            sessions: sessions, catalogue: try Self.catalogue(), today: Self.today, calendar: Self.calendar)
 
-        #expect(log.months.map(\.start) == [
-            CalendarDay(year: 2026, month: 3, day: 1),
-            CalendarDay(year: 2026, month: 2, day: 1),
+        #expect(log.weeks.map(\.start) == [
+            CalendarDay(year: 2026, month: 3, day: 2),
+            CalendarDay(year: 2026, month: 2, day: 23),
+            CalendarDay(year: 2026, month: 2, day: 9),
         ])
-        #expect(log.months[0].sessions.map(\.day) == [
+        #expect(log.weeks[0].days.map(\.day) == [
             CalendarDay(year: 2026, month: 3, day: 3),
-            CalendarDay(year: 2026, month: 3, day: 1),
+            CalendarDay(year: 2026, month: 3, day: 2),
         ])
-        #expect(log.sessionCount == 3)
+        #expect(log.weeks[0].performedCount == 2)
+        #expect(log.sessionCount == 4)
     }
+
+    @Test("Two sessions on one day are one row, in the order they happened")
+    func twoSessionsOnADayAreOneDay() throws {
+        let sessions = try Decoding.list(TrainingSession.self, """
+            [\(Session.completed(id: "11111111-1111-1111-1111-111111111111", date: "2026-03-03")),
+             \(Session.completed(id: "11111111-1111-1111-1111-111111111112", date: "2026-03-03"))]
+            """)
+
+        let log = SessionLog.reading(
+            sessions: sessions, catalogue: try Self.catalogue(), today: Self.today, calendar: Self.calendar)
+
+        let day = try #require(log.weeks.first?.days.first)
+        #expect(log.weeks.first?.days.count == 1)
+        #expect(day.sessions.map(\.sessionId.uuidString) == [
+            "11111111-1111-1111-1111-111111111111", "11111111-1111-1111-1111-111111111112",
+        ])
+    }
+
+    @Test("A run of weeks with nothing logged is one stretch between the weeks either side")
+    func quietWeeksAreSaidOnce() throws {
+        let sessions = try Decoding.list(TrainingSession.self, """
+            [\(Session.completed(id: "11111111-1111-1111-1111-111111111111", date: "2026-02-03")),
+             \(Session.completed(id: "11111111-1111-1111-1111-111111111112", date: "2026-03-03")),
+             \(Session.completed(id: "11111111-1111-1111-1111-111111111113", date: "2026-02-24"))]
+            """)
+
+        let stretches = SessionLog.reading(
+            sessions: sessions, catalogue: try Self.catalogue(), today: Self.today, calendar: Self.calendar
+        ).stretches(calendar: Self.calendar)
+
+        // Weeks of 2 Mar and 23 Feb are back to back; between 23 Feb and 2 Feb lie the weeks of
+        // 9 and 16 Feb.
+        #expect(stretches.map(\.id) == [
+            "week-2026-03-02", "week-2026-02-23", "quiet-2026-02-09", "week-2026-02-02",
+        ])
+        if case .quiet(_, let count) = stretches[2] { #expect(count == 2) } else { Issue.record("not quiet") }
+    }
+
+    /// Gregorian with the device's zone, so the week arithmetic does not depend on the runner's
+    /// locale.
+    private static let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        return calendar
+    }()
 
     // MARK: - Naming
 
@@ -162,7 +211,7 @@ struct SessionLogTests {
         let found = log.filtered(by: "squat")
 
         #expect(found.sessionCount == 1)
-        #expect(found.months.first?.sessions.first?.headline == "Barbell Back Squat")
+        #expect(found.weeks.first?.sessions.first?.headline == "Barbell Back Squat")
     }
 
     @Test("Search matches a note, which is where the words a lifter remembers live")
@@ -188,11 +237,11 @@ struct SessionLogTests {
         #expect(log.filtered(by: "   ").sessionCount == log.sessionCount)
     }
 
-    @Test("A query that matches nothing leaves no empty months behind")
-    func unmatchedMonthsAreDropped() throws {
+    @Test("A query that matches nothing leaves no empty weeks behind")
+    func unmatchedWeeksAreDropped() throws {
         let found = try Self.logOfBenchAndSquat().filtered(by: "zercher")
 
-        #expect(found.months.isEmpty)
+        #expect(found.weeks.isEmpty)
         #expect(found.isEmpty)
     }
 

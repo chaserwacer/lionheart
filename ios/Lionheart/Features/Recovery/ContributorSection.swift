@@ -32,7 +32,7 @@ struct ContributorSection: View {
                 header
             } footer: {
                 if explainsGauges, readings.contains(where: { $0.baseline != nil }) {
-                    Text("Oura's scores out of 100. Band: the 28 days before, mean ± one spread; tick: the mean.")
+                    Text("Each bar is one of Oura's scores out of 100: its rating of the day against your baseline, not a measurement. Shaded: where you usually score, the 28 days before, mean ± one spread; tick: your mean.")
                 }
             }
         }
@@ -43,7 +43,7 @@ struct ContributorSection: View {
             Text(group.title)
             Spacer()
             if let score = group.score(on: day) {
-                Text("\(score)").font(.headline.monospacedDigit()).foregroundStyle(Color(.label))
+                Text(score.description).font(.headline.monospacedDigit()).foregroundStyle(Color(.label))
             } else if let verdict {
                 Text(verdict).font(.subheadline).foregroundStyle(Color(.label))
             }
