@@ -115,7 +115,7 @@ struct OuraSyncRow: View {
             }
             let behind = day.days(until: today)
             if behind > 1 { return "data through \(when) · \(behind) days behind" }
-            return readinessFiled ? "data through \(when)" : "data through \(when) · no readiness yet"
+            return readinessFiled || day != today ? "data through \(when)" : "data through \(when) · no readiness yet"
         }
     }
 

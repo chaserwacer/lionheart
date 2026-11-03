@@ -214,6 +214,16 @@ struct RecoveryTests {
         #expect(trend.mean == 70)
     }
 
+    @Test("A steps trend leaves out today, which is still accruing, and keeps it once the day is over")
+    func stepsTrendWaitsForTheDayToEnd() {
+        let end = CalendarDay(year: 2026, month: 8, day: 1)
+        let key = MetricTrendKey(metric: .steps, span: .month, endingOn: end)
+        let days = [ARecovery.day(end.adding(days: -1), steps: 9_000), ARecovery.day(end, steps: 800)]
+
+        #expect(MetricTrend.reading(key, days: days, nights: [], today: end).points.map(\.value) == [9_000])
+        #expect(MetricTrend.reading(key, days: days, nights: [], today: Self.later).points.count == 2)
+    }
+
     // MARK: - Words
 
     @Test(

@@ -5,8 +5,8 @@ import SwiftUI
 ///
 /// The columns have fixed, Dynamic-Type-scaled widths so the figures and deviations of every row
 /// line up down the section, which is what lets the eye run down a column the way it reads a
-/// table. From the largest standard sizes up, where four columns no longer leave the name room, the
-/// name moves above the figures rather than squeezing to an ellipsis.
+/// table. From the first size above the default, where four columns no longer leave the name room,
+/// the name moves above the figures rather than squeezing to an ellipsis.
 struct RecoveryFigureRow: View {
     let reading: MetricReading
 
@@ -18,12 +18,16 @@ struct RecoveryFigureRow: View {
 
     var body: some View {
         Group {
-            if dynamicTypeSize >= .xxLarge {
+            if dynamicTypeSize >= .xLarge {
                 VStack(alignment: .leading, spacing: 4) {
                     name
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    HStack(alignment: .center, spacing: 12) {
                         figure
                         deviation
+                        Spacer(minLength: 8)
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            sparkline.frame(width: sparklineWidth, height: sparklineHeight)
+                        }
                     }
                 }
             } else {

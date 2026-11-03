@@ -145,6 +145,11 @@ struct TodayView: View {
 
         let isToday = snapshot.day == today
         recoverySection(snapshot.recovery, day: snapshot.day, today: today)
+        // Under the figures it qualifies, so the verdict leads, and in a section of its own so the
+        // figures' footer stays with them: how current they are, and the control that updates them.
+        if isToday {
+            Section { OuraSyncRow(store: ouraSync, today: today) }
+        }
         if let active = snapshot.inProgress { inProgressSection(active) }
         trainingSection(snapshot, today: today)
         if isToday {
@@ -171,11 +176,6 @@ struct TodayView: View {
             } else {
                 Text(day == today ? "No Oura data in the last two weeks." : "No Oura data for this day.")
                     .foregroundStyle(Color(.secondaryLabel))
-            }
-            // Under the figures it qualifies, so the verdict leads: how current they are, and the
-            // control that brings them up to date.
-            if day == today {
-                OuraSyncRow(store: ouraSync, today: today)
             }
         } header: {
             Text("Recovery")
@@ -274,9 +274,9 @@ struct TodayView: View {
     /// arrive under — so the rows appear in place rather than pushing a spinner off the screen.
     @ViewBuilder
     private func loadingRows(isToday: Bool) -> some View {
-        Section("Recovery") {
-            SkeletonRows(count: 3)
-            if isToday { OuraSyncRow(store: ouraSync, today: store.today) }
+        Section("Recovery") { SkeletonRows(count: 3) }
+        if isToday {
+            Section { OuraSyncRow(store: ouraSync, today: store.today) }
         }
         Section("Training") { SkeletonRows(count: 1) }
         if isToday { quickLogSection }
