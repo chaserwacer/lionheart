@@ -268,7 +268,7 @@ public sealed class PersonalRecordService : IPersonalRecordService
     /// </summary>
     /// <remarks>
     /// Every record one session set carries that session's instant, so the date alone leaves the
-    /// order of a movement's four fresh records undefined — and a rep-max grid reads as a grid
+    /// order of a movement's fresh records undefined — and a rep-max grid reads as a grid
     /// only if its rows come back in rep order.
     /// </remarks>
     private static IEnumerable<PersonalRecord> Ordered(IEnumerable<PersonalRecord> records) =>
@@ -284,7 +284,7 @@ public sealed class PersonalRecordService : IPersonalRecordService
     // bound from JSON and described to the model as if it were an argument. The model is handed
     // the empty answer rather than a refusal it can do nothing about.
 
-    [Tool(Name = "GetPersonalRecords", Description = "Every personal record the athlete currently holds, newest first: heaviest set, best set volume, each rep max, best session volume, longest distance, fastest time at a distance and best pace.")]
+    [Tool(Name = "GetPersonalRecords", Description = "Every personal record the athlete currently holds, newest first: heaviest set, best set volume, each rep max, best session volume, longest distance, fastest time at a distance and best pace. A rep max at N reps (two to twelve) is the heaviest weight lifted in a set of at least N reps; setReps is how many reps that set had. The one-rep max is the heaviest set.")]
     public Task<IReadOnlyList<PersonalRecordView>> GetPersonalRecordsForChatAsync(IdentityUser user) =>
         GetStandingAsync(user, CancellationToken.None).MatchAsync(records => records, _ => []);
 

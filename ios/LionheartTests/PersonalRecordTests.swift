@@ -37,8 +37,12 @@ enum ARecord {
         record(.heaviestSet(lift(weight, reps, unit)), dayOffset: dayOffset)
     }
 
-    static func repMax(_ weight: Double, _ reps: Int, _ unit: WeightUnit = .pounds, dayOffset: Double = 0) -> PersonalRecord {
-        record(.repMax(lift(weight, reps, unit)), dayOffset: dayOffset)
+    /// A rep max at `reps`, held by a set of `setReps` — the same count unless it was carried down
+    /// from a longer set.
+    static func repMax(
+        _ weight: Double, _ reps: Int, _ unit: WeightUnit = .pounds, setReps: Int? = nil, dayOffset: Double = 0
+    ) -> PersonalRecord {
+        record(.repMax(reps: reps, lift(weight, setReps ?? reps, unit)), dayOffset: dayOffset)
     }
 
     static func setVolume(_ weight: Double, _ reps: Int, _ unit: WeightUnit = .pounds) -> PersonalRecord {
@@ -87,7 +91,7 @@ struct PersonalRecordDecodingTests {
         #expect(achievements[0] == .heaviestSet(.init(weight: 245, unit: .pounds, reps: 1, estimatedOneRepMax: 245)))
         #expect(achievements[1] == .bestSetVolume(.init(volume: 2025, unit: .pounds, weight: 135, reps: 15)))
         // The estimate is the server's, received to the digit rather than recomputed here.
-        #expect(achievements[2] == .repMax(.init(weight: 205, unit: .pounds, reps: 5, estimatedOneRepMax: 239.16666666666669)))
+        #expect(achievements[2] == .repMax(reps: 5, .init(weight: 205, unit: .pounds, reps: 5, estimatedOneRepMax: 239.16666666666669)))
         #expect(achievements[3] == .bestSessionVolume(.init(volume: 10830, unit: .pounds)))
         #expect(achievements[4] == .longestDistance(.init(distance: 13.1, unit: .miles, duration: 7470)))
         #expect(achievements[5] == .fastestTime(meters: 5000, .init(distance: 5, unit: .kilometers, duration: 1605)))
@@ -112,6 +116,16 @@ struct PersonalRecordDecodingTests {
         #expect(fastest.key == RecordKey(subject: .trailRunning, kind: .fastestTime(meters: 21082), heldIn: nil))
         #expect(repMax.achievement.kind.bracket == 5)
         #expect(RecordKind.heaviestSet.bracket == nil)
+    }
+
+    @Test("A rep max carried down from a longer set keeps its rep count and the set's apart")
+    func aCarriedRepMaxKeepsBothCounts() throws {
+        let six = try Decoding.decode(PersonalRecord.self, Self.record(
+            #"{"$type":"repMax","reps":6,"weight":180,"unit":0,"estimatedOneRepMax":222,"setReps":7}"#))
+
+        // Filed under six — the record's identity — while the set it came from is the seven.
+        #expect(six.key.kind == .repMax(reps: 6))
+        #expect(six.achievement == .repMax(reps: 6, .init(weight: 180, unit: .kilograms, reps: 7, estimatedOneRepMax: 222)))
     }
 
     @Test("An absent movement is trail running, not an unknown movement")
@@ -220,19 +234,45 @@ struct RecordReadingTests {
     func theGridIsInRepOrderWithGaps() {
         let grid = RecordReading.of(ARecord.held([
             ARecord.repMax(160, 11, dayOffset: 30),
-            ARecord.repMax(245, 1, dayOffset: 30),
+            ARecord.heaviest(245, 1, dayOffset: 30),
             ARecord.repMax(205, 5, dayOffset: 30),
             ARecord.repMax(215, 3, dayOffset: 10),
         ])).lifting[0].grid
 
         #expect(grid.cells.map(\.reps) == Array(1...12))
         #expect(grid.cells.map(\.weight) == [245, nil, 215, nil, 205, nil, nil, nil, nil, nil, 160, nil])
-        #expect(!grid.isEmpty)
+        #expect(grid.holdsRepMaxes)
+    }
+
+    @Test("The first cell is the heaviest set, since every set contains a single")
+    func theFirstCellIsTheHeaviestSet() {
+        let heaviest = ARecord.heaviest(185, 6, .kilograms)
+
+        let grid = RecordReading.of(ARecord.held([
+            heaviest,
+            ARecord.repMax(185, 6, .kilograms),
+            ARecord.repMax(180, 7, .kilograms),
+        ])).lifting[0].grid
+
+        #expect(grid.cells[0].record == heaviest)
+        // The single was the front of the set of six, and the grid says so.
+        #expect(grid.cells[0].longerSetReps == 6)
+    }
+
+    @Test("A cell held by the front of a longer set says how long it was; a clean set does not")
+    func aCarriedCellNamesItsSet() {
+        let grid = RepMaxGrid.of(heaviestSet: nil, repMaxes: [
+            ARecord.repMax(185, 5, .kilograms, setReps: 6),
+            ARecord.repMax(185, 6, .kilograms),
+        ])
+
+        #expect(grid.cells[4].longerSetReps == 6)
+        #expect(grid.cells[5].longerSetReps == nil)
     }
 
     @Test("The cells set in the grid's latest session are the newest, and only those")
     func theNewestCellsAreMarked() {
-        let grid = RepMaxGrid.of([
+        let grid = RepMaxGrid.of(heaviestSet: ARecord.heaviest(215, 3, dayOffset: 10), repMaxes: [
             ARecord.repMax(205, 5, dayOffset: 30),
             ARecord.repMax(215, 3, dayOffset: 10),
         ])
@@ -240,14 +280,14 @@ struct RecordReadingTests {
         #expect(grid.cells.filter(\.isNewest).map(\.reps) == [5])
     }
 
-    @Test("A movement whose records predate the grid has an empty one, not twelve dashes")
+    @Test("A movement holding only its heaviest set has no grid to show, not one cell beside eleven dashes")
     func legacyRecordsHaveNoGrid() {
         let reading = RecordReading.of(ARecord.held([
             ARecord.heaviest(0, 0, .kilograms),
             ARecord.setVolume(0, 0, .kilograms),
         ]))
 
-        #expect(reading.lifting[0].grid.isEmpty)
+        #expect(!reading.lifting[0].grid.holdsRepMaxes)
         // A weight-zero record is real data and is shown as it is, not filtered out.
         #expect(reading.lifting[0].heaviestSet != nil)
     }
@@ -263,7 +303,7 @@ struct RecordReadingTests {
         ]))
         let pounds = reading.lifting.first { $0.unit == .pounds }
 
-        #expect(pounds?.strongestEstimate?.achievement == .repMax(ARecord.lift(225, 2)))
+        #expect(pounds?.strongestEstimate?.achievement == .repMax(reps: 2, ARecord.lift(225, 2)))
     }
 
     @Test("A single actually lifted is no estimate, so it is not offered as one")
@@ -311,9 +351,9 @@ struct RecordHistoryTests {
     @Test("A chain is narrowed to the record's own unit — the route answers every unit")
     func theChainIsOneUnit() {
         let chain = [
-            ARecord.record(.repMax(ARecord.lift(205, 5)), dayOffset: 30, previousDayOffset: 20),
-            ARecord.record(.repMax(ARecord.lift(95, 5, .kilograms)), dayOffset: 25),
-            ARecord.record(.repMax(ARecord.lift(200, 5)), dayOffset: 20, standing: .beaten),
+            ARecord.record(.repMax(reps: 5, ARecord.lift(205, 5)), dayOffset: 30, previousDayOffset: 20),
+            ARecord.record(.repMax(reps: 5, ARecord.lift(95, 5, .kilograms)), dayOffset: 25),
+            ARecord.record(.repMax(reps: 5, ARecord.lift(200, 5)), dayOffset: 20, standing: .beaten),
         ]
 
         let history = RecordHistory.reading(chain, of: Self.poundsFive)
@@ -325,9 +365,9 @@ struct RecordHistoryTests {
     @Test("A withdrawn record is listed but is no point on the line")
     func aRetractedLinkIsNotATrendPoint() {
         let chain = [
-            ARecord.record(.repMax(ARecord.lift(300, 5)), dayOffset: 40, standing: .retracted),
-            ARecord.record(.repMax(ARecord.lift(205, 5)), dayOffset: 30),
-            ARecord.record(.repMax(ARecord.lift(200, 5)), dayOffset: 20, standing: .beaten),
+            ARecord.record(.repMax(reps: 5, ARecord.lift(300, 5)), dayOffset: 40, standing: .retracted),
+            ARecord.record(.repMax(reps: 5, ARecord.lift(205, 5)), dayOffset: 30),
+            ARecord.record(.repMax(reps: 5, ARecord.lift(200, 5)), dayOffset: 20, standing: .beaten),
         ]
 
         let history = RecordHistory.reading(chain, of: Self.poundsFive)
@@ -356,7 +396,7 @@ struct RecordHistoryTests {
     @Test("One point is not a trend")
     func onePointHasNoLine() {
         let history = RecordHistory.reading(
-            [ARecord.record(.repMax(ARecord.lift(205, 5)))], of: Self.poundsFive)
+            [ARecord.record(.repMax(reps: 5, ARecord.lift(205, 5)))], of: Self.poundsFive)
 
         #expect(history.links.count == 1)
         #expect(history.trend.isEmpty)
@@ -380,7 +420,7 @@ struct RecordHistoryTests {
     func daysStanding() {
         let now = ARecord.start.addingTimeInterval(14 * ARecord.day + 3600)
 
-        #expect(ARecord.record(.repMax(ARecord.lift(205, 5))).daysStanding(asOf: now) == 14)
-        #expect(ARecord.record(.repMax(ARecord.lift(205, 5)), standing: .beaten).daysStanding(asOf: now) == nil)
+        #expect(ARecord.record(.repMax(reps: 5, ARecord.lift(205, 5))).daysStanding(asOf: now) == 14)
+        #expect(ARecord.record(.repMax(reps: 5, ARecord.lift(205, 5)), standing: .beaten).daysStanding(asOf: now) == nil)
     }
 }

@@ -69,10 +69,27 @@ public class ResponseDiscriminatorTests
         // Seven kinds behind one slot: without the discriminator a records screen cannot tell a
         // rep max from a longest distance.
         var body = await WriteAsync(
-            AchievementView.Of(new Achievement.RepMax(new LiftPerformance(225, WeightUnit.Pounds, 5))),
+            AchievementView.Of(new Achievement.RepMax(5, new LiftPerformance(225, WeightUnit.Pounds, 5))),
             typeof(AchievementView));
 
         Assert.Equal("repMax", JsonDocument.Parse(body).RootElement.GetProperty("$type").GetString());
+    }
+
+    [Fact]
+    public async Task ARepMaxFromALongerSetSendsItsRepCountAndTheSetsRepsApart()
+    {
+        // "reps" keeps meaning the rep count the record is held at, which a client already in the
+        // field files the record under; "setReps" says the six-rep max was the front of a seven.
+        var body = await WriteAsync(
+            AchievementView.Of(new Achievement.RepMax(6, new LiftPerformance(180, WeightUnit.Kilograms, 7))),
+            typeof(AchievementView));
+
+        var achievement = JsonDocument.Parse(body).RootElement;
+        Assert.Equal(6, achievement.GetProperty("reps").GetInt32());
+        Assert.Equal(7, achievement.GetProperty("setReps").GetInt32());
+        Assert.Equal(180, achievement.GetProperty("weight").GetDouble());
+        // The estimate is the set's as performed, not a set of six that never stood alone.
+        Assert.Equal(180 * (1 + 7 / 30.0), achievement.GetProperty("estimatedOneRepMax").GetDouble(), precision: 6);
     }
 
     /// <summary>

@@ -8,6 +8,7 @@ import Foundation
 enum RecordKind: Hashable, Sendable {
     case heaviestSet
     case bestSetVolume
+    /// The heaviest weight lifted for this many reps, in a set of that many or more.
     case repMax(reps: Int)
     case bestSessionVolume
     case longestDistance
@@ -17,9 +18,20 @@ enum RecordKind: Hashable, Sendable {
     case bestPace
     case unrecognised(String)
 
-    /// The highest rep count the server keeps a rep max for — `RecordKind.HighestGradedRepCount`.
-    /// Past it the number describes work capacity, which the volume records answer.
-    static let highestGradedRepCount = 12
+    /// The rep counts the server keeps a rep max for — `RecordKind.RepMax.FewestReps` to
+    /// `MostReps`. Below two is the heaviest set, since every set contains a single; past twelve
+    /// the number describes work capacity, which the volume records answer.
+    static let repMaxReps = 2...12
+
+    /// Every rep max a set of `setReps` reps holds, mirroring the server's
+    /// `RecordKind.RepMax.HeldBy` so a set can be judged offline.
+    ///
+    /// A set holds the rep max at its own count and every count below it: a set of seven
+    /// contains a set of six, because those six reps were performed. A set past twelve therefore
+    /// holds all of two through twelve.
+    static func repMaxes(heldBySetOf setReps: Int) -> [RecordKind] {
+        repMaxReps.filter { $0 <= setReps }.map { .repMax(reps: $0) }
+    }
 
     /// The spelling the history route's `kind` parameter takes, which is also the achievement's
     /// `$type`.

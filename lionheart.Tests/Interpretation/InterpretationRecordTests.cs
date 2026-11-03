@@ -42,8 +42,8 @@ public class InterpretationRecordTests : IDisposable
 
         var standing = await StandingAsync();
 
-        // Heaviest set, best set volume, the session total, and one rep max at five reps.
-        Assert.Equal(4, standing.Count);
+        // Heaviest set, best set volume, the session total, and the rep maxes at two through five.
+        Assert.Equal(7, standing.Count);
         Assert.Equal(
             225,
             Assert.IsType<Achievement.HeaviestSet>(

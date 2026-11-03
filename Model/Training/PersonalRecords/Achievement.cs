@@ -56,14 +56,56 @@ public abstract record RecordKind
         public override int Bracket => 0;
     }
 
-    /// <summary>The most weight moved for exactly <paramref name="Reps"/> reps.</summary>
+    /// <summary>
+    /// The most weight moved for <paramref name="Reps"/> reps, in a set of that many or more.
+    /// </summary>
+    /// <remarks>
+    /// A rep max is held from <see cref="FewestReps"/> to <see cref="MostReps"/>. One rep is not a
+    /// bracket of its own: every set contains a single, so the one-rep max is by definition the
+    /// heaviest set, and a second kind for it would store one fact twice.
+    /// </remarks>
     public sealed record RepMax(int Reps) : RecordKind
     {
         public const string Spelling = "repMax";
 
+        /// <summary>The lowest rep count with a rep max of its own; below it is the heaviest set.</summary>
+        public const int FewestReps = 2;
+
+        /// <summary>
+        /// The highest rep count a rep max is kept for.
+        /// </summary>
+        /// <remarks>
+        /// The grid is a training tool: lifters work against their one through twelve, and past
+        /// that the number has stopped describing strength and started describing work capacity,
+        /// which the two volume records already answer. A longer set still holds every rep max up
+        /// to here, because it contains a set of twelve.
+        /// </remarks>
+        public const int MostReps = 12;
+
         public override string Name => Spelling;
 
         public override int Bracket => Reps;
+
+        /// <summary>
+        /// Every rep max a set of <paramref name="setReps"/> reps holds.
+        /// </summary>
+        /// <remarks>
+        /// A set holds the rep max at its own rep count and at every count below it, and this is
+        /// not inference: a set of seven <em>contains</em> a set of six — the first six of the
+        /// seven were actually performed. It is how lifters speak ("hit 105 for six, so that's a
+        /// five-rep PR too"), and it is what lets a rep-max grid read as one: weight can only fall
+        /// as the rep count rises, where a grid of exact counts can show a seven-rep max heavier
+        /// than the six. The estimated one-rep max is the opposite case — a single nobody lifted —
+        /// which is why it stays derived and labelled as an estimate rather than becoming a record.
+        /// <para>
+        /// The count stops at <see cref="MostReps"/>, so a set of twenty holds two through twelve,
+        /// and starts at <see cref="FewestReps"/>, since the single it holds is the heaviest set's.
+        /// </para>
+        /// </remarks>
+        public static IEnumerable<RepMax> HeldBy(int setReps) =>
+            Enumerable.Range(FewestReps, MostReps - FewestReps + 1)
+                .Where(reps => reps <= setReps)
+                .Select(reps => new RepMax(reps));
     }
 
     /// <summary>The most weight times reps summed over one session.</summary>
@@ -123,7 +165,7 @@ public abstract record RecordKind
         BestSessionVolume.Spelling => Unbracketed(new BestSessionVolume(), bracket, name),
         LongestDistance.Spelling => Unbracketed(new LongestDistance(), bracket, name),
         BestPace.Spelling => Unbracketed(new BestPace(), bracket, name),
-        RepMax.Spelling => Bracketed(bracket, name, "a rep count", reps => new RepMax(reps)),
+        RepMax.Spelling => RepMaxAt(bracket, name),
         FastestTime.Spelling => Bracketed(bracket, name, "a distance in meters", m => new FastestTime(m)),
         _ => Result<RecordKind, Problem>.Failure(
             new Problem.Invalid(nameof(name), $"'{name}' is not a kind of personal record."))
@@ -142,18 +184,22 @@ public abstract record RecordKind
             : Result<RecordKind, Problem>.Failure(
                 new Problem.Invalid(nameof(bracket), $"'{name}' records need {expected} above zero."));
 
-    /// <summary>
-    /// The highest rep count the grid keeps a record for.
-    /// </summary>
     /// <remarks>
-    /// A grid is a training tool: lifters work against their one through twelve, and past that the
-    /// number has stopped describing strength and started describing work capacity, which the two
-    /// volume records already answer. Unbounded, a single 23-rep set would plant a row nothing ever
-    /// beats and that sits in the summary forever. A set above the ceiling is neither refused nor
-    /// lost — it sets no rep max, while still competing for the heaviest set, the best set volume
-    /// and the session total.
+    /// Refused outside the held range rather than answered with an empty chain, because no record
+    /// of that kind can exist: a one-rep max is asked for as the heaviest set, and nothing holds a
+    /// rep max past the grid's last count.
     /// </remarks>
-    public const int HighestGradedRepCount = 12;
+    private static Result<RecordKind, Problem> RepMaxAt(int? bracket, string name) => bracket switch
+    {
+        null or < 1 => Result<RecordKind, Problem>.Failure(
+            new Problem.Invalid(nameof(bracket), $"'{name}' records need a rep count above zero.")),
+        < RepMax.FewestReps => Result<RecordKind, Problem>.Failure(
+            new Problem.Invalid(
+                nameof(bracket), $"A one-rep max is the heaviest set; ask for '{HeaviestSet.Spelling}'.")),
+        > RepMax.MostReps => Result<RecordKind, Problem>.Failure(
+            new Problem.Invalid(nameof(bracket), $"'{name}' records are kept up to {RepMax.MostReps} reps.")),
+        { } reps => Result<RecordKind, Problem>.Success(new RepMax(reps)),
+    };
 }
 
 /// <summary>
@@ -184,7 +230,8 @@ public sealed record RecordKey(RecordSubject Subject, RecordKind Kind, WeightUni
 /// would have nothing to say about it. Fused, the invalid pairings cannot be written down.
 /// <para>
 /// The three single-set lift kinds share one <see cref="LiftPerformance"/> rather than each
-/// restating weight, unit and reps — they are three questions about the same set.
+/// restating weight, unit and reps — they are three questions about the same set. It is always
+/// the set as performed, so a rep max held by the front of a longer set still says which set.
 /// </para>
 /// </remarks>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
@@ -269,11 +316,20 @@ public abstract record Achievement
         public override WeightUnit? HeldIn => Lift.Unit;
     }
 
-    public sealed record RepMax(LiftPerformance Lift) : Achievement
+    /// <summary>
+    /// The heaviest weight held for <paramref name="Reps"/> reps, by <paramref name="Lift"/> — a set
+    /// of exactly that many, or the front of a longer one.
+    /// </summary>
+    /// <remarks>
+    /// The rep count and the set's own reps are kept apart because a lifter reads them apart: a
+    /// five-rep max from a clean set of five and one from the first five of a set of eight are the
+    /// same record and different stories. <see cref="RecordKind.RepMax.HeldBy"/> is what keeps
+    /// <paramref name="Reps"/> at or below the set's.
+    /// </remarks>
+    public sealed record RepMax(int Reps, LiftPerformance Lift) : Achievement
     {
-        /// <summary>The rep count is the set's own, so a grid row cannot disagree with the set in it.</summary>
         [JsonIgnore]
-        public override RecordKind Kind => new RecordKind.RepMax(Lift.Reps);
+        public override RecordKind Kind => new RecordKind.RepMax(Reps);
 
         [JsonIgnore]
         public override double Rank => Lift.Weight;
