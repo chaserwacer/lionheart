@@ -64,24 +64,37 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
             ? parameters
             : parameters with { Tools = [.. request.Tools.Select(Describe)] };
 
-        return request.Caching switch
+        // A round after a tool call also caches its tail, so the next round of the same exchange,
+        // seconds later, reads the tool results back instead of paying for them again.
+        return (request.Caching, request.Messages is [.., ModelMessage.ToolsAnswered]) switch
         {
-            PromptCaching.None => offered,
-            PromptCaching.Conversation => offered with { CacheControl = ConversationCache },
+            (PromptCaching.None, _) => offered,
+            (PromptCaching.Conversation, true) => offered with { CacheControl = RoundCache },
+            (PromptCaching.Conversation, false) => offered,
             _ => throw new UnreachableException(),
         };
     }
 
     /// <summary>
-    /// Automatic caching: the API puts the breakpoint on the last block and moves it forward as the
-    /// conversation grows, so each request reads what the one before it wrote.
+    /// The breakpoint on the athlete's latest words: everything up to them is the conversation as
+    /// it will be resent next time, and it is kept for an hour.
     /// </summary>
     /// <remarks>
-    /// An hour rather than the default five minutes. The athlete comes back to a conversation after
-    /// ten or forty minutes far more often than within five, and the hour's dearer write (2x input
-    /// against 1.25x) is repaid by the first read inside it.
+    /// An hour rather than the default five minutes, because the athlete comes back to a
+    /// conversation after ten or forty minutes far more often than within five, and the hour's
+    /// dearer write (2x input against 1.25x) is repaid by the first read inside it. Only this prefix
+    /// earns the hour. A tool round's request and results are replayed later as plain text, not in
+    /// the shape this exchange sent them, so nothing after the latest words is ever read again
+    /// once the exchange ends.
     /// </remarks>
-    private static readonly Messages.CacheControlEphemeral ConversationCache = new() { Ttl = Messages.Ttl.Ttl1h };
+    private static readonly Messages.CacheControlEphemeral HistoryCache = new() { Ttl = Messages.Ttl.Ttl1h };
+
+    /// <summary>
+    /// Automatic caching for a tool loop's tail, at the default five minutes: the API moves the
+    /// breakpoint to the last block, and the next round reads it within seconds. It follows the
+    /// hour-long breakpoint, which is the order the API requires of mixed lifetimes.
+    /// </summary>
+    private static readonly Messages.CacheControlEphemeral RoundCache = new();
 
     /// <summary>
     /// How the answer is asked for. A schema goes in <c>OutputConfig.Format</c>, never through a
@@ -182,11 +195,19 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
             .SkipWhile(message => !OpensATranscript(message))
             .ToList();
 
+        var latestWords = request.Caching is PromptCaching.Conversation
+            ? transcript.FindLastIndex(message => message is ModelMessage.UserSaid)
+            : -1;
+
         return transcript.Count == 0
             ? Result<IReadOnlyList<Messages.MessageParam>, Problem>.Failure(new Problem.Invalid(
                 "messages",
                 "There is nothing to send: the message is empty, or too large for the input budget."))
-            : transcript.Traverse(Transcribe);
+            : transcript
+                .Select((message, index) => (Message: message, IsLatestWords: index == latestWords))
+                .Traverse(turn => turn is { IsLatestWords: true, Message: ModelMessage.UserSaid said }
+                    ? Text(Messages.MessageParamRole.User, said.Text, HistoryCache)
+                    : Transcribe(turn.Message));
     }
 
     /// <summary>Whether a message says anything the model could read.</summary>
@@ -291,6 +312,12 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
     private static Result<Messages.MessageParam, Problem> Text(Messages.MessageParamRole role, string text) =>
         Result<Messages.MessageParam, Problem>.Success(
             Blocks(role, [new Messages.ContentBlockParam(new Messages.TextBlockParam(text), null)]));
+
+    /// <summary>A text turn with a cache breakpoint on its block.</summary>
+    private static Result<Messages.MessageParam, Problem> Text(
+        Messages.MessageParamRole role, string text, Messages.CacheControlEphemeral cache) =>
+        Result<Messages.MessageParam, Problem>.Success(
+            Blocks(role, [new Messages.ContentBlockParam(new Messages.TextBlockParam(text) { CacheControl = cache }, null)]));
 
     private static Messages.MessageParam Blocks(
         Messages.MessageParamRole role, IReadOnlyList<Messages.ContentBlockParam> blocks)

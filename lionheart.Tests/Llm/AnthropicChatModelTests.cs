@@ -236,21 +236,57 @@ public sealed class AnthropicChatModelTests : IDisposable
     }
 
     /// <summary>
-    /// A conversation resends itself with one more turn on every request, so it asks the API to
-    /// cache everything up to its last block — for an hour, because the athlete comes back to a
-    /// conversation after ten or forty minutes far more often than within the default five.
+    /// A conversation is resent with one more turn on every request, so the athlete's latest words
+    /// carry an hour-long breakpoint: a return within the hour reads everything up to them back.
     /// </summary>
     [Fact]
-    public async Task A_conversation_is_cached_for_an_hour_up_to_its_last_block()
+    public async Task A_conversation_caches_up_to_the_athletes_latest_words_for_an_hour()
     {
         _server.Responds(CannedAnthropic.Text("ok"));
 
         await Respond(ChatTurnRequest.Conversation(
-            "You are a training analyst.", [new ModelMessage.UserSaid("how did last week go?")], [], 1024));
+            "You are a training analyst.",
+            [new ModelMessage.UserSaid("how did last week go?"), new ModelMessage.AssistantSaid("Four sessions."),
+             new ModelMessage.UserSaid("and legs?")],
+            [], 1024));
 
-        var cache = Request(Assert.Single(_server.ReceivedRequests)).GetProperty("cache_control");
+        var sent = Request(Assert.Single(_server.ReceivedRequests));
+        var cache = sent.GetProperty("messages")[2].GetProperty("content")[0].GetProperty("cache_control");
         Assert.Equal("ephemeral", cache.GetProperty("type").GetString());
         Assert.Equal("1h", cache.GetProperty("ttl").GetString());
+        Assert.False(sent.GetProperty("messages")[0].GetProperty("content")[0].TryGetProperty("cache_control", out _));
+        Assert.False(sent.TryGetProperty("cache_control", out _));
+    }
+
+    /// <summary>
+    /// A round after a tool call caches its tail too, but only for the default five minutes: the
+    /// next round reads it seconds later, and once the exchange ends nothing reads it again.
+    /// </summary>
+    [Fact]
+    public async Task A_tool_round_caches_its_tail_for_five_minutes_behind_the_hour_long_history()
+    {
+        _server.Responds(CannedAnthropic.ToolUse("count_sets", """{"days":7}"""));
+        _server.Responds(CannedAnthropic.Text("ok"));
+        var request = ChatTurnRequest.Conversation(
+            "You are a training analyst.", [new ModelMessage.UserSaid("how many sets?")], [], 1024);
+        var asked = Assert.IsType<ModelTurn.RequestedTools>(ResultAssert.Succeeded(await Respond(request)));
+
+        await Respond(request with
+        {
+            Messages =
+            [
+                .. request.Messages,
+                new ModelMessage.AssistantActed(asked.Turn),
+                new ModelMessage.ToolsAnswered([ToolOutcome.Produced("toolu_1", "21")]),
+            ],
+        });
+
+        var sent = Request(_server.ReceivedRequests[1]);
+        var tail = sent.GetProperty("cache_control");
+        Assert.Equal("ephemeral", tail.GetProperty("type").GetString());
+        Assert.False(tail.TryGetProperty("ttl", out var ttl) && ttl.GetString() == "1h");
+        Assert.Equal("1h", sent.GetProperty("messages")[0].GetProperty("content")[0]
+            .GetProperty("cache_control").GetProperty("ttl").GetString());
     }
 
     /// <summary>A one-off call is never sent again, so a cache write would be paid for and never read.</summary>
@@ -261,7 +297,9 @@ public sealed class AnthropicChatModelTests : IDisposable
 
         await Respond();
 
-        Assert.False(Request(Assert.Single(_server.ReceivedRequests)).TryGetProperty("cache_control", out _));
+        var sent = Request(Assert.Single(_server.ReceivedRequests));
+        Assert.False(sent.TryGetProperty("cache_control", out _));
+        Assert.False(sent.GetProperty("messages")[0].GetProperty("content")[0].TryGetProperty("cache_control", out _));
     }
 
     /// <summary>Conversation leaves the depth to the model's own default rather than pinning it.</summary>

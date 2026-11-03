@@ -286,6 +286,38 @@ Activity classes travel as `nonWear`, `rest`, `inactive`, `low`, `medium`, `high
 Clock figures in a sleep timing are minutes: a bedtime from noon, a wake time and midpoint from
 midnight, so bedtimes either side of midnight average correctly.
 
+## Chat thread and memory — `/api/chat/thread`, `/api/chat/memories`
+
+One continuing chat per athlete, beside the standalone conversations under `/api/chat/conversation*`
+(which predate this spec and keep their verb-carrying routes). The model never sees the whole thread,
+only the **session** a message lands in: a session ends when the thread sits idle for three hours or
+its stored transcript passes about 60k tokens, and the next message opens a new one. An ended
+session is distilled into **memory** before the next opens, so the new session starts with what was
+said in the old one rather than its transcript.
+
+| Verb | Route | Body / query | Answers |
+|---|---|---|---|
+| GET | `/api/chat/thread` | `before?` — an instant, the `openedAt` of the oldest session already shown | `ChatThreadPage`: up to ten `sessions`, oldest first, and `hasEarlier` |
+| POST | `/api/chat/thread/messages` | `{ content }` | the `ThreadSessionView` the exchange went into, whole — a new session when the message opened one. 400 for an empty message, 502 when the model failed; a failed exchange stores nothing |
+| GET | `/api/chat/memories` | — | every current `MemoryView`: goals, injuries and preferences first, then newest first |
+| PUT | `/api/chat/memories/{id}` | `{ kind, text }` | the new `MemoryView`; the version it replaces is kept and listed under `earlier`. 409 when the memory is no longer current |
+| DELETE | `/api/chat/memories/{id}` | — | 204; the memory and every earlier version of it are gone |
+
+- **`ThreadSessionView`** — `sessionId`, `openedAt`, `messages[]`: the athlete's and the model's turns
+  in order, each the same `LHChatMessageDTO` a conversation carries (`role` 0 athlete, 1 model). Tool
+  results are not turns and are not sent.
+- **`MemoryView`** — `memoryId`, `kind` (int: `0` goal, `1` injury, `2` preference, `3` commitment,
+  `4` decision, `5` fact), `text`, `recordedAt`, `source` (int: `0` distilled from the chat, `1`
+  written by the athlete), `quotes[]` (`messageId`, `byAthlete`, `said` — clipped to 280 characters,
+  `at`), and `earlier[]` (`kind`, `text`, `recordedAt`, `replacedAt`), newest first.
+- A memory changes by being **superseded**: a correction, or a session that revises it, writes a new
+  current version and keeps the old one dated. A session can also **retire** a memory that no longer
+  holds; a retired memory is no longer listed.
+- Thread sessions are stored as conversations but are not standalone ones: the conversation routes
+  neither list them nor accept their ids.
+- The chat model reaches memory through the `SearchMemory` tool, offered to standalone
+  conversations too.
+
 ## Interpretation engine — `/api/interpretation`
 
 - `POST /interpret` — `{ RawText, LoggedAt }` → `Committed | AwaitingConfirmation`

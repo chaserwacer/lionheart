@@ -63,7 +63,8 @@ public sealed record ConsolidationPrompt(
         Remember only what the athlete stated, decided or agreed to: goals; injuries and niggles; standing preferences about how he trains or how he wants answers; commitments he made; decisions about his training, with the reason where he gave one; and durable facts about him such as schedule, equipment, circumstances and history. Do not remember:
         - the analyst's own findings, figures or advice, unless the athlete adopted them as a decision or a commitment;
         - training data the app records anyway: sessions, sets, records, ring scores, logged injuries;
-        - one-off questions, small talk, or anything true only for the moment.
+        - one-off questions, small talk, or anything true only for the moment;
+        - a length or format he asks for in one message, unless he says he wants it from now on.
 
         Write each memory as one standalone sentence, in the third person, that a later reader understands without the session: name the body part, lift or goal, and date anything that will change ("As of 2026-11-03, ..."). Keep it under 300 characters.
 
