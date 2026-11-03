@@ -62,11 +62,22 @@ struct OuraSampleSeries: Equatable, Sendable {
 
     /// The samples that exist, with where each sits on the clock — what a chart plots.
     var measured: [(at: Date, value: Double)] {
+        runs.flatMap(\.self)
+    }
+
+    /// The samples that exist, split wherever the ring took no reading, so a chart draws each
+    /// unbroken stretch as its own line and a gap stays a gap rather than a line across it.
+    var runs: [[(at: Date, value: Double)]] {
         guard let startedAt else { return [] }
-        return samples.enumerated().compactMap { index, sample in
-            guard let sample else { return nil }
-            return (startedAt.addingTimeInterval(intervalSeconds * Double(index)), sample)
+        return samples.enumerated().reduce(into: [[(at: Date, value: Double)]]()) { runs, element in
+            guard let sample = element.element else {
+                if runs.last?.isEmpty == false { runs.append([]) }
+                return
+            }
+            let point = (at: startedAt.addingTimeInterval(intervalSeconds * Double(element.offset)), value: sample)
+            if runs.isEmpty { runs.append([point]) } else { runs[runs.count - 1].append(point) }
         }
+        .filter { !$0.isEmpty }
     }
 }
 
@@ -191,13 +202,24 @@ struct OuraWorkout: Equatable, Sendable {
 
 /// Oura's own vocabularies as words.
 ///
-/// They are open sets Oura extends on its own schedule, so this reshapes `snake_case` rather than
+/// They are open sets Oura extends on its own schedule, so this reshapes the spelling rather than
 /// mapping a closed list: a value Oura adds still reads, where an enum would have to refuse it.
+/// Oura writes some vocabularies in `snake_case` (intensities, stress summaries) and its workout
+/// activities in `camelCase`, so both are taken apart: `strengthTraining` reads "Strength training".
 enum OuraVocabulary {
     static func phrase(_ value: String) -> String {
-        let spaced = value.replacingOccurrences(of: "_", with: " ")
-        guard let first = spaced.first else { return value }
-        return first.uppercased() + spaced.dropFirst()
+        let words = value.reduce(into: "") { spelled, character in
+            if character == "_" {
+                spelled.append(" ")
+            } else if character.isUppercase, let last = spelled.last, last != " " {
+                spelled.append(" ")
+                spelled.append(Character(character.lowercased()))
+            } else {
+                spelled.append(character)
+            }
+        }
+        guard let first = words.first else { return value }
+        return first.uppercased() + words.dropFirst()
     }
 }
 

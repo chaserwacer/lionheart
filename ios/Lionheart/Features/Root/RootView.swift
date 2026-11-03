@@ -81,6 +81,7 @@ private struct SignedInTabs: View {
                 TodayView(
                     store: container.today,
                     ouraSync: container.ouraSync,
+                    habits: container.habits,
                     library: container.movements,
                     history: container.history,
                     focus: container.focus,
@@ -110,7 +111,11 @@ private struct SignedInTabs: View {
                 TabLabel("Chat", systemImage: "bubble.left")
             }
             Tab(value: Destination.body) {
-                BodyView(store: container.body, ouraSync: container.ouraSync)
+                BodyView(
+                    store: container.body,
+                    ouraSync: container.ouraSync,
+                    cardio: container.cardio,
+                    habits: container.habits)
             } label: {
                 TabLabel("Body", systemImage: "waveform.path.ecg")
             }

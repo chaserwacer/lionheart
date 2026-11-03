@@ -140,6 +140,15 @@ extension ReadKey {
         ReadKey("records.established.session.\(sessionId.uuidString)")
     }
 
+    /// The cardio report for one span, ending today. Kept per span, so switching span offline shows
+    /// the one last read for it.
+    static func cardio(days: Int) -> ReadKey { ReadKey("body.cardio.\(days)") }
+    static func habits(days: Int) -> ReadKey { ReadKey("body.habits.\(days)") }
+    static func habitsDay(_ day: CalendarDay) -> ReadKey { ReadKey("habits.day.\(day.wire)") }
+    static func heartRate(from: Date, to: Date) -> ReadKey {
+        ReadKey("heart-rate.\(Int(from.timeIntervalSince1970)).\(Int(to.timeIntervalSince1970))")
+    }
+
     /// One record chain, by the identity the route is asked with.
     static func recordHistory(_ key: RecordKey) -> ReadKey {
         let subject = key.subject.movementDataId?.uuidString ?? "trail-running"

@@ -13,6 +13,8 @@ import SwiftUI
 struct TodayView: View {
     let store: TodayStore
     let ouraSync: OuraSyncStore
+    /// The shown day's movement timeline, read beside the day's other reads.
+    let habits: HabitsStore
     /// Names the movements in each session's lines.
     let library: MovementLibraryStore
     /// The whole log, which a movement's page opened from a training line reads.
@@ -32,6 +34,9 @@ struct TodayView: View {
     enum Route: Hashable {
         case session(UUID)
         case trend(RecoveryMetric, endingOn: CalendarDay)
+        /// The night behind the recovery figures, by its waking day.
+        case night(CalendarDay)
+        case dayActivity(CalendarDay)
     }
 
     var body: some View {
@@ -57,7 +62,11 @@ struct TodayView: View {
             .environment(\.defaultMinListRowHeight, 36)
             .navigationTitle(title(of: day, today: today))
             .toolbar { toolbar(day: day, today: today) }
-            .refreshable { await store.refresh() }
+            .refreshable {
+                async let today: Void = store.refresh()
+                async let movement: Void = habits.loadDay(day)
+                _ = await (today, movement)
+            }
             .navigationDestination(for: Route.self) { destination(for: $0) }
             .navigationDestination(for: HistoryRoute.self) { route in
                 HistoryDestination(route: route, history: history, focus: focus, library: library)
@@ -75,6 +84,7 @@ struct TodayView: View {
             }
         }
         .task { await store.refresh() }
+        .task(id: day) { await habits.loadDay(day) }
     }
 
     // MARK: - Toolbar
@@ -127,6 +137,18 @@ struct TodayView: View {
                 endingOn: endingOn,
                 trend: { store.trends[$0] },
                 load: { await store.loadTrend($0) })
+        case .night(let day):
+            if let night = store.state.value?.night, night.day == day {
+                NightView(night: night)
+            } else {
+                ContentUnavailableView {
+                    Text("Night not available")
+                } description: {
+                    Text("It is no longer on the day Today has loaded.")
+                }
+            }
+        case .dayActivity(let day):
+            DayActivityView(day: day, store: habits)
         }
     }
 
@@ -151,6 +173,7 @@ struct TodayView: View {
 
         let isToday = snapshot.day == today
         recoverySection(snapshot.recovery, day: snapshot.day, today: today)
+        bodyDaySection(snapshot)
         // Under the figures it qualifies, so the verdict leads, and in a section of its own so the
         // figures' footer stays with them: how current they are, and the control that updates them.
         if isToday {
@@ -188,6 +211,35 @@ struct TodayView: View {
         } footer: {
             if let recovery, !recovery.figures.isEmpty {
                 Text(footer(for: recovery, shownDay: day, today: today))
+            }
+        }
+    }
+
+    /// The night the figures came from and the shown day's movement, each a strip that opens onto
+    /// its own screen.
+    @ViewBuilder
+    private func bodyDaySection(_ snapshot: TodaySnapshot) -> some View {
+        // A day stored before the five-minute classification was kept has no shape to draw; its
+        // steps are already among the figures above.
+        let movement = habits.days[snapshot.day]?.value.flatMap(\.self).flatMap { $0.runs.isEmpty ? nil : $0 }
+        if snapshot.night != nil || movement != nil {
+            Section {
+                if let night = snapshot.night {
+                    NavigationLink(value: Route.night(night.day)) {
+                        NightSummaryRow(
+                            night: night,
+                            caption: night.day == snapshot.day
+                                ? nil
+                                : "Night of \(Formatting.date(night.day.adding(days: -1)))")
+                    }
+                }
+                if let movement {
+                    NavigationLink(value: Route.dayActivity(snapshot.day)) {
+                        DayActivityRow(detail: movement)
+                    }
+                }
+            } header: {
+                Text("Night and day")
             }
         }
     }

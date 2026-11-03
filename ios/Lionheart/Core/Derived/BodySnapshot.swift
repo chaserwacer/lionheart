@@ -35,7 +35,17 @@ struct BodySnapshot: Equatable, Sendable {
 
     /// The night's main sleep for a day, where Oura scored one.
     func mainSleep(on day: CalendarDay) -> OuraSleepPeriod? {
-        OuraSleepPeriod.mainSleep(on: day, in: nights[day] ?? [])
+        mainSleepEvent(on: day)?.reading
+    }
+
+    /// The same night with its clock time, which the hypnogram and the overnight curves are drawn on.
+    func mainSleepEvent(on day: CalendarDay) -> OuraEvent<OuraSleepPeriod>? {
+        (nights[day] ?? []).first { $0.reading.isMainSleep }
+    }
+
+    /// The newest main sleep filed on or before `day`.
+    func latestNight(onOrBefore day: CalendarDay) -> OuraEvent<OuraSleepPeriod>? {
+        nights.keys.filter { $0 <= day }.sorted(by: >).lazy.compactMap(mainSleepEvent(on:)).first
     }
 
     /// The recovery figures for the newest day the ring filed, against his baseline — the same

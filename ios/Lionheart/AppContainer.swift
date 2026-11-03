@@ -23,6 +23,8 @@ final class AppContainer {
     let chat: ChatStore
     let body: BodyStore
     let ouraSync: OuraSyncStore
+    let cardio: CardioStore
+    let habits: HabitsStore
     let activeWorkout: ActiveWorkoutStore
     let outbox: WorkoutOutbox
     let train: TrainStore
@@ -84,6 +86,8 @@ final class AppContainer {
             wellness: WellnessAPI(client: client),
             injuries: InjuriesAPI(client: client))
         ouraSync = OuraSyncStore(oura: OuraAPI(client: client))
+        cardio = CardioStore(cardio: CardioAPI(client: client), oura: OuraAPI(client: client))
+        habits = HabitsStore(habits: HabitsAPI(client: client))
     }
 
     /// Settles the signed-in root and reads back anything that survived the last run.
@@ -96,16 +100,18 @@ final class AppContainer {
 
         // A sync stores new days, so the two tabs that show them read again — Body only when it has
         // been opened, since an unopened tab reads for itself when it is.
-        ouraSync.onSynced { [today, body] in
+        ouraSync.onSynced { [today, body, cardio, habits] in
             await today.refresh()
             if body.state.value != nil { await body.refresh() }
+            await cardio.refreshLoaded()
+            await habits.refreshLoaded()
         }
 
         // Registered before the session is settled, so a sign-out during the first load still
         // empties the screen it was loading into. The profile gate is reset for a sharper reason
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
-        auth.onSignOut { [profile, today, train, movements, history, focus, chat, body, ouraSync, memory] in
+        auth.onSignOut { [profile, today, train, movements, history, focus, chat, body, ouraSync, cardio, habits, memory] in
             profile.reset()
             today.reset()
             train.reset()
@@ -115,6 +121,8 @@ final class AppContainer {
             chat.reset()
             body.reset()
             ouraSync.reset()
+            cardio.reset()
+            habits.reset()
             // Every answer the screens remembered. The next athlete on this phone must never open
             // onto the last one's readiness, offline or not.
             memory.forget()

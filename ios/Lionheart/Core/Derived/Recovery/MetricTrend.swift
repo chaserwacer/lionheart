@@ -79,6 +79,22 @@ struct MetricTrend: Equatable, Sendable {
         return MetricTrend(key: key, points: points, rollingMean: rollingMean(of: points, calendar: calendar))
     }
 
+    /// The longest gap a line is drawn across. Past it, the line breaks: a mean line joining a week
+    /// in March to one in May across two months with no data draws a trend that never happened.
+    static let longestBridgedGapDays = 7
+
+    /// Points split wherever consecutive ones are more than `longestBridgedGapDays` apart, so a
+    /// chart draws each stretch as its own line.
+    static func unbrokenRuns(of points: [MetricPoint], calendar: Calendar = .current) -> [[MetricPoint]] {
+        points.reduce(into: [[MetricPoint]]()) { runs, point in
+            if let last = runs.last?.last, last.day.days(until: point.day, in: calendar) <= longestBridgedGapDays {
+                runs[runs.count - 1].append(point)
+            } else {
+                runs.append([point])
+            }
+        }
+    }
+
     /// The trailing mean at each point, over the points in the seven days ending on it.
     static func rollingMean(of points: [MetricPoint], calendar: Calendar = .current) -> [MetricPoint] {
         points.compactMap { point in
