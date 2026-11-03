@@ -7,11 +7,13 @@ public sealed record SessionTip(ChatThreadSession Session, LHChatConversation Co
     public DateTime LastActivityAt => Conversation.LastUpdate;
 
     /// <summary>
-    /// An estimate over every stored turn, tool results included, since all of them are resent. From
-    /// the text rather than the stored counts, which for an answer include the thinking behind it.
+    /// The session's size as the completion service measures it when it packs a prompt: the system
+    /// prompt and every stored turn, tool results included, by their stored token counts. The same
+    /// units as that budget, so a session that ends within the cap is one the service sends whole.
     /// </summary>
     public int TranscriptTokens =>
-        Conversation.GetAllNonSystemMessagesInChronologicalOrder().Sum(message => message.Content?.Length ?? 0) / 4;
+        Conversation.ChatSystemMessage.TokenCount
+        + Conversation.GetAllNonSystemMessagesInChronologicalOrder().Sum(message => message.TokenCount);
 }
 
 /// <summary>Why a session ended.</summary>

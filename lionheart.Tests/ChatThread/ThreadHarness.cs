@@ -7,6 +7,7 @@ using lionheart.Model.Profile;
 using lionheart.Services.Chat;
 using lionheart.Services.Chat.Memory;
 using lionheart.Services.Chat.Thread;
+using lionheart.Services.Llm;
 using lionheart.Services.Profile;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
@@ -23,8 +24,6 @@ namespace lionheart.Tests.ChatThread;
 /// </summary>
 public sealed class ThreadHarness : IDisposable
 {
-    private readonly ChatThreadGate _gate = new();
-
     public ThreadHarness() => Athlete = new IdentityUser { Id = Database.UserId.ToString() };
 
     public RemodelDatabase Database { get; } = new();
@@ -39,6 +38,8 @@ public sealed class ThreadHarness : IDisposable
 
     public IdentityUser Athlete { get; }
 
+    public ChatThreadGate Gate { get; } = new();
+
     public Guid AthleteId => Database.UserId;
 
     public ChatThreadService Thread(ModelContext context)
@@ -51,17 +52,19 @@ public sealed class ThreadHarness : IDisposable
             Consolidator(context),
             new MemoryRecallService(context, vectors),
             SystemPrompt,
-            _gate,
+            Gate,
             Clock);
     }
 
     /// <summary>The card failing to build, which is its documented fallback: the chat still opens, on the voice alone.</summary>
     public ChatSystemPrompt SystemPrompt { get; } = new(new UnbuildableCard());
 
-    public SessionConsolidator Consolidator(ModelContext context) =>
-        new(context, Model.CreateChatModel(), new MemoryVectors(Embeddings), Clock, NullLogger<SessionConsolidator>.Instance);
+    /// <param name="model">The model to consolidate with, when a test needs to act while it is deciding.</param>
+    public SessionConsolidator Consolidator(ModelContext context, IChatModel? model = null) =>
+        new(context, model ?? Model.CreateChatModel(), new MemoryVectors(Embeddings), Gate, Clock,
+            NullLogger<SessionConsolidator>.Instance);
 
-    public ChatMemoryService Memory(ModelContext context) => new(context, new MemoryVectors(Embeddings), Clock);
+    public ChatMemoryService Memory(ModelContext context) => new(context, new MemoryVectors(Embeddings), Gate, Clock);
 
     public async Task<ThreadSessionView> SendAsync(string words)
     {
@@ -143,7 +146,7 @@ public sealed class ThreadHarness : IDisposable
         Database.Dispose();
         Model.Dispose();
         Toolbox.Dispose();
-        _gate.Dispose();
+        Gate.Dispose();
     }
 
     private sealed class UnbuildableCard : IAthleteContextCardService
@@ -162,6 +165,20 @@ public sealed class ThreadHarness : IDisposable
 }
 
 public sealed record SeededSession(Guid SessionId, IReadOnlyList<Guid> MessageIds);
+
+/// <summary>
+/// The canned model, with something done while it is deciding — the window in which the athlete
+/// can change memory under a consolidation.
+/// </summary>
+public sealed class MeanwhileChatModel(IChatModel inner, Func<Task> meanwhile) : IChatModel
+{
+    public async Task<lionheart.Functional.Result<ModelTurn, Problem>> RespondAsync(
+        ChatTurnRequest request, CancellationToken cancellationToken = default)
+    {
+        await meanwhile();
+        return await inner.RespondAsync(request, cancellationToken);
+    }
+}
 
 /// <summary>A clock the test moves forward, so the idle gap can pass without waiting for it.</summary>
 public sealed class MovableClock(DateTimeOffset start) : TimeProvider

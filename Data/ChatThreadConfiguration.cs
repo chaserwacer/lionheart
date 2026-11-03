@@ -10,10 +10,10 @@ namespace lionheart.Data;
 public static class ChatThreadConfiguration
 {
     /// <summary>Stamped from <see cref="ChatThreadSession.IsConsolidated"/>, which lives in a JSON column.</summary>
-    public const string SessionIsConsolidatedColumn = "ConsolidationSettled";
+    public const string SessionIsConsolidatedColumn = "Consolidated";
 
     /// <summary>Stamped from <see cref="ChatMemory.IsCurrent"/>, which lives in a JSON column.</summary>
-    public const string MemoryIsCurrentColumn = "StandsCurrent";
+    public const string MemoryIsCurrentColumn = "CurrentVersion";
 
     public static void Apply(ModelBuilder modelBuilder)
     {

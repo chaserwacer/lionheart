@@ -100,9 +100,16 @@ public sealed class MemoryLifecycleTests
         session.ConsolidationFailed(failedAt, "model unavailable");
 
         Assert.False(session.IsDueForConsolidation(failedAt.AddMinutes(10)));
-        Assert.True(session.IsDueForConsolidation(failedAt + ChatSessionPolicy.ConsolidationRetryAfter));
+        Assert.True(session.IsDueForConsolidation(failedAt.AddMinutes(30)));
 
-        for (var attempt = 2; attempt <= ChatSessionPolicy.ConsolidationAttempts; attempt++)
+        session.ConsolidationFailed(failedAt, "model unavailable");
+        session.ConsolidationFailed(failedAt, "model unavailable");
+
+        // Past the first few tries, a session that keeps failing is tried every six hours.
+        Assert.False(session.IsDueForConsolidation(failedAt.AddHours(5)));
+        Assert.True(session.IsDueForConsolidation(failedAt.AddHours(6)));
+
+        for (var attempt = 4; attempt <= ChatSessionPolicy.ConsolidationAttempts; attempt++)
         {
             session.ConsolidationFailed(failedAt, "model unavailable");
         }

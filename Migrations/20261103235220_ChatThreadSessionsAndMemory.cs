@@ -24,7 +24,7 @@ namespace lionheart.Migrations
                     Origin = table.Column<string>(type: "TEXT", nullable: false),
                     Standing = table.Column<string>(type: "TEXT", nullable: false),
                     Vector = table.Column<byte[]>(type: "BLOB", nullable: false),
-                    StandsCurrent = table.Column<bool>(type: "INTEGER", nullable: false)
+                    CurrentVersion = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -45,7 +45,7 @@ namespace lionheart.Migrations
                     UserId = table.Column<Guid>(type: "TEXT", nullable: false),
                     OpenedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     Consolidation = table.Column<string>(type: "TEXT", nullable: false),
-                    ConsolidationSettled = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Consolidated = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -70,14 +70,14 @@ namespace lionheart.Migrations
                 column: "LineageId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatMemories_UserId_StandsCurrent",
+                name: "IX_ChatMemories_UserId_CurrentVersion",
                 table: "ChatMemories",
-                columns: new[] { "UserId", "StandsCurrent" });
+                columns: new[] { "UserId", "CurrentVersion" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatThreadSessions_ConsolidationSettled",
+                name: "IX_ChatThreadSessions_Consolidated",
                 table: "ChatThreadSessions",
-                column: "ConsolidationSettled");
+                column: "Consolidated");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ChatThreadSessions_UserId_OpenedAt",

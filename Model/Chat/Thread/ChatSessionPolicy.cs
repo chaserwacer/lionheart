@@ -19,20 +19,29 @@ public static class ChatSessionPolicy
     public static readonly TimeSpan IdleGap = TimeSpan.FromHours(3);
 
     /// <summary>
-    /// How large a session's transcript may grow, in estimated tokens, before the next message
-    /// starts a new one even without an idle gap.
+    /// How large a session may grow, in the stored token counts the completion service packs a
+    /// prompt by, before the next message starts a new one even without an idle gap.
     /// </summary>
     /// <remarks>
     /// A thread he keeps coming back to every couple of hours would otherwise never end, and the
     /// whole point of sessions is that the model reads a focused one rather than a day of
-    /// accumulated tool output. Well inside the completion service's input budget, so a session is
-    /// always sent whole and its prefix stays cacheable.
+    /// accumulated tool output. Two thirds of the service's input budget, so the exchange that
+    /// crosses the cap still fits — an answer's stored count, thinking included, can be most of
+    /// the 32k output cap — and a session is sent whole, its prefix cacheable, until it ends.
     /// </remarks>
     public const int MaxTranscriptTokens = 60_000;
 
-    /// <summary>How many times a session's consolidation is tried before it is left failed.</summary>
-    public const int ConsolidationAttempts = 3;
+    /// <summary>
+    /// How many times a session's consolidation is tried before it is left failed: about two and a
+    /// half days of retries, long enough to outlast a model server that is down for a weekend.
+    /// </summary>
+    public const int ConsolidationAttempts = 12;
 
-    /// <summary>How long a failed consolidation waits before it is tried again.</summary>
-    public static readonly TimeSpan ConsolidationRetryAfter = TimeSpan.FromMinutes(30);
+    /// <summary>
+    /// How long a failed consolidation waits before it is tried again: half an hour for the first
+    /// few tries, which covers a brief outage, then six hours, which stops a session that keeps
+    /// failing from costing a model call every pass.
+    /// </summary>
+    public static TimeSpan ConsolidationRetryAfter(int attempts) =>
+        attempts < 3 ? TimeSpan.FromMinutes(30) : TimeSpan.FromHours(6);
 }

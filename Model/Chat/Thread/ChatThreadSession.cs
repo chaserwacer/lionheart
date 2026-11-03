@@ -52,7 +52,7 @@ public sealed class ChatThreadSession
             SessionConsolidation.Consolidated => false,
             SessionConsolidation.Failed failed =>
                 failed.Attempts < ChatSessionPolicy.ConsolidationAttempts
-                && now - failed.LastAttemptAt >= ChatSessionPolicy.ConsolidationRetryAfter,
+                && now - failed.LastAttemptAt >= ChatSessionPolicy.ConsolidationRetryAfter(failed.Attempts),
             _ => throw new UnreachableException(),
         };
 

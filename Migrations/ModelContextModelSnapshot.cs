@@ -457,6 +457,9 @@ namespace lionheart.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("CurrentVersion")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Kind")
                         .HasColumnType("INTEGER");
 
@@ -474,9 +477,6 @@ namespace lionheart.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("StandsCurrent")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Text")
                         .IsRequired()
                         .HasMaxLength(400)
@@ -493,7 +493,7 @@ namespace lionheart.Migrations
 
                     b.HasIndex("LineageId");
 
-                    b.HasIndex("UserId", "StandsCurrent");
+                    b.HasIndex("UserId", "CurrentVersion");
 
                     b.ToTable("ChatMemories", (string)null);
                 });
@@ -503,12 +503,12 @@ namespace lionheart.Migrations
                     b.Property<Guid>("ChatConversationId")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Consolidated")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Consolidation")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<bool>("ConsolidationSettled")
-                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("OpenedAt")
                         .HasColumnType("TEXT");
@@ -518,7 +518,7 @@ namespace lionheart.Migrations
 
                     b.HasKey("ChatConversationId");
 
-                    b.HasIndex("ConsolidationSettled");
+                    b.HasIndex("Consolidated");
 
                     b.HasIndex("UserId", "OpenedAt");
 

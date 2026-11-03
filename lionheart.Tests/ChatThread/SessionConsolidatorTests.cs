@@ -167,4 +167,71 @@ public sealed class SessionConsolidatorTests : IDisposable
 
         Assert.True(_thread.Session(newest.SessionId).IsConsolidated);
     }
+
+    // ---- The athlete changing memory while the model decides ----
+
+    /// <summary>
+    /// A correction the athlete saves while the model is deciding stands. The consolidation's
+    /// revision of the memory he replaced is set aside, so the memory never has two current versions.
+    /// </summary>
+    [Fact]
+    public async Task A_correction_made_while_the_model_decides_is_not_written_over()
+    {
+        var knee = _thread.SeedMemory(m => m.OfKind(MemoryKind.Injury).Saying("Left knee pain on deep squats."));
+        _thread.SeedSession(Some.Clock.AddDays(1), "Knee is fine now.");
+        _thread.Model.Responds(CannedChat.Content("""
+            {"changes":[{"action":"revise","memoryId":"k1","kind":"fact","text":"Knee pain resolved.","sourceMessageIds":["m1"]}]}
+            """));
+        var model = new MeanwhileChatModel(_thread.Model.CreateChatModel(), async () =>
+        {
+            await using var elsewhere = _thread.Database.CreateContext();
+            ResultAssert.Succeeded(await _thread.Memory(elsewhere).CorrectAsync(
+                _thread.Athlete, knee.MemoryId,
+                new CorrectMemoryRequest { Kind = MemoryKind.Injury, Text = "Right knee, not left." },
+                CancellationToken.None));
+        });
+
+        await using var context = _thread.Database.CreateContext();
+        var run = await _thread.Consolidator(context, model).ConsolidateEndedAsync(_thread.AthleteId, CancellationToken.None);
+
+        Assert.Equal(1, run.Consolidated);
+        var current = Assert.Single(_thread.Memories(), memory => memory.IsCurrent);
+        Assert.Equal("Right knee, not left.", current.Text);
+        Assert.IsType<MemoryOrigin.Corrected>(current.Origin);
+    }
+
+    [Fact]
+    public async Task A_memory_forgotten_while_the_model_decides_stays_forgotten()
+    {
+        var knee = _thread.SeedMemory(m => m.OfKind(MemoryKind.Injury).Saying("Left knee pain on deep squats."));
+        _thread.SeedSession(Some.Clock.AddDays(1), "Knee is fine now.");
+        _thread.Model.Responds(CannedChat.Content("""
+            {"changes":[{"action":"revise","memoryId":"k1","kind":"fact","text":"Knee pain resolved.","sourceMessageIds":["m1"]}]}
+            """));
+        var model = new MeanwhileChatModel(_thread.Model.CreateChatModel(), async () =>
+        {
+            await using var elsewhere = _thread.Database.CreateContext();
+            ResultAssert.Succeeded(await _thread.Memory(elsewhere).DeleteAsync(_thread.Athlete, knee.MemoryId, CancellationToken.None));
+        });
+
+        await using var context = _thread.Database.CreateContext();
+        var run = await _thread.Consolidator(context, model).ConsolidateEndedAsync(_thread.AthleteId, CancellationToken.None);
+
+        Assert.Equal(1, run.Consolidated);
+        Assert.Empty(_thread.Memories());
+    }
+
+    [Fact]
+    public async Task A_memory_is_dated_by_the_message_it_rests_on_not_by_when_it_was_distilled()
+    {
+        var said = Some.Clock.AddDays(-2);
+        _thread.SeedSession(said, "My goal is a 405 squat by spring.");
+        _thread.Model.Responds(CannedChat.Content("""
+            {"changes":[{"action":"remember","memoryId":"","kind":"goal","text":"Squat 405 lb by spring 2027.","sourceMessageIds":["m1"]}]}
+            """));
+
+        await ConsolidateAsync();
+
+        Assert.Equal(said, Assert.Single(_thread.Memories()).RecordedAt);
+    }
 }

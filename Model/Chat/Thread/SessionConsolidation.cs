@@ -8,9 +8,8 @@ namespace lionheart.Model.Chat.Thread;
 /// </summary>
 /// <remarks>
 /// A session is distilled once, after it ends. Failure is its own case rather than a pending one
-/// with a counter beside it, because a failed session is retried on a back-off and stops being
-/// retried after <see cref="ChatSessionPolicy.ConsolidationAttempts"/> — and the athlete's memory
-/// view has to be able to say that one of his sessions was never taken in.
+/// with a counter beside it, because a failed session is retried on a back-off, and stops being
+/// retried after <see cref="ChatSessionPolicy.ConsolidationAttempts"/>.
 /// </remarks>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(Pending), "pending")]

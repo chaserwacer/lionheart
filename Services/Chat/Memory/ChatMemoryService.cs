@@ -3,6 +3,7 @@ using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Chat;
 using lionheart.Model.Chat.Memory;
+using lionheart.Services.Chat.Thread;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,13 +27,15 @@ public interface IChatMemoryService
 /// The athlete-facing side of memory. Another athlete's memory is a 404, the rule every owned
 /// resource here follows.
 /// </summary>
-public sealed class ChatMemoryService(ModelContext context, MemoryVectors vectors, TimeProvider clock) : IChatMemoryService
+public sealed class ChatMemoryService(ModelContext context, MemoryVectors vectors, ChatThreadGate gate, TimeProvider clock)
+    : IChatMemoryService
 {
     /// <summary>A quote is a reminder of what was said, not the message again.</summary>
     private const int QuoteLength = 280;
 
     private readonly ModelContext _context = context;
     private readonly MemoryVectors _vectors = vectors;
+    private readonly ChatThreadGate _gate = gate;
     private readonly TimeProvider _clock = clock;
 
     public async Task<Result<IReadOnlyList<MemoryView>, Problem>> GetCurrentAsync(IdentityUser user, CancellationToken ct)
@@ -55,14 +58,16 @@ public sealed class ChatMemoryService(ModelContext context, MemoryVectors vector
         return Result<IReadOnlyList<MemoryView>, Problem>.Success(views);
     }
 
+    /// <remarks>Under the memory lock, so a consolidation never applies its changes over this one.</remarks>
     public Task<Result<MemoryView, Problem>> CorrectAsync(
         IdentityUser user, Guid memoryId, CorrectMemoryRequest request, CancellationToken ct) =>
-        OwnedAsync(user, memoryId, ct)
+        _gate.WriteMemoryAsync(token => OwnedAsync(user, memoryId, token)
             .BindAsync(memory => Corrected(memory, request))
-            .BindAsync(successor => CommitAsync(user, successor, ct));
+            .BindAsync(successor => CommitAsync(successor, token)), ct);
 
     public Task<Result<Unit, Problem>> DeleteAsync(IdentityUser user, Guid memoryId, CancellationToken ct) =>
-        OwnedAsync(user, memoryId, ct).BindAsync(memory => ForgetAsync(memory, ct));
+        _gate.WriteMemoryAsync(token => OwnedAsync(user, memoryId, token)
+            .BindAsync(memory => ForgetAsync(memory, token)), ct);
 
     // ---- Guard ----
 
@@ -87,7 +92,7 @@ public sealed class ChatMemoryService(ModelContext context, MemoryVectors vector
 
     // ---- Commit ----
 
-    private async Task<Result<MemoryView, Problem>> CommitAsync(IdentityUser user, ChatMemory successor, CancellationToken ct)
+    private async Task<Result<MemoryView, Problem>> CommitAsync(ChatMemory successor, CancellationToken ct)
     {
         await _vectors.EmbedAsync([successor]);
         _context.ChatMemories.Add(successor);

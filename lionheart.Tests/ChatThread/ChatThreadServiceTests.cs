@@ -152,4 +152,63 @@ public sealed class ChatThreadServiceTests : IDisposable
         Assert.IsType<Problem.NotFound>(ResultAssert.Failed(
             await conversations.DeleteChatConversationAsync(_thread.Athlete, session.SessionId)));
     }
+
+    [Fact]
+    public async Task A_session_grown_full_ends_without_a_gap_and_the_next_message_opens_a_new_one()
+    {
+        var full = _thread.SeedSession(Some.Clock.AddMinutes(-30), "A long session.");
+        await using (var context = _thread.Database.CreateContext())
+        {
+            var message = context.UserChatMessages.Single(m => m.ChatConversationID == full.SessionId);
+            message.TokenCount = ChatSessionPolicy.MaxTranscriptTokens;
+            context.SaveChanges();
+        }
+        _thread.Model.Responds(CannedChat.Content("""{"changes":[]}"""));
+        _thread.Model.Responds(CannedChat.Content("Fresh session."));
+
+        var next = await _thread.SendAsync("Next question.");
+
+        Assert.NotEqual(full.SessionId, next.SessionId);
+        Assert.True(_thread.Session(full.SessionId).IsConsolidated);
+    }
+
+    [Fact]
+    public async Task A_consolidation_is_kept_even_when_the_answer_after_it_fails()
+    {
+        var ended = _thread.SeedSession(Some.Clock.AddHours(-5), "My goal is a 405 squat by spring.");
+        _thread.Model.Responds(CannedChat.Content("""
+            {"changes":[{"action":"remember","memoryId":"","kind":"goal","text":"Squat 405 lb by spring 2027.","sourceMessageIds":["m1"]}]}
+            """));
+        _thread.Model.Responds(CannedChat.Error("model crashed"), System.Net.HttpStatusCode.InternalServerError);
+
+        await using var context = _thread.Database.CreateContext();
+        ResultAssert.Failed(await _thread.Thread(context).SendAsync(
+            _thread.Athlete, new SendThreadMessageRequest { Content = "Plan legs." }, CancellationToken.None));
+
+        Assert.True(_thread.Session(ended.SessionId).IsConsolidated);
+        Assert.Single(_thread.Memories());
+        await using var after = _thread.Database.CreateContext();
+        Assert.Single(after.ChatThreadSessions);
+    }
+
+    /// <summary>
+    /// The session's system prompt is frozen when it opens. A prompt that changed between two
+    /// requests of one session would miss the cache for everything after it.
+    /// </summary>
+    [Fact]
+    public async Task Every_request_of_a_session_sends_the_same_system_prompt()
+    {
+        _thread.Model.Responds(CannedChat.Content("Four sessions."));
+        _thread.Model.Responds(CannedChat.Content("Legs were up."));
+
+        await _thread.SendAsync("How did last week go?");
+        _thread.Clock.Advance(TimeSpan.FromMinutes(40));
+        await _thread.SendAsync("And legs?");
+
+        Assert.Equal(SystemPromptSent(0), SystemPromptSent(1));
+    }
+
+    private string SystemPromptSent(int request) =>
+        System.Text.Json.JsonDocument.Parse(_thread.Model.ReceivedRequests[request]).RootElement
+            .GetProperty("messages")[0].GetProperty("content").ToString();
 }

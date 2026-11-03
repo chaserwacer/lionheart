@@ -44,14 +44,16 @@ public interface ISessionConsolidator
 /// on LM Studio the minimal depth is what keeps a schema answer out of the reasoning channel.
 /// <para>
 /// A failure is recorded on the session rather than thrown, and the session is retried later. A
-/// change the model got wrong — a handle that names nothing, two changes to one memory — is set
-/// aside and the rest applied.
+/// change the model got wrong — a handle that names nothing, two changes to one memory, a memory
+/// the athlete changed while the model was deciding — is set aside, logged, and the rest applied.
+/// Each memory is dated by the latest message it rests on, not by when the session was distilled.
 /// </para>
 /// </remarks>
 public sealed class SessionConsolidator(
     ModelContext context,
     IChatModel model,
     MemoryVectors vectors,
+    ChatThreadGate gate,
     TimeProvider clock,
     ILogger<SessionConsolidator> logger) : ISessionConsolidator
 {
@@ -64,6 +66,7 @@ public sealed class SessionConsolidator(
     private readonly ModelContext _context = context;
     private readonly IChatModel _model = model;
     private readonly MemoryVectors _vectors = vectors;
+    private readonly ChatThreadGate _gate = gate;
     private readonly TimeProvider _clock = clock;
     private readonly ILogger<SessionConsolidator> _logger = logger;
 
@@ -125,27 +128,43 @@ public sealed class SessionConsolidator(
     }
 
     /// <summary>
-    /// Read, ask, stage, mark, save. A failure anywhere is saved instead, as the record that this
-    /// attempt failed — either way, one save.
+    /// Read, ask, then apply under the memory lock. A failure anywhere is saved instead, as the
+    /// record that this attempt failed.
     /// </summary>
     private async Task<Result<ChatThreadSession, Problem>> ConsolidateAsync(
         ChatThreadSession session, CancellationToken ct)
     {
-        var now = _clock.GetUtcNow();
         var transcript = await TranscriptAsync(session, ct);
         var current = await CurrentAsync(session.UserId, ct);
         var prompt = ConsolidationPrompt.For(
             session.OpenedAt, transcript, await CandidatesAsync(current, transcript), _clock.LocalTimeZone);
 
-        return await PlanAsync(prompt, transcript)
-            .TapAsync(plan => Report(session, plan))
-            .MapAsync(plan => Stage(session, plan, current, now))
-            .BindAsync(staged => session
-                .Consolidated(now.UtcDateTime, staged.Remembered, staged.Revised, staged.Retired)
-                .Map(_ => staged))
-            .MapAsync(staged => KeepAsync(staged, current, ct))
-            .TapErrorAsync(problem => RecordFailureAsync(session, problem, now, ct))
+        return await PlanAsync(prompt, transcript, ct)
+            .TapAsync(plan => Report(session, plan.Unusable))
+            .BindAsync(plan => _gate.WriteMemoryAsync(
+                token => ApplyAsync(session, plan, current, Said(transcript), token), ct))
+            .TapErrorAsync(problem => RecordFailureAsync(session, problem, ct))
             .MapAsync(_ => session);
+    }
+
+    /// <summary>
+    /// The plan applied to memory as it stands now, not as it stood when the model was asked: the
+    /// athlete may have corrected or forgotten a memory while the model was deciding, and a change
+    /// to a memory he has since replaced is set aside rather than written over his.
+    /// </summary>
+    private async Task<Result<Staged, Problem>> ApplyAsync(
+        ChatThreadSession session, ConsolidationPlan plan, IReadOnlyList<ChatMemory> asked,
+        IReadOnlyDictionary<Guid, DateTime> said, CancellationToken ct)
+    {
+        var now = _clock.GetUtcNow();
+        var staged = plan.Changes.Aggregate(
+            Staged.Over(session.UserId, await StillCurrentAsync(asked, ct), said, session.OpenedAt),
+            (staged, change) => staged.Apply(change, session.ChatConversationId, now));
+        Report(session, staged.SetAside);
+
+        return await session
+            .Consolidated(now.UtcDateTime, staged.Remembered, staged.Revised, staged.Retired)
+            .MapAsync(_ => KeepAsync(staged, ct));
     }
 
     // ---- Reading ----
@@ -163,12 +182,30 @@ public sealed class SessionConsolidator(
         return [.. athlete.Cast<LHChatMessage>().Concat(model).OrderBy(message => message.CreationTime)];
     }
 
+    /// <summary>When each message of the session was said, by id.</summary>
+    private static IReadOnlyDictionary<Guid, DateTime> Said(IReadOnlyList<LHChatMessage> transcript) =>
+        transcript.ToDictionary(message => message.ChatMessageItemID, message => message.CreationTime);
+
     /// <summary>Tracked, because a consolidation supersedes and retires them.</summary>
     private Task<List<ChatMemory>> CurrentAsync(Guid userId, CancellationToken ct) =>
         _context.ChatMemories
             .Where(memory => memory.UserId == userId
                 && EF.Property<bool>(memory, ChatThreadConfiguration.MemoryIsCurrentColumn))
             .ToListAsync(ct);
+
+    /// <summary>
+    /// The memories the model was shown, read again: one forgotten since is gone, and one replaced
+    /// since is no longer current.
+    /// </summary>
+    private async Task<IReadOnlyList<ChatMemory>> StillCurrentAsync(IReadOnlyList<ChatMemory> asked, CancellationToken ct)
+    {
+        foreach (var memory in asked)
+        {
+            await _context.Entry(memory).ReloadAsync(ct);
+        }
+
+        return [.. asked.Where(memory => _context.Entry(memory).State is not EntityState.Detached && memory.IsCurrent)];
+    }
 
     private async Task<IReadOnlyList<ChatMemory>> CandidatesAsync(
         IReadOnlyList<ChatMemory> current, IReadOnlyList<LHChatMessage> transcript)
@@ -181,49 +218,43 @@ public sealed class SessionConsolidator(
     // ---- Asking ----
 
     /// <summary>A session with nothing said in it is consolidated with no changes, without a model call.</summary>
-    private Task<Result<ConsolidationPlan, Problem>> PlanAsync(ConsolidationPrompt prompt, IReadOnlyList<LHChatMessage> transcript) =>
+    private Task<Result<ConsolidationPlan, Problem>> PlanAsync(
+        ConsolidationPrompt prompt, IReadOnlyList<LHChatMessage> transcript, CancellationToken ct) =>
         transcript.Count == 0
             ? Task.FromResult(Result<ConsolidationPlan, Problem>.Success(new ConsolidationPlan([], [])))
             : _model
-                .RespondAsync(ChatTurnRequest.Extraction(
-                    prompt.SystemPrompt, prompt.UserText, ConsolidationPrompt.SchemaName, ConsolidationPrompt.Schema,
-                    ConsolidationTokenBudget))
+                .RespondAsync(
+                    ChatTurnRequest.Extraction(
+                        prompt.SystemPrompt, prompt.UserText, ConsolidationPrompt.SchemaName, ConsolidationPrompt.Schema,
+                        ConsolidationTokenBudget),
+                    ct)
                 .BindAsync(turn => ConsolidationParser.Read(turn, prompt));
 
-    private void Report(ChatThreadSession session, ConsolidationPlan plan)
+    private void Report(ChatThreadSession session, IReadOnlyList<string> setAside)
     {
-        foreach (var unusable in plan.Unusable)
+        foreach (var reason in setAside)
         {
             _logger.LogWarning(
-                "Consolidating session {SessionId} set aside a change: {Reason}", session.ChatConversationId, unusable);
+                "Consolidating session {SessionId} set aside a change: {Reason}", session.ChatConversationId, reason);
         }
     }
 
-    // ---- Staging ----
-
-    /// <summary>
-    /// The plan applied to the current memories, one change at a time. A change the domain refuses
-    /// — a memory already changed by an earlier change in this plan — is skipped.
-    /// </summary>
-    private Staged Stage(ChatThreadSession session, ConsolidationPlan plan, IReadOnlyList<ChatMemory> current, DateTimeOffset now) =>
-        plan.Changes.Aggregate(
-            Staged.Over(session.UserId, current),
-            (staged, change) => staged.Apply(change, session.ChatConversationId, now));
+    // ---- Writing ----
 
     /// <summary>Embeds what is new, and anything current still waiting for a vector, then saves the consolidation.</summary>
-    private async Task<Staged> KeepAsync(Staged staged, IReadOnlyList<ChatMemory> current, CancellationToken ct)
+    private async Task<Staged> KeepAsync(Staged staged, CancellationToken ct)
     {
-        await _vectors.EmbedAsync(current.Where(memory => memory.IsCurrent).Concat(staged.Added));
+        await _vectors.EmbedAsync(staged.Current.Values.Where(memory => memory.IsCurrent).Concat(staged.Added));
         _context.ChatMemories.AddRange(staged.Added);
         await _context.SaveChangesAsync(ct);
         return staged;
     }
 
     /// <summary>
-    /// Undoes what staging did to the current memories and saves the failure on the session, and
-    /// nothing else.
+    /// Undoes whatever this attempt did to memory and saves the failure on the session, and nothing
+    /// else.
     /// </summary>
-    private async Task RecordFailureAsync(ChatThreadSession session, Problem problem, DateTimeOffset now, CancellationToken ct)
+    private async Task RecordFailureAsync(ChatThreadSession session, Problem problem, CancellationToken ct)
     {
         foreach (var entry in _context.ChangeTracker.Entries<ChatMemory>().Where(entry => entry.State is EntityState.Modified))
         {
@@ -231,25 +262,38 @@ public sealed class SessionConsolidator(
             entry.State = EntityState.Unchanged;
         }
 
-        session.ConsolidationFailed(now.UtcDateTime, problem.Description);
+        session.ConsolidationFailed(_clock.GetUtcNow().UtcDateTime, problem.Description);
         await _context.SaveChangesAsync(ct);
         _logger.LogWarning(
             "Consolidating session {SessionId} failed: {Reason}", session.ChatConversationId, problem.Description);
     }
 
-    /// <summary>The memory a plan is building: what it added, which memories it has already changed, and the tally.</summary>
+    /// <summary>
+    /// The memory a plan is building: what it added, which memories it has changed, what it set
+    /// aside and why, and the tally.
+    /// </summary>
+    /// <param name="Said">When each message of the session was said, so a memory is dated by the words it rests on.</param>
+    /// <param name="Opened">The session's opening, the date of a memory that names no message.</param>
     private sealed record Staged(
         Guid UserId,
         IReadOnlyDictionary<Guid, ChatMemory> Current,
+        IReadOnlyDictionary<Guid, DateTime> Said,
+        DateTime Opened,
         IReadOnlyList<ChatMemory> Added,
         IReadOnlySet<Guid> Changed,
+        IReadOnlyList<string> SetAside,
         int Remembered,
         int Revised,
         int Retired)
     {
-        public static Staged Over(Guid userId, IReadOnlyList<ChatMemory> current) =>
-            new(userId, current.ToDictionary(memory => memory.MemoryId), [], new HashSet<Guid>(), 0, 0, 0);
+        public static Staged Over(
+            Guid userId, IReadOnlyList<ChatMemory> current, IReadOnlyDictionary<Guid, DateTime> said, DateTime opened) =>
+            new(userId, current.ToDictionary(memory => memory.MemoryId), said, opened, [], new HashSet<Guid>(), [], 0, 0, 0);
 
+        /// <summary>
+        /// One change applied, or set aside with the domain's reason — a total step of the fold, so
+        /// one refused change never stops the rest.
+        /// </summary>
         public Staged Apply(MemoryChange change, Guid sessionId, DateTimeOffset now) =>
             change switch
             {
@@ -257,12 +301,12 @@ public sealed class SessionConsolidator(
                     ? this
                     : ChatMemory
                         .Record(Guid.CreateVersion7(now), UserId, remember.Kind, remember.Text,
-                            Origin(sessionId, change), now.UtcDateTime)
-                        .Match(memory => this with { Added = [.. Added, memory], Remembered = Remembered + 1 }, _ => this),
+                            Origin(sessionId, change), SaidAt(change))
+                        .Match(memory => this with { Added = [.. Added, memory], Remembered = Remembered + 1 }, Aside),
 
                 MemoryChange.Revise revise => Target(revise.MemoryId)
                     .Bind(memory => memory.Revise(
-                        Guid.CreateVersion7(now), revise.Kind, revise.Text, Origin(sessionId, change), now.UtcDateTime))
+                        Guid.CreateVersion7(now), revise.Kind, revise.Text, Origin(sessionId, change), SaidAt(change)))
                     .Match(
                         successor => this with
                         {
@@ -270,16 +314,26 @@ public sealed class SessionConsolidator(
                             Changed = new HashSet<Guid>(Changed) { revise.MemoryId },
                             Revised = Revised + 1,
                         },
-                        _ => this),
+                        Aside),
 
                 MemoryChange.Retire retire => Target(retire.MemoryId)
-                    .Bind(memory => memory.Retire(now.UtcDateTime, retire.Reason))
+                    .Bind(memory => memory.Retire(SaidAt(change), retire.Reason))
                     .Match(
                         _ => this with { Changed = new HashSet<Guid>(Changed) { retire.MemoryId }, Retired = Retired + 1 },
-                        _ => this),
+                        Aside),
 
                 _ => throw new UnreachableException(),
             };
+
+        private Staged Aside(Problem problem) => this with { SetAside = [.. SetAside, problem.Description] };
+
+        /// <summary>When the latest of the messages a change cites was said, or the session's opening.</summary>
+        private DateTime SaidAt(MemoryChange change) =>
+            change.SourceMessageIds
+                .Where(Said.ContainsKey)
+                .Select(id => Said[id])
+                .DefaultIfEmpty(Opened)
+                .Max();
 
         /// <summary>Whether a memory already kept, or added by this plan, says the same thing.</summary>
         private bool Repeats(string text) =>
@@ -291,7 +345,8 @@ public sealed class SessionConsolidator(
                 ? Result<ChatMemory, Problem>.Failure(new Problem.Conflict("Already changed by this consolidation."))
                 : Current.TryGetValue(memoryId, out var memory)
                     ? Result<ChatMemory, Problem>.Success(memory)
-                    : Result<ChatMemory, Problem>.Failure(new Problem.NotFound("Not a current memory."));
+                    : Result<ChatMemory, Problem>.Failure(new Problem.NotFound(
+                        "Not a current memory: replaced or forgotten since the model was asked."));
 
         private static MemoryOrigin Origin(Guid sessionId, MemoryChange change) =>
             new MemoryOrigin.Distilled(sessionId, change.SourceMessageIds);
