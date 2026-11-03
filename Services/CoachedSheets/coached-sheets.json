@@ -18,7 +18,7 @@
 //     every back-off from it, and some whole days from the one-rep maxes typed on its Start sheet.
 //     A computed weight (303.6, 288.486) is a prescription, never a load on a bar; whether the
 //     athlete did those sets, and at what, the sheet does not say. Blake's sheet "chase vs his
-//     opps" does the same for three back-off rows.
+//     opps" does the same for its five back-off rows.
 //   - "placeholder", "contradicted", "implausible": typed rows the evidence says were not lifted
 //     as written.
 //   Found by reading the formulas in training-os/raw/sheets/*.xlsx, the rows' own notes, and the

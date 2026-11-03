@@ -43,19 +43,18 @@ public sealed class PersonalRecordRebuild
     /// A rebuild of records that were already right writes nothing, so it leaves every record id
     /// as it was — the ids are what a client holds to retract or read a chain.
     /// </remarks>
-    public async Task<Result<RecordRebuildReport, Problem>> RebuildAsync(Guid userId, CancellationToken ct)
-    {
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+    public Task<Result<RecordRebuildReport, Problem>> RebuildAsync(Guid userId, CancellationToken ct) =>
+        _context.InTransactionAsync(
+            () => _context.KnownAthleteAsync(userId, ct).BindAsync(_ => ReplayAsync(userId, ct)),
+            report => report.Changed > 0,
+            ct);
 
-        var rebuilt = await _context.KnownAthleteAsync(userId, ct)
-            .BindAsync(_ => ReplayAsync(userId, ct));
-
-        await rebuilt.Match(
-            report => report.Changed > 0 ? transaction.CommitAsync(ct) : transaction.RollbackAsync(ct),
-            _ => transaction.RollbackAsync(ct));
-
-        return rebuilt;
-    }
+    /// <summary>
+    /// The athlete, if a replay of his history could run: refused while any record is withdrawn.
+    /// </summary>
+    /// <remarks>For a caller to check before it stages anything; <see cref="ReplayAsync"/> checks again.</remarks>
+    public async Task<Result<Guid, Problem>> ReplayableAsync(Guid userId, CancellationToken ct) =>
+        Unretracted(await HeldAsync(userId, ct)).Map(_ => userId);
 
     /// <summary>
     /// Replaces the athlete's records with the ones a replay of every completed session sets,
@@ -64,11 +63,17 @@ public sealed class PersonalRecordRebuild
     /// <remarks>
     /// Saves as it goes — the deletion has to reach the database before the detector reads what
     /// stands, or it would judge the replay against the records being replaced — so it is only
-    /// all-or-nothing inside a transaction the caller holds.
+    /// all-or-nothing inside a transaction the caller holds, and refuses to run outside one: a
+    /// failure between the delete and the save would otherwise leave the athlete with no records.
     /// </remarks>
-    public async Task<Result<RecordRebuildReport, Problem>> ReplayAsync(Guid userId, CancellationToken ct) =>
-        await Unretracted(await HeldAsync(userId, ct))
+    public async Task<Result<RecordRebuildReport, Problem>> ReplayAsync(Guid userId, CancellationToken ct)
+    {
+        if (_context.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("A record replay deletes before it saves, so it runs only inside the caller's transaction.");
+
+        return await Unretracted(await HeldAsync(userId, ct))
             .MapAsync(before => ReplaceAsync(userId, before, ct));
+    }
 
     private async Task<IReadOnlyList<PersonalRecord>> HeldAsync(Guid userId, CancellationToken ct) =>
         await _context.PersonalRecords

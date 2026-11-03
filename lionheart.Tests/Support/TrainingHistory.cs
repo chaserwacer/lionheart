@@ -3,8 +3,10 @@ using lionheart.Model.Training;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
+using lionheart.Model.User;
 using lionheart.Services.Training.PersonalRecords;
 using lionheart.Tests.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace lionheart.Tests.Support;
@@ -17,19 +19,20 @@ internal static class TrainingHistory
 {
     /// <summary>A movement in the athlete's catalogue, by the names an import matches on.</summary>
     public static async Task<Guid> PlantMovementAsync(
-        this RemodelDatabase database, string movementBase, string equipment)
+        this RemodelDatabase database, string movementBase, string equipment, Guid? owner = null)
     {
+        var userId = owner ?? database.UserId;
         await using var context = database.CreateContext();
         var movement = new MovementData
         {
             MovementDataID = Guid.NewGuid(),
-            UserID = database.UserId,
+            UserID = userId,
             EquipmentID = Guid.NewGuid(),
-            Equipment = new Equipment { EquipmentID = Guid.NewGuid(), Name = equipment, UserID = database.UserId },
+            Equipment = new Equipment { EquipmentID = Guid.NewGuid(), Name = equipment, UserID = userId },
             MovementBaseID = Guid.NewGuid(),
             MovementBase = new MovementBase
             {
-                MovementBaseID = Guid.NewGuid(), Name = movementBase, UserID = database.UserId,
+                MovementBaseID = Guid.NewGuid(), Name = movementBase, UserID = userId,
                 Description = string.Empty, MuscleGroups = [],
             },
         };
@@ -73,6 +76,18 @@ internal static class TrainingHistory
             context.Sessions.Add(session);
             await context.SaveChangesAsync();
         }
+    }
+
+    /// <summary>A second athlete in the database, for showing one athlete's work leaves the other's alone.</summary>
+    public static async Task<Guid> PlantAthleteAsync(this RemodelDatabase database)
+    {
+        await using var context = database.CreateContext();
+        var identity = new IdentityUser($"stranger-{Guid.NewGuid():N}@lionheart.local");
+        var athlete = new LionheartUser { UserID = Guid.NewGuid(), IdentityUser = identity, Name = "Stranger" };
+        context.Users.Add(identity);
+        context.LionheartUsers.Add(athlete);
+        await context.SaveChangesAsync();
+        return athlete.UserID;
     }
 
     public static async Task<IReadOnlyList<PersonalRecord>> RecordsAsync(this RemodelDatabase database)

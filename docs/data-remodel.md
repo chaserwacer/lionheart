@@ -684,7 +684,8 @@ the `sheet:<sheet>#w<week>` rows; the `strong:` rows are counted and left to `im
   weight (303.6, 288.486) is a prescription, never a bar load. `coached-sheets.json` lists every
   such row with its formula, plus the few typed rows the evidence says were not lifted (a 100 lb
   placeholder, a 2 lb typo, two rows the athlete's note contradicts). They are left out and named in
-  the session's notes. Each entry states how many sets it covers, and a run refuses if the log no
+  the session's notes; a day whose every weight was computed (seven of the Jamal days) becomes no
+  session, so only the decisions file records it. Each entry states how many sets it covers, and a run refuses if the log no
   longer holds exactly that many. A "CLUSTER SET (1+1)" row becomes its singles.
 - **Sessions.** One per training-os session id (date, sheet, day), at **noon** on its date in the
   machine's zone, as an `Instant` — the sheets carry dates only, and a duration would be invented.

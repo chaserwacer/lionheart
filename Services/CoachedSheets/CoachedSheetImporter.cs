@@ -61,6 +61,7 @@ public sealed class CoachedSheetImporter
 
     public Task<Result<CoachedSheetImportReport, Problem>> ImportAsync(string logPath, Guid userId, CancellationToken ct) =>
         _context.KnownAthleteAsync(userId, ct)
+            .BindAsync(_ => _records.ReplayableAsync(userId, ct))
             .BindAsync(_ => SheetLogReader.Read(logPath))
             .BindAsync(log => SheetHistory.Of(log, _decisions))
             .BindAsync(Mapped)
@@ -168,14 +169,17 @@ public sealed class CoachedSheetImporter
     // ---- Commit ----
 
     /// <remarks>
-    /// The rebuild saves inside this transaction, so everything lands together; a rebuild that
-    /// refuses leaves the transaction uncommitted and nothing of the import is written.
+    /// The rebuild saves inside the import's transaction, so everything lands together; a rebuild
+    /// that refuses leaves nothing of the import written. A run that adds no session leaves the
+    /// records alone.
     /// </remarks>
-    private async Task<Result<CoachedSheetImportReport, Problem>> CommitAsync(
+    private Task<Result<CoachedSheetImportReport, Problem>> CommitAsync(
+        Guid userId, StagedImport staged, CancellationToken ct) =>
+        _context.InTransactionAsync(() => WriteAsync(userId, staged, ct), ct);
+
+    private async Task<Result<CoachedSheetImportReport, Problem>> WriteAsync(
         Guid userId, StagedImport staged, CancellationToken ct)
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-
         _context.Programs.AddRange(staged.Programs);
         _context.Sessions.AddRange(staged.Sessions);
         await _context.SaveChangesAsync(ct);
@@ -183,8 +187,6 @@ public sealed class CoachedSheetImporter
         var records = staged.Sessions.Count == 0
             ? Result<RecordsOutcome, Problem>.Success(new RecordsOutcome.Untouched())
             : await _records.ReplayAsync(userId, ct).MapAsync(RecordsOutcome (report) => new RecordsOutcome.Rebuilt(report));
-
-        await records.Match(_ => transaction.CommitAsync(ct), _ => transaction.RollbackAsync(ct));
 
         return records.Map(outcome => Report(staged, outcome));
     }

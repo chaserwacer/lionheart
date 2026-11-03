@@ -52,7 +52,7 @@ internal static class RebuildRecordsCommand
     public static string Summary(RecordRebuildReport report) =>
         $"{report.Before} records before, {report.After} after: {report.Unchanged} unchanged, "
         + $"{report.Restated} restated (beaten on another date, or behind another predecessor), "
-        + $"{report.Dropped} no longer records, {report.Established} new.";
+        + $"{report.Dropped} no longer set by the history, {report.Established} new.";
 
     private static int Refuse(Problem problem)
     {

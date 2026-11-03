@@ -79,6 +79,39 @@ public class PersonalRecordRebuildTests : IDisposable
     }
 
     [Fact]
+    public async Task A_rebuild_leaves_another_athletes_records_as_they_were()
+    {
+        var stranger = await _database.PlantAthleteAsync();
+        var theirSquat = await _database.PlantMovementAsync("Squat", "Barbell", stranger);
+        await _database.CompleteInTurnAsync([.. Progression(theirSquat, stranger).Reverse()]);
+        var theirs = Theirs(await _database.RecordsAsync(), stranger);
+
+        var squat = await _database.PlantMovementAsync("Squat", "Barbell");
+        await _database.CompleteInTurnAsync([.. Progression(squat).Reverse()]);
+
+        Assert.True(ResultAssert.Succeeded(await RebuildAsync(_database)).Changed > 0);
+        Assert.Equal(theirs, Theirs(await _database.RecordsAsync(), stranger));
+
+        static IReadOnlyList<(Guid, RecordStanding)> Theirs(IEnumerable<PersonalRecord> records, Guid athlete) =>
+            [.. records.Where(record => record.UserId == athlete).Select(record => (record.PersonalRecordId, record.Standing)).Order()];
+    }
+
+    [Fact]
+    public async Task A_replay_outside_a_transaction_is_refused_before_it_deletes_anything()
+    {
+        // It deletes before it saves; outside a transaction a failure between the two would leave
+        // the athlete with no records at all.
+        var squat = await _database.PlantMovementAsync("Squat", "Barbell");
+        await _database.CompleteInTurnAsync(Progression(squat));
+        var chains = await _database.ChainsAsync();
+        await using var context = _database.CreateContext();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Rebuild(context).ReplayAsync(_database.UserId, CancellationToken.None));
+
+        Assert.Equal(chains, await _database.ChainsAsync());
+    }
+
+    [Fact]
     public async Task An_athlete_who_does_not_exist_is_refused()
     {
         await using var context = _database.CreateContext();

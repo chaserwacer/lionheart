@@ -14,8 +14,8 @@ namespace lionheart.Services.Training.PersonalRecords;
 /// behind the same predecessor.</item>
 /// <item><see cref="Restated"/>: the same performance on the same date, now beaten on another date,
 /// standing where it was beaten, or behind a different predecessor.</item>
-/// <item><see cref="Dropped"/>: no longer a record at all — an older set the athlete already beat
-/// it with now stands ahead of it.</item>
+/// <item><see cref="Dropped"/>: no longer set by anything in the history — an older set already
+/// beats it, or the session or movement behind it is no longer the athlete's.</item>
 /// <item><see cref="Established"/>: a record that did not exist before.</item>
 /// </list>
 /// </remarks>
