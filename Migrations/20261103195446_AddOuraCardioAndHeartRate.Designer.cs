@@ -11,7 +11,7 @@ using lionheart.Data;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(ModelContext))]
-    [Migration("20261103183610_AddOuraCardioAndHeartRate")]
+    [Migration("20261103195446_AddOuraCardioAndHeartRate")]
     partial class AddOuraCardioAndHeartRate
     {
         /// <inheritdoc />
@@ -919,6 +919,38 @@ namespace lionheart.Migrations
                     b.ToTable("Equipments");
                 });
 
+            modelBuilder.Entity("lionheart.Model.Training.Focus.FocusPin", b =>
+                {
+                    b.Property<Guid>("FocusPinId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MovementDataId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PinnedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Terms")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("FocusPinId");
+
+                    b.HasIndex("MovementDataId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("FocusPins", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Training.MovementData", b =>
                 {
                     b.Property<Guid>("MovementDataID")
@@ -1529,6 +1561,21 @@ namespace lionheart.Migrations
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany("Equipments")
                         .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Training.Focus.FocusPin", b =>
+                {
+                    b.HasOne("lionheart.Model.Training.MovementData", null)
+                        .WithMany()
+                        .HasForeignKey("MovementDataId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
