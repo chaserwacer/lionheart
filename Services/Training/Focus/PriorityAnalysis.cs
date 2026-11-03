@@ -64,11 +64,11 @@ public static class PriorityAnalysis
             .ThenByDescending(lift => lift.Sets)
             .ThenByDescending(lift => lift.Last)
             .ThenBy(lift => lift.Name, StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault();
+            .ToList();
 
-        return implied.MovementDataId == Guid.Empty
-            ? null
-            : (implied.MovementDataId, new PriorityChoice.MostTrained(implied.Sessions));
+        return implied is [var most, ..]
+            ? (most.MovementDataId, new PriorityChoice.MostTrained(most.Sessions))
+            : null;
     }
 
     /// <summary>Whether a pin stood on the day: inside its horizon, and not yet let go.</summary>

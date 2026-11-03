@@ -46,21 +46,34 @@ internal static class ScoreCalibrationCommand
             .Select(session => session.Date).DefaultIfEmpty(DateOnly.FromDateTime(DateTime.Today)).Min();
         var today = DateOnly.FromDateTime(DateTime.Today);
 
-        var weeks = new List<WeeklyScore>();
-        for (var from = first; from <= today; from = from.AddDays(7 * TrainingScoreService.MostWeeks))
+        // A year at a time, the most one call scores; read in turn so one database context is
+        // never asked two things at once.
+        var chunks = new List<Result<IReadOnlyList<WeeklyScore>, Problem>>();
+        foreach (var range in Years(first, today))
         {
-            var to = Min(from.AddDays(7 * TrainingScoreService.MostWeeks - 1), today);
-            var scored = await service.GetWeeksAsync(identity, new DayRange(from, to), ct);
-            if (scored.Match(chunk => { weeks.AddRange(chunk); return false; }, problem =>
-                {
-                    Console.Error.WriteLine($"calibration refused: {problem.Description}");
-                    return true;
-                }))
-                return 1;
+            chunks.Add(await service.GetWeeksAsync(identity, range, ct));
         }
 
+        return chunks.Traverse(chunk => chunk)
+            .Map(IReadOnlyList<WeeklyScore> (years) => [.. years.SelectMany(year => year)])
+            .Match(Describe, Refuse);
+    }
+
+    private static IEnumerable<DayRange> Years(DateOnly first, DateOnly today) =>
+        Enumerable.Range(0, (today.DayNumber - first.DayNumber) / (7 * TrainingScoreService.MostWeeks) + 1)
+            .Select(year => first.AddDays(7 * TrainingScoreService.MostWeeks * year))
+            .Select(from => new DayRange(from, Min(from.AddDays(7 * TrainingScoreService.MostWeeks - 1), today)));
+
+    private static int Describe(IReadOnlyList<WeeklyScore> weeks)
+    {
         Report(weeks);
         return 0;
+    }
+
+    private static int Refuse(Problem problem)
+    {
+        Console.Error.WriteLine($"calibration refused: {problem.Description}");
+        return 1;
     }
 
     private static void Report(IReadOnlyList<WeeklyScore> weeks)

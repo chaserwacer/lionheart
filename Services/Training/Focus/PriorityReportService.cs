@@ -7,7 +7,6 @@ using lionheart.Services.Training.Balance;
 using lionheart.Services.Training.Patterns;
 using lionheart.Services.Training.Score;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace lionheart.Services.Training.Focus;
 
@@ -44,10 +43,4 @@ public sealed class PriorityReportService : IPriorityReportService
                         endingOn),
                     cardio.For(window))));
     }
-}
-
-public static class FocusPinReads
-{
-    public static async Task<IReadOnlyList<FocusPin>> PinsOfAsync(this ModelContext context, Guid userId, CancellationToken ct) =>
-        await context.FocusPins.AsNoTracking().Where(pin => pin.UserId == userId).ToListAsync(ct);
 }

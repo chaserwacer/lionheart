@@ -3,7 +3,6 @@ using lionheart.Functional;
 using lionheart.Model.Training.Balance;
 using lionheart.Services.Training.Patterns;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace lionheart.Services.Training.Balance;
 
@@ -31,25 +30,4 @@ public sealed class TrainingVolumeService : ITrainingVolumeService
                 await _context.ReadAsync(userId, endingOn, _map, ct),
                 endingOn,
                 await _context.ReadinessOnAsync(userId, endingOn, ct)));
-}
-
-public static class ReadinessReads
-{
-    /// <summary>The day's readiness against the ninety days before it.</summary>
-    public static async Task<ReadinessNote> ReadinessOnAsync(
-        this ModelContext context, Guid userId, DateOnly day, CancellationToken ct)
-    {
-        var from = day.AddDays(-ReadinessNotes.UsualRangeDays);
-        var days = await context.OuraDailyReadiness
-            .AsNoTracking()
-            .Where(readiness => EF.Property<Guid>(readiness, "UserId") == userId
-                                && EF.Property<DateOnly>(readiness, "Day") >= from
-                                && EF.Property<DateOnly>(readiness, "Day") <= day)
-            .ToListAsync(ct);
-
-        return ReadinessNotes.Of(
-            [.. days.Where(readiness => readiness.Reading.Score is not null)
-                .Select(readiness => (readiness.Day, readiness.Reading.Score.GetValueOrDefault()))],
-            day);
-    }
 }

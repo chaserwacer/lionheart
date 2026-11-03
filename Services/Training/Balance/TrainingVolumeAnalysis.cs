@@ -32,11 +32,10 @@ public static class TrainingVolumeAnalysis
 
     /// <summary>Every hard set between two days whose movement is classified, oldest first.</summary>
     public static IEnumerable<PlacedSet> Placed(TrainingLog log, DateOnly from, DateOnly to) =>
-        log.Between(from, to).SelectMany(session => session.HardSets
-            .Select(set => (Set: set, Standing: log.ClassificationOf(set.MovementDataId)))
-            .Where(placed => placed.Standing is ClassificationStanding.Classified)
-            .Select(placed => new PlacedSet(
-                session.Day, placed.Set, ((ClassificationStanding.Classified)placed.Standing).Classification)));
+        log.Between(from, to).SelectMany(session => session.HardSets.SelectMany(set =>
+            log.ClassificationOf(set.MovementDataId) is ClassificationStanding.Classified classified
+                ? [new PlacedSet(session.Day, set, classified.Classification)]
+                : Array.Empty<PlacedSet>()));
 
     /// <summary>Push, pull and legs, each set counted once toward its movement's family.</summary>
     public static IReadOnlyList<FamilyVolume> Families(IReadOnlyList<PlacedSet> inWindow, IReadOnlyList<PlacedSet> history) =>

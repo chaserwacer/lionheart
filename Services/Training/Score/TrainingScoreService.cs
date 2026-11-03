@@ -2,6 +2,7 @@ using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.Balance;
+using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.Score;
 using lionheart.Services.Cardio;
 using lionheart.Services.Training.Balance;
@@ -60,41 +61,45 @@ public sealed class TrainingScoreService : ITrainingScoreService
             .MapAsync(IReadOnlyList<WeeklyScore> (scores) => [.. scores.Select(WeeklyScore.Of)]);
 
     [Tool(Name = "GetTrainingScore",
-        Description = "Lionheart's own training score (0-100; not Oura's activity score) for the seven days ending on the range's last day, part by part with the measurements behind each: hard sets of push, pull and legs against 8 each (35 points); zone-2 minutes against 150 and minutes at 80% of maximum heart rate or above against 20, from cardio sessions (25 points, unknown rather than zero with no heart rate); each family's priority lift — pinned, or the most-trained compound lift of 8 weeks — its best estimated one-rep max against the 12 weeks before (20 points); and sessions in each of the last four 7-day blocks against 4 (20 points). Also the same window's hard sets by family, movement pattern and muscle group (secondary muscles count half), the last day each was trained, what the log says is up next, and the scores of the weeks ending on each Sunday of the range, at most the last 12.")]
+        Description = "Lionheart's own training score (0-100; not Oura's activity score) for the seven days ending on the range's last day, part by part with the measurements behind each: hard sets of push, pull and legs against 8 each (35 points); zone-2 minutes against 150 and minutes at 80% of maximum heart rate or above against 20, from cardio sessions (25 points, unknown rather than zero with no heart rate); each family's priority lift — pinned, or the most-trained compound lift of 8 weeks — its best estimated one-rep max against the 12 weeks before (20 points); and sessions in each of the last four 7-day blocks against 3 (20 points). A score with cardio unknown is read over the known parts and never reaches 90. Also the same window's hard sets by family, movement pattern and muscle group (secondary muscles count half), the last day each was trained, what the log says is up next, and the scores of the weeks ending on each Sunday of the range, at most the last 12.")]
     public Task<TrainingScoreForChat?> GetTrainingScoreForChatAsync(IdentityUser user, DayRange range)
     {
         var sundays = Sundays(range).TakeLast(ChatWeeks).ToList();
-        return _context.AthleteIdAsync(user, CancellationToken.None)
-            .BindAsync(userId => ScoresAsync(user, [.. sundays, range.To], CancellationToken.None)
-                .MapAsync(async scores => new TrainingScoreForChat(
-                    scores[^1],
-                    TrainingVolumeAnalysis.Build(
-                        await _context.ReadAsync(userId, range.To, _map, CancellationToken.None),
-                        range.To,
-                        await _context.ReadinessOnAsync(userId, range.To, CancellationToken.None)),
-                    [.. scores.Take(sundays.Count).Select(WeeklyScore.Of)])))
+        return InputsAsync(user, Span([.. sundays, range.To]), CancellationToken.None)
+            .MapAsync(async inputs => new TrainingScoreForChat(
+                inputs.Score(range.To),
+                TrainingVolumeAnalysis.Build(
+                    inputs.Log, range.To, await _context.ReadinessOnAsync(inputs.UserId, range.To, CancellationToken.None)),
+                [.. sundays.Select(inputs.Score).Select(WeeklyScore.Of)]))
             .MatchAsync(briefing => (TrainingScoreForChat?)briefing, _ => null);
     }
 
     /// <summary>Scores each window ending on the days given, from one read of everything they need.</summary>
     private Task<Result<IReadOnlyList<TrainingScore>, Problem>> ScoresAsync(
-        IdentityUser user, IReadOnlyList<DateOnly> endings, CancellationToken ct)
-    {
-        if (endings.Count is 0) return Task.FromResult(Result<IReadOnlyList<TrainingScore>, Problem>.Success([]));
+        IdentityUser user, IReadOnlyList<DateOnly> endings, CancellationToken ct) =>
+        endings.Count is 0
+            ? Task.FromResult(Result<IReadOnlyList<TrainingScore>, Problem>.Success([]))
+            : InputsAsync(user, Span(endings), ct)
+                .MapAsync(IReadOnlyList<TrainingScore> (inputs) => [.. endings.Select(inputs.Score)]);
 
-        var span = new DayRange(VolumeTargets.WindowEndingOn(endings.Min()).From, endings.Max());
-        return _context.AthleteIdAsync(user, ct)
+    /// <summary>The days the windows ending on the days given cover, first to last.</summary>
+    private static DayRange Span(IReadOnlyList<DateOnly> endings) =>
+        new(VolumeTargets.WindowEndingOn(endings.Min()).From, endings.Max());
+
+    private Task<Result<ScoreInputs, Problem>> InputsAsync(IdentityUser user, DayRange span, CancellationToken ct) =>
+        _context.AthleteIdAsync(user, ct)
             .BindAsync(userId => CardioWindows.ReadAsync(_context, _cardio, user, span, ct)
-                .MapAsync(async cardio =>
-                {
-                    var log = await _context.ReadAsync(userId, span.To, _map, ct);
-                    var pins = await _context.PinsOfAsync(userId, ct);
-                    return (IReadOnlyList<TrainingScore>)
-                    [
-                        .. endings.Select(day => TrainingScoreAnalysis.Score(
-                            log, pins, cardio.For(VolumeTargets.WindowEndingOn(day)), day))
-                    ];
-                }));
+                .MapAsync(async cardio => new ScoreInputs(
+                    userId,
+                    await _context.ReadAsync(userId, span.To, _map, ct),
+                    await _context.PinsOfAsync(userId, ct),
+                    cardio)));
+
+    /// <summary>Everything a span of windows is scored from, read once.</summary>
+    private sealed record ScoreInputs(Guid UserId, TrainingLog Log, IReadOnlyList<FocusPin> Pins, CardioWindows Cardio)
+    {
+        public TrainingScore Score(DateOnly endingOn) =>
+            TrainingScoreAnalysis.Score(Log, Pins, Cardio.For(VolumeTargets.WindowEndingOn(endingOn)), endingOn);
     }
 
     /// <summary>Every Sunday in the range, oldest first.</summary>
