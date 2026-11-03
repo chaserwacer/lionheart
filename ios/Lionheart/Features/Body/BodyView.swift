@@ -2,16 +2,15 @@ import SwiftUI
 
 /// What is my body doing?
 ///
-/// An inset-grouped `List` that leads with the latest readiness and then opens into the three
-/// records behind it: the wearable's days, the readings the athlete entered, and the injuries being
-/// tracked.
-///
-/// The Oura surface is being widened in parallel, so this screen draws a day from the **panels it
-/// carries** rather than from a fixed set of rows: a new panel on the wire becomes a new case of
-/// `OuraPanel` and a new section here, not a redesign.
+/// An inset-grouped `List` that leads with the latest readiness, then the last night and the latest
+/// day's scores, then the two questions with screens of their own — cardio and daily movement —
+/// and finally the records behind it all: the wearable's days, the readings the athlete entered,
+/// and the injuries being tracked.
 struct BodyView: View {
     let store: BodyStore
     let ouraSync: OuraSyncStore
+    let cardio: CardioStore
+    let habits: HabitsStore
 
     @State private var isNewInjuryPresented = false
 
@@ -56,6 +55,13 @@ struct BodyView: View {
             }
         }
         .task { await store.refreshIfNeeded() }
+        // The two rows that summarise a screen of their own read that screen's default span, once.
+        .task {
+            if cardio.reports[.quarter] == nil { await cardio.load(.quarter) }
+        }
+        .task {
+            if habits.reports[.month] == nil { await habits.load(.month) }
+        }
     }
 
     @ViewBuilder
@@ -68,16 +74,31 @@ struct BodyView: View {
             if let snapshot, let ouraDay = snapshot.ouraDays.first(where: { $0.date == day }) {
                 OuraDayView(
                     day: ouraDay,
-                    night: snapshot.mainSleep(on: day),
+                    night: snapshot.mainSleepEvent(on: day),
+                    days: snapshot.ouraDays,
                     workouts: snapshot.workouts(on: day),
                     tags: snapshot.tags(on: day))
             } else {
-                ContentUnavailableView {
-                    Text("That day is no longer loaded")
-                } description: {
-                    Text("Pull to refresh on the Body screen.")
-                }
+                notLoaded("That day is no longer loaded")
             }
+        case .night(let day):
+            if let night = snapshot?.mainSleepEvent(on: day) {
+                NightView(night: night)
+            } else {
+                notLoaded("That night is no longer loaded")
+            }
+        case .cardio:
+            CardioView(store: cardio)
+        case .cardioSession(let id, let span):
+            if let report = cardio.reports[span]?.value, let session = report.sessions.first(where: { $0.id == id }) {
+                CardioSessionView(session: session, maxHeartRate: report.maxHeartRate, store: cardio)
+            } else {
+                notLoaded("That session is no longer loaded")
+            }
+        case .habits:
+            HabitsView(store: habits)
+        case .dayActivity(let day):
+            DayActivityView(day: day, store: habits)
         case .wellness:
             WellnessHistoryView(readings: snapshot?.wellness ?? [], refresh: { await store.refresh() })
         case .injuries:
@@ -86,12 +107,16 @@ struct BodyView: View {
             if let injury = snapshot?.injuries.first(where: { $0.injuryId == id }) {
                 InjuryDetailView(history: InjuryHistory.of(injury), store: store)
             } else {
-                ContentUnavailableView {
-                    Text("That injury is no longer loaded")
-                } description: {
-                    Text("Pull to refresh on the Body screen.")
-                }
+                notLoaded("That injury is no longer loaded")
             }
+        }
+    }
+
+    private func notLoaded(_ title: String) -> some View {
+        ContentUnavailableView {
+            Text(title)
+        } description: {
+            Text("Pull to refresh on the Body screen.")
         }
     }
 
@@ -104,6 +129,8 @@ struct BodyView: View {
         }
 
         recoverySection(snapshot)
+        latestSection(snapshot)
+        questionsSection
         activeInjuriesSection(snapshot)
         recordsSection(snapshot)
 
@@ -126,6 +153,70 @@ struct BodyView: View {
             }
             OuraSyncRow(store: ouraSync, today: today)
         }
+    }
+
+    /// The last night and the newest scored day, each opening onto its own screen.
+    @ViewBuilder
+    private func latestSection(_ snapshot: BodySnapshot) -> some View {
+        let night = snapshot.latestNight(onOrBefore: today)
+        let day = snapshot.ouraDays.first { $0.readiness?.score != nil || $0.sleep?.score != nil }
+        if night != nil || day != nil {
+            Section {
+                if let night {
+                    NavigationLink(value: BodyRoute.night(night.day)) {
+                        NightSummaryRow(night: night)
+                    }
+                }
+                if let day {
+                    NavigationLink(value: BodyRoute.ouraDay(day.date)) {
+                        LabeledContent {
+                            Text(Self.scores(of: day)).font(.subheadline.monospacedDigit())
+                        } label: {
+                            Text("Scores and contributors")
+                        }
+                    }
+                }
+            } header: {
+                Text(night.map { "Night of \(Formatting.date($0.day.adding(days: -1)))" } ?? "Latest")
+            }
+        }
+    }
+
+    private static func scores(of day: OuraDay) -> String {
+        [
+            day.readiness?.score.map { "Readiness \($0)" },
+            day.sleep?.score.map { "Sleep \($0)" },
+            day.activity?.score.map { "Activity \($0)" },
+        ].compactMap(\.self).joined(separator: " · ")
+    }
+
+    /// Cardio and daily movement: questions with screens of their own, each summarised in a line.
+    private var questionsSection: some View {
+        Section {
+            NavigationLink(value: BodyRoute.cardio) {
+                QuestionRow(title: "Cardio", detail: cardioLine)
+            }
+            NavigationLink(value: BodyRoute.habits) {
+                QuestionRow(title: "Daily movement", detail: movementLine)
+            }
+        }
+    }
+
+    private var cardioLine: String? {
+        guard let base = cardio.reports[.quarter]?.value?.aerobicBase else { return nil }
+        return [
+            base.zone2MinutesPerWeek.recent.map { "Z2 \(Int($0.rounded())) min/wk" },
+            base.cardioMinutesPerWeek.recent.map { "\(Int($0.rounded())) min/wk" },
+            base.vo2Max.recent.map { "VO₂max \(Int($0.rounded()))" },
+        ].compactMap(\.self).joined(separator: " · ").nonEmpty
+    }
+
+    private var movementLine: String? {
+        guard let weekdays = habits.reports[.month]?.value?.current.weekdays else { return nil }
+        return [
+            weekdays.longestSittingMinutes.map { "Longest sitting \(Formatting.minutes($0))" },
+            weekdays.steps.map { "\(Int($0).formatted()) steps" },
+        ].compactMap(\.self).joined(separator: " · ").nonEmpty.map { "Weekdays: \($0)" }
     }
 
     @ViewBuilder
@@ -185,6 +276,7 @@ struct BodyView: View {
             SkeletonRows(count: 1)
             OuraSyncRow(store: ouraSync, today: today)
         }
+        questionsSection
         Section("Records") { SkeletonRows(count: 3) }
     }
 
@@ -214,4 +306,23 @@ struct BodyView: View {
     }
 
     private var today: CalendarDay { CalendarDay(Date()) }
+}
+
+/// A row that opens a screen of its own: its name, and a line of the figures it leads with once
+/// they have been read.
+private struct QuestionRow: View {
+    let title: String
+    let detail: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            if let detail {
+                Text(detail)
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(Color(.secondaryLabel))
+            }
+        }
+        .padding(.vertical, 1)
+    }
 }

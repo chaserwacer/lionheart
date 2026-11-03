@@ -73,6 +73,38 @@ public class OuraDocumentMappingTests
     }
 
     [Fact]
+    public void An_activity_document_keeps_its_five_minute_classification_placed_on_the_athletes_clock()
+    {
+        // Oura's activity day starts at 04:00 local, and the recorded timestamp carries that
+        // offset, so slot n sits 5n minutes after it on the clock the athlete lived.
+        var timeline = Mapped(RecordedPayloads.Activity(1).ToDocument(Athlete)).Reading.Timeline;
+
+        Assert.NotNull(timeline);
+        Assert.Equal(new DateTimeOffset(2024, 1, 1, 4, 0, 0, TimeSpan.FromHours(-5)), timeline.StartedAt);
+        Assert.Equal(288, timeline.Classes.Length);
+        Assert.StartsWith("2123421111", timeline.Classes);
+        Assert.Equal(new DateTimeOffset(2024, 1, 2, 3, 55, 0, TimeSpan.FromHours(-5)), timeline.SlotStart(287));
+    }
+
+    [Fact]
+    public void An_activity_document_with_no_classification_is_stored_without_a_timeline()
+    {
+        // Optional in Oura's schema, so its absence is a day without a shape, not a defect.
+        var reading = Mapped((RecordedPayloads.Activity(0) with { Class5Min = null }).ToDocument(Athlete)).Reading;
+
+        Assert.Null(reading.Timeline);
+        Assert.Equal(15, reading.ActiveCalories);
+    }
+
+    [Fact]
+    public void A_classification_with_no_instant_to_start_from_is_refused_naming_the_timestamp()
+    {
+        var defects = Refused((RecordedPayloads.Activity(0) with { Timestamp = null }).ToDocument(Athlete));
+
+        Assert.Equal("timestamp", Assert.Single(defects.Defects).Field);
+    }
+
+    [Fact]
     public void A_readiness_document_keeps_all_nine_of_its_contributors()
     {
         var reading = Mapped(RecordedPayloads.Readiness(1).ToDocument(Athlete)).Reading;
@@ -269,6 +301,79 @@ public class OuraDocumentMappingTests
         Assert.Equal(["tag_generic_nocaffeine"], bare.Codes);
         Assert.Null(bare.Text);
         Assert.Equal(string.Empty, blank.Text);
+    }
+
+    // ---- Collections shaped from Oura's published schema ----
+    //
+    // No recorded payload exists for these three; the payloads below are built to Oura's OpenAPI
+    // 1.43 schema. What these tests pin is that a document of that shape maps, and that one missing a
+    // required field is refused by name — which is what the first live sync's tally will report.
+
+    [Fact]
+    public void A_VO2max_estimate_keeps_its_value_and_when_Oura_made_it()
+    {
+        var document = Mapped(new WireVo2Max
+        {
+            Id = "6f1b0c7e-2f6e-4f0b-9a5e-0d6f3c0b1a11",
+            Day = "2026-10-12",
+            Timestamp = "2026-10-12T07:14:00-04:00",
+            Vo2Max = 47,
+        }.ToDocument(Athlete));
+
+        Assert.Equal(new DateOnly(2026, 10, 12), document.Day);
+        Assert.Equal(47, document.Reading.Vo2Max);
+        Assert.Equal(new DateTimeOffset(2026, 10, 12, 7, 14, 0, TimeSpan.FromHours(-4)), document.Reading.EstimatedAt);
+    }
+
+    [Fact]
+    public void A_VO2max_estimate_without_a_value_is_refused_naming_it()
+    {
+        var defects = Refused(new WireVo2Max
+        {
+            Id = "6f1b0c7e-2f6e-4f0b-9a5e-0d6f3c0b1a11",
+            Day = "2026-10-12",
+            Timestamp = "2026-10-12T07:14:00-04:00",
+        }.ToDocument(Athlete));
+
+        Assert.Equal("vo2_max", Assert.Single(defects.Defects).Field);
+    }
+
+    [Fact]
+    public void A_cardiovascular_age_keeps_each_figure_independently_absent()
+    {
+        var document = Mapped(new WireDailyCardiovascularAge
+        {
+            Id = "0b7d6f4e-8c1a-4d55-b3a0-6a2f9e1c7d22",
+            Day = "2026-10-12",
+            VascularAge = 23,
+        }.ToDocument(Athlete));
+
+        Assert.Equal(23, document.Reading.VascularAge);
+        Assert.Null(document.Reading.PulseWaveVelocity);
+    }
+
+    [Fact]
+    public void A_heart_rate_sample_is_kept_in_UTC_whatever_offset_Oura_wrote()
+    {
+        var sample = Mapped(new WireHeartRate
+        {
+            Timestamp = "2026-10-12T07:14:00-04:00",
+            Bpm = 61,
+            Source = "awake",
+        }.ToSample());
+
+        Assert.Equal(new DateTimeOffset(2026, 10, 12, 11, 14, 0, TimeSpan.Zero), sample.At);
+        Assert.Equal(TimeSpan.Zero, sample.At.Offset);
+        Assert.Equal(61, sample.Bpm);
+        Assert.Equal("awake", sample.Source);
+    }
+
+    [Fact]
+    public void A_heart_rate_of_zero_is_refused_rather_than_stored_as_a_heartbeat()
+    {
+        var defects = Refused(new WireHeartRate { Timestamp = "2026-10-12T11:14:00Z", Bpm = 0, Source = "awake" }.ToSample());
+
+        Assert.Equal("bpm", Assert.Single(defects.Defects).Field);
     }
 
     // ---- Refusals ----

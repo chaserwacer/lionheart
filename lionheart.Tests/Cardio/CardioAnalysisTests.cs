@@ -1,0 +1,258 @@
+using lionheart.Model.Analysis;
+using lionheart.Model.Cardio;
+using lionheart.Model.Oura;
+using lionheart.Model.Oura.Readings;
+using lionheart.Model.Training.Sessions;
+using lionheart.Model.Training.Sets;
+using lionheart.Services.Cardio;
+using lionheart.Tests.Support;
+
+namespace lionheart.Tests.Cardio;
+
+/// <summary>
+/// The cardio report's rules, over hand-built inputs: which workouts are sessions, how heart-rate
+/// time is attributed, which maximum the zones come from, and what the comparison says when the
+/// series is missing.
+/// </summary>
+public class CardioAnalysisTests
+{
+    private static readonly Guid Athlete = Guid.NewGuid();
+    private static readonly TimeSpan Eastern = TimeSpan.FromHours(-4);
+    private static readonly DayRange October = new(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31));
+
+    // ---- Which workouts are sessions ----
+
+    [Fact]
+    public void A_walk_under_half_an_hour_is_excluded_and_a_longer_one_is_a_session()
+    {
+        var report = Build(ring: [Ring("walking", At(10, 9), 19), Ring("walking", At(11, 9), 45)]);
+
+        var session = Assert.Single(report.Sessions);
+        Assert.Equal(45, session.Minutes, precision: 3);
+        var excluded = Assert.Single(report.Excluded);
+        Assert.Equal((WorkoutCategory.Walk, 1), (excluded.Category, excluded.Count));
+        Assert.Equal(WorkoutExclusion.ShortWalk, excluded.Reason);
+    }
+
+    [Fact]
+    public void Housework_and_stretching_are_counted_as_excluded_never_as_cardio()
+    {
+        var report = Build(ring: [Ring("houseWork", At(10, 9), 40), Ring("stretching", At(10, 12), 20)]);
+
+        Assert.Empty(report.Sessions);
+        Assert.Equal(2, Assert.Single(report.Excluded).Count);
+    }
+
+    [Fact]
+    public void A_ring_workout_inside_a_logged_lifting_session_is_that_session_not_cardio()
+    {
+        // Most of the ring's "handball" is the gym: a lifting session the ring saw and misnamed.
+        var lifting = Logged(At(12, 17), 70, Some.LiftSet);
+        var report = Build(ring: [Ring("handball", At(12, 17).AddMinutes(10), 30)], logged: [lifting]);
+
+        Assert.Empty(report.Sessions);
+        Assert.Equal(WorkoutExclusion.InsideLoggedLifting, Assert.Single(report.Excluded).Reason);
+    }
+
+    [Fact]
+    public void A_logged_run_the_ring_also_saw_is_one_session_kept_as_the_logged_one()
+    {
+        var run = Logged(At(14, 7), 60, Some.TrailRunSet);
+        var report = Build(ring: [Ring("running", At(14, 7).AddMinutes(4), 52)], logged: [run]);
+
+        var session = Assert.Single(report.Sessions);
+        var source = Assert.IsType<CardioSessionSource.LoggedSession>(session.Source);
+        Assert.True(source.IsTrailRun);
+        Assert.Equal(6.2 * 1609.344, session.DistanceMeters!.Value, precision: 3);
+    }
+
+    // ---- Heart rate across a session ----
+
+    [Fact]
+    public void Each_sample_stands_for_the_time_to_the_next_and_the_zones_follow_the_maximum()
+    {
+        // Age 20 predicts 194. 120 bpm is 62% of it (zone 2), 150 is 77% (zone 3).
+        var start = At(15, 7);
+        var report = Build(
+            ring: [Ring("running", start, 30)],
+            heartRate: [.. Beats(start, 120, count: 3), .. Beats(start.AddMinutes(15), 150, count: 3)]);
+
+        var recorded = Assert.IsType<SessionHeartRate.Recorded>(Assert.Single(report.Sessions).HeartRate);
+        Assert.Equal(new ZoneMinutes(0, 0, 15, 15, 0, 0), recorded.Zones);
+        Assert.Equal(135, recorded.AverageBpm);
+        Assert.Equal(150, recorded.PeakBpm);
+        Assert.Equal(1, recorded.Coverage, precision: 6);
+    }
+
+    [Fact]
+    public void A_gap_in_the_series_is_time_without_a_reading_rather_than_time_at_the_last_one()
+    {
+        var start = At(15, 7);
+        var report = Build(
+            ring: [Ring("running", start, 60)],
+            heartRate: [Beat(start, 130), Beat(start.AddMinutes(50), 130)]);
+
+        var recorded = Assert.IsType<SessionHeartRate.Recorded>(Assert.Single(report.Sessions).HeartRate);
+        Assert.Equal(10, recorded.Zones!.InZones, precision: 6);
+        Assert.Equal(10.0 / 60, recorded.Coverage, precision: 6);
+    }
+
+    [Fact]
+    public void A_session_with_no_samples_says_its_heart_rate_was_not_recorded()
+    {
+        var report = Build(ring: [Ring("hiking", At(16, 9), 90)]);
+
+        Assert.IsType<SessionHeartRate.NotRecorded>(Assert.Single(report.Sessions).HeartRate);
+    }
+
+    // ---- The maximum ----
+
+    [Fact]
+    public void The_age_prediction_sets_the_zones_when_the_rings_peak_is_below_it()
+    {
+        var start = At(15, 7);
+        var report = Build(ring: [Ring("running", start, 600)], heartRate: Beats(start, 170, count: 120));
+
+        var maximum = Assert.IsType<MaxHeartRate.AgePredicted>(report.MaxHeartRate);
+        Assert.Equal((194, 20, 170), (maximum.Bpm, maximum.Age, maximum.ObservedPeak));
+    }
+
+    [Fact]
+    public void A_ring_peak_above_the_age_prediction_is_taken_as_the_maximum()
+    {
+        var start = At(15, 7);
+        var report = Build(ring: [Ring("running", start, 600)], heartRate: Beats(start, 199, count: 120));
+
+        var maximum = Assert.IsType<MaxHeartRate.Observed>(report.MaxHeartRate);
+        Assert.Equal((199, 194), (maximum.Bpm, maximum.AgePredictedBpm));
+    }
+
+    [Fact]
+    public void Too_few_cardio_samples_report_no_peak_at_all()
+    {
+        var start = At(15, 7);
+        var report = Build(ring: [Ring("running", start, 60)], heartRate: Beats(start, 199, count: 12));
+
+        var maximum = Assert.IsType<MaxHeartRate.AgePredicted>(report.MaxHeartRate);
+        Assert.Null(maximum.ObservedPeak);
+    }
+
+    [Fact]
+    public void A_profile_with_no_usable_age_and_no_peak_draws_no_zones()
+    {
+        var start = At(15, 7);
+        var report = Build(ring: [Ring("running", start, 30)], heartRate: Beats(start, 140, count: 6), age: 0);
+
+        Assert.Null(report.MaxHeartRate);
+        Assert.Null(Assert.IsType<SessionHeartRate.Recorded>(Assert.Single(report.Sessions).HeartRate).Zones);
+    }
+
+    // ---- Weeks and the comparison ----
+
+    [Fact]
+    public void Every_week_the_range_touches_is_present_including_the_empty_ones()
+    {
+        var report = Build(ring: [Ring("running", At(14, 7), 40)]);
+
+        // 1 October 2026 is a Thursday, so the first week starts on Monday 28 September.
+        Assert.Equal(new DateOnly(2026, 9, 28), report.Weeks[0].WeekStarting);
+        Assert.Equal(new DateOnly(2026, 10, 26), report.Weeks[^1].WeekStarting);
+        Assert.Equal([0, 0, 1, 0, 0], report.Weeks.Select(week => week.Sessions));
+    }
+
+    [Fact]
+    public void Zone_two_is_unknown_rather_than_zero_when_the_window_has_sessions_but_no_heart_rate()
+    {
+        var report = Build(ring: [Ring("running", At(20, 7), 40)]);
+
+        Assert.Null(report.AerobicBase.Zone2MinutesPerWeek.Recent);
+        Assert.Equal(10, report.AerobicBase.CardioMinutesPerWeek.Recent!.Value, precision: 6);
+    }
+
+    [Fact]
+    public void Zone_two_is_unknown_when_most_of_a_windows_session_time_has_no_heart_rate()
+    {
+        // One 30-minute session with heart rate and a 90-minute one before the series was synced:
+        // counting only the first would read as a quarter of the zone 2 that happened.
+        var start = At(20, 7);
+        var report = Build(
+            ring: [Ring("running", start, 30), Ring("hiking", At(21, 9), 90)],
+            heartRate: Beats(start, 125, count: 6));
+
+        Assert.Null(report.AerobicBase.Zone2MinutesPerWeek.Recent);
+    }
+
+    [Fact]
+    public void Zone_two_is_unknown_rather_than_zero_with_no_maximum_to_draw_zones_from()
+    {
+        var start = At(20, 7);
+        var report = Build(ring: [Ring("running", start, 30)], heartRate: Beats(start, 125, count: 6), age: 0);
+
+        Assert.Null(report.AerobicBase.Zone2MinutesPerWeek.Recent);
+    }
+
+    [Fact]
+    public void A_week_cut_by_the_range_says_how_many_of_its_days_are_in_it()
+    {
+        var report = Build();
+
+        // October 2026 starts on a Thursday and ends on a Saturday.
+        Assert.Equal([4, 7, 7, 7, 6], report.Weeks.Select(week => week.DaysInRange));
+    }
+
+    [Fact]
+    public void Zone_two_is_zero_in_a_window_with_no_cardio_at_all()
+    {
+        var report = Build();
+
+        Assert.Equal(0, report.AerobicBase.Zone2MinutesPerWeek.Recent);
+    }
+
+    [Fact]
+    public void Resting_heart_rate_reads_a_lowest_rate_of_zero_as_no_reading()
+    {
+        var report = Build(sleeps: [Night(new DateOnly(2026, 10, 20), 44), Night(new DateOnly(2026, 10, 21), 0)]);
+
+        Assert.Equal([new DayValue(new DateOnly(2026, 10, 20), 44)], report.RestingHeartRate);
+    }
+
+    // ---- Builders ----
+
+    private static CardioReport Build(
+        IReadOnlyList<OuraWorkout>? ring = null,
+        IReadOnlyList<CompletedTrainingSession>? logged = null,
+        IReadOnlyList<HeartRateSample>? heartRate = null,
+        IReadOnlyList<OuraSleepPeriod>? sleeps = null,
+        int age = 20) =>
+        CardioAnalysis.Build(new CardioInputs(
+            October, age, CardioAnalysis.Gather(ring ?? [], logged ?? []),
+            [.. (heartRate ?? []).OrderBy(sample => sample.At)], [], [], sleeps ?? []));
+
+    private static DateTimeOffset At(int day, int hour) => new(2026, 10, day, hour, 0, 0, Eastern);
+
+    private static OuraWorkout Ring(string activity, DateTimeOffset start, double minutes) =>
+        new(Guid.NewGuid(), Athlete, DateOnly.FromDateTime(start.DateTime), new WorkoutReading(
+            new Interval(start, start.AddMinutes(minutes)), activity, "moderate", "confirmed", null, null, null));
+
+    private static CompletedTrainingSession Logged(DateTimeOffset start, double minutes, SetEntry set) =>
+        Some.CompletedSession(Athlete) with
+        {
+            Sets = [set],
+            Period = new Interval(start, start.AddMinutes(minutes)),
+        };
+
+    private static HeartRateSample Beat(DateTimeOffset at, int bpm) => new(at.ToUniversalTime(), bpm, "workout");
+
+    /// <summary><paramref name="count"/> samples five minutes apart from <paramref name="start"/>.</summary>
+    private static IReadOnlyList<HeartRateSample> Beats(DateTimeOffset start, int bpm, int count) =>
+        [.. Enumerable.Range(0, count).Select(index => Beat(start.AddMinutes(5 * index), bpm))];
+
+    private static OuraSleepPeriod Night(DateOnly day, int lowest)
+    {
+        var bedtime = new DateTimeOffset(day.AddDays(-1).ToDateTime(new TimeOnly(23, 0)), Eastern);
+        var empty = new OuraSampleSeries(300, [], bedtime);
+        return new OuraSleepPeriod(Guid.NewGuid(), Athlete, day, new SleepPeriodReading(
+            new Interval(bedtime, bedtime.AddHours(8)), SleepPeriodReading.MainSleepKind, 0, 28800, 25200,
+            5400, 14400, 5400, 3600, 600, 88, 10, 50, lowest, 80, 14, null, null, null, null, "4222", empty, empty));
+    }
+}

@@ -6,13 +6,22 @@ struct DayRange: Equatable, Sendable {
     let to: CalendarDay
 }
 
-extension DayRange: Encodable {
+extension DayRange: Codable {
     private enum CodingKeys: String, CodingKey { case from, to }
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(from.wire, forKey: .from)
         try container.encode(to.wire, forKey: .to)
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        guard let from = container.day("from"), let to = container.day("to") else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath, debugDescription: "A day range needs both of its days."))
+        }
+        self.init(from: from, to: to)
     }
 }
 

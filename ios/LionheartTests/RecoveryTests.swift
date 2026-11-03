@@ -21,7 +21,7 @@ enum ARecovery {
                     contributors: .absent)
             },
             sleep: sleepScore.map { OuraDay.Sleep(score: $0, contributors: .absent) },
-            spo2: nil, stress: nil, resilience: nil)
+            spo2: nil, stress: nil, resilience: nil, vo2Max: nil, cardiovascularAge: nil)
     }
 
     static func night(

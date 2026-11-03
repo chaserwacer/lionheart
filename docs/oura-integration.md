@@ -33,7 +33,8 @@ described in order to guess which days were still provisional.
 One table per collection. Each row is `OuraId` (Oura's own id, the primary key), `UserId`, `Day`
 (the day Oura files the document under), and the measurement itself as a JSON column. Event
 collections also carry an indexed `StartTime`, stamped from the reading's `Period` on every save
-the same way the training domain's is.
+the same way the training domain's is. The all-day heart-rate series is the one exception, and has
+its own section below: its samples carry no id, so its rows are keyed by athlete and UTC day.
 
 | Collection | Table | Shape | Why it is worth storing |
 |---|---|---|---|
@@ -42,13 +43,17 @@ the same way the training domain's is.
 | `daily_sleep` | `OuraDailySleep` | one per day | The night's score and its seven contributors. |
 | `daily_spo2` | `OuraDailySpo2` | one per day* | Overnight blood oxygen and a breathing-disturbance index — two independently absent numbers, and disturbed breathing bears directly on recovery. |
 | `daily_stress` | `OuraDailyStress` | one per day | Seconds of the day read as stressed and as recovered, plus Oura's one-word verdict. Load and recovery, measured. |
-| `daily_resilience` | `OuraDailyResilience` | one per day | Oura's resilience level and its three recovery components. The one collection with **no archived history** — see below. |
+| `daily_resilience` | `OuraDailyResilience` | one per day | Oura's resilience level and its three recovery components. No archived history — see below. |
+| `vO2_max` | `OuraVo2Max` | zero or one per day* | Oura's VO2max estimate (ml/kg/min) and when it made it. An estimate from heart rate and walking, not a gas-exchange test; its value is its trend. No archived history. |
+| `daily_cardiovascular_age` | `OuraDailyCardiovascularAge` | one per day | Oura's predicted vascular age and the pulse-wave velocity it derives from it. A model output, kept for its trend. No archived history. |
+| `heartrate` | `OuraHeartRateDays` | one run per UTC day | The all-day heart-rate series, ~288 samples a day at rest and denser in workouts, each with Oura's `source` (awake, rest, sleep, workout, session, live). What the cardio report reads heart-rate zones from. No archived history. |
 | `sleep` | `OuraSleepPeriods` | zero to many per day | The richest recovery source there is: per-period stages, efficiency, latency, and the overnight heart-rate and HRV curves the daily score flattens away. |
 | `workout` | `OuraWorkouts` | zero to many per day | Training load the ring saw and Lionheart did not record itself. |
 | `session` | `OuraSessions` | zero to many per day | Guided meditation, breathing and rest, with their own sample runs. Three records so far; the table is nearly free and rejecting it would mean adding one back the first time he meditates again. |
 | `tag` | `OuraTags` | zero to many per day | The closest thing in the Oura surface to the athlete's own account of a day — sauna, alcohol, travel, a late coffee. A bad night explains itself when the same night carries `tag_sleep_alcohol` and `tag_sleep_late_hotbath`. |
 
-\* A day is deliberately **not** unique for SpO2. Oura issued two documents a day for 128
+\* A day is deliberately **not** unique for SpO2, nor for VO2max, which Oura's schema does not
+promise one of per day. Oura issued two documents a day for 128
 consecutive days (2024-11-01 to 2025-11-03), identical in content for all but three of them. Both
 are stored, because Oura's id is the key and storing what it actually sent is more honest than
 picking one at the boundary. A day read takes one of them in document-id order, so the same call
@@ -59,11 +64,11 @@ does not answer differently twice.
 | Series | Size | Decision |
 |---|---|---|
 | `sleep.heart_rate`, `sleep.hrv` | ~94 samples per night at 5 minutes; ~102k slots across the archive, ~1.5 MB of JSON | **Kept**, as JSON on the sleep-period row. The overnight HRV curve is the highest-value recovery signal in the data, and 1.5 MB total is nothing. Stored as one run per night rather than one row per sample: ~190 rows a night for data only ever read whole is a quarter of a million rows bought for nothing. |
-| `sleep.sleep_phase_5_min` | ~94 characters per night | **Kept**, verbatim as Oura's digit-per-slot encoding. The hypnogram is the shape of the night. Not decoded on the way in: the digit-to-stage mapping is documented by Oura but not derivable from the payloads, so decoding at the boundary would bake an unverifiable assumption into storage. |
+| `sleep.sleep_phase_5_min` | ~94 characters per night | **Kept**, verbatim as Oura's digit-per-slot encoding, and decoded where it is drawn. The hypnogram is the shape of the night. Oura documents the digits (OpenAPI 1.43, `sleep_phase_5_min`): 1 deep, 2 light, 3 REM, 4 awake. Checked against the athlete's 1,053 archived main sleeps: of every assignment of the four digits to the four stages, that one is the closest to Oura's own stage durations — a mean of 23 minutes off per night across all four stages, against 68 for the next best — so the decoder follows the documentation and the archive agrees. Storage stays verbatim so a decoder could be corrected without a migration. |
 | `sleep.sleep_phase_30_sec`, `sleep.movement_30_sec` | ~938 characters per night each; ~2 MB, ~19% of the sleep payload | **Rejected.** Ten times the bytes of the 5-minute hypnogram for a resolution nothing in the app reads, and the two strings' lengths disagree with each other in 799 of 1425 archived records, so they cannot be aligned sample-for-sample anyway. |
 | `sleep.app_sleep_phase_5_min` | ~94 characters per night | **Rejected.** A second hypnogram from a different algorithm. It disagrees with the first in 1359 of 1425 archived records — most of them in ten or more slots, not at the margins — so keeping both would leave two real and different answers to "when was he in deep sleep". |
-| `daily_activity.met` | exactly 1440 samples per day; 1.78M samples, **87% of that file's 10.4 MB** | **Rejected.** The daily MET-minute totals Oura sends alongside it (`low`/`medium`/`high`/`sedentary_met_minutes`, `average_met_minutes`) are the same information at the resolution anything here reads, and nothing plots minute-resolution MET. This is the single largest storage decision in the change and it drops ~87% of the activity payload for no analytic loss. |
-| `daily_activity.class_5_min` | 288 characters per day | **Rejected**, for consistency with `met`: the five activity-band time totals are the same information summed, and no consumer wants an intraday activity profile. |
+| `daily_activity.class_5_min` | 288 characters per day; ~0.4 MB across the archive | **Kept**, verbatim with the instant its first slot starts — Oura's activity day runs from 04:00 local, and the document's `timestamp` carries that offset. **Reversed 2026-11-03:** it was first rejected because no consumer wanted an intraday profile, and the athlete now does — sittings at the desk and how long they run, when in the day he moves and trains, weekdays against weekends. Those are shapes inside a day, which the daily totals sum away. Oura's digits (OpenAPI 1.43): 0 non-wear, 1 rest, 2 inactive, 3 low, 4 medium, 5 high; counting each digit's slots lands within minutes of Oura's own per-minute time totals on the same day. The totals stay the figures of record, since Oura computes them per minute. |
+| `daily_activity.met` | exactly 1440 samples per day; 1.78M samples, **87% of that file's 10.4 MB** | **Still rejected.** Everything the habits report reads comes from Oura's own five-minute classification; reading sittings from minute-resolution MET instead would mean choosing a MET cut-off for "sitting" that Oura has already chosen once. With no reader, it stays out. The daily MET-minute totals Oura sends beside it are kept. |
 | `session.*` three runs | 39–99 samples at 5 seconds, 3 records | **Kept.** Same envelope as sleep's, and trivially small. |
 
 ### Fields dropped from collections that are otherwise stored
@@ -83,27 +88,58 @@ did. `optimal_bedtime` is null in 96.7% of the archived records and the recommen
 `earlier_bedtime` in 678 of 1025, so there is little signal even taken at face value. The archive
 file is present and the importer names it in its report rather than skipping it silently.
 
-**Collections Oura exposes that are not built at all:** `daily_cardiovascular_age`, `vO2_max`,
-`heartrate`, `personal_info`, `ring_configuration`, `rest_mode_period`, `enhanced_tag`.
+**Collections Oura exposes that are not built at all:** `personal_info`, `ring_configuration`,
+`rest_mode_period`, `enhanced_tag`. The first two are device and profile metadata rather than
+anything to reason over; the last two have no reader.
 
-The line drawn here is deliberate and worth stating plainly: every collection above was built
-against **recorded payloads from the athlete's own account**, so its field shapes are known rather
-than assumed. None of these seven has an archived file, and the live pull cannot be run without his
-credential, so building them would mean shipping unverifiable mapping code against a schema read
-from documentation. Two of them have a second reason: `heartrate` is all-day 5-minute heart rate,
-which is 288 samples a day — far larger than everything else here combined — and `personal_info`
-and `ring_configuration` are device and profile metadata rather than anything to reason over.
-`daily_cardiovascular_age` and `vO2_max` are the two most likely to be worth adding; each is a
-small number per day, and each needs one real payload to pin its shape first.
+`vO2_max`, `daily_cardiovascular_age` and `heartrate` were held back here at first, for want of a
+recorded payload to pin their shapes. **Built 2026-11-03**, because the athlete's goals are trail
+running and better cardio, and these three are the only cardio Oura measures or estimates. They are
+mapped from Oura's published schema (OpenAPI 1.43) rather than from a recorded payload, which is
+the one thing to check after the first live sync: every unreadable document is counted and
+described in the tally, so a schema the API does not actually honour shows up as rejections rather
+than as silently missing data.
 
-## The one collection with no history
+## The collections with no archived history
 
-`daily_resilience` is stored and the live sync pulls it, but the athlete's archive has no
-`daily_resilience.jsonl`, so its history begins whenever the sync first runs successfully. The
-importer reports this as a distinct outcome (`NoArchiveFile`) rather than as zero records, because
-"the ring recorded none" and "there is no file" are different facts. It is also the only reading
-here whose shape is not pinned by a recorded payload, and so the only mapping no recorded-payload
-test can cover.
+`daily_resilience`, `vO2_max` and `daily_cardiovascular_age` are stored and the live sync pulls
+them, but the athlete's archive has no file for any of them, so their history begins with the
+first sync that reaches back. The importer reports each as a distinct outcome (`NoArchiveFile`)
+rather than as zero records, because "the ring recorded none" and "there is no file" are different
+facts. They are also the readings whose shapes no recorded payload pins.
+
+`heartrate` has no archive shape at all: its samples carry no document id for the importer to key
+on, so the live sync is its only way in. A sync over a long range is how its history is backfilled
+— see below.
+
+## The all-day heart-rate series
+
+Oura serves `heartrate` by instants (`start_datetime`/`end_datetime`) rather than days, as bare
+`{timestamp, bpm, source}` samples in UTC. Three decisions follow.
+
+- **One run per UTC day, keyed by athlete and day.** The same reasoning as the overnight curves —
+  several hundred rows a day for data only ever read as a span is rows bought for nothing — and
+  UTC because the samples come with no local offset, so a UTC day is the one boundary drawable
+  without guessing where the athlete was. Readers never see the day: they ask for a window of
+  instants (`/api/oura/heartrate`, or a session's own clock time inside the cardio report).
+- **Pulled in whole UTC days, and each day replaced wholesale.** A sync for days `From`–`To` asks
+  for `From` 00:00Z to the midnight two days after `To` — the athlete's evening is already the next
+  UTC day — in slices of at most 30 days. Oura's OpenAPI description (1.43) states no maximum
+  window for this route; client libraries report refusals past about a month, and 30 days stays
+  under that. Because every slice starts and ends at a UTC midnight, each day it returns is
+  complete as of the pull, so replacing the stored day is idempotent the way an Oura id is for the
+  other tables. Each slice is saved as it arrives, so a long backfill that is rate-limited partway
+  keeps what it finished.
+- **Samples are not evenly spaced.** Nominally five minutes, faster during a workout, absent while
+  the ring is off. Each keeps its own instant, and the cardio report credits a sample with the time
+  to the next one, capped at five minutes, so a gap reads as time without a reading rather than as
+  time at the last one.
+
+A sample that cannot be read is counted and described per sample in the tally, like a document.
+
+**Size.** At the nominal rate a day is about 17 KB of JSON (288 samples at ~60 bytes), more on
+workout days: roughly 6–8 MB a year, 20–25 MB for the three years Oura holds. The database copy
+this was measured against is 95 MB.
 
 ## Quirks in the real data, preserved rather than smoothed over
 
@@ -175,6 +211,13 @@ Only Oura data is imported. The same archive holds historical *training* data, w
 decision of 2026-07-19 abandoned with no backfill (`docs/data-remodel.md`); the importer does not
 read it and has no switch that would.
 
+**Backfilling the five-minute classification.** Days imported before `class_5_min` was kept hold
+no timeline. Running the same import again fills it in: each document is keyed by Oura's id, so
+the archived payload is applied over the stored one and the change tracker writes only the days
+that differ. Days after the archive's last day (2026-08-01) get theirs from a sync. Because the
+import also re-applies the archived version of the days the live sync has since covered
+(2026-07-25 onward), run a sync over those days afterwards so they carry Oura's latest.
+
 ## The live sync
 
 `POST /api/oura/sync` pulls every collection above for a range of days and upserts what comes
@@ -210,6 +253,12 @@ Two things a reader should know before trusting the pull:
 - **The activity collection needs an end date a day past the last day wanted**, or it omits that
   last day. Found by hand by the earlier integration and preserved; it is applied only to that one
   collection so the workaround stays attached to the quirk it documents.
+- **VO2max, cardiovascular age and heart rate have not run live.** They were added after the first
+  live sync. Their mapping follows Oura's published schema; the first sync that includes them is
+  the check, and its `rejected` count per collection is the number to read. They run last, and a
+  refusal of a whole route from any of the three — a scope the credential lacks, a page whose
+  types do not match the schema — is reported as that collection's single rejection ("the
+  collection could not be read: …") rather than ending the run.
 
 ## Should Oura days feed `AnalyzableEntry`?
 
@@ -250,7 +299,38 @@ Routes are read-shaped and simple, because a native client is the consumer. See
 The chat model reaches the same data through two tools, `GetOuraDays` and `GetOuraSleepNights`.
 The sleep tool omits the overnight sample runs: a night carries about 96 heart-rate and 96 HRV
 samples, which the native client charts and a model can do nothing with but spend its context on.
-The HTTP route hands them over in full.
+The days tool omits the five-minute activity classification for the same reason. The HTTP routes
+hand both over in full.
+
+## The cardio and habits reports
+
+Two derived reads built on the server, because their input is large and their answer small; each
+is also a chat tool (`GetCardioReport`, `GetHabitsReport`). Code in `Services/Cardio/` and
+`Services/Habits/`, read models in `Model/Cardio/` and `Model/Habits/`, routes in
+`docs/api-surface.md`.
+
+**Cardio** (`GET /api/cardio`). The sessions are the logged Lionheart sessions carrying trail-run or
+distance sets, plus the ring's workouts once their noise is taken out: housework, yard work and
+stretching; walks under 30 minutes (the median auto-detected walk is 19); strength work; and any
+ring workout lying at least half inside a logged session, which is that session as the ring saw it.
+What was excluded is counted by reason in the report. Each session's heart rate is read from the
+all-day series over its own clock time. Zones are percentages of maximum heart rate (50/60/70/80/90),
+with maximum the higher of the Tanaka age prediction (208 − 0.7 × age, from the profile) and the
+99th percentile of the ring's cardio-session samples over the last year: a ring peak above the
+prediction is evidence, one below it is as likely a finger sensor under-reading a hard effort.
+Weekly load is Edwards' TRIMP (zone minutes × zone number). "Is the aerobic base moving" is four
+weeks against the eight before: zone-2 minutes per week, cardio minutes per week, VO2max, the
+nights' lowest heart rate and cardiovascular age.
+
+**Habits** (`GET /api/habits`, `GET /api/habits/days/{day}`). Read from the five-minute
+classification, the sleep periods and the training log. A sitting is a waking run of inactive slots
+and the brief rest inside them, broken by one slot of movement, by the ring coming off, by sleep,
+and by half an hour or more of rest outside a scored sleep — which in this archive is unscored
+naps, unscored nights, and whole days of the ring lying on a table with zero steps. A day counts
+toward the summaries when its classification covers at least 23 hours — so today, still in
+progress, never does — and no more than three hours of it are unaccounted for that way. Every
+summary is weekdays, weekends and all days, for the range and for the equal span before it, so each
+figure is read against his own previous span rather than a norm.
 
 ## Tests
 

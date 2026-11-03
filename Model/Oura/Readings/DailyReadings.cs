@@ -32,7 +32,8 @@ public sealed record DailyActivityReading(
     int LowActivityTimeSeconds,
     int MediumActivityTimeSeconds,
     int HighActivityTimeSeconds,
-    int NonWearTimeSeconds)
+    int NonWearTimeSeconds,
+    ActivityTimeline? Timeline)
 {
     public int? Score { get; init; } = Score;
     public ActivityContributors Contributors { get; init; } = Require.Present(Contributors, nameof(Contributors));
@@ -55,6 +56,43 @@ public sealed record DailyActivityReading(
     public int MediumActivityTimeSeconds { get; init; } = MediumActivityTimeSeconds;
     public int HighActivityTimeSeconds { get; init; } = HighActivityTimeSeconds;
     public int NonWearTimeSeconds { get; init; } = NonWearTimeSeconds;
+
+    /// <summary>
+    /// The day's shape: which activity class each five-minute slot fell in.
+    /// </summary>
+    /// <remarks>
+    /// Absent where Oura sent no classification, and on any document stored before this member
+    /// existed until the archive or a sync is read again. The time totals above stay Oura's own
+    /// figures rather than being summed from this: Oura computes them per minute, so they differ
+    /// from a count of five-minute slots by a few minutes a band on most days.
+    /// </remarks>
+    public ActivityTimeline? Timeline { get; init; } = Timeline;
+}
+
+/// <summary>
+/// The activity class of every five-minute slot of one Oura activity day, from its first slot.
+/// </summary>
+/// <remarks>
+/// Oura's activity day runs from 04:00 local time to 04:00 the next morning, and
+/// <see cref="StartedAt"/> carries that local offset, so slot <c>n</c> sits at
+/// <c>StartedAt + 5n</c> minutes on the athlete's own clock. A full day is 288 slots; a day still
+/// in progress, or one with a time-zone change in it, is shorter or longer.
+/// <para>
+/// Kept as Oura's digit-per-slot string, the same way the hypnogram is, and decoded where it is
+/// read. The encoding is Oura's documented one — 0 non-wear, 1 rest, 2 inactive, 3 low, 4 medium,
+/// 5 high — and storing the digits rather than a decoded list keeps a day at 288 bytes and lets a
+/// decoder that is ever wrong be corrected without touching storage.
+/// </para>
+/// </remarks>
+public sealed record ActivityTimeline(DateTimeOffset StartedAt, string Classes)
+{
+    public DateTimeOffset StartedAt { get; init; } = StartedAt;
+    public string Classes { get; init; } = Require.Present(Classes, nameof(Classes));
+
+    public const int SlotMinutes = 5;
+
+    /// <summary>Where slot <paramref name="index"/> begins on the clock.</summary>
+    public DateTimeOffset SlotStart(int index) => StartedAt.AddMinutes(SlotMinutes * index);
 }
 
 /// <summary>The six components Oura's activity score is built from, each 1-100.</summary>
@@ -149,3 +187,25 @@ public sealed record DailyResilienceReading(string Level, ResilienceContributors
 
 /// <summary>The three components Oura's resilience level is built from.</summary>
 public sealed record ResilienceContributors(double? SleepRecovery, double? DaytimeRecovery, double? Stress);
+
+/// <summary>
+/// Oura's estimate of the athlete's VO2max, in ml/kg/min.
+/// </summary>
+/// <remarks>
+/// An <strong>estimate</strong>, not a measurement: Oura derives it from heart rate and movement
+/// without a gas-exchange test, and issues one on the days it has enough walking to work from. Its
+/// value lies in its trend against itself. Shaped from Oura's published schema; the athlete's
+/// archive holds no file for this collection, so no recorded payload pins it.
+/// </remarks>
+public sealed record Vo2MaxReading(DateTimeOffset EstimatedAt, int Vo2Max);
+
+/// <summary>
+/// Oura's prediction of the athlete's vascular age, and the pulse-wave velocity it is derived from.
+/// </summary>
+/// <remarks>
+/// A model output rather than a measurement, and both members are independently absent in Oura's
+/// schema. Pulse-wave velocity is in metres per second; Oura documents it as derived from the
+/// vascular age, possibly with an offset added, so the age is the primary figure. Shaped from the
+/// published schema, like <see cref="Vo2MaxReading"/>.
+/// </remarks>
+public sealed record CardiovascularAgeReading(int? VascularAge, double? PulseWaveVelocity);

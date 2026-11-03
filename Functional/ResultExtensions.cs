@@ -80,6 +80,18 @@ public static class ResultExtensions
             return source;
         }
 
+        /// <summary>
+        /// Brings a failure back onto the success track as a value — for a step whose failure is an
+        /// outcome to report rather than a reason to stop.
+        /// </summary>
+        public Result<T, TProblem> Recover(Func<TProblem, T> selector) =>
+            source switch
+            {
+                Success<T, TProblem> => source,
+                Failure<T, TProblem> failure => Result<T, TProblem>.Success(selector(failure.Problem)),
+                _ => throw new UnreachableException()
+            };
+
         public async Task<Result<U, TProblem>> MapAsync<U>(Func<T, Task<U>> selector) =>
             source switch
             {
@@ -154,6 +166,9 @@ public static class ResultExtensions
 
         public async Task<Result<T, TProblem>> TapErrorAsync(Action<TProblem> effect) =>
             (await source).TapError(effect);
+
+        public async Task<Result<T, TProblem>> RecoverAsync(Func<TProblem, T> selector) =>
+            (await source).Recover(selector);
 
         public async Task<U> MatchAsync<U>(Func<T, U> onSuccess, Func<TProblem, U> onFailure) =>
             (await source).Match(onSuccess, onFailure);

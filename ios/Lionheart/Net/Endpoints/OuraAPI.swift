@@ -72,6 +72,20 @@ struct OuraAPI: Sendable {
         try await events("/api/oura/tags", from: from, to: to, remembering: key)
     }
 
+    /// Every all-day heart-rate sample in the window, oldest first. The server answers for at most
+    /// 31 days at a time.
+    func heartRate(from: Date, to: Date, remembering key: ReadKey) async throws -> Remembered<[HeartRateSample]> {
+        try await client.get(
+            "/api/oura/heartrate",
+            query: [
+                URLQueryItem(name: "From", value: WireDate.wire(from: from)),
+                URLQueryItem(name: "To", value: WireDate.wire(from: to)),
+            ],
+            as: LenientList<HeartRateSample>.self,
+            remembering: key
+        ).map(\.elements)
+    }
+
     /// The event routes differ only in their path and their reading, so they share this.
     ///
     /// The window binds as instants rather than days, because an event occupies clock time — which

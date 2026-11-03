@@ -36,18 +36,39 @@ internal sealed class OuraClient
     /// </summary>
     public Task<Result<IReadOnlyList<T>, Problem>> ReadAsync<T>(
         string collection, DateOnly from, DateOnly to, string token, CancellationToken ct) =>
+        ReadAsync<T>(collection, $"start_date={from:yyyy-MM-dd}&end_date={to:yyyy-MM-dd}", token, ct);
+
+    /// <summary>
+    /// Every sample in a time-series collection between two instants, across as many pages as Oura
+    /// answers with.
+    /// </summary>
+    /// <remarks>
+    /// Oura's time series take instants rather than days. They are written in UTC with a <c>Z</c>,
+    /// because a <c>+hh:mm</c> offset would have to be escaped and a UTC instant needs no offset at
+    /// all.
+    /// </remarks>
+    public Task<Result<IReadOnlyList<T>, Problem>> ReadAsync<T>(
+        string collection, DateTimeOffset from, DateTimeOffset to, string token, CancellationToken ct) =>
+        ReadAsync<T>(
+            collection,
+            $"start_datetime={from.UtcDateTime:yyyy-MM-ddTHH:mm:ssZ}&end_datetime={to.UtcDateTime:yyyy-MM-ddTHH:mm:ssZ}",
+            token,
+            ct);
+
+    private Task<Result<IReadOnlyList<T>, Problem>> ReadAsync<T>(
+        string collection, string range, string token, CancellationToken ct) =>
         Result.UnfoldAsync(
-            new Pull<T>(collection, from, to, token, Cursor: null, Gathered: []),
+            new Pull<T>(collection, range, token, Cursor: null, Gathered: []),
             (pull, cancel) => NextPageAsync(pull, cancel),
             ct);
 
     /// <summary>
     /// A walk through one collection's pages: where it is, and what it has collected so far.
     /// </summary>
+    /// <param name="Range">The query naming what to read — days or instants, already formatted.</param>
     private sealed record Pull<T>(
         string Collection,
-        DateOnly From,
-        DateOnly To,
+        string Range,
         string Token,
         string? Cursor,
         IReadOnlyList<T> Gathered)
@@ -64,8 +85,7 @@ internal sealed class OuraClient
         public Uri PageUri()
         {
             var query =
-                $"?start_date={From:yyyy-MM-dd}" +
-                $"&end_date={To:yyyy-MM-dd}" +
+                $"?{Range}" +
                 (Cursor is null ? string.Empty : $"&next_token={Uri.EscapeDataString(Cursor)}");
 
             return new Uri($"{CollectionRoot}/{Collection}{query}");

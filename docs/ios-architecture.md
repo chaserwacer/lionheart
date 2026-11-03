@@ -182,6 +182,16 @@ comparison and would make the deviation a comparison of a comparison. Temperatur
 already a deviation, so it shows no second one. Every figure opens its trend: daily points, a
 seven-day mean, over 30 days, 90 days or a year, read on demand and held by key in `TodayStore`.
 
+### The night and the day under the figures
+
+Under the figures sits the night they were read from — the hypnogram as a strip, with how long and
+how efficiently he slept — and the shown day's movement as a strip of Oura's five-minute classes.
+Each opens its own screen: the night's stages, stage shares and overnight heart-rate and HRV curves
+on one time axis; the day's timeline with its long sittings shaded and listed. The night is the
+newest main sleep on or before the reading's day, labelled with its date when it is not that day's,
+because Oura files a readiness some mornings before it files the night. The day's timeline is
+`GET /api/habits/days/{day}`, read through `HabitsStore` beside Today's own reads.
+
 ### Oura sync
 
 `OuraSyncStore` is app-wide, because Today and Body both show the control. A sync reads the
@@ -482,6 +492,34 @@ them, and withdraws one when the athlete says the set was not real. Three rules 
   movement lights nothing rather than eleven badges. Several records beaten read as one sentence,
   the most worth saying first: "New heaviest set and 5 more records".
 
+## Body: the scores, cardio and daily movement
+
+Body leads with the latest readiness and the last night, then the latest day's scores, then two
+questions with screens of their own.
+
+- **Scores and contributors.** A day's readiness, sleep, activity and resilience are drawn as an
+  instrument: each of Oura's components on a 0–100 `RangeGauge` against the band he usually sits in
+  (the 28 days before, mean ± one spread) with the mean as a tick. A component is already Oura's
+  comparison with his baseline, so the useful reading is where today sits against where he usually
+  sits, which a bare number cannot show. Measurements that are not components — temperature,
+  steps, SpO2, stress, VO2max — stay as figures.
+- **Cardio** is its own screen because it is its own question — "is my aerobic base improving",
+  with trail running a stated goal — and carries what no section of Body could: a span, a stated
+  heart-rate zone method, and sessions to open. It is the server's `GET /api/cardio` drawn: the
+  aerobic-base table (four weeks against eight), weekly minutes stacked by zone, Oura's VO2max and
+  cardiovascular-age estimates labelled as estimates, the nights' lowest heart rate, and every
+  session with a zone bar, opening onto its heart-rate curve against the zone bands
+  (`GET /api/oura/heartrate`).
+- **Daily movement** is `GET /api/habits` drawn: weekday and weekend means against the span before,
+  orange only where a change went the worse way; the mean day hour by hour from 04:00 with the
+  hours training began beneath; each day's longest sitting; sleep timing as bedtime-to-wake bars;
+  steps; and each day's timeline.
+
+Both are server-side derivations rather than `Core/` ones, because their input is the all-day
+heart-rate series and a year of five-minute classes, and because the chat analyst reads the same
+reports as tools; the client derives nothing it could get wrong differently. Each store holds one
+report per span, like Today's trends, and reads the span again after an Oura sync.
+
 ## Design
 
 There is no design system. Apple's is the design system, which is the direct expression of the
@@ -498,7 +536,10 @@ owner's brief: native, like Apple Music, and explicitly not the web app's custom
 `Sparkline` (a stock `Chart` with every axis removed), `StatTile`, `SetRow`, `RestTimerBar` and
 `LoadStateRows` (the loading row and stale banner three tabs share), and `MovementLines` (a
 session's movements as log-book lines, figures aligned down one column, which Today and History share),
-and `SummaryFigures` (a span's headline figures as columns, or labelled rows when they would not fit).
+and `SummaryFigures` (a span's headline figures as columns, or labelled rows when they would not fit),
+`LevelTimeline` (states in lanes over clock time — a hypnogram, a day's activity), `RangeGauge` (a
+value on a fixed scale against a usual band), and `MeasureColours` (the one place a sleep stage, an
+activity class or a heart-rate zone gets its colour, so each reads the same on every screen).
 
 Colour carries a verdict in one way only: orange marks a recovery figure, or a readiness band,
 that asks for attention. Oura's other bands read in the secondary label colour — a traffic light's

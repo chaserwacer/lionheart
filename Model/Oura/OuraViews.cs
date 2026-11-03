@@ -25,7 +25,9 @@ public sealed record OuraDayView(
     DailySleepReading? Sleep,
     DailySpo2Reading? Spo2,
     DailyStressReading? Stress,
-    DailyResilienceReading? Resilience);
+    DailyResilienceReading? Resilience,
+    Vo2MaxReading? Vo2Max,
+    CardiovascularAgeReading? CardiovascularAge);
 
 /// <summary>An Oura event as a client reads it: when it happened, the day Oura filed it under, and what it was.</summary>
 /// <remarks>

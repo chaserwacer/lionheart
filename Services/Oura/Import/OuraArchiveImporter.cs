@@ -75,9 +75,12 @@ public sealed class OuraArchiveImporter
 
     /// <remarks>
     /// One closure per collection, for the reason given on <see cref="OuraSyncService"/>: the three
-    /// types differ each time and C# cannot hold them in one list. The resilience collection is
-    /// absent on purpose — the archive has no file for it, and <see cref="ReadAsync{TWire,
-    /// TDocument, TReading}"/> reports that rather than inventing an empty one.
+    /// types differ each time and C# cannot hold them in one list. Resilience, VO2max and
+    /// cardiovascular age are read for whenever an archive holds them; the athlete's has no file
+    /// for any of the three, and <see cref="ReadAsync{TWire, TDocument, TReading}"/> reports that
+    /// rather than inventing an empty one. The all-day heart-rate series is not here at all: its
+    /// samples carry no document id, so it has no archive shape this importer could key, and the
+    /// live sync is its only way in.
     /// </remarks>
     private IReadOnlyList<Func<CancellationToken, Task<Result<OuraCollectionImport, Problem>>>> Steps(
         string directory, Guid userId) =>
@@ -94,6 +97,10 @@ public sealed class OuraArchiveImporter
             directory, "daily_stress", wire => wire.ToDocument(userId), _context.OuraDailyStress, ct),
         ct => ReadAsync<WireDailyResilience, OuraDailyResilience, DailyResilienceReading>(
             directory, "daily_resilience", wire => wire.ToDocument(userId), _context.OuraDailyResilience, ct),
+        ct => ReadAsync<WireVo2Max, OuraVo2Max, Vo2MaxReading>(
+            directory, "vO2_max", wire => wire.ToDocument(userId), _context.OuraVo2Max, ct),
+        ct => ReadAsync<WireDailyCardiovascularAge, OuraDailyCardiovascularAge, CardiovascularAgeReading>(
+            directory, "daily_cardiovascular_age", wire => wire.ToDocument(userId), _context.OuraDailyCardiovascularAge, ct),
         ct => ReadAsync<WireSleep, OuraSleepPeriod, SleepPeriodReading>(
             directory, "sleep", wire => wire.ToDocument(userId), _context.OuraSleepPeriods, ct),
         ct => ReadAsync<WireWorkout, OuraWorkout, WorkoutReading>(
@@ -131,7 +138,7 @@ public sealed class OuraArchiveImporter
     private static readonly string[] Collections =
     [
         "daily_activity", "daily_readiness", "daily_sleep", "daily_spo2", "daily_stress",
-        "daily_resilience", "sleep", "workout", "session", "tag"
+        "daily_resilience", "vO2_max", "daily_cardiovascular_age", "sleep", "workout", "session", "tag"
     ];
 
     // ---- One collection ----

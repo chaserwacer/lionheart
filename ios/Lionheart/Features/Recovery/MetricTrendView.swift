@@ -125,11 +125,16 @@ struct MetricTrendView: View {
                     .symbolSize(span == .year ? 8 : 16)
                     .foregroundStyle(Color(.tertiaryLabel))
             }
-            ForEach(trend.rollingMean) { point in
-                LineMark(x: .value("Day", point.day.middayDate()), y: .value("Seven-day mean", point.value))
-                    .interpolationMethod(.monotone)
-                    .lineStyle(StrokeStyle(lineWidth: 2))
-                    .foregroundStyle(Tokens.accent)
+            ForEach(Array(MetricTrend.unbrokenRuns(of: trend.rollingMean).enumerated()), id: \.offset) { run, points in
+                ForEach(points) { point in
+                    LineMark(
+                        x: .value("Day", point.day.middayDate()),
+                        y: .value("Seven-day mean", point.value),
+                        series: .value("Stretch", run))
+                        .interpolationMethod(.monotone)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .foregroundStyle(Tokens.accent)
+                }
             }
             if let selectedDate {
                 RuleMark(x: .value("Selected", selectedDate))

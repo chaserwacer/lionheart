@@ -35,9 +35,11 @@ public interface IOuraSyncService
 /// Brings the Oura tables up to date from Oura's API.
 /// </summary>
 /// <remarks>
-/// Ten collections, one shape: read the pages for a date range, map each document, store it.
-/// Because Oura's own document id is each table's primary key, storing is an upsert with no sync
-/// ledger behind it — the row either exists and takes the newer payload or it does not exist yet.
+/// Twelve collections share one shape: read the pages for a date range, map each document, store
+/// it. Because Oura's own document id is each table's primary key, storing is an upsert with no
+/// sync ledger behind it — the row either exists and takes the newer payload or it does not exist
+/// yet. The all-day heart-rate series is the thirteenth and is not that shape — it has no ids and is
+/// read by instants — so <see cref="OuraHeartRateSync"/> owns it.
 /// Nothing here has to reason about which days are still provisional: re-syncing a day Oura has
 /// since finalized simply applies the newer payload.
 /// <para>
@@ -47,9 +49,10 @@ public interface IOuraSyncService
 /// end the run, because nothing after it would mean anything.
 /// </para>
 /// <para>
-/// <strong>Unverified against the live API.</strong> Running this needs the athlete's Oura
-/// credential, which was deliberately not used while building it. What is covered by tests is the
-/// mapping and the paging, against recorded Oura payloads — see docs/oura-integration.md.
+/// The ten collections with archived payloads have run against the live API. VO2max,
+/// cardiovascular age and heart rate are mapped from Oura's published schema and have not; their
+/// rejected counts in the first live tally are what confirms or refutes that shape — see
+/// docs/oura-integration.md.
 /// </para>
 /// </remarks>
 public sealed class OuraSyncService : IOuraSyncService
@@ -58,11 +61,13 @@ public sealed class OuraSyncService : IOuraSyncService
 
     private readonly ModelContext _context;
     private readonly OuraClient _client;
+    private readonly OuraHeartRateSync _heartRate;
 
     public OuraSyncService(ModelContext context, HttpClient httpClient)
     {
         _context = context;
         _client = new OuraClient(httpClient);
+        _heartRate = new OuraHeartRateSync(context, _client);
     }
 
     public Task<Result<OuraSyncReport, Problem>> SyncAsync(
@@ -116,6 +121,7 @@ public sealed class OuraSyncService : IOuraSyncService
             run, "daily_stress", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraDailyStress, ct),
         ct => CollectAsync<WireDailyResilience, OuraDailyResilience, DailyResilienceReading>(
             run, "daily_resilience", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraDailyResilience, ct),
+
         ct => CollectAsync<WireSleep, OuraSleepPeriod, SleepPeriodReading>(
             run, "sleep", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraSleepPeriods, ct),
         ct => CollectAsync<WireWorkout, OuraWorkout, WorkoutReading>(
@@ -124,7 +130,24 @@ public sealed class OuraSyncService : IOuraSyncService
             run, "session", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraSessions, ct),
         ct => CollectAsync<WireTag, OuraTag, TagReading>(
             run, "tag", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraTags, ct),
+
+        // Mapped from Oura's published schema with no recorded payload to check it against, so a
+        // refusal of the whole route — a scope the credential lacks, a page that does not parse —
+        // is reported as that collection's outcome rather than ending the run. They come last, so
+        // even a failure their reporting misses costs nothing the run had not already stored.
+        ct => CollectAsync<WireVo2Max, OuraVo2Max, Vo2MaxReading>(
+                run, "vO2_max", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraVo2Max, ct)
+            .RecoverAsync(problem => Unread("vO2_max", problem)),
+        ct => CollectAsync<WireDailyCardiovascularAge, OuraDailyCardiovascularAge, CardiovascularAgeReading>(
+                run, "daily_cardiovascular_age", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraDailyCardiovascularAge, ct)
+            .RecoverAsync(problem => Unread("daily_cardiovascular_age", problem)),
+        ct => _heartRate.SyncAsync(run.UserId, run.Range, run.Token, ct)
+            .RecoverAsync(problem => Unread(OuraHeartRateSync.Collection, problem)),
     ];
+
+    /// <summary>A collection Oura would not hand over at all, as a tally with the reason.</summary>
+    private static OuraCollectionTally Unread(string collection, Problem problem) =>
+        new(collection, Received: 0, Stored: 0, [$"the collection could not be read: {problem.Description}"]);
 
     private Task<Result<OuraCollectionTally, Problem>> CollectAsync<TWire, TDocument, TReading>(
         SyncRun run,

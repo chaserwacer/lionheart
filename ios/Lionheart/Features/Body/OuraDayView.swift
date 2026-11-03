@@ -1,22 +1,55 @@
 import SwiftUI
 
-/// One Oura day: the night, what the ring saw, and each collection it filed.
+/// One Oura day: the night, the shape of the day, and every score with the components behind it.
 ///
-/// The night leads, because it is the richest thing here and the thing the daily sleep score
-/// flattens into one number. The panels below it come from `OuraPanel.panels(of:)` rather than
-/// being written out, so a day with sleep and no readiness simply has one section fewer — and a
-/// collection Oura adds lands as a case and a section rather than a redesign.
+/// Each score is drawn as an instrument — its components against the athlete's own usual range —
+/// rather than a grid of numbers, because a component is Oura's comparison with his baseline and
+/// the comparison is the thing worth reading. Measurements that are not components (temperature,
+/// steps, blood oxygen) sit under the score they belong to, as figures.
 struct OuraDayView: View {
     let day: OuraDay
-    let night: OuraSleepPeriod?
+    /// The night's main sleep, with its clock time, where Oura scored one.
+    let night: OuraEvent<OuraSleepPeriod>?
+    /// The days around it, for each component's four-week baseline.
+    let days: [OuraDay]
     let workouts: [OuraWorkout]
     let tags: [OuraTag]
+    /// Whether to offer the day's movement timeline, which needs the day's activity stored.
+    var opensDayActivity = true
 
     var body: some View {
         List {
             if let night {
                 nightSection(night)
             }
+            if opensDayActivity, day.activity != nil {
+                Section {
+                    NavigationLink(value: BodyRoute.dayActivity(day.date)) {
+                        Text("Movement through the day")
+                    }
+                }
+            }
+
+            ContributorSection(
+                group: .readiness, day: day, days: days,
+                measurements: readinessMeasurements,
+                explainsGauges: true)
+            ContributorSection(group: .sleep, day: day, days: days)
+            ContributorSection(
+                group: .activity, day: day, days: days,
+                measurements: day.activity.map(OuraPanel.activity).map(\.figures) ?? [])
+            if let resilience = day.resilience {
+                ContributorSection(
+                    group: .resilience, day: day, days: days,
+                    verdict: resilience.level.nonEmpty.map(OuraVocabulary.phrase))
+            }
+
+            ForEach(otherPanels) { panel in
+                Section(panel.title) {
+                    FigureGrid(figures: panel.figures)
+                }
+            }
+
             if !tags.isEmpty {
                 tagSection
             }
@@ -24,93 +57,53 @@ struct OuraDayView: View {
                 workoutSection
             }
 
-            let panels = OuraPanel.panels(of: day)
-            if panels.isEmpty, night == nil {
+            if day.isEmpty, night == nil {
                 ContentUnavailableView {
                     Text("Nothing on this day")
                 } description: {
                     Text("The ring filed nothing for it.")
                 }
                 .listRowBackground(Color.clear)
-            } else {
-                ForEach(panels) { panel in
-                    Section(panel.title) {
-                        let score = panel.score.map { OuraPanel.Figure(label: "Score", value: "\($0)") }
-                        FigureGrid(figures: (score.map { [$0] } ?? []) + panel.figures)
-                    }
-                }
             }
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)
+        // Lets a contributor row be as short as its one line, so a whole score reads on one screen.
+        .environment(\.defaultMinListRowHeight, 34)
         .navigationTitle(Formatting.date(day.date))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Temperature is a measurement Oura reports beside readiness rather than a component of it.
+    private var readinessMeasurements: [OuraPanel.Figure] {
+        [
+            day.readiness?.temperatureDeviation.map {
+                OuraPanel.Figure(label: "Temperature", value: Formatting.figureText($0, of: .temperatureDeviation))
+            },
+        ].compactMap(\.self)
+    }
+
+    /// The collections with measurements and no components.
+    private var otherPanels: [OuraPanel] {
+        OuraPanel.panels(of: day).filter { panel in
+            switch panel {
+            case .stress, .bloodOxygen, .vo2Max, .cardiovascularAge: true
+            case .readiness, .sleep, .activity, .resilience: false
+            }
+        }
     }
 
     // MARK: - The night
 
     @ViewBuilder
-    private func nightSection(_ night: OuraSleepPeriod) -> some View {
+    private func nightSection(_ night: OuraEvent<OuraSleepPeriod>) -> some View {
         Section {
-            FigureGrid(figures: Self.summary(of: night))
-            FigureGrid(figures: Self.stages(of: night).map {
-                OuraPanel.Figure(label: $0.label, value: MeasurementText.clock(seconds: Double($0.seconds)))
-            })
-            FigureGrid(figures: Self.vitals(of: night))
+            NavigationLink(value: BodyRoute.night(day.date)) {
+                NightSummaryRow(night: night)
+            }
         } header: {
             Text("The night")
-        } footer: {
-            Text(Self.nightFooter(night))
         }
-    }
-
-    /// The night in three figures: how long, how well, and the HRV it averaged.
-    private static func summary(of night: OuraSleepPeriod) -> [OuraPanel.Figure] {
-        [
-            OuraPanel.Figure(label: "Asleep", value: MeasurementText.clock(seconds: Double(night.totalSleepSeconds))),
-            OuraPanel.Figure(label: "Efficiency", value: "\(night.efficiency)%"),
-        ] + (night.averageHrv.map { [OuraPanel.Figure(label: "Avg HRV", value: "\($0)")] } ?? [])
-    }
-
-    /// What the body did across the night.
-    ///
-    /// The rate Oura reports as zero on a period it took no reading across is shown as absent
-    /// rather than as a heart rate of zero. The stored zero is still the honest record; it just is
-    /// not a number to put on a screen.
-    private static func vitals(of night: OuraSleepPeriod) -> [OuraPanel.Figure] {
-        [
-            night.lowestHeartRate.map { OuraPanel.Figure(label: "Lowest HR", value: "\($0)") },
-            night.averageBreath.map {
-                OuraPanel.Figure(label: "Breathing", value: "\(MeasurementText.plain($0)) /min")
-            },
-            OuraPanel.Figure(label: "Restless periods", value: "\(night.restlessPeriods)"),
-        ].compactMap(\.self)
-    }
-
-    /// The stage breakdown, and only the stages the night actually had.
-    static func stages(of night: OuraSleepPeriod) -> [Stage] {
-        [
-            Stage(label: "Deep", seconds: night.deepSleepSeconds),
-            Stage(label: "REM", seconds: night.remSleepSeconds),
-            Stage(label: "Light", seconds: night.lightSleepSeconds),
-            Stage(label: "Awake", seconds: night.awakeSeconds),
-        ].filter { $0.seconds > 0 }
-    }
-
-    struct Stage: Identifiable {
-        let label: String
-        let seconds: Int
-
-        var id: String { label }
-    }
-
-    private static func nightFooter(_ night: OuraSleepPeriod) -> String {
-        var parts = ["In bed \(MeasurementText.clock(seconds: Double(night.timeInBedSeconds)))"]
-        if night.latencySeconds > 0 {
-            parts.append(
-                "asleep after \(MeasurementText.spelledDuration(seconds: Double(night.latencySeconds)))")
-        }
-        return parts.joined(separator: ", ") + "."
     }
 
     // MARK: - What the day carried
@@ -125,7 +118,7 @@ struct OuraDayView: View {
         } header: {
             Text("Tagged")
         } footer: {
-            Text("What the athlete marked on the ring — the closest thing here to their own account of the day.")
+            Text("Marked on the ring — the closest thing here to an account of the day in his own words.")
         }
     }
 
@@ -144,26 +137,81 @@ struct OuraDayView: View {
     }
 }
 
-/// Figures as a grid of tiles, three or four across, wrapping as Dynamic Type widens them.
+/// A night in one row: the hypnogram as a strip, and how long and how well.
 ///
-/// A day carries dozens of figures; as tiles the number leads and a whole panel reads at a glance,
-/// where a labelled row per figure would run to several screens. The minimum width scales with the
-/// text, so the column count drops at the accessibility sizes rather than any figure truncating.
-private struct FigureGrid: View {
-    let figures: [OuraPanel.Figure]
+/// Shared by Today, Body and the day's screen, so a night reads the same wherever it is opened from.
+struct NightSummaryRow: View {
+    let night: OuraEvent<OuraSleepPeriod>
+    /// Which night this is, said when it is not the one the screen is about.
+    var caption: String?
 
-    @ScaledMetric(relativeTo: .headline) private var minimumWidth: CGFloat = 92
+    @ScaledMetric(relativeTo: .body) private var stripHeight: CGFloat = 26
 
     var body: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: minimumWidth), spacing: Tokens.cardPadding, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: 10
-        ) {
-            ForEach(figures) { figure in
-                StatTile(value: figure.value, label: figure.label)
+        let reading = night.reading
+        VStack(alignment: .leading, spacing: 6) {
+            if let caption {
+                Text(caption)
+                    .font(.subheadline)
+                    .foregroundStyle(Color(.secondaryLabel))
+            }
+            // The facts beside the figure where they fit, under it where they do not, so neither
+            // wraps a word at a time at the accessibility sizes.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    asleep
+                    Spacer()
+                    factsText
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    asleep
+                    factsText
+                }
+            }
+            if case .interval(let start, let end) = night.period, end > start {
+                let runs = Hypnogram.runs(of: reading, from: start)
+                if !runs.isEmpty {
+                    LevelTimeline(
+                        lanes: SleepStage.allCases,
+                        laneName: \.name,
+                        spans: runs.map { .init(lane: $0.stage, start: $0.start, end: $0.end, style: $0.stage.colour) },
+                        domain: start...end,
+                        isCompact: true)
+                        .frame(height: stripHeight)
+                        .clipShape(.rect(cornerRadius: 3))
+                }
             }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Night")
+        .accessibilityValue("\(Formatting.hoursAndMinutes(seconds: Double(reading.totalSleepSeconds))) asleep, \(facts)")
+    }
+
+    private var asleep: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(Formatting.hoursAndMinutes(seconds: Double(night.reading.totalSleepSeconds)))
+                .font(.headline.monospacedDigit())
+            Text("asleep")
+                .font(.subheadline)
+                .foregroundStyle(Color(.secondaryLabel))
+        }
+        .fixedSize()
+    }
+
+    private var factsText: some View {
+        Text(facts)
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(Color(.secondaryLabel))
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var facts: String {
+        let reading = night.reading
+        var parts = ["\(reading.efficiency)% efficient"]
+        if case .interval(let start, let end) = night.period {
+            parts.append("\(start.formatted(date: .omitted, time: .shortened))–\(end.formatted(date: .omitted, time: .shortened))")
+        }
+        return parts.joined(separator: " · ")
     }
 }
