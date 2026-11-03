@@ -17,6 +17,8 @@ final class AppContainer {
     let auth: AuthStore
     let today: TodayStore
     let activeWorkout: ActiveWorkoutStore
+    let train: TrainStore
+    let movements: MovementLibraryStore
 
     private let tokens: TokenProvider
     private var hasStarted = false
@@ -24,15 +26,22 @@ final class AppContainer {
     init(configuration: APIConfiguration = APIConfiguration()) {
         let tokens = TokenProvider(configuration: configuration)
         let client = APIClient(configuration: configuration, tokens: tokens)
+        let sessions = TrainingSessionsAPI(client: client)
 
         self.configuration = configuration
         self.tokens = tokens
         auth = AuthStore(identity: IdentityAPI(client: client), tokens: tokens)
         today = TodayStore(
-            sessions: TrainingSessionsAPI(client: client),
+            sessions: sessions,
             oura: OuraAPI(client: client),
             interpretation: InterpretationAPI(client: client))
-        activeWorkout = ActiveWorkoutStore()
+        // The haptic is handed in rather than reached for, so nothing in `Store/` imports UIKit.
+        let activeWorkout = ActiveWorkoutStore(
+            sessions: sessions,
+            onRestFinished: { Haptics.restFinished() })
+        self.activeWorkout = activeWorkout
+        train = TrainStore(sessions: sessions, activeWorkout: activeWorkout)
+        movements = MovementLibraryStore(movements: MovementsAPI(client: client))
     }
 
     /// Settles the signed-in root and reads back anything that survived the last run.
@@ -45,10 +54,30 @@ final class AppContainer {
 
         // Registered before the session is settled, so a sign-out during the first load still
         // empties the screen it was loading into.
-        auth.onSignOut { [today] in today.reset() }
+        auth.onSignOut { [today, train, movements, activeWorkout] in
+            today.reset()
+            train.reset()
+            movements.reset()
+            // The workout goes too, document and all: it belongs to the session the signed-out
+            // credential owned, and one the next sign-in could adopt would push one athlete's sets
+            // at another athlete's session id.
+            activeWorkout.reset()
+        }
 
         async let restored: Void = auth.restore()
         async let workout: Void = activeWorkout.restore()
         _ = await (restored, workout)
+
+        // The movement catalogue is loaded here rather than by the Train tab alone, because the
+        // workout bar names the movement being worked on and the bar is on every tab. Left to the
+        // tab, a cold launch into a restored workout showed "Workout in progress" until the athlete
+        // happened to visit Train — which is exactly the launch an athlete makes mid-session.
+        //
+        // Only once the session is settled and signed in: the route needs a bearer token, and
+        // asking for one before `restore()` has decided would spend a doomed request on every cold
+        // launch of a signed-out app.
+        if case .signedIn = auth.session {
+            await movements.refreshIfNeeded()
+        }
     }
 }

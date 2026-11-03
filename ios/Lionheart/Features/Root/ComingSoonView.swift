@@ -24,16 +24,6 @@ struct ComingSoonView: View {
     }
 }
 
-struct TrainView: View {
-    var body: some View {
-        ComingSoonView(
-            title: "Train",
-            question: "Let me do it",
-            systemImage: "figure.strengthtraining.traditional",
-            whatIsComing: "Programs, planned sessions, starting a workout and the exercise library.")
-    }
-}
-
 struct HistoryView: View {
     var body: some View {
         ComingSoonView(

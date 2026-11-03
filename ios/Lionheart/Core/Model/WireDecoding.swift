@@ -128,9 +128,25 @@ enum WireDate {
         return nil
     }
 
+    /// An instant as UTC, for anything compared against stored instants — a window's bounds.
     static func wire(from instant: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: instant)
+    }
+
+    /// An instant written **with the device's own UTC offset**, for a `DateTimeOffset` the server
+    /// will derive a calendar day from.
+    ///
+    /// This is not interchangeable with `wire(from:)`, and sending UTC where this is wanted is a
+    /// defect with no symptom until the clock goes past evening. The server reads a session's day
+    /// at the offset it was logged at, on purpose, so that a session trained at eight in the
+    /// evening west of Greenwich belongs to that evening and joins against that night's sleep. The
+    /// same instant sent as `Z` is one in the morning, and the session lands on tomorrow.
+    static func offsetWire(from instant: Date, in timeZone: TimeZone = .current) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        formatter.timeZone = timeZone
         return formatter.string(from: instant)
     }
 }

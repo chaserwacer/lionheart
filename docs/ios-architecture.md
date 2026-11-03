@@ -248,6 +248,14 @@ Deliberate, and left for the agents that own them.
    safe only because the server sets `AllowOutOfOrderMetadataProperties`.
 4. **Wellness and injuries are fetched by nothing yet.** `WellnessAPI` and `InjuriesAPI` exist
    because the Body tab needs them next; Today does not read them.
-5. **The transition routes are unwritten.** `/start`, `/complete`, `/skip`, `PUT /sets`,
-   `PUT /prescriptions` and the three creates are left to the training-feature agent rather than
-   guessed at.
+5. **`PUT /prescriptions` is unwritten.** The rest of the lifecycle — the three creates,
+   `/start`, `/complete`, `/skip`, `PUT /sets` and `PATCH /notes` — is in `TrainingSessionsAPI`
+   and driven by the Train tab. Nothing in the app plans a session yet, so the one route that
+   would need it is left rather than guessed at.
+6. **No movement is created on the device.** The exercise library reads `GET /api/movement-datas`
+   and nothing writes to it: a movement needs an equipment and a base chosen or invented first,
+   which is catalogue curation rather than training, and the web app already does it.
+7. **Personal records are never written.** `PersonalRecordService` only reads, and nothing in the
+   application produces a `PRAttemptResult` — so `GET /api/personal-records/summaries` answers
+   with an empty list for every athlete. `SetRecordOutcome` is correct and tested against the two
+   `PersonalRecordType` rules, and it is dormant until the server starts awarding records.
