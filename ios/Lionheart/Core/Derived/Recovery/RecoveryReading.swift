@@ -57,10 +57,15 @@ struct RecoveryReading: Equatable, Sendable {
 
     /// Reads one day's recovery out of a window of days and nights that reaches at least
     /// `MetricBaseline.windowDays` before it. `nil` when the ring filed nothing for the day.
+    ///
+    /// On `today`, a figure that accrues through the day is shown as it stands, with no comparison
+    /// and no run beside it: the morning's step count against 28 whole days would read as a bad
+    /// day every morning.
     static func reading(
         for day: CalendarDay,
         days: [OuraDay],
         nights: [OuraEvent<OuraSleepPeriod>],
+        today: CalendarDay,
         calendar: Calendar = .current
     ) -> RecoveryReading? {
         let byDay = Dictionary(days.map { ($0.date, $0) }, uniquingKeysWith: { first, _ in first })
@@ -75,12 +80,13 @@ struct RecoveryReading: Equatable, Sendable {
             }
             guard let onTheDay = recent.last, onTheDay.day == day else { return nil }
             let earlier = recent.dropLast().map(\.value)
+            let isUnfinished = metric.accruesThroughTheDay && day >= today
             return MetricReading(
                 metric: metric,
                 day: day,
                 value: onTheDay.value,
-                baseline: metric.comparesToBaseline ? MetricBaseline.of(earlier) : nil,
-                recent: recent)
+                baseline: metric.comparesToBaseline && !isUnfinished ? MetricBaseline.of(earlier) : nil,
+                recent: isUnfinished ? [] : recent)
         }
 
         let readiness = byDay[day].flatMap { TodaySnapshot.latestReadiness(in: [$0]) }

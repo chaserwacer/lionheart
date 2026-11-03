@@ -5,19 +5,20 @@ import SwiftUI
 ///
 /// The columns have fixed, Dynamic-Type-scaled widths so the figures and deviations of every row
 /// line up down the section, which is what lets the eye run down a column the way it reads a
-/// table. At the accessibility sizes the name moves above the figures rather than squeezing them.
+/// table. From the largest standard sizes up, where four columns no longer leave the name room, the
+/// name moves above the figures rather than squeezing to an ellipsis.
 struct RecoveryFigureRow: View {
     let reading: MetricReading
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .body) private var figureWidth: CGFloat = 88
-    @ScaledMetric(relativeTo: .subheadline) private var deviationWidth: CGFloat = 60
-    @ScaledMetric(relativeTo: .body) private var sparklineWidth: CGFloat = 56
+    @ScaledMetric(relativeTo: .body) private var figureWidth: CGFloat = 80
+    @ScaledMetric(relativeTo: .subheadline) private var deviationWidth: CGFloat = 56
+    @ScaledMetric(relativeTo: .body) private var sparklineWidth: CGFloat = 52
     @ScaledMetric(relativeTo: .body) private var sparklineHeight: CGFloat = 22
 
     var body: some View {
         Group {
-            if dynamicTypeSize.isAccessibilitySize {
+            if dynamicTypeSize >= .xxLarge {
                 VStack(alignment: .leading, spacing: 4) {
                     name
                     HStack(alignment: .firstTextBaseline, spacing: 12) {

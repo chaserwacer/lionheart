@@ -154,7 +154,8 @@ seven-day mean, over 30 days, 90 days or a year, read on demand and held by key 
 coverage (`GET /api/oura/days/latest`), syncs from the newest stored day **inclusive** through
 today, then reads the coverage again; the newest day is re-pulled because it is usually still
 accruing, and the server's upsert makes that free. Coming back to the foreground syncs when the
-store is behind, at most once per half hour whatever the outcome, so a rejected token is not asked
+store is behind — before today, or at today without the night's readiness, since Oura files a day's
+activity before it scores the sleep — at most once per half hour whatever the outcome, so a rejected token is not asked
 about on every return. **A rejected Oura token arrives as a 502** with the server's sentence naming
 the token — never a 401, which would be this app's own session — and the row shows that sentence.
 
@@ -181,11 +182,16 @@ who left the ring in a drawer for two days sees "78, three days ago" instead of 
 single-day read would make that day field pointless and would show silence on every morning before
 the ring syncs.
 
-Two numbers on that card are **contributor scores, not measurements**. Oura's readiness
-contributors are each 1–100 and compare the day against the athlete's own baseline, so
-`restingHeartRate` is how his resting rate compared and is not a heart rate — the rate itself is on
-the night, as `OuraSleepPeriod.lowestHeartRate`. `ReadinessReading` names them `…Balance` for that
-reason, and the cards that render them say "balance" too.
+Oura's readiness contributors are **scores, not measurements**: each is 1–100 and compares the day
+against the athlete's own baseline, so `restingHeartRate` among them is how his resting rate
+compared and is not a heart rate. Today shows the measurements instead — the rate itself is on the
+night, as `OuraSleepPeriod.lowestHeartRate` — and draws the comparison itself (see "Recovery
+against his own baseline"). The contributors appear only on an Oura day's own screen, labelled
+"balance".
+
+A figure that accrues through the day — steps — is shown on today as it stands but neither
+compared with his baseline nor charted until its day is over: the morning's count against 28
+whole days would read as a bad day every morning.
 
 ## The active workout
 

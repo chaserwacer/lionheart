@@ -76,4 +76,37 @@ struct WeeklyLoadTests {
         #expect(average.map(\.sets) == [15, 20])
         #expect(average.first?.start == start.adding(days: 21))
     }
+
+    @Test("A span's average reaches back before its first bar, so the line starts where the bars do")
+    func spanAverageStartsWithTheBars() {
+        let start = CalendarDay(year: 2026, month: 1, day: 5)
+        let weeks = [20, 0, 20, 20, 40, 10].enumerated().map { index, sets in
+            TrainingWeek(start: start.adding(days: 7 * index), sessionCount: sets == 0 ? 0 : 2, setCount: sets)
+        }
+
+        let load = TrainingTrends(weeks: weeks, strength: []).load(lastWeeks: 2)
+
+        #expect(load.weeks.map(\.setCount) == [40, 10])
+        #expect(load.average.map(\.start) == load.weeks.map(\.start))
+        #expect(load.sets == 50)
+        #expect(load.weeksTrained == 2)
+    }
+
+    @Test("A top-set summary over a span is the latest, the best, and the change from the first")
+    func strengthSummary() {
+        let start = CalendarDay(year: 2026, month: 1, day: 5)
+        let series = StrengthSeries(
+            movementDataId: UUID(), movementName: "Squat", unit: .pounds,
+            points: [(300, 5), (320, 3), (340, 1), (330, 5)].enumerated().map { index, set in
+                .init(day: start.adding(days: 7 * index), weight: set.0, reps: set.1)
+            })
+
+        let summary = series.summary(since: start.adding(days: 7))
+
+        #expect(summary?.points.count == 3)
+        #expect(summary?.best.weight == 340)
+        #expect(summary?.latest.weight == 330)
+        #expect(summary?.change == 10)
+        #expect(series.summary(since: start.adding(days: 21)) == nil)
+    }
 }

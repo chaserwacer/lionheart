@@ -7,8 +7,12 @@ import Foundation
 /// plans a different range for each.
 enum OuraCoverage: Equatable, Sendable {
     case nothingStored
-    /// The newest day any collection covers.
-    case through(CalendarDay)
+    /// The newest day any collection covers, and whether Oura has filed its readiness yet.
+    ///
+    /// The second half matters because Oura files a day's activity as soon as the ring syncs, and
+    /// the night's readiness only once it has scored the sleep: a store holding today's steps and
+    /// no readiness reaches today and is still missing the one thing the morning is read by.
+    case through(CalendarDay, readinessFiled: Bool)
 }
 
 /// Where the Oura sync stands, as the sync control shows it.

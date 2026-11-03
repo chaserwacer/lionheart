@@ -78,10 +78,6 @@ final class AppContainer {
         guard !hasStarted else { return }
         hasStarted = true
 
-        // Registered before the session is settled, so a sign-out during the first load still
-        // empties the screen it was loading into. The profile gate is reset for a sharper reason
-        // than the screens are: left settled, the next athlete on this device would walk straight
-        // into the tabs on an account that has no profile behind them.
         // A sync stores new days, so the two tabs that show them read again — Body only when it has
         // been opened, since an unopened tab reads for itself when it is.
         ouraSync.onSynced { [today, body] in
@@ -89,6 +85,10 @@ final class AppContainer {
             if body.state.value != nil { await body.refresh() }
         }
 
+        // Registered before the session is settled, so a sign-out during the first load still
+        // empties the screen it was loading into. The profile gate is reset for a sharper reason
+        // than the screens are: left settled, the next athlete on this device would walk straight
+        // into the tabs on an account that has no profile behind them.
         auth.onSignOut { [profile, today, train, movements, history, chat, body, ouraSync, activeWorkout] in
             profile.reset()
             today.reset()

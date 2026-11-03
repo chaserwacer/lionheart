@@ -143,7 +143,7 @@ final class TodayStore {
                 ? try await oura.sleepPeriods(
                     from: range.from.adding(days: -1).startDate(), to: range.to.adding(days: 1).startDate())
                 : []
-            outcome = .success(MetricTrend.reading(key, days: try await days, nights: nights))
+            outcome = .success(MetricTrend.reading(key, days: try await days, nights: nights, today: today))
         } catch is CancellationError {
             return
         } catch {

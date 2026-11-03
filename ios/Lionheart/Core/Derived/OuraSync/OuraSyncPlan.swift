@@ -24,16 +24,19 @@ enum OuraSyncPlan {
         switch coverage {
         case .nothingStored:
             return DayRange(from: today.adding(days: 1 - firstSyncDays), to: today)
-        case .through(let latest):
+        case .through(let latest, _):
             return latest > today ? nil : DayRange(from: latest, to: today)
         }
     }
 
-    /// Whether the stored data stops before today.
+    /// Whether the stored data stops before today, or reaches today without its readiness.
+    ///
+    /// A day the ring was not worn never gets a readiness, so on such a day this stays true and the
+    /// automatic sync keeps trying — once per `automaticRetryInterval`, which is what bounds it.
     static func isBehind(_ coverage: OuraCoverage, today: CalendarDay) -> Bool {
         switch coverage {
         case .nothingStored: true
-        case .through(let latest): latest < today
+        case .through(let latest, let readinessFiled): latest < today || !readinessFiled
         }
     }
 

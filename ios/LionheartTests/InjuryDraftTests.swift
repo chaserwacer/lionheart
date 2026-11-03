@@ -10,17 +10,19 @@ struct InjuryDraftTests {
 
     @Test("An injury needs a name and a start that is not in the future")
     func draftRefusals() {
-        #expect(InjuryDraft.make(name: "   ", startedOn: Self.today, notes: "", today: Self.today)
-            == .failure(.unnamed))
-        #expect(InjuryDraft.make(
-            name: "Hamstring", startedOn: Self.today.adding(days: 1), notes: "", today: Self.today)
-            == .failure(.startsInTheFuture))
+        #expect(throws: InjuryDraft.Problem.unnamed) {
+            try InjuryDraft.make(name: "   ", startedOn: Self.today, notes: "", today: Self.today)
+        }
+        #expect(throws: InjuryDraft.Problem.startsInTheFuture) {
+            try InjuryDraft.make(
+                name: "Hamstring", startedOn: Self.today.adding(days: 1), notes: "", today: Self.today)
+        }
     }
 
     @Test("An accepted draft is trimmed")
     func draftTrims() throws {
         let draft = try InjuryDraft.make(
-            name: "  Right hamstring ", startedOn: Self.today, notes: "  \n", today: Self.today).get()
+            name: "  Right hamstring ", startedOn: Self.today, notes: "  \n", today: Self.today)
 
         #expect(draft.name == "Right hamstring")
         #expect(draft.notes.isEmpty)

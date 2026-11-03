@@ -144,10 +144,6 @@ struct TodayView: View {
         }
 
         let isToday = snapshot.day == today
-        if isToday {
-            Section { OuraSyncRow(store: ouraSync, today: today) }
-        }
-
         recoverySection(snapshot.recovery, day: snapshot.day, today: today)
         if let active = snapshot.inProgress { inProgressSection(active) }
         trainingSection(snapshot, today: today)
@@ -176,6 +172,11 @@ struct TodayView: View {
                 Text(day == today ? "No Oura data in the last two weeks." : "No Oura data for this day.")
                     .foregroundStyle(Color(.secondaryLabel))
             }
+            // Under the figures it qualifies, so the verdict leads: how current they are, and the
+            // control that brings them up to date.
+            if day == today {
+                OuraSyncRow(store: ouraSync, today: today)
+            }
         } header: {
             Text("Recovery")
         } footer: {
@@ -186,7 +187,7 @@ struct TodayView: View {
     }
 
     private func footer(for recovery: RecoveryReading, shownDay: CalendarDay, today: CalendarDay) -> String {
-        let against = "Deviations are against the \(MetricBaseline.windowDays) days before. Orange is outside the usual range, in the worse direction."
+        let against = "Deviation from the \(MetricBaseline.windowDays) days before."
         guard recovery.readiness == nil, recovery.day != shownDay else { return against }
         return "From \(Formatting.day(RelativeDay.of(recovery.day, today: today)).lowercased()). \(against)"
     }
@@ -273,10 +274,10 @@ struct TodayView: View {
     /// arrive under — so the rows appear in place rather than pushing a spinner off the screen.
     @ViewBuilder
     private func loadingRows(isToday: Bool) -> some View {
-        if isToday {
-            Section { OuraSyncRow(store: ouraSync, today: store.today) }
+        Section("Recovery") {
+            SkeletonRows(count: 3)
+            if isToday { OuraSyncRow(store: ouraSync, today: store.today) }
         }
-        Section("Recovery") { SkeletonRows(count: 3) }
         Section("Training") { SkeletonRows(count: 1) }
         if isToday { quickLogSection }
     }
@@ -298,21 +299,24 @@ struct TodayView: View {
 
 /// A month calendar for jumping to a day, with the future closed off.
 private struct DayPickerSheet: View {
+    /// The day on screen, which the calendar opens on.
+    let day: CalendarDay
     let today: CalendarDay
     let choose: (CalendarDay) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var date: Date
+    /// The date picked, or `nil` until one is.
+    @State private var picked: Date?
 
-    init(day: CalendarDay, today: CalendarDay, choose: @escaping (CalendarDay) -> Void) {
-        self.today = today
-        self.choose = choose
-        _date = State(initialValue: day.middayDate())
-    }
+    private var date: Date { picked ?? day.middayDate() }
 
     var body: some View {
         NavigationStack {
-            DatePicker("Day", selection: $date, in: ...today.middayDate(), displayedComponents: .date)
+            DatePicker(
+                "Day",
+                selection: Binding(get: { date }, set: { picked = $0 }),
+                in: ...today.middayDate(),
+                displayedComponents: .date)
                 .datePickerStyle(.graphical)
                 .padding(.horizontal)
                 .navigationTitle("Go to day")

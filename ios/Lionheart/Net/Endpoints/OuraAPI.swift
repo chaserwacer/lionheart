@@ -33,7 +33,7 @@ struct OuraAPI: Sendable {
     func coverage() async throws -> OuraCoverage {
         do {
             let latest = try await client.get("/api/oura/days/latest", as: OuraDay.self)
-            return .through(latest.date)
+            return .through(latest.date, readinessFiled: latest.readiness?.score != nil)
         } catch APIError.notFound {
             return .nothingStored
         }

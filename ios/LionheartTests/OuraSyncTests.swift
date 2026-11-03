@@ -15,15 +15,22 @@ struct OuraSyncTests {
     func syncIncludesTheNewestStoredDay() {
         let latest = CalendarDay(year: 2026, month: 8, day: 1)
 
-        #expect(OuraSyncPlan.range(for: .through(latest), today: Self.today)
+        #expect(OuraSyncPlan.range(for: .filed(latest), today: Self.today)
             == DayRange(from: latest, to: Self.today))
     }
 
     @Test("A store that is current still syncs today, since today is still accruing")
     func aCurrentStoreSyncsToday() {
-        #expect(OuraSyncPlan.range(for: .through(Self.today), today: Self.today)
+        #expect(OuraSyncPlan.range(for: .filed(Self.today), today: Self.today)
             == DayRange(from: Self.today, to: Self.today))
-        #expect(!OuraSyncPlan.isBehind(.through(Self.today), today: Self.today))
+        #expect(!OuraSyncPlan.isBehind(.filed(Self.today), today: Self.today))
+    }
+
+    @Test("Today's activity without the night's readiness is still behind")
+    func activityAloneIsBehind() {
+        // Oura files a day's activity as soon as the ring syncs and its readiness only once the
+        // night is scored; stopping at the first would leave the morning without its verdict.
+        #expect(OuraSyncPlan.isBehind(.through(Self.today, readinessFiled: false), today: Self.today))
     }
 
     @Test("An empty store syncs the last thirty days")
@@ -36,17 +43,17 @@ struct OuraSyncTests {
 
     @Test("A stored day after the device's today plans nothing rather than a backwards range")
     func aDayAheadOfTheClockPlansNothing() {
-        #expect(OuraSyncPlan.range(for: .through(Self.today.adding(days: 1)), today: Self.today) == nil)
+        #expect(OuraSyncPlan.range(for: .filed(Self.today.adding(days: 1)), today: Self.today) == nil)
     }
 
     @Test("Coming back to the app syncs only when behind, idle, and not recently tried")
     func automaticSyncConditions() {
         let now = Self.today.middayDate()
-        let behind = OuraSyncState.idle(.through(Self.today.adding(days: -2)))
+        let behind = OuraSyncState.idle(.filed(Self.today.adding(days: -2)))
 
         #expect(OuraSyncPlan.warrantsAutomaticSync(behind, lastAttempt: nil, now: now, today: Self.today))
         #expect(!OuraSyncPlan.warrantsAutomaticSync(
-            .idle(.through(Self.today)), lastAttempt: nil, now: now, today: Self.today))
+            .idle(.filed(Self.today)), lastAttempt: nil, now: now, today: Self.today))
         #expect(!OuraSyncPlan.warrantsAutomaticSync(
             behind, lastAttempt: now.addingTimeInterval(-60), now: now, today: Self.today))
         #expect(OuraSyncPlan.warrantsAutomaticSync(
@@ -101,7 +108,7 @@ struct OuraSyncTests {
     @MainActor
     func aSyncRunsTheRailway() async {
         let before = CalendarDay(year: 2026, month: 8, day: 1)
-        let server = AnOuraServer(coverages: [.through(before), .through(Self.today)], sync: .success(Self.report))
+        let server = AnOuraServer(coverages: [.filed(before), .filed(Self.today)], sync: .success(Self.report))
         let store = OuraSyncStore(oura: server, now: { Self.today.middayDate() })
         var reread = 0
         store.onSynced { reread += 1 }
@@ -109,7 +116,7 @@ struct OuraSyncTests {
         await store.sync()
 
         #expect(await server.asked == [DayRange(from: before, to: Self.today)])
-        #expect(store.state == .synced(Self.report, coverage: .through(Self.today)))
+        #expect(store.state == .synced(Self.report, coverage: .filed(Self.today)))
         #expect(reread == 1)
     }
 
@@ -118,31 +125,31 @@ struct OuraSyncTests {
     func aFailedSyncKeepsTheCoverage() async {
         let before = CalendarDay(year: 2026, month: 8, day: 1)
         let server = AnOuraServer(
-            coverages: [.through(before)], sync: .failure(APIError.upstream(detail: "Oura said no.")))
+            coverages: [.filed(before)], sync: .failure(APIError.upstream(detail: "Oura said no.")))
         let store = OuraSyncStore(oura: server, now: { Self.today.middayDate() })
 
         await store.sync()
 
-        #expect(store.state == .failed(.ouraFailed("Oura said no."), coverage: .through(before)))
+        #expect(store.state == .failed(.ouraFailed("Oura said no."), coverage: .filed(before)))
     }
 
     @Test("Coming back to the app onto current data reads the coverage and does not sync")
     @MainActor
     func currentDataIsNotSyncedAutomatically() async {
-        let server = AnOuraServer(coverages: [.through(Self.today)], sync: .success(Self.report))
+        let server = AnOuraServer(coverages: [.filed(Self.today)], sync: .success(Self.report))
         let store = OuraSyncStore(oura: server, now: { Self.today.middayDate() })
 
         await store.syncIfBehind()
 
         #expect(await server.asked.isEmpty)
-        #expect(store.state == .idle(.through(Self.today)))
+        #expect(store.state == .idle(.filed(Self.today)))
     }
 
     @Test("After a failed automatic sync, the next return to the app inside the interval does not ask again")
     @MainActor
     func aFailureWaitsOutTheInterval() async {
         let server = AnOuraServer(
-            coverages: [.through(Self.today.adding(days: -3))],
+            coverages: [.filed(Self.today.adding(days: -3))],
             sync: .failure(APIError.upstream(detail: "Oura said no.")))
         let store = OuraSyncStore(oura: server, now: { Self.today.middayDate() })
 
@@ -156,7 +163,7 @@ struct OuraSyncTests {
     @MainActor
     func signingOutMidSyncWritesNothing() async throws {
         let server = AnOuraServer(
-            coverages: [.through(Self.today.adding(days: -3))], sync: .success(Self.report),
+            coverages: [.filed(Self.today.adding(days: -3))], sync: .success(Self.report),
             syncTakes: .seconds(5))
         let store = OuraSyncStore(oura: server, now: { Self.today.middayDate() })
 
@@ -194,4 +201,9 @@ private actor AnOuraServer: OuraSyncing {
         if syncTakes > .zero { try await Task.sleep(for: syncTakes) }
         return try outcome.get()
     }
+}
+
+private extension OuraCoverage {
+    /// Coverage through a day whose readiness Oura has filed — the settled case most tests mean.
+    static func filed(_ day: CalendarDay) -> OuraCoverage { .through(day, readinessFiled: true) }
 }

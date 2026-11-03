@@ -169,9 +169,9 @@ struct HistoryView: View {
     /// the chart opens Trends. Hidden while searching, because a search is about the log.
     @ViewBuilder
     private func readings(_ snapshot: HistorySnapshot) -> some View {
-        let weeks = Array(snapshot.trends.weeks.suffix(Self.loadWeeksShown + TrainingTrends.loadAverageWeeks - 1))
-        let shown = Array(weeks.suffix(Self.loadWeeksShown))
-        let average = TrainingTrends.loadAverage(of: weeks)
+        let load = snapshot.trends.load(lastWeeks: Self.loadWeeksShown)
+        let shown = load.weeks
+        let average = load.average
 
         Section {
             NavigationLink(value: HistoryRoute.trends) {

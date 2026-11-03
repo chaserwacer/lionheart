@@ -43,21 +43,12 @@ struct TodaySnapshot: Equatable, Sendable {
 ///
 /// The day travels with the score because a readiness from three days ago means something different
 /// from this morning's, and a screen that showed the number alone would be quietly wrong whenever
-/// the ring had not synced.
-///
-/// The two balances are **contributor scores**, each 1–100, comparing the day against the
-/// athlete's own baseline. Neither is a measurement: `restingHeartRateBalance` says how his
-/// resting rate compared, not what it was. The rate itself is on the night, as
-/// `OuraSleepPeriod.lowestHeartRate`, which is why these carry "balance" in their names.
+/// the ring had not synced. The figures behind it are `RecoveryReading`'s.
 struct ReadinessReading: Equatable, Sendable {
     let day: CalendarDay
     let score: Int
-    let restingHeartRateBalance: Int?
-    let hrvBalance: Int?
-    /// Oura's sleep score for the same day, where there is one.
-    let sleepScore: Int?
 
-    /// How Oura itself bands the score, which is what the gauge colours by. Lionheart does not
+    /// How Oura itself bands the score, which is what the verdict reads by. Lionheart does not
     /// invent its own judgement of recovery; it reports Oura's.
     var band: Band {
         switch score {
@@ -114,7 +105,7 @@ extension TodaySnapshot {
 
         return TodaySnapshot(
             day: day,
-            recovery: recoveryDay.flatMap { RecoveryReading.reading(for: $0, days: ouraDays, nights: nights) },
+            recovery: recoveryDay.flatMap { RecoveryReading.reading(for: $0, days: ouraDays, nights: nights, today: today) },
             sessionsOnDay: onDay,
             lastCompleted: isToday && !performedToday ? lastCompleted(in: sessions, onOrBefore: today) : nil,
             nextPlanned: isToday ? nextPlanned(in: sessions, onOrAfter: today) : nil,
@@ -133,13 +124,8 @@ extension TodaySnapshot {
     static func latestReadiness(in days: [OuraDay]) -> ReadinessReading? {
         days
             .compactMap { day -> ReadinessReading? in
-                guard let readiness = day.readiness, let score = readiness.score else { return nil }
-                return ReadinessReading(
-                    day: day.date,
-                    score: score,
-                    restingHeartRateBalance: readiness.contributors.restingHeartRate,
-                    hrvBalance: readiness.contributors.hrvBalance,
-                    sleepScore: day.sleep?.score)
+                guard let score = day.readiness?.score else { return nil }
+                return ReadinessReading(day: day.date, score: score)
             }
             .max { $0.day < $1.day }
     }

@@ -117,7 +117,6 @@ struct BodyView: View {
     @ViewBuilder
     private func recoverySection(_ snapshot: BodySnapshot) -> some View {
         Section("Recovery") {
-            OuraSyncRow(store: ouraSync, today: today)
             if let recovery = snapshot.latestRecovery(today: today), let readiness = recovery.readiness {
                 RecoveryVerdictView(
                     readiness: readiness, figure: recovery.readinessFigure, shownDay: today, today: today)
@@ -125,6 +124,7 @@ struct BodyView: View {
                 Text("No Oura readiness in the last eight weeks.")
                     .foregroundStyle(Color(.secondaryLabel))
             }
+            OuraSyncRow(store: ouraSync, today: today)
         }
     }
 
@@ -182,8 +182,8 @@ struct BodyView: View {
     @ViewBuilder
     private var loadingSections: some View {
         Section("Recovery") {
-            OuraSyncRow(store: ouraSync, today: today)
             SkeletonRows(count: 1)
+            OuraSyncRow(store: ouraSync, today: today)
         }
         Section("Records") { SkeletonRows(count: 3) }
     }

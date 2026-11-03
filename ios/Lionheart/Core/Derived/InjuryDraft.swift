@@ -9,6 +9,12 @@ struct InjuryDraft: Equatable, Sendable {
     let startedOn: CalendarDay
     let notes: String
 
+    private init(name: String, startedOn: CalendarDay, notes: String) {
+        self.name = name
+        self.startedOn = startedOn
+        self.notes = notes
+    }
+
     /// Why the form cannot be sent yet.
     enum Problem: Error, Equatable, Sendable {
         case unnamed
@@ -17,10 +23,10 @@ struct InjuryDraft: Equatable, Sendable {
 
     static func make(
         name: String, startedOn: CalendarDay, notes: String, today: CalendarDay
-    ) -> Result<InjuryDraft, Problem> {
-        guard let name = name.nonEmpty else { return .failure(.unnamed) }
-        guard startedOn <= today else { return .failure(.startsInTheFuture) }
-        return .success(InjuryDraft(name: name, startedOn: startedOn, notes: notes.nonEmpty ?? ""))
+    ) throws(Problem) -> InjuryDraft {
+        guard let name = name.nonEmpty else { throw .unnamed }
+        guard startedOn <= today else { throw .startsInTheFuture }
+        return InjuryDraft(name: name, startedOn: startedOn, notes: notes.nonEmpty ?? "")
     }
 }
 

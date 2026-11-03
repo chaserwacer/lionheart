@@ -12,16 +12,17 @@ struct InjuryEventSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var kind: InjuryEventDraft.Kind = .checkIn
-    @State private var painLevel: Int
+    /// The pain the athlete has set, or `nil` before he touches it.
+    @State private var chosenPain: Int?
     @State private var notes = ""
     @State private var isSaving = false
     @State private var refusal: LoadFailure?
 
-    init(injury: Injury, store: BodyStore) {
-        self.injury = injury
-        self.store = store
-        // Starts at the last pain logged, since a check-in is most often "about the same".
-        _painLevel = State(initialValue: InjuryHistory.of(injury).latestPain ?? 0)
+    /// Starts at the last pain logged, since a check-in is most often "about the same".
+    private var painLevel: Int { chosenPain ?? InjuryHistory.of(injury).latestPain ?? 0 }
+
+    private var pain: Binding<Int> {
+        Binding(get: { painLevel }, set: { chosenPain = $0 })
     }
 
     var body: some View {
@@ -38,7 +39,7 @@ struct InjuryEventSheet: View {
                     .listRowInsets(EdgeInsets())
                 }
                 Section {
-                    Stepper(value: $painLevel, in: InjuryEventDraft.painScale) {
+                    Stepper(value: pain, in: InjuryEventDraft.painScale) {
                         HStack(alignment: .firstTextBaseline) {
                             Text("Pain")
                             Spacer()

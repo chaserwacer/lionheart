@@ -15,21 +15,22 @@ struct OuraSyncRow: View {
         let state = store.state
 
         VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("Oura")
-                    .font(.subheadline.weight(.semibold))
-                Text(status(state))
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(statusColour(state))
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if state.isSyncing {
-                    ProgressView()
-                        .accessibilityLabel("Syncing")
-                } else {
-                    Button("Sync") { Task { await store.sync() } }
-                        .buttonStyle(.borderless)
-                        .font(.subheadline)
+            // The status beside the name when it fits on the line, under it when it does not —
+            // the larger text sizes, or a long "stored · through · behind" — so it never truncates.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    name
+                    statusText(state).fixedSize()
+                    Spacer(minLength: 8)
+                    control(state)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline) {
+                        name
+                        Spacer(minLength: 8)
+                        control(state)
+                    }
+                    statusText(state).fixedSize(horizontal: false, vertical: true)
                 }
             }
             if let detail = detail(state) {
@@ -40,6 +41,28 @@ struct OuraSyncRow: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var name: some View {
+        Text("Oura").font(.subheadline.weight(.semibold))
+    }
+
+    private func statusText(_ state: OuraSyncState) -> some View {
+        Text(status(state))
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(statusColour(state))
+    }
+
+    @ViewBuilder
+    private func control(_ state: OuraSyncState) -> some View {
+        if state.isSyncing {
+            ProgressView()
+                .accessibilityLabel("Syncing")
+        } else {
+            Button("Sync") { Task { await store.sync() } }
+                .buttonStyle(.borderless)
+                .font(.subheadline)
+        }
     }
 
     private func status(_ state: OuraSyncState) -> String {
@@ -84,14 +107,15 @@ struct OuraSyncRow: View {
         switch coverage {
         case .nothingStored:
             return "nothing stored"
-        case .through(let day):
+        case .through(let day, let readinessFiled):
             let when = switch RelativeDay.of(day, today: today) {
             case .today: "today"
             case .yesterday: "yesterday"
             case .tomorrow, .daysAgo, .inDays, .distant: Formatting.date(day)
             }
             let behind = day.days(until: today)
-            return behind > 1 ? "data through \(when) · \(behind) days behind" : "data through \(when)"
+            if behind > 1 { return "data through \(when) · \(behind) days behind" }
+            return readinessFiled ? "data through \(when)" : "data through \(when) · no readiness yet"
         }
     }
 

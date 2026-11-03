@@ -58,16 +58,19 @@ struct MetricTrend: Equatable, Sendable {
         _ key: MetricTrendKey,
         days: [OuraDay],
         nights: [OuraEvent<OuraSleepPeriod>],
+        today: CalendarDay,
         calendar: Calendar = .current
     ) -> MetricTrend {
+        // A figure still accruing today would be the trend's lowest point every morning.
         let range = key.range(calendar: calendar)
+        let lastFinishedDay = key.metric.accruesThroughTheDay ? today.adding(days: -1, in: calendar) : range.to
         let byDay = Dictionary(days.map { ($0.date, $0) }, uniquingKeysWith: { first, _ in first })
         let mainSleeps = Dictionary(
             nights.filter(\.reading.isMainSleep).map { ($0.day, $0.reading) },
             uniquingKeysWith: { first, _ in first })
 
         let points = Set(byDay.keys).union(mainSleeps.keys)
-            .filter { $0 >= range.from && $0 <= range.to }
+            .filter { $0 >= range.from && $0 <= range.to && $0 <= lastFinishedDay }
             .sorted()
             .compactMap { day in
                 key.metric.value(day: byDay[day], night: mainSleeps[day]).map { MetricPoint(day: day, value: $0) }

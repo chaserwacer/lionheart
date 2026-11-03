@@ -48,6 +48,17 @@ enum RecoveryMetric: String, CaseIterable, Hashable, Sendable, Identifiable {
         }
     }
 
+    /// Whether the figure keeps growing until the day ends. Today's steps at breakfast are not a
+    /// low day, so a figure like this is neither compared with a baseline nor charted until its day
+    /// is over.
+    var accruesThroughTheDay: Bool {
+        switch self {
+        case .steps: true
+        case .readiness, .hrv, .lowestHeartRate, .sleepDuration, .sleepScore, .respiratoryRate,
+             .temperatureDeviation: false
+        }
+    }
+
     /// Whether the figure is read from the night rather than the day's documents — which decides
     /// whether a trend of it needs the sleep periods read.
     var isReadFromTheNight: Bool {

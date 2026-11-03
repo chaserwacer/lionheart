@@ -72,14 +72,16 @@ struct TrendsView: View {
 
     @ViewBuilder
     private var weeklyLoadSection: some View {
-        let reach = Array(trends.weeks.suffix(span.rawValue + TrainingTrends.loadAverageWeeks - 1))
-        let weeks = Array(reach.suffix(span.rawValue))
-        let average = TrainingTrends.loadAverage(of: reach)
+        let load = trends.load(lastWeeks: span.rawValue)
 
-        if !weeks.isEmpty {
+        if !load.weeks.isEmpty {
             Section {
-                loadFigures(weeks, average: average)
-                WeeklyLoadChart(weeks: weeks, average: average)
+                SummaryFigures(figures: [
+                    ("Sessions", "\(load.sessions)"),
+                    ("Sets", "\(load.sets)"),
+                    ("Weeks trained", "\(load.weeksTrained) of \(load.weeks.count)"),
+                ])
+                WeeklyLoadChart(weeks: load.weeks, average: load.average)
                     .frame(height: chartHeight)
                     .padding(.vertical, 8)
             } header: {
@@ -90,24 +92,11 @@ struct TrendsView: View {
         }
     }
 
-    private func loadFigures(_ weeks: [TrainingWeek], average: [TrainingTrends.WeeklyLoad]) -> some View {
-        let trained = weeks.filter { $0.sessionCount > 0 }
-        let sessions = weeks.reduce(0) { $0 + $1.sessionCount }
-        let sets = weeks.reduce(0) { $0 + $1.setCount }
-
-        return SummaryFigures(figures: [
-            ("Sessions", "\(sessions)"),
-            ("Sets", "\(sets)"),
-            ("Weeks trained", "\(trained.count) of \(weeks.count)"),
-        ])
-    }
-
     // MARK: - Strength
 
     @ViewBuilder
     private var strengthSection: some View {
         if let series = shownSeries {
-            let points = series.points.filter { $0.day >= spanStart }
             Section {
                 if trends.strength.count > 1 {
                     // Bound to the series actually drawn, so the menu names it before the athlete
@@ -124,8 +113,9 @@ struct TrendsView: View {
                     .pickerStyle(.menu)
                 }
 
-                if points.count >= StrengthSeries.minimumPoints {
-                    strengthFigures(points, unit: series.unit)
+                if let summary = series.summary(since: today.adding(days: -span.rawValue * 7)) {
+                    let points = summary.points
+                    strengthFigures(summary, unit: series.unit)
                     Chart(points) { point in
                         LineMark(
                             x: .value("Day", point.day.middayDate()),
@@ -155,23 +145,14 @@ struct TrendsView: View {
         }
     }
 
-    /// The span's first and latest top set, and the change between them.
-    private func strengthFigures(_ points: [StrengthSeries.Point], unit: WeightUnit) -> some View {
-        let first = points.first
-        let latest = points.last
-        let best = points.max { $0.weight < $1.weight }
-        let change = (latest?.weight ?? 0) - (first?.weight ?? 0)
-
+    /// The span's latest and best top set, and the change in load across it.
+    private func strengthFigures(_ summary: StrengthSeries.Summary, unit: WeightUnit) -> some View {
+        let change = summary.change
         return SummaryFigures(figures: [
-            ("Latest", latest.map { "\(Formatting.measure($0.weight)) × \($0.reps)" } ?? ""),
-            ("Best", best.map { "\(Formatting.measure($0.weight)) × \($0.reps)" } ?? ""),
+            ("Latest", "\(Formatting.measure(summary.latest.weight)) × \(summary.latest.reps)"),
+            ("Best", "\(Formatting.measure(summary.best.weight)) × \(summary.best.reps)"),
             ("Change", "\(change < 0 ? "−" : "+")\(Formatting.measure(abs(change))) \(unit.abbreviation)"),
         ])
-    }
-
-    /// The first day the span reaches.
-    private var spanStart: CalendarDay {
-        today.adding(days: -span.rawValue * 7)
     }
 
     /// The series the picker selected, or the one with the most history when nothing is selected

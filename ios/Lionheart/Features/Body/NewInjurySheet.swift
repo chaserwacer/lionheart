@@ -58,7 +58,7 @@ struct NewInjurySheet: View {
     private var draft: InjuryDraft? {
         let today = CalendarDay(Date())
         return try? InjuryDraft.make(
-            name: name, startedOn: CalendarDay(startedOn), notes: notes, today: today).get()
+            name: name, startedOn: CalendarDay(startedOn), notes: notes, today: today)
     }
 
     private func save() {

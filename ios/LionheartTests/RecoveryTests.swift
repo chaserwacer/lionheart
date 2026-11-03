@@ -63,6 +63,8 @@ enum ARecovery {
 @Suite("Recovery against the athlete's baseline")
 struct RecoveryTests {
     private static let day = CalendarDay(year: 2026, month: 8, day: 1)
+    /// A today well after the day read, so nothing it reads is still accruing.
+    private static let later = CalendarDay(year: 2026, month: 11, day: 3)
 
     // MARK: - Baseline
 
@@ -103,7 +105,7 @@ struct RecoveryTests {
         let nights = earlier.map { ARecovery.night($0, hrv: 60) } + [ARecovery.night(Self.day, hrv: 30)]
         let days = (earlier + [Self.day]).map { ARecovery.day($0) }
 
-        let reading = try #require(RecoveryReading.reading(for: Self.day, days: days, nights: nights))
+        let reading = try #require(RecoveryReading.reading(for: Self.day, days: days, nights: nights, today: Self.later))
         let hrv = try #require(reading.figures.first { $0.metric == .hrv })
 
         #expect(hrv.value == 30)
@@ -119,7 +121,7 @@ struct RecoveryTests {
             ARecovery.night(Self.day, hrv: 55, asleepSeconds: 20_000, isMainSleep: true),
         ]
 
-        let reading = try #require(RecoveryReading.reading(for: Self.day, days: [], nights: nights))
+        let reading = try #require(RecoveryReading.reading(for: Self.day, days: [], nights: nights, today: Self.later))
 
         #expect(reading.figures.first { $0.metric == .hrv }?.value == 55)
         #expect(reading.figures.first { $0.metric == .sleepDuration }?.value == 20_000)
@@ -128,7 +130,7 @@ struct RecoveryTests {
     @Test("A lowest heart rate of zero is a period with no reading, not a heart rate")
     func aZeroHeartRateIsAbsent() throws {
         let reading = try #require(RecoveryReading.reading(
-            for: Self.day, days: [], nights: [ARecovery.night(Self.day, lowestHeartRate: 0)]))
+            for: Self.day, days: [], nights: [ARecovery.night(Self.day, lowestHeartRate: 0)], today: Self.later))
 
         #expect(!reading.figures.contains { $0.metric == .lowestHeartRate })
     }
@@ -138,7 +140,7 @@ struct RecoveryTests {
         let earlier = ARecovery.daysBefore(Self.day, count: 10)
         let days = (earlier + [Self.day]).map { ARecovery.day($0, temperature: 0.2) }
 
-        let reading = try #require(RecoveryReading.reading(for: Self.day, days: days, nights: []))
+        let reading = try #require(RecoveryReading.reading(for: Self.day, days: days, nights: [], today: Self.later))
         let temperature = try #require(reading.figures.first { $0.metric == .temperatureDeviation })
 
         #expect(temperature.baseline == nil)
@@ -150,7 +152,23 @@ struct RecoveryTests {
         let yesterday = Self.day.adding(days: -1)
 
         #expect(RecoveryReading.reading(
-            for: Self.day, days: [ARecovery.day(yesterday)], nights: [ARecovery.night(yesterday)]) == nil)
+            for: Self.day, days: [ARecovery.day(yesterday)], nights: [ARecovery.night(yesterday)],
+            today: Self.later) == nil)
+    }
+
+    @Test("Today's steps are shown as they stand, but not compared with whole days")
+    func todaysStepsAreNotCompared() throws {
+        let earlier = ARecovery.daysBefore(Self.day, count: 10)
+        let days = earlier.map { ARecovery.day($0, steps: 10_000) } + [ARecovery.day(Self.day, steps: 900)]
+
+        let today = try #require(RecoveryReading.reading(for: Self.day, days: days, nights: [], today: Self.day))
+        let finished = try #require(RecoveryReading.reading(for: Self.day, days: days, nights: [], today: Self.later))
+
+        let partial = try #require(today.figures.first { $0.metric == .steps })
+        #expect(partial.value == 900)
+        #expect(partial.standing == .noBaseline)
+        #expect(partial.recent.isEmpty)
+        #expect(finished.figures.first { $0.metric == .steps }?.standing == .unfavourable)
     }
 
     @Test("Readiness leads as the verdict, with its own comparison, and is not repeated as a figure")
@@ -158,7 +176,7 @@ struct RecoveryTests {
         let earlier = ARecovery.daysBefore(Self.day, count: 8)
         let days = earlier.map { ARecovery.day($0, readiness: 70) } + [ARecovery.day(Self.day, readiness: 85)]
 
-        let reading = try #require(RecoveryReading.reading(for: Self.day, days: days, nights: []))
+        let reading = try #require(RecoveryReading.reading(for: Self.day, days: days, nights: [], today: Self.later))
 
         #expect(reading.readiness?.score == 85)
         #expect(reading.readinessFigure?.deviation == 15)
@@ -190,7 +208,7 @@ struct RecoveryTests {
             ARecovery.day(end, readiness: 80),
         ]
 
-        let trend = MetricTrend.reading(key, days: days, nights: [])
+        let trend = MetricTrend.reading(key, days: days, nights: [], today: Self.later)
 
         #expect(trend.points.map(\.value) == [60, 80])
         #expect(trend.mean == 70)

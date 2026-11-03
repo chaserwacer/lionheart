@@ -43,7 +43,7 @@ struct BodySnapshot: Equatable, Sendable {
     func latestRecovery(today: CalendarDay) -> RecoveryReading? {
         let allNights = nights.values.flatMap(\.self)
         return RecoveryReading.readingDay(onOrBefore: today, days: ouraDays, nights: allNights)
-            .flatMap { RecoveryReading.reading(for: $0, days: ouraDays, nights: allNights) }
+            .flatMap { RecoveryReading.reading(for: $0, days: ouraDays, nights: allNights, today: today) }
     }
 
     func workouts(on day: CalendarDay) -> [OuraWorkout] {
