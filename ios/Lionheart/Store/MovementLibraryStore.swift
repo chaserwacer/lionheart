@@ -104,10 +104,10 @@ final class MovementLibraryStore {
         await task.value
     }
 
-    /// Loads only if nothing is loaded yet, which is what a picker being opened wants: the
+    /// Loads only if nothing current is loaded yet, which is what a picker being opened wants: the
     /// catalogue is not worth a round trip every time a sheet appears.
     func refreshIfNeeded() async {
-        guard state.value == nil else { return }
+        guard state.value == nil || state.isStale else { return }
         await refresh()
     }
 
@@ -122,15 +122,17 @@ final class MovementLibraryStore {
     private func reload() async {
         do {
             // Independent, both wanted, a known number of them.
-            async let catalogue = movements.movements()
-            async let summaries = personalRecords.summaries()
+            // Remembered, because the picker and the record badges are needed most where there is
+            // no signal: a workout started in a basement has to have movements to log against.
+            async let catalogue = movements.movements(remembering: .movements)
+            async let summaries = personalRecords.summaries(remembering: .recordSummaries)
 
             let loaded = try await catalogue
             let found = try await summaries
 
-            state = state.applying(.success(loaded))
+            state = state.applying(loaded)
             records = Dictionary(
-                found.map { ($0.subject, $0) }, uniquingKeysWith: { first, _ in first })
+                found.value.map { ($0.subject, $0) }, uniquingKeysWith: { first, _ in first })
         } catch is CancellationError {
             return
         } catch {

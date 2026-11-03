@@ -75,3 +75,55 @@ struct OuraAPI: Sendable {
             as: LenientList<OuraEvent<Reading>>.self).elements
     }
 }
+
+// MARK: - Remembered
+
+/// The same reads as a screen makes them: each answer is kept under the key the screen gives it,
+/// and given back with its time when the server cannot be reached.
+extension OuraAPI {
+    func days(
+        from: CalendarDay, to: CalendarDay, remembering key: ReadKey
+    ) async throws -> Remembered<[OuraDay]> {
+        try await client.get(
+            "/api/oura/days",
+            query: [
+                URLQueryItem(name: "From", value: from.wire),
+                URLQueryItem(name: "To", value: to.wire),
+            ],
+            as: LenientList<OuraDay>.self,
+            remembering: key
+        ).map(\.elements)
+    }
+
+    func sleepPeriods(
+        from: Date, to: Date, remembering key: ReadKey
+    ) async throws -> Remembered<[OuraEvent<OuraSleepPeriod>]> {
+        try await events("/api/oura/sleep", from: from, to: to, remembering: key)
+    }
+
+    func workouts(
+        from: Date, to: Date, remembering key: ReadKey
+    ) async throws -> Remembered<[OuraEvent<OuraWorkout>]> {
+        try await events("/api/oura/workouts", from: from, to: to, remembering: key)
+    }
+
+    func tags(
+        from: Date, to: Date, remembering key: ReadKey
+    ) async throws -> Remembered<[OuraEvent<OuraTag>]> {
+        try await events("/api/oura/tags", from: from, to: to, remembering: key)
+    }
+
+    private func events<Reading: Decodable & Equatable & Sendable>(
+        _ path: String, from: Date, to: Date, remembering key: ReadKey
+    ) async throws -> Remembered<[OuraEvent<Reading>]> {
+        try await client.get(
+            path,
+            query: [
+                URLQueryItem(name: "From", value: WireDate.wire(from: from)),
+                URLQueryItem(name: "To", value: WireDate.wire(from: to)),
+            ],
+            as: LenientList<OuraEvent<Reading>>.self,
+            remembering: key
+        ).map(\.elements)
+    }
+}

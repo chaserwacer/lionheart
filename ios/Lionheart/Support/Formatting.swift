@@ -44,6 +44,21 @@ enum Formatting {
         day.middayDate(in: calendar).formatted(.dateTime.month(.wide).year())
     }
 
+    /// When a remembered answer dates from, as an instrument would mark it: "As of 14:02" today,
+    /// "As of yesterday 18:40", and the date for anything older, so an old reading cannot pass for
+    /// a recent one at a glance.
+    static func asOf(_ instant: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let time = instant.formatted(date: .omitted, time: .shortened)
+        switch RelativeDay.of(CalendarDay(instant, in: calendar), today: CalendarDay(now, in: calendar), calendar: calendar) {
+        case .today:
+            return "As of \(time)"
+        case .yesterday:
+            return "As of yesterday \(time)"
+        case .tomorrow, .daysAgo, .inDays, .distant:
+            return "As of \(instant.formatted(.dateTime.month(.abbreviated).day())) \(time)"
+        }
+    }
+
 
     /// What a session log row says under its headline, or `nil` where the state has nothing to
     /// count. The facts come from `Core/`; this only chooses the words and the separator.

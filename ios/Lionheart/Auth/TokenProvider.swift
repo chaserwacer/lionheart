@@ -112,7 +112,12 @@ actor TokenProvider {
     /// a network round trip.
     private nonisolated func requestRenewal(using refreshToken: String) async throws -> TokenSet {
         let body = try JSONEncoder().encode(["refreshToken": refreshToken])
-        let request = HTTP.request(.post, path: "/refresh", baseURL: configuration.baseURL, body: body)
+        var request = HTTP.request(.post, path: "/refresh", baseURL: configuration.baseURL, body: body)
+        // Every read waits on this one, so it is not given the system's minute: a server that is
+        // not there leaves the connection hanging rather than refusing it, and the screens have
+        // remembered answers to show in the meantime. A renewal that times out is a transport
+        // failure, which keeps the credential.
+        request.timeoutInterval = HTTP.readPatience
         let (data, status) = try await HTTP.send(request, on: session)
 
         if let failure = HTTP.failure(status: status, body: data) { throw failure }

@@ -24,3 +24,5 @@ struct LenientList<Element: Decodable>: Decodable {
         self.elements = elements
     }
 }
+
+extension LenientList: Sendable where Element: Sendable {}

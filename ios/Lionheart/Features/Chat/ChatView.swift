@@ -13,6 +13,11 @@ import SwiftUI
 struct ChatView: View {
     let store: ChatStore
 
+    /// Chat is the one tab with nothing to show from memory: every answer is the model reading the
+    /// server. So when the server is away the screen says so before the athlete types, rather than
+    /// after a question has waited out its timeout.
+    @Environment(ServerReachability.self) private var reachability
+
     @State private var typed = ""
     @State private var isContextCardPresented = false
     @State private var isConversationListPresented = false
@@ -120,7 +125,12 @@ struct ChatView: View {
         ContentUnavailableView {
             Label("Chat unavailable", systemImage: "exclamationmark.triangle")
         } description: {
-            Text(failure.message)
+            switch failure {
+            case .offline:
+                Text("Chat needs a connection to the server, and the server is not reachable.")
+            case .notFound, .refused, .unavailable:
+                Text(failure.message)
+            }
         } actions: {
             if failure.isWorthRetrying {
                 Button("Try again") { Task { await store.refresh() } }
@@ -159,6 +169,12 @@ struct ChatView: View {
     /// glass — two separate ones this close together bend light against each other.
     private var composer: some View {
         VStack(spacing: 8) {
+            if !reachability.isReachable, store.state.acceptsTyping {
+                Text("Server unreachable. Chat needs a connection to it.")
+                    .font(.caption)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             if store.state.isAwaitingReply {
                 Text("Reading your training data. This can take a minute.")
                     .font(.caption)
@@ -197,7 +213,8 @@ struct ChatView: View {
     }
 
     private var canSend: Bool {
-        store.state.acceptsTyping
+        reachability.isReachable
+            && store.state.acceptsTyping
             && !typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 

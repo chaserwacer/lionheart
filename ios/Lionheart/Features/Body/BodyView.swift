@@ -25,8 +25,8 @@ struct BodyView: View {
                     unavailable(failure)
                 case .loaded(let snapshot):
                     content(snapshot, staleBecause: nil)
-                case .stale(let snapshot, let failure):
-                    content(snapshot, staleBecause: failure)
+                case .stale(let snapshot, let staleness):
+                    content(snapshot, staleBecause: staleness)
                 }
             }
             .listStyle(.insetGrouped)
@@ -98,9 +98,9 @@ struct BodyView: View {
     // MARK: - Loaded
 
     @ViewBuilder
-    private func content(_ snapshot: BodySnapshot, staleBecause failure: LoadFailure?) -> some View {
-        if let failure {
-            StaleBanner(failure: failure)
+    private func content(_ snapshot: BodySnapshot, staleBecause staleness: Staleness?) -> some View {
+        if let staleness {
+            StaleBanner(staleness)
         }
 
         recoverySection(snapshot)

@@ -3,120 +3,33 @@ import Testing
 
 @testable import Lionheart
 
-/// A server that answers however a test needs it to.
-///
-/// It stands in for the one collaborator a unit test cannot run. It records what it was asked to
-/// write, because several of the claims below are about *what reached the server* rather than about
-/// what the store returned.
-private final class AServer: WorkoutSessionWriting, @unchecked Sendable {
-    /// Guarded by the main actor: every call into it comes from `ActiveWorkoutStore`, which is
-    /// `@MainActor`, and the tests that read it are too.
-    private(set) var pushedSets: [[SetCommand]] = []
-    private(set) var completions = 0
-    private(set) var logged: [[SetCommand]] = []
-    private(set) var notes: [String] = []
-    private(set) var deletions: [UUID] = []
-    private(set) var efforts: [PerceivedEffortRequest?] = []
-
-    var failPushes: (any Error)?
-    var failCompletion: (any Error)?
-
-    /// What a read of the session answers. `nil` makes the read itself fail, which is the case the
-    /// store must treat as "I cannot tell" rather than as "not completed".
-    var sessionOnServer: TrainingSession?
-    private(set) var sessionReads: [UUID] = []
-
-    func session(id: UUID) async throws -> TrainingSession {
-        sessionReads.append(id)
-        guard let sessionOnServer else { throw APIError.transport("the read itself failed") }
-        return sessionOnServer
-    }
-
-    func replaceSets(id: UUID, with sets: [SetCommand]) async throws -> TrainingSession {
-        pushedSets.append(sets)
-        if let failPushes { throw failPushes }
-        return Self.anActiveSession(id: id)
-    }
-
-    func updateNotes(id: UUID, to notes: String) async throws -> TrainingSession {
-        self.notes.append(notes)
-        if let failCompletion { throw failCompletion }
-        return Self.anActiveSession(id: id)
-    }
-
-    func complete(
-        id: UUID, period: PeriodRequest, effort: PerceivedEffortRequest?
-    ) async throws -> TrainingSession {
-        if let failCompletion { throw failCompletion }
-        efforts.append(effort)
-        completions += 1
-        return Self.anActiveSession(id: id)
-    }
-
-    func logCompleted(
-        sets: [SetCommand],
-        period: PeriodRequest,
-        effort: PerceivedEffortRequest?,
-        notes: String,
-        programId: UUID?
-    ) async throws -> TrainingSession {
-        if let failCompletion { throw failCompletion }
-        efforts.append(effort)
-        logged.append(sets)
-        return Self.anActiveSession(id: AWorkout.session)
-    }
-
-    func delete(id: UUID) async throws {
-        deletions.append(id)
-    }
-
-    fileprivate static func aCompletedSession(id: UUID) -> TrainingSession {
-        .completed(TrainingSession.Completed(
-            envelope: TrainingSession.Envelope(
-                trainingSessionId: id,
-                notes: "",
-                provenance: .user,
-                trainingProgramId: nil,
-                createdAt: nil,
-                date: CalendarDay(year: 2026, month: 11, day: 2)),
-            sets: [],
-            period: .instant(at: AWorkout.start),
-            effort: .notReported,
-            decoration: .none))
-    }
-
-    private static func anActiveSession(id: UUID) -> TrainingSession {
-        .active(TrainingSession.Active(
-            envelope: TrainingSession.Envelope(
-                trainingSessionId: id,
-                notes: "",
-                provenance: .user,
-                trainingProgramId: nil,
-                createdAt: nil,
-                date: CalendarDay(year: 2026, month: 11, day: 2)),
-            startedAt: AWorkout.start,
-            sets: []))
-    }
-}
-
 /// The store the whole feature rests on.
 ///
 /// The claims here are the three the type exists to keep: a set reaches disk before it reaches the
-/// screen, a failed push is a state rather than a loss, and only a server that accepted the session
-/// gets to make the local copy unrecoverable.
+/// screen, a failed push is a state rather than a loss, and nothing clears the local copy until the
+/// server or the outbox holds the workout.
 @MainActor
 @Suite("Active workout store")
 struct ActiveWorkoutStoreTests {
     private static func aStore(
-        server: AServer = AServer(), at moment: TimeInterval = 0
-    ) -> (ActiveWorkoutStore, ActiveWorkoutDocument, AServer) {
+        server: ARecordingServer = ARecordingServer(), at moment: TimeInterval = 0
+    ) -> (ActiveWorkoutStore, ActiveWorkoutDocument, ARecordingServer) {
+        let (store, document, server, _) = aStoreWithOutbox(server: server, at: moment)
+        return (store, document, server)
+    }
+
+    private static func aStoreWithOutbox(
+        server: ARecordingServer = ARecordingServer(), at moment: TimeInterval = 0
+    ) -> (ActiveWorkoutStore, ActiveWorkoutDocument, ARecordingServer, WorkoutOutbox) {
         let document = ActiveWorkoutDocument(
             directoryURL: URL.temporaryDirectory.appending(path: UUID().uuidString))
+        let (outbox, _) = anOutbox(sending: server)
         let store = ActiveWorkoutStore(
             document: document,
             sessions: server,
+            outbox: outbox,
             now: { AWorkout.start.addingTimeInterval(moment) })
-        return (store, document, server)
+        return (store, document, server, outbox)
     }
 
     // MARK: - Beginning
@@ -193,7 +106,8 @@ struct ActiveWorkoutStoreTests {
         // Choosing a movement changes nothing the server holds.
         #expect(server.pushedSets.isEmpty)
 
-        let relaunched = ActiveWorkoutStore(document: document, sessions: AServer())
+        let relaunched = ActiveWorkoutStore(
+            document: document, sessions: ARecordingServer(), outbox: anOutbox(sending: ARecordingServer()).0)
         await relaunched.restore()
 
         let restored = try #require(relaunched.workout)
@@ -335,7 +249,7 @@ struct ActiveWorkoutStoreTests {
         let finished = await store.complete(
             effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
 
-        #expect(finished)
+        #expect(finished == .delivered)
         #expect(server.pushedSets.last == [.freeform(text: "a set")])
         #expect(server.completions == 1)
         #expect(store.workout == nil)
@@ -352,25 +266,32 @@ struct ActiveWorkoutStoreTests {
         let finished = await store.complete(
             effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
 
-        #expect(!finished)
+        #expect(finished == .notFinished)
         #expect(store.workout?.sets.count == 1)
         #expect(document.read()?.sets.count == 1)
         #expect(store.finish == .refused(.refused("A completed session cannot be completed.")))
     }
 
-    @Test("A completion that could not be pushed does not complete the session")
-    func anUnpushableCompletionIsRefused() async {
-        let (store, document, server) = Self.aStore()
+    @Test("A finish that cannot reach the server is set down for delivery, not refused")
+    func anUnreachableFinishIsHeld() async throws {
+        let (store, document, server, outbox) = Self.aStoreWithOutbox()
         server.failPushes = APIError.transport("The network is not reachable.")
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
         store.log(.freeform(text: "a set"), restingFor: nil)
+        let end = AWorkout.start.addingTimeInterval(3600)
 
-        let finished = await store.complete(
-            effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+        let finished = await store.complete(effort: nil, endingAt: end)
 
-        #expect(!finished)
+        #expect(finished == .heldForDelivery)
+        // Not completed over sets the server never got.
         #expect(server.completions == 0)
-        #expect(document.read()?.sets.count == 1)
+        // The active slot is free for the next workout, and the outbox holds this one, with the end
+        // the athlete gave it.
+        #expect(store.workout == nil)
+        #expect(document.read() == nil)
+        let held = try #require(outbox.finished.first)
+        #expect(held.workout.sets.map(\.command) == [.freeform(text: "a set")])
+        #expect(held.endedAt == end)
     }
 
     @Test("A workout logged afterwards lands in one request, carrying its sets")
@@ -382,7 +303,7 @@ struct ActiveWorkoutStoreTests {
         let finished = await store.complete(
             effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
 
-        #expect(finished)
+        #expect(finished == .delivered)
         #expect(server.pushedSets.isEmpty)
         #expect(server.logged == [[.freeform(text: "a set")]])
         #expect(document.read() == nil)
@@ -436,7 +357,7 @@ struct ActiveWorkoutStoreTests {
     @Test("Discarding never deletes a workout the server has already saved")
     func discardingNeverDeletesASavedWorkout() async {
         let (store, document, server) = Self.aStore()
-        server.sessionOnServer = AServer.aCompletedSession(id: AWorkout.session)
+        server.sessionOnServer = ARecordingServer.aCompletedSession(id: AWorkout.session)
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
 
         await store.discard()
@@ -451,30 +372,44 @@ struct ActiveWorkoutStoreTests {
     func aLostCompletionResponseIsNotAFailure() async {
         let (store, document, server) = Self.aStore()
         server.failCompletion = APIError.transport("the response never arrived")
-        server.sessionOnServer = AServer.aCompletedSession(id: AWorkout.session)
+        server.sessionOnServer = ARecordingServer.aCompletedSession(id: AWorkout.session)
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
 
         let landed = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
 
-        #expect(landed)
+        #expect(landed == .delivered)
         #expect(store.workout == nil)
         #expect(document.read() == nil)
     }
 
-    /// A read that fails answers "I cannot tell", which has to behave as "not completed" — keeping
-    /// the local copy is the recoverable mistake, and clearing it on a guess is not.
-    @Test("A session read that fails leaves the workout alone")
-    func anUnreadableSessionKeepsTheWorkout() async {
-        let (store, document, server) = Self.aStore()
+    /// A read that fails answers "I cannot tell", which has to behave as "not completed": the
+    /// workout is kept, in the outbox, whose next delivery asks again. Clearing it on a guess is the
+    /// mistake that cannot be recovered from.
+    @Test("A completion that cannot be confirmed is held for delivery, not dropped")
+    func anUnconfirmedCompletionIsHeld() async {
+        let (store, _, server, outbox) = Self.aStoreWithOutbox()
         server.failCompletion = APIError.transport("the response never arrived")
         server.sessionOnServer = nil
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+        store.log(.freeform(text: "a set"), restingFor: nil)
 
         let landed = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
 
-        #expect(!landed)
+        #expect(landed == .heldForDelivery)
+        #expect(outbox.finished.map(\.workout.destination) == [.liveSession(AWorkout.session)])
+    }
+
+    @Test("A completion the server refuses is not set down for delivery")
+    func aRefusedCompletionStaysInFlight() async {
+        let (store, _, server, outbox) = Self.aStoreWithOutbox()
+        server.failCompletion = APIError.refused(detail: "A completed session cannot be completed.")
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+
+        _ = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+
+        // The server answered, so delivering it again later cannot help; the athlete is told now.
+        #expect(outbox.finished.isEmpty)
         #expect(store.workout != nil)
-        #expect(document.read() != nil)
     }
 
     @Test("Signing out takes the document with it")
@@ -534,7 +469,8 @@ struct ActiveWorkoutStoreTests {
         var announced = 0
         let store = ActiveWorkoutStore(
             document: document,
-            sessions: AServer(),
+            sessions: ARecordingServer(),
+            outbox: anOutbox(sending: ARecordingServer()).0,
             now: { AWorkout.start.addingTimeInterval(600) },
             onRestFinished: { announced += 1 })
 

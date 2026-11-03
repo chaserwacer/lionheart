@@ -25,8 +25,8 @@ struct ContextCardSheet: View {
                     unavailable(failure)
                 case .loaded(let card):
                     content(card, staleBecause: nil)
-                case .stale(let card, let failure):
-                    content(card, staleBecause: failure)
+                case .stale(let card, let staleness):
+                    content(card, staleBecause: staleness)
                 }
             }
             .listStyle(.insetGrouped)
@@ -44,9 +44,9 @@ struct ContextCardSheet: View {
     }
 
     @ViewBuilder
-    private func content(_ card: AthleteContextCard, staleBecause failure: LoadFailure?) -> some View {
-        if let failure {
-            StaleBanner(failure: failure)
+    private func content(_ card: AthleteContextCard, staleBecause staleness: Staleness?) -> some View {
+        if let staleness {
+            StaleBanner(staleness)
         }
 
         if card.isEmpty {

@@ -8,6 +8,8 @@ import SwiftUI
 struct TrainView: View {
     let store: TrainStore
     let activeWorkout: ActiveWorkoutStore
+    /// Finished workouts the server does not have yet, listed under the start section.
+    let outbox: WorkoutOutbox
     let library: MovementLibraryStore
     /// Opens the logging surface. Held by the root so the bar and this tab open the same sheet
     /// rather than two.
@@ -16,6 +18,7 @@ struct TrainView: View {
     @State private var isPastWorkoutAsked = false
     @State private var route: [Route] = []
     @State private var asked: AskedTransition?
+    @State private var discarding: FinishedWorkout?
 
     /// A transition waiting on the athlete's confirmation. Hung on the `List` rather than on a row,
     /// so there is one dialog rather than one per session.
@@ -36,15 +39,16 @@ struct TrainView: View {
         NavigationStack(path: $route) {
             List {
                 startSection
+                if !outbox.finished.isEmpty { finishedSection }
                 switch store.state {
                 case .loading:
                     loadingSections
                 case .unavailable(let failure):
                     unavailableSection(failure)
                 case .loaded(let plan):
-                    planSections(plan, staleBecause: nil)
-                case .stale(let plan, let failure):
-                    planSections(plan, staleBecause: failure)
+                    planSections(store.withoutHeld(plan), staleBecause: nil)
+                case .stale(let plan, let staleness):
+                    planSections(store.withoutHeld(plan), staleBecause: staleness)
                 }
             }
             .listStyle(.insetGrouped)
@@ -99,6 +103,63 @@ struct TrainView: View {
         } message: {
             if let refusal = store.action.refusal { Text(refusal.message) }
         }
+        .confirmationDialog(
+            "Discard this finished workout?",
+            isPresented: Binding(get: { discarding != nil }, set: { if !$0 { discarding = nil } }),
+            titleVisibility: .visible,
+            presenting: discarding
+        ) { finished in
+            Button("Discard workout", role: .destructive) {
+                outbox.discard(finished.id)
+                discarding = nil
+            }
+        } message: { _ in
+            Text("The server would not take it, and this phone holds the only copy. This cannot be undone.")
+        }
+    }
+
+    // MARK: - Finished, not yet delivered
+
+    /// Workouts finished with no connection, which the server has not taken yet. They are sent
+    /// whenever it answers; one it refused waits here, with its reason, for the athlete to discard.
+    private var finishedSection: some View {
+        Section {
+            ForEach(outbox.finished) { finished in
+                finishedRow(finished)
+                    .swipeActions(edge: .trailing) {
+                        if !finished.isWorthDelivering {
+                            Button("Discard", role: .destructive) { discarding = finished }
+                        }
+                    }
+            }
+            if outbox.hasDeliverableWork {
+                Button("Send now") { Task { await outbox.deliver() } }
+            }
+        } header: {
+            Text("Not yet on the server")
+        }
+    }
+
+    private func finishedRow(_ finished: FinishedWorkout) -> some View {
+        let workout = finished.workout
+        let length = Formatting.duration(seconds: max(0, finished.endedAt.timeIntervalSince(workout.startedAt)))
+        let ended = finished.endedAt.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+
+        return VStack(alignment: .leading, spacing: 2) {
+            Text("\(Formatting.count(workout.sets.count, "set")) · \(length)")
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+            switch finished.delivery {
+            case .waiting:
+                Text("Ended \(ended) · waiting to send")
+                    .font(.caption)
+                    .foregroundStyle(Color(.secondaryLabel))
+            case .refused(let reason):
+                Text("Not accepted: \(reason)")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
     }
 
     // MARK: - Acting on a planned session
@@ -137,7 +198,7 @@ struct TrainView: View {
                         .fontWeight(.semibold)
                 }
             } else {
-                if let abandoned = store.state.value?.inProgress {
+                if let abandoned = store.plan?.inProgress {
                     resumeRow(abandoned)
                 }
                 Button {
@@ -159,7 +220,7 @@ struct TrainView: View {
         } header: {
             Text("Now")
         } footer: {
-            if activeWorkout.workout == nil, store.state.value?.inProgress != nil {
+            if activeWorkout.workout == nil, store.plan?.inProgress != nil {
                 Text("An unfinished session is open on the server. Resuming picks up its sets.")
             }
         }
@@ -185,9 +246,9 @@ struct TrainView: View {
     // MARK: - The plan
 
     @ViewBuilder
-    private func planSections(_ plan: TrainingPlan, staleBecause failure: LoadFailure?) -> some View {
-        if let failure {
-            StaleBanner(failure: failure)
+    private func planSections(_ plan: TrainingPlan, staleBecause staleness: Staleness?) -> some View {
+        if let staleness {
+            StaleBanner(staleness)
         }
 
         if !plan.today.isEmpty {
@@ -304,7 +365,7 @@ struct TrainView: View {
     /// The route carries the id rather than the session so that a refresh while the detail screen
     /// is open shows the refreshed session instead of a copy taken when it was pushed.
     private func planned(_ id: UUID) -> TrainingSession.Planned? {
-        guard let plan = store.state.value else { return nil }
+        guard let plan = store.plan else { return nil }
         return (plan.today + plan.upcoming + plan.missed)
             .first { $0.envelope.trainingSessionId == id }
     }
@@ -331,9 +392,8 @@ struct TrainView: View {
                 }
             }
         } footer: {
-            // Starting a workout needs the server, but logging one you already did does not — so
-            // the start section above stays useful even here.
-            Text("A past workout can still be logged; it is held on this phone until it is finished.")
+            // No workout needs the server to begin, so the start section above stays useful here.
+            Text("A workout can still be started or logged. It is held on this phone until the server answers.")
         }
     }
 }

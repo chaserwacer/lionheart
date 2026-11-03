@@ -36,6 +36,24 @@ struct TrainingPlan: Equatable, Sendable {
             missed: planned.filter { $0.plannedFor < day }
                 .sorted { $0.plannedFor > $1.plannedFor })
     }
+
+    /// The plan without the sessions in `held`: nothing on it offers to start or resume training
+    /// the device is already holding.
+    func excluding(_ held: Set<UUID>) -> TrainingPlan {
+        guard !held.isEmpty else { return self }
+        let isFree = { (session: TrainingSession.Planned) in !held.contains(session.envelope.trainingSessionId) }
+        return TrainingPlan(
+            inProgress: inProgress.flatMap { held.contains($0.envelope.trainingSessionId) ? nil : $0 },
+            today: today.filter(isFree),
+            upcoming: upcoming.filter(isFree),
+            missed: missed.filter(isFree))
+    }
+
+    /// Every session id the device's workouts stand for on the server: the session each is logged
+    /// against, and the plan each was started from.
+    static func sessionIds(heldBy workouts: [ActiveWorkout]) -> Set<UUID> {
+        Set(workouts.flatMap { [$0.destination.sessionId, $0.plannedSessionId].compactMap { $0 } })
+    }
 }
 
 extension TrainingSession {

@@ -36,7 +36,7 @@ struct WorkoutActivityProjection: Equatable, Sendable {
         // Only a live session. A workout being written down afterwards has no clock the athlete
         // wants ticking at them and no rest to count, so a Lock Screen entry for it would be noise
         // about something they are holding the phone to type.
-        guard let workout, case .liveSession(let sessionId) = workout.destination else { return nil }
+        guard let workout, let sessionId = identity(of: workout.destination) else { return nil }
 
         return WorkoutActivityProjection(
             attributes: WorkoutActivityAttributes(
@@ -47,6 +47,18 @@ struct WorkoutActivityProjection: Equatable, Sendable {
                 setCount: workout.sets.count,
                 rest: rest(of: workout.rest, at: now),
                 concern: concern(of: workout.sync, isPersisted: isPersisted)))
+    }
+
+    /// What the activity is keyed by: the session's id, or, for a deferred start, the device's own
+    /// id for the workout until the server opens one. The key changes once when that happens, and
+    /// the presenter ends the old activity and requests the new one; the elapsed clock carries on
+    /// unbroken because it counts from the workout's start, which does not move.
+    private static func identity(of destination: WorkoutDestination) -> UUID? {
+        switch destination {
+        case .liveSession(let sessionId): sessionId
+        case .deferredStart(let localId): localId
+        case .afterTheFact: nil
+        }
     }
 
     /// The rest as two instants, or `nil` where there is nothing to count down.

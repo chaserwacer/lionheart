@@ -16,6 +16,13 @@ struct InjuriesAPI: Sendable {
         try await client.get("/api/injury/get-user-injuries", as: LenientList<Injury>.self).elements
     }
 
+    /// The same read as a screen makes it, remembered under `key`.
+    func injuries(remembering key: ReadKey) async throws -> Remembered<[Injury]> {
+        try await client.get(
+            "/api/injury/get-user-injuries", as: LenientList<Injury>.self, remembering: key
+        ).map(\.elements)
+    }
+
     /// Writes whether the injury is still being tracked, carrying its name and notes through
     /// unchanged.
     ///

@@ -102,23 +102,29 @@ final class TodayStore {
         let firstOuraDay = day.adding(days: -Self.ouraLookBackDays)
 
         do {
-            async let window = sessions.sessions(from: sessionWindow.0, to: sessionWindow.1)
-            async let ouraDays = oura.days(from: firstOuraDay, to: day)
+            async let window = sessions.sessions(
+                from: sessionWindow.0, to: sessionWindow.1,
+                remembering: .today("sessions", showing: day, today: today))
+            async let ouraDays = oura.days(
+                from: firstOuraDay, to: day, remembering: .today("oura-days", showing: day, today: today))
             // A night beginning before midnight is filed under the waking day, so the event window
             // starts a day before the first day read and ends at the end of the day shown.
             async let nights = oura.sleepPeriods(
-                from: firstOuraDay.adding(days: -1).startDate(), to: day.adding(days: 1).startDate())
+                from: firstOuraDay.adding(days: -1).startDate(), to: day.adding(days: 1).startDate(),
+                remembering: .today("nights", showing: day, today: today))
 
+            let (sessionsRead, ouraRead, nightsRead) = try await (window, ouraDays, nights)
             let snapshot = TodaySnapshot.reading(
-                sessions: try await window,
-                ouraDays: try await ouraDays,
-                nights: try await nights,
+                sessions: sessionsRead.value,
+                ouraDays: ouraRead.value,
+                nights: nightsRead.value,
                 today: today,
                 day: day)
             // A day changed while this was out has already reset the state; this answer is for the
             // old day and must not land under the new one.
             guard asked == selection else { return }
-            state = state.applying(.success(snapshot))
+            state = state.applying(.derived(
+                snapshot, from: [sessionsRead.asOf, ouraRead.asOf, nightsRead.asOf]))
         } catch is CancellationError {
             // The screen went away or a newer refresh took over. Nothing to say, and in particular
             // nothing to put on screen: the value already there is still the best one.

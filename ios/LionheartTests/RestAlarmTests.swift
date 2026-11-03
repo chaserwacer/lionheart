@@ -95,6 +95,7 @@ struct RestAlarmLifecycleTests {
         let store = ActiveWorkoutStore(
             document: document,
             sessions: AnAgreeableServer(),
+            outbox: anOutbox(sending: AnAgreeableServer()).0,
             restAlarm: centre,
             now: { AWorkout.start },
             movementTitle: { _ in "Back Squat" })
@@ -163,7 +164,7 @@ struct RestAlarmLifecycleTests {
         store.startRest(90)
         await Self.settle()
 
-        #expect(await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600)))
+        #expect(await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600)) == .delivered)
         await Self.settle()
 
         #expect(centre.pending == .some(nil))

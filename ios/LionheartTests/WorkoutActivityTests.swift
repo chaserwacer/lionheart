@@ -182,6 +182,7 @@ struct WorkoutActivityLifecycleTests {
         let store = ActiveWorkoutStore(
             document: document,
             sessions: server,
+            outbox: anOutbox(sending: server).0,
             activity: lockScreen,
             now: { AWorkout.start },
             movementTitle: { _ in "Back Squat" })
@@ -240,7 +241,7 @@ struct WorkoutActivityLifecycleTests {
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
         await Self.settle()
 
-        #expect(await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600)))
+        #expect(await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600)) == .delivered)
         await Self.settle()
 
         #expect(lockScreen.last == .some(nil))

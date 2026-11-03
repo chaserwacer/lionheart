@@ -35,8 +35,8 @@ struct HistoryView: View {
                     unavailable(failure)
                 case .loaded(let snapshot):
                     content(snapshot, staleBecause: nil)
-                case .stale(let snapshot, let failure):
-                    content(snapshot, staleBecause: failure)
+                case .stale(let snapshot, let staleness):
+                    content(snapshot, staleBecause: staleness)
                 }
             }
             .listStyle(.insetGrouped)
@@ -141,9 +141,9 @@ struct HistoryView: View {
     // MARK: - Loaded
 
     @ViewBuilder
-    private func content(_ snapshot: HistorySnapshot, staleBecause failure: LoadFailure?) -> some View {
-        if let failure {
-            StaleBanner(failure: failure)
+    private func content(_ snapshot: HistorySnapshot, staleBecause staleness: Staleness?) -> some View {
+        if let staleness {
+            StaleBanner(staleness)
         }
 
         let log = snapshot.log.filtered(by: query)

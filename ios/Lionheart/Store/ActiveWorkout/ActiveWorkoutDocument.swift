@@ -1,29 +1,11 @@
 import Foundation
 
-/// Where the active workout lives on disk.
-///
-/// Application Support rather than Caches or a temporary directory: the system may evict Caches
-/// under pressure, and losing the file is the exact failure this exists to prevent. The directory
-/// is excluded from backup — a half-finished workout restored onto a new phone weeks later would
-/// be noise, and the server holds everything that matters once the session completes.
-///
-/// Writes are atomic. A crash partway through a write would otherwise leave truncated JSON, which
-/// is worse than no file at all: the athlete would believe the workout was saved.
+/// Where the active workout lives on disk: one `DeviceFile`, rewritten whole on every change.
 struct ActiveWorkoutDocument: Sendable {
-    private let directoryURL: URL
-    private let fileName: String
+    private let file: DeviceFile
 
     init(directoryURL: URL? = nil, fileName: String = "active-workout.json") {
-        self.directoryURL = directoryURL ?? Self.defaultDirectory()
-        self.fileName = fileName
-    }
-
-    private var fileURL: URL { directoryURL.appending(path: fileName) }
-
-    private static func defaultDirectory() -> URL {
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? URL.temporaryDirectory
-        return support.appending(path: "Lionheart", directoryHint: .isDirectory)
+        file = DeviceFile(directoryURL: directoryURL, fileName: fileName)
     }
 
     /// Reads the stored workout, or `nil` when there is none.
@@ -32,7 +14,7 @@ struct ActiveWorkoutDocument: Sendable {
     /// rather than thrown: there is no screen on which "your saved workout is corrupt" is a useful
     /// thing to say, and the app has to be able to start.
     func read() -> ActiveWorkout? {
-        guard let data = try? Data(contentsOf: fileURL),
+        guard let data = file.read(),
               let workout = try? JSONDecoder().decode(ActiveWorkout.self, from: data),
               workout.isReadable
         else { return nil }
@@ -47,9 +29,7 @@ struct ActiveWorkoutDocument: Sendable {
     @discardableResult
     func write(_ workout: ActiveWorkout) -> Bool {
         do {
-            try createDirectoryIfNeeded()
-            let data = try JSONEncoder().encode(workout)
-            try data.write(to: fileURL, options: [.atomic])
+            try file.write(try JSONEncoder().encode(workout))
             return true
         } catch {
             return false
@@ -57,17 +37,6 @@ struct ActiveWorkoutDocument: Sendable {
     }
 
     func clear() {
-        try? FileManager.default.removeItem(at: fileURL)
-    }
-
-    private func createDirectoryIfNeeded() throws {
-        var directory = directoryURL
-        guard !FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)) else { return }
-
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-
-        var excluded = URLResourceValues()
-        excluded.isExcludedFromBackup = true
-        try? directory.setResourceValues(excluded)
+        file.clear()
     }
 }

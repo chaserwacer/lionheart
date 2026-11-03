@@ -15,6 +15,17 @@ struct UserAPI: Sendable {
         try await client.get("/api/user/has-created-profile")
     }
 
+    /// The same answer, remembered: it decides whether the tabs exist at all, so a launch with no
+    /// signal has to be able to answer it from what the server said last.
+    func profileBoot(remembering key: ReadKey) async throws -> Remembered<AthleteProfileBoot> {
+        try await client.get("/api/user/has-created-profile", remembering: key)
+    }
+
+    /// The last answer kept under `key`, without asking the server.
+    func recalledProfileBoot(_ key: ReadKey) -> AthleteProfileBoot? {
+        client.recall(key, as: AthleteProfileBoot.self)?.value
+    }
+
     /// Creates the profile. Answers 201 with the new profile, or 409 if one already exists — which
     /// is the race between two devices and reads as "you already have one", not as an error.
     func createProfile(_ draft: ProfileDraft) async throws -> AthleteProfile {

@@ -14,6 +14,13 @@ enum HTTP {
         case delete = "DELETE"
     }
 
+    /// How long a read the app cannot do without waits for the server before giving up: a
+    /// remembered screen read, and the token renewal every read waits on. A server that is there
+    /// answers these in well under a second; ten is generous for a weak signal, and far short of
+    /// the system's minute, which is how long a Mac asleep behind Tailscale leaves a connection
+    /// hanging rather than refusing it.
+    static let readPatience: TimeInterval = 10
+
     static func request(
         _ method: Method,
         path: String,

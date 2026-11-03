@@ -113,7 +113,7 @@ struct ActiveWorkoutView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            if let workout = store.workout, case .liveSession = workout.destination {
+            if let workout = store.workout, workout.destination.isLive {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     Text(Formatting.clock(seconds: workout.elapsed(at: context.date)))
                         .font(.headline.monospacedDigit())
@@ -339,6 +339,8 @@ struct ActiveWorkoutView: View {
         } footer: {
             if case .afterTheFact = workout.destination {
                 Text("Nothing is sent until you finish. Tap Finish to save the whole session.")
+            } else if workout.hasLeftItsPlan {
+                Text("The planned session was started or skipped elsewhere, so this workout is saved as a session of its own.")
             }
         }
         .labelStyle(.titleOnly)
