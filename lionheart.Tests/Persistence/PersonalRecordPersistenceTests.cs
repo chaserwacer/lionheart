@@ -198,17 +198,37 @@ public class PersonalRecordPersistenceTests : IDisposable
             JsonSerializer.Deserialize<RecordLineage>("{\"$type\":\"first\"}", ValueConversions.StorageJson));
     }
 
-    [Fact]
-    public void A_derived_figure_never_reaches_the_stored_payload()
+    /// <summary>
+    /// A stored achievement carries its measurement and nothing else — for every kind.
+    /// </summary>
+    /// <remarks>
+    /// Asserting the exact key set rather than the absence of a few names, because that is the
+    /// claim: a volume, an estimated max, a pace or a distance bracket stored beside the members
+    /// it was computed from is a second copy that can come to disagree with them. Every case needs
+    /// its own row, since <c>[JsonIgnore]</c> does not inherit through an override — watching only
+    /// the heaviest set, dropping the attribute from <see cref="DistanceEffort"/>'s pace left the
+    /// whole suite green.
+    /// </remarks>
+    [Theory]
+    [InlineData("heaviestSet", "Lift", new[] { "Weight", "Unit", "Reps" })]
+    [InlineData("bestSetVolume", "Lift", new[] { "Weight", "Unit", "Reps" })]
+    [InlineData("repMax", "Lift", new[] { "Weight", "Unit", "Reps" })]
+    [InlineData("bestSessionVolume", "Total", new[] { "Volume", "Unit" })]
+    [InlineData("longestDistance", "Effort", new[] { "Distance", "Unit", "Duration" })]
+    [InlineData("fastestTime", "Effort", new[] { "Distance", "Unit", "Duration" })]
+    [InlineData("bestPace", "Effort", new[] { "Distance", "Unit", "Duration" })]
+    public void A_stored_achievement_carries_its_measurement_and_no_figure_read_off_it(
+        string kindName, string measure, string[] measured)
     {
-        // A stored volume or estimated max could disagree with the weight and reps it came from.
-        var stored = JsonSerializer.Serialize<Achievement>(
-            Heaviest(225, WeightUnit.Pounds, 5), ValueConversions.StorageJson);
+        var stored = JsonSerializer.Serialize(OfKind(kindName), ValueConversions.StorageJson);
 
-        Assert.DoesNotContain("Volume", stored);
-        Assert.DoesNotContain("EstimatedOneRepMax", stored);
-        Assert.DoesNotContain("Kind", stored);
-        Assert.DoesNotContain("Rank", stored);
+        using var payload = JsonDocument.Parse(stored);
+        Assert.Equal(
+            ["$type", measure],
+            payload.RootElement.EnumerateObject().Select(member => member.Name));
+        Assert.Equal(
+            measured,
+            payload.RootElement.GetProperty(measure).EnumerateObject().Select(member => member.Name));
     }
 
     private static Achievement Heaviest(double weight, WeightUnit unit, int reps) =>
@@ -222,6 +242,7 @@ public class PersonalRecordPersistenceTests : IDisposable
         return kindName switch
         {
             "heaviestSet" => new Achievement.HeaviestSet(lift),
+            "bestSetVolume" => new Achievement.BestSetVolume(lift),
             "repMax" => new Achievement.RepMax(lift),
             "bestSessionVolume" => new Achievement.BestSessionVolume(new SessionVolume(12400, WeightUnit.Pounds)),
             "longestDistance" => new Achievement.LongestDistance(effort),

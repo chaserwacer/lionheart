@@ -59,6 +59,7 @@ public static class RemodelConfiguration
 
             // Read off the achievement and the standing rather than mapped from them: the CLR
             // members are computed, and a settable duplicate is what lets the two disagree.
+            record.Ignore(r => r.Key);
             record.Ignore(r => r.Kind);
             record.Ignore(r => r.IsStanding);
             record.Property<string>(RecordKindColumn).IsRequired();

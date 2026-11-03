@@ -102,11 +102,10 @@ public class PersonalRecordDetectionTests : IAsyncLifetime
 
         await LogAsync(Lift(205, 5));
 
+        // Same movement, same unit, same rep count, so every identity the lighter session claims
+        // already stands and none of its claims beats what holds it. No row at all is written.
         using var context = _athletes.CreateContext();
-        var all = await context.PersonalRecords.CountAsync();
-        // The lighter session still took the three-rep-max row it is the first of... except it was
-        // five reps again, so nothing at all is new.
-        Assert.Equal(before.Count, all);
+        Assert.Equal(before.Count, await context.PersonalRecords.CountAsync());
     }
 
     [Fact]
@@ -126,17 +125,50 @@ public class PersonalRecordDetectionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task A_bigger_number_in_the_other_unit_does_not_take_the_record()
+    public async Task A_lift_in_the_other_unit_leaves_the_record_alone_and_opens_its_own()
     {
-        // 225 lb stands; 100 kg is a heavier lift and a smaller number, and nothing converts.
+        // 100 kg is a heavier lift and a smaller number, and nothing converts — so it is not a
+        // better pounds record. It is a different record, and the unit being part of the identity
+        // is what lets it become one rather than vanishing.
         await LogAsync(Lift(225, 5));
         await LogAsync(Lift(100, 5, WeightUnit.Kilograms));
 
-        var heaviest = Standing<Achievement.HeaviestSet>(await StandingAsync());
+        var heaviest = (await StandingAsync())
+            .Select(record => record.Achievement)
+            .OfType<Achievement.HeaviestSet>()
+            .ToList();
 
-        Assert.Equal(225, heaviest.Lift.Weight);
-        Assert.Equal(WeightUnit.Pounds, heaviest.Lift.Unit);
-        Assert.Single(await ChainAsync(new RecordKind.HeaviestSet()));
+        Assert.Equal(2, heaviest.Count);
+        Assert.Equal(225, heaviest.Single(set => set.Lift.Unit == WeightUnit.Pounds).Lift.Weight);
+        Assert.Equal(100, heaviest.Single(set => set.Lift.Unit == WeightUnit.Kilograms).Lift.Weight);
+    }
+
+    /// <summary>
+    /// Switching units does not end a movement's progression.
+    /// </summary>
+    /// <remarks>
+    /// With the unit only a comparability test, the kilograms set could neither beat the standing
+    /// pounds record nor become one, so the athlete could never set a record on that movement
+    /// again. The unit belongs in the identity, which is also how the iOS trends chart keys its
+    /// strength series so a unit switch starts a new line rather than putting a cliff in one.
+    /// </remarks>
+    [Fact]
+    public async Task After_switching_units_the_athlete_can_still_set_and_beat_records()
+    {
+        await LogAsync(Lift(225, 5));
+        await LogAsync(Lift(100, 5, WeightUnit.Kilograms));
+        await LogAsync(Lift(105, 5, WeightUnit.Kilograms));
+
+        var inKilograms = await ChainAsync(
+            new RecordKind.HeaviestSet(), WeightUnit.Kilograms);
+
+        Assert.Equal(2, inKilograms.Count);
+        Assert.Equal(
+            105,
+            Assert.IsType<Achievement.HeaviestSet>(
+                Assert.Single(inKilograms, record => record.IsStanding).Achievement).Lift.Weight);
+        // And the pounds record is untouched by any of it.
+        Assert.Single(await ChainAsync(new RecordKind.HeaviestSet(), WeightUnit.Pounds));
     }
 
     [Fact]
@@ -259,15 +291,21 @@ public class PersonalRecordDetectionTests : IAsyncLifetime
     }
 
     /// <summary>Every record ever set of one kind on the bench, newest first.</summary>
-    private async Task<IReadOnlyList<PersonalRecord>> ChainAsync(RecordKind kind)
+    private async Task<IReadOnlyList<PersonalRecord>> ChainAsync(
+        RecordKind kind, WeightUnit? heldIn = WeightUnit.Pounds)
     {
         using var context = _athletes.CreateContext();
         var all = await context.PersonalRecords.AsNoTracking()
             .Where(record => record.UserId == _athletes.OwnerId)
             .ToListAsync();
 
-        return [.. all.Where(record => record.Kind == kind).OrderByDescending(record => record.AchievedAt)
-            .ThenByDescending(record => record.PersonalRecordId)];
+        return
+        [
+            .. all
+                .Where(record => record.Kind == kind && record.Achievement.HeldIn == heldIn)
+                .OrderByDescending(record => record.AchievedAt)
+                .ThenByDescending(record => record.PersonalRecordId)
+        ];
     }
 
     private static T Standing<T>(IReadOnlyList<PersonalRecord> records) where T : Achievement =>

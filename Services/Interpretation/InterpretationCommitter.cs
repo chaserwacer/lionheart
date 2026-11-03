@@ -46,14 +46,17 @@ public sealed class InterpretationCommitter : IInterpretationCommitter
     /// third write path that produces a completed session stages them too — the records belong to
     /// the training, not to the route it arrived on.
     /// </summary>
+    /// <remarks>
+    /// Every session in the run goes to the detector in one call, not one per session. One
+    /// utterance can yield two sessions on the same movement, and a detector asked session by
+    /// session reads what stands before each — a read that cannot see the record the previous
+    /// session staged but has not saved, so both would be written standing.
+    /// </remarks>
     private async Task<Result<Committed, Problem>> WriteAsync(
         ResolvedInterpretation interpretation, IReadOnlyList<AnalyzableEntry> entries)
     {
-        foreach (var session in interpretation.Sessions)
-        {
-            _context.Sessions.Add(session);
-            await _records.StageAsync(session, CancellationToken.None);
-        }
+        foreach (var session in interpretation.Sessions) _context.Sessions.Add(session);
+        await _records.StageAsync(interpretation.Sessions, CancellationToken.None);
 
         foreach (var context in interpretation.Contexts) _context.Contexts.Add(context);
         _context.AnalyzableEntries.AddRange(entries);

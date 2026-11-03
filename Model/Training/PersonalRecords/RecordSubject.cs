@@ -7,10 +7,17 @@ namespace lionheart.Model.Training.PersonalRecords;
 /// </summary>
 /// <remarks>
 /// A lift and a treadmill interval are both performed <em>on</em> a movement, so their records
-/// hang off its <see cref="MovementData"/> identity. A trail run is not: the set carries no
-/// movement at all, and its records are not the records a measured interval sets. Running 8 km
-/// over 600 m of climb is not beaten by 10 km on the flat, so ranking the two against each other
-/// would report a loss of fitness as a gain. One subject each, ranked separately.
+/// hang off its <see cref="MovementData"/> identity. A trail run is not: the set names no
+/// movement at all, so there is nothing to hang one off, and the running it describes is not the
+/// running a measured interval describes — a route's distance is whatever the route was, where an
+/// interval's is a number the athlete chose. One subject each, so a season of trail runs ranks
+/// against itself rather than against the treadmill.
+/// <para>
+/// Within trail running, terrain is not part of the identity: two routes of the same distance and
+/// different climb hold one record between them, and the harder one takes it only by being
+/// quicker. Keying on climb would need a bracket nobody logs deliberately, so the honest reading
+/// is that these are an athlete's trail-running records rather than a given route's.
+/// </para>
 /// <para>
 /// Two cases rather than a nullable movement id: a record with no movement is a trail-running
 /// record, which is a fact about the record rather than a missing field.

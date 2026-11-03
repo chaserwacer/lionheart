@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using lionheart.Functional;
+using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Training.PersonalRecords;
 
@@ -156,6 +157,25 @@ public abstract record RecordKind
 }
 
 /// <summary>
+/// What makes two records the same record: what it is held against, which question it answers,
+/// and — for the weight kinds — the unit it is held in.
+/// </summary>
+/// <remarks>
+/// The unit belongs here rather than being tested for comparability, and that is what stops a
+/// movement's records locking to the first unit the athlete happened to log in. Weights never
+/// convert, so a kilograms lift cannot beat a pounds record; without the unit in the identity it
+/// also could not become one, and switching units would end that movement's progression for good.
+/// A movement holds a kilograms record and a pounds record of the same kind, each set and beaten
+/// within its own — which is how the iOS trends chart already keys its strength series, so a unit
+/// switch starts a new line rather than putting a cliff in one.
+/// <para>
+/// Distances carry no unit here: they rank in meters, so one record covers every spelling of a
+/// distance.
+/// </para>
+/// </remarks>
+public sealed record RecordKey(RecordSubject Subject, RecordKind Kind, WeightUnit? HeldIn);
+
+/// <summary>
 /// What a record is the best of, carrying the performance that holds it.
 /// </summary>
 /// <remarks>
@@ -180,46 +200,50 @@ public abstract record Achievement
     private protected Achievement() { }
 
     /// <summary>
-    /// Which record this is, bracket included. Abstract rather than switched over, so a case
-    /// cannot be added that forgets to say what it is.
+    /// Which question this answers, bracket included. Abstract rather than switched over, so a
+    /// case cannot be added that forgets to say what it is.
     /// </summary>
     [JsonIgnore]
     public abstract RecordKind Kind { get; }
 
     /// <summary>
+    /// The weight unit this is measured in, where it is measured in one at all.
+    /// </summary>
+    /// <remarks>
+    /// Part of a record's identity, not a detail of its measurement — see <see cref="RecordKey"/>.
+    /// Absent for the distance kinds, which rank in meters and so have no unit to be held in.
+    /// </remarks>
+    [JsonIgnore]
+    public abstract WeightUnit? HeldIn { get; }
+
+    /// <summary>
     /// How good this is, as a number where higher is better — what one candidate is ranked against
-    /// another by within a single kind.
+    /// another by within one record's identity.
     /// </summary>
     /// <remarks>
     /// The time-based kinds negate, so "faster" and "heavier" both read as "larger". Meaningful
-    /// only within a kind, and for the weight kinds only within one unit, so <see cref="Beats"/>
-    /// is the member domain logic compares with.
+    /// only between two achievements of the same <see cref="RecordKey"/>, which is what
+    /// <see cref="Beats"/> establishes first.
     /// </remarks>
     [JsonIgnore]
     public abstract double Rank { get; }
 
     /// <summary>
-    /// Whether this is a better record than <paramref name="other"/> of the same kind.
+    /// Whether this is a better record than <paramref name="other"/>, which it can only be if the
+    /// two are the same record.
     /// </summary>
     /// <remarks>
     /// Strictly better: equalling a record does not take it, which is also what stops a repeated
     /// set announcing itself every time.
     /// <para>
-    /// A weight in a unit the standing record is not held in does not beat it. The server stores
-    /// each record's unit and compares the numbers without converting, so converting anywhere
-    /// would announce a record that disagrees with the stored one — 225 lb is the larger number
-    /// and the lighter lift. Both clients compare the same way, which is why this is the rule and
-    /// not a limitation.
+    /// Weights never convert, so <see cref="HeldIn"/> is part of the identity rather than a
+    /// comparability test: 225 lb is the larger number and the lighter lift, and converting
+    /// anywhere would announce a record that disagrees with the stored one. A kilograms lift is
+    /// therefore not a worse pounds record — it is a different record, and sets and beats its own.
     /// </para>
     /// </remarks>
     public bool Beats(Achievement other) =>
-        Kind == other.Kind && ComparableWith(other) && Rank > other.Rank;
-
-    /// <summary>
-    /// Whether the two are measured in units that may be compared at all. Distances always are;
-    /// weights only within one unit.
-    /// </summary>
-    protected abstract bool ComparableWith(Achievement other);
+        Kind == other.Kind && HeldIn == other.HeldIn && Rank > other.Rank;
 
     public sealed record HeaviestSet(LiftPerformance Lift) : Achievement
     {
@@ -229,8 +253,8 @@ public abstract record Achievement
         [JsonIgnore]
         public override double Rank => Lift.Weight;
 
-        protected override bool ComparableWith(Achievement other) =>
-            other is HeaviestSet o && o.Lift.Unit == Lift.Unit;
+        [JsonIgnore]
+        public override WeightUnit? HeldIn => Lift.Unit;
     }
 
     public sealed record BestSetVolume(LiftPerformance Lift) : Achievement
@@ -241,8 +265,8 @@ public abstract record Achievement
         [JsonIgnore]
         public override double Rank => Lift.Volume;
 
-        protected override bool ComparableWith(Achievement other) =>
-            other is BestSetVolume o && o.Lift.Unit == Lift.Unit;
+        [JsonIgnore]
+        public override WeightUnit? HeldIn => Lift.Unit;
     }
 
     public sealed record RepMax(LiftPerformance Lift) : Achievement
@@ -254,8 +278,8 @@ public abstract record Achievement
         [JsonIgnore]
         public override double Rank => Lift.Weight;
 
-        protected override bool ComparableWith(Achievement other) =>
-            other is RepMax o && o.Lift.Unit == Lift.Unit;
+        [JsonIgnore]
+        public override WeightUnit? HeldIn => Lift.Unit;
     }
 
     public sealed record BestSessionVolume(SessionVolume Total) : Achievement
@@ -266,8 +290,8 @@ public abstract record Achievement
         [JsonIgnore]
         public override double Rank => Total.Volume;
 
-        protected override bool ComparableWith(Achievement other) =>
-            other is BestSessionVolume o && o.Total.Unit == Total.Unit;
+        [JsonIgnore]
+        public override WeightUnit? HeldIn => Total.Unit;
     }
 
     public sealed record LongestDistance(DistanceEffort Effort) : Achievement
@@ -278,7 +302,8 @@ public abstract record Achievement
         [JsonIgnore]
         public override double Rank => Effort.DistanceInMeters;
 
-        protected override bool ComparableWith(Achievement other) => other is LongestDistance;
+        [JsonIgnore]
+        public override WeightUnit? HeldIn => null;
     }
 
     public sealed record FastestTime(DistanceEffort Effort) : Achievement
@@ -290,7 +315,8 @@ public abstract record Achievement
         [JsonIgnore]
         public override double Rank => -Effort.Duration.TotalSeconds;
 
-        protected override bool ComparableWith(Achievement other) => other is FastestTime;
+        [JsonIgnore]
+        public override WeightUnit? HeldIn => null;
     }
 
     public sealed record BestPace(DistanceEffort Effort) : Achievement
@@ -301,6 +327,7 @@ public abstract record Achievement
         [JsonIgnore]
         public override double Rank => -Effort.SecondsPerMeter;
 
-        protected override bool ComparableWith(Achievement other) => other is BestPace;
+        [JsonIgnore]
+        public override WeightUnit? HeldIn => null;
     }
 }

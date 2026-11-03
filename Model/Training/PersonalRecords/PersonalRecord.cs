@@ -62,6 +62,8 @@ public sealed class PersonalRecord
     public RecordLineage Lineage { get; private init; }
 
     /// <summary>Which record this is, for matching a session's candidates against what stands.</summary>
+    public RecordKey Key => new(Subject, Achievement.Kind, Achievement.HeldIn);
+
     public RecordKind Kind => Achievement.Kind;
 
     public bool IsStanding => Standing is RecordStanding.Current;
@@ -85,12 +87,25 @@ public sealed class PersonalRecord
     /// </summary>
     /// <remarks>
     /// Both halves of the hand-over happen here so a new record and the demotion of the one it
-    /// replaced cannot be staged apart — two standing records of one kind is the state this
-    /// aggregate exists to make impossible.
+    /// replaced cannot be staged apart — two standing records of one identity is the state this
+    /// aggregate exists to make impossible, and with no relational constraint able to express it
+    /// (see <see cref="lionheart.Data.RemodelConfiguration"/>) this factory is where it lives.
+    /// That is why it refuses rather than trusts: every caller is inside this assembly, so a
+    /// hand-over that does not hold is a defect here and not an answer for an athlete.
     /// </remarks>
     public static PersonalRecord Succeeding(
         Guid personalRecordId, Achievement achievement, DateTime achievedAt, PersonalRecord beaten)
     {
+        if (beaten.Standing is not RecordStanding.Current)
+            throw new InvalidOperationException(
+                "Only the standing record can be succeeded; this one is already out of the chain.");
+        if (achievement.Kind != beaten.Achievement.Kind || achievement.HeldIn != beaten.Achievement.HeldIn)
+            throw new InvalidOperationException(
+                $"A {achievement.Kind.Name} record cannot succeed a {beaten.Achievement.Kind.Name} one.");
+        if (!achievement.Beats(beaten.Achievement))
+            throw new InvalidOperationException(
+                "A record only succeeds one it beats; equalling the standing record does not take it.");
+
         beaten.Standing = new RecordStanding.Beaten(achievedAt);
 
         return new PersonalRecord(
@@ -106,10 +121,28 @@ public sealed class PersonalRecord
     /// <summary>
     /// Withdraws this record, because the set behind it was not real.
     /// </summary>
-    public void Retract(DateTime at) => Standing = new RecordStanding.Retracted(at);
+    /// <remarks>
+    /// Only from standing, which is what keeps retraction a walk back along the chain one link at
+    /// a time: a beaten record is history, so it is never withdrawn, so the record behind a
+    /// withdrawn one is always one the athlete beat and restoring it is total.
+    /// </remarks>
+    public void Retract(DateTime at)
+    {
+        if (Standing is not RecordStanding.Current)
+            throw new InvalidOperationException("Only the standing record can be retracted.");
+
+        Standing = new RecordStanding.Retracted(at);
+    }
 
     /// <summary>
     /// Puts this record back as the current one, after the record that beat it was withdrawn.
     /// </summary>
-    public void Restore() => Standing = new RecordStanding.Current();
+    public void Restore()
+    {
+        if (Standing is not RecordStanding.Beaten)
+            throw new InvalidOperationException(
+                "Only a record the athlete beat comes back; a withdrawn one stays withdrawn.");
+
+        Standing = new RecordStanding.Current();
+    }
 }

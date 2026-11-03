@@ -351,7 +351,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
     private async Task<Result<TrainingSessionView, Problem>> AddCompletedAsync(
         CompletedTrainingSession completed, CancellationToken ct)
     {
-        await _records.StageAsync(completed, ct);
+        await _records.StageAsync([completed], ct);
         return await AddAsync(completed, ct);
     }
 
@@ -359,7 +359,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
     private async Task<Result<TrainingSessionView, Problem>> ReplaceWithCompletedAsync(
         TrainingSession previous, CompletedTrainingSession completed, CancellationToken ct)
     {
-        await _records.StageAsync(completed, ct);
+        await _records.StageAsync([completed], ct);
         return await ReplaceAsync(previous, completed, ct);
     }
 
