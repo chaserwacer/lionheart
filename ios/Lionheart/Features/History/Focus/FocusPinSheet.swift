@@ -82,6 +82,11 @@ struct FocusPinSheet: View {
                     Section {
                         Text(refusal.message).foregroundStyle(.red)
                     }
+                } else if case .failure(let problem) = drafted {
+                    // Why Pin is not on offer, rather than a greyed button that says nothing.
+                    Section {
+                        Text(Self.sentence(for: problem)).foregroundStyle(Color(.secondaryLabel))
+                    }
                 }
             }
             .navigationTitle(isRevising ? "Edit focus" : "Pin to focus")
@@ -203,9 +208,24 @@ struct FocusPinSheet: View {
         return .lift(weight: weight, unit: targetUnit, reps: targetReps)
     }
 
-    private var draft: FocusDraft? {
-        try? FocusDraft.make(
-            starts: startsDay, ends: endsDay, sessionsPerWeek: sessionsPerWeek, target: target)
+    private var drafted: Result<FocusDraft, FocusDraft.Problem> {
+        do throws(FocusDraft.Problem) {
+            return .success(try FocusDraft.make(
+                starts: startsDay, ends: endsDay, sessionsPerWeek: sessionsPerWeek, target: target))
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    private var draft: FocusDraft? { try? drafted.get() }
+
+    private static func sentence(for problem: FocusDraft.Problem) -> String {
+        switch problem {
+        case .endsBeforeItStarts: "The horizon ends before it starts."
+        case .sessionsPerWeekOutOfRange: "Sessions a week run from one to seven."
+        case .targetRepsOutOfRange: "Target reps run from one to thirty."
+        case .targetWeightNegative: "Enter the target's load, zero or more."
+        }
     }
 
     private func save() async {

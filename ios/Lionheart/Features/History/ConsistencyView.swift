@@ -68,7 +68,6 @@ struct ConsistencyView: View {
 
     private func weeklySection(_ reading: ConsistencyReading) -> some View {
         let window = reading.window(lastWeeks: span.weeks(of: reading.weeks.count))
-        let reach = Array(reading.weeks.suffix(window.weeks.count + TrainingTrends.loadAverageWeeks - 1))
 
         return Section {
             SummaryFigures(figures: [
@@ -83,7 +82,7 @@ struct ConsistencyView: View {
             }
             WeeklyLoadChart(
                 weeks: window.weeks,
-                average: TrainingTrends.trailingAverage(of: reach, counting: \.sessionCount),
+                average: window.average,
                 counting: .sessions)
                 .frame(height: chartHeight)
                 .padding(.vertical, 6)
@@ -133,20 +132,14 @@ struct ConsistencyView: View {
     @ViewBuilder
     private func calendar(_ snapshot: HistorySnapshot, reading: ConsistencyReading, today: CalendarDay) -> some View {
         let first = reading.weeks.first?.start ?? today
-        let sessionsByDay = Dictionary(
-            snapshot.sessions
-                .filter { SessionLog.kind(of: $0, today: today).isPerformed }
-                .map { ($0.date, $0.id) },
-            uniquingKeysWith: { first, _ in first })
-
         ForEach(CalendarMonth.months(from: first, through: today)) { month in
-            let trained = month.weeks.joined().compactMap(\.self).filter(reading.trainingDays.contains).count
+            let trained = reading.trainedDays(in: month)
             Section {
                 MonthGrid(
                     month: month,
                     trainingDays: reading.trainingDays,
                     today: today,
-                    open: { day in openedSession = sessionsByDay[day] })
+                    open: { day in openedSession = snapshot.firstPerformedSession(on: day, today: today) })
             } header: {
                 HStack(alignment: .firstTextBaseline) {
                     Text(Formatting.month(month.start))

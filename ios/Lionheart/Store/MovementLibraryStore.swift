@@ -38,6 +38,9 @@ final class MovementLibraryStore {
     @ObservationIgnored private var noticed: Set<UUID> = []
     /// The catalogue read `cover` has out, which a second caller waits on rather than repeating.
     @ObservationIgnored private var covering: Task<Void, Never>?
+    /// How many reads have answered with the server's current catalogue — how `cover` tells a read
+    /// that landed from one cancelled by a newer refresh, which leaves the old value in place.
+    @ObservationIgnored private var currentReads = 0
 
     init(movements: MovementsAPI, records: PersonalRecordsAPI, defaults: UserDefaults = .standard) {
         self.movements = movements
@@ -108,8 +111,9 @@ final class MovementLibraryStore {
         guard !missing.isEmpty else { return }
 
         let task = Task {
+            let readsBefore = self.currentReads
             await self.refresh()
-            if case .loaded = self.state {
+            if self.currentReads > readsBefore {
                 self.unlisted.formUnion(self.catalogue.missing(missing))
             }
         }
@@ -187,6 +191,7 @@ final class MovementLibraryStore {
             let found = try await summaries
 
             state = state.applying(loaded)
+            if case .current = loaded { currentReads += 1 }
             records = Dictionary(
                 found.value.map { ($0.subject, $0) }, uniquingKeysWith: { first, _ in first })
         } catch is CancellationError {

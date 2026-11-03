@@ -155,6 +155,30 @@ struct FocusTests {
         #expect(abs((progress.change ?? 0) - (54 - 40 * (1 + 5.0 / 30))) < 0.0001)
     }
 
+    @Test("The figure before the pin is the last session before it that has an estimate")
+    func beforeSkipsSessionsWithNothingToEstimate() throws {
+        // The session just before the pin was bodyweight work: no estimate. The one before that
+        // is where the lift stood.
+        let history = try Self.history([
+            ("2026-10-20", [(40, 5)]),
+            ("2026-10-28", [(0, 15)]),
+            ("2026-11-04", [(45, 6)]),
+        ])
+
+        let progress = try #require(FocusReading.of(Self.pin(), history: history, today: Self.today).progress)
+
+        #expect(progress.before?.day == Self.day(10, 20))
+        #expect(progress.change != nil)
+    }
+
+    @Test("A running pin knows its week of the horizon")
+    func weekOfTheHorizon() {
+        #expect(FocusReading.Phase.running(day: 1, of: 56).week?.current == 1)
+        #expect(FocusReading.Phase.running(day: 19, of: 56).week?.current == 3)
+        #expect(FocusReading.Phase.running(day: 19, of: 57).week?.of == 9)
+        #expect(FocusReading.Phase.horizonOver.week == nil)
+    }
+
     @Test("A target is met by the first set at its load for its reps or more inside the horizon")
     func aTargetIsMet() throws {
         let history = try Self.history([

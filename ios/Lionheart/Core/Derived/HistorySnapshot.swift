@@ -31,6 +31,11 @@ struct HistorySnapshot: Equatable, Sendable {
         records.first { $0.subject == subject }
     }
 
+    /// The first session that happened on a day, for a calendar day to open.
+    func firstPerformedSession(on day: CalendarDay, today: CalendarDay) -> UUID? {
+        sessions.first { $0.date == day && SessionLog.kind(of: $0, today: today).isPerformed }?.id
+    }
+
     func history(of movementDataId: UUID, today: CalendarDay) -> MovementHistory {
         MovementHistory.of(movementDataId, in: sessions, today: today)
     }

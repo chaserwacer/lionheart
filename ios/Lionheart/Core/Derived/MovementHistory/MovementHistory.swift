@@ -97,6 +97,22 @@ struct MovementPoint: Equatable, Sendable, Identifiable {
     var id: UUID { sessionId }
 }
 
+/// A series of points read as its three figures: the latest, the best, and the change from the
+/// first to the latest.
+struct MovementSeriesSummary: Equatable, Sendable {
+    let latest: MovementPoint
+    let best: MovementPoint
+    let change: Double
+
+    /// `nil` for an empty series. Points are oldest first.
+    static func of(_ points: [MovementPoint]) -> MovementSeriesSummary? {
+        guard let first = points.first, let latest = points.last,
+              let best = points.max(by: { $0.value < $1.value })
+        else { return nil }
+        return MovementSeriesSummary(latest: latest, best: best, change: latest.value - first.value)
+    }
+}
+
 extension MovementHistory {
     /// The measure session by session, oldest first, in one unit. A session with nothing to
     /// measure — no lift in the unit, every set past the estimate's cap, no set at the load — has

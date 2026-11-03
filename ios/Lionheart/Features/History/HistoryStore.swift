@@ -151,9 +151,11 @@ final class HistoryStore {
             established[.session(session.id)] = .loaded([])
             return
         }
+        // A second either side: the instants travel as text at millisecond precision, and the
+        // server stores its own to the tick, so a bound on the instant itself can miss it.
         await loadEstablished(.session(session.id)) {
             try await self.records.established(
-                from: start, to: session.endedAt ?? start,
+                from: start.addingTimeInterval(-1), to: (session.endedAt ?? start).addingTimeInterval(1),
                 remembering: .establishedRecords(session: session.id))
         }
     }

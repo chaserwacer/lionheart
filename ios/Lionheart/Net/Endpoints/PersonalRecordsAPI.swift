@@ -53,8 +53,7 @@ struct PersonalRecordsAPI: Sendable {
     /// Every record established inside a window of instants, in every standing.
     ///
     /// A record is dated with its session's start, so a session's own records are the window over
-    /// its period. The whole period rather than the start alone, because the start travels as text
-    /// and a bound that lost a fraction of a second on the way would miss the instant it names.
+    /// its period.
     func established(from start: Date, to end: Date, remembering key: ReadKey) async throws
         -> Remembered<[PersonalRecord]>
     {

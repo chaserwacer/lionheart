@@ -168,15 +168,15 @@ struct MovementChartSections: View {
     }
 
     /// Latest, best and the change over the span.
+    @ViewBuilder
     private func summary(_ points: [MovementPoint], measure: MovementMeasure, unit: WeightUnit) -> some View {
-        let latest = points.last
-        let best = points.max { $0.value < $1.value }
-        let change = (points.last?.value ?? 0) - (points.first?.value ?? 0)
-        return SummaryFigures(figures: [
-            ("Latest", latest.map { value($0.value, measure: measure, unit: unit) } ?? "—"),
-            ("Best", best.map { value($0.value, measure: measure, unit: unit) } ?? "—"),
-            ("Change", "\(change < 0 ? "−" : "+")\(value(abs(change), measure: measure, unit: unit))"),
-        ])
+        if let summary = MovementSeriesSummary.of(points) {
+            SummaryFigures(figures: [
+                ("Latest", value(summary.latest.value, measure: measure, unit: unit)),
+                ("Best", value(summary.best.value, measure: measure, unit: unit)),
+                ("Change", "\(summary.change < 0 ? "−" : "+")\(value(abs(summary.change), measure: measure, unit: unit))"),
+            ])
+        }
     }
 
     private func value(_ value: Double, measure: MovementMeasure, unit: WeightUnit) -> String {
@@ -197,21 +197,19 @@ struct MovementChartSections: View {
     @ViewBuilder
     private var frequencySection: some View {
         let frequency = MovementFrequency.of(movement, today: today)
-        let reachWeeks = span.weeks(of: frequency.weeks.count)
-        let reach = Array(frequency.weeks.suffix(reachWeeks + TrainingTrends.loadAverageWeeks - 1))
-        let shown = Array(reach.suffix(reachWeeks))
-        let sessions = shown.reduce(0) { $0 + $1.sessionCount }
+        let window = ConsistencyReading.window(
+            of: frequency.weeks, lastWeeks: span.weeks(of: frequency.weeks.count))
 
-        if !shown.isEmpty {
+        if !window.weeks.isEmpty {
             Section {
                 SummaryFigures(figures: [
-                    ("Sessions", "\(sessions)"),
-                    ("Per week", Formatting.rate(MovementFrequency.rate(of: shown))),
-                    ("Weeks with one", "\(shown.filter { $0.sessionCount > 0 }.count) of \(shown.count)"),
+                    ("Sessions", "\(window.sessions)"),
+                    ("Per week", Formatting.rate(window.perWeek)),
+                    ("Weeks with one", "\(window.weeksTrained) of \(window.weeks.count)"),
                 ])
                 WeeklyLoadChart(
-                    weeks: shown,
-                    average: TrainingTrends.trailingAverage(of: reach, counting: \.sessionCount),
+                    weeks: window.weeks,
+                    average: window.average,
                     counting: .sessions)
                     .frame(height: frequencyHeight)
                     .padding(.vertical, 6)

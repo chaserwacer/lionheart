@@ -27,7 +27,7 @@ struct PersonalRecordsView: View {
             } else {
                 Section {
                     ForEach(shown) { held in
-                        NavigationLink(value: HistoryRoute.recordSubject(held.subject)) {
+                        NavigationLink(value: Self.route(to: held.subject)) {
                             SubjectRow(held: held, name: held.subject.name(in: catalogue))
                         }
                     }
@@ -40,6 +40,15 @@ struct PersonalRecordsView: View {
         .listSectionSpacing(.compact)
         .navigationTitle("Personal records")
         .searchable(text: $query, prompt: "Movement")
+    }
+
+    /// A movement opens its page, whose Records hold everything the records screen would; trail
+    /// running names no movement and keeps the records screen.
+    private static func route(to subject: RecordSubject) -> HistoryRoute {
+        switch subject {
+        case .movement(let id): .movement(id)
+        case .trailRunning: .recordSubject(subject)
+        }
     }
 
     /// The subjects whose name matches the search, in the server's order — most recently set first.

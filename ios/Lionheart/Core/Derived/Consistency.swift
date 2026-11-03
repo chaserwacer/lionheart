@@ -26,9 +26,12 @@ struct ConsistencyReading: Equatable, Sendable {
         let weekCount: Int
     }
 
-    /// One span of weeks read as figures.
+    /// One span of weeks read as figures, with the four-week average of sessions drawn through it.
     struct Window: Equatable, Sendable {
         let weeks: [TrainingWeek]
+        /// The trailing average for the same weeks, reaching back past the first of them so the
+        /// line starts where the bars do.
+        let average: [TrainingTrends.WeeklyLoad]
         let sessions: Int
         let weeksTrained: Int
         /// Sessions per week over the whole window, empty weeks included.
@@ -39,7 +42,13 @@ struct ConsistencyReading: Equatable, Sendable {
     }
 
     func window(lastWeeks count: Int) -> Window {
-        let shown = Array(weeks.suffix(count))
+        Self.window(of: weeks, lastWeeks: count)
+    }
+
+    /// The last `count` of any run of weeks — the whole log's, or one movement's — read as a window.
+    static func window(of weeks: [TrainingWeek], lastWeeks count: Int) -> Window {
+        let reach = Array(weeks.suffix(count + TrainingTrends.loadAverageWeeks - 1))
+        let shown = Array(reach.suffix(count))
         let sessions = shown.reduce(0) { $0 + $1.sessionCount }
         let trained = shown.map(\.sessionCount).filter { $0 > 0 }.sorted()
         let median: Double? = trained.isEmpty ? nil : trained.count.isMultiple(of: 2)
@@ -47,6 +56,7 @@ struct ConsistencyReading: Equatable, Sendable {
             : Double(trained[trained.count / 2])
         return Window(
             weeks: shown,
+            average: TrainingTrends.trailingAverage(of: reach, counting: \.sessionCount),
             sessions: sessions,
             weeksTrained: trained.count,
             perWeek: shown.isEmpty ? 0 : Double(sessions) / Double(shown.count),
@@ -80,6 +90,11 @@ struct ConsistencyReading: Equatable, Sendable {
                 runs.append(WeekRun(firstWeek: week.start, lastWeek: week.start, weekCount: 1))
             }
         }
+    }
+
+    /// How many days of a calendar page held training.
+    func trainedDays(in month: CalendarMonth) -> Int {
+        month.weeks.joined().compactMap(\.self).filter(trainingDays.contains).count
     }
 
     /// The run ending this week, or last week while this one is still empty.

@@ -164,7 +164,8 @@ struct HistoryView: View {
                 Section {
                     NavigationLink(value: HistoryRoute.movement(token.id)) {
                         LabeledContent(token.name) {
-                            Text(Formatting.count(log.sessionCount, "session")).monospacedDigit()
+                            let own = snapshot.movements.entries.first { $0.movementDataId == token.id }
+                            Text(Formatting.count(own?.sessionCount ?? 0, "session")).monospacedDigit()
                         }
                     }
                 }
@@ -213,8 +214,6 @@ struct HistoryView: View {
     @ViewBuilder
     private func consistencySection(_ snapshot: HistorySnapshot) -> some View {
         let window = snapshot.consistency.window(lastWeeks: Self.consistencyWeeksShown)
-        let reach = Array(snapshot.consistency.weeks.suffix(Self.consistencyWeeksShown + TrainingTrends.loadAverageWeeks - 1))
-        let average = TrainingTrends.trailingAverage(of: reach, counting: \.sessionCount)
 
         if !window.weeks.isEmpty {
             Section {
@@ -222,12 +221,12 @@ struct HistoryView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         SummaryFigures(figures: [
                             ("This week", Formatting.count(window.weeks.last?.sessionCount ?? 0, "session")),
-                            ("4-week average", Formatting.rate(average.last?.value ?? 0)),
+                            ("4-week average", Formatting.rate(window.average.last?.value ?? 0)),
                             ("Weeks trained", "\(window.weeksTrained) of \(window.weeks.count)"),
                         ])
                         if window.sessions > 0 {
                             WeeklyLoadChart(
-                                weeks: window.weeks, average: average, counting: .sessions, showsAxes: false)
+                                weeks: window.weeks, average: window.average, counting: .sessions, showsAxes: false)
                                 .frame(height: consistencyChartHeight)
                         }
                     }

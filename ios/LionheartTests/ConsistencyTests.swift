@@ -52,11 +52,31 @@ struct ConsistencyTests {
         let reading = ConsistencyReading(weeks: Self.weeks, trainingDays: [], currentRun: nil, longestRun: nil)
 
         let window = reading.window(lastWeeks: 4)
+        // Six weeks of history: the average needs four, so the first shown week has none.
+        #expect(window.average.count == 3)
 
         #expect(window.sessions == 8)
         #expect(window.weeksTrained == 3)
         #expect(window.perWeek == 2)
         #expect(window.medianInTrainedWeeks == 3)
+    }
+
+    @Test("A window's average reaches back past its first week, so the line starts with the bars")
+    func aWindowsAverageReachesBack() {
+        let window = ConsistencyReading.window(of: Self.weeks, lastWeeks: 2)
+
+        #expect(window.weeks.map(\.sessionCount) == [4, 3])
+        // Four-week means ending on each shown week: (2+0+1+4)/4 and (0+1+4+3)/4.
+        #expect(window.average.map(\.value) == [1.75, 2])
+    }
+
+    @Test("A calendar page counts the days on it that held training")
+    func trainedDaysOnAPage() {
+        let reading = ConsistencyReading(
+            weeks: [], trainingDays: [CalendarDay(year: 2026, month: 11, day: 2), CalendarDay(year: 2026, month: 10, day: 30)],
+            currentRun: nil, longestRun: nil)
+
+        #expect(reading.trainedDays(in: CalendarMonth.page(starting: CalendarDay(year: 2026, month: 11, day: 1))) == 1)
     }
 
     @Test("A calendar page starts its weeks on Monday and fills every row to seven")

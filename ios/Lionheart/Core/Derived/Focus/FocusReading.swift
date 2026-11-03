@@ -32,6 +32,12 @@ struct FocusReading: Equatable, Sendable, Identifiable {
         /// A status this build cannot read.
         case unrecognised
 
+        /// For a running pin, the week of the horizon this is and how many weeks it spans.
+        var week: (current: Int, of: Int)? {
+            guard case .running(let day, let days) = self else { return nil }
+            return ((day - 1) / 7 + 1, Int((Double(days) / 7).rounded(.up)))
+        }
+
         /// Whether the pin belongs with the ones being worked on, rather than with the past ones.
         var isCurrent: Bool {
             switch self {
@@ -159,8 +165,13 @@ struct FocusReading: Equatable, Sendable, Identifiable {
             }
         }
 
-        // Sessions are newest first, so the first one before the horizon is the last before it.
-        let before = history.sessions.first { $0.day < pin.horizon.starts }.flatMap(point)
+        // Sessions are newest first, so the first before the horizon with an estimate is the last
+        // estimable one before it — a bodyweight session or one of long sets just before the pin
+        // says nothing about where the lift stood, and must not hide the one before that.
+        let before = history.sessions.lazy
+            .filter { $0.day < pin.horizon.starts }
+            .compactMap(point)
+            .first
         let since = inWindow.compactMap(point)
         let reading = Progress(
             unit: unit,

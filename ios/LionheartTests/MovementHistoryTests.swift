@@ -127,6 +127,20 @@ struct MovementHistoryTests {
         #expect(history.series(.repsAt(load: 40), in: .pounds).map(\.value) == [5, 6, 8])
     }
 
+    @Test("A series reads as its latest, its best, and the change from first to latest")
+    func aSeriesSummary() {
+        let points = [(10.0, 1), (30.0, 2), (20.0, 3)].map { value, day in
+            MovementPoint(sessionId: UUID(), day: CalendarDay(year: 2026, month: 10, day: day), value: value, weight: value, reps: 1)
+        }
+
+        let summary = MovementSeriesSummary.of(points)
+
+        #expect(summary?.latest.value == 20)
+        #expect(summary?.best.value == 30)
+        #expect(summary?.change == 10)
+        #expect(MovementSeriesSummary.of([]) == nil)
+    }
+
     @Test("Best set volume is one set's load times its reps")
     func bestSetVolume() throws {
         let log = try Self.sessions([
