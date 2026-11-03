@@ -28,7 +28,7 @@ struct CoachView: View {
             Group {
                 switch store.state {
                 case .loading:
-                    ProgressView().controlSize(.large)
+                    loadingTranscript
                 case .unavailable(let failure):
                     unavailable(failure)
                 case .none:
@@ -86,6 +86,25 @@ struct CoachView: View {
     }
 
     // MARK: - Empty and not loaded
+
+    /// The transcript's own shape while the last conversation is being read: two bubbles, the
+    /// athlete's and the coach's, in grey. The tab opens on a conversation that already exists far
+    /// more often than not, so this is what is almost always coming.
+    private var loadingTranscript: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            PlaceholderBubble(
+                text: "What did my last week of training look like?", isFromAthlete: true)
+            PlaceholderBubble(
+                text: "Four sessions, and the squat volume is up a little on the week before it.",
+                isFromAthlete: false)
+        }
+        .padding(.horizontal, Tokens.cardPadding)
+        .padding(.vertical, 16)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .redacted(reason: .placeholder)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Loading")
+    }
 
     private var nothingAskedYet: some View {
         ContentUnavailableView {
@@ -208,6 +227,19 @@ private struct TurnBubble: View {
                     .padding(.vertical, 10)
                     .background(background, in: .rect(cornerRadius: 18))
                     .textSelection(.enabled)
+                    // A long press on the bubble itself, which is how every messaging app on the
+                    // platform hands you a message. `textSelection` already allows a careful
+                    // drag-and-copy; an answer the athlete wants to keep should not need one.
+                    .contextMenu {
+                        Button {
+                            Clipboard.copy(turn.text)
+                        } label: {
+                            Label("Copy", systemImage: "doc.on.doc")
+                        }
+                        ShareLink(item: turn.text) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                    }
 
                 if case .unsent(_, _, let failure) = turn {
                     // Said plainly because it is unusual: the server stages the question and saves
@@ -231,6 +263,31 @@ private struct TurnBubble: View {
         case .pending: Tokens.accent.opacity(0.6)
         case .unsent: Color(.systemFill)
         case .said: turn.isFromAthlete ? Tokens.accent : Color(.secondarySystemGroupedBackground)
+        }
+    }
+}
+
+/// A bubble with nothing in it yet, for the moment before a conversation has been read.
+///
+/// Its own view rather than a `TurnBubble` holding invented turns: a screen should not have to
+/// fabricate domain values to draw its own waiting state, and a fake `ChatMessage` with a minted id
+/// is exactly the kind of thing that later gets mistaken for one.
+private struct PlaceholderBubble: View {
+    /// Never read — only measured. Its length is the bar's width.
+    let text: String
+    let isFromAthlete: Bool
+
+    var body: some View {
+        HStack {
+            if isFromAthlete { Spacer(minLength: 40) }
+            Text(text)
+                .font(.body)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    isFromAthlete ? Tokens.accent : Color(.secondarySystemGroupedBackground),
+                    in: .rect(cornerRadius: 18))
+            if !isFromAthlete { Spacer(minLength: 40) }
         }
     }
 }

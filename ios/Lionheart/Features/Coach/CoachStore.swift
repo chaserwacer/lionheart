@@ -17,6 +17,9 @@ final class CoachStore {
     private(set) var conversations: [ChatConversation] = []
     private(set) var contextCard: LoadState<AthleteContextCard> = .loading
 
+    /// Where a delete asked for from the conversation list stands.
+    private(set) var action: ActionState = .idle
+
     private let chat: ChatAPI
     private let profile: ProfileAPI
 
@@ -52,6 +55,7 @@ final class CoachStore {
         state = .loading
         conversations = []
         contextCard = .loading
+        action = .idle
     }
 
     /// Switches to a conversation the athlete picked.
@@ -108,15 +112,29 @@ final class CoachStore {
         await task.value
     }
 
+    /// Deletes a conversation and everything in it.
+    ///
+    /// The screen is only cleared once the server has agreed. A failure is stated rather than
+    /// swallowed: the list reloads unchanged either way, so a refusal and a success look the same,
+    /// and "the row is still there" is not something an athlete reads as an error.
     func deleteConversation(_ conversationId: UUID) async {
-        guard !state.isAwaitingReply else { return }
-        // A delete that fails leaves the conversation where it is, and the reload below shows that
-        // truthfully. There is nothing to tell the athlete that the unchanged list does not.
-        try? await chat.deleteConversation(id: conversationId)
-        if state.conversation?.chatConversationId == conversationId {
-            state = .none
+        guard !state.isAwaitingReply, !action.isRunning else { return }
+        action = .running
+
+        do {
+            try await chat.deleteConversation(id: conversationId)
+            action = .idle
+            if state.conversation?.chatConversationId == conversationId {
+                state = .none
+            }
+            await refresh()
+        } catch {
+            action = ActionState.refusal(from: error)
         }
-        await refresh()
+    }
+
+    func dismissRefusal() {
+        action = .idle
     }
 
     // MARK: -

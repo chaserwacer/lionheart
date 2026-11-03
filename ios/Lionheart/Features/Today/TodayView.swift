@@ -54,11 +54,7 @@ struct TodayView: View {
         if let failure {
             // The value stays; the banner says it could not be updated. Blanking a loaded screen
             // because a refresh failed is the thing LoadState exists to prevent.
-            Section {
-                Label(failure.message, systemImage: "arrow.triangle.2.circlepath.exclamationmark")
-                    .font(.footnote)
-                    .foregroundStyle(Color(.secondaryLabel))
-            }
+            StaleBanner(failure: failure)
         }
 
         bodySection(snapshot.readiness)
@@ -207,13 +203,17 @@ struct TodayView: View {
 
     // MARK: - Not loaded
 
+    /// The screen's own shape while its two requests are out, under the headers the content will
+    /// arrive under — so the cards appear in place rather than pushing a spinner off the screen.
+    ///
+    /// Quick log is not among them: it needs nothing from the server and is drawn and usable
+    /// already, which is the point of it being a sheet over plain words.
+    @ViewBuilder
     private var loadingRows: some View {
-        Section {
-            HStack(spacing: 10) {
-                ProgressView()
-                Text("Loading").foregroundStyle(Color(.secondaryLabel))
-            }
-        }
+        Section("How the body is") { SkeletonRows(count: 1, systemImage: "moon.zzz") }
+        quickLogSection
+        Section("Last session") { SkeletonRows(count: 1) }
+        Section("Next session") { SkeletonRows(count: 1) }
     }
 
     @ViewBuilder

@@ -7,6 +7,7 @@ import SwiftUI
 /// the next one legible.
 struct InjuriesView: View {
     let injuries: [Injury]
+    let store: BodyStore
 
     var body: some View {
         List {
@@ -24,6 +25,7 @@ struct InjuriesView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Injuries")
+        .refreshable { await store.refresh() }
     }
 
     @ViewBuilder
@@ -31,9 +33,11 @@ struct InjuriesView: View {
         if !shown.isEmpty {
             Section(title) {
                 ForEach(shown) { injury in
+                    let history = InjuryHistory.of(injury)
                     NavigationLink(value: BodyRoute.injury(injury.injuryId)) {
-                        InjuryRow(history: InjuryHistory.of(injury), today: today)
+                        InjuryRow(history: history, today: today)
                     }
+                    .injuryActions(on: history, store: store)
                 }
             }
         }

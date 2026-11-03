@@ -25,6 +25,10 @@ final class BodyStore {
 
     private(set) var state: LoadState<BodySnapshot> = .loading
 
+    /// Where an action asked for from a row stands. Separate from `state`: an injury that will not
+    /// delete must not take the tab's data down with it.
+    private(set) var action: ActionState = .idle
+
     private let oura: OuraAPI
     private let wellness: WellnessAPI
     private let injuries: InjuriesAPI
@@ -51,10 +55,65 @@ final class BodyStore {
         await task.value
     }
 
+    /// Loads only when nothing is loaded yet, which is what coming back to the tab wants.
+    ///
+    /// The tab's `.task` runs again on every return to it, and a refresh over this window is about
+    /// 290 KB (see `lookBackDays`) — worth paying when something could have changed, and not
+    /// otherwise. Nothing on the device writes an Oura day or a wellness entry, and the two actions
+    /// that do write here reload for themselves, so a tab switch has nothing to learn. Pull to
+    /// refresh stays the athlete's own way of asking, and a new ring sync is what it is for.
+    func refreshIfNeeded() async {
+        guard state.value == nil else { return }
+        await refresh()
+    }
+
     func reset() {
         load?.cancel()
         load = nil
         state = .loading
+        action = .idle
+    }
+
+    // MARK: - Acting on an injury
+
+    /// Resolves an injury or takes it back up, which is one route and two directions.
+    func setTracking(of injury: Injury, to isActive: Bool) async {
+        await write { _ = try await self.injuries.setTracking(of: injury, to: isActive) }
+    }
+
+    func delete(_ injury: Injury) async {
+        await write { try await self.injuries.delete(id: injury.injuryId) }
+    }
+
+    /// Removes one treatment or check-in. The injury keeps its other events, and its pain chart
+    /// redraws from what is left.
+    func delete(_ event: InjuryEvent) async {
+        await write { try await self.injuries.deleteEvent(id: event.injuryEventId) }
+    }
+
+    /// One write, then a re-read.
+    ///
+    /// Re-reading rather than patching the snapshot: an injury that resolves moves between two
+    /// sections and a deleted event changes a chart, and the snapshot is one reading of one moment
+    /// — editing a corner of it is how two parts of this tab come to disagree.
+    ///
+    /// A refusal is kept and stated. A 404 here is the honest answer when the injury was deleted on
+    /// the web app, and a row that silently did nothing would leave the athlete tapping it again.
+    private func write(_ change: () async throws -> Void) async {
+        guard !action.isRunning else { return }
+        action = .running
+
+        do {
+            try await change()
+            action = .idle
+            await refresh()
+        } catch {
+            action = ActionState.refusal(from: error)
+        }
+    }
+
+    func dismissRefusal() {
+        action = .idle
     }
 
     private func reload() async {

@@ -8,6 +8,9 @@ import SwiftUI
 /// the analyses two different numbers for one reading.
 struct WellnessHistoryView: View {
     let readings: [WellnessState]
+    /// The tab's own reload. Passed in rather than holding the store: entries are written on the
+    /// web app, so this screen reads and nothing more.
+    let refresh: () async -> Void
 
     var body: some View {
         List {
@@ -22,13 +25,34 @@ struct WellnessHistoryView: View {
                 overallSection
                 Section("Entries") {
                     ForEach(readings) { state in
-                        WellnessRow(reading: WellnessReading.of(state), today: today)
+                        let reading = WellnessReading.of(state)
+                        WellnessRow(reading: reading, today: today)
+                            // The server has an add route and no update or delete, so copying is
+                            // the only thing a logged entry can offer. Adding one is a form, and a
+                            // form is not a menu item.
+                            .contextMenu {
+                                Button {
+                                    Clipboard.copy(Self.summary(of: reading))
+                                } label: {
+                                    Label("Copy", systemImage: "doc.on.doc")
+                                }
+                            }
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Wellness")
+        .refreshable { await refresh() }
+    }
+
+    /// One reading as a line of text: the day, the overall figure, and the four behind it.
+    static func summary(of reading: WellnessReading) -> String {
+        let components = reading.components.map { "\($0.name) \($0.score)" }
+        return ([
+            Formatting.date(reading.day),
+            "overall \(MeasurementText.plain(reading.overall))",
+        ] + components).joined(separator: " · ")
     }
 
     @ViewBuilder
