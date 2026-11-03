@@ -19,6 +19,7 @@ using lionheart.Services.Interpretation;
 using lionheart.Services.Contexts;
 using lionheart.Services.Training.Focus;
 using lionheart.Services.Training.Programs;
+using lionheart.Services.Training.Routines;
 using lionheart.Services.Training.PersonalRecords;
 using lionheart.Services.Training.Sessions;
 using lionheart.Endpoints.OpenApi;
@@ -133,6 +134,9 @@ builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>()
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
 builder.Services.AddTransient<IFocusPinService, FocusPinService>();
 builder.Services.AddTransient<IContextService, ContextService>();
+builder.Services.AddTransient<IRoutineService, RoutineService>();
+builder.Services.AddTransient<IPreviousPerformanceService, PreviousPerformanceService>();
+builder.Services.AddTransient<IBodyweightService, BodyweightService>();
 
 
 builder.Services.AddSingleton<ToolRegistry>(sp =>

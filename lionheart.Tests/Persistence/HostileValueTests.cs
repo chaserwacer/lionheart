@@ -133,7 +133,7 @@ public sealed class HostileValueTests : IDisposable
     public void Non_finite_measures_are_refused_when_the_set_is_built(double measure)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new LiftSet(Guid.NewGuid(), Reps: 5, Weight: measure, WeightUnit.Pounds, Rpe.Of(8))
+            new LiftSet(Guid.NewGuid(), Reps: 5, Weight: measure, WeightUnit.Pounds, Rpe.Of(8), SetKind.Working)
             {
                 Source = new Formed(),
                 Facets = [],

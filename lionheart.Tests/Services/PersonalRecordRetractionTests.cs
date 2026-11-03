@@ -268,6 +268,7 @@ public class PersonalRecordRetractionTests : IAsyncLifetime
                 new PeriodCommand(performed, null),
                 null,
                 "logged",
+                null,
                 null),
             default));
 }

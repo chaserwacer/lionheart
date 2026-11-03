@@ -56,7 +56,7 @@ public class TrainingSessionServiceTests : IDisposable
     {
         var started = ResultAssert.Succeeded(await _athletes.SessionsAsync(service =>
             service.StartUnplannedAsync(
-                _athletes.Owner, new StartUnplannedSessionRequest(Started, "just started", null), default)));
+                _athletes.Owner, new StartUnplannedSessionRequest(Started, "just started", null, null), default)));
 
         var view = Assert.IsType<ActiveSessionView>(started);
         Assert.Equal(Started, view.StartedAt);
@@ -513,6 +513,7 @@ public class TrainingSessionServiceTests : IDisposable
             new PeriodCommand(Started, Started.AddMinutes(75)),
             new PerceivedEffortCommand(6, 8, 7, 3),
             "logged after the fact",
+            null,
             null);
 
     private Task<Result<TrainingSessionView, Problem>> PlanAsync(Guid? programId = null) =>

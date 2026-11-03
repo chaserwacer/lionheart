@@ -99,6 +99,26 @@ internal sealed class MovementCatalogue
             .MovementDataID;
     }
 
+    /// <summary>
+    /// Whether the athlete already has the movement by these names, staging nothing when they do not.
+    /// </summary>
+    public bool Holds(MovementName name, out Guid movementDataId)
+    {
+        var movementBase = Named(_bases, b => b.Name, name.Base);
+        var equipment = Named(_equipment, e => e.Name, name.Equipment);
+        var modifier = name.HasModifier ? Named(_modifiers, m => m.Name, name.Modifier) : null;
+
+        var held = movementBase is null || equipment is null || (name.HasModifier && modifier is null)
+            ? null
+            : _movements.FirstOrDefault(movement =>
+                movement.MovementBaseID == movementBase.MovementBaseID
+                && movement.EquipmentID == equipment.EquipmentID
+                && movement.MovementModifierID == modifier?.MovementModifierID);
+
+        movementDataId = held?.MovementDataID ?? Guid.Empty;
+        return held is not null;
+    }
+
     /// <summary>A movement of this athlete's as the names it is made of, for saying which one is meant.</summary>
     public string NameOf(Guid movementDataId) =>
         _movements.FirstOrDefault(movement => movement.MovementDataID == movementDataId) is { } movement

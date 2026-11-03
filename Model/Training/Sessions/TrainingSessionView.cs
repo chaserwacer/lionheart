@@ -37,6 +37,7 @@ public abstract record TrainingSessionView
         Notes = session.Notes;
         Provenance = session.Provenance;
         TrainingProgramId = session.Membership is InProgram inProgram ? inProgram.TrainingProgramId : null;
+        RoutineId = session.Origin is RoutineOrigin.FromRoutine fromRoutine ? fromRoutine.RoutineId : null;
         CreatedAt = session.CreatedAt;
         Date = session.Date;
     }
@@ -47,6 +48,12 @@ public abstract record TrainingSessionView
 
     /// <summary>The program this session belongs to, or absent when it stands alone.</summary>
     public Guid? TrainingProgramId { get; init; }
+
+    /// <summary>
+    /// The routine this session was trained from, or absent when it was ad hoc. The routine may
+    /// have been deleted since; the session still says where it came from.
+    /// </summary>
+    public Guid? RoutineId { get; init; }
 
     public DateTime CreatedAt { get; init; }
 

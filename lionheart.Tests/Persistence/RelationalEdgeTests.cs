@@ -172,9 +172,9 @@ public sealed class RelationalEdgeTests : IDisposable
     {
         _db.ExecuteNonQuery($$"""
             INSERT INTO Sessions
-                (TrainingSessionId, UserId, Notes, Provenance, TrainingProgramId, CreatedAt, Lifecycle, PlannedFor)
+                (TrainingSessionId, UserId, Notes, Provenance, TrainingProgramId, RoutineId, CreatedAt, Lifecycle, PlannedFor)
             VALUES ('{{RemodelDatabase.SqlGuid(Guid.NewGuid())}}', '{{RemodelDatabase.SqlGuid(_db.UserId)}}',
-                    'planted', 0, '{{RemodelDatabase.SqlGuid(Guid.Empty)}}', '2026-07-18 09:30:00',
+                    'planted', 0, '{{RemodelDatabase.SqlGuid(Guid.Empty)}}', '{{RemodelDatabase.SqlGuid(Guid.Empty)}}', '2026-07-18 09:30:00',
                     'skipped', '2026-07-21');
             """);
 

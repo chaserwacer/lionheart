@@ -10,7 +10,8 @@ namespace lionheart.Model.Training.Sessions;
 // ProgramMembership crosses the wire as a plain optional program id rather than as its two-case
 // fill-state, for the reason docs/api-surface.md gives for the two context creates: a flat shape
 // generates a far better TypeScript client. The domain's Standalone/InProgram is restored at the
-// service boundary, so nothing downstream sees the optionality.
+// service boundary, so nothing downstream sees the optionality. RoutineOrigin crosses the same way,
+// as an optional routine id.
 
 /// <summary>Plans a session for a future date. Prescriptions are targets; no set has happened yet.</summary>
 public sealed record PlanSessionRequest(
@@ -20,10 +21,16 @@ public sealed record PlanSessionRequest(
     Guid? TrainingProgramId);
 
 /// <summary>Starts a session that was never planned — the athlete simply began training.</summary>
+/// <remarks>
+/// A <see cref="RoutineId"/> that is not one of the athlete's routines is dropped rather than
+/// refused, here and on <see cref="LogCompletedSessionRequest"/>: a workout started offline from a
+/// routine deleted meanwhile still happened, and must still land.
+/// </remarks>
 public sealed record StartUnplannedSessionRequest(
     DateTimeOffset StartedAt,
     string Notes,
-    Guid? TrainingProgramId);
+    Guid? TrainingProgramId,
+    Guid? RoutineId);
 
 /// <summary>
 /// Logs a session that already happened, in one call. The common case: the athlete writes it down
@@ -34,7 +41,8 @@ public sealed record LogCompletedSessionRequest(
     PeriodCommand Period,
     PerceivedEffortCommand? Effort,
     string Notes,
-    Guid? TrainingProgramId);
+    Guid? TrainingProgramId,
+    Guid? RoutineId);
 
 /// <summary>Planned → Active.</summary>
 public sealed record StartSessionRequest(DateTimeOffset StartedAt);

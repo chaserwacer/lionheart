@@ -221,7 +221,7 @@ public class PersonalRecordReadTests : IAsyncLifetime
 
     private static CompletedTrainingSession SessionOf(Guid userId, Guid movementDataId, double weight) =>
         new(
-            [new LiftSet(movementDataId, 5, weight, WeightUnit.Pounds, Rpe.Unrated) { Source = new Formed(), Facets = [] }],
+            [new LiftSet(movementDataId, 5, weight, WeightUnit.Pounds, Rpe.Unrated, SetKind.Working) { Source = new Formed(), Facets = [] }],
             new Instant(First),
             new EffortNotReported(),
             new NotDecorated())
@@ -231,6 +231,7 @@ public class PersonalRecordReadTests : IAsyncLifetime
             Notes = string.Empty,
             Provenance = Provenance.User,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = Some.Clock,
         };
 
@@ -243,6 +244,6 @@ public class PersonalRecordReadTests : IAsyncLifetime
         _athletes.SessionsAsync(service => service.LogCompletedAsync(
             _athletes.Owner,
             new LogCompletedSessionRequest(
-                [.. sets], new PeriodCommand(performed, null), null, "logged", null),
+                [.. sets], new PeriodCommand(performed, null), null, "logged", null, null),
             default));
 }
