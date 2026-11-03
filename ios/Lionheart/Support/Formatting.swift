@@ -43,4 +43,67 @@ enum Formatting {
     static func count(_ value: Int, _ singular: String, plural: String? = nil) -> String {
         value == 1 ? "1 \(singular)" : "\(value) \(plural ?? singular + "s")"
     }
+
+    // MARK: - Sets
+
+    /// A measurement with no trailing zeros: `100`, `102.5`, `2.25`.
+    ///
+    /// Plate maths gives halves and quarters and nothing finer, so two decimals is the whole range,
+    /// and a weight that happens to be round should read round.
+    static func measure(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...2)).grouping(.never))
+    }
+
+    static func weight(_ value: Double, _ unit: WeightUnit) -> String {
+        "\(measure(value)) \(unit.abbreviation)"
+    }
+
+    static func distance(_ value: Double, _ unit: DistanceUnit) -> String {
+        "\(measure(value)) \(unit.abbreviation)"
+    }
+
+    /// What a set did, in one line. `nil` for a set whose words are the record — a freeform set's
+    /// text is the row, not a figure beside one.
+    static func set(_ command: SetCommand) -> String? {
+        switch command {
+        case .lift(let set):
+            return "\(set.reps) × \(weight(set.weight, set.unit))"
+        case .distanceTime(let set):
+            return "\(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
+        case .trailRun(let set):
+            return "\(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
+                + " · \(measure(set.elevationGainMeters)) m gain"
+        case .freeform:
+            return nil
+        }
+    }
+
+    /// What a set was asked to do.
+    static func target(_ prescription: SetPrescription) -> String {
+        switch prescription {
+        case .lift(let target):
+            let numbers = "\(target.targetReps) × \(weight(target.targetWeight, target.unit))"
+            guard let rpe = target.targetRpe.value else { return numbers }
+            return "\(numbers) @ \(self.rpe(rpe))"
+        case .distanceTime(let target):
+            return "\(distance(target.targetDistance, target.unit))"
+                + " in \(clock(seconds: target.targetDuration))"
+        case .freeform(let text):
+            return text
+        case .unrecognised:
+            // A target this build cannot read still occupies a slot in the plan, so it says so
+            // rather than vanishing and making the session look shorter than it is.
+            return "A target this version cannot show"
+        }
+    }
+
+    /// An RPE as the athlete writes it: `8`, `7.5`.
+    static func rpe(_ value: Double) -> String {
+        "RPE \(measure(value))"
+    }
+
+    /// A running volume total — `4,250 kg`, with the grouping a four-figure number wants.
+    static func volume(_ total: WorkoutTotals.WeightTotal) -> String {
+        "\(total.volume.formatted(.number.precision(.fractionLength(0...1)))) \(total.unit.abbreviation)"
+    }
 }
