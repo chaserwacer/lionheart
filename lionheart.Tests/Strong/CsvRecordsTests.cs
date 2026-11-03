@@ -1,5 +1,5 @@
-using lionheart.Services.Strong;
 using lionheart.Functional;
+using lionheart.Services.Strong;
 
 namespace lionheart.Tests.Strong;
 

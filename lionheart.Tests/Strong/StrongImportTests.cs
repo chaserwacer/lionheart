@@ -1,3 +1,4 @@
+using System.Globalization;
 using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
@@ -132,7 +133,7 @@ public class StrongImportTests : IDisposable
         var report = ResultAssert.Succeeded(await ImportAsync(later.Path, map));
 
         Assert.Equal((1, 1), (report.AlreadyImported, report.SessionsCreated));
-        Assert.Equal(245, StandingLift<Achievement.HeaviestSet>(await StandingAsync()).Lift.Weight);
+        Assert.Equal(245, StandingAchievement<Achievement.HeaviestSet>(await StandingAsync()).Lift.Weight);
     }
 
     [Fact]
@@ -143,8 +144,29 @@ public class StrongImportTests : IDisposable
         var key = new StrongWorkoutKey(new DateTime(2024, 7, 23, 12, 52, 19), "Tester workout");
         var athlete = Guid.Parse("5f72c72f-21d9-49e9-9ee1-014e22d6b0d4");
 
+        // The expected value is Python's uuid5 over the same namespace and name, an implementation
+        // independent of this one.
         Assert.Equal(Guid.Parse("c2cbf534-1114-5ca4-9dbd-26b9bc2866dc"), key.SessionIdFor(athlete));
         Assert.NotEqual(key.SessionIdFor(athlete), key.SessionIdFor(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void A_workout_id_does_not_move_with_the_machine_locale()
+    {
+        // Finnish separates hours and minutes with a full stop, which a date format's ':' follows.
+        var key = new StrongWorkoutKey(new DateTime(2024, 7, 23, 12, 52, 19), "Tester workout");
+        var athlete = Guid.Parse("5f72c72f-21d9-49e9-9ee1-014e22d6b0d4");
+        var previous = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fi-FI");
+            Assert.Equal(Guid.Parse("c2cbf534-1114-5ca4-9dbd-26b9bc2866dc"), key.SessionIdFor(athlete));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previous;
+        }
     }
 
     // ---- Records ----
@@ -351,7 +373,7 @@ public class StrongImportTests : IDisposable
     private static PersonalRecord StandingRecord<T>(IEnumerable<PersonalRecord> records) where T : Achievement =>
         Assert.Single(records, record => record.Achievement is T);
 
-    private static T StandingLift<T>(IEnumerable<PersonalRecord> records) where T : Achievement =>
+    private static T StandingAchievement<T>(IEnumerable<PersonalRecord> records) where T : Achievement =>
         (T)StandingRecord<T>(records).Achievement;
 
     /// <summary>Sessions, movements and records held, for asserting a refusal wrote nothing.</summary>

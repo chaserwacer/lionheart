@@ -57,28 +57,30 @@ internal static partial class StrongExportReader
     private static Result<IReadOnlyList<Result<CsvLine, StrongExportDefect>>, Problem> Lines(string path)
     {
         var records = CsvRecords.Read(File.ReadAllText(path, Encoding.UTF8)).ToList();
-        var header = records.FirstOrDefault()?.Match(record => record.Fields, _ => []) ?? [];
 
-        var missing = Columns.Except(header).ToList();
-        if (missing.Count > 0)
-        {
-            return Result<IReadOnlyList<Result<CsvLine, StrongExportDefect>>, Problem>.Failure(
-                new Problem.Invalid("export",
-                    $"This is not a Strong export: it has no {string.Join(", ", missing.Select(c => $"'{c}'"))} column."));
-        }
-
-        var position = Columns.ToDictionary(column => column, column => header.ToList().IndexOf(column));
-
-        return Result<IReadOnlyList<Result<CsvLine, StrongExportDefect>>, Problem>.Success(
-            [.. records.Skip(1).Select(record => record.Bind(read => Line(read, header.Count, position)))]);
+        return Header(records).Map(IReadOnlyList<Result<CsvLine, StrongExportDefect>> (header) =>
+            [.. records.Skip(1).Select(record => record.Bind(read => Line(read, header)))]);
     }
 
-    private static Result<CsvLine, StrongExportDefect> Line(
-        CsvRecord record, int width, IReadOnlyDictionary<string, int> position) =>
-        record.Fields.Count == width
+    /// <summary>Where each column Strong writes sits in this file, and how many fields a row has.</summary>
+    private static Result<CsvHeader, Problem> Header(IReadOnlyList<Result<CsvRecord, StrongExportDefect>> records) =>
+        (records.FirstOrDefault()
+         ?? Result<CsvRecord, StrongExportDefect>.Failure(new StrongExportDefect(1, "is empty")))
+        .MapError(Problem (defect) => new Problem.Invalid(
+            "export", $"The export's header cannot be read: line {defect.Line} {defect.Reason}."))
+        .Ensure(
+            record => !Columns.Except(record.Fields).Any(),
+            record => new Problem.Invalid("export",
+                $"This is not a Strong export: it has no {string.Join(", ", Columns.Except(record.Fields).Select(c => $"'{c}'"))} column."))
+        .Map(record => new CsvHeader(
+            record.Fields.Count,
+            Columns.ToDictionary(column => column, column => record.Fields.ToList().IndexOf(column))));
+
+    private static Result<CsvLine, StrongExportDefect> Line(CsvRecord record, CsvHeader header) =>
+        record.Fields.Count == header.Width
             ? Result<CsvLine, StrongExportDefect>.Success(new CsvLine(
-                record.Line, position.ToDictionary(column => column.Key, column => record.Fields[column.Value])))
-            : Defect<CsvLine>(record.Line, $"has {record.Fields.Count} fields where the header has {width}");
+                record.Line, header.Position.ToDictionary(column => column.Key, column => record.Fields[column.Value])))
+            : Defect<CsvLine>(record.Line, $"has {record.Fields.Count} fields where the header has {header.Width}");
 
     // ---- One row ----
 
@@ -254,6 +256,8 @@ internal static partial class StrongExportReader
         Result<T, StrongExportDefect>.Failure(new StrongExportDefect(line, reason));
 
     // ---- Shapes local to reading ----
+
+    private sealed record CsvHeader(int Width, IReadOnlyDictionary<string, int> Position);
 
     private sealed record CsvLine(int Number, IReadOnlyDictionary<string, string> Fields)
     {
