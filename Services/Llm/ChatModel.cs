@@ -36,13 +36,26 @@ public sealed record ChatTurnRequest(
     ReasoningDepth Reasoning,
     int MaxOutputTokens)
 {
+    /// <summary>
+    /// Whether the prompt is worth caching on a provider that charges for the privilege. Not
+    /// positional, because only conversation asks for it.
+    /// </summary>
+    public PromptCaching Caching { get; init; } = PromptCaching.None;
+
+    /// <summary>
+    /// One round of a conversation. Cached, because every round resends the round before it plus
+    /// a little: the same system prompt, the same history, one more turn.
+    /// </summary>
     public static ChatTurnRequest Conversation(
         string systemPrompt,
         IReadOnlyList<ModelMessage> messages,
         IReadOnlyList<ToolDefinition> tools,
         int maxOutputTokens) =>
         new(systemPrompt, messages, tools, new OutputContract.FreeText(),
-            ReasoningDepth.Standard, maxOutputTokens);
+            ReasoningDepth.Standard, maxOutputTokens)
+        {
+            Caching = PromptCaching.Conversation,
+        };
 
     /// <summary>
     /// A single-shot extraction: one user turn, no tools, an answer that must match a schema.
@@ -64,6 +77,23 @@ public sealed record ChatTurnRequest(
     public static ChatTurnRequest Prose(string systemPrompt, string userText, int maxOutputTokens) =>
         new(systemPrompt, [new ModelMessage.UserSaid(userText)], [],
             new OutputContract.FreeText(), ReasoningDepth.Minimal, maxOutputTokens);
+}
+
+/// <summary>
+/// Whether a request's prompt should be cached for the next one. A hint rather than a guarantee: a
+/// provider with no explicit cache (LM Studio keeps its own prefix cache) ignores it.
+/// </summary>
+public enum PromptCaching
+{
+    /// <summary>A one-off call whose prompt will not be sent again.</summary>
+    None,
+
+    /// <summary>
+    /// The prompt is a conversation that the next request will resend with a turn appended: cache
+    /// everything up to its last block, for long enough that the athlete coming back within the
+    /// hour reads the conversation from the cache rather than paying for it again.
+    /// </summary>
+    Conversation
 }
 
 /// <summary>How the model ended its turn. Two outcomes, and the caller owes each a different move.</summary>

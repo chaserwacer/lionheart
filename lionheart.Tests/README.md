@@ -41,6 +41,7 @@ test; do not introduce a third gate.
 | `Serialization/` | The JSON storage format: round trips, hand-written literal fixtures, malformed payloads |
 | `Persistence/` | Real in-memory SQLite through the full `ModelContext` |
 | `Functional/` | The monad layer's own combinators — the walks and the partition |
+| `ChatThread/` | The continuing chat thread: session boundaries, consolidation against a canned model, memory supersession, recall, and the athlete's corrections |
 | `Llm/` | Chat and model-output contracts against both providers' faked wire APIs, plus the language-model configuration — no network |
 | `Oura/` | The Oura collections: mapping, import, paging, persistence and reads (`docs/oura-integration.md`) |
 | `Interpretation/` | The Parse → Resolve → Commit engine, against fakes and (live) a real model |

@@ -26,9 +26,13 @@ namespace Model.Chat.Tools
 
         public IEnumerable<ToolDescriptor> GetAllTools() => _tools.Values;
 
-        /// <summary>Every tool, as the model is offered them.</summary>
+        /// <summary>Every tool, as the model is offered them, in name order.</summary>
+        /// <remarks>
+        /// Ordered because tools are the first thing a prompt cache sees: a list whose order moved
+        /// between two requests would miss the cache for everything after it.
+        /// </remarks>
         public IReadOnlyList<ToolDefinition> GetAllToolDefinitions() =>
-            [.. _tools.Values.Select(td => td.Definition)];
+            [.. _tools.Values.Select(td => td.Definition).OrderBy(definition => definition.Name, StringComparer.Ordinal)];
     }
 
     /// <summary>

@@ -60,7 +60,7 @@ public sealed class FakeAnthropicServer : IDisposable
     };
 
     public IChatModel CreateChatModel(string model = "claude-opus-5-5") =>
-        new AnthropicChatModel(CreateClient(), model);
+        new AnthropicChatModel(CreateClient(), model, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
 
     public void Dispose() => _handler.Dispose();
 

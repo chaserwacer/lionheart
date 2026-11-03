@@ -119,4 +119,36 @@ public class ResultTapTests
         Assert.Equal(expected, actual);
         Assert.Equal(synchronous, asynchronous);
     }
+
+    // ---- An awaited effect on the failure track ----
+
+    [Fact]
+    public async Task An_awaited_TapErrorAsync_finishes_its_effect_before_the_failure_passes_on()
+    {
+        var seen = new List<string>();
+
+        var result = await Task.FromResult(Refused("the model refused")).TapErrorAsync(async problem =>
+        {
+            await Task.Yield();
+            seen.Add(problem.Description);
+        });
+
+        Assert.Equal(["the model refused"], seen);
+        Assert.Equal(Refused("the model refused"), result);
+    }
+
+    [Fact]
+    public async Task An_awaited_TapErrorAsync_never_runs_on_a_success()
+    {
+        var ran = false;
+
+        var result = await Task.FromResult(Succeeded(7)).TapErrorAsync(_ =>
+        {
+            ran = true;
+            return Task.CompletedTask;
+        });
+
+        Assert.False(ran);
+        Assert.Equal(Succeeded(7), result);
+    }
 }

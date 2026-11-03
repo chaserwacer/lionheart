@@ -3,7 +3,6 @@
 using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Chat;
-using lionheart.Services.Profile;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -24,21 +23,13 @@ namespace lionheart.Services.Chat
     public class ChatConversationService : IChatConversationService
     {
         private readonly ModelContext _context;
-        private readonly IAthleteContextCardService _cardService;
+        private readonly ChatSystemPrompt _systemPrompt;
 
-        public ChatConversationService(ModelContext context, IAthleteContextCardService cardService)
+        public ChatConversationService(ModelContext context, ChatSystemPrompt systemPrompt)
         {
             _context = context;
-            _cardService = cardService;
+            _systemPrompt = systemPrompt;
         }
-
-        /// <summary>
-        /// The system message when the Athlete Context Card cannot be built (a new athlete with no data,
-        /// or a transient failure): the same voice, but no manifest to steer tool calls, so the model is
-        /// told to fetch what a question needs.
-        /// </summary>
-        private const string FallbackSystemPrompt = ChatInstructions.Voice + "\n\n" +
-            "Use the tools to retrieve what the question needs, and only that. Do not narrate tool calls to the athlete.";
 
         public async Task<Result<LHChatConversationDTO, Problem>> CreateChatConversationAsync(IdentityUser user, CreateChatConversationRequest request)
         {
@@ -46,18 +37,9 @@ namespace lionheart.Services.Chat
             var conversationId = Guid.NewGuid();
             var now = DateTime.UtcNow;
 
-            // Inject the Athlete Context Card into the system message so the model starts with holistic
-            // context and a tool-routing policy. Degrade gracefully to the static prompt on any failure.
-            string systemContent;
-            try
-            {
-                systemContent = (await _cardService.GetOrBuildCardAsync(user))
-                    .Match(_cardService.RenderSystemMessage, _ => FallbackSystemPrompt);
-            }
-            catch
-            {
-                systemContent = FallbackSystemPrompt;
-            }
+            // The card goes into the system message so the model starts with holistic context and a
+            // tool-routing policy.
+            var systemContent = await _systemPrompt.ForAsync(user);
 
             var systemMessage = new LHSystemChatMessage
             {
@@ -90,7 +72,7 @@ namespace lionheart.Services.Chat
         public async Task<Result<Unit, Problem>> DeleteChatConversationAsync(IdentityUser user, Guid chatConversationId)
         {
             var userId = Guid.Parse(user.Id);
-            var conversation = await _context.ChatConversations
+            var conversation = await _context.StandaloneConversations
                 .FirstOrDefaultAsync(c => c.ChatConversationID == chatConversationId && c.UserID == userId);
 
             if (conversation == null)
@@ -107,7 +89,7 @@ namespace lionheart.Services.Chat
         public async Task<Result<List<LHChatConversationDTO>, Problem>> GetAllChatConversationsAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
-            var conversations = await _context.ChatConversations
+            var conversations = await _context.StandaloneConversations
                 .Where(c => c.UserID == userId)
                 .OrderByDescending(c => c.LastUpdate)
                 .ProjectToType<LHChatConversationDTO>()
@@ -119,7 +101,7 @@ namespace lionheart.Services.Chat
         public async Task<Result<LHChatConversationDTO, Problem>> GetChatConversationAsync(IdentityUser user, Guid conversationId)
         {
             var userId = Guid.Parse(user.Id);
-            var conversation = await _context.ChatConversations
+            var conversation = await _context.StandaloneConversations
                 .Include(c => c.ChatSystemMessage)
                 .Include(c => c.UserMessages)
                 .Include(c => c.ModelMessages)
@@ -137,7 +119,7 @@ namespace lionheart.Services.Chat
         public async Task<Result<LHChatConversationDTO, Problem>> GetMostRecentChatConversationAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
-            var conversation = await _context.ChatConversations
+            var conversation = await _context.StandaloneConversations
                 .Where(c => c.UserID == userId)
                 .OrderByDescending(c => c.LastUpdate)
                 .Include(c => c.UserMessages)
@@ -155,7 +137,7 @@ namespace lionheart.Services.Chat
         public async Task<Result<LHChatConversationDTO, Problem>> UpdateChatConversationAsync(IdentityUser user, UpdateChatConversationRequest request)
         {
             var userId = Guid.Parse(user.Id);
-            var conversation = await _context.ChatConversations
+            var conversation = await _context.StandaloneConversations
                 .FirstOrDefaultAsync(c => c.ChatConversationID == request.ChatConversationID && c.UserID == userId);
 
             if (conversation == null)
