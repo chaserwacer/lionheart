@@ -35,6 +35,19 @@ struct WellnessTests {
         #expect(draft.energy == 3)
     }
 
+    @Test("Moving to another day keeps what was chosen, but never carries one day's entry to another")
+    func movingTheDay() throws {
+        let yesterday = Self.today.adding(days: -1)
+        let existing = [try Decoding.decode(WellnessState.self, Wellness.reading(date: "2026-03-04", energy: 2))]
+        var fresh = WellnessDraft.opening(on: Self.today.adding(days: -2), existing: existing)
+        fresh[.energy] = 5
+
+        #expect(fresh.moved(to: yesterday, existing: existing).energy == 5)
+        #expect(fresh.moved(to: Self.today, existing: existing).energy == 2)
+        let fromRated = WellnessDraft.opening(on: Self.today, existing: existing)
+        #expect(fromRated.moved(to: yesterday, existing: existing).energy == nil)
+    }
+
     @Test("A rating off the scale is not taken, and a future day is not loggable")
     func offTheScaleAndTheFutureAreRefused() {
         var draft = WellnessDraft(day: Self.today.adding(days: 1), energy: 3, mood: 3, motivation: 3, stress: 3)

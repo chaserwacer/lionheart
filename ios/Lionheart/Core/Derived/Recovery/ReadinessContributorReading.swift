@@ -21,6 +21,19 @@ struct ReadinessContributorReading: Equatable, Sendable, Identifiable {
 
     var id: OuraContributor { contributor }
 
+    /// Whether the measurement behind the score is the night's — so its absence means the night
+    /// has not reached the ring's data yet, which Oura often files a readiness before.
+    var restsOnTheNight: Bool {
+        switch contributor {
+        case .hrvBalance, .restingHeartRate, .recoveryIndex, .previousNight: true
+        case .sleepBalance, .bodyTemperature, .sleepRegularity, .activityBalance, .previousDayActivity,
+             .totalSleep, .efficiency, .restfulness, .remSleep, .deepSleep, .latency, .timing,
+             .trainingFrequency, .trainingVolume, .recoveryTime, .stayActive, .moveEveryHour,
+             .meetDailyTargets, .sleepRecovery, .daytimeRecovery, .stress:
+            false
+        }
+    }
+
     /// The measurement behind a contributor.
     enum Basis: Equatable, Sendable {
         /// A recovery figure against his own 28 days before, which opens its trend.

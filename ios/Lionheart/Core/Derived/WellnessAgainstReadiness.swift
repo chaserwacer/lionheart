@@ -85,13 +85,15 @@ struct WellnessAgainstReadiness: Equatable, Sendable {
         return covariance / (spreadX * spreadY)
     }
 
-    /// The correlation in plain words: how strongly the two move together.
+    /// The correlation in plain words: how strongly the two move together, and whether they move
+    /// the same way — a negative r means a better day by one is a worse day by the other.
     static func strength(of r: Double) -> String {
-        switch abs(r) {
+        let size = switch abs(r) {
         case ..<0.1: "no relation"
         case ..<0.3: "a weak relation"
         case ..<0.5: "a moderate relation"
         default: "a strong relation"
         }
+        return r <= -0.1 ? "\(size), in opposite directions" : size
     }
 }

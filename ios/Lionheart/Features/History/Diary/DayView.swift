@@ -214,7 +214,7 @@ private struct LabeledFigures: View {
 }
 
 /// A logged session's cardio as one line: its heart rate and its zones, where the ring has them.
-struct CardioFacts: View {
+private struct CardioFacts: View {
     let session: CardioSession
 
     var body: some View {

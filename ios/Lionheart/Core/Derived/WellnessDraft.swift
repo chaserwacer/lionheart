@@ -56,6 +56,17 @@ struct WellnessDraft: Equatable, Sendable {
             stress: state.stressScore)
     }
 
+    /// The draft moved to another day: onto that day's ratings where it has them, since saving
+    /// replaces them; otherwise keeping what was chosen — unless that was another day's entry,
+    /// which would log ratings nobody chose for this one.
+    func moved(to other: CalendarDay, existing: [WellnessState]) -> WellnessDraft {
+        let isRated = { (day: CalendarDay) in existing.contains { $0.date == day } }
+        guard !isRated(other), !isRated(day) else { return .opening(on: other, existing: existing) }
+        var moved = self
+        moved.day = other
+        return moved
+    }
+
     subscript(rating: Rating) -> Int? {
         get {
             switch rating {

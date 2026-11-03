@@ -227,12 +227,26 @@ who left the ring in a drawer for two days sees "78, three days ago" instead of 
 single-day read would make that day field pointless and would show silence on every morning before
 the ring syncs.
 
-Oura's readiness contributors are **scores, not measurements**: each is 1–100 and compares the day
+Oura's readiness contributors are **scores, not measurements**: each is 0–100 and compares the day
 against the athlete's own baseline, so `restingHeartRate` among them is how his resting rate
-compared and is not a heart rate. Today shows the measurements instead — the rate itself is on the
-night, as `OuraSleepPeriod.lowestHeartRate` — and draws the comparison itself (see "Recovery
-against his own baseline"). The contributors appear only on an Oura day's own screen, labelled
-"balance".
+compared and is not a heart rate. Every one of Oura's ratings is typed `OuraScore`, so a score
+cannot be drawn or averaged as if it were measured without the code saying so.
+
+### Six contributors, each beside what it rests on
+
+Under the verdict Today picks six readiness contributors that answer "how recovered am I" from the
+night — HRV balance, resting heart rate, recovery index, sleep balance, previous night, body
+temperature — and pairs each with the measurement it rates (`ReadinessContributorReading`): last
+night's HRV and lowest heart rate and time asleep against his 28 days before, the moment the
+overnight heart rate bottomed out as a share of the night (what recovery index rates), and the
+fortnight's mean time asleep and in bed (what sleep balance rates; Oura's sleep need is not in its
+API, so no need is shown). The score is drawn as a mark on a 0–100 track with his usual band and the
+measurement as a number with its unit, so the two never read alike; the section header names the
+score column "Oura" and an info sheet explains both. The figures no contributor carries — sleep score
+(marked as Oura's), breathing, steps — follow as rows. Activity balance, previous day's activity and
+sleep regularity rate the day before and the routine, and stay on the Oura day's own screen. On a
+morning when Oura has filed readiness before the night, a night-based row says the night has not
+synced rather than that no measurement exists.
 
 A figure that accrues through the day — steps — is shown on today as it stands but neither
 compared with his baseline nor charted until its day is over: the morning's count against 28
@@ -494,6 +508,31 @@ bodyweight never reads as a leap.
 
 ## History: the training log, a movement's page, and the focus list
 
+**The log reads as a diary.** It is grouped by Monday-to-Sunday week, newest first — the unit his
+first goal is measured in — each week's head its dates (opening the week) and its session count,
+each row a day (opening the day). A run of weeks with nothing logged is one quiet line between the
+weeks either side, a fact rather than a reproach. The day page (`DayView`) holds the ring's scores
+and measured line, every workout — the log's sessions, with a logged run's zones from the cardio
+report, and the ring's own workouts — the day's movement and his wellness rating; the week page
+(`WeekView`) holds lifting by session, cardio by zone, the ring's means and the seven days. Both
+step to the next or previous day or week from the toolbar. Their ring, cardio and wellness reads go
+through `DiaryStore`, keyed by day or Monday; the lifting is the log `HistoryStore` already holds,
+so a correction to a session shows on its day at once. The consistency calendar opens any past day.
+
+**A completed session can be corrected** from its detail (`SessionRevisionView`), with Train's own
+set pieces: `EditSetSheet` for a set, `SetEntryForm` for a new one, `MovementPicker` for a movement.
+The draft (`SessionRevisionDraft`) addresses sets by a device id and keeps a picked movement as an
+empty block until its first set, as the workout in flight does; moving the start keeps the length.
+Saving is `POST /{id}/revise`, which restates the session whole and rebuilds the records when the
+sets or the start changed — the screen says so before saving. **A correction needs the server and
+is not queued.** It is not work that could be lost: the session is already safe on the server. And
+the server can refuse it — while any record is withdrawn, since the rebuild would award it again —
+so a queued correction could be turned down later with nobody watching. With no connection the
+sheet keeps the edit and says that saving again is safe: a correction restates the session whole, so
+one whose answer was lost is not doubled by a second. A session holding a set or a period this build
+cannot state refuses to open the editor rather than lose it on save. Record chains and marks held on
+the device are dropped after a correction, because a rebuild gives every record a new id.
+
 History is where training is found again, and its first read is the athlete's **whole log** — every
 session from the epoch through 45 days ahead, about half a megabyte for two years and 206 sessions.
 Everything else on the tab is a reading of that one answer, so it costs no request of its own: the
@@ -599,6 +638,21 @@ questions with screens of their own.
   hours training began beneath; each day's longest sitting; sleep timing as bedtime-to-wake bars;
   steps; and each day's timeline.
 
+**Every span and comparison says what it is in words.** Spans read "30 days", "90 days", "1 year"
+(and "3 months", "6 months", "1 year", "All" on the log), with the days they cover under the
+control. The aerobic base is always the last four weeks against the eight before, so it sits above
+the span control it does not depend on, its columns say so, and its footer gives both windows'
+dates. Cardio and daily movement each have an info sheet with the method — how zones and the maximum
+are set and what is left out; what counts as sitting and which days count — rather than spreading it
+through the footers. A VO2max Oura never issued is a row and a section left out, not dashes.
+
+**Wellness states** are logged from Body's "+" menu beside a new injury: the day and four 1–5
+ratings, each starting unchosen so nothing is logged he did not pick, and a day already rated opens
+on its ratings because saving replaces them. Like a correction, a rating needs the server. The
+wellness screen (`WellnessStore`) reads the span's ratings with Oura's readiness on one time axis,
+the mean readiness on days he rated low, middling and high, and Pearson's r between his overall
+rating and readiness once eight days carry both.
+
 Both are server-side derivations rather than `Core/` ones, because their input is the all-day
 heart-rate series and a year of five-minute classes, and because the chat analyst reads the same
 reports as tools; the client derives nothing it could get wrong differently. Each store holds one
@@ -701,9 +755,7 @@ Deliberate, and left for the agents that own them.
    what it sent, and mirroring the parser's whole output in Swift types would make every member of
    it something the client could silently drop. Re-encoding may reorder an object's keys, which is
    safe only because the server sets `AllowOutOfOrderMetadataProperties`.
-4. **Wellness is read, never written.** The Body tab lists wellness entries and has no form for
-   one; injuries and their events are created there, but an event cannot be backdated — the server
-   stamps it with its own clock.
+4. **An injury event cannot be backdated** — the server stamps it with its own clock.
 5. **`PUT /prescriptions` is unwritten.** The rest of the lifecycle — the three creates,
    `/start`, `/complete`, `/skip`, `PUT /sets` and `PATCH /notes` — is in `TrainingSessionsAPI`
    and driven by the Train tab. Nothing in the app plans a session yet, so the one route that

@@ -44,10 +44,20 @@ struct RecoveryFigureRow: View {
         .accessibilityValue(spoken)
     }
 
+    /// The figure's name, marked as Oura's where it is one of Oura's scores rather than a
+    /// measurement, so the two never read alike in one table.
     private var name: some View {
-        Text(Formatting.metricName(reading.metric))
-            .font(.subheadline)
-            .lineLimit(1)
+        VStack(alignment: .leading, spacing: 0) {
+            Text(Formatting.metricName(reading.metric))
+                .font(.subheadline)
+                .lineLimit(1)
+            if reading.metric.isOuraScore {
+                Text("Oura's score")
+                    .font(.caption2)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .lineLimit(1)
+            }
+        }
     }
 
     private var figure: some View {

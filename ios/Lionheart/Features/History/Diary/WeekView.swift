@@ -81,7 +81,7 @@ struct WeekView: View {
                     (label: "Sessions", value: "\(lifting.sessions.count)"),
                     (label: "Working sets", value: "\(lifting.totals.setCount)"),
                 ] + lifting.totals.weights.filter { $0.volume > 0 }.map {
-                    (label: "Volume, \($0.unit.abbreviation)", value: MeasurementText.plain($0.volume.rounded()))
+                    (label: "Volume, \($0.unit.abbreviation)", value: Int($0.volume.rounded()).formatted())
                 })
                 .padding(.vertical, 2)
                 ForEach(lifting.sessions) { session in
@@ -116,8 +116,8 @@ struct WeekView: View {
             if let tally = week.cardio, tally.sessions > 0 {
                 SummaryFigures(figures: [
                     (label: "Sessions", value: "\(tally.sessions)"),
-                    (label: "Minutes", value: MeasurementText.plain(tally.minutes.rounded())),
-                    (label: "Zone 2", value: MeasurementText.plain(tally.zones.zone2.rounded())),
+                    (label: "Minutes", value: Int(tally.minutes.rounded()).formatted()),
+                    (label: "Zone 2 min", value: Int(tally.zones.zone2.rounded()).formatted()),
                 ])
                 .padding(.vertical, 2)
                 if tally.zones.inZones > 0 {
@@ -201,7 +201,7 @@ struct WeekView: View {
                                     .foregroundStyle(Color(.secondaryLabel))
                             }
                         }
-                        Text(onDay.isEmpty ? "Nothing logged" : SessionLog.movementNames(in: onDay[0], catalogue: catalogue).joined(separator: ", "))
+                        Text(Self.line(sessions: onDay, ringWorkouts: ringWorkouts(on: day), catalogue: catalogue))
                             .font(.footnote)
                             .foregroundStyle(Color(.secondaryLabel))
                             .lineLimit(2)
@@ -212,9 +212,27 @@ struct WeekView: View {
     }
 }
 
+extension WeekView {
+    /// The ring's own workouts on a day of this week, as the cardio report counted them.
+    fileprivate func ringWorkouts(on day: CalendarDay) -> Int {
+        (diary.weeks[start]?.value?.cardioSessions ?? []).filter { session in
+            guard CalendarDay(session.start) == day else { return false }
+            if case .ringWorkout = session.source { return true }
+            return false
+        }.count
+    }
+
+    /// A day's line in the week: what was lifted, or that nothing was logged, and the ring's workouts.
+    fileprivate static func line(sessions: [TrainingSession], ringWorkouts: Int, catalogue: MovementCatalogue) -> String {
+        let lifted = sessions.first.map { SessionLog.movementNames(in: $0, catalogue: catalogue).joined(separator: ", ") }
+            ?? "Nothing logged"
+        return ringWorkouts == 0 ? lifted : "\(lifted) · \(Formatting.count(ringWorkouts, "ring workout"))"
+    }
+}
+
 /// A span's minutes in each zone: the stacked bar, and each zone's minutes beneath it with its
 /// floor in beats per minute.
-struct ZoneMinutesRow: View {
+private struct ZoneMinutesRow: View {
     let zones: ZoneMinutes
     let maxHeartRate: MaxHeartRate?
 

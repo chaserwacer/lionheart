@@ -59,7 +59,7 @@ struct ConsistencyView: View {
             }
             weeklySection(reading)
             runsSection(reading)
-            calendar(snapshot, reading: reading, today: today)
+            calendar(reading: reading, today: today)
         }
     }
 
@@ -127,7 +127,7 @@ struct ConsistencyView: View {
     // MARK: - Calendar
 
     @ViewBuilder
-    private func calendar(_ snapshot: HistorySnapshot, reading: ConsistencyReading, today: CalendarDay) -> some View {
+    private func calendar(reading: ConsistencyReading, today: CalendarDay) -> some View {
         let first = reading.weeks.first?.start ?? today
         ForEach(CalendarMonth.months(from: first, through: today)) { month in
             let trained = reading.trainedDays(in: month)

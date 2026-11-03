@@ -35,7 +35,7 @@ struct WellnessEntrySheet: View {
                         "Day",
                         selection: Binding(
                             get: { draft.day.middayDate() },
-                            set: { draft = WellnessDraft.opening(on: CalendarDay($0), existing: existing) }),
+                            set: { draft = draft.moved(to: CalendarDay($0), existing: existing) }),
                         in: ...Date(),
                         displayedComponents: .date)
                 } footer: {

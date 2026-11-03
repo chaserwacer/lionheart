@@ -99,7 +99,7 @@ struct CardioView: View {
         if dynamicTypeSize.isAccessibilitySize {
             // Four columns cannot hold at these sizes; each figure becomes its own row instead.
             Section {
-                ForEach(AerobicBaseFigure.of(report.aerobicBase)) { figure in
+                ForEach(Self.shown(report.aerobicBase)) { figure in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(figure.measure.name)
                         Text(stackedLine(figure))
@@ -140,7 +140,7 @@ struct CardioView: View {
                 .font(.caption)
                 .foregroundStyle(Color(.secondaryLabel))
 
-                ForEach(AerobicBaseFigure.of(report.aerobicBase)) { figure in
+                ForEach(Self.shown(report.aerobicBase)) { figure in
                     GridRow {
                         VStack(alignment: .leading, spacing: 0) {
                             Text(figure.measure.name).font(.subheadline)
@@ -164,6 +164,12 @@ struct CardioView: View {
         } footer: {
             Text(aerobicBaseFooter(report))
         }
+    }
+
+    /// The figures with something in either window: a figure Oura never issued — VO₂max, for
+    /// this athlete — would be a row of dashes.
+    private static func shown(_ base: AerobicBase) -> [AerobicBaseFigure] {
+        AerobicBaseFigure.of(base).filter { $0.comparison.recent != nil || $0.comparison.before != nil }
     }
 
     private static let aerobicBaseTitle = "Aerobic base: last 4 weeks against the 8 before"

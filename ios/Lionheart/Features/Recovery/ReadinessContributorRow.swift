@@ -62,7 +62,7 @@ struct ReadinessContributorRow: View {
         if let basis = reading.basis {
             MeasurementLine(basis: basis)
         } else {
-            Text("No measurement behind this score")
+            Text(reading.restsOnTheNight ? "The night's measurements have not synced yet" : "No measurement behind this score")
                 .font(.caption)
                 .foregroundStyle(Color(.tertiaryLabel))
         }
