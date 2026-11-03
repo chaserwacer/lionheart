@@ -41,8 +41,12 @@ struct BodyView: View {
         case .ouraDays:
             OuraDaysView(days: snapshot?.ouraDays ?? [])
         case .ouraDay(let day):
-            if let ouraDay = snapshot?.ouraDays.first(where: { $0.date == day }) {
-                OuraDayView(day: ouraDay)
+            if let snapshot, let ouraDay = snapshot.ouraDays.first(where: { $0.date == day }) {
+                OuraDayView(
+                    day: ouraDay,
+                    night: snapshot.mainSleep(on: day),
+                    workouts: snapshot.workouts(on: day),
+                    tags: snapshot.tags(on: day))
             } else {
                 ContentUnavailableView(
                     "That day is no longer loaded",
@@ -99,15 +103,20 @@ struct BodyView: View {
 
                 // Top-aligned so figures stay level when a label wraps at the larger Dynamic Type
                 // sizes.
+                // Contributor scores out of 100 rather than measurements — see `ReadinessReading`.
                 HStack(alignment: .top, spacing: Tokens.cardPadding) {
-                    StatTile(value: "\(reading.restingHeartRate)", label: "Resting HR")
-                    StatTile(value: "\(reading.hrvBalance)", label: "HRV balance")
+                    if let restingHeartRate = reading.restingHeartRateBalance {
+                        StatTile(value: "\(restingHeartRate)", label: "Resting HR balance")
+                    }
+                    if let hrvBalance = reading.hrvBalance {
+                        StatTile(value: "\(hrvBalance)", label: "HRV balance")
+                    }
                     if let sleep = reading.sleepScore {
                         StatTile(value: "\(sleep)", label: "Sleep")
                     }
                 }
             } else {
-                Label("No Oura data in the last eight weeks", systemImage: "moon.zzz")
+                Label("The ring has recorded nothing in the last eight weeks", systemImage: "moon.zzz")
                     .foregroundStyle(Color(.secondaryLabel))
             }
         }

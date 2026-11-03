@@ -11,9 +11,9 @@ namespace lionheart.Endpoints.ProfileEndpoints;
 /// Hands the athlete the context card the chat model is given about them.
 /// </summary>
 /// <remarks>
-/// The card was previously reachable only through the system prompt, so the athlete could read the
-/// model's conclusions but not the standing summary they were drawn from. A coaching answer is only
-/// worth trusting if its premises are inspectable, which is what this route is for.
+/// A coaching answer is only worth trusting if its premises are inspectable, and the card is the
+/// premise behind every one of them: it is what the model is told about this athlete before the
+/// conversation starts. That is what this route is for.
 /// <para>
 /// It is a read that can build: <see cref="IAthleteContextCardService.GetOrBuildCardAsync"/>
 /// materialises a missing card and refreshes a stale Recent State, and each rebuild attempts one

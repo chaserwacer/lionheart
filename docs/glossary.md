@@ -64,3 +64,8 @@ first and then in the code.
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |
 | **Rest clock** | The countdown between sets. |
 | **Load state** | A screen's enum for what it has: not loaded, loaded, or unavailable with a reason. Never flags plus an optional error. |
+| **Profile gate** | The root's answer to whether a signed-in athlete may see the tabs: undetermined, absent, present, or unreachable. An Identity account without a Lionheart profile is refused by every training write. |
+| **Session log** | History's list of sessions, grouped by month, newest first. A row reads as completed, in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. |
+| **Movement catalogue** | Movement names by id, so a set — which carries only a `movementDataId` — can say what it was. |
+| **Coach turn** | One thing in the Coach transcript: something said, a question in flight, or a question the server did not keep because the exchange failed. |
+| **Oura panel** | One collection of an Oura day as a screen shows it — its score, where Oura issues one, and the figures behind it. |

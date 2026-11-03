@@ -101,40 +101,121 @@ enum Session {
     }
 }
 
-/// Oura fixtures, named for whether the day actually carries a reading.
+/// Oura fixtures, named for which collections the day actually carries.
+///
+/// Every collection is independently absent on the wire, and a day the ring recorded nothing for
+/// is not sent at all — so these fixtures vary presence rather than inventing zeroed panels.
 enum Oura {
-    static func day(date: String, readinessScore: Int, sleepScore: Int = 80) -> String {
+    static func day(
+        date: String,
+        readinessScore: String = "76",
+        sleepScore: String = "80",
+        resilience: String = "null"
+    ) -> String {
         """
-        {"objectID":"33333333-3333-3333-3333-333333333333","date":"\(date)",
-         "readinessData":{"readinessScore":\(readinessScore),"temperatureDeviation":0.1,
-           "activityBalance":80,"bodyTemperature":80,"hrvBalance":72,"previousDayActivity":80,
-           "previousNight":80,"recoveryIndex":90,"restingHeartRate":48,"sleepBalance":77},
-         "sleepData":{"sleepScore":\(sleepScore),"deepSleep":80,"efficiency":94,"latency":80,
-           "remSleep":70,"restfulness":75,"timing":80,"totalSleep":27000},
-         "activityData":{"activityScore":85,"steps":9000,"activeCalories":500,
-           "totalCalories":2600,"targetCalories":500,"meetDailyTargets":80,"moveEveryHour":90,
-           "recoveryTime":90,"stayActive":85,"trainingFrequency":80,"trainingVolume":80},
-         "resilienceData":{"sleepRecovery":1.2,"daytimeRecovery":1.1,"stress":0.8,
-           "resilienceLevel":"solid"}}
+        {"day":"\(date)",
+         "activity":{"score":85,"contributors":{"meetDailyTargets":100,"moveEveryHour":90,
+            "recoveryTime":97,"stayActive":85,"trainingFrequency":100,"trainingVolume":100},
+           "steps":9000,"activeCalories":500,"totalCalories":2600,"targetCalories":500,
+           "equivalentWalkingDistanceMeters":14556,"metersToTarget":-3600,"targetMeters":12000,
+           "inactivityAlerts":0,"averageMet":1.6875,"lowActivityMetMinutes":171,
+           "mediumActivityMetMinutes":420,"highActivityMetMinutes":36,"sedentaryMetMinutes":14,
+           "restingTimeSeconds":26580,"sedentaryTimeSeconds":32760,"lowActivityTimeSeconds":15300,
+           "mediumActivityTimeSeconds":7140,"highActivityTimeSeconds":240,
+           "nonWearTimeSeconds":4380},
+         "readiness":{"score":\(readinessScore),"temperatureDeviation":-0.05,
+           "temperatureTrendDeviation":0.11,
+           "contributors":{"activityBalance":83,"bodyTemperature":100,"hrvBalance":72,
+             "previousDayActivity":83,"previousNight":59,"recoveryIndex":90,
+             "restingHeartRate":81,"sleepBalance":77,"sleepRegularity":90}},
+         "sleep":{"score":\(sleepScore),
+           "contributors":{"deepSleep":80,"efficiency":94,"latency":80,"remSleep":70,
+             "restfulness":75,"timing":80,"totalSleep":90}},
+         "spo2":{"averageSpo2Percentage":96.5,"breathingDisturbanceIndex":4},
+         "stress":{"stressHighSeconds":10800,"recoveryHighSeconds":21600,
+           "daySummary":"normal"},
+         "resilience":\(resilience)}
         """
     }
 
-    /// A day the ring never synced, as the server stores it: the panels are simply absent.
+    /// A day whose collections are all absent — the shape the server sends when Oura filed
+    /// something for the day but nothing this client reads.
     static func dayWithoutPanels(date: String) -> String {
         """
-        {"objectID":"44444444-4444-4444-4444-444444444444","date":"\(date)",
-         "readinessData":null,"sleepData":null,"activityData":null,"resilienceData":null}
+        {"day":"\(date)","activity":null,"readiness":null,"sleep":null,
+         "spo2":null,"stress":null,"resilience":null}
         """
     }
 
-    /// A day with sleep and nothing else — the shape that proves the panels arrive independently.
+    /// A day with sleep and nothing else — the shape that proves the collections arrive
+    /// independently of one another.
     static func dayWithSleepOnly(date: String, sleepScore: Int = 74) -> String {
         """
-        {"objectID":"44444444-4444-4444-4444-444444444445","date":"\(date)",
-         "readinessData":null,
-         "sleepData":{"sleepScore":\(sleepScore),"deepSleep":4800,"efficiency":91,
-           "remSleep":5400,"totalSleep":26100},
-         "activityData":null,"resilienceData":null}
+        {"day":"\(date)","activity":null,"readiness":null,
+         "sleep":{"score":\(sleepScore),
+           "contributors":{"deepSleep":60,"efficiency":91,"latency":70,"remSleep":65,
+             "restfulness":70,"timing":75,"totalSleep":80}},
+         "spo2":null,"stress":null,"resilience":null}
+        """
+    }
+
+    /// Resilience, which the athlete's archive has no history for — so it is the one collection a
+    /// day usually arrives without.
+    static let resilience = """
+        {"level":"solid","contributors":{"sleepRecovery":1.2,"daytimeRecovery":1.1,"stress":0.8}}
+        """
+
+    /// One sleep period in the event envelope every Oura event shares.
+    ///
+    /// `day` travels beside `period` because Oura files a night that began before midnight under
+    /// the waking day — so a fixture that derived one from the other could not express the case.
+    static func sleepPeriod(
+        id: String,
+        day: String,
+        start: String,
+        end: String,
+        isMainSleep: Bool = true,
+        averageHeartRate: String = "52.4",
+        samples: String = "[48,null,51]"
+    ) -> String {
+        """
+        {"ouraId":"\(id)","day":"\(day)",
+         "period":{"$type":"interval","start":"\(start)","end":"\(end)"},
+         "reading":{"period":{"$type":"interval","start":"\(start)","end":"\(end)"},
+           "kind":"\(isMainSleep ? "long_sleep" : "sleep")","periodIndex":0,
+           "timeInBedSeconds":28800,"totalSleepSeconds":26100,"deepSleepSeconds":4800,
+           "lightSleepSeconds":15900,"remSleepSeconds":5400,"awakeSeconds":2700,
+           "latencySeconds":600,"efficiency":91,"restlessPeriods":12,
+           "averageHeartRate":\(averageHeartRate),"lowestHeartRate":46,"averageHrv":58,
+           "averageBreath":14.5,"readinessScoreDelta":null,"sleepScoreDelta":null,
+           "algorithmVersion":"v2","analysisReason":"long_sleep_analysis",
+           "hypnogram":"4433221",
+           "heartRate":{"intervalSeconds":300,"samples":\(samples),"startedAt":"\(start)"},
+           "hrv":{"intervalSeconds":300,"samples":\(samples),"startedAt":"\(start)"},
+           "isMainSleep":\(isMainSleep)}}
+        """
+    }
+
+    static func workout(
+        id: String, day: String, activity: String = "walking", distance: String = "735.2"
+    ) -> String {
+        """
+        {"ouraId":"\(id)","day":"\(day)",
+         "period":{"$type":"interval","start":"\(day)T20:59:00+00:00",
+           "end":"\(day)T21:20:00+00:00"},
+         "reading":{"period":{"$type":"interval","start":"\(day)T20:59:00+00:00",
+             "end":"\(day)T21:20:00+00:00"},
+           "activity":"\(activity)","intensity":"moderate","source":"confirmed","label":null,
+           "calories":69.47,"distanceMeters":\(distance)}}
+        """
+    }
+
+    static func tag(id: String, day: String, codes: String = #"["tag_sleep_sauna"]"#) -> String {
+        """
+        {"ouraId":"\(id)","day":"\(day)",
+         "period":{"$type":"instant","at":"\(day)T19:01:56+00:00"},
+         "reading":{"period":{"$type":"instant","at":"\(day)T19:01:56+00:00"},
+           "codes":\(codes),"text":""}}
         """
     }
 }

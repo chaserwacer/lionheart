@@ -2079,133 +2079,6 @@ export class GetContextsEndpointClient {
     }
 }
 
-export class GetDailyOuraDataEndpointClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * @param request (optional) 
-     * @return OK
-     */
-    get(request: Date | undefined): Promise<DailyOuraDataDTO> {
-        let url_ = this.baseUrl + "/api/oura/get-daily-oura-data?";
-        if (request === null)
-            throw new Error("The parameter 'request' cannot be null.");
-        else if (request !== undefined)
-            url_ += "request=" + encodeURIComponent(request ? "" + request.toISOString() : "") + "&";
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_: RequestInit = {
-            method: "GET",
-            headers: {
-                "Accept": "text/plain"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGet(_response);
-        });
-    }
-
-    protected processGet(response: Response): Promise<DailyOuraDataDTO> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result200 = DailyOuraDataDTO.fromJS(resultData200);
-            return result200;
-            });
-        } else if (status === 401) {
-            return response.text().then((_responseText) => {
-            let result401: any = null;
-            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result401 = ProblemDetails.fromJS(resultData401);
-            return throwException("Unauthorized", status, _responseText, _headers, result401);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<DailyOuraDataDTO>(null as any);
-    }
-}
-
-export class GetDailyOuraDataRangeEndpointClient {
-    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
-    private baseUrl: string;
-    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
-
-    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
-        this.http = http ? http : window as any;
-        this.baseUrl = baseUrl ?? "";
-    }
-
-    /**
-     * @param body (optional) 
-     * @return OK
-     */
-    post(body: DateRangeRequest | undefined): Promise<DailyOuraDataDTO[]> {
-        let url_ = this.baseUrl + "/api/oura/get-daily-oura-data-range";
-        url_ = url_.replace(/[?&]$/, "");
-
-        const content_ = JSON.stringify(body);
-
-        let options_: RequestInit = {
-            body: content_,
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "text/plain"
-            }
-        };
-
-        return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processPost(_response);
-        });
-    }
-
-    protected processPost(response: Response): Promise<DailyOuraDataDTO[]> {
-        const status = response.status;
-        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
-            return response.text().then((_responseText) => {
-            let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            if (Array.isArray(resultData200)) {
-                result200 = [] as any;
-                for (let item of resultData200)
-                    result200!.push(DailyOuraDataDTO.fromJS(item));
-            }
-            else {
-                result200 = <any>null;
-            }
-            return result200;
-            });
-        } else if (status === 401) {
-            return response.text().then((_responseText) => {
-            let result401: any = null;
-            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result401 = ProblemDetails.fromJS(resultData401);
-            return throwException("Unauthorized", status, _responseText, _headers, result401);
-            });
-        } else if (status !== 200 && status !== 204) {
-            return response.text().then((_responseText) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            });
-        }
-        return Promise.resolve<DailyOuraDataDTO[]>(null as any);
-    }
-}
-
 export class GetEquipmentsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2637,6 +2510,471 @@ export class GetMovementModifiersEndpointClient {
             });
         }
         return Promise.resolve<MovementModifierDTO[]>(null as any);
+    }
+}
+
+export class GetOuraDayEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @return OK
+     */
+    get(day: Date): Promise<OuraDayView> {
+        let url_ = this.baseUrl + "/api/oura/days/{day}";
+        if (day === undefined || day === null)
+            throw new Error("The parameter 'day' must be defined.");
+        url_ = url_.replace("{day}", encodeURIComponent(day ? "" + day.toISOString() : "null"));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<OuraDayView> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = OuraDayView.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ProblemDetails.fromJS(resultData404);
+            return throwException("Not Found", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<OuraDayView>(null as any);
+    }
+}
+
+export class GetOuraDaysEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param from (optional) 
+     * @param to (optional) 
+     * @param days (optional) 
+     * @return OK
+     */
+    get(from: Date | undefined, to: Date | undefined, days: number | undefined): Promise<OuraDayView[]> {
+        let url_ = this.baseUrl + "/api/oura/days?";
+        if (from === null)
+            throw new Error("The parameter 'from' cannot be null.");
+        else if (from !== undefined)
+            url_ += "From=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+        if (to === null)
+            throw new Error("The parameter 'to' cannot be null.");
+        else if (to !== undefined)
+            url_ += "To=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+        if (days === null)
+            throw new Error("The parameter 'days' cannot be null.");
+        else if (days !== undefined)
+            url_ += "Days=" + encodeURIComponent("" + days) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<OuraDayView[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(OuraDayView.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<OuraDayView[]>(null as any);
+    }
+}
+
+export class GetOuraSessionsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param from (optional) 
+     * @param to (optional) 
+     * @return OK
+     */
+    get(from: Date | undefined, to: Date | undefined): Promise<SessionReadingOuraEventView[]> {
+        let url_ = this.baseUrl + "/api/oura/sessions?";
+        if (from === null)
+            throw new Error("The parameter 'from' cannot be null.");
+        else if (from !== undefined)
+            url_ += "From=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+        if (to === null)
+            throw new Error("The parameter 'to' cannot be null.");
+        else if (to !== undefined)
+            url_ += "To=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<SessionReadingOuraEventView[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(SessionReadingOuraEventView.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SessionReadingOuraEventView[]>(null as any);
+    }
+}
+
+export class GetOuraSleepEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param from (optional) 
+     * @param to (optional) 
+     * @return OK
+     */
+    get(from: Date | undefined, to: Date | undefined): Promise<SleepPeriodReadingOuraEventView[]> {
+        let url_ = this.baseUrl + "/api/oura/sleep?";
+        if (from === null)
+            throw new Error("The parameter 'from' cannot be null.");
+        else if (from !== undefined)
+            url_ += "From=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+        if (to === null)
+            throw new Error("The parameter 'to' cannot be null.");
+        else if (to !== undefined)
+            url_ += "To=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<SleepPeriodReadingOuraEventView[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(SleepPeriodReadingOuraEventView.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SleepPeriodReadingOuraEventView[]>(null as any);
+    }
+}
+
+export class GetOuraTagsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param from (optional) 
+     * @param to (optional) 
+     * @return OK
+     */
+    get(from: Date | undefined, to: Date | undefined): Promise<TagReadingOuraEventView[]> {
+        let url_ = this.baseUrl + "/api/oura/tags?";
+        if (from === null)
+            throw new Error("The parameter 'from' cannot be null.");
+        else if (from !== undefined)
+            url_ += "From=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+        if (to === null)
+            throw new Error("The parameter 'to' cannot be null.");
+        else if (to !== undefined)
+            url_ += "To=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<TagReadingOuraEventView[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(TagReadingOuraEventView.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<TagReadingOuraEventView[]>(null as any);
+    }
+}
+
+export class GetOuraWorkoutsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    /**
+     * @param from (optional) 
+     * @param to (optional) 
+     * @return OK
+     */
+    get(from: Date | undefined, to: Date | undefined): Promise<WorkoutReadingOuraEventView[]> {
+        let url_ = this.baseUrl + "/api/oura/workouts?";
+        if (from === null)
+            throw new Error("The parameter 'from' cannot be null.");
+        else if (from !== undefined)
+            url_ += "From=" + encodeURIComponent(from ? "" + from.toISOString() : "") + "&";
+        if (to === null)
+            throw new Error("The parameter 'to' cannot be null.");
+        else if (to !== undefined)
+            url_ += "To=" + encodeURIComponent(to ? "" + to.toISOString() : "") + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "text/plain"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGet(_response);
+        });
+    }
+
+    protected processGet(response: Response): Promise<WorkoutReadingOuraEventView[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(WorkoutReadingOuraEventView.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            let resultData401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result401 = ProblemDetails.fromJS(resultData401);
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<WorkoutReadingOuraEventView[]>(null as any);
     }
 }
 
@@ -4640,7 +4978,7 @@ export class StartUnplannedTrainingSessionEndpointClient {
     }
 }
 
-export class SyncOuraApiEndpointClient {
+export class SyncOuraEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
@@ -4652,9 +4990,9 @@ export class SyncOuraApiEndpointClient {
 
     /**
      * @param body (optional) 
-     * @return No Content
+     * @return OK
      */
-    post(body: DateRangeRequest | undefined): Promise<void> {
+    post(body: DayRange | undefined): Promise<OuraSyncReport> {
         let url_ = this.baseUrl + "/api/oura/sync";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -4665,6 +5003,7 @@ export class SyncOuraApiEndpointClient {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                "Accept": "text/plain"
             }
         };
 
@@ -4673,12 +5012,15 @@ export class SyncOuraApiEndpointClient {
         });
     }
 
-    protected processPost(response: Response): Promise<void> {
+    protected processPost(response: Response): Promise<OuraSyncReport> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 204) {
+        if (status === 200) {
             return response.text().then((_responseText) => {
-            return;
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = OuraSyncReport.fromJS(resultData200);
+            return result200;
             });
         } else if (status === 401) {
             return response.text().then((_responseText) => {
@@ -4687,12 +5029,30 @@ export class SyncOuraApiEndpointClient {
             result401 = ProblemDetails.fromJS(resultData401);
             return throwException("Unauthorized", status, _responseText, _headers, result401);
             });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ProblemDetails.fromJS(resultData400);
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ProblemDetails.fromJS(resultData409);
+            return throwException("Conflict", status, _responseText, _headers, result409);
+            });
+        } else if (status === 502) {
+            return response.text().then((_responseText) => {
+            return throwException("Bad Gateway", status, _responseText, _headers);
+            });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<void>(null as any);
+        return Promise.resolve<OuraSyncReport>(null as any);
     }
 }
 
@@ -5459,20 +5819,15 @@ export interface IActiveSessionView extends ITrainingSessionView {
     sets?: LiftSet[] | undefined;
 }
 
-export class ActivityData implements IActivityData {
-    activityScore?: number;
-    steps?: number;
-    activeCalories?: number;
-    totalCalories?: number;
-    targetCalories?: number;
-    meetDailyTargets?: number;
-    moveEveryHour?: number;
-    recoveryTime?: number;
-    stayActive?: number;
-    trainingFrequency?: number;
-    trainingVolume?: number;
+export class ActivityContributors implements IActivityContributors {
+    meetDailyTargets?: number | undefined;
+    moveEveryHour?: number | undefined;
+    recoveryTime?: number | undefined;
+    stayActive?: number | undefined;
+    trainingFrequency?: number | undefined;
+    trainingVolume?: number | undefined;
 
-    constructor(data?: IActivityData) {
+    constructor(data?: IActivityContributors) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -5483,11 +5838,6 @@ export class ActivityData implements IActivityData {
 
     init(_data?: any) {
         if (_data) {
-            this.activityScore = _data["activityScore"];
-            this.steps = _data["steps"];
-            this.activeCalories = _data["activeCalories"];
-            this.totalCalories = _data["totalCalories"];
-            this.targetCalories = _data["targetCalories"];
             this.meetDailyTargets = _data["meetDailyTargets"];
             this.moveEveryHour = _data["moveEveryHour"];
             this.recoveryTime = _data["recoveryTime"];
@@ -5497,20 +5847,15 @@ export class ActivityData implements IActivityData {
         }
     }
 
-    static fromJS(data: any): ActivityData {
+    static fromJS(data: any): ActivityContributors {
         data = typeof data === 'object' ? data : {};
-        let result = new ActivityData();
+        let result = new ActivityContributors();
         result.init(data);
         return result;
     }
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["activityScore"] = this.activityScore;
-        data["steps"] = this.steps;
-        data["activeCalories"] = this.activeCalories;
-        data["totalCalories"] = this.totalCalories;
-        data["targetCalories"] = this.targetCalories;
         data["meetDailyTargets"] = this.meetDailyTargets;
         data["moveEveryHour"] = this.moveEveryHour;
         data["recoveryTime"] = this.recoveryTime;
@@ -5521,18 +5866,13 @@ export class ActivityData implements IActivityData {
     }
 }
 
-export interface IActivityData {
-    activityScore?: number;
-    steps?: number;
-    activeCalories?: number;
-    totalCalories?: number;
-    targetCalories?: number;
-    meetDailyTargets?: number;
-    moveEveryHour?: number;
-    recoveryTime?: number;
-    stayActive?: number;
-    trainingFrequency?: number;
-    trainingVolume?: number;
+export interface IActivityContributors {
+    meetDailyTargets?: number | undefined;
+    moveEveryHour?: number | undefined;
+    recoveryTime?: number | undefined;
+    stayActive?: number | undefined;
+    trainingFrequency?: number | undefined;
+    trainingVolume?: number | undefined;
 }
 
 export class AddChatMessageRequest implements IAddChatMessageRequest {
@@ -6676,101 +7016,30 @@ export interface ICreateWellnessStateRequest {
     stress: number;
 }
 
-export class DailyOuraData implements IDailyOuraData {
-    objectID?: string;
-    userID?: string;
-    date?: Date;
-    syncDate?: Date;
-    resilienceData!: ResilienceData;
-    activityData!: ActivityData;
-    sleepData!: SleepData;
-    readinessData!: ReadinessData;
-    activityJson?: string | undefined;
-    resilienceJson?: string | undefined;
-    sleepJson?: string | undefined;
-    readinessJson?: string | undefined;
+export class DailyActivityReading implements IDailyActivityReading {
+    score?: number | undefined;
+    contributors?: ActivityContributors;
+    steps?: number;
+    activeCalories?: number;
+    totalCalories?: number;
+    targetCalories?: number;
+    equivalentWalkingDistanceMeters?: number;
+    metersToTarget?: number;
+    targetMeters?: number;
+    inactivityAlerts?: number;
+    averageMet?: number;
+    lowActivityMetMinutes?: number;
+    mediumActivityMetMinutes?: number;
+    highActivityMetMinutes?: number;
+    sedentaryMetMinutes?: number;
+    restingTimeSeconds?: number;
+    sedentaryTimeSeconds?: number;
+    lowActivityTimeSeconds?: number;
+    mediumActivityTimeSeconds?: number;
+    highActivityTimeSeconds?: number;
+    nonWearTimeSeconds?: number;
 
-    constructor(data?: IDailyOuraData) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (<any>this)[property] = (<any>data)[property];
-            }
-        }
-        if (!data) {
-            this.resilienceData = new ResilienceData();
-            this.activityData = new ActivityData();
-            this.sleepData = new SleepData();
-            this.readinessData = new ReadinessData();
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.objectID = _data["objectID"];
-            this.userID = _data["userID"];
-            this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
-            this.syncDate = _data["syncDate"] ? new Date(_data["syncDate"].toString()) : <any>undefined;
-            this.resilienceData = _data["resilienceData"] ? ResilienceData.fromJS(_data["resilienceData"]) : new ResilienceData();
-            this.activityData = _data["activityData"] ? ActivityData.fromJS(_data["activityData"]) : new ActivityData();
-            this.sleepData = _data["sleepData"] ? SleepData.fromJS(_data["sleepData"]) : new SleepData();
-            this.readinessData = _data["readinessData"] ? ReadinessData.fromJS(_data["readinessData"]) : new ReadinessData();
-            this.activityJson = _data["activityJson"];
-            this.resilienceJson = _data["resilienceJson"];
-            this.sleepJson = _data["sleepJson"];
-            this.readinessJson = _data["readinessJson"];
-        }
-    }
-
-    static fromJS(data: any): DailyOuraData {
-        data = typeof data === 'object' ? data : {};
-        let result = new DailyOuraData();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["objectID"] = this.objectID;
-        data["userID"] = this.userID;
-        data["date"] = this.date ? formatDate(this.date) : <any>undefined;
-        data["syncDate"] = this.syncDate ? formatDate(this.syncDate) : <any>undefined;
-        data["resilienceData"] = this.resilienceData ? this.resilienceData.toJSON() : <any>undefined;
-        data["activityData"] = this.activityData ? this.activityData.toJSON() : <any>undefined;
-        data["sleepData"] = this.sleepData ? this.sleepData.toJSON() : <any>undefined;
-        data["readinessData"] = this.readinessData ? this.readinessData.toJSON() : <any>undefined;
-        data["activityJson"] = this.activityJson;
-        data["resilienceJson"] = this.resilienceJson;
-        data["sleepJson"] = this.sleepJson;
-        data["readinessJson"] = this.readinessJson;
-        return data;
-    }
-}
-
-export interface IDailyOuraData {
-    objectID?: string;
-    userID?: string;
-    date?: Date;
-    syncDate?: Date;
-    resilienceData: ResilienceData;
-    activityData: ActivityData;
-    sleepData: SleepData;
-    readinessData: ReadinessData;
-    activityJson?: string | undefined;
-    resilienceJson?: string | undefined;
-    sleepJson?: string | undefined;
-    readinessJson?: string | undefined;
-}
-
-export class DailyOuraDataDTO implements IDailyOuraDataDTO {
-    objectID?: string;
-    date?: Date;
-    resilienceData?: ResilienceData;
-    activityData?: ActivityData;
-    sleepData?: SleepData;
-    readinessData?: ReadinessData;
-
-    constructor(data?: IDailyOuraDataDTO) {
+    constructor(data?: IDailyActivityReading) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -6781,48 +7050,95 @@ export class DailyOuraDataDTO implements IDailyOuraDataDTO {
 
     init(_data?: any) {
         if (_data) {
-            this.objectID = _data["objectID"];
-            this.date = _data["date"] ? new Date(_data["date"].toString()) : <any>undefined;
-            this.resilienceData = _data["resilienceData"] ? ResilienceData.fromJS(_data["resilienceData"]) : <any>undefined;
-            this.activityData = _data["activityData"] ? ActivityData.fromJS(_data["activityData"]) : <any>undefined;
-            this.sleepData = _data["sleepData"] ? SleepData.fromJS(_data["sleepData"]) : <any>undefined;
-            this.readinessData = _data["readinessData"] ? ReadinessData.fromJS(_data["readinessData"]) : <any>undefined;
+            this.score = _data["score"];
+            this.contributors = _data["contributors"] ? ActivityContributors.fromJS(_data["contributors"]) : <any>undefined;
+            this.steps = _data["steps"];
+            this.activeCalories = _data["activeCalories"];
+            this.totalCalories = _data["totalCalories"];
+            this.targetCalories = _data["targetCalories"];
+            this.equivalentWalkingDistanceMeters = _data["equivalentWalkingDistanceMeters"];
+            this.metersToTarget = _data["metersToTarget"];
+            this.targetMeters = _data["targetMeters"];
+            this.inactivityAlerts = _data["inactivityAlerts"];
+            this.averageMet = _data["averageMet"];
+            this.lowActivityMetMinutes = _data["lowActivityMetMinutes"];
+            this.mediumActivityMetMinutes = _data["mediumActivityMetMinutes"];
+            this.highActivityMetMinutes = _data["highActivityMetMinutes"];
+            this.sedentaryMetMinutes = _data["sedentaryMetMinutes"];
+            this.restingTimeSeconds = _data["restingTimeSeconds"];
+            this.sedentaryTimeSeconds = _data["sedentaryTimeSeconds"];
+            this.lowActivityTimeSeconds = _data["lowActivityTimeSeconds"];
+            this.mediumActivityTimeSeconds = _data["mediumActivityTimeSeconds"];
+            this.highActivityTimeSeconds = _data["highActivityTimeSeconds"];
+            this.nonWearTimeSeconds = _data["nonWearTimeSeconds"];
         }
     }
 
-    static fromJS(data: any): DailyOuraDataDTO {
+    static fromJS(data: any): DailyActivityReading {
         data = typeof data === 'object' ? data : {};
-        let result = new DailyOuraDataDTO();
+        let result = new DailyActivityReading();
         result.init(data);
         return result;
     }
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["objectID"] = this.objectID;
-        data["date"] = this.date ? formatDate(this.date) : <any>undefined;
-        data["resilienceData"] = this.resilienceData ? this.resilienceData.toJSON() : <any>undefined;
-        data["activityData"] = this.activityData ? this.activityData.toJSON() : <any>undefined;
-        data["sleepData"] = this.sleepData ? this.sleepData.toJSON() : <any>undefined;
-        data["readinessData"] = this.readinessData ? this.readinessData.toJSON() : <any>undefined;
+        data["score"] = this.score;
+        data["contributors"] = this.contributors ? this.contributors.toJSON() : <any>undefined;
+        data["steps"] = this.steps;
+        data["activeCalories"] = this.activeCalories;
+        data["totalCalories"] = this.totalCalories;
+        data["targetCalories"] = this.targetCalories;
+        data["equivalentWalkingDistanceMeters"] = this.equivalentWalkingDistanceMeters;
+        data["metersToTarget"] = this.metersToTarget;
+        data["targetMeters"] = this.targetMeters;
+        data["inactivityAlerts"] = this.inactivityAlerts;
+        data["averageMet"] = this.averageMet;
+        data["lowActivityMetMinutes"] = this.lowActivityMetMinutes;
+        data["mediumActivityMetMinutes"] = this.mediumActivityMetMinutes;
+        data["highActivityMetMinutes"] = this.highActivityMetMinutes;
+        data["sedentaryMetMinutes"] = this.sedentaryMetMinutes;
+        data["restingTimeSeconds"] = this.restingTimeSeconds;
+        data["sedentaryTimeSeconds"] = this.sedentaryTimeSeconds;
+        data["lowActivityTimeSeconds"] = this.lowActivityTimeSeconds;
+        data["mediumActivityTimeSeconds"] = this.mediumActivityTimeSeconds;
+        data["highActivityTimeSeconds"] = this.highActivityTimeSeconds;
+        data["nonWearTimeSeconds"] = this.nonWearTimeSeconds;
         return data;
     }
 }
 
-export interface IDailyOuraDataDTO {
-    objectID?: string;
-    date?: Date;
-    resilienceData?: ResilienceData;
-    activityData?: ActivityData;
-    sleepData?: SleepData;
-    readinessData?: ReadinessData;
+export interface IDailyActivityReading {
+    score?: number | undefined;
+    contributors?: ActivityContributors;
+    steps?: number;
+    activeCalories?: number;
+    totalCalories?: number;
+    targetCalories?: number;
+    equivalentWalkingDistanceMeters?: number;
+    metersToTarget?: number;
+    targetMeters?: number;
+    inactivityAlerts?: number;
+    averageMet?: number;
+    lowActivityMetMinutes?: number;
+    mediumActivityMetMinutes?: number;
+    highActivityMetMinutes?: number;
+    sedentaryMetMinutes?: number;
+    restingTimeSeconds?: number;
+    sedentaryTimeSeconds?: number;
+    lowActivityTimeSeconds?: number;
+    mediumActivityTimeSeconds?: number;
+    highActivityTimeSeconds?: number;
+    nonWearTimeSeconds?: number;
 }
 
-export class DateRangeRequest implements IDateRangeRequest {
-    startDate!: Date;
-    endDate!: Date;
+export class DailyReadinessReading implements IDailyReadinessReading {
+    score?: number | undefined;
+    temperatureDeviation?: number | undefined;
+    temperatureTrendDeviation?: number | undefined;
+    contributors?: ReadinessContributors;
 
-    constructor(data?: IDateRangeRequest) {
+    constructor(data?: IDailyReadinessReading) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -6833,29 +7149,243 @@ export class DateRangeRequest implements IDateRangeRequest {
 
     init(_data?: any) {
         if (_data) {
-            this.startDate = _data["startDate"] ? new Date(_data["startDate"].toString()) : <any>undefined;
-            this.endDate = _data["endDate"] ? new Date(_data["endDate"].toString()) : <any>undefined;
+            this.score = _data["score"];
+            this.temperatureDeviation = _data["temperatureDeviation"];
+            this.temperatureTrendDeviation = _data["temperatureTrendDeviation"];
+            this.contributors = _data["contributors"] ? ReadinessContributors.fromJS(_data["contributors"]) : <any>undefined;
         }
     }
 
-    static fromJS(data: any): DateRangeRequest {
+    static fromJS(data: any): DailyReadinessReading {
         data = typeof data === 'object' ? data : {};
-        let result = new DateRangeRequest();
+        let result = new DailyReadinessReading();
         result.init(data);
         return result;
     }
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["startDate"] = this.startDate ? this.startDate.toISOString() : <any>undefined;
-        data["endDate"] = this.endDate ? this.endDate.toISOString() : <any>undefined;
+        data["score"] = this.score;
+        data["temperatureDeviation"] = this.temperatureDeviation;
+        data["temperatureTrendDeviation"] = this.temperatureTrendDeviation;
+        data["contributors"] = this.contributors ? this.contributors.toJSON() : <any>undefined;
         return data;
     }
 }
 
-export interface IDateRangeRequest {
-    startDate: Date;
-    endDate: Date;
+export interface IDailyReadinessReading {
+    score?: number | undefined;
+    temperatureDeviation?: number | undefined;
+    temperatureTrendDeviation?: number | undefined;
+    contributors?: ReadinessContributors;
+}
+
+export class DailyResilienceReading implements IDailyResilienceReading {
+    level?: string | undefined;
+    contributors?: ResilienceContributors;
+
+    constructor(data?: IDailyResilienceReading) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.level = _data["level"];
+            this.contributors = _data["contributors"] ? ResilienceContributors.fromJS(_data["contributors"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): DailyResilienceReading {
+        data = typeof data === 'object' ? data : {};
+        let result = new DailyResilienceReading();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["level"] = this.level;
+        data["contributors"] = this.contributors ? this.contributors.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IDailyResilienceReading {
+    level?: string | undefined;
+    contributors?: ResilienceContributors;
+}
+
+export class DailySleepReading implements IDailySleepReading {
+    score?: number | undefined;
+    contributors?: SleepContributors;
+
+    constructor(data?: IDailySleepReading) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.score = _data["score"];
+            this.contributors = _data["contributors"] ? SleepContributors.fromJS(_data["contributors"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): DailySleepReading {
+        data = typeof data === 'object' ? data : {};
+        let result = new DailySleepReading();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["score"] = this.score;
+        data["contributors"] = this.contributors ? this.contributors.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IDailySleepReading {
+    score?: number | undefined;
+    contributors?: SleepContributors;
+}
+
+export class DailySpo2Reading implements IDailySpo2Reading {
+    averageSpo2Percentage?: number | undefined;
+    breathingDisturbanceIndex?: number | undefined;
+
+    constructor(data?: IDailySpo2Reading) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.averageSpo2Percentage = _data["averageSpo2Percentage"];
+            this.breathingDisturbanceIndex = _data["breathingDisturbanceIndex"];
+        }
+    }
+
+    static fromJS(data: any): DailySpo2Reading {
+        data = typeof data === 'object' ? data : {};
+        let result = new DailySpo2Reading();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["averageSpo2Percentage"] = this.averageSpo2Percentage;
+        data["breathingDisturbanceIndex"] = this.breathingDisturbanceIndex;
+        return data;
+    }
+}
+
+export interface IDailySpo2Reading {
+    averageSpo2Percentage?: number | undefined;
+    breathingDisturbanceIndex?: number | undefined;
+}
+
+export class DailyStressReading implements IDailyStressReading {
+    stressHighSeconds?: number | undefined;
+    recoveryHighSeconds?: number | undefined;
+    daySummary?: string | undefined;
+
+    constructor(data?: IDailyStressReading) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.stressHighSeconds = _data["stressHighSeconds"];
+            this.recoveryHighSeconds = _data["recoveryHighSeconds"];
+            this.daySummary = _data["daySummary"];
+        }
+    }
+
+    static fromJS(data: any): DailyStressReading {
+        data = typeof data === 'object' ? data : {};
+        let result = new DailyStressReading();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["stressHighSeconds"] = this.stressHighSeconds;
+        data["recoveryHighSeconds"] = this.recoveryHighSeconds;
+        data["daySummary"] = this.daySummary;
+        return data;
+    }
+}
+
+export interface IDailyStressReading {
+    stressHighSeconds?: number | undefined;
+    recoveryHighSeconds?: number | undefined;
+    daySummary?: string | undefined;
+}
+
+export class DayRange implements IDayRange {
+    from?: Date;
+    to?: Date;
+    readonly days?: number;
+
+    constructor(data?: IDayRange) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.from = _data["from"] ? new Date(_data["from"].toString()) : <any>undefined;
+            this.to = _data["to"] ? new Date(_data["to"].toString()) : <any>undefined;
+            (<any>this).days = _data["days"];
+        }
+    }
+
+    static fromJS(data: any): DayRange {
+        data = typeof data === 'object' ? data : {};
+        let result = new DayRange();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["from"] = this.from ? formatDate(this.from) : <any>undefined;
+        data["to"] = this.to ? formatDate(this.to) : <any>undefined;
+        data["days"] = this.days;
+        return data;
+    }
+}
+
+export interface IDayRange {
+    from?: Date;
+    to?: Date;
+    days?: number;
 }
 
 export class DecorationView implements IDecorationView {
@@ -9716,7 +10246,6 @@ export class LionheartUser implements ILionheartUser {
     weight?: number;
     wellnessStates?: WellnessState[] | undefined;
     apiAccessTokens?: ApiAccessToken[] | undefined;
-    dailyOuraInfos?: DailyOuraData[] | undefined;
     movementBases?: MovementBase[] | undefined;
     movementDatas?: MovementData[] | undefined;
     movementModifiers?: MovementModifier[] | undefined;
@@ -9750,11 +10279,6 @@ export class LionheartUser implements ILionheartUser {
                 this.apiAccessTokens = [] as any;
                 for (let item of _data["apiAccessTokens"])
                     this.apiAccessTokens!.push(ApiAccessToken.fromJS(item));
-            }
-            if (Array.isArray(_data["dailyOuraInfos"])) {
-                this.dailyOuraInfos = [] as any;
-                for (let item of _data["dailyOuraInfos"])
-                    this.dailyOuraInfos!.push(DailyOuraData.fromJS(item));
             }
             if (Array.isArray(_data["movementBases"])) {
                 this.movementBases = [] as any;
@@ -9818,11 +10342,6 @@ export class LionheartUser implements ILionheartUser {
             for (let item of this.apiAccessTokens)
                 data["apiAccessTokens"].push(item ? item.toJSON() : <any>undefined);
         }
-        if (Array.isArray(this.dailyOuraInfos)) {
-            data["dailyOuraInfos"] = [];
-            for (let item of this.dailyOuraInfos)
-                data["dailyOuraInfos"].push(item ? item.toJSON() : <any>undefined);
-        }
         if (Array.isArray(this.movementBases)) {
             data["movementBases"] = [];
             for (let item of this.movementBases)
@@ -9870,7 +10389,6 @@ export interface ILionheartUser {
     weight?: number;
     wellnessStates?: WellnessState[] | undefined;
     apiAccessTokens?: ApiAccessToken[] | undefined;
-    dailyOuraInfos?: DailyOuraData[] | undefined;
     movementBases?: MovementBase[] | undefined;
     movementDatas?: MovementData[] | undefined;
     movementModifiers?: MovementModifier[] | undefined;
@@ -10482,6 +11000,230 @@ export class NotDecoratedView extends DecorationView implements INotDecoratedVie
 }
 
 export interface INotDecoratedView extends IDecorationView {
+}
+
+export class OuraCollectionTally implements IOuraCollectionTally {
+    collection?: string | undefined;
+    received?: number;
+    stored?: number;
+    rejected?: string[] | undefined;
+
+    constructor(data?: IOuraCollectionTally) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.collection = _data["collection"];
+            this.received = _data["received"];
+            this.stored = _data["stored"];
+            if (Array.isArray(_data["rejected"])) {
+                this.rejected = [] as any;
+                for (let item of _data["rejected"])
+                    this.rejected!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): OuraCollectionTally {
+        data = typeof data === 'object' ? data : {};
+        let result = new OuraCollectionTally();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["collection"] = this.collection;
+        data["received"] = this.received;
+        data["stored"] = this.stored;
+        if (Array.isArray(this.rejected)) {
+            data["rejected"] = [];
+            for (let item of this.rejected)
+                data["rejected"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IOuraCollectionTally {
+    collection?: string | undefined;
+    received?: number;
+    stored?: number;
+    rejected?: string[] | undefined;
+}
+
+export class OuraDayView implements IOuraDayView {
+    day?: Date;
+    activity?: DailyActivityReading;
+    readiness?: DailyReadinessReading;
+    sleep?: DailySleepReading;
+    spo2?: DailySpo2Reading;
+    stress?: DailyStressReading;
+    resilience?: DailyResilienceReading;
+
+    constructor(data?: IOuraDayView) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.day = _data["day"] ? new Date(_data["day"].toString()) : <any>undefined;
+            this.activity = _data["activity"] ? DailyActivityReading.fromJS(_data["activity"]) : <any>undefined;
+            this.readiness = _data["readiness"] ? DailyReadinessReading.fromJS(_data["readiness"]) : <any>undefined;
+            this.sleep = _data["sleep"] ? DailySleepReading.fromJS(_data["sleep"]) : <any>undefined;
+            this.spo2 = _data["spo2"] ? DailySpo2Reading.fromJS(_data["spo2"]) : <any>undefined;
+            this.stress = _data["stress"] ? DailyStressReading.fromJS(_data["stress"]) : <any>undefined;
+            this.resilience = _data["resilience"] ? DailyResilienceReading.fromJS(_data["resilience"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): OuraDayView {
+        data = typeof data === 'object' ? data : {};
+        let result = new OuraDayView();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["day"] = this.day ? formatDate(this.day) : <any>undefined;
+        data["activity"] = this.activity ? this.activity.toJSON() : <any>undefined;
+        data["readiness"] = this.readiness ? this.readiness.toJSON() : <any>undefined;
+        data["sleep"] = this.sleep ? this.sleep.toJSON() : <any>undefined;
+        data["spo2"] = this.spo2 ? this.spo2.toJSON() : <any>undefined;
+        data["stress"] = this.stress ? this.stress.toJSON() : <any>undefined;
+        data["resilience"] = this.resilience ? this.resilience.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IOuraDayView {
+    day?: Date;
+    activity?: DailyActivityReading;
+    readiness?: DailyReadinessReading;
+    sleep?: DailySleepReading;
+    spo2?: DailySpo2Reading;
+    stress?: DailyStressReading;
+    resilience?: DailyResilienceReading;
+}
+
+export class OuraSampleSeries implements IOuraSampleSeries {
+    intervalSeconds?: number;
+    samples?: (number | undefined)[] | undefined;
+    startedAt?: Date;
+
+    constructor(data?: IOuraSampleSeries) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.intervalSeconds = _data["intervalSeconds"];
+            if (Array.isArray(_data["samples"])) {
+                this.samples = [] as any;
+                for (let item of _data["samples"])
+                    this.samples!.push(item);
+            }
+            this.startedAt = _data["startedAt"] ? new Date(_data["startedAt"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): OuraSampleSeries {
+        data = typeof data === 'object' ? data : {};
+        let result = new OuraSampleSeries();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["intervalSeconds"] = this.intervalSeconds;
+        if (Array.isArray(this.samples)) {
+            data["samples"] = [];
+            for (let item of this.samples)
+                data["samples"].push(item);
+        }
+        data["startedAt"] = this.startedAt ? this.startedAt.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IOuraSampleSeries {
+    intervalSeconds?: number;
+    samples?: (number | undefined)[] | undefined;
+    startedAt?: Date;
+}
+
+export class OuraSyncReport implements IOuraSyncReport {
+    range?: DayRange;
+    collections?: OuraCollectionTally[] | undefined;
+    readonly stored?: number;
+    readonly rejected?: number;
+
+    constructor(data?: IOuraSyncReport) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.range = _data["range"] ? DayRange.fromJS(_data["range"]) : <any>undefined;
+            if (Array.isArray(_data["collections"])) {
+                this.collections = [] as any;
+                for (let item of _data["collections"])
+                    this.collections!.push(OuraCollectionTally.fromJS(item));
+            }
+            (<any>this).stored = _data["stored"];
+            (<any>this).rejected = _data["rejected"];
+        }
+    }
+
+    static fromJS(data: any): OuraSyncReport {
+        data = typeof data === 'object' ? data : {};
+        let result = new OuraSyncReport();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["range"] = this.range ? this.range.toJSON() : <any>undefined;
+        if (Array.isArray(this.collections)) {
+            data["collections"] = [];
+            for (let item of this.collections)
+                data["collections"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["stored"] = this.stored;
+        data["rejected"] = this.rejected;
+        return data;
+    }
+}
+
+export interface IOuraSyncReport {
+    range?: DayRange;
+    collections?: OuraCollectionTally[] | undefined;
+    stored?: number;
+    rejected?: number;
 }
 
 export class ParsedInterpretation implements IParsedInterpretation {
@@ -11215,19 +11957,18 @@ export enum Provenance {
     _1 = 1,
 }
 
-export class ReadinessData implements IReadinessData {
-    readinessScore?: number;
-    temperatureDeviation?: number;
-    activityBalance?: number;
-    bodyTemperature?: number;
-    hrvBalance?: number;
-    previousDayActivity?: number;
-    previousNight?: number;
-    recoveryIndex?: number;
-    restingHeartRate?: number;
-    sleepBalance?: number;
+export class ReadinessContributors implements IReadinessContributors {
+    activityBalance?: number | undefined;
+    bodyTemperature?: number | undefined;
+    hrvBalance?: number | undefined;
+    previousDayActivity?: number | undefined;
+    previousNight?: number | undefined;
+    recoveryIndex?: number | undefined;
+    restingHeartRate?: number | undefined;
+    sleepBalance?: number | undefined;
+    sleepRegularity?: number | undefined;
 
-    constructor(data?: IReadinessData) {
+    constructor(data?: IReadinessContributors) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -11238,8 +11979,6 @@ export class ReadinessData implements IReadinessData {
 
     init(_data?: any) {
         if (_data) {
-            this.readinessScore = _data["readinessScore"];
-            this.temperatureDeviation = _data["temperatureDeviation"];
             this.activityBalance = _data["activityBalance"];
             this.bodyTemperature = _data["bodyTemperature"];
             this.hrvBalance = _data["hrvBalance"];
@@ -11248,20 +11987,19 @@ export class ReadinessData implements IReadinessData {
             this.recoveryIndex = _data["recoveryIndex"];
             this.restingHeartRate = _data["restingHeartRate"];
             this.sleepBalance = _data["sleepBalance"];
+            this.sleepRegularity = _data["sleepRegularity"];
         }
     }
 
-    static fromJS(data: any): ReadinessData {
+    static fromJS(data: any): ReadinessContributors {
         data = typeof data === 'object' ? data : {};
-        let result = new ReadinessData();
+        let result = new ReadinessContributors();
         result.init(data);
         return result;
     }
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["readinessScore"] = this.readinessScore;
-        data["temperatureDeviation"] = this.temperatureDeviation;
         data["activityBalance"] = this.activityBalance;
         data["bodyTemperature"] = this.bodyTemperature;
         data["hrvBalance"] = this.hrvBalance;
@@ -11270,21 +12008,21 @@ export class ReadinessData implements IReadinessData {
         data["recoveryIndex"] = this.recoveryIndex;
         data["restingHeartRate"] = this.restingHeartRate;
         data["sleepBalance"] = this.sleepBalance;
+        data["sleepRegularity"] = this.sleepRegularity;
         return data;
     }
 }
 
-export interface IReadinessData {
-    readinessScore?: number;
-    temperatureDeviation?: number;
-    activityBalance?: number;
-    bodyTemperature?: number;
-    hrvBalance?: number;
-    previousDayActivity?: number;
-    previousNight?: number;
-    recoveryIndex?: number;
-    restingHeartRate?: number;
-    sleepBalance?: number;
+export interface IReadinessContributors {
+    activityBalance?: number | undefined;
+    bodyTemperature?: number | undefined;
+    hrvBalance?: number | undefined;
+    previousDayActivity?: number | undefined;
+    previousNight?: number | undefined;
+    recoveryIndex?: number | undefined;
+    restingHeartRate?: number | undefined;
+    sleepBalance?: number | undefined;
+    sleepRegularity?: number | undefined;
 }
 
 export class ReferenceChoice implements IReferenceChoice {
@@ -11580,13 +12318,12 @@ export interface IResetPasswordRequest {
     newPassword: string | undefined;
 }
 
-export class ResilienceData implements IResilienceData {
-    sleepRecovery?: number;
-    daytimeRecovery?: number;
-    stress?: number;
-    resilienceLevel?: string | undefined;
+export class ResilienceContributors implements IResilienceContributors {
+    sleepRecovery?: number | undefined;
+    daytimeRecovery?: number | undefined;
+    stress?: number | undefined;
 
-    constructor(data?: IResilienceData) {
+    constructor(data?: IResilienceContributors) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -11600,13 +12337,12 @@ export class ResilienceData implements IResilienceData {
             this.sleepRecovery = _data["sleepRecovery"];
             this.daytimeRecovery = _data["daytimeRecovery"];
             this.stress = _data["stress"];
-            this.resilienceLevel = _data["resilienceLevel"];
         }
     }
 
-    static fromJS(data: any): ResilienceData {
+    static fromJS(data: any): ResilienceContributors {
         data = typeof data === 'object' ? data : {};
-        let result = new ResilienceData();
+        let result = new ResilienceContributors();
         result.init(data);
         return result;
     }
@@ -11616,16 +12352,14 @@ export class ResilienceData implements IResilienceData {
         data["sleepRecovery"] = this.sleepRecovery;
         data["daytimeRecovery"] = this.daytimeRecovery;
         data["stress"] = this.stress;
-        data["resilienceLevel"] = this.resilienceLevel;
         return data;
     }
 }
 
-export interface IResilienceData {
-    sleepRecovery?: number;
-    daytimeRecovery?: number;
-    stress?: number;
-    resilienceLevel?: string | undefined;
+export interface IResilienceContributors {
+    sleepRecovery?: number | undefined;
+    daytimeRecovery?: number | undefined;
+    stress?: number | undefined;
 }
 
 export class Rpe implements IRpe {
@@ -11704,6 +12438,110 @@ export interface ISessionNotesRequest {
     notes?: string | undefined;
 }
 
+export class SessionReading implements ISessionReading {
+    period?: Instant | undefined;
+    kind?: string | undefined;
+    mood?: string | undefined;
+    heartRate?: OuraSampleSeries;
+    hrv?: OuraSampleSeries;
+    motionCount?: OuraSampleSeries;
+
+    constructor(data?: ISessionReading) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.period = _data["period"] ? Instant.fromJS(_data["period"]) : <any>undefined;
+            this.kind = _data["kind"];
+            this.mood = _data["mood"];
+            this.heartRate = _data["heartRate"] ? OuraSampleSeries.fromJS(_data["heartRate"]) : <any>undefined;
+            this.hrv = _data["hrv"] ? OuraSampleSeries.fromJS(_data["hrv"]) : <any>undefined;
+            this.motionCount = _data["motionCount"] ? OuraSampleSeries.fromJS(_data["motionCount"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): SessionReading {
+        data = typeof data === 'object' ? data : {};
+        let result = new SessionReading();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["period"] = this.period ? this.period.toJSON() : <any>undefined;
+        data["kind"] = this.kind;
+        data["mood"] = this.mood;
+        data["heartRate"] = this.heartRate ? this.heartRate.toJSON() : <any>undefined;
+        data["hrv"] = this.hrv ? this.hrv.toJSON() : <any>undefined;
+        data["motionCount"] = this.motionCount ? this.motionCount.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface ISessionReading {
+    period?: Instant | undefined;
+    kind?: string | undefined;
+    mood?: string | undefined;
+    heartRate?: OuraSampleSeries;
+    hrv?: OuraSampleSeries;
+    motionCount?: OuraSampleSeries;
+}
+
+export class SessionReadingOuraEventView implements ISessionReadingOuraEventView {
+    ouraId?: string;
+    day?: Date;
+    period?: Instant | undefined;
+    reading?: SessionReading;
+
+    constructor(data?: ISessionReadingOuraEventView) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.ouraId = _data["ouraId"];
+            this.day = _data["day"] ? new Date(_data["day"].toString()) : <any>undefined;
+            this.period = _data["period"] ? Instant.fromJS(_data["period"]) : <any>undefined;
+            this.reading = _data["reading"] ? SessionReading.fromJS(_data["reading"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): SessionReadingOuraEventView {
+        data = typeof data === 'object' ? data : {};
+        let result = new SessionReadingOuraEventView();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["ouraId"] = this.ouraId;
+        data["day"] = this.day ? formatDate(this.day) : <any>undefined;
+        data["period"] = this.period ? this.period.toJSON() : <any>undefined;
+        data["reading"] = this.reading ? this.reading.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface ISessionReadingOuraEventView {
+    ouraId?: string;
+    day?: Date;
+    period?: Instant | undefined;
+    reading?: SessionReading;
+}
+
 export class SkippedSessionView extends TrainingSessionView implements ISkippedSessionView {
     plannedFor?: Date;
 
@@ -11738,17 +12576,16 @@ export interface ISkippedSessionView extends ITrainingSessionView {
     plannedFor?: Date;
 }
 
-export class SleepData implements ISleepData {
-    sleepScore?: number;
-    deepSleep?: number;
-    efficiency?: number;
-    latency?: number;
-    remSleep?: number;
-    restfulness?: number;
-    timing?: number;
-    totalSleep?: number;
+export class SleepContributors implements ISleepContributors {
+    deepSleep?: number | undefined;
+    efficiency?: number | undefined;
+    latency?: number | undefined;
+    remSleep?: number | undefined;
+    restfulness?: number | undefined;
+    timing?: number | undefined;
+    totalSleep?: number | undefined;
 
-    constructor(data?: ISleepData) {
+    constructor(data?: ISleepContributors) {
         if (data) {
             for (var property in data) {
                 if (data.hasOwnProperty(property))
@@ -11759,7 +12596,6 @@ export class SleepData implements ISleepData {
 
     init(_data?: any) {
         if (_data) {
-            this.sleepScore = _data["sleepScore"];
             this.deepSleep = _data["deepSleep"];
             this.efficiency = _data["efficiency"];
             this.latency = _data["latency"];
@@ -11770,16 +12606,15 @@ export class SleepData implements ISleepData {
         }
     }
 
-    static fromJS(data: any): SleepData {
+    static fromJS(data: any): SleepContributors {
         data = typeof data === 'object' ? data : {};
-        let result = new SleepData();
+        let result = new SleepContributors();
         result.init(data);
         return result;
     }
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        data["sleepScore"] = this.sleepScore;
         data["deepSleep"] = this.deepSleep;
         data["efficiency"] = this.efficiency;
         data["latency"] = this.latency;
@@ -11791,15 +12626,190 @@ export class SleepData implements ISleepData {
     }
 }
 
-export interface ISleepData {
-    sleepScore?: number;
-    deepSleep?: number;
+export interface ISleepContributors {
+    deepSleep?: number | undefined;
+    efficiency?: number | undefined;
+    latency?: number | undefined;
+    remSleep?: number | undefined;
+    restfulness?: number | undefined;
+    timing?: number | undefined;
+    totalSleep?: number | undefined;
+}
+
+export class SleepPeriodReading implements ISleepPeriodReading {
+    period?: Instant | undefined;
+    kind?: string | undefined;
+    periodIndex?: number;
+    timeInBedSeconds?: number;
+    totalSleepSeconds?: number;
+    deepSleepSeconds?: number;
+    lightSleepSeconds?: number;
+    remSleepSeconds?: number;
+    awakeSeconds?: number;
+    latencySeconds?: number;
     efficiency?: number;
-    latency?: number;
-    remSleep?: number;
-    restfulness?: number;
-    timing?: number;
-    totalSleep?: number;
+    restlessPeriods?: number;
+    averageHeartRate?: number | undefined;
+    lowestHeartRate?: number | undefined;
+    averageHrv?: number | undefined;
+    averageBreath?: number | undefined;
+    readinessScoreDelta?: number | undefined;
+    sleepScoreDelta?: number | undefined;
+    algorithmVersion?: string | undefined;
+    analysisReason?: string | undefined;
+    hypnogram?: string | undefined;
+    heartRate?: OuraSampleSeries;
+    hrv?: OuraSampleSeries;
+    readonly isMainSleep?: boolean;
+
+    constructor(data?: ISleepPeriodReading) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.period = _data["period"] ? Instant.fromJS(_data["period"]) : <any>undefined;
+            this.kind = _data["kind"];
+            this.periodIndex = _data["periodIndex"];
+            this.timeInBedSeconds = _data["timeInBedSeconds"];
+            this.totalSleepSeconds = _data["totalSleepSeconds"];
+            this.deepSleepSeconds = _data["deepSleepSeconds"];
+            this.lightSleepSeconds = _data["lightSleepSeconds"];
+            this.remSleepSeconds = _data["remSleepSeconds"];
+            this.awakeSeconds = _data["awakeSeconds"];
+            this.latencySeconds = _data["latencySeconds"];
+            this.efficiency = _data["efficiency"];
+            this.restlessPeriods = _data["restlessPeriods"];
+            this.averageHeartRate = _data["averageHeartRate"];
+            this.lowestHeartRate = _data["lowestHeartRate"];
+            this.averageHrv = _data["averageHrv"];
+            this.averageBreath = _data["averageBreath"];
+            this.readinessScoreDelta = _data["readinessScoreDelta"];
+            this.sleepScoreDelta = _data["sleepScoreDelta"];
+            this.algorithmVersion = _data["algorithmVersion"];
+            this.analysisReason = _data["analysisReason"];
+            this.hypnogram = _data["hypnogram"];
+            this.heartRate = _data["heartRate"] ? OuraSampleSeries.fromJS(_data["heartRate"]) : <any>undefined;
+            this.hrv = _data["hrv"] ? OuraSampleSeries.fromJS(_data["hrv"]) : <any>undefined;
+            (<any>this).isMainSleep = _data["isMainSleep"];
+        }
+    }
+
+    static fromJS(data: any): SleepPeriodReading {
+        data = typeof data === 'object' ? data : {};
+        let result = new SleepPeriodReading();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["period"] = this.period ? this.period.toJSON() : <any>undefined;
+        data["kind"] = this.kind;
+        data["periodIndex"] = this.periodIndex;
+        data["timeInBedSeconds"] = this.timeInBedSeconds;
+        data["totalSleepSeconds"] = this.totalSleepSeconds;
+        data["deepSleepSeconds"] = this.deepSleepSeconds;
+        data["lightSleepSeconds"] = this.lightSleepSeconds;
+        data["remSleepSeconds"] = this.remSleepSeconds;
+        data["awakeSeconds"] = this.awakeSeconds;
+        data["latencySeconds"] = this.latencySeconds;
+        data["efficiency"] = this.efficiency;
+        data["restlessPeriods"] = this.restlessPeriods;
+        data["averageHeartRate"] = this.averageHeartRate;
+        data["lowestHeartRate"] = this.lowestHeartRate;
+        data["averageHrv"] = this.averageHrv;
+        data["averageBreath"] = this.averageBreath;
+        data["readinessScoreDelta"] = this.readinessScoreDelta;
+        data["sleepScoreDelta"] = this.sleepScoreDelta;
+        data["algorithmVersion"] = this.algorithmVersion;
+        data["analysisReason"] = this.analysisReason;
+        data["hypnogram"] = this.hypnogram;
+        data["heartRate"] = this.heartRate ? this.heartRate.toJSON() : <any>undefined;
+        data["hrv"] = this.hrv ? this.hrv.toJSON() : <any>undefined;
+        data["isMainSleep"] = this.isMainSleep;
+        return data;
+    }
+}
+
+export interface ISleepPeriodReading {
+    period?: Instant | undefined;
+    kind?: string | undefined;
+    periodIndex?: number;
+    timeInBedSeconds?: number;
+    totalSleepSeconds?: number;
+    deepSleepSeconds?: number;
+    lightSleepSeconds?: number;
+    remSleepSeconds?: number;
+    awakeSeconds?: number;
+    latencySeconds?: number;
+    efficiency?: number;
+    restlessPeriods?: number;
+    averageHeartRate?: number | undefined;
+    lowestHeartRate?: number | undefined;
+    averageHrv?: number | undefined;
+    averageBreath?: number | undefined;
+    readinessScoreDelta?: number | undefined;
+    sleepScoreDelta?: number | undefined;
+    algorithmVersion?: string | undefined;
+    analysisReason?: string | undefined;
+    hypnogram?: string | undefined;
+    heartRate?: OuraSampleSeries;
+    hrv?: OuraSampleSeries;
+    isMainSleep?: boolean;
+}
+
+export class SleepPeriodReadingOuraEventView implements ISleepPeriodReadingOuraEventView {
+    ouraId?: string;
+    day?: Date;
+    period?: Instant | undefined;
+    reading?: SleepPeriodReading;
+
+    constructor(data?: ISleepPeriodReadingOuraEventView) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.ouraId = _data["ouraId"];
+            this.day = _data["day"] ? new Date(_data["day"].toString()) : <any>undefined;
+            this.period = _data["period"] ? Instant.fromJS(_data["period"]) : <any>undefined;
+            this.reading = _data["reading"] ? SleepPeriodReading.fromJS(_data["reading"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): SleepPeriodReadingOuraEventView {
+        data = typeof data === 'object' ? data : {};
+        let result = new SleepPeriodReadingOuraEventView();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["ouraId"] = this.ouraId;
+        data["day"] = this.day ? formatDate(this.day) : <any>undefined;
+        data["period"] = this.period ? this.period.toJSON() : <any>undefined;
+        data["reading"] = this.reading ? this.reading.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface ISleepPeriodReadingOuraEventView {
+    ouraId?: string;
+    day?: Date;
+    period?: Instant | undefined;
+    reading?: SleepPeriodReading;
 }
 
 export class StartSessionRequest implements IStartSessionRequest {
@@ -11908,6 +12918,106 @@ export class StateContextView extends ContextView implements IStateContextView {
 }
 
 export interface IStateContextView extends IContextView {
+}
+
+export class TagReading implements ITagReading {
+    period?: Instant | undefined;
+    codes?: string[] | undefined;
+    text?: string | undefined;
+
+    constructor(data?: ITagReading) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.period = _data["period"] ? Instant.fromJS(_data["period"]) : <any>undefined;
+            if (Array.isArray(_data["codes"])) {
+                this.codes = [] as any;
+                for (let item of _data["codes"])
+                    this.codes!.push(item);
+            }
+            this.text = _data["text"];
+        }
+    }
+
+    static fromJS(data: any): TagReading {
+        data = typeof data === 'object' ? data : {};
+        let result = new TagReading();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["period"] = this.period ? this.period.toJSON() : <any>undefined;
+        if (Array.isArray(this.codes)) {
+            data["codes"] = [];
+            for (let item of this.codes)
+                data["codes"].push(item);
+        }
+        data["text"] = this.text;
+        return data;
+    }
+}
+
+export interface ITagReading {
+    period?: Instant | undefined;
+    codes?: string[] | undefined;
+    text?: string | undefined;
+}
+
+export class TagReadingOuraEventView implements ITagReadingOuraEventView {
+    ouraId?: string;
+    day?: Date;
+    period?: Instant | undefined;
+    reading?: TagReading;
+
+    constructor(data?: ITagReadingOuraEventView) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.ouraId = _data["ouraId"];
+            this.day = _data["day"] ? new Date(_data["day"].toString()) : <any>undefined;
+            this.period = _data["period"] ? Instant.fromJS(_data["period"]) : <any>undefined;
+            this.reading = _data["reading"] ? TagReading.fromJS(_data["reading"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): TagReadingOuraEventView {
+        data = typeof data === 'object' ? data : {};
+        let result = new TagReadingOuraEventView();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["ouraId"] = this.ouraId;
+        data["day"] = this.day ? formatDate(this.day) : <any>undefined;
+        data["period"] = this.period ? this.period.toJSON() : <any>undefined;
+        data["reading"] = this.reading ? this.reading.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface ITagReadingOuraEventView {
+    ouraId?: string;
+    day?: Date;
+    period?: Instant | undefined;
+    reading?: TagReading;
 }
 
 export class Texted extends Utterance implements ITexted {
@@ -12597,6 +13707,114 @@ export interface IWellnessState {
     moodScore?: number;
     energyScore?: number;
     overallScore?: number;
+}
+
+export class WorkoutReading implements IWorkoutReading {
+    period?: Instant | undefined;
+    activity?: string | undefined;
+    intensity?: string | undefined;
+    source?: string | undefined;
+    label?: string | undefined;
+    calories?: number | undefined;
+    distanceMeters?: number | undefined;
+
+    constructor(data?: IWorkoutReading) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.period = _data["period"] ? Instant.fromJS(_data["period"]) : <any>undefined;
+            this.activity = _data["activity"];
+            this.intensity = _data["intensity"];
+            this.source = _data["source"];
+            this.label = _data["label"];
+            this.calories = _data["calories"];
+            this.distanceMeters = _data["distanceMeters"];
+        }
+    }
+
+    static fromJS(data: any): WorkoutReading {
+        data = typeof data === 'object' ? data : {};
+        let result = new WorkoutReading();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["period"] = this.period ? this.period.toJSON() : <any>undefined;
+        data["activity"] = this.activity;
+        data["intensity"] = this.intensity;
+        data["source"] = this.source;
+        data["label"] = this.label;
+        data["calories"] = this.calories;
+        data["distanceMeters"] = this.distanceMeters;
+        return data;
+    }
+}
+
+export interface IWorkoutReading {
+    period?: Instant | undefined;
+    activity?: string | undefined;
+    intensity?: string | undefined;
+    source?: string | undefined;
+    label?: string | undefined;
+    calories?: number | undefined;
+    distanceMeters?: number | undefined;
+}
+
+export class WorkoutReadingOuraEventView implements IWorkoutReadingOuraEventView {
+    ouraId?: string;
+    day?: Date;
+    period?: Instant | undefined;
+    reading?: WorkoutReading;
+
+    constructor(data?: IWorkoutReadingOuraEventView) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.ouraId = _data["ouraId"];
+            this.day = _data["day"] ? new Date(_data["day"].toString()) : <any>undefined;
+            this.period = _data["period"] ? Instant.fromJS(_data["period"]) : <any>undefined;
+            this.reading = _data["reading"] ? WorkoutReading.fromJS(_data["reading"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): WorkoutReadingOuraEventView {
+        data = typeof data === 'object' ? data : {};
+        let result = new WorkoutReadingOuraEventView();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["ouraId"] = this.ouraId;
+        data["day"] = this.day ? formatDate(this.day) : <any>undefined;
+        data["period"] = this.period ? this.period.toJSON() : <any>undefined;
+        data["reading"] = this.reading ? this.reading.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IWorkoutReadingOuraEventView {
+    ouraId?: string;
+    day?: Date;
+    period?: Instant | undefined;
+    reading?: WorkoutReading;
 }
 
 function formatDate(d: Date) {

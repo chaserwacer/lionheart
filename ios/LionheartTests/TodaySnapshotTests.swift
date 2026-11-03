@@ -15,16 +15,19 @@ struct TodaySnapshotTests {
     @Test("The most recent Oura day with a reading is the one shown")
     func theLatestReadingWins() throws {
         let days = try Decoding.list(OuraDay.self, """
-            [\(Oura.day(date: "2026-03-01", readinessScore: 61)),
-             \(Oura.day(date: "2026-03-03", readinessScore: 88)),
-             \(Oura.day(date: "2026-03-02", readinessScore: 74))]
+            [\(Oura.day(date: "2026-03-01", readinessScore: "61")),
+             \(Oura.day(date: "2026-03-03", readinessScore: "88")),
+             \(Oura.day(date: "2026-03-02", readinessScore: "74"))]
             """)
 
         let reading = TodaySnapshot.latestReadiness(in: days)
 
         #expect(reading?.day == CalendarDay(year: 2026, month: 3, day: 3))
         #expect(reading?.score == 88)
-        #expect(reading?.restingHeartRate == 48)
+        // Both balances are contributor scores out of 100, which is what these numbers have
+        // always been — the earlier name said "resting heart rate" and meant this.
+        #expect(reading?.restingHeartRateBalance == 81)
+        #expect(reading?.hrvBalance == 72)
     }
 
     @Test("A day with no readiness panel is not a reading")
@@ -34,26 +37,36 @@ struct TodaySnapshotTests {
         #expect(TodaySnapshot.latestReadiness(in: days) == nil)
     }
 
-    @Test("A readiness of zero is a row without the panel, not a terrible night")
-    func aZeroScoreIsNotShownAsARecoveryReading() throws {
-        // The per-date Oura route synthesizes a placeholder with a zero score when a day has no
-        // data. Rendering that as "readiness 0, pay attention" would be a lie the athlete could
-        // train on, so the latest *real* reading is shown instead.
+    @Test("A readiness of zero is a score Oura issued, and is shown as one")
+    func aZeroScoreIsRealData() throws {
+        // The server no longer synthesizes a placeholder for a day it holds nothing for — such a
+        // day is absent from the range entirely. So a zero that does arrive came from Oura, and
+        // skipping past it would be the client hiding the athlete's own worst reading.
         let days = try Decoding.list(OuraDay.self, """
-            [\(Oura.day(date: "2026-03-02", readinessScore: 74)),
-             \(Oura.day(date: "2026-03-03", readinessScore: 0))]
+            [\(Oura.day(date: "2026-03-02", readinessScore: "74")),
+             \(Oura.day(date: "2026-03-03", readinessScore: "0"))]
             """)
 
         let reading = TodaySnapshot.latestReadiness(in: days)
 
-        #expect(reading?.day == CalendarDay(year: 2026, month: 3, day: 2))
-        #expect(reading?.score == 74)
+        #expect(reading?.day == CalendarDay(year: 2026, month: 3, day: 3))
+        #expect(reading?.score == 0)
     }
 
-    @Test("A sleep score of zero is absent rather than shown as nought")
-    func aZeroSleepScoreIsAbsent() throws {
+    @Test("A readiness Oura filed without a score is not a reading")
+    func aScorelessReadinessIsNotAReading() throws {
+        // Every number in the collection is independently nullable, so a readiness document with
+        // no score is a real shape — and it is nothing to put a gauge on.
         let days = try Decoding.list(
-            OuraDay.self, "[\(Oura.day(date: "2026-03-03", readinessScore: 80, sleepScore: 0))]")
+            OuraDay.self, "[\(Oura.day(date: "2026-03-03", readinessScore: "null"))]")
+
+        #expect(TodaySnapshot.latestReadiness(in: days) == nil)
+    }
+
+    @Test("A sleep score Oura did not send stays absent rather than being invented")
+    func anAbsentSleepScoreStaysAbsent() throws {
+        let days = try Decoding.list(
+            OuraDay.self, "[\(Oura.day(date: "2026-03-03", sleepScore: "null"))]")
 
         #expect(TodaySnapshot.latestReadiness(in: days)?.sleepScore == nil)
     }
@@ -69,7 +82,8 @@ struct TodaySnapshotTests {
                     (84, .good), (85, .optimal), (100, .optimal)])
     func readinessBandsFollowOura(score: Int, expected: ReadinessReading.Band) {
         let reading = ReadinessReading(
-            day: Self.today, score: score, restingHeartRate: 50, hrvBalance: 70, sleepScore: nil)
+            day: Self.today, score: score, restingHeartRateBalance: 50, hrvBalance: 70,
+            sleepScore: nil)
 
         #expect(reading.band == expected)
     }
@@ -167,7 +181,7 @@ struct TodaySnapshotTests {
              \(Session.planned(id: "cccccccc-0000-0000-0000-000000000002", date: "2026-03-06")),
              \(Session.active(id: "cccccccc-0000-0000-0000-000000000003", date: "2026-03-04"))]
             """)
-        let days = try Decoding.list(OuraDay.self, "[\(Oura.day(date: "2026-03-04", readinessScore: 79))]")
+        let days = try Decoding.list(OuraDay.self, "[\(Oura.day(date: "2026-03-04", readinessScore: "79"))]")
 
         let snapshot = TodaySnapshot.reading(sessions: sessions, ouraDays: days, today: Self.today)
 

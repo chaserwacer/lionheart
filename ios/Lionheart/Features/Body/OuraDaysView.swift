@@ -61,19 +61,19 @@ struct OuraDaysView: View {
         }
     }
 
-    /// Readiness and sleep as one charted series set, dropping the zeroes.
+    /// Readiness and sleep as one charted series set.
     ///
-    /// A zero score is a row stored without that panel rather than a terrible night — Oura does
-    /// not issue a readiness of nought — which is the same rule `TodaySnapshot.latestReadiness`
-    /// applies, and for the same reason.
+    /// A day with no score for a measure contributes no point for it, so the line breaks where the
+    /// ring was off rather than diving to the axis. Every score the server sent is plotted,
+    /// including a zero: absence is the server's answer for absence, so a zero is one Oura issued.
     static func scorePoints(in days: [OuraDay]) -> [ScorePoint] {
         days.flatMap { day -> [ScorePoint] in
             var points: [ScorePoint] = []
-            if let readiness = day.readiness, readiness.score > 0 {
-                points.append(ScorePoint(day: day.date, measure: "Readiness", score: readiness.score))
+            if let score = day.readiness?.score {
+                points.append(ScorePoint(day: day.date, measure: "Readiness", score: score))
             }
-            if let sleep = day.sleep, sleep.score > 0 {
-                points.append(ScorePoint(day: day.date, measure: "Sleep", score: sleep.score))
+            if let score = day.sleep?.score {
+                points.append(ScorePoint(day: day.date, measure: "Sleep", score: score))
             }
             return points
         }
@@ -100,7 +100,9 @@ private struct OuraDayRow: View {
             Text(Formatting.day(RelativeDay.of(day.date, today: today)))
                 .font(.headline)
             if scores.isEmpty {
-                Text("Stored with no scores on it")
+                // The common case for today: the ring has filed something, and Oura issues the
+                // day's scores later. The day still opens, because what it did file is on it.
+                Text("Recorded, but not scored")
                     .font(.subheadline)
                     .foregroundStyle(Color(.secondaryLabel))
             } else {
@@ -113,10 +115,12 @@ private struct OuraDayRow: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// The scored collections the day carries. A collection without a score — stress, blood
+    /// oxygen, resilience — contributes nothing to this line; it is not missing, it simply has
+    /// measurements rather than a score, and the day's own screen shows them.
     private var scores: [String] {
         OuraPanel.panels(of: day).compactMap { panel in
-            guard let score = panel.score, score > 0 else { return nil }
-            return "\(panel.title) \(score)"
+            panel.score.map { "\(panel.title) \($0)" }
         }
     }
 }
