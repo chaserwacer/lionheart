@@ -15,6 +15,7 @@ struct HabitsView: View {
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
     @ScaledMetric(relativeTo: .body) private var smallChartHeight: CGFloat = 64
     private let barWidth: CGFloat = 9
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     enum DayKind: Hashable, CaseIterable {
         case weekdays, weekends
@@ -92,7 +93,38 @@ struct HabitsView: View {
 
     // MARK: - Against the span before
 
+    @ViewBuilder
     private func comparisonSection(_ report: HabitsReport) -> some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            // Two figure columns cannot hold at these sizes; each measure stacks its two spans.
+            Section {
+                ForEach(HabitsComparison.of(report)) { row in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.measure.name)
+                        stackedLine("Weekdays", row.weekdays, row.measure)
+                        stackedLine("Weekends", row.weekends, row.measure)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            } header: {
+                Text("Mean day")
+            } footer: {
+                Text(comparisonFooter(report))
+            }
+        } else {
+            comparisonTable(report)
+        }
+    }
+
+    private func stackedLine(_ label: String, _ comparison: SpanComparison, _ measure: HabitsComparison.Measure) -> some View {
+        let value = comparison.recent.map { Self.text($0, measure) } ?? "—"
+        let change = comparison.change.map { " (\(Self.changeText($0, measure)))" } ?? ""
+        return Text("\(label) \(value)\(change)")
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(HabitsComparison.isWorse(comparison, measure.polarity) ? .orange : Color(.secondaryLabel))
+    }
+
+    private func comparisonTable(_ report: HabitsReport) -> some View {
         Section {
             Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 8) {
                 GridRow {

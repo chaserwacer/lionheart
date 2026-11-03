@@ -196,9 +196,13 @@ and Oura's fitness estimates; design in `docs/oura-integration.md` → "The card
 reports". The report carries `maxHeartRate` (`$type` `agePredicted` | `observed`, or null with no
 usable age), `sessions` (each with a `source` — `$type` `ringWorkout` | `loggedSession` — and a
 `heartRate` — `$type` `recorded` | `notRecorded`), one `weeks` entry per Monday-to-Sunday week the
-range touches, empty weeks included, the `vo2Max`, `cardiovascularAge` and `restingHeartRate`
-series, `aerobicBase` (the last four weeks against the eight before, each figure null where neither
-window has data), and `excluded` (ring workouts left out, counted by category and reason).
+range touches, empty weeks included and each with `daysInRange` so a part-week at either end reads
+as short, the `vo2Max`, `cardiovascularAge` and `restingHeartRate` series, `aerobicBase` (the last
+four weeks against the eight before, each figure null where its window has no data — zone 2 also
+when there is no maximum heart rate, or when less than half the window's session time has heart
+rate synced), and `excluded` (ring workouts left out, counted by category and `reason`:
+`sameAsLoggedRun`, `insideLoggedLifting`, `shortWalk`, `strength`, `notTraining`, `unclassified`,
+`noDuration`).
 
 ## Habits — `/api/habits`
 

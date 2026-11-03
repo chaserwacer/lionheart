@@ -121,10 +121,7 @@ public sealed class OuraSyncService : IOuraSyncService
             run, "daily_stress", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraDailyStress, ct),
         ct => CollectAsync<WireDailyResilience, OuraDailyResilience, DailyResilienceReading>(
             run, "daily_resilience", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraDailyResilience, ct),
-        ct => CollectAsync<WireVo2Max, OuraVo2Max, Vo2MaxReading>(
-            run, "vO2_max", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraVo2Max, ct),
-        ct => CollectAsync<WireDailyCardiovascularAge, OuraDailyCardiovascularAge, CardiovascularAgeReading>(
-            run, "daily_cardiovascular_age", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraDailyCardiovascularAge, ct),
+
         ct => CollectAsync<WireSleep, OuraSleepPeriod, SleepPeriodReading>(
             run, "sleep", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraSleepPeriods, ct),
         ct => CollectAsync<WireWorkout, OuraWorkout, WorkoutReading>(
@@ -133,8 +130,24 @@ public sealed class OuraSyncService : IOuraSyncService
             run, "session", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraSessions, ct),
         ct => CollectAsync<WireTag, OuraTag, TagReading>(
             run, "tag", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraTags, ct),
-        ct => _heartRate.SyncAsync(run.UserId, run.Range, run.Token, ct),
+
+        // Mapped from Oura's published schema with no recorded payload to check it against, so a
+        // refusal of the whole route — a scope the credential lacks, a page that does not parse —
+        // is reported as that collection's outcome rather than ending the run. They come last, so
+        // even a failure their reporting misses costs nothing the run had not already stored.
+        ct => CollectAsync<WireVo2Max, OuraVo2Max, Vo2MaxReading>(
+                run, "vO2_max", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraVo2Max, ct)
+            .RecoverAsync(problem => Unread("vO2_max", problem)),
+        ct => CollectAsync<WireDailyCardiovascularAge, OuraDailyCardiovascularAge, CardiovascularAgeReading>(
+                run, "daily_cardiovascular_age", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraDailyCardiovascularAge, ct)
+            .RecoverAsync(problem => Unread("daily_cardiovascular_age", problem)),
+        ct => _heartRate.SyncAsync(run.UserId, run.Range, run.Token, ct)
+            .RecoverAsync(problem => Unread(OuraHeartRateSync.Collection, problem)),
     ];
+
+    /// <summary>A collection Oura would not hand over at all, as a tally with the reason.</summary>
+    private static OuraCollectionTally Unread(string collection, Problem problem) =>
+        new(collection, Received: 0, Stored: 0, [$"the collection could not be read: {problem.Description}"]);
 
     private Task<Result<OuraCollectionTally, Problem>> CollectAsync<TWire, TDocument, TReading>(
         SyncRun run,

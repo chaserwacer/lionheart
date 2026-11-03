@@ -227,6 +227,39 @@ public class OuraSyncServiceTests : IAsyncLifetime
         Assert.Equal(0, Assert.Single(report.Collections, c => c.Collection == "heartrate").Stored);
     }
 
+    [Theory]
+    [InlineData("vO2_max")]
+    [InlineData("daily_cardiovascular_age")]
+    [InlineData("heartrate")]
+    public async Task A_schema_only_collection_Oura_refuses_is_reported_and_the_run_still_succeeds(string collection)
+    {
+        // These three are mapped from Oura's published schema with no recorded payload behind
+        // them. A credential without their scope, or a page that does not parse, must cost that
+        // collection and nothing else.
+        _api.AnswersEverythingElseEmpty()
+            .RespondsTo("sleep", FakeOuraApi.Page(string.Join(",", RecordedPayloads.Lines("sleep"))))
+            .RespondsTo(collection, "{\"detail\":\"Missing scope\"}", HttpStatusCode.Forbidden);
+
+        var report = ResultAssert.Succeeded(await Sync());
+
+        var refused = Assert.Single(report.Collections, c => c.Collection == collection);
+        Assert.Contains("could not be read", Assert.Single(refused.Rejected));
+        Assert.Equal(3, Assert.Single(report.Collections, c => c.Collection == "sleep").Stored);
+    }
+
+    [Fact]
+    public async Task A_page_that_does_not_parse_on_a_schema_only_collection_is_reported_not_fatal()
+    {
+        // A VO2max that arrives as a fraction, where the schema says integer, fails the whole page.
+        _api.AnswersEverythingElseEmpty().RespondsTo("vO2_max", FakeOuraApi.Page(
+            """{"id":"6f1b0c7e-2f6e-4f0b-9a5e-0d6f3c0b1a11","day":"2026-07-26","timestamp":"2026-07-26T07:14:00-04:00","vo2_max":46.5}"""));
+
+        var report = ResultAssert.Succeeded(await Sync());
+
+        Assert.Contains("could not be read",
+            Assert.Single(Assert.Single(report.Collections, c => c.Collection == "vO2_max").Rejected));
+    }
+
     /// <summary>One heart-rate row in Oura's documented shape (OpenAPI 1.43, PublicHeartRateRow).</summary>
     private static string Beat(string at, int bpm, string source) =>
         $$"""{"timestamp":"{{at}}","timestamp_unix":0,"bpm":{{bpm}},"source":"{{source}}"}""";

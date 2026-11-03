@@ -60,7 +60,7 @@ first and then in the code.
 | **Activity class** | What Oura called one slot of the day: non-wear, rest, inactive, low, medium or high. |
 | **Sitting** | A waking run of inactive slots and the brief rest inside them, at least 30 minutes long, ended by any slot of movement, by the ring coming off, by sleep, or by lying still. A *long* sitting is an hour or more. (A *sedentary bout* in the code.) |
 | **Lying still** | Half an hour or more of rest outside a sleep Oura scored — an unscored nap or night, or the ring on a table. Not sitting. |
-| **Complete day** | An activity day with a timeline and no more than three hours off the finger or lying still. Only complete days count toward a habits summary. |
+| **Complete day** | An activity day whose timeline covers at least 23 hours, with no more than three of them off the finger or lying still. Only complete days count toward a habits summary; today never does. |
 | **Habits report** | How the athlete's days are shaped over a span — sittings, movement and training by hour, steps, sleep timing — split into weekdays and weekends and set against the equal span before. |
 | **Heart-rate series** | Oura's all-day heart rate: samples about every five minutes, faster in workouts, each with what the ring was doing. Stored as one run per UTC day. |
 | **Cardio session** | A logged run, or a ring workout that is endurance, a sport, or a walk of 30 minutes or more, and is not inside a logged session. |

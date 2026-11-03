@@ -255,7 +255,10 @@ Two things a reader should know before trusting the pull:
   collection so the workaround stays attached to the quirk it documents.
 - **VO2max, cardiovascular age and heart rate have not run live.** They were added after the first
   live sync. Their mapping follows Oura's published schema; the first sync that includes them is
-  the check, and its `rejected` count per collection is the number to read.
+  the check, and its `rejected` count per collection is the number to read. They run last, and a
+  refusal of a whole route from any of the three — a scope the credential lacks, a page whose
+  types do not match the schema — is reported as that collection's single rejection ("the
+  collection could not be read: …") rather than ending the run.
 
 ## Should Oura days feed `AnalyzableEntry`?
 
@@ -324,7 +327,8 @@ classification, the sleep periods and the training log. A sitting is a waking ru
 and the brief rest inside them, broken by one slot of movement, by the ring coming off, by sleep,
 and by half an hour or more of rest outside a scored sleep — which in this archive is unscored
 naps, unscored nights, and whole days of the ring lying on a table with zero steps. A day counts
-toward the summaries when no more than three hours of it are unaccounted for that way. Every
+toward the summaries when its classification covers at least 23 hours — so today, still in
+progress, never does — and no more than three hours of it are unaccounted for that way. Every
 summary is weekdays, weekends and all days, for the range and for the equal span before it, so each
 figure is read against his own previous span rather than a norm.
 

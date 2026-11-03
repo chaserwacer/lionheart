@@ -31,7 +31,7 @@ public class CardioAnalysisTests
         Assert.Equal(45, session.Minutes, precision: 3);
         var excluded = Assert.Single(report.Excluded);
         Assert.Equal((WorkoutCategory.Walk, 1), (excluded.Category, excluded.Count));
-        Assert.Contains("under 30 minutes", excluded.Reason);
+        Assert.Equal(WorkoutExclusion.ShortWalk, excluded.Reason);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class CardioAnalysisTests
         var report = Build(ring: [Ring("handball", At(12, 17).AddMinutes(10), 30)], logged: [lifting]);
 
         Assert.Empty(report.Sessions);
-        Assert.Contains("lifting", Assert.Single(report.Excluded).Reason);
+        Assert.Equal(WorkoutExclusion.InsideLoggedLifting, Assert.Single(report.Excluded).Reason);
     }
 
     [Fact]
@@ -170,6 +170,37 @@ public class CardioAnalysisTests
     }
 
     [Fact]
+    public void Zone_two_is_unknown_when_most_of_a_windows_session_time_has_no_heart_rate()
+    {
+        // One 30-minute session with heart rate and a 90-minute one before the series was synced:
+        // counting only the first would read as a quarter of the zone 2 that happened.
+        var start = At(20, 7);
+        var report = Build(
+            ring: [Ring("running", start, 30), Ring("hiking", At(21, 9), 90)],
+            heartRate: Beats(start, 125, count: 6));
+
+        Assert.Null(report.AerobicBase.Zone2MinutesPerWeek.Recent);
+    }
+
+    [Fact]
+    public void Zone_two_is_unknown_rather_than_zero_with_no_maximum_to_draw_zones_from()
+    {
+        var start = At(20, 7);
+        var report = Build(ring: [Ring("running", start, 30)], heartRate: Beats(start, 125, count: 6), age: 0);
+
+        Assert.Null(report.AerobicBase.Zone2MinutesPerWeek.Recent);
+    }
+
+    [Fact]
+    public void A_week_cut_by_the_range_says_how_many_of_its_days_are_in_it()
+    {
+        var report = Build();
+
+        // October 2026 starts on a Thursday and ends on a Saturday.
+        Assert.Equal([4, 7, 7, 7, 6], report.Weeks.Select(week => week.DaysInRange));
+    }
+
+    [Fact]
     public void Zone_two_is_zero_in_a_window_with_no_cardio_at_all()
     {
         var report = Build();
@@ -194,7 +225,8 @@ public class CardioAnalysisTests
         IReadOnlyList<OuraSleepPeriod>? sleeps = null,
         int age = 20) =>
         CardioAnalysis.Build(new CardioInputs(
-            October, age, ring ?? [], logged ?? [], heartRate ?? [], [], [], sleeps ?? []));
+            October, age, CardioAnalysis.Gather(ring ?? [], logged ?? []),
+            [.. (heartRate ?? []).OrderBy(sample => sample.At)], [], [], sleeps ?? []));
 
     private static DateTimeOffset At(int day, int hour) => new(2026, 10, day, hour, 0, 0, Eastern);
 

@@ -16,6 +16,7 @@ struct CardioView: View {
 
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
     @ScaledMetric(relativeTo: .body) private var trendHeight: CGFloat = 120
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .caption) private var legendWidth: CGFloat = 72
 
     var body: some View {
@@ -73,7 +74,40 @@ struct CardioView: View {
 
     // MARK: - Aerobic base
 
+    @ViewBuilder
     private func aerobicBaseSection(_ report: CardioReport) -> some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            // Four columns cannot hold at these sizes; each figure becomes its own row instead.
+            Section {
+                ForEach(AerobicBaseFigure.of(report.aerobicBase)) { figure in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(figure.measure.name)
+                        Text(stackedLine(figure))
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(figure.direction == .worse ? .orange : Color(.secondaryLabel))
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            } header: {
+                Text("Aerobic base")
+            } footer: {
+                Text(aerobicBaseFooter(report))
+            }
+        } else {
+            aerobicBaseTable(report)
+        }
+    }
+
+    private func stackedLine(_ figure: AerobicBaseFigure) -> String {
+        let digits = digits(figure.measure)
+        func text(_ value: Double?) -> String {
+            value.map { $0.formatted(.number.precision(.fractionLength(digits))) } ?? "—"
+        }
+        let change = figure.comparison.change.map { ", \(Formatting.change($0, fractionDigits: digits))" } ?? ""
+        return "\(text(figure.comparison.recent)) \(figure.measure.unit), was \(text(figure.comparison.before))\(change)"
+    }
+
+    private func aerobicBaseTable(_ report: CardioReport) -> some View {
         Section {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
                 GridRow {
@@ -183,7 +217,9 @@ struct CardioView: View {
         }
         let shown = week.map { [$0] } ?? report.weeks
         let caption = week.map { "Week of \(Formatting.date($0.weekStarting))" } ?? "\(span.label), per week"
-        let weeks = Double(max(1, shown.count))
+        // Per week of days actually in the span, so a part-week at either end does not read as a
+        // light one.
+        let weeks = max(1, Double(shown.reduce(0) { $0 + $1.daysInRange }) / 7)
         let figures: [(label: String, value: String)] = [
             ("Sessions", Self.number(Double(shown.reduce(0) { $0 + $1.sessions }) / weeks, digits: week == nil ? 1 : 0)),
             ("Minutes", Self.number(shown.reduce(0) { $0 + $1.minutes } / weeks)),
@@ -307,7 +343,7 @@ struct CardioView: View {
         } footer: {
             if !report.excluded.isEmpty {
                 Text("Left out: " + report.excluded
-                    .map { "\($0.count) \($0.reason)" }
+                    .map { "\($0.count) \($0.reason.phrase)" }
                     .joined(separator: ", ") + ".")
             }
         }

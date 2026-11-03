@@ -119,10 +119,15 @@ public sealed class HabitsReportService : IHabitsReportService
                 ? new TrainingSpan(LoggedActivity(session), interval.Start, interval.End, IsLogged: true)
                 : null)
             .OfType<TrainingSpan>(),
-        .. CardioAnalysis.Sessions(ringWorkouts, logged)
-            .Where(session => session.Source is CardioSessionSource.RingWorkout)
-            .Select(session => new TrainingSpan(
-                ((CardioSessionSource.RingWorkout)session.Source).Activity, session.Start, session.End, IsLogged: false)),
+        .. CardioAnalysis.Gather(ringWorkouts, logged).Sessions
+            .Select(session => session.Source switch
+            {
+                CardioSessionSource.RingWorkout ring => new TrainingSpan(ring.Activity, session.Start, session.End, IsLogged: false),
+                // Already listed above, from the log itself.
+                CardioSessionSource.LoggedSession => null,
+                _ => throw new System.Diagnostics.UnreachableException(),
+            })
+            .OfType<TrainingSpan>(),
     ];
 
     /// <summary>What a logged session was, in the same camel-cased style as Oura's activity names.</summary>

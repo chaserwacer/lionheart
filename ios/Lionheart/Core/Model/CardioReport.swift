@@ -126,6 +126,8 @@ struct ZoneMinutes: Equatable, Sendable {
 
 struct CardioWeek: Equatable, Sendable, Identifiable {
     let weekStarting: CalendarDay
+    /// How many of its seven days the span covers — fewer at the span's ends.
+    let daysInRange: Int
     let sessions: Int
     let minutes: Double
     let zones: ZoneMinutes
@@ -135,10 +137,43 @@ struct CardioWeek: Equatable, Sendable, Identifiable {
 
 struct ExcludedWorkouts: Equatable, Sendable, Identifiable {
     let category: WorkoutCategory
+    let reason: Reason
     let count: Int
-    let reason: String
 
-    var id: String { reason }
+    var id: String { "\(reason)-\(category)" }
+
+    /// Why the server left a ring workout out of the sessions.
+    enum Reason: Equatable, Sendable {
+        case sameAsLoggedRun, insideLoggedLifting, shortWalk, strength, notTraining, unclassified, noDuration
+        case unrecognised(String)
+
+        init(wire: String) {
+            switch wire {
+            case "sameAsLoggedRun": self = .sameAsLoggedRun
+            case "insideLoggedLifting": self = .insideLoggedLifting
+            case "shortWalk": self = .shortWalk
+            case "strength": self = .strength
+            case "notTraining": self = .notTraining
+            case "unclassified": self = .unclassified
+            case "noDuration": self = .noDuration
+            default: self = .unrecognised(wire)
+            }
+        }
+
+        /// The reason as a phrase after a count: "330 walks under 30 minutes".
+        var phrase: String {
+            switch self {
+            case .sameAsLoggedRun: "the same session as a logged run"
+            case .insideLoggedLifting: "inside a logged lifting session"
+            case .shortWalk: "walks under 30 minutes"
+            case .strength: "strength work"
+            case .notTraining: "housework, yard work or stretching"
+            case .unclassified: "activities not yet classified"
+            case .noDuration: "with no duration"
+            case .unrecognised(let wire): wire
+            }
+        }
+    }
 }
 
 /// The last four weeks against the eight before.
@@ -310,6 +345,7 @@ extension CardioWeek: Decodable {
         }
         self.init(
             weekStarting: week,
+            daysInRange: container.lenient("daysInRange", or: 7),
             sessions: container.lenient("sessions", or: 0),
             minutes: container.lenient("minutes", or: 0),
             zones: container.lenient(ZoneMinutes.self, "zones") ?? .none)
@@ -321,8 +357,8 @@ extension ExcludedWorkouts: Decodable {
         let container = try decoder.container(keyedBy: WireKey.self)
         self.init(
             category: WorkoutCategory(wire: container.lenient("category", or: "")),
-            count: container.lenient("count", or: 0),
-            reason: container.lenient("reason", or: ""))
+            reason: Reason(wire: container.lenient("reason", or: "")),
+            count: container.lenient("count", or: 0))
     }
 }
 

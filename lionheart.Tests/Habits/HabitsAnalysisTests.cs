@@ -113,6 +113,19 @@ public class HabitsAnalysisTests
     }
 
     [Fact]
+    public void A_day_still_in_progress_does_not_count_toward_a_summary()
+    {
+        // Ten in the morning: a short classification with nothing off the finger, which would
+        // otherwise read as a day of few steps and little sitting.
+        var today = Activity(Day, new string('3', 72));
+
+        var report = HabitsAnalysis.Build(new HabitsInputs(new DayRange(Day, Day), [today], [], []));
+
+        Assert.False(Assert.Single(report.Days).IsComplete);
+        Assert.Equal(0, report.Current.AllDays.CompleteDays);
+    }
+
+    [Fact]
     public void A_day_stored_without_a_classification_is_listed_but_never_complete()
     {
         var bare = new OuraDailyActivity(Guid.NewGuid(), Athlete, Day, Reading(timeline: null));

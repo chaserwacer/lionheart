@@ -31,6 +31,17 @@ public static class HabitsAnalysis
     public const int MaximumUnaccountedSlots = 36;
 
     /// <summary>
+    /// The fewest slots a day's classification must hold to be a whole day: 23 hours.
+    /// </summary>
+    /// <remarks>
+    /// A day still in progress is a short classification with nothing off the finger, which would
+    /// otherwise count as a day with little sitting and few steps and drag the current span's means
+    /// below the previous one's. Twenty-three hours rather than twenty-four lets in the day the
+    /// clocks go forward.
+    /// </remarks>
+    public const int WholeDaySlots = 276;
+
+    /// <summary>
     /// The shortest stretch of rest outside a scored sleep that is read as lying still rather than
     /// as a quiet moment in a sitting: half an hour.
     /// </summary>
@@ -84,7 +95,7 @@ public static class HabitsAnalysis
             .OrderBy(period => period.OuraId)
             .FirstOrDefault();
         var read = Read(document, inputs.SleepPeriods, main);
-        var (startsAt, endsAt) = Bounds(document);
+        var (startsAt, endsAt) = Bounds(document, main);
 
         return new HabitsDayDetail(
             read.Figures,
@@ -114,7 +125,7 @@ public static class HabitsAnalysis
         OuraDailyActivity document, IReadOnlyList<OuraSleepPeriod> sleep, OuraSleepPeriod? mainSleep)
     {
         var reading = document.Reading;
-        var (startsAt, endsAt) = Bounds(document);
+        var (startsAt, endsAt) = Bounds(document, mainSleep);
         var overnight = sleep
             .Select(Span)
             .OfType<(DateTimeOffset Start, DateTimeOffset End)>()
@@ -135,6 +146,7 @@ public static class HabitsAnalysis
                 document.Day,
                 IsWeekend(document.Day),
                 reading.Timeline is not null
+                    && slots.Count >= WholeDaySlots
                     && slots.Count(slot => slot.Class is ActivityClass.NonWear || slot.IsLyingStill) <= MaximumUnaccountedSlots,
                 reading.Steps,
                 (reading.LowActivityTimeSeconds + reading.MediumActivityTimeSeconds + reading.HighActivityTimeSeconds) / 60,
@@ -191,11 +203,23 @@ public static class HabitsAnalysis
         }
     }
 
-    private static (DateTimeOffset StartsAt, DateTimeOffset EndsAt) Bounds(OuraDailyActivity document) =>
-        document.Reading.Timeline is { } timeline
-            ? (timeline.StartedAt, timeline.SlotStart(timeline.Classes.Length))
-            : (new DateTimeOffset(document.Day.ToDateTime(new TimeOnly(4, 0)), TimeSpan.Zero),
-               new DateTimeOffset(document.Day.AddDays(1).ToDateTime(new TimeOnly(4, 0)), TimeSpan.Zero));
+    /// <summary>
+    /// Where the activity day sits on the clock: from its classification, or, for a day stored
+    /// without one, 04:00 to 04:00 at the offset the night ending that morning was recorded at —
+    /// the nearest record of where the athlete was — and UTC only when there is no night either.
+    /// </summary>
+    private static (DateTimeOffset StartsAt, DateTimeOffset EndsAt) Bounds(
+        OuraDailyActivity document, OuraSleepPeriod? mainSleep)
+    {
+        if (document.Reading.Timeline is { } timeline)
+        {
+            return (timeline.StartedAt, timeline.SlotStart(timeline.Classes.Length));
+        }
+
+        var offset = mainSleep?.Period.StartTime.Offset ?? TimeSpan.Zero;
+        var startsAt = new DateTimeOffset(document.Day.ToDateTime(new TimeOnly(4, 0)), offset);
+        return (startsAt, startsAt.AddDays(1));
+    }
 
     // ---- A span of days ----
 

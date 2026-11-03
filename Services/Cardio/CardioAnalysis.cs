@@ -9,19 +9,23 @@ namespace lionheart.Services.Cardio;
 
 /// <summary>Everything the cardio report is computed from, already read.</summary>
 /// <param name="Range">The days the report describes.</param>
-/// <param name="RingWorkouts">Oura workouts from at least twelve weeks before the range's end and a year back for the peak.</param>
-/// <param name="LoggedSessions">Completed Lionheart sessions over the same span.</param>
+/// <param name="Sessions">The gathered sessions and exclusions from twelve weeks before the range's end, and a year back for the peak.</param>
 /// <param name="HeartRate">Every stored heart-rate sample on the UTC days those sessions touch, oldest first.</param>
 /// <param name="MainSleeps">The night's main sleep per waking day, for resting heart rate.</param>
 public sealed record CardioInputs(
     DayRange Range,
     int Age,
-    IReadOnlyList<OuraWorkout> RingWorkouts,
-    IReadOnlyList<CompletedTrainingSession> LoggedSessions,
+    CardioGathering Sessions,
     IReadOnlyList<HeartRateSample> HeartRate,
     IReadOnlyList<OuraVo2Max> Vo2Max,
     IReadOnlyList<OuraDailyCardiovascularAge> CardiovascularAge,
     IReadOnlyList<OuraSleepPeriod> MainSleeps);
+
+/// <summary>A ring workout left out of the sessions, the day Oura filed it under, and why.</summary>
+public sealed record Exclusion(DateOnly Day, WorkoutCategory Category, WorkoutExclusion Reason);
+
+/// <summary>The cardio sessions among the logged sessions and the ring's workouts, and what was left out.</summary>
+public sealed record CardioGathering(IReadOnlyList<GatheredSession> Sessions, IReadOnlyList<Exclusion> Excluded);
 
 /// <summary>
 /// The cardio report as a function of what was read.
@@ -47,6 +51,17 @@ public static class CardioAnalysis
     /// </remarks>
     public const double SameSessionOverlap = 0.5;
 
+    /// <summary>
+    /// The share of a window's session time that must have heart rate behind it for the window's
+    /// zone-2 minutes to mean anything.
+    /// </summary>
+    /// <remarks>
+    /// Below it, the window is mostly sessions the series was never synced for, and its zone 2
+    /// would read low for want of data — which, set against a recent window that has it, looks like
+    /// improvement.
+    /// </remarks>
+    public const double ZoneCoverageFloor = 0.5;
+
     /// <summary>The first day the report needs read: twelve weeks back for the windows, a year for the peak.</summary>
     public static DateOnly ReadFrom(DayRange range) =>
         new[]
@@ -58,14 +73,18 @@ public static class CardioAnalysis
 
     public static CardioReport Build(CardioInputs inputs)
     {
-        var gathered = Gather(inputs.RingWorkouts, inputs.LoggedSessions);
-        var withSamples = gathered.Sessions
+        var withSamples = inputs.Sessions.Sessions
             .Select(session => (Session: session, Samples: Samples(inputs.HeartRate, session)))
             .ToList();
 
         var maximum = MaxHeartRate.Estimate(inputs.Age, Peak(withSamples, inputs.Range.To));
         var sessions = withSamples
-            .Select(pair => pair.Session with { HeartRate = HeartRateOf(pair.Session, pair.Samples, maximum) })
+            .Select(pair => new CardioSession(
+                pair.Session.Source,
+                pair.Session.Start,
+                pair.Session.End,
+                pair.Session.DistanceMeters,
+                HeartRateOf(pair.Session, pair.Samples, maximum)))
             .OrderBy(session => session.Start)
             .ToList();
 
@@ -79,40 +98,25 @@ public static class CardioAnalysis
             Points(inputs.Range, inputs.Vo2Max.Select(estimate => (estimate.Day, (double?)estimate.Reading.Vo2Max))),
             Points(inputs.Range, inputs.CardiovascularAge.Select(age => (age.Day, (double?)age.Reading.VascularAge))),
             Points(inputs.Range, inputs.MainSleeps.Select(night => (night.Day, RestingRate(night.Reading)))),
-            AerobicBaseOf(inputs, sessions),
-            [.. gathered.Excluded
-                .Where(excluded => Within(inputs.Range, excluded.Workout.Day))
-                .GroupBy(excluded => (excluded.Workout.Category, excluded.Reason))
+            AerobicBaseOf(inputs, sessions, maximum),
+            [.. inputs.Sessions.Excluded
+                .Where(excluded => Within(inputs.Range, excluded.Day))
+                .GroupBy(excluded => (excluded.Category, excluded.Reason))
                 .OrderByDescending(group => group.Count())
-                .Select(group => new ExcludedWorkouts(group.Key.Category, group.Count(), group.Key.Reason))]);
+                .Select(group => new ExcludedWorkouts(group.Key.Category, group.Key.Reason, group.Count()))]);
     }
 
     // ---- Gathering the sessions ----
 
     /// <summary>
-    /// The cardio sessions among the logged sessions and the ring's workouts, with the ring's
-    /// duplicates of logged sessions and its non-training workouts left out — before any heart rate
-    /// is read. The habits report places these on the day.
-    /// </summary>
-    public static IReadOnlyList<CardioSession> Sessions(
-        IReadOnlyList<OuraWorkout> ringWorkouts, IReadOnlyList<CompletedTrainingSession> logged) =>
-        Gather(ringWorkouts, logged).Sessions;
-
-    private sealed record Classified(OuraWorkout Source, WorkoutCategory Category, DateOnly Day);
-
-    private sealed record Exclusion(Classified Workout, string Reason);
-
-    private sealed record Gathering(IReadOnlyList<CardioSession> Sessions, IReadOnlyList<Exclusion> Excluded);
-
-    /// <summary>
     /// The logged cardio sessions, then every ring workout that is cardio and is not one of them.
     /// </summary>
     /// <remarks>
-    /// A ring workout inside a logged lifting session is that lifting session as the ring saw it —
-    /// most of the ring's handball and "other" are the gym — so it is excluded rather than counted
-    /// as cardio. Inside a logged run, it is the run, already counted.
+    /// A ring workout inside a logged lifting session is that lifting session as the ring saw it, so
+    /// it is excluded rather than counted as cardio. Inside a logged run, it is the run, already
+    /// counted.
     /// </remarks>
-    private static Gathering Gather(
+    public static CardioGathering Gather(
         IReadOnlyList<OuraWorkout> ringWorkouts, IReadOnlyList<CompletedTrainingSession> logged)
     {
         var loggedCardio = logged.Where(IsCardio).ToList();
@@ -120,31 +124,65 @@ public static class CardioAnalysis
 
         var fromLog = loggedCardio
             .Select(session => Span(session.Period) is { } span
-                ? new CardioSession(
+                ? new GatheredSession(
                     new CardioSessionSource.LoggedSession(session.TrainingSessionId, session.Sets.OfType<TrailRunSet>().Any()),
                     span.Start,
                     span.End,
-                    DistanceMeters(session),
-                    new SessionHeartRate.NotRecorded())
+                    DistanceMeters(session))
                 : null)
-            .OfType<CardioSession>()
-            .ToList();
+            .OfType<GatheredSession>();
 
         var decided = ringWorkouts
-            .Select(workout => new Classified(workout, WorkoutCategories.Of(workout.Reading.Activity), workout.Day))
-            .Select(workout => (Workout: workout, Reason: ExclusionReason(workout, loggedCardio, loggedLifting)))
+            .Select(workout => Decide(workout, loggedCardio, loggedLifting))
             .ToList();
 
-        var fromRing = decided
-            .Where(decision => decision.Reason is null)
-            .Select(decision => RingSession(decision.Workout))
-            .OfType<CardioSession>();
+        return new CardioGathering(
+            [.. fromLog, .. decided.OfType<RingDecision.Session>().Select(decision => decision.Gathered)],
+            [.. decided.OfType<RingDecision.Excluded>().Select(decision => decision.Exclusion)]);
+    }
 
-        return new Gathering(
-            [.. fromLog, .. fromRing],
-            [.. decided
-                .Where(decision => decision.Reason is not null)
-                .Select(decision => new Exclusion(decision.Workout, decision.Reason!))]);
+    /// <summary>What becomes of one ring workout: a session of its own, or excluded for a reason.</summary>
+    private abstract record RingDecision
+    {
+        private RingDecision() { }
+
+        public sealed record Session(GatheredSession Gathered) : RingDecision;
+
+        public sealed record Excluded(Exclusion Exclusion) : RingDecision;
+    }
+
+    private static RingDecision Decide(
+        OuraWorkout workout,
+        IReadOnlyList<CompletedTrainingSession> loggedCardio,
+        IReadOnlyList<CompletedTrainingSession> loggedLifting)
+    {
+        var category = WorkoutCategories.Of(workout.Reading.Activity);
+        RingDecision Excluded(WorkoutExclusion reason) =>
+            new RingDecision.Excluded(new Exclusion(workout.Day, category, reason));
+
+        if (Span(workout.Period) is not { } span) return Excluded(WorkoutExclusion.NoDuration);
+        if (loggedCardio.Any(session => Overlaps(span, session.Period))) return Excluded(WorkoutExclusion.SameAsLoggedRun);
+        if (loggedLifting.Any(session => Overlaps(span, session.Period))) return Excluded(WorkoutExclusion.InsideLoggedLifting);
+
+        if (WorkoutCategories.IsCardioSession(category, span.End - span.Start))
+        {
+            return new RingDecision.Session(new GatheredSession(
+                new CardioSessionSource.RingWorkout(workout.OuraId, workout.Reading.Activity, category),
+                span.Start,
+                span.End,
+                workout.Reading.DistanceMeters));
+        }
+
+        return Excluded(category switch
+        {
+            WorkoutCategory.Walk => WorkoutExclusion.ShortWalk,
+            WorkoutCategory.Strength => WorkoutExclusion.Strength,
+            WorkoutCategory.Incidental => WorkoutExclusion.NotTraining,
+            WorkoutCategory.Unrecognised => WorkoutExclusion.Unclassified,
+            // Always sessions; IsCardioSession answered above.
+            WorkoutCategory.Endurance or WorkoutCategory.Sport => throw new System.Diagnostics.UnreachableException(),
+            _ => throw new System.Diagnostics.UnreachableException(),
+        });
     }
 
     private static bool IsCardio(CompletedTrainingSession session) =>
@@ -165,47 +203,12 @@ public static class CardioAnalysis
         return distances.Count is 0 ? null : distances.Sum();
     }
 
-    /// <summary>Why a ring workout is not a cardio session of its own, or nothing when it is one.</summary>
-    private static string? ExclusionReason(
-        Classified workout,
-        IReadOnlyList<CompletedTrainingSession> loggedCardio,
-        IReadOnlyList<CompletedTrainingSession> loggedLifting)
-    {
-        if (Span(workout.Source.Period) is not { } span) return "no end time";
-        var (start, end) = span;
-        if (loggedCardio.Any(session => Overlaps(start, end, session.Period))) return "the same session as a logged run";
-        if (loggedLifting.Any(session => Overlaps(start, end, session.Period))) return "inside a logged lifting session";
-
-        return WorkoutCategories.IsCardioSession(workout.Category, end - start)
-            ? null
-            : workout.Category switch
-            {
-                WorkoutCategory.Walk => $"a walk under {WorkoutCategories.SessionWalk.TotalMinutes:0} minutes",
-                WorkoutCategory.Strength => "strength work",
-                WorkoutCategory.Incidental => "not training",
-                WorkoutCategory.Unrecognised => "an activity not yet classified",
-                WorkoutCategory.Endurance or WorkoutCategory.Sport => throw new System.Diagnostics.UnreachableException(),
-                _ => throw new System.Diagnostics.UnreachableException(),
-            };
-    }
-
-    private static CardioSession? RingSession(Classified workout) =>
-        Span(workout.Source.Period) is { } span
-            ? new CardioSession(
-                new CardioSessionSource.RingWorkout(workout.Source.OuraId, workout.Source.Reading.Activity, workout.Category),
-                span.Start,
-                span.End,
-                workout.Source.Reading.DistanceMeters,
-                new SessionHeartRate.NotRecorded())
-            : null;
-
-    private static bool Overlaps(DateTimeOffset start, DateTimeOffset end, Period logged)
+    private static bool Overlaps((DateTimeOffset Start, DateTimeOffset End) workout, Period logged)
     {
         if (Span(logged) is not { } loggedSpan) return false;
-        var (loggedStart, loggedEnd) = loggedSpan;
 
-        var shared = Min(end, loggedEnd) - Max(start, loggedStart);
-        var own = end - start;
+        var shared = Min(workout.End, loggedSpan.End) - Max(workout.Start, loggedSpan.Start);
+        var own = workout.End - workout.Start;
         return own > TimeSpan.Zero && shared.TotalSeconds >= SameSessionOverlap * own.TotalSeconds;
     }
 
@@ -221,12 +224,32 @@ public static class CardioAnalysis
 
     // ---- Heart rate across a session ----
 
-    private static IReadOnlyList<HeartRateSample> Samples(IReadOnlyList<HeartRateSample> all, CardioSession session) =>
-        [.. all.Where(sample => sample.At >= session.Start && sample.At < session.End)];
+    /// <summary>
+    /// The samples inside a session, from a run sorted by instant: found by bisection rather than
+    /// a scan, since a year's report cuts a few hundred sessions out of a hundred thousand samples.
+    /// </summary>
+    private static IReadOnlyList<HeartRateSample> Samples(IReadOnlyList<HeartRateSample> sorted, GatheredSession session)
+    {
+        var first = FirstAtOrAfter(sorted, session.Start);
+        var end = FirstAtOrAfter(sorted, session.End);
+        return [.. Enumerable.Range(first, end - first).Select(index => sorted[index])];
+    }
+
+    private static int FirstAtOrAfter(IReadOnlyList<HeartRateSample> sorted, DateTimeOffset instant)
+    {
+        var (low, high) = (0, sorted.Count);
+        while (low < high)
+        {
+            var middle = (low + high) / 2;
+            if (sorted[middle].At < instant) low = middle + 1;
+            else high = middle;
+        }
+        return low;
+    }
 
     /// <summary>The ring's peak across the cardio sessions of the year ending on <paramref name="lastDay"/>.</summary>
     private static int? Peak(
-        IEnumerable<(CardioSession Session, IReadOnlyList<HeartRateSample> Samples)> sessions, DateOnly lastDay)
+        IEnumerable<(GatheredSession Session, IReadOnlyList<HeartRateSample> Samples)> sessions, DateOnly lastDay)
     {
         var firstDay = lastDay.AddDays(1 - PeakLookBackDays);
         return MaxHeartRate.PeakOf(
@@ -246,7 +269,7 @@ public static class CardioAnalysis
     /// the end of a run does not outvote the hour of five-minute samples before it.
     /// </remarks>
     public static SessionHeartRate HeartRateOf(
-        CardioSession session, IReadOnlyList<HeartRateSample> samples, MaxHeartRate? maximum)
+        GatheredSession session, IReadOnlyList<HeartRateSample> samples, MaxHeartRate? maximum)
     {
         if (samples.Count is 0) return new SessionHeartRate.NotRecorded();
 
@@ -255,11 +278,12 @@ public static class CardioAnalysis
         var average = minutes > 0
             ? attributed.Sum(pair => pair.Sample.Bpm * pair.Minutes) / minutes
             : samples.Average(sample => sample.Bpm);
+        var sessionMinutes = (session.End - session.Start).TotalMinutes;
 
         return new SessionHeartRate.Recorded(
             (int)Math.Round(average),
             samples.Max(sample => sample.Bpm),
-            session.Minutes > 0 ? Math.Min(1, minutes / session.Minutes) : 0,
+            sessionMinutes > 0 ? Math.Min(1, minutes / sessionMinutes) : 0,
             maximum is null
                 ? null
                 : attributed.Aggregate(
@@ -285,6 +309,7 @@ public static class CardioAnalysis
                 .Select(index => first.AddDays(7 * index))
                 .Select(week => new CardioWeek(
                     week,
+                    Enumerable.Range(0, 7).Count(offset => Within(range, week.AddDays(offset))),
                     byWeek[week].Count(),
                     byWeek[week].Sum(session => session.Minutes),
                     byWeek[week].Aggregate(ZoneMinutes.None, (zones, session) => zones + ZonesOf(session))))
@@ -294,7 +319,8 @@ public static class CardioAnalysis
     public static DateOnly WeekStarting(DateOnly day) =>
         day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
 
-    private static AerobicBase AerobicBaseOf(CardioInputs inputs, IReadOnlyList<CardioSession> sessions)
+    private static AerobicBase AerobicBaseOf(
+        CardioInputs inputs, IReadOnlyList<CardioSession> sessions, MaxHeartRate? maximum)
     {
         var recent = new DayRange(inputs.Range.To.AddDays(1 - 7 * AerobicBase.RecentWeeks), inputs.Range.To);
         var before = new DayRange(
@@ -305,15 +331,26 @@ public static class CardioAnalysis
         IReadOnlyList<CardioSession> In(DayRange window) =>
             [.. sessions.Where(session => Within(window, LocalDay(session.Start)))];
 
-        double? PerWeek(DayRange window, Func<CardioSession, double> minutes) =>
+        double PerWeek(DayRange window, Func<CardioSession, double> minutes) =>
             In(window).Sum(minutes) / (window.Days / 7.0);
 
-        // No session with a heart rate in a window that has sessions means the series is not
-        // synced that far back, which is not the same as no time in zone 2.
-        double? Zone2(DayRange window) =>
-            In(window) is { Count: > 0 } held && held.All(session => session.HeartRate is SessionHeartRate.NotRecorded)
+        // Unknown rather than low when there is no maximum to draw zones from, or when most of the
+        // window's session time has no heart rate synced behind it. A window with no sessions at
+        // all has a real zero.
+        double? Zone2(DayRange window)
+        {
+            if (maximum is null) return null;
+
+            var held = In(window);
+            var total = held.Sum(session => session.Minutes);
+            var covered = held
+                .Where(session => session.HeartRate is SessionHeartRate.Recorded)
+                .Sum(session => session.Minutes);
+
+            return total > 0 && covered < ZoneCoverageFloor * total
                 ? null
                 : PerWeek(window, session => ZonesOf(session).Zone2);
+        }
 
         double? Mean(DayRange window, IEnumerable<(DateOnly Day, double? Value)> values)
         {
@@ -341,10 +378,12 @@ public static class CardioAnalysis
     private static IReadOnlyList<DayValue> Points(DayRange range, IEnumerable<(DateOnly Day, double? Value)> values) =>
     [
         .. values
-            .Where(value => Within(range, value.Day) && value.Value is not null)
+            .Where(value => Within(range, value.Day))
+            .Select(value => value.Value is { } held ? new DayValue(value.Day, held) : null)
+            .OfType<DayValue>()
             .GroupBy(value => value.Day)
             .OrderBy(day => day.Key)
-            .Select(day => new DayValue(day.Key, day.First().Value!.Value))
+            .Select(day => day.First())
     ];
 
     /// <summary>The day a session began on the athlete's own clock, at the offset it was recorded with.</summary>

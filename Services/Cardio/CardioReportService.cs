@@ -27,8 +27,8 @@ public interface ICardioReportService
 /// <remarks>
 /// The reads reach further back than the range asked for, because two figures do: the aerobic-base
 /// comparison always covers the twelve weeks before the range's end, and the ring's peak heart rate
-/// is read from a year of sessions. Heart rate is read only for the UTC days a session touches,
-/// which keeps a year's report to the few dozen days that have one.
+/// is read from a year of sessions. Heart rate is read only for the UTC days a cardio session
+/// touches, not for every day in that year.
 /// </remarks>
 [ToolProvider]
 public sealed class CardioReportService : ICardioReportService
@@ -89,18 +89,18 @@ public sealed class CardioReportService : ICardioReportService
             .Where(night => night.Reading.IsMainSleep && Within(read, night.Day))
             .ToList();
 
+        // Gathered before the heart rate is read, so only the days a cardio session touches are
+        // read — not every day the ring filed housework on.
+        var gathered = CardioAnalysis.Gather(ringWorkouts, logged);
         var heartRate = await _context.OuraHeartRateDays.SamplesOnAsync(
             userId,
-            ringWorkouts.Select(workout => workout.Period)
-                .Concat(logged.Select(session => session.Period))
-                .SelectMany(UtcDays),
+            gathered.Sessions.SelectMany(session => HeartRateStore.DaysTouching(new TimeWindow(session.Start, session.End))),
             ct);
 
         return new CardioInputs(
             range,
             age,
-            ringWorkouts,
-            logged,
+            gathered,
             heartRate,
             await Daily(_context.OuraVo2Max, userId, read).ToListAsync(ct),
             await Daily(_context.OuraDailyCardiovascularAge, userId, read).ToListAsync(ct),
@@ -130,13 +130,6 @@ public sealed class CardioReportService : ICardioReportService
     private static TimeWindow Spanning(DayRange range) =>
         new(new DateTimeOffset(range.From.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).AddDays(-1),
             new DateTimeOffset(range.To.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero).AddDays(1));
-
-    private static IEnumerable<DateOnly> UtcDays(Period period) => period switch
-    {
-        Interval interval => HeartRateStore.DaysTouching(new TimeWindow(interval.Start, interval.End)),
-        Instant => [],
-        _ => throw new System.Diagnostics.UnreachableException(),
-    };
 
     private static bool Within(DayRange range, DateOnly day) => day >= range.From && day <= range.To;
 }

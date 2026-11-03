@@ -27,6 +27,8 @@ struct CardioAndHabitsTests {
         #expect(report.aerobicBase.zone2MinutesPerWeek.recent == nil)
         #expect(report.aerobicBase.vo2Max.change == 1)
         #expect(report.weeks.map(\.sessions) == [0, 1])
+        #expect(report.weeks.map(\.daysInRange) == [6, 7])
+        #expect(report.excluded.map(\.reason) == [.notTraining, .unrecognised("somethingNew")])
     }
 
     @Test("A session source or maximum the client does not know still lets the report load")
@@ -145,9 +147,9 @@ struct CardioAndHabitsTests {
                                    "zones":{"belowZones":0,"zone1":3,"zone2":33,"zone3":5,"zone4":0,"zone5":0,
                                             "inZones":41,"load":84}},
                       "minutes":45}],
-         "weeks":[{"weekStarting":"2026-10-19","sessions":0,"minutes":0,
+         "weeks":[{"weekStarting":"2026-10-19","daysInRange":6,"sessions":0,"minutes":0,
                    "zones":{"belowZones":0,"zone1":0,"zone2":0,"zone3":0,"zone4":0,"zone5":0,"inZones":0,"load":0}},
-                  {"weekStarting":"2026-10-26","sessions":1,"minutes":45,
+                  {"weekStarting":"2026-10-26","daysInRange":7,"sessions":1,"minutes":45,
                    "zones":{"belowZones":0,"zone1":3,"zone2":33,"zone3":5,"zone4":0,"zone5":0,"inZones":41,"load":84}}],
          "vo2Max":[{"day":"2026-10-21","value":46}],"cardiovascularAge":[],"restingHeartRate":[],
          "aerobicBase":{"recent":{"from":"2026-10-06","to":"2026-11-02"},"before":{"from":"2026-08-11","to":"2026-10-05"},
@@ -156,7 +158,8 @@ struct CardioAndHabitsTests {
                         "vo2Max":{"recent":47,"before":46},
                         "restingHeartRate":{"recent":42.3,"before":41},
                         "cardiovascularAge":{"recent":null,"before":null}},
-         "excluded":[{"category":"incidental","count":723,"reason":"not training"}]}
+         "excluded":[{"category":"incidental","reason":"notTraining","count":723},
+                     {"category":"walk","reason":"somethingNew","count":2}]}
         """
 
     private static let dayJSON = """

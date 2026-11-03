@@ -89,8 +89,13 @@ public abstract record SessionHeartRate
 /// A week with no session is present with zeros. For this athlete the weeks that do not happen are
 /// the pattern worth seeing, so a gap must read as a week of nothing rather than as no week.
 /// </remarks>
+/// <param name="DaysInRange">
+/// How many of the week's seven days fall inside the range — fewer at a range's ends, so a short
+/// week reads as short rather than as a light one.
+/// </param>
 public sealed record CardioWeek(
     DateOnly WeekStarting,
+    int DaysInRange,
     int Sessions,
     double Minutes,
     ZoneMinutes Zones);
@@ -100,7 +105,45 @@ public sealed record CardioWeek(
 /// Stated rather than silently dropped, so a reader can see how much the ring filed that is not
 /// training and judge the line drawn.
 /// </remarks>
-public sealed record ExcludedWorkouts(WorkoutCategory Category, int Count, string Reason);
+public sealed record ExcludedWorkouts(WorkoutCategory Category, WorkoutExclusion Reason, int Count);
+
+/// <summary>Why a ring workout is not a cardio session of its own.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<WorkoutExclusion>))]
+public enum WorkoutExclusion
+{
+    /// <summary>Lies at least half inside a logged run, which is the same session and already counted.</summary>
+    [JsonStringEnumMemberName("sameAsLoggedRun")] SameAsLoggedRun,
+
+    /// <summary>Lies at least half inside a logged lifting session: the gym as the ring saw it.</summary>
+    [JsonStringEnumMemberName("insideLoggedLifting")] InsideLoggedLifting,
+
+    /// <summary>A walk shorter than <see cref="WorkoutCategories.SessionWalk"/>.</summary>
+    [JsonStringEnumMemberName("shortWalk")] ShortWalk,
+
+    [JsonStringEnumMemberName("strength")] Strength,
+
+    /// <summary>Housework, yard work, stretching: movement that is not training.</summary>
+    [JsonStringEnumMemberName("notTraining")] NotTraining,
+
+    /// <summary>An activity this application does not yet place.</summary>
+    [JsonStringEnumMemberName("unclassified")] Unclassified,
+
+    /// <summary>Filed as a moment rather than a span, so it has no duration to count.</summary>
+    [JsonStringEnumMemberName("noDuration")] NoDuration,
+}
+
+/// <summary>
+/// A cardio session placed on the clock, before any heart rate is read for it.
+/// </summary>
+/// <remarks>
+/// What gathering the sessions produces, so the heart rate is read only for the days these touch
+/// and the habits report can place them on a day without a heart rate it never asked for.
+/// </remarks>
+public sealed record GatheredSession(
+    CardioSessionSource Source,
+    DateTimeOffset Start,
+    DateTimeOffset End,
+    double? DistanceMeters);
 
 /// <summary>
 /// Whether the aerobic base is moving: each figure over the last four weeks against the eight before.
