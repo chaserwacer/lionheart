@@ -476,14 +476,6 @@ final class ActiveWorkoutStore {
         case heldForDelivery
         /// Not finished. `finish` says why, and the workout is still in flight.
         case notFinished
-
-        /// Whether the workout has left the logging surface.
-        var isFinished: Bool {
-            switch self {
-            case .delivered, .heldForDelivery: true
-            case .notFinished: false
-            }
-        }
     }
 
     /// Finishes the workout and hands it to the server, or, when the server cannot be reached, to
