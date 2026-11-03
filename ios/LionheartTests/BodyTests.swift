@@ -56,11 +56,13 @@ struct BodySnapshotTests {
              \(Oura.day(date: "2026-03-01", readinessScore: "72"))]
             """)
 
+        let today = CalendarDay(year: 2026, month: 3, day: 4)
         let snapshot = BodySnapshot.reading(ouraDays: days, wellness: [], injuries: [])
+        let readiness = snapshot.latestRecovery(today: today)?.readiness
 
-        #expect(snapshot.latestReadiness == TodaySnapshot.latestReadiness(in: days))
-        #expect(snapshot.latestReadiness?.score == 0)
-        #expect(snapshot.latestReadiness?.day == CalendarDay(year: 2026, month: 3, day: 3))
+        #expect(readiness == TodaySnapshot.reading(sessions: [], ouraDays: days, today: today).readiness)
+        #expect(readiness?.score == 0)
+        #expect(readiness?.day == CalendarDay(year: 2026, month: 3, day: 3))
     }
 
     @Test("Nothing recorded at all is an empty snapshot")

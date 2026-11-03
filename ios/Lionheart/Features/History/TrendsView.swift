@@ -1,8 +1,8 @@
 import Charts
 import SwiftUI
 
-/// Two readings of the log: how much training happened each week, and how one movement's top set
-/// has moved.
+/// Two readings of the log over a chosen span: how much training happened each week, and how one
+/// movement's top set has moved.
 ///
 /// `Charts` is Apple's, so it is allowed — but only above `Core/`, which the layering check
 /// enforces. Both series are plain values derived in `Core/Derived/TrainingTrend.swift`; this file
@@ -13,10 +13,31 @@ import SwiftUI
 /// kilogram set with a pound one would make it wrong as well as lonely.
 struct TrendsView: View {
     let trends: TrainingTrends
+    var today = CalendarDay(Date())
 
     /// Which strength series is drawn. Held here because it is view state: which movement you are
     /// looking at is not a fact about the athlete's training.
     @State private var selectedSeries: String?
+    @State private var span: Span = .half
+
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
+
+    /// How far back both charts reach, in weeks.
+    enum Span: Int, CaseIterable, Identifiable {
+        case quarter = 13
+        case half = 26
+        case year = 52
+
+        var id: Int { rawValue }
+
+        var label: String {
+            switch self {
+            case .quarter: "3M"
+            case .half: "6M"
+            case .year: "1Y"
+            }
+        }
+    }
 
     var body: some View {
         List {
@@ -28,7 +49,17 @@ struct TrendsView: View {
                 }
                 .listRowBackground(Color.clear)
             } else {
-                weeklyVolumeSection
+                Section {
+                    Picker("Span", selection: $span) {
+                        ForEach(Span.allCases) { span in
+                            Text(span.label).tag(span)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                }
+                weeklyLoadSection
                 strengthSection
             }
         }
@@ -40,45 +71,25 @@ struct TrendsView: View {
     // MARK: - Weekly load
 
     @ViewBuilder
-    private var weeklyVolumeSection: some View {
-        if !trends.weeks.isEmpty {
+    private var weeklyLoadSection: some View {
+        let load = trends.load(lastWeeks: span.rawValue)
+
+        if !load.weeks.isEmpty {
             Section {
-                Chart(trends.weeks) { week in
-                    // A week-wide bar on a week-stepped axis. A bare date would plot each week as a
-                    // hairline at its first day under day labels, which reads as daily data.
-                    BarMark(
-                        x: .value("Week", week.start.middayDate(), unit: .weekOfYear),
-                        y: .value("Sets", week.setCount))
-                    .foregroundStyle(Tokens.accent)
-                }
-                .chartYAxisLabel("Sets")
-                .chartXAxis {
-                    AxisMarks(values: .stride(by: .weekOfYear, count: max(1, trends.weeks.count / 4))) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let date = value.as(Date.self) {
-                                Text(date, format: .dateTime.month(.abbreviated).day())
-                            }
-                        }
-                    }
-                }
-                .frame(height: 180)
-                .padding(.vertical, 8)
-                .accessibilityLabel("Sets logged per week")
-                .accessibilityValue(weeklyAccessibilityValue)
+                SummaryFigures(figures: [
+                    ("Sessions", "\(load.sessions)"),
+                    ("Sets", "\(load.sets)"),
+                    ("Weeks trained", "\(load.weeksTrained) of \(load.weeks.count)"),
+                ])
+                WeeklyLoadChart(weeks: load.weeks, average: load.average)
+                    .frame(height: chartHeight)
+                    .padding(.vertical, 8)
             } header: {
                 Text("Sets per week")
             } footer: {
-                Text("Weeks with no training are shown empty rather than skipped, so a break reads as a break.")
+                Text("Bars are weeks, empty ones included; the line is the four-week average.")
             }
         }
-    }
-
-    private var weeklyAccessibilityValue: String {
-        let trained = trends.weeks.filter { $0.sessionCount > 0 }
-        let total = trained.reduce(0) { $0 + $1.setCount }
-        guard !trained.isEmpty else { return "No weeks with training." }
-        return "\(Formatting.count(total, "set")) across \(Formatting.count(trained.count, "week")) of training."
     }
 
     // MARK: - Strength
@@ -102,28 +113,46 @@ struct TrendsView: View {
                     .pickerStyle(.menu)
                 }
 
-                Chart(series.points) { point in
-                    LineMark(
-                        x: .value("Day", point.day.middayDate()),
-                        y: .value("Weight", point.weight))
-                    .foregroundStyle(Tokens.accent)
-                    PointMark(
-                        x: .value("Day", point.day.middayDate()),
-                        y: .value("Weight", point.weight))
-                    .foregroundStyle(Tokens.accent)
+                if let summary = series.summary(since: today.adding(days: -span.rawValue * 7)) {
+                    let points = summary.points
+                    strengthFigures(summary, unit: series.unit)
+                    Chart(points) { point in
+                        LineMark(
+                            x: .value("Day", point.day.middayDate()),
+                            y: .value("Weight", point.weight))
+                        .foregroundStyle(Tokens.accent)
+                        PointMark(
+                            x: .value("Day", point.day.middayDate()),
+                            y: .value("Weight", point.weight))
+                        .symbolSize(span == .year ? 10 : 18)
+                        .foregroundStyle(Tokens.accent)
+                    }
+                    .chartYAxisLabel(series.unit.abbreviation)
+                    .chartYScale(domain: .automatic(includesZero: false))
+                    .frame(height: chartHeight)
+                    .padding(.vertical, 8)
+                    .accessibilityLabel("Heaviest set of \(series.movementName) by session")
+                    .accessibilityValue(strengthAccessibilityValue(points, unit: series.unit))
+                } else {
+                    Text("Fewer than two sessions of \(series.movementName) in this span.")
+                        .foregroundStyle(Color(.secondaryLabel))
                 }
-                .chartYAxisLabel(series.unit.abbreviation)
-                .chartYScale(domain: .automatic(includesZero: false))
-                .frame(height: 180)
-                .padding(.vertical, 8)
-                .accessibilityLabel("Heaviest set of \(series.movementName) by session")
-                .accessibilityValue(strengthAccessibilityValue(series))
             } header: {
                 Text("Top set")
             } footer: {
                 Text("The heaviest set of each session. A change of unit starts its own series rather than putting a cliff in this one.")
             }
         }
+    }
+
+    /// The span's latest and best top set, and the change in load across it.
+    private func strengthFigures(_ summary: StrengthSeries.Summary, unit: WeightUnit) -> some View {
+        let change = summary.change
+        return SummaryFigures(figures: [
+            ("Latest", "\(Formatting.measure(summary.latest.weight)) × \(summary.latest.reps)"),
+            ("Best", "\(Formatting.measure(summary.best.weight)) × \(summary.best.reps)"),
+            ("Change", "\(change < 0 ? "−" : "+")\(Formatting.measure(abs(change))) \(unit.abbreviation)"),
+        ])
     }
 
     /// The series the picker selected, or the one with the most history when nothing is selected
@@ -135,9 +164,41 @@ struct TrendsView: View {
         return chosen
     }
 
-    private func strengthAccessibilityValue(_ series: StrengthSeries) -> String {
-        guard let first = series.points.first, let last = series.points.last else { return "" }
-        let unit = series.unit.abbreviation
-        return "From \(MeasurementText.plain(first.weight)) \(unit) to \(MeasurementText.plain(last.weight)) \(unit) over \(Formatting.count(series.points.count, "session"))."
+    private func strengthAccessibilityValue(_ points: [StrengthSeries.Point], unit: WeightUnit) -> String {
+        guard let first = points.first, let last = points.last else { return "" }
+        let unit = unit.abbreviation
+        return "From \(MeasurementText.plain(first.weight)) \(unit) to \(MeasurementText.plain(last.weight)) \(unit) over \(Formatting.count(points.count, "session"))."
+    }
+}
+
+/// A span's headline figures, side by side as columns, each a caption over its figure — or one
+/// labelled row each when the columns would not fit, as at the accessibility sizes, so no figure
+/// truncates.
+private struct SummaryFigures: View {
+    let figures: [(label: String, value: String)]
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 20) {
+                ForEach(figures, id: \.label) { figure in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(figure.label)
+                            .font(.caption)
+                            .foregroundStyle(Color(.secondaryLabel))
+                        Text(figure.value)
+                            .font(.title3.weight(.semibold).monospacedDigit())
+                    }
+                    .fixedSize()
+                }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(figures, id: \.label) { figure in
+                    LabeledContent(figure.label) {
+                        Text(figure.value).monospacedDigit()
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }

@@ -93,3 +93,10 @@ first and then in the code.
 | **Injury action** | What an injury row can offer: resolve, take up again, or delete. Resolving and reopening are one route in two directions, so a row offers exactly one of them. |
 | **Action state** | Where a one-shot action the athlete asked for stands: waiting, out, or refused with the server's own words. A refusal is stated, never swallowed. |
 | **Confirmation** | What a destructive action asks before it happens — the question, the consequence, and the word on the button, written once and used by every screen that offers the action. |
+| **Day selection** | Which day Today shows: today, which follows the clock across midnight, or a fixed past day. Never a future day. |
+| **Recovery figure** | One measurement the athlete reads his recovery by — HRV, lowest heart rate, time asleep, breathing from the night's main sleep; readiness, sleep score, temperature, steps from the day — on one day, against his baseline. |
+| **Baseline** | The athlete's own normal for a recovery figure: the mean and spread of the 28 days before the day read, the day itself excluded. Fewer than seven readings is not a baseline. |
+| **Deviation** | How far a day's figure is from its baseline, in the figure's own unit. Outside one spread in the worse direction, the screen marks it. |
+| **Oura coverage** | How far the stored Oura data reaches: the newest day any collection covers, or nothing stored. What a sync is planned from. |
+| **Training load** | Sets per week, read against their four-week average. Counts rather than tonnage, because the server derives no session volume and units never convert. |
+| **Movement digest** | One movement of a session as a log-book line: the load and every set's reps for straight sets, the top set and the count otherwise. |

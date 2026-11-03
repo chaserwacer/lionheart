@@ -49,6 +49,7 @@ private struct SignedInTabs: View {
     /// workout bar taps *into* a screen, and that navigation has to be able to move the selection.
     @State private var selection: Destination = .today
     @State private var isWorkoutPresented = false
+    @Environment(\.scenePhase) private var scenePhase
 
     enum Destination: Hashable {
         case today, train, history, chat, body
@@ -59,6 +60,8 @@ private struct SignedInTabs: View {
             Tab(value: Destination.today) {
                 TodayView(
                     store: container.today,
+                    ouraSync: container.ouraSync,
+                    library: container.movements,
                     apiBaseURL: container.configuration.baseURL,
                     activeWorkout: container.activeWorkout)
             } label: {
@@ -84,12 +87,21 @@ private struct SignedInTabs: View {
                 TabLabel("Chat", systemImage: "bubble.left")
             }
             Tab(value: Destination.body) {
-                BodyView(store: container.body)
+                BodyView(store: container.body, ouraSync: container.ouraSync)
             } label: {
                 TabLabel("Body", systemImage: "waveform.path.ecg")
             }
         }
         .minimizingTabBarOnScroll()
+        // Coming back to the app is when the ring's night has usually reached Oura, so a store
+        // that is behind syncs then — at most once per `OuraSyncPlan.automaticRetryInterval`.
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            switch phase {
+            case .active: Task { await container.ouraSync.syncIfBehind() }
+            case .inactive, .background: break
+            @unknown default: break
+            }
+        }
         .workoutAccessory(
             container.activeWorkout.workout,
             isPersisted: container.activeWorkout.isPersisted,

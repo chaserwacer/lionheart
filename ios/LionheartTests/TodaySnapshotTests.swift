@@ -24,10 +24,6 @@ struct TodaySnapshotTests {
 
         #expect(reading?.day == CalendarDay(year: 2026, month: 3, day: 3))
         #expect(reading?.score == 88)
-        // Both balances are contributor scores out of 100, which is what these numbers have
-        // always been — the earlier name said "resting heart rate" and meant this.
-        #expect(reading?.restingHeartRateBalance == 81)
-        #expect(reading?.hrvBalance == 72)
     }
 
     @Test("A day with no readiness panel is not a reading")
@@ -68,7 +64,11 @@ struct TodaySnapshotTests {
         let days = try Decoding.list(
             OuraDay.self, "[\(Oura.day(date: "2026-03-03", sleepScore: "null"))]")
 
-        #expect(TodaySnapshot.latestReadiness(in: days)?.sleepScore == nil)
+        let recovery = RecoveryReading.reading(
+            for: CalendarDay(year: 2026, month: 3, day: 3), days: days, nights: [], today: Self.today)
+
+        #expect(recovery?.readiness != nil)
+        #expect(recovery?.figures.contains { $0.metric == .sleepScore } == false)
     }
 
     @Test("No Oura data at all is no reading, not a zero")
@@ -81,9 +81,7 @@ struct TodaySnapshotTests {
         arguments: [(0, ReadinessReading.Band.payAttention), (69, .payAttention), (70, .good),
                     (84, .good), (85, .optimal), (100, .optimal)])
     func readinessBandsFollowOura(score: Int, expected: ReadinessReading.Band) {
-        let reading = ReadinessReading(
-            day: Self.today, score: score, restingHeartRateBalance: 50, hrvBalance: 70,
-            sleepScore: nil)
+        let reading = ReadinessReading(day: Self.today, score: score)
 
         #expect(reading.band == expected)
     }

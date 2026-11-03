@@ -1,12 +1,13 @@
 import Foundation
 import Observation
 
-/// The Today screen's data.
+/// The Today screen's data, for whichever day it shows.
 ///
-/// Two requests, in parallel. They are independent, there is a known number of them, and the screen
-/// needs both — which is exactly what `async let` is for, and what `APIClient` being `Sendable`
-/// exists to allow. One window of sessions answers three of the screen's four questions, so a
-/// wider single read beats three narrow ones and guarantees the cards agree with each other.
+/// Three requests, in parallel — sessions, Oura days, Oura nights. They are independent, there is a
+/// known number of them, and the screen needs all three — which is exactly what `async let` is for,
+/// and what `APIClient` being `Sendable` exists to allow. On today one window of sessions answers
+/// three of the screen's questions, so a wider single read beats three narrow ones and guarantees
+/// the cards agree with each other.
 ///
 /// Everything the screen decides is a pure function in `Core/Derived/`; this type does IO and turns
 /// the outcome into one state case at one `do`/`catch`.
@@ -20,12 +21,18 @@ final class TodayStore {
     private static let lookBack: TimeInterval = 90 * 86_400
     private static let lookAhead: TimeInterval = 45 * 86_400
 
-    /// How far back to look for Oura data. A fortnight is enough to find the last synced day and
-    /// short enough that a long gap reads as "no data" rather than as a stale score.
-    private static let ouraLookBackDays = 14
+    /// How far back to read Oura days and nights before the day shown: the baseline window, plus
+    /// the days Today may fall back across when the ring has not synced this morning.
+    private static let ouraLookBackDays = MetricBaseline.windowDays + TodaySnapshot.recoveryFallbackDays
 
+    /// Which day the screen shows. Changed through `show(_:)`, which reloads.
+    private(set) var selection: DaySelection = .today
     private(set) var state: LoadState<TodaySnapshot> = .loading
     private(set) var quickLog: QuickLogState = .idle
+
+    /// Each figure's trend a pushed screen has asked for, by key. Held here, like History's record
+    /// chains, so a span switched back to does not read again.
+    private(set) var trends: [MetricTrendKey: LoadState<MetricTrend>] = [:]
 
     private let sessions: TrainingSessionsAPI
     private let oura: OuraAPI
@@ -62,33 +69,87 @@ final class TodayStore {
     func reset() {
         load?.cancel()
         load = nil
+        selection = .today
         state = .loading
         quickLog = .idle
+        trends = [:]
     }
+
+    /// Shows another day. The previous day's reading is dropped rather than kept as stale: a stale
+    /// value is the same day not yet refreshed, and one day's recovery under another day's title
+    /// would be wrong rather than old.
+    func show(_ selection: DaySelection) async {
+        guard selection != self.selection else { return }
+        self.selection = selection
+        state = .loading
+        await refresh()
+    }
+
+    /// Today from the store's own clock, so the view and the reads agree on it.
+    var today: CalendarDay { CalendarDay(now()) }
 
     private func reload() async {
         let moment = now()
         let today = CalendarDay(moment)
+        let asked = selection
+        let day = asked.day(today: today)
+
+        // Today reads the wide window that answers "last" and "next" too; a past day reads only
+        // the days around it, and the snapshot keeps the sessions dated on it.
+        let sessionWindow = day == today
+            ? (moment.addingTimeInterval(-Self.lookBack), moment.addingTimeInterval(Self.lookAhead))
+            : (day.adding(days: -1).startDate(), day.adding(days: 2).startDate())
+        let firstOuraDay = day.adding(days: -Self.ouraLookBackDays)
 
         do {
-            async let window = sessions.sessions(
-                from: moment.addingTimeInterval(-Self.lookBack),
-                to: moment.addingTimeInterval(Self.lookAhead))
-            async let ouraDays = oura.days(
-                from: CalendarDay(moment.addingTimeInterval(-Double(Self.ouraLookBackDays) * 86_400)),
-                to: today)
+            async let window = sessions.sessions(from: sessionWindow.0, to: sessionWindow.1)
+            async let ouraDays = oura.days(from: firstOuraDay, to: day)
+            // A night beginning before midnight is filed under the waking day, so the event window
+            // starts a day before the first day read and ends at the end of the day shown.
+            async let nights = oura.sleepPeriods(
+                from: firstOuraDay.adding(days: -1).startDate(), to: day.adding(days: 1).startDate())
 
             let snapshot = TodaySnapshot.reading(
-                sessions: try await window, ouraDays: try await ouraDays, today: today)
+                sessions: try await window,
+                ouraDays: try await ouraDays,
+                nights: try await nights,
+                today: today,
+                day: day)
+            // A day changed while this was out has already reset the state; this answer is for the
+            // old day and must not land under the new one.
+            guard asked == selection else { return }
             state = state.applying(.success(snapshot))
         } catch is CancellationError {
             // The screen went away or a newer refresh took over. Nothing to say, and in particular
             // nothing to put on screen: the value already there is still the best one.
             return
         } catch {
+            guard asked == selection else { return }
             state = state.applying(.failure((try? LoadFailure.from(error)) ?? .unavailable(
                 String(describing: error))))
         }
+    }
+
+    // MARK: - Trends
+
+    /// Reads one figure's trend. A failed re-read keeps the trend already shown.
+    func loadTrend(_ key: MetricTrendKey) async {
+        let range = key.range()
+        let outcome: Result<MetricTrend, LoadFailure>
+        do {
+            async let days = oura.days(from: range.from, to: range.to)
+            // Only the night figures need the nights, and a year of them is the heaviest read here.
+            let nights = key.metric.isReadFromTheNight
+                ? try await oura.sleepPeriods(
+                    from: range.from.adding(days: -1).startDate(), to: range.to.adding(days: 1).startDate())
+                : []
+            outcome = .success(MetricTrend.reading(key, days: try await days, nights: nights, today: today))
+        } catch is CancellationError {
+            return
+        } catch {
+            outcome = .failure((try? LoadFailure.from(error)) ?? .unavailable(String(describing: error)))
+        }
+        trends[key] = (trends[key] ?? .loading).applying(outcome)
     }
 
     // MARK: - Quick log

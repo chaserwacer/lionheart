@@ -20,6 +20,7 @@ final class AppContainer {
     let history: HistoryStore
     let chat: ChatStore
     let body: BodyStore
+    let ouraSync: OuraSyncStore
     let activeWorkout: ActiveWorkoutStore
     let train: TrainStore
     let movements: MovementLibraryStore
@@ -66,6 +67,7 @@ final class AppContainer {
             oura: OuraAPI(client: client),
             wellness: WellnessAPI(client: client),
             injuries: InjuriesAPI(client: client))
+        ouraSync = OuraSyncStore(oura: OuraAPI(client: client))
     }
 
     /// Settles the signed-in root and reads back anything that survived the last run.
@@ -76,11 +78,18 @@ final class AppContainer {
         guard !hasStarted else { return }
         hasStarted = true
 
+        // A sync stores new days, so the two tabs that show them read again — Body only when it has
+        // been opened, since an unopened tab reads for itself when it is.
+        ouraSync.onSynced { [today, body] in
+            await today.refresh()
+            if body.state.value != nil { await body.refresh() }
+        }
+
         // Registered before the session is settled, so a sign-out during the first load still
         // empties the screen it was loading into. The profile gate is reset for a sharper reason
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
-        auth.onSignOut { [profile, today, train, movements, history, chat, body, activeWorkout] in
+        auth.onSignOut { [profile, today, train, movements, history, chat, body, ouraSync, activeWorkout] in
             profile.reset()
             today.reset()
             train.reset()
@@ -88,6 +97,7 @@ final class AppContainer {
             history.reset()
             chat.reset()
             body.reset()
+            ouraSync.reset()
             // The workout goes too, document and all: it belongs to the session the signed-out
             // credential owned, and one the next sign-in could adopt would push one athlete's sets
             // at another athlete's session id.

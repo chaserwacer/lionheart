@@ -18,6 +18,11 @@ public interface IOuraReadService
     /// <summary>One day, or a refusal if the ring recorded nothing for it.</summary>
     Task<Result<OuraDayView, Problem>> GetDayAsync(IdentityUser user, DateOnly day, CancellationToken ct);
 
+    /// <summary>
+    /// The most recent day any collection covers, or a refusal if nothing is stored at all.
+    /// </summary>
+    Task<Result<OuraDayView, Problem>> GetLatestDayAsync(IdentityUser user, CancellationToken ct);
+
     Task<Result<IReadOnlyList<OuraEventView<SleepPeriodReading>>, Problem>> GetSleepAsync(
         IdentityUser user, TimeWindow window, CancellationToken ct);
 
@@ -85,6 +90,16 @@ public sealed class OuraReadService : IOuraReadService
                 ? Result<OuraDayView, Problem>.Success(only)
                 : Result<OuraDayView, Problem>.Failure(
                     new Problem.NotFound($"No Oura data is stored for {day:yyyy-MM-dd}.")));
+
+    /// <remarks>
+    /// What a client syncs from: the newest stored day says how far behind the store is. It is
+    /// answered whole rather than as a bare date because the newest day is usually provisional —
+    /// today's activity is filed before the night's sleep is — and the caller can see which
+    /// collections it holds.
+    /// </remarks>
+    public Task<Result<OuraDayView, Problem>> GetLatestDayAsync(IdentityUser user, CancellationToken ct) =>
+        LatestDayAsync(Guid.Parse(user.Id), ct)
+            .BindAsync(day => GetDayAsync(user, day, ct));
 
     public Task<Result<IReadOnlyList<OuraEventView<SleepPeriodReading>>, Problem>> GetSleepAsync(
         IdentityUser user, TimeWindow window, CancellationToken ct) =>
@@ -245,6 +260,39 @@ public sealed class OuraReadService : IOuraReadService
 
         return Result<IReadOnlyList<OuraDayView>, Problem>.Success(days);
     }
+
+    /// <summary>The newest day across the six daily collections.</summary>
+    /// <remarks>
+    /// Each collection is asked for its own newest day because they cover different days, and the
+    /// latest of the six is the answer.
+    /// </remarks>
+    private async Task<Result<DateOnly, Problem>> LatestDayAsync(Guid userId, CancellationToken ct)
+    {
+        DateOnly?[] newest =
+        [
+            await NewestAsync<OuraDailyActivity, DailyActivityReading>(_context.OuraDailyActivity, userId, ct),
+            await NewestAsync<OuraDailyReadiness, DailyReadinessReading>(_context.OuraDailyReadiness, userId, ct),
+            await NewestAsync<OuraDailySleep, DailySleepReading>(_context.OuraDailySleep, userId, ct),
+            await NewestAsync<OuraDailySpo2, DailySpo2Reading>(_context.OuraDailySpo2, userId, ct),
+            await NewestAsync<OuraDailyStress, DailyStressReading>(_context.OuraDailyStress, userId, ct),
+            await NewestAsync<OuraDailyResilience, DailyResilienceReading>(_context.OuraDailyResilience, userId, ct),
+        ];
+
+        return newest.Max() is DateOnly latest
+            ? Result<DateOnly, Problem>.Success(latest)
+            : Result<DateOnly, Problem>.Failure(new Problem.NotFound("No Oura data is stored yet."));
+    }
+
+    private static Task<DateOnly?> NewestAsync<TDocument, TReading>(
+        DbSet<TDocument> table, Guid userId, CancellationToken ct)
+        where TDocument : OuraDocument<TReading>
+        where TReading : class =>
+        table
+            .AsNoTracking()
+            .Where(document => document.UserId == userId)
+            .OrderByDescending(document => document.Day)
+            .Select(document => (DateOnly?)document.Day)
+            .FirstOrDefaultAsync(ct);
 
     private static async Task<Dictionary<DateOnly, TReading>> DailyAsync<TDocument, TReading>(
         DbSet<TDocument> table, Guid userId, DayRange range, CancellationToken ct)

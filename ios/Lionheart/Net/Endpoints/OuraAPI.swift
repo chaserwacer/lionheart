@@ -26,6 +26,27 @@ struct OuraAPI: Sendable {
             as: LenientList<OuraDay>.self).elements
     }
 
+    /// How far the stored data reaches: the newest day any collection covers.
+    ///
+    /// The route answers 404 when nothing is stored at all, which is a fact about the store rather
+    /// than a failure, so it is read here as `.nothingStored`.
+    func coverage() async throws -> OuraCoverage {
+        do {
+            let latest = try await client.get("/api/oura/days/latest", as: OuraDay.self)
+            return .through(latest.date, readinessFiled: latest.readiness?.score != nil)
+        } catch APIError.notFound {
+            return .nothingStored
+        }
+    }
+
+    /// Pulls every collection for `range` from Oura and stores what came back.
+    ///
+    /// A rejected Oura token answers 502 with a detail naming the token, not 401 — a 401 here would
+    /// be this app's own session. `OuraSyncFailure.from` restates both.
+    func sync(_ range: DayRange) async throws -> OuraSyncReport {
+        try await client.post("/api/oura/sync", body: range, as: OuraSyncReport.self)
+    }
+
     func sleepPeriods(from: Date, to: Date) async throws -> [OuraEvent<OuraSleepPeriod>] {
         try await events("/api/oura/sleep", from: from, to: to)
     }
