@@ -22,6 +22,8 @@ using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.PersonalRecords;
 using lionheart.Services.Training.Sessions;
 using lionheart.Endpoints.OpenApi;
+using lionheart.Services.Cardio;
+using lionheart.Services.Habits;
 using lionheart.Services.Oura;
 using lionheart.Services.Oura.Import;
 using lionheart.Services.Strong;
@@ -140,6 +142,8 @@ builder.Services.AddSingleton<ChatToolCallExecutor>();
 
 
 builder.Services.AddTransient<IOuraReadService, OuraReadService>();
+builder.Services.AddTransient<ICardioReportService, CardioReportService>();
+builder.Services.AddTransient<IHabitsReportService, HabitsReportService>();
 
 // The sync service reaches Oura over this client; OuraClient spells the absolute collection URLs,
 // so no BaseAddress is set here.

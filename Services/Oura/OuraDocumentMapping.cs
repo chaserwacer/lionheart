@@ -61,7 +61,69 @@ internal static class OuraDocumentMapping
                     read.Int(wire.LowActivityTime, "low_activity_time"),
                     read.Int(wire.MediumActivityTime, "medium_activity_time"),
                     read.Int(wire.HighActivityTime, "high_activity_time"),
-                    read.Int(wire.NonWearTime, "non_wear_time"))));
+                    read.Int(wire.NonWearTime, "non_wear_time"),
+                    Timeline(wire, read))));
+        }
+    }
+
+    /// <summary>
+    /// The day's five-minute classification placed on the clock, or nothing where Oura sent none.
+    /// </summary>
+    /// <remarks>
+    /// The classification is optional in Oura's schema and is read as absent when it is; the
+    /// instant it starts from is required once there is one, because a classification that cannot
+    /// be placed on the clock is not a timeline.
+    /// </remarks>
+    private static ActivityTimeline? Timeline(WireDailyActivity wire, WireReader read) =>
+        wire.Class5Min is { Length: > 0 } classes
+            ? new ActivityTimeline(read.Instant(wire.Timestamp, "timestamp"), classes)
+            : null;
+
+    extension(WireVo2Max wire)
+    {
+        public Result<OuraVo2Max, OuraDocumentDefects> ToDocument(Guid userId)
+        {
+            var read = new WireReader();
+
+            return read.Build(() => new OuraVo2Max(
+                read.Id(wire.Id),
+                userId,
+                read.Day(wire.Day),
+                new Vo2MaxReading(
+                    read.Instant(wire.Timestamp, "timestamp"),
+                    read.Positive(wire.Vo2Max, "vo2_max"))));
+        }
+    }
+
+    extension(WireDailyCardiovascularAge wire)
+    {
+        public Result<OuraDailyCardiovascularAge, OuraDocumentDefects> ToDocument(Guid userId)
+        {
+            var read = new WireReader();
+
+            return read.Build(() => new OuraDailyCardiovascularAge(
+                read.Id(wire.Id),
+                userId,
+                read.Day(wire.Day),
+                new CardiovascularAgeReading(wire.VascularAge, wire.PulseWaveVelocity)));
+        }
+    }
+
+    extension(WireHeartRate wire)
+    {
+        /// <remarks>
+        /// A sample rather than a document: it has no id or day of its own, and the sync gathers
+        /// samples into a run per UTC day. The instant is normalised to UTC here so every sample in
+        /// a stored run carries the same offset whatever Oura wrote.
+        /// </remarks>
+        public Result<HeartRateSample, OuraDocumentDefects> ToSample()
+        {
+            var read = new WireReader();
+
+            return read.Build(() => new HeartRateSample(
+                read.Instant(wire.Timestamp, "timestamp").ToUniversalTime(),
+                read.Positive(wire.Bpm, "bpm"),
+                read.Text(wire.Source, "source")));
         }
     }
 

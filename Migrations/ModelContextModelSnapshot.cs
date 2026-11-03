@@ -553,6 +553,29 @@ namespace lionheart.Migrations
                     b.ToTable("OuraDailyActivity", (string)null);
                 });
 
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyCardiovascularAge", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.ToTable("OuraDailyCardiovascularAge", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Oura.OuraDailyReadiness", b =>
                 {
                     b.Property<Guid>("OuraId")
@@ -668,6 +691,23 @@ namespace lionheart.Migrations
                     b.ToTable("OuraDailyStress", (string)null);
                 });
 
+            modelBuilder.Entity("lionheart.Model.Oura.OuraHeartRateDay", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId", "Day");
+
+                    b.ToTable("OuraHeartRateDays", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Oura.OuraSession", b =>
                 {
                     b.Property<Guid>("OuraId")
@@ -750,6 +790,29 @@ namespace lionheart.Migrations
                     b.HasIndex("UserId", "StartTime");
 
                     b.ToTable("OuraTags", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraVo2Max", b =>
+                {
+                    b.Property<Guid>("OuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reading")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("OuraId");
+
+                    b.HasIndex("UserId", "Day");
+
+                    b.ToTable("OuraVo2Max", (string)null);
                 });
 
             modelBuilder.Entity("lionheart.Model.Oura.OuraWorkout", b =>
@@ -1382,6 +1445,15 @@ namespace lionheart.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("lionheart.Model.Oura.OuraDailyCardiovascularAge", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("lionheart.Model.Oura.OuraDailyReadiness", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
@@ -1427,6 +1499,15 @@ namespace lionheart.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("lionheart.Model.Oura.OuraHeartRateDay", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("lionheart.Model.Oura.OuraSession", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
@@ -1446,6 +1527,15 @@ namespace lionheart.Migrations
                 });
 
             modelBuilder.Entity("lionheart.Model.Oura.OuraTag", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Oura.OuraVo2Max", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany()

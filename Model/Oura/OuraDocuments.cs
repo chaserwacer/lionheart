@@ -155,6 +155,26 @@ public sealed class OuraDailyResilience : OuraDocument<DailyResilienceReading>
         : base(ouraId, userId, day, reading) { }
 }
 
+/// <remarks>
+/// Not unique per day in Oura's schema — it issues an estimate when it has the walking to work
+/// from — so a day read takes one in document-id order, the same rule SpO2 follows.
+/// </remarks>
+public sealed class OuraVo2Max : OuraDocument<Vo2MaxReading>
+{
+    private OuraVo2Max() { }
+
+    public OuraVo2Max(Guid ouraId, Guid userId, DateOnly day, Vo2MaxReading reading)
+        : base(ouraId, userId, day, reading) { }
+}
+
+public sealed class OuraDailyCardiovascularAge : OuraDocument<CardiovascularAgeReading>
+{
+    private OuraDailyCardiovascularAge() { }
+
+    public OuraDailyCardiovascularAge(Guid ouraId, Guid userId, DateOnly day, CardiovascularAgeReading reading)
+        : base(ouraId, userId, day, reading) { }
+}
+
 public sealed class OuraSleepPeriod : OuraEvent<SleepPeriodReading>
 {
     private OuraSleepPeriod() { }
@@ -193,4 +213,37 @@ public sealed class OuraTag : OuraEvent<TagReading>
         : base(ouraId, userId, day, reading) { }
 
     public override Period Period => Reading.Period;
+}
+
+/// <summary>
+/// One UTC day of Oura's all-day heart-rate series, as one row.
+/// </summary>
+/// <remarks>
+/// The one Oura collection that is not a set of documents. Oura's heart-rate rows carry no id —
+/// each is a bare sample — so there is no document identity to key on, and the row's identity is
+/// the athlete and the day instead. A sync asks Oura for whole UTC days, so each day it answers for
+/// is complete as of that pull and <see cref="Replace"/> takes it wholesale, which keeps a re-sync
+/// idempotent the same way an Oura id does for the other tables.
+/// </remarks>
+public sealed class OuraHeartRateDay
+{
+    /// <remarks>For EF materialization, which writes the members below directly.</remarks>
+    private OuraHeartRateDay() { }
+
+    public OuraHeartRateDay(Guid userId, DateOnly day, HeartRateDayReading reading)
+    {
+        UserId = userId;
+        Day = day;
+        Reading = reading;
+    }
+
+    public Guid UserId { get; private set; }
+
+    /// <summary>The UTC calendar day every sample in <see cref="Reading"/> falls on.</summary>
+    public DateOnly Day { get; private set; }
+
+    public HeartRateDayReading Reading { get; private set; } = null!;
+
+    /// <summary>Takes the day as Oura now holds it.</summary>
+    public void Replace(HeartRateDayReading reading) => Reading = reading;
 }

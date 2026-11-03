@@ -34,6 +34,13 @@ public interface IOuraReadService
 
     Task<Result<IReadOnlyList<OuraEventView<TagReading>>, Problem>> GetTagsAsync(
         IdentityUser user, TimeWindow window, CancellationToken ct);
+
+    /// <summary>
+    /// Every all-day heart-rate sample inside a window, oldest first, or a refusal when the window
+    /// runs backwards or spans more than <see cref="OuraReadService.HeartRateWindowDays"/> days.
+    /// </summary>
+    Task<Result<IReadOnlyList<HeartRateSample>, Problem>> GetHeartRateAsync(
+        IdentityUser user, TimeWindow window, CancellationToken ct);
 }
 
 /// <summary>
@@ -117,6 +124,25 @@ public sealed class OuraReadService : IOuraReadService
         IdentityUser user, TimeWindow window, CancellationToken ct) =>
         EventsAsync<OuraTag, TagReading>(user, _context.OuraTags, window, ct);
 
+    /// <summary>
+    /// The widest window one heart-rate read answers for.
+    /// </summary>
+    /// <remarks>
+    /// The series is several hundred samples a day, so a month is already tens of thousands of
+    /// them — enough for any one chart. A client wanting a summary over longer asks the cardio or
+    /// habits reports, which read the series on the server.
+    /// </remarks>
+    public const int HeartRateWindowDays = 31;
+
+    public Task<Result<IReadOnlyList<HeartRateSample>, Problem>> GetHeartRateAsync(
+        IdentityUser user, TimeWindow window, CancellationToken ct) =>
+        window.Ordered()
+            .Ensure(
+                ordered => ordered.To - ordered.From <= TimeSpan.FromDays(HeartRateWindowDays),
+                _ => new Problem.Invalid(nameof(TimeWindow.To),
+                    $"A heart-rate read spans at most {HeartRateWindowDays} days."))
+            .MapAsync(ordered => _context.OuraHeartRateDays.SamplesAsync(Guid.Parse(user.Id), ordered, ct));
+
     // ---- Chat tools ----
     //
     // The conversation's way into this data. Both end their chain with a Match, which is what a
@@ -137,10 +163,21 @@ public sealed class OuraReadService : IOuraReadService
     private const int ChatDayLimit = 92;
 
     [Tool(Name = "GetOuraDays",
-        Description = "Oura's daily documents for a range of days: activity, readiness, sleep, SpO2, stress and resilience scores with their contributors. One entry per day the ring recorded anything for. At most 92 days per call — if the range is longer, only its most recent 92 days are returned, so ask again for an earlier window.")]
+        Description = "Oura's daily documents for a range of days: activity, readiness, sleep, SpO2, stress and resilience scores with their contributors, plus Oura's VO2max estimate and cardiovascular-age prediction where it issued one. One entry per day the ring recorded anything for. At most 92 days per call — if the range is longer, only its most recent 92 days are returned, so ask again for an earlier window.")]
     public Task<IReadOnlyList<OuraDayView>> GetOuraDaysForChatAsync(IdentityUser user, DayRange range) =>
         GetDaysAsync(user, Recent(range), CancellationToken.None)
-            .MatchAsync(days => days, _ => []);
+            .MatchAsync(days => (IReadOnlyList<OuraDayView>)[.. days.Select(WithoutTimeline)], _ => []);
+
+    /// <summary>
+    /// A day without its five-minute activity classification.
+    /// </summary>
+    /// <remarks>
+    /// The classification is 288 digits a day, which a client draws and a model can only spend its
+    /// context on; the shape of a day reaches the model through the habits report instead, already
+    /// read into bouts and hours.
+    /// </remarks>
+    private static OuraDayView WithoutTimeline(OuraDayView day) =>
+        day with { Activity = day.Activity is { } activity ? activity with { Timeline = null } : null };
 
     [Tool(Name = "GetOuraSleepNights",
         Description = "Per-night sleep detail from Oura for a range of days: stage durations, efficiency, latency, lowest and average heart rate, average HRV and breathing rate. Use this when the daily sleep score is not enough to explain a night. At most 92 days per call — if the range is longer, only its most recent 92 days are returned, so ask again for an earlier window.")]
@@ -219,15 +256,16 @@ public sealed class OuraReadService : IOuraReadService
     // ---- Reads ----
 
     /// <summary>
-    /// The six daily collections for a range, stitched into one row per day that has any of them.
+    /// The eight daily collections for a range, stitched into one row per day that has any of them.
     /// </summary>
     /// <remarks>
-    /// Six indexed range queries and a join in memory, rather than one query with five outer
+    /// Eight indexed range queries and a join in memory, rather than one query with seven outer
     /// joins. The collections cover different sets of days and none is a reliable spine to join
     /// the others onto, the payloads are JSON columns a relational join could not read into
     /// anyway, and a range read at one athlete's volume is a few hundred rows.
     /// <para>
-    /// Oura has issued more than one document for the same day in the SpO2 collection, so each
+    /// Oura has issued more than one document for the same day in the SpO2 collection, and VO2max
+    /// is not unique per day in its schema either, so each
     /// collection contributes at most one reading per day here, taken in document-id order so the
     /// answer does not change between identical calls.
     /// </para>
@@ -241,12 +279,15 @@ public sealed class OuraReadService : IOuraReadService
         var spo2 = await DailyAsync<OuraDailySpo2, DailySpo2Reading>(_context.OuraDailySpo2, userId, range, ct);
         var stress = await DailyAsync<OuraDailyStress, DailyStressReading>(_context.OuraDailyStress, userId, range, ct);
         var resilience = await DailyAsync<OuraDailyResilience, DailyResilienceReading>(_context.OuraDailyResilience, userId, range, ct);
+        var vo2Max = await DailyAsync<OuraVo2Max, Vo2MaxReading>(_context.OuraVo2Max, userId, range, ct);
+        var cardiovascularAge = await DailyAsync<OuraDailyCardiovascularAge, CardiovascularAgeReading>(_context.OuraDailyCardiovascularAge, userId, range, ct);
 
         IReadOnlyList<OuraDayView> days =
         [
             .. activity.Keys
                 .Union(readiness.Keys).Union(sleep.Keys)
                 .Union(spo2.Keys).Union(stress.Keys).Union(resilience.Keys)
+                .Union(vo2Max.Keys).Union(cardiovascularAge.Keys)
                 .OrderBy(day => day)
                 .Select(day => new OuraDayView(
                     day,
@@ -255,13 +296,15 @@ public sealed class OuraReadService : IOuraReadService
                     sleep.GetValueOrDefault(day),
                     spo2.GetValueOrDefault(day),
                     stress.GetValueOrDefault(day),
-                    resilience.GetValueOrDefault(day)))
+                    resilience.GetValueOrDefault(day),
+                    vo2Max.GetValueOrDefault(day),
+                    cardiovascularAge.GetValueOrDefault(day)))
         ];
 
         return Result<IReadOnlyList<OuraDayView>, Problem>.Success(days);
     }
 
-    /// <summary>The newest day across the six daily collections.</summary>
+    /// <summary>The newest day across the eight daily collections.</summary>
     /// <remarks>
     /// Each collection is asked for its own newest day because they cover different days, and the
     /// latest of the six is the answer.
@@ -276,6 +319,8 @@ public sealed class OuraReadService : IOuraReadService
             await NewestAsync<OuraDailySpo2, DailySpo2Reading>(_context.OuraDailySpo2, userId, ct),
             await NewestAsync<OuraDailyStress, DailyStressReading>(_context.OuraDailyStress, userId, ct),
             await NewestAsync<OuraDailyResilience, DailyResilienceReading>(_context.OuraDailyResilience, userId, ct),
+            await NewestAsync<OuraVo2Max, Vo2MaxReading>(_context.OuraVo2Max, userId, ct),
+            await NewestAsync<OuraDailyCardiovascularAge, CardiovascularAgeReading>(_context.OuraDailyCardiovascularAge, userId, ct),
         ];
 
         return newest.Max() is DateOnly latest

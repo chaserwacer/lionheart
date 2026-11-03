@@ -72,6 +72,11 @@ public sealed record WireDailyActivity
     [JsonPropertyName("medium_activity_time")] public int? MediumActivityTime { get; init; }
     [JsonPropertyName("high_activity_time")] public int? HighActivityTime { get; init; }
     [JsonPropertyName("non_wear_time")] public int? NonWearTime { get; init; }
+
+    /// <summary>When the activity day begins: 04:00 on the athlete's own clock, with its offset.</summary>
+    [JsonPropertyName("timestamp")] public string? Timestamp { get; init; }
+
+    [JsonPropertyName("class_5_min")] public string? Class5Min { get; init; }
 }
 
 public sealed record WireActivityContributors
@@ -161,6 +166,33 @@ public sealed record WireResilienceContributors
     [JsonPropertyName("sleep_recovery")] public double? SleepRecovery { get; init; }
     [JsonPropertyName("daytime_recovery")] public double? DaytimeRecovery { get; init; }
     [JsonPropertyName("stress")] public double? Stress { get; init; }
+}
+
+public sealed record WireVo2Max
+{
+    [JsonPropertyName("id")] public string? Id { get; init; }
+    [JsonPropertyName("day")] public string? Day { get; init; }
+    [JsonPropertyName("timestamp")] public string? Timestamp { get; init; }
+    [JsonPropertyName("vo2_max")] public int? Vo2Max { get; init; }
+}
+
+public sealed record WireDailyCardiovascularAge
+{
+    [JsonPropertyName("id")] public string? Id { get; init; }
+    [JsonPropertyName("day")] public string? Day { get; init; }
+    [JsonPropertyName("vascular_age")] public int? VascularAge { get; init; }
+    [JsonPropertyName("pulse_wave_velocity")] public double? PulseWaveVelocity { get; init; }
+}
+
+/// <summary>
+/// One sample of the all-day heart-rate series. The only Oura payload here with no id and no day:
+/// it is a bare reading, and its UTC instant is all there is to place it by.
+/// </summary>
+public sealed record WireHeartRate
+{
+    [JsonPropertyName("timestamp")] public string? Timestamp { get; init; }
+    [JsonPropertyName("bpm")] public int? Bpm { get; init; }
+    [JsonPropertyName("source")] public string? Source { get; init; }
 }
 
 public sealed record WireSleep

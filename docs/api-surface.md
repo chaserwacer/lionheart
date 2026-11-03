@@ -160,6 +160,7 @@ rather than anything computed. Design and the collections behind it: `docs/oura-
 | GET | `/workouts?from=&to=` | `TimeWindow` | workouts the ring saw or the athlete logged on it |
 | GET | `/sessions?from=&to=` | `TimeWindow` | guided meditation, breathing and rest |
 | GET | `/tags?from=&to=` | `TimeWindow` | tags the athlete marked |
+| GET | `/heartrate?from=&to=` | `TimeWindow` | every all-day heart-rate sample in the window, oldest first: `{at, bpm, source}`. At most 31 days; longer is 400 |
 | POST | `/sync` | `DayRange` | `OuraSyncReport` — per-collection tallies, including what Oura sent that could not be read |
 
 **Two window types, deliberately.** The daily documents are keyed by the calendar day Oura files
@@ -178,7 +179,37 @@ Lionheart session, never Oura's credential.
 
 `/days/latest` is what a client syncs from: the newest stored day says how far behind the store is,
 which a range read could only answer by guessing how far back to look. The newest day takes the
-latest of all six collections, since they cover different days.
+latest of all eight daily collections, since they cover different days.
+
+A day view carries `vo2Max` and `cardiovascularAge` beside the original six, each null where Oura
+issued nothing, and `activity.timeline` — the day's five-minute activity classification as Oura's
+digits with the instant its first slot starts — null on days stored without one.
+
+## Cardio — `/api/cardio`
+
+| Verb | Route | Body / query | Answers |
+|---|---|---|---|
+| GET | `/?from=&to=` | `DayRange`, at most 367 days | `CardioReport` |
+
+Derived on the server from the logged sessions, the ring's workouts, the all-day heart-rate series
+and Oura's fitness estimates; design in `docs/oura-integration.md` → "The cardio and habits
+reports". The report carries `maxHeartRate` (`$type` `agePredicted` | `observed`, or null with no
+usable age), `sessions` (each with a `source` — `$type` `ringWorkout` | `loggedSession` — and a
+`heartRate` — `$type` `recorded` | `notRecorded`), one `weeks` entry per Monday-to-Sunday week the
+range touches, empty weeks included, the `vo2Max`, `cardiovascularAge` and `restingHeartRate`
+series, `aerobicBase` (the last four weeks against the eight before, each figure null where neither
+window has data), and `excluded` (ring workouts left out, counted by category and reason).
+
+## Habits — `/api/habits`
+
+| Verb | Route | Body / query | Answers |
+|---|---|---|---|
+| GET | `/?from=&to=` | `DayRange`, at most 367 days | `HabitsReport`: one `HabitsDay` per stored activity day, and `current` and `previous` summaries — the range, and the equal span before it — each split into weekdays, weekends and all days |
+| GET | `/days/{day}` | — | that day's `HabitsDayDetail` — its classified runs, sittings, sleep and training on the clock — or 404 when no activity is stored for it |
+
+Activity classes travel as `nonWear`, `rest`, `inactive`, `low`, `medium`, `high`, `unrecognised`.
+Clock figures in a sleep timing are minutes: a bedtime from noon, a wake time and midpoint from
+midnight, so bedtimes either side of midnight average correctly.
 
 ## Interpretation engine — `/api/interpretation`
 

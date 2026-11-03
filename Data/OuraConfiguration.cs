@@ -34,11 +34,38 @@ public static class OuraConfiguration
         Day<OuraDailySpo2, DailySpo2Reading>(modelBuilder, "OuraDailySpo2");
         Day<OuraDailyStress, DailyStressReading>(modelBuilder, "OuraDailyStress");
         Day<OuraDailyResilience, DailyResilienceReading>(modelBuilder, "OuraDailyResilience");
+        Day<OuraVo2Max, Vo2MaxReading>(modelBuilder, "OuraVo2Max");
+        Day<OuraDailyCardiovascularAge, CardiovascularAgeReading>(modelBuilder, "OuraDailyCardiovascularAge");
 
         Event<OuraSleepPeriod, SleepPeriodReading>(modelBuilder, "OuraSleepPeriods");
         Event<OuraWorkout, WorkoutReading>(modelBuilder, "OuraWorkouts");
         Event<OuraSession, SessionReading>(modelBuilder, "OuraSessions");
         Event<OuraTag, TagReading>(modelBuilder, "OuraTags");
+
+        HeartRateDays(modelBuilder);
+    }
+
+    /// <summary>
+    /// The all-day heart-rate series: one row per athlete per UTC day, keyed by exactly that.
+    /// </summary>
+    /// <remarks>
+    /// Oura gives these samples no id, so the athlete and the day are the key rather than a
+    /// surrogate beside an index — there is never a second row for the same day to tell apart.
+    /// </remarks>
+    private static void HeartRateDays(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<OuraHeartRateDay>(day =>
+        {
+            day.ToTable("OuraHeartRateDays");
+            day.HasKey(d => new { d.UserId, d.Day });
+
+            day.HasOne<LionheartUser>()
+                .WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            day.Property(d => d.Reading).HasJsonConversion();
+        });
     }
 
     private static void Day<TDocument, TReading>(ModelBuilder modelBuilder, string table)
