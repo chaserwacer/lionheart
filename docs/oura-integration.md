@@ -198,8 +198,14 @@ Two things a reader should know before trusting the pull:
 - **Oura retired personal access tokens at the end of 2025** (reported by its own OpenAPI
   description; not verified against a live call here). The stored credential is still a personal
   access token, so the first live sync may answer 401. The client's message for 401 says so
-  explicitly rather than leaving a stale credential looking like an outage. Moving to OAuth2 is
-  not part of this change.
+  explicitly rather than leaving a stale credential looking like an outage.
+
+  **Decided 2026-11-03 (owner): stay on the personal access token until it actually stops
+  working.** The retirement is documentation rather than an observed failure, the token may well
+  keep working for an existing integration, and OAuth2 would mean a redirect flow, a client
+  secret and a token store for one user who already has a working credential. The trigger for
+  revisiting is a real 401 from a real sync, which the client already names. Do not migrate
+  pre-emptively.
 - **The activity collection needs an end date a day past the last day wanted**, or it omits that
   last day. Found by hand by the earlier integration and preserved; it is applied only to that one
   collection so the workaround stays attached to the quirk it documents.

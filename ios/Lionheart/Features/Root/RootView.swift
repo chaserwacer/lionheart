@@ -19,7 +19,12 @@ struct RootView: View {
             case .signedOut:
                 SignInView(auth: container.auth)
             case .signedIn:
-                SignedInTabs(container: container)
+                // Signed in is not the same as set up. An Identity account with no Lionheart
+                // profile is refused by every training write and answered with nothing by every
+                // read, so the gate stands in front of the tabs rather than inside them.
+                ProfileGateView(store: container.profile) {
+                    SignedInTabs(container: container)
+                }
             }
         }
         .tint(Tokens.accent)
@@ -30,8 +35,9 @@ struct RootView: View {
 
 /// The five tabs, chosen so each answers one question the athlete asks.
 ///
-/// Four of them are honest placeholders. Today is the one that reads live data, because this change
-/// is the floor the training and analysis screens get built on rather than those screens.
+/// All five read live data. The selection is held here as `@State` rather than left to the
+/// `TabView`, because the workout accessory is hung conditionally and would otherwise reset the
+/// athlete's tab the moment a workout started — see `WorkoutAccessory`.
 private struct SignedInTabs: View {
     let container: AppContainer
 
@@ -57,13 +63,13 @@ private struct SignedInTabs: View {
                     openWorkout: { isWorkoutPresented = true })
             }
             Tab("History", systemImage: "list.bullet.rectangle", value: Destination.history) {
-                HistoryView()
+                HistoryView(store: container.history)
             }
             Tab("Coach", systemImage: "bubble.left.and.text.bubble.right", value: Destination.coach) {
-                CoachView()
+                CoachView(store: container.coach)
             }
             Tab("Body", systemImage: "heart.text.square", value: Destination.body) {
-                BodyView()
+                BodyView(store: container.body)
             }
         }
         .workoutAccessory(

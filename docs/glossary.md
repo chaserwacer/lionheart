@@ -70,3 +70,8 @@ first and then in the code.
 | **Workout destination** | Where a workout's sets are going to land: an active session already on the server, or a `POST /completed` that carries the whole thing at the end. |
 | **Sync state** | Whether what has been logged has reached the server: synced, pending, failed, or refused. Only the last two are worth saying out loud. |
 | **Logging surface** | The full-screen set-by-set screen the workout bar opens into. |
+| **Profile gate** | The root's answer to whether a signed-in athlete may see the tabs: undetermined, absent, present, or unreachable. An Identity account without a Lionheart profile is refused by every training write, while reads answer empty — which is why the gate asks rather than waiting to be refused. |
+| **Session log** | History's list of sessions, grouped by month, newest first. A row reads as completed, in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. |
+| **Movement catalogue** | Movement names by id, so a set — which carries only a `movementDataId` — can say what it was. |
+| **Coach turn** | One thing in the Coach transcript: something said, a question in flight, or a question the server did not keep because the exchange failed. |
+| **Oura panel** | One collection of an Oura day as a screen shows it — its score, where Oura issues one, and the figures behind it. |

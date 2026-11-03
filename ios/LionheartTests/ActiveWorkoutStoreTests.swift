@@ -21,6 +21,17 @@ private final class AServer: WorkoutSessionWriting, @unchecked Sendable {
     var failPushes: (any Error)?
     var failCompletion: (any Error)?
 
+    /// What a read of the session answers. `nil` makes the read itself fail, which is the case the
+    /// store must treat as "I cannot tell" rather than as "not completed".
+    var sessionOnServer: TrainingSession?
+    private(set) var sessionReads: [UUID] = []
+
+    func session(id: UUID) async throws -> TrainingSession {
+        sessionReads.append(id)
+        guard let sessionOnServer else { throw APIError.transport("the read itself failed") }
+        return sessionOnServer
+    }
+
     func replaceSets(id: UUID, with sets: [SetCommand]) async throws -> TrainingSession {
         pushedSets.append(sets)
         if let failPushes { throw failPushes }
@@ -57,6 +68,21 @@ private final class AServer: WorkoutSessionWriting, @unchecked Sendable {
 
     func delete(id: UUID) async throws {
         deletions.append(id)
+    }
+
+    fileprivate static func aCompletedSession(id: UUID) -> TrainingSession {
+        .completed(TrainingSession.Completed(
+            envelope: TrainingSession.Envelope(
+                trainingSessionId: id,
+                notes: "",
+                provenance: .user,
+                trainingProgramId: nil,
+                createdAt: nil,
+                date: CalendarDay(year: 2026, month: 11, day: 2)),
+            sets: [],
+            period: .instant(at: AWorkout.start),
+            effort: .notReported,
+            decoration: .none))
     }
 
     private static func anActiveSession(id: UUID) -> TrainingSession {
@@ -365,6 +391,57 @@ struct ActiveWorkoutStoreTests {
         #expect(server.deletions == [AWorkout.session])
         #expect(store.workout == nil)
         #expect(document.read() == nil)
+    }
+
+    /// The one path that can lose a whole workout for good, so it is the one most worth a test.
+    ///
+    /// Completing can commit on the server and lose only its *response* — a dropped connection, a
+    /// body that would not decode. The device then still believes the workout is unfinished and
+    /// offers the athlete "discard", which used to delete a session the server had saved with
+    /// every set in it. The athlete would be throwing away what they had just finished, while
+    /// being told they were throwing away something unsaved.
+    @Test("Discarding never deletes a workout the server has already saved")
+    func discardingNeverDeletesASavedWorkout() async {
+        let (store, document, server) = Self.aStore()
+        server.sessionOnServer = AServer.aCompletedSession(id: AWorkout.session)
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+
+        await store.discard()
+
+        #expect(server.deletions.isEmpty)
+        // The local copy still goes: the server is holding the real one.
+        #expect(store.workout == nil)
+        #expect(document.read() == nil)
+    }
+
+    @Test("A completion whose response was lost counts as completed, not refused")
+    func aLostCompletionResponseIsNotAFailure() async {
+        let (store, document, server) = Self.aStore()
+        server.failCompletion = APIError.transport("the response never arrived")
+        server.sessionOnServer = AServer.aCompletedSession(id: AWorkout.session)
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+
+        let landed = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+
+        #expect(landed)
+        #expect(store.workout == nil)
+        #expect(document.read() == nil)
+    }
+
+    /// A read that fails answers "I cannot tell", which has to behave as "not completed" — keeping
+    /// the local copy is the recoverable mistake, and clearing it on a guess is not.
+    @Test("A session read that fails leaves the workout alone")
+    func anUnreadableSessionKeepsTheWorkout() async {
+        let (store, document, server) = Self.aStore()
+        server.failCompletion = APIError.transport("the response never arrived")
+        server.sessionOnServer = nil
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+
+        let landed = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+
+        #expect(!landed)
+        #expect(store.workout != nil)
+        #expect(document.read() != nil)
     }
 
     @Test("Signing out takes the document with it")

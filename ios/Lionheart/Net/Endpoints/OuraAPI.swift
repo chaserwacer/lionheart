@@ -2,44 +2,55 @@ import Foundation
 
 /// The Oura routes.
 ///
-/// These predate the remodel and are not in `docs/api-surface.md`; the shapes here were read off
-/// the endpoints themselves (`Endpoints/OuraEndpoints/`), which is why the paths are verbs rather
-/// than resources.
+/// Two shapes, because Oura's collections are two shapes. Six describe a calendar day and arrive
+/// together as one `OuraDay`; four are events inside a day — zero to many each, occupying clock
+/// time — and each has its own route returning the same envelope around a different reading.
 ///
-/// **There is no "latest readiness" route, and `GET /get-daily-oura-data` is the wrong way to
-/// approximate one.** That route answers 200 with a *synthesized placeholder* when the day has no
-/// data — a zero readiness score and an empty object id — so a client asking for today cannot tell
-/// "not recovered" from "the ring has not synced". The range route returns only rows that actually
-/// exist, so asking for a window and taking the most recent day is the only read that can say
-/// "no data" honestly. `Core/Derived/` does the picking.
+/// **Absence is honest on every one of these.** A collection the ring filed nothing for arrives
+/// null on the day; a day it recorded nothing for is absent from the range, and asking for it by
+/// date answers 404. So no read here needs to second-guess a value: a zero is a zero Oura issued.
 struct OuraAPI: Sendable {
     let client: APIClient
 
-    /// Every stored Oura day in the window, in no guaranteed order.
+    /// Every day in the range the ring recorded something for, oldest first.
+    ///
+    /// Days with nothing stored are simply missing from the answer rather than present and empty,
+    /// which is what lets a caller tell "a bad night" from "the ring was in a drawer".
     func days(from: CalendarDay, to: CalendarDay) async throws -> [OuraDay] {
-        try await client.post(
-            "/api/oura/get-daily-oura-data-range",
-            body: DateRangeBody(startDate: from, endDate: to),
+        try await client.get(
+            "/api/oura/days",
+            query: [
+                URLQueryItem(name: "From", value: from.wire),
+                URLQueryItem(name: "To", value: to.wire),
+            ],
             as: LenientList<OuraDay>.self).elements
     }
-}
 
-/// `DateRangeRequest` as the server binds it: `DateTime` members, so a day is sent as midnight.
-///
-/// The server immediately narrows both to `DateOnly`, so the time of day is discarded there and
-/// midnight is the honest thing to send rather than a value pretending to be an instant.
-struct DateRangeBody: Encodable, Sendable {
-    let startDate: CalendarDay
-    let endDate: CalendarDay
-
-    private enum CodingKeys: String, CodingKey {
-        case startDate
-        case endDate
+    func sleepPeriods(from: Date, to: Date) async throws -> [OuraEvent<OuraSleepPeriod>] {
+        try await events("/api/oura/sleep", from: from, to: to)
     }
 
-    func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode("\(startDate.wire)T00:00:00", forKey: .startDate)
-        try container.encode("\(endDate.wire)T00:00:00", forKey: .endDate)
+    func workouts(from: Date, to: Date) async throws -> [OuraEvent<OuraWorkout>] {
+        try await events("/api/oura/workouts", from: from, to: to)
+    }
+
+    func tags(from: Date, to: Date) async throws -> [OuraEvent<OuraTag>] {
+        try await events("/api/oura/tags", from: from, to: to)
+    }
+
+    /// The event routes differ only in their path and their reading, so they share this.
+    ///
+    /// The window binds as instants rather than days, because an event occupies clock time — which
+    /// is also why a night beginning before midnight can fall outside a window its day is inside.
+    private func events<Reading: Decodable & Equatable & Sendable>(
+        _ path: String, from: Date, to: Date
+    ) async throws -> [OuraEvent<Reading>] {
+        try await client.get(
+            path,
+            query: [
+                URLQueryItem(name: "From", value: WireDate.wire(from: from)),
+                URLQueryItem(name: "To", value: WireDate.wire(from: to)),
+            ],
+            as: LenientList<OuraEvent<Reading>>.self).elements
     }
 }

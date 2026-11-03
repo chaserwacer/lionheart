@@ -135,18 +135,24 @@ Two derivations are judgement calls worth recording:
   the common case and nothing stops a mistyped date.
 - **A planned session dated before today has been missed**, not scheduled, and belongs to History.
 
-### Readiness, and why not the obvious route
+### Readiness, and why a window rather than today
 
-`GET /api/oura/get-daily-oura-data` answers **200 with a synthesized placeholder** when the day has
-no data — a zero readiness score and an empty object id. A client asking for today therefore cannot
-tell "not recovered" from "the ring has not synced", and rendering that placeholder would be a lie
-the athlete could train on.
+Absence is honest on every Oura route: a collection the ring filed nothing for arrives `null` on
+the day, a day it recorded nothing for is absent from a range, and asking for that day by date
+answers 404. So nothing in the client second-guesses a value — a readiness of zero is one Oura
+issued, and `latestReadiness` keeps it.
 
-So Today reads the **range** route instead, which returns only rows that exist, and
-`TodaySnapshot.latestReadiness` takes the most recent day that actually carries a score. A score of
-zero is dropped for the same reason: Oura does not issue a readiness of nought.
+Today still reads a **window** and takes the most recent day carrying a score, and the reason is
+the screen rather than the route: the reading's day is rendered beside the number, so an athlete
+who left the ring in a drawer for two days sees "78, three days ago" instead of nothing at all. A
+single-day read would make that day field pointless and would show silence on every morning before
+the ring syncs.
 
-There is no "latest readiness" route. If one is ever added, this is the derivation it replaces.
+Two numbers on that card are **contributor scores, not measurements**. Oura's readiness
+contributors are each 1–100 and compare the day against the athlete's own baseline, so
+`restingHeartRate` is how his resting rate compared and is not a heart rate — the rate itself is on
+the night, as `OuraSleepPeriod.lowestHeartRate`. `ReadinessReading` names them `…Balance` for that
+reason, and the cards that render them say "balance" too.
 
 ## The active workout
 
@@ -156,9 +162,10 @@ lose something the athlete has already seen confirmed. The directory is excluded
 half-finished workout restored onto a new phone weeks later is noise, and the server holds everything
 that matters once the session completes.
 
-Two states that look alike and are not: `ActiveWorkout.isSynced` is about the **server** (the next
-push will carry it), `ActiveWorkoutStore.isPersisted` is about the **disk** (a force-quit would lose
-it). They fail independently and want different words.
+Two states that look alike and are not: `ActiveWorkout.sync` is about the **server** — four cases,
+of which only `failed` and `refused` are worth saying out loud — while
+`ActiveWorkoutStore.isPersisted` is about the **disk** (a force-quit would lose it). They fail
+independently and want different words.
 
 `ActiveWorkout.version` exists so a document written by an older build is recognised as an older
 shape, and one written by a *newer* build is refused rather than half-read — a downgraded build that
@@ -171,10 +178,16 @@ good.
 `tabViewBottomAccessory` on iOS 26, `safeAreaInset(edge: .bottom)` on iOS 18 — so there is one
 appearance to design.
 
-The modifier is applied **unconditionally** and the emptiness decided inside its content. Making the
-modifier itself conditional would change the `TabView`'s view identity the moment a workout starts,
-and SwiftUI would reset the selected tab underneath the athlete. On the iOS 18 path an `EmptyView`
-inset costs no height, so no workout costs no space.
+**On iOS 26 the accessory is hung only while a workout is in flight.** The slot draws its own
+capsule whatever is inside it, so applying the modifier unconditionally and deciding emptiness in
+its content — which is what the first version did — left an empty glass pill floating above the tab
+bar on every screen. Making the modifier conditional changes the `TabView`'s view identity the
+moment a workout starts, which would reset the selected tab underneath the athlete; the selection is
+therefore `@State` held *outside* the `TabView`, so it survives the rebuild. That is the trade: one
+piece of state lifted, in exchange for the slot not being drawn when there is nothing to put in it.
+
+The iOS 18 path still decides inside the inset, where an `EmptyView` genuinely costs no height, so
+no workout costs no space.
 
 The elapsed clock is a `TimelineView(.periodic)` inside the bar, so a one-second tick redraws the
 clock and not the set list that will sit above it.
@@ -195,8 +208,8 @@ owner's brief: native, like Apple Music, and explicitly not the web app's custom
 - `List(.insetGrouped)` is the default screen.
 
 `Design/` holds only what stock SwiftUI has no answer for: `Tokens`, `ActiveWorkoutBar`,
-`ReadinessGauge` (the stock `Gauge` plus Oura's band colour) and `StatTile`. `SetRow` and
-`RestTimerBar`, which the skill also lists, belong to the training screens and are not written yet.
+`ReadinessGauge` (the stock `Gauge` plus Oura's band colour), `StatTile`, `SetRow`, `RestTimerBar`
+and `LoadStateRows` (the loading row and stale banner three tabs share).
 
 A note on the plist: the app supplies its own `Info.plist`, so `INFOPLIST_KEY_*` build settings do
 not reach it. `UILaunchScreen` has to be declared there explicitly or the app runs letterboxed in

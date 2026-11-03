@@ -15,7 +15,11 @@ import Observation
 final class AppContainer {
     let configuration: APIConfiguration
     let auth: AuthStore
+    let profile: ProfileStore
     let today: TodayStore
+    let history: HistoryStore
+    let coach: CoachStore
+    let body: BodyStore
     let activeWorkout: ActiveWorkoutStore
     let train: TrainStore
     let movements: MovementLibraryStore
@@ -31,6 +35,7 @@ final class AppContainer {
         self.configuration = configuration
         self.tokens = tokens
         auth = AuthStore(identity: IdentityAPI(client: client), tokens: tokens)
+        profile = ProfileStore(users: UserAPI(client: client))
         today = TodayStore(
             sessions: sessions,
             oura: OuraAPI(client: client),
@@ -42,6 +47,17 @@ final class AppContainer {
         self.activeWorkout = activeWorkout
         train = TrainStore(sessions: sessions, activeWorkout: activeWorkout)
         movements = MovementLibraryStore(movements: MovementsAPI(client: client))
+        history = HistoryStore(
+            sessions: TrainingSessionsAPI(client: client),
+            movements: MovementsAPI(client: client),
+            records: PersonalRecordsAPI(client: client))
+        coach = CoachStore(
+            chat: ChatAPI(client: client),
+            profile: ProfileAPI(client: client))
+        body = BodyStore(
+            oura: OuraAPI(client: client),
+            wellness: WellnessAPI(client: client),
+            injuries: InjuriesAPI(client: client))
     }
 
     /// Settles the signed-in root and reads back anything that survived the last run.
@@ -53,11 +69,17 @@ final class AppContainer {
         hasStarted = true
 
         // Registered before the session is settled, so a sign-out during the first load still
-        // empties the screen it was loading into.
-        auth.onSignOut { [today, train, movements, activeWorkout] in
+        // empties the screen it was loading into. The profile gate is reset for a sharper reason
+        // than the screens are: left settled, the next athlete on this device would walk straight
+        // into the tabs on an account that has no profile behind them.
+        auth.onSignOut { [profile, today, train, movements, history, coach, body, activeWorkout] in
+            profile.reset()
             today.reset()
             train.reset()
             movements.reset()
+            history.reset()
+            coach.reset()
+            body.reset()
             // The workout goes too, document and all: it belongs to the session the signed-out
             // credential owned, and one the next sign-in could adopt would push one athlete's sets
             // at another athlete's session id.

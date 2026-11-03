@@ -148,28 +148,171 @@ struct WireValueTests {
     }
 }
 
-/// Oura and the other pre-remodel shapes.
-@Suite("Pre-remodel wire shapes")
+/// Oura and the other shapes the remodel did not reach.
+@Suite("Oura and pre-remodel wire shapes")
 struct LegacyWireShapeTests {
-    @Test("An Oura day reads the four panels the server sends")
-    func anOuraDayReadsItsPanels() throws {
-        let day = try Decoding.decode(OuraDay.self, Oura.day(date: "2026-03-04", readinessScore: 83))
+    @Test("An Oura day reads every collection the server sends")
+    func anOuraDayReadsItsCollections() throws {
+        let day = try Decoding.decode(
+            OuraDay.self,
+            Oura.day(date: "2026-03-04", readinessScore: "83", resilience: Oura.resilience))
 
         #expect(day.date == CalendarDay(year: 2026, month: 3, day: 4))
         #expect(day.readiness?.score == 83)
-        #expect(day.readiness?.restingHeartRate == 48)
-        #expect(day.sleep?.totalSleep == 27000)
+        // A contributor score out of 100 comparing the day against the athlete's own baseline.
+        // It is not a heart rate, and 81 is the value that makes that unmistakable.
+        #expect(day.readiness?.contributors.restingHeartRate == 81)
+        #expect(day.sleep?.contributors.totalSleep == 90)
         #expect(day.activity?.steps == 9000)
+        #expect(day.spo2?.averagePercentage == 96.5)
+        #expect(day.stress?.daySummary == "normal")
         #expect(day.resilience?.level == "solid")
     }
 
-    @Test("An Oura day whose panels are null keeps the day and loses only the panels")
-    func absentPanelsAreAbsentNotZero() throws {
+    @Test("An Oura day whose collections are null keeps the day and loses only the collections")
+    func absentCollectionsAreAbsentNotZero() throws {
         let day = try Decoding.decode(OuraDay.self, Oura.dayWithoutPanels(date: "2026-03-04"))
 
         #expect(day.date == CalendarDay(year: 2026, month: 3, day: 4))
         #expect(day.readiness == nil)
         #expect(day.sleep == nil)
+        #expect(day.isEmpty)
+    }
+
+    @Test("Resilience is the collection a day usually arrives without")
+    func resilienceIsUsuallyAbsent() throws {
+        // The athlete's archive has no resilience history, so a day from it carries the other
+        // five and null here. Absent is the shape, not a defect.
+        let day = try Decoding.decode(OuraDay.self, Oura.day(date: "2026-03-04"))
+
+        #expect(day.resilience == nil)
+        #expect(day.readiness != nil)
+    }
+
+    @Test("A sleep period keeps its stages, its hypnogram and its overnight curves")
+    func aSleepPeriodKeepsTheNight() throws {
+        let night = try Decoding.decode(
+            OuraEvent<OuraSleepPeriod>.self,
+            Oura.sleepPeriod(
+                id: "eeeeeeee-0000-0000-0000-00000000000a", day: "2026-03-04",
+                start: "2026-03-03T23:10:00+00:00", end: "2026-03-04T07:10:00+00:00"))
+
+        #expect(night.day == CalendarDay(year: 2026, month: 3, day: 4))
+        #expect(night.reading.isMainSleep)
+        #expect(night.reading.totalSleepSeconds == 26100)
+        #expect(night.reading.hypnogram == "4433221")
+        #expect(night.reading.hrv.samples.count == 3)
+    }
+
+    @Test("A night that began before midnight is filed under the day it ended on")
+    func aNightBelongsToTheWakingDay() throws {
+        // Oura's attribution and the clock genuinely disagree, which is why `day` travels beside
+        // `period` rather than being derived from it.
+        let night = try Decoding.decode(
+            OuraEvent<OuraSleepPeriod>.self,
+            Oura.sleepPeriod(
+                id: "eeeeeeee-0000-0000-0000-00000000000b", day: "2026-03-04",
+                start: "2026-03-03T23:10:00+00:00", end: "2026-03-04T07:10:00+00:00"))
+
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+
+        #expect(night.day == CalendarDay(year: 2026, month: 3, day: 4))
+        if case .interval(let start, _) = night.period {
+            #expect(CalendarDay(start, in: utc) == CalendarDay(year: 2026, month: 3, day: 3))
+        } else {
+            Issue.record("A sleep period occupies an interval.")
+        }
+    }
+
+    @Test("A gap in an overnight curve stays a gap rather than becoming a zero")
+    func aSampleGapIsNotAZero() throws {
+        // Roughly one overnight slot in seven is empty. Reading a gap as zero would draw a heart
+        // rate of nought; dropping it would shift every later sample earlier in the night.
+        let night = try Decoding.decode(
+            OuraEvent<OuraSleepPeriod>.self,
+            Oura.sleepPeriod(
+                id: "eeeeeeee-0000-0000-0000-00000000000c", day: "2026-03-04",
+                start: "2026-03-03T23:10:00+00:00", end: "2026-03-04T07:10:00+00:00",
+                samples: "[48,null,51]"))
+
+        #expect(night.reading.heartRate.samples == [48, nil, 51])
+        #expect(night.reading.heartRate.measured.count == 2)
+    }
+
+    @Test("A period Oura took no heart-rate reading across keeps the zero it sent")
+    func aZeroAverageHeartRateIsPreserved() throws {
+        // Oura reports 0 rather than null on 148 archived records. Rewriting it on the way in
+        // would leave nothing able to tell the two cases apart; the all-null curve beside it is
+        // how a reader does.
+        let nap = try Decoding.decode(
+            OuraEvent<OuraSleepPeriod>.self,
+            Oura.sleepPeriod(
+                id: "eeeeeeee-0000-0000-0000-00000000000d", day: "2026-03-04",
+                start: "2026-03-04T13:10:00+00:00", end: "2026-03-04T13:25:00+00:00",
+                isMainSleep: false, averageHeartRate: "0", samples: "[null,null,null]"))
+
+        #expect(nap.reading.averageHeartRate == 0)
+        #expect(nap.reading.heartRate.isEmpty)
+        #expect(!nap.reading.isMainSleep)
+    }
+
+    @Test("A workout carries what Oura could measure and nothing it could not")
+    func aWorkoutCarriesItsMeasurements() throws {
+        let workout = try Decoding.decode(
+            OuraEvent<OuraWorkout>.self,
+            Oura.workout(id: "eeeeeeee-0000-0000-0000-00000000000e", day: "2026-03-04"))
+
+        #expect(workout.reading.activity == "walking")
+        #expect(workout.reading.source == "confirmed")
+        #expect(workout.reading.label == nil)
+        #expect(workout.reading.distanceMeters == 735.2)
+        #expect(workout.reading.activityPhrase == "Walking")
+    }
+
+    @Test(
+        "A workout's distance reads in metres under a kilometre and kilometres above it",
+        arguments: [(40.0, "40 m"), (735.2, "735 m"), (1000.0, "1 km"), (5400.0, "5.4 km")])
+    func shortDistancesReadInMetres(meters: Double, expected: String) {
+        // Rounding a 40-metre walk to "0.0 km" reads as no distance at all, which is the opposite
+        // of what Oura measured.
+        #expect(OuraWorkout.distance(meters: meters) == expected)
+    }
+
+    @Test("A measurement Oura could not take is left out, not printed as zero")
+    func unmeasuredWorkoutFiguresAreOmitted() throws {
+        // Oura measures neither distance nor calories for some activities. A zero would read as a
+        // workout that covered no ground rather than one it does not measure.
+        let workout = try Decoding.decode(OuraEvent<OuraWorkout>.self, """
+            {"ouraId":"eeeeeeee-0000-0000-0000-0000000000c1","day":"2026-03-04",
+             "period":{"$type":"instant","at":"2026-03-04T10:00:00+00:00"},
+             "reading":{"period":{"$type":"instant","at":"2026-03-04T10:00:00+00:00"},
+               "activity":"housework","intensity":"easy","source":"manual","label":null,
+               "calories":null,"distanceMeters":null}}
+            """)
+
+        #expect(workout.reading.summary == "Easy")
+    }
+
+    @Test("A tag's codes read as words, whatever prefix Oura used")
+    func aTagReadsAsWords() throws {
+        let tag = try Decoding.decode(
+            OuraEvent<OuraTag>.self,
+            Oura.tag(
+                id: "eeeeeeee-0000-0000-0000-00000000000f", day: "2026-03-04",
+                codes: #"["tag_sleep_alcohol","tag_generic_travel"]"#))
+
+        #expect(tag.reading.phrases == ["Alcohol", "Travel"])
+    }
+
+    @Test("An event missing its id is dropped without taking the window with it")
+    func oneMalformedEventDoesNotEmptyTheList() throws {
+        let events = try Decoding.list(OuraEvent<OuraWorkout>.self, """
+            [{"ouraId":null,"day":"2026-03-04","period":null,"reading":null},
+             \(Oura.workout(id: "eeeeeeee-0000-0000-0000-0000000000a1", day: "2026-03-04"))]
+            """)
+
+        #expect(events.count == 1)
     }
 
     @Test("A wellness state takes the server's own overall score rather than recomputing it")

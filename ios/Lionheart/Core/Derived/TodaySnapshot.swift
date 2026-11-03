@@ -25,11 +25,16 @@ struct TodaySnapshot: Equatable, Sendable {
 /// The day travels with the score because a readiness from three days ago means something different
 /// from this morning's, and a screen that showed the number alone would be quietly wrong whenever
 /// the ring had not synced.
+///
+/// The two balances are **contributor scores**, each 1–100, comparing the day against the
+/// athlete's own baseline. Neither is a measurement: `restingHeartRateBalance` says how his
+/// resting rate compared, not what it was. The rate itself is on the night, as
+/// `OuraSleepPeriod.lowestHeartRate`, which is why these carry "balance" in their names.
 struct ReadinessReading: Equatable, Sendable {
     let day: CalendarDay
     let score: Int
-    let restingHeartRate: Int
-    let hrvBalance: Int
+    let restingHeartRateBalance: Int?
+    let hrvBalance: Int?
     /// Oura's sleep score for the same day, where there is one.
     let sleepScore: Int?
 
@@ -75,21 +80,25 @@ extension TodaySnapshot {
             inProgress: sessions.compactMap(\.activeCase).max { $0.startedAt < $1.startedAt })
     }
 
-    /// The most recent day that actually carries readiness.
+    /// The most recent day that actually carries a readiness score.
     ///
-    /// A day whose score is zero is dropped: Oura does not issue a readiness of nought, so a zero
-    /// is a row stored without that panel rather than a terrible night, and showing it as one
-    /// would be a lie the athlete could act on.
+    /// The window is read rather than today alone because the screen shows the reading's day
+    /// beside the number: an athlete who took the ring off for two days gets "78, three days ago"
+    /// rather than nothing at all, and a stale reading reads as stale instead of as silence.
+    ///
+    /// Every score the server sends is kept, zero included. Absence is the server's answer for
+    /// absence — a day it recorded nothing for is not in the range at all — so a zero here is a
+    /// zero Oura issued, and discarding it would be the client hiding the athlete's own data.
     static func latestReadiness(in days: [OuraDay]) -> ReadinessReading? {
         days
             .compactMap { day -> ReadinessReading? in
-                guard let readiness = day.readiness, readiness.score > 0 else { return nil }
+                guard let readiness = day.readiness, let score = readiness.score else { return nil }
                 return ReadinessReading(
                     day: day.date,
-                    score: readiness.score,
-                    restingHeartRate: readiness.restingHeartRate,
-                    hrvBalance: readiness.hrvBalance,
-                    sleepScore: day.sleep.map(\.score).flatMap { $0 > 0 ? $0 : nil })
+                    score: score,
+                    restingHeartRateBalance: readiness.contributors.restingHeartRate,
+                    hrvBalance: readiness.contributors.hrvBalance,
+                    sleepScore: day.sleep?.score)
             }
             .max { $0.day < $1.day }
     }

@@ -26,7 +26,10 @@ enum Rpe: Equatable, Sendable {
 
 /// How a set's weight was measured. Integer-valued on the wire, and the order is the server's.
 ///
-/// `Hashable` so a `Picker` can tag with it — a unit is a choice the athlete makes on the entry row.
+/// `Hashable` for two reasons that arrived together: a `Picker` tags with it, because the unit is a
+/// choice the athlete makes on the entry row; and a trend series is keyed by the movement *and* its
+/// unit, so an athlete who switched from pounds to kilograms gets two series rather than one line
+/// with a cliff in it.
 enum WeightUnit: Hashable, Sendable {
     case kilograms
     case pounds
