@@ -6,6 +6,8 @@ import SwiftUI
 /// to — which is the first thing worth seeing when a device build is pointed somewhere unexpected.
 struct SettingsSheet: View {
     let apiBaseURL: URL
+    /// Read only to say what signing out would cost it.
+    let activeWorkout: ActiveWorkoutStore
 
     @Environment(AuthStore.self) private var auth
     @Environment(\.dismiss) private var dismiss
@@ -56,7 +58,7 @@ struct SettingsSheet: View {
                     }
                 }
             } message: {
-                Text("Anything logged is on the server. A workout in progress stays on this device.")
+                Text(SignOutConsequence.of(activeWorkout.workout).message)
             }
         }
     }

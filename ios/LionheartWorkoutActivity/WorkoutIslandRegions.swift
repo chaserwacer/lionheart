@@ -34,17 +34,26 @@ struct WorkoutIslandBottom: View {
 
     var body: some View {
         if let rest = state.rest {
-            ProgressView(timerInterval: rest.interval, countsDown: true) {
-                Text("Resting")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } currentValueLabel: {
-                WorkoutRestClock(rest: rest)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
+            // The countdown shares the label's line rather than taking `currentValueLabel`, which
+            // draws it below the bar — past the bottom of the region, where the Island clips it.
+            VStack(spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Resting")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    WorkoutRestClock(rest: rest)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.trailing)
+                }
+                ProgressView(timerInterval: rest.interval, countsDown: true) {
+                    EmptyView()
+                } currentValueLabel: {
+                    EmptyView()
+                }
+                .progressViewStyle(.linear)
+                .tint(.accentColor)
             }
-            .progressViewStyle(.linear)
-            .tint(.accentColor)
         } else if let concern = state.concern {
             Label(concern, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)

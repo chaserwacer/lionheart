@@ -109,6 +109,7 @@ final class BodyStore {
             await refresh()
         } catch {
             action = ActionState.refusal(from: error)
+            if action.revealsOutdatedScreen { await refresh() }
         }
     }
 

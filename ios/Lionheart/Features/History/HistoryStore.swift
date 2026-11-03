@@ -118,7 +118,8 @@ final class HistoryStore {
     /// A refusal is kept and stated. Either of these can be refused for a reason the athlete needs
     /// to hear — most often that the session was already started or skipped somewhere else, which
     /// is a 409 — and a context-menu action that swallowed it would look exactly like one that
-    /// worked, since the row it acted on is still there either way.
+    /// worked, since the row it acted on is still there either way. That refusal also means the
+    /// window is out of date, so it is read again; the alert stays up over the corrected log.
     private func write(_ transition: () async throws -> Void) async {
         guard !action.isRunning else { return }
         action = .running
@@ -129,6 +130,7 @@ final class HistoryStore {
             await refresh()
         } catch {
             action = ActionState.refusal(from: error)
+            if action.revealsOutdatedScreen { await refresh() }
         }
     }
 

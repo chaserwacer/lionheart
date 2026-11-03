@@ -68,9 +68,12 @@ struct WorkoutLockScreenView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
+                // Trailing, because live timer text takes all the width it is offered and would
+                // otherwise sit left-aligned in the middle of the row.
                 WorkoutElapsedClock(startedAt: startedAt)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
             }
             ProgressView(timerInterval: rest.interval, countsDown: true) {
                 EmptyView()

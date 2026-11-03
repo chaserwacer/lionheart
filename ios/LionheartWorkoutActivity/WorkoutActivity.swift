@@ -26,12 +26,13 @@ struct WorkoutActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
             WorkoutLockScreenView(
-                state: context.state,
+                state: context.state.showing(isStale: context.isStale),
                 startedAt: context.attributes.startedAt)
         } dynamicIsland: { context in
-            DynamicIsland {
+            let state = context.state.showing(isStale: context.isStale)
+            return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    WorkoutIslandLeading(state: context.state)
+                    WorkoutIslandLeading(state: state)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     WorkoutElapsedClock(startedAt: context.attributes.startedAt)
@@ -39,14 +40,14 @@ struct WorkoutActivity: Widget {
                         .foregroundStyle(.primary)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    WorkoutIslandBottom(state: context.state)
+                    WorkoutIslandBottom(state: state)
                 }
             } compactLeading: {
-                WorkoutGlyph(isResting: context.state.isResting)
+                WorkoutGlyph(isResting: state.isResting)
             } compactTrailing: {
                 // The rest comes first: a countdown is the only thing on this activity the athlete
                 // is waiting on, and the session clock is always a long press away.
-                if let rest = context.state.rest {
+                if let rest = state.rest {
                     WorkoutRestClock(rest: rest)
                         .foregroundStyle(.tint)
                 } else {
@@ -54,7 +55,7 @@ struct WorkoutActivity: Widget {
                         .foregroundStyle(.tint)
                 }
             } minimal: {
-                WorkoutGlyph(isResting: context.state.isResting)
+                WorkoutGlyph(isResting: state.isResting)
             }
             .keylineTint(.accentColor)
         }

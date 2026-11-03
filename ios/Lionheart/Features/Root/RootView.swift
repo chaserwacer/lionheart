@@ -57,7 +57,10 @@ private struct SignedInTabs: View {
     var body: some View {
         TabView(selection: $selection) {
             Tab(value: Destination.today) {
-                TodayView(store: container.today, apiBaseURL: container.configuration.baseURL)
+                TodayView(
+                    store: container.today,
+                    apiBaseURL: container.configuration.baseURL,
+                    activeWorkout: container.activeWorkout)
             } label: {
                 TabLabel("Today", systemImage: "gauge.with.dots.needle.50percent")
             }

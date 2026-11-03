@@ -30,6 +30,24 @@ enum ActionState: Equatable, Sendable {
         }
     }
 
+    /// Whether the refusal shows the screen was out of date, so it should be read again.
+    ///
+    /// A 409 means the thing moved on somewhere else and a 404 means it is gone; either way the row
+    /// the athlete acted on no longer says what the server holds, and left alone it keeps offering
+    /// an action whose only outcome is the same refusal. A transport failure or a server fault says
+    /// nothing about the thing's state, and a re-read would only fail the same way.
+    var revealsOutdatedScreen: Bool {
+        switch self {
+        case .idle, .running:
+            false
+        case .refused(let failure):
+            switch failure {
+            case .refused, .notFound: true
+            case .offline, .unavailable: false
+            }
+        }
+    }
+
     /// Where an action goes when it throws.
     ///
     /// Cancellation is not a refusal: the only thing that cancels one of these is the screen or the

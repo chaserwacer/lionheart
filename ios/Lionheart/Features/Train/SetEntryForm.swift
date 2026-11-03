@@ -243,8 +243,12 @@ struct SetEntryForm: View {
         Button {
             if let command = draft.command { log(command) }
         } label: {
+            // One line at every text size: the row has the width, and at the accessibility sizes
+            // the label otherwise wraps to "Log / set" inside a pill twice as tall as its row.
             Text(actionLabel)
                 .fontWeight(.semibold)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .frame(minWidth: 96)
         }
         .buttonStyle(.borderedProminent)

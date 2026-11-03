@@ -116,7 +116,7 @@ private struct LiveActivityHandle: @unchecked Sendable {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return nil }
         guard let activity = try? Activity.request(
             attributes: attributes,
-            content: ActivityContent(state: state, staleDate: nil))
+            content: ActivityContent(state: state, staleDate: state.staleDate))
         else { return nil }
         return LiveActivityHandle(activity: activity)
     }
@@ -125,11 +125,12 @@ private struct LiveActivityHandle: @unchecked Sendable {
         self.activity = activity
     }
 
-    /// No stale date: both clocks on this activity are rendered by the system from a date range, so
-    /// the content stays correct however long it has been since the app last spoke. A stale date
-    /// would dim a correct countdown.
+    /// Stale at the end of the rest, and never otherwise. Both clocks are rendered by the system from
+    /// a date range, so the content stays correct however long the app has been suspended — until
+    /// the rest runs out, which is the one change nothing in the app is awake to send. The stale
+    /// date is what makes the system draw the activity again at that instant.
     func update(to state: WorkoutActivityAttributes.ContentState) async {
-        await activity.update(ActivityContent(state: state, staleDate: nil))
+        await activity.update(ActivityContent(state: state, staleDate: state.staleDate))
     }
 
     /// `.immediate` rather than the default, which leaves the activity on the Lock Screen for up to

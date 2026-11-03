@@ -78,8 +78,9 @@ struct InjuryDetailView: View {
                 deleting = nil
                 Task { await store.delete(event) }
             }
-        } message: { _ in
-            Text("The injury and its other events are kept. This cannot be undone.")
+        } message: { event in
+            // Named, because the dialog points at the list rather than at the row it is about.
+            Text("\(Self.label(of: event)) · The injury and its other events are kept. This cannot be undone.")
         }
     }
 
@@ -101,11 +102,16 @@ struct InjuryDetailView: View {
     /// One event as a line of text: what it was, when, how much it hurt, and whatever was written
     /// about it — which is the part worth having on a pasteboard, for a physio or a note.
     private static func summary(of event: InjuryEvent) -> String {
+        guard let notes = event.notes.nonEmpty else { return label(of: event) }
+        return "\(label(of: event)) · \(notes)"
+    }
+
+    /// One event in a few words — what it was, how much it hurt, and when.
+    private static func label(of event: InjuryEvent) -> String {
         var parts = ["\(InjuryEventRow.kind(of: event)), pain \(event.painLevel)/10"]
         if let createdAt = event.createdAt {
             parts.append(createdAt.formatted(.dateTime.month(.abbreviated).day().year()))
         }
-        if let notes = event.notes.nonEmpty { parts.append(notes) }
         return parts.joined(separator: " · ")
     }
 

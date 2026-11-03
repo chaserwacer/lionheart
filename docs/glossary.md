@@ -81,6 +81,7 @@ first and then in the code.
 | **Set modality** | Which of the four shapes a set is being logged in. A property of the set, not of the movement — the same treadmill is lifted on and run on. |
 | **Workout destination** | Where a workout's sets are going to land: an active session already on the server, or a `POST /completed` that carries the whole thing at the end. |
 | **Sync state** | Whether what has been logged has reached the server: synced, pending, failed, or refused. Only the last two are worth saying out loud. |
+| **Sign-out consequence** | What signing out costs the workout on the device, stated in the sign-out confirmation: nothing, nothing Train cannot resume, the sets not yet synced, or a whole past workout. Signing out deletes the workout document, so the answer depends on what the server already holds. |
 | **Logging surface** | The set-by-set sheet the workout bar opens into. |
 | **Profile gate** | The root's answer to whether a signed-in athlete may see the tabs: undetermined, absent, present, or unreachable. An Identity account without a Lionheart profile is refused by every training write, while reads answer empty — which is why the gate asks rather than waiting to be refused. |
 | **Session log** | History's list of sessions, grouped by month, newest first. A row reads as completed, in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. |

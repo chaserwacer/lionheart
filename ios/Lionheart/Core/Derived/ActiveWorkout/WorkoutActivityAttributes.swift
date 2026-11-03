@@ -63,6 +63,23 @@ struct WorkoutActivityAttributes: ActivityAttributes, Equatable, Sendable {
         /// unsynced workout is a decision and decisions do not belong in the extension. It also
         /// keeps the Lock Screen and the in-app bar saying the same sentence.
         let concern: String?
+
+        /// When this content stops being true without the app saying so: the end of the rest.
+        ///
+        /// A rest that runs out while the app is suspended has nobody awake to take it off the
+        /// Lock Screen, so the countdown would sit at zero until the athlete opened the app.
+        /// Handed to ActivityKit as the stale date, it makes the system draw the activity again at
+        /// that instant, and `showing(isStale:)` is what that drawing reads.
+        var staleDate: Date? { rest?.endsAt }
+
+        /// The content as the activity should draw it.
+        ///
+        /// Once stale, the rest it carries has run out, so it reads as working — the elapsed clock
+        /// and the lifting glyph — exactly as it will once the app retires the rest itself.
+        func showing(isStale: Bool) -> Self {
+            guard isStale, rest != nil else { return self }
+            return Self(movementTitle: movementTitle, setCount: setCount, rest: nil, concern: concern)
+        }
     }
 
     /// A rest as the system can count it down.
