@@ -341,42 +341,6 @@ enum Chat {
     }
 }
 
-/// Personal records, as the summaries route groups them.
-enum Records {
-    static func summary(
-        movementId: String,
-        base: String,
-        strength: String = "null",
-        volume: String = "null"
-    ) -> String {
-        """
-        {"movementDataID":"\(movementId)",
-         "movementData":\(Catalogue.movement(id: movementId, base: base)),
-         "strengthPR":\(strength),"volumePR":\(volume),"lastPRDate":"2026-03-01T18:00:00"}
-        """
-    }
-
-    /// `prType` is 0 for strength and 1 for volume. `volume` is the server's own product of weight
-    /// and reps, written here as a value the client must print rather than recompute.
-    static func record(
-        id: String,
-        movementId: String,
-        kind: Int,
-        weight: Double,
-        reps: Int,
-        volume: Double,
-        previousAt: String = "null"
-    ) -> String {
-        """
-        {"personalRecordID":"\(id)","movementDataID":"\(movementId)",
-         "movementData":\(Catalogue.movement(id: movementId, base: "Bench Press")),
-         "prType":\(kind),"weight":\(weight),"weightUnit":0,"reps":\(reps),"volume":\(volume),
-         "createdAt":"2026-03-04T18:00:00","previousPRCreatedAt":\(previousAt),
-         "previousPersonalRecordID":null,"isActive":true}
-        """
-    }
-}
-
 /// The athlete context card, as the profile route sends it.
 enum ContextCard {
     static func card(

@@ -144,7 +144,90 @@ enum Formatting {
 
     /// A running volume total — `4,250 kg`, with the grouping a four-figure number wants.
     static func volume(_ total: WorkoutTotals.WeightTotal) -> String {
-        "\(total.volume.formatted(.number.precision(.fractionLength(0...1)))) \(total.unit.abbreviation)"
+        volume(total.volume, total.unit)
+    }
+
+    static func volume(_ volume: Double, _ unit: WeightUnit) -> String {
+        "\(volume.formatted(.number.precision(.fractionLength(0...1)))) \(unit.abbreviation)"
+    }
+
+    // MARK: - Records
+
+    /// A weight unit spelled out, for the places a unit is chosen rather than read beside a figure.
+    static func unitName(_ unit: WeightUnit) -> String {
+        switch unit {
+        case .kilograms: "Kilograms"
+        case .pounds: "Pounds"
+        case .unrecognised(let wire): "Unit \(wire)"
+        }
+    }
+
+    /// An estimate, rounded to the whole number it can honestly claim and marked as one.
+    static func estimate(_ value: Double, _ unit: WeightUnit) -> String {
+        "≈ \(value.formatted(.number.precision(.fractionLength(0)).grouping(.never))) \(unit.abbreviation)"
+    }
+
+    /// The day a record was set, with its year: records are read across years.
+    static func recordDate(_ instant: Date) -> String {
+        instant.formatted(.dateTime.month(.abbreviated).day().year())
+    }
+
+    /// What a record holds, as its headline figure — `245 lb × 1`, `26:45`, `5:21 /km`.
+    static func achievement(_ achievement: Achievement) -> String {
+        switch achievement {
+        case .heaviestSet(let lift), .repMax(let lift):
+            "\(weight(lift.weight, lift.unit)) × \(lift.reps)"
+        case .bestSetVolume(let set):
+            volume(set.volume, set.unit)
+        case .bestSessionVolume(let session):
+            volume(session.volume, session.unit)
+        case .longestDistance(let effort):
+            distance(effort.distance, effort.unit)
+        case .fastestTime(_, let effort):
+            clock(seconds: effort.duration)
+        case .bestPace(let pace):
+            self.pace(pace)
+        case .unrecognised:
+            "A record this version cannot show"
+        }
+    }
+
+    /// The facts behind a record's headline, where it has any worth a second line.
+    static func achievementDetail(_ achievement: Achievement) -> String? {
+        switch achievement {
+        case .heaviestSet(let lift), .repMax(let lift):
+            lift.reps > 1 ? "Estimated single \(estimate(lift.estimatedOneRepMax, lift.unit))" : nil
+        case .bestSetVolume(let set):
+            "\(weight(set.weight, set.unit)) × \(set.reps)"
+        case .bestSessionVolume, .unrecognised:
+            nil
+        case .longestDistance(let effort):
+            "in \(clock(seconds: effort.duration))"
+        case .fastestTime(_, let effort):
+            distance(effort.distance, effort.unit)
+        case .bestPace(let pace):
+            "\(distance(pace.effort.distance, pace.effort.unit)) in \(clock(seconds: pace.effort.duration))"
+        }
+    }
+
+    /// A pace in the athlete's own scale: per mile for an effort logged in miles or yards, per
+    /// kilometer otherwise. Both figures are the server's; this only chooses which to read.
+    static func pace(_ pace: Achievement.Pace) -> String {
+        switch pace.effort.unit {
+        case .miles, .yards: "\(clock(seconds: pace.perMile)) /mi"
+        case .meters, .kilometers, .unrecognised: "\(clock(seconds: pace.perKilometer)) /km"
+        }
+    }
+
+    /// How a record came to be, from its own lineage: when it was set, and how long the one it
+    /// replaced had stood. A predecessor that stood less than a day says nothing about it.
+    static func recordLineage(_ record: PersonalRecord) -> String {
+        let set = "Set \(recordDate(record.achievedAt))"
+        switch record.daysPredecessorStood {
+        case .none: return "\(set) · first on record"
+        case .some(0): return set
+        case .some(let days): return "\(set) · beat one that stood \(count(days, "day"))"
+        }
     }
 }
 

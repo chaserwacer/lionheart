@@ -1,52 +1,81 @@
 import Foundation
 
-/// A record on one movement, as the server holds it.
+/// One record, as the server's `PersonalRecordView` sends it.
 ///
-/// Volume is **received, not multiplied here**: the server derives it (`PersonalRecord.Volume`), and
-/// a second derivation on the device is how two numbers for one record start to disagree.
+/// The movement is not embedded: the client already holds the catalogue, so a record carries its
+/// subject and the screen names it.
 ///
-/// `previousAchievedAt` is the fact that makes a record readable as progress rather than a number —
-/// how long the last one stood. It is absent for a first record, which is a different thing from a
-/// gap of zero.
+/// `achievedAt` is **the instant the session was performed**, not when the row was written — a
+/// session logged a week late sets a record dated the day it was lifted, which is the date a
+/// lifter means by "when did I set that".
 struct PersonalRecord: Equatable, Sendable, Identifiable {
     let personalRecordId: UUID
-    let movementDataId: UUID
-    let movement: MovementData?
-    let kind: Kind
-    let weight: Double
-    let unit: WeightUnit
-    let reps: Int
-    let volume: Double
-    let achievedAt: Date?
-    let previousAchievedAt: Date?
-    let isActive: Bool
+    let subject: RecordSubject
+    let achievement: Achievement
+    let achievedAt: Date
+    let lineage: Lineage
+    let standing: Standing
 
     var id: UUID { personalRecordId }
 
-    /// Which comparison the record is on. Integer-valued on the wire; the order is the server's
-    /// `PersonalRecordType`.
-    enum Kind: Equatable, Sendable, Hashable {
-        /// Heaviest weight moved, whatever the rep count.
-        case strength
-        /// Most weight times reps in one set.
-        case volume
-        case unrecognised(Int)
+    /// This record's identity — what it shares with every record it beat and that beat it.
+    var key: RecordKey {
+        RecordKey(subject: subject, kind: achievement.kind, heldIn: achievement.heldIn)
+    }
 
-        init(wire: Int?) {
+    /// What this record replaced.
+    ///
+    /// Two cases rather than an optional date, because they read differently: a first record is
+    /// "first on record", which is not a predecessor that stood for zero days.
+    enum Lineage: Equatable, Sendable {
+        case firstOfItsKind
+        /// The predecessor's own date, so how long it stood answers without a second read.
+        case replaced(previousAchievedAt: Date)
+    }
+
+    /// Whether a record stands, was beaten, or was withdrawn.
+    ///
+    /// Three states rather than a flag: beaten is the athlete's own progress and retracted is a
+    /// number they said was never real, and a history that cannot tell them apart cannot say which
+    /// happened.
+    enum Standing: Equatable, Sendable {
+        case standing
+        case beaten
+        case retracted
+        case unrecognised(String)
+
+        init(wire: String?) {
             switch wire {
-            case 0: self = .strength
-            case 1: self = .volume
-            default: self = .unrecognised(wire ?? -1)
+            case "Standing": self = .standing
+            case "Beaten": self = .beaten
+            case "Retracted": self = .retracted
+            default: self = .unrecognised(wire ?? "")
             }
         }
+    }
 
-        var label: String {
-            switch self {
-            case .strength: "Strength"
-            case .volume: "Volume"
-            case .unrecognised: "Record"
-            }
+    /// Whether the athlete can withdraw this record. Only the standing record can be: retracting
+    /// walks a chain back one link at a time, so history stays a record of what actually stood. A
+    /// standing this build does not recognise is not offered — the server would be the one to find
+    /// out what it meant.
+    var isRetractable: Bool {
+        switch standing {
+        case .standing: true
+        case .beaten, .retracted, .unrecognised: false
         }
+    }
+
+    /// What retracting this record asks first. The warning depends on the lineage, because the
+    /// consequence does: a record that beat something puts it back, a first record leaves nothing.
+    var retractionConfirmation: Confirmation {
+        let consequence = switch lineage {
+        case .replaced: "The record it beat stands again."
+        case .firstOfItsKind: "It was the first of its kind, so nothing will stand in its place."
+        }
+        return Confirmation(
+            question: "Retract this record?",
+            warning: "Only for a set that was not real. \(consequence) This cannot be undone.",
+            proceed: "Retract record")
     }
 }
 
@@ -54,61 +83,21 @@ extension PersonalRecord: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
 
-        guard let personalRecordId = container.lenient(UUID.self, "personalRecordID"),
-              let movementDataId = container.lenient(UUID.self, "movementDataID")
+        guard let personalRecordId = container.lenient(UUID.self, "personalRecordId"),
+              let achievedAt = container.instant("achievedAt")
         else {
             throw DecodingError.dataCorrupted(.init(
                 codingPath: decoder.codingPath,
-                debugDescription: "A personal record needs its own id and the movement it is on."))
+                debugDescription: "A personal record needs its id and the instant it was set."))
         }
 
         self.init(
             personalRecordId: personalRecordId,
-            movementDataId: movementDataId,
-            movement: container.lenient(MovementData.self, "movementData"),
-            kind: Kind(wire: container.lenient(Int.self, "prType")),
-            weight: container.lenient("weight", or: 0),
-            unit: WeightUnit(wire: container.lenient(Int.self, "weightUnit")),
-            reps: container.lenient("reps", or: 0),
-            volume: container.lenient("volume", or: 0),
-            achievedAt: container.instant("createdAt"),
-            previousAchievedAt: container.instant("previousPRCreatedAt"),
-            isActive: container.lenient("isActive", or: true))
-    }
-}
-
-/// Both of a movement's current records, as `GET /api/personal-records/summaries` groups them.
-///
-/// Either can be absent: a movement only ever trained for reps has a volume record and no strength
-/// one. Two optionals rather than a list, because the two are different questions and a screen
-/// labels them differently.
-struct MovementRecords: Equatable, Sendable, Identifiable {
-    let movementDataId: UUID
-    let movement: MovementData?
-    let strength: PersonalRecord?
-    let volume: PersonalRecord?
-    let lastRecordAt: Date?
-
-    var id: UUID { movementDataId }
-
-    var isEmpty: Bool { strength == nil && volume == nil }
-}
-
-extension MovementRecords: Decodable {
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: WireKey.self)
-
-        guard let movementDataId = container.lenient(UUID.self, "movementDataID") else {
-            throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath,
-                debugDescription: "A record summary without a movement id has nothing to label."))
-        }
-
-        self.init(
-            movementDataId: movementDataId,
-            movement: container.lenient(MovementData.self, "movementData"),
-            strength: container.lenient(PersonalRecord.self, "strengthPR"),
-            volume: container.lenient(PersonalRecord.self, "volumePR"),
-            lastRecordAt: container.instant("lastPRDate"))
+            subject: RecordSubject(wire: container.lenient(UUID.self, "movementDataId")),
+            achievement: container.lenient(Achievement.self, "achievement") ?? .unrecognised(""),
+            achievedAt: achievedAt,
+            lineage: container.instant("previousAchievedAt")
+                .map(Lineage.replaced(previousAchievedAt:)) ?? .firstOfItsKind,
+            standing: Standing(wire: container.lenient(String.self, "standing")))
     }
 }

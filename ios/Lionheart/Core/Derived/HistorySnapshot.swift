@@ -12,7 +12,7 @@ import Foundation
 struct HistorySnapshot: Equatable, Sendable {
     let log: SessionLog
     let trends: TrainingTrends
-    let records: [MovementRecords]
+    let records: [SubjectRecords]
     let catalogue: MovementCatalogue
     private let sessionsById: [UUID: TrainingSession]
 
@@ -20,18 +20,22 @@ struct HistorySnapshot: Equatable, Sendable {
 
     func session(_ id: UUID) -> TrainingSession? { sessionsById[id] }
 
+    /// The records standing on one subject, if any still do.
+    func records(on subject: RecordSubject) -> SubjectRecords? {
+        records.first { $0.subject == subject }
+    }
+
     static func reading(
         sessions: [TrainingSession],
         movements: [MovementData],
-        records: [MovementRecords],
+        records: [SubjectRecords],
         today: CalendarDay
     ) -> HistorySnapshot {
         let catalogue = MovementCatalogue(movements)
         return HistorySnapshot(
             log: SessionLog.reading(sessions: sessions, catalogue: catalogue, today: today),
             trends: TrainingTrends.reading(sessions: sessions, catalogue: catalogue, today: today),
-            // A movement with neither record is a row with nothing on it; the server returns one
-            // per movement that has ever had a PR, and a reverted PR leaves it empty.
+            // A subject with nothing standing would be a row with nothing on it.
             records: records.filter { !$0.isEmpty },
             catalogue: catalogue,
             sessionsById: Dictionary(

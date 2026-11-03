@@ -1,22 +1,41 @@
 import Foundation
 
-/// The personal-record routes, read off `Endpoints/Training/PersonalRecord/`.
+/// The personal-record routes (`docs/api-surface.md` → Personal records).
 ///
-/// **Nothing on the server writes a `PersonalRecord` today.** `PersonalRecordService` is read-only
-/// and the completed-session route does not attempt a record, so these routes answer `[]` on any
-/// database the dropped legacy training model never populated. The client is built against them as
-/// specified rather than around that gap — when the write path lands, the records screen fills
-/// itself — and that screen states the emptiness as "no records yet" rather than implying the
-/// athlete has never set one.
+/// Records are never created through a route: the server establishes them when a session's sets
+/// become final. The only write is the athlete withdrawing one.
 struct PersonalRecordsAPI: Sendable {
     let client: APIClient
 
-    /// Each movement's currently-standing records, both kinds side by side.
+    private static let root = "/api/personal-records"
+
+    /// The standing records grouped by subject — each movement, and trail running.
     ///
-    /// The grouped read rather than the flat one: a records screen asks "what are my numbers on
-    /// the bench press", and the flat list would make every screen re-group it.
-    func recordsByMovement() async throws -> [MovementRecords] {
-        try await client.get(
-            "/api/personal-records/summaries", as: LenientList<MovementRecords>.self).elements
+    /// The grouped read rather than the flat one: every screen that reads records asks "what are
+    /// my numbers on this movement", and the flat list would make each of them re-group it.
+    func summaries() async throws -> [SubjectRecords] {
+        try await client.get("\(Self.root)/summaries", as: LenientList<SubjectRecords>.self).elements
+    }
+
+    /// Every record ever set for one subject and kind, newest first, beaten and withdrawn included.
+    ///
+    /// The route takes no unit and answers every unit's chain of the kind; `RecordHistory` narrows
+    /// it to one key.
+    func history(of key: RecordKey) async throws -> [PersonalRecord] {
+        let subject = key.subject.movementDataId.map {
+            [URLQueryItem(name: "movementDataId", value: $0.uuidString)]
+        } ?? []
+        let bracket = key.kind.bracket.map { [URLQueryItem(name: "bracket", value: String($0))] } ?? []
+
+        return try await client.get(
+            "\(Self.root)/history",
+            query: subject + [URLQueryItem(name: "kind", value: key.kind.wireName)] + bracket,
+            as: LenientList<PersonalRecord>.self).elements
+    }
+
+    /// Withdraws a standing record, putting back whatever it beat. A record that no longer stands
+    /// answers 409 with the server's own sentence, which arrives as `APIError.refused`.
+    func retract(_ personalRecordId: UUID) async throws -> RetractionOutcome {
+        try await client.post("\(Self.root)/\(personalRecordId.uuidString)/retract")
     }
 }

@@ -42,7 +42,8 @@ final class AppContainer {
             interpretation: InterpretationAPI(client: client))
         // Built before the workout store, which names the current movement on the Lock Screen and
         // so needs to be able to ask this for a title. Nothing here reaches back the other way.
-        let movements = MovementLibraryStore(movements: MovementsAPI(client: client))
+        let movements = MovementLibraryStore(
+            movements: MovementsAPI(client: client), records: PersonalRecordsAPI(client: client))
         self.movements = movements
         // The haptic and the movement's name are handed in rather than reached for, so nothing in
         // `Store/ActiveWorkout/` imports UIKit or depends on another store.
