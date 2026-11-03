@@ -57,9 +57,9 @@ public class StrongMovementMapTests
     [Fact]
     public void An_unsure_mapping_says_why()
     {
-        var covered = ResultAssert.Succeeded(Shipped.Cover(["Jpg’s", "Squat (Barbell)"]));
+        var covered = ResultAssert.Succeeded(Shipped.Cover(["Tempo Deadlift", "Squat (Barbell)"]));
 
-        Assert.True(covered["Jpg’s"].IsUnsure);
+        Assert.True(covered["Tempo Deadlift"].IsUnsure);
         Assert.False(covered["Squat (Barbell)"].IsUnsure);
     }
 
