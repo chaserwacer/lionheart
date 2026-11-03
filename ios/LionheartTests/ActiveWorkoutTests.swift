@@ -30,8 +30,8 @@ enum AWorkout {
             notes: notes)
     }
 
-    static func retro(sets: [LoggedSet] = []) -> ActiveWorkout {
-        ActiveWorkout(destination: .afterTheFact, startedAt: start, sets: sets)
+    static func retro(sets: [LoggedSet] = [], rest: RestClock = .idle) -> ActiveWorkout {
+        ActiveWorkout(destination: .afterTheFact, startedAt: start, sets: sets, rest: rest)
     }
 
     static func lift(
