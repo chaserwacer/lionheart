@@ -7,7 +7,7 @@ import SwiftUI
 /// per row can. The rows share fixed, Dynamic-Type-scaled columns, so the gauges line up down the
 /// section and the eye can run down them the way it reads a table.
 struct ContributorSection: View {
-    let group: ContributorGroup
+    let group: OuraContributorGroup
     let day: OuraDay
     /// The days around it, for each component's baseline. Only the four weeks before it are read.
     let days: [OuraDay]
@@ -19,7 +19,7 @@ struct ContributorSection: View {
     var explainsGauges = false
 
     var body: some View {
-        let readings = ContributorReading.readings(of: group, on: day, among: days)
+        let readings = OuraContributorReading.readings(of: group, on: day, among: days)
         if !readings.isEmpty || !measurements.isEmpty {
             Section {
                 ForEach(readings) { reading in
@@ -53,7 +53,7 @@ struct ContributorSection: View {
 
 /// One component: its name, where it sits against his usual range, and the score.
 private struct ContributorRow: View {
-    let reading: ContributorReading
+    let reading: OuraContributorReading
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .subheadline) private var nameWidth: CGFloat = 132
@@ -92,14 +92,14 @@ private struct ContributorRow: View {
 
     private var gauge: some View {
         RangeGauge(
-            value: reading.value,
+            value: reading.score.value,
             usual: reading.usualRange,
             mean: reading.baseline?.mean,
             mark: standingColour)
     }
 
     private var value: some View {
-        Text(reading.value.formatted(.number.precision(.fractionLength(0))))
+        Text(reading.score.description)
             .font(.subheadline.weight(.semibold).monospacedDigit())
             .foregroundStyle(standingColour)
     }
@@ -114,7 +114,7 @@ private struct ContributorRow: View {
     }
 
     private var spoken: String {
-        let value = reading.value.formatted(.number.precision(.fractionLength(0)))
+        let value = "Oura score \(reading.score.description)"
         guard let baseline = reading.baseline else { return value }
         let mean = baseline.mean.formatted(.number.precision(.fractionLength(0)))
         let standing = switch reading.standing {

@@ -9,9 +9,11 @@ import SwiftUI
 /// week missed. A day with training is marked; a day without is just a day.
 struct ConsistencyView: View {
     let history: HistoryStore
+    let diary: DiaryStore
+    let library: MovementLibraryStore
 
     @State private var span: LogSpan = .half
-    @State private var openedSession: UUID?
+    @State private var openedDay: CalendarDay?
 
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 170
 
@@ -30,13 +32,8 @@ struct ConsistencyView: View {
         .navigationTitle("Consistency")
         .navigationBarTitleDisplayMode(.inline)
         .task { await history.refreshIfNeeded() }
-        .navigationDestination(item: $openedSession) { id in
-            if let session = history.state.value?.session(id) {
-                SessionDetailView(
-                    session: session,
-                    catalogue: history.state.value?.catalogue ?? MovementCatalogue(),
-                    history: history)
-            }
+        .navigationDestination(item: $openedDay) { day in
+            DayView(day: day, history: history, diary: diary, library: library)
         }
     }
 
@@ -139,7 +136,7 @@ struct ConsistencyView: View {
                     month: month,
                     trainingDays: reading.trainingDays,
                     today: today,
-                    open: { day in openedSession = snapshot.firstPerformedSession(on: day, today: today) })
+                    open: { day in openedDay = day })
             } header: {
                 HStack(alignment: .firstTextBaseline) {
                     Text(Formatting.month(month.start))
@@ -208,9 +205,17 @@ private struct MonthGrid: View {
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity)
             .accessibilityLabel("\(Formatting.date(day)), trained")
+        } else if day <= today {
+            // A day without a session still has a night, steps and maybe a ride, so it opens too.
+            Button { open(day) } label: {
+                label.foregroundStyle(Color(.secondaryLabel))
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel(Formatting.date(day))
         } else {
             label
-                .foregroundStyle(day > today ? Color(.quaternaryLabel) : Color(.secondaryLabel))
+                .foregroundStyle(Color(.quaternaryLabel))
                 .frame(maxWidth: .infinity)
                 .accessibilityLabel(Formatting.date(day))
         }

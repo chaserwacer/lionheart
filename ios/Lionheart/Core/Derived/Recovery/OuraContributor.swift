@@ -2,11 +2,12 @@ import Foundation
 
 /// One of the components Oura builds a score from — readiness, sleep, activity, resilience.
 ///
-/// Every one is a score from 0 to 100 comparing the day against the athlete's own baseline, and for
-/// every one higher is better: Oura orients them all that way, including the resilience component
-/// it calls "stress". None is a measurement — "resting heart rate" here is how his resting rate
-/// compared, never a rate.
-enum Contributor: String, CaseIterable, Hashable, Sendable, Identifiable {
+/// Every one is an `OuraScore` from 0 to 100 comparing the day against the athlete's own baseline,
+/// and for every one higher is better: Oura orients them all that way, including the resilience
+/// component it calls "stress". None is a measurement — "resting heart rate" here is how Oura rated
+/// his resting rate, never a rate; the measurement a contributor rests on, where Lionheart has it,
+/// is `ReadinessContributorReading`'s.
+enum OuraContributor: String, CaseIterable, Hashable, Sendable, Identifiable {
     // Readiness
     case hrvBalance, restingHeartRate, recoveryIndex, sleepBalance, previousNight, sleepRegularity
     case activityBalance, previousDayActivity, bodyTemperature
@@ -19,7 +20,7 @@ enum Contributor: String, CaseIterable, Hashable, Sendable, Identifiable {
 
     var id: String { rawValue }
 
-    var group: ContributorGroup {
+    var group: OuraContributorGroup {
         switch self {
         case .hrvBalance, .restingHeartRate, .recoveryIndex, .sleepBalance, .previousNight, .sleepRegularity,
              .activityBalance, .previousDayActivity, .bodyTemperature: .readiness
@@ -61,11 +62,12 @@ enum Contributor: String, CaseIterable, Hashable, Sendable, Identifiable {
     }
 
     /// The component's score on a day, or `nil` where Oura sent none.
-    func value(on day: OuraDay) -> Double? {
+    func score(on day: OuraDay) -> OuraScore? {
         let readiness = day.readiness?.contributors
         let sleep = day.sleep?.contributors
         let activity = day.activity?.contributors
-        let score: Int? = switch self {
+        let resilience = day.resilience
+        return switch self {
         case .hrvBalance: readiness?.hrvBalance
         case .restingHeartRate: readiness?.restingHeartRate
         case .recoveryIndex: readiness?.recoveryIndex
@@ -88,26 +90,15 @@ enum Contributor: String, CaseIterable, Hashable, Sendable, Identifiable {
         case .stayActive: activity?.stayActive
         case .moveEveryHour: activity?.moveEveryHour
         case .meetDailyTargets: activity?.meetDailyTargets
-        // Resilience's components arrive as decimals rather than whole scores; read below.
-        case .sleepRecovery, .daytimeRecovery, .stress: nil
-        }
-        if let score { return Double(score) }
-
-        let resilience = day.resilience
-        return switch self {
         case .sleepRecovery: resilience?.sleepRecovery
         case .daytimeRecovery: resilience?.daytimeRecovery
         case .stress: resilience?.stress
-        case .hrvBalance, .restingHeartRate, .recoveryIndex, .sleepBalance, .previousNight, .sleepRegularity,
-             .activityBalance, .previousDayActivity, .bodyTemperature, .totalSleep, .efficiency, .restfulness,
-             .remSleep, .deepSleep, .latency, .timing, .trainingFrequency, .trainingVolume, .recoveryTime,
-             .stayActive, .moveEveryHour, .meetDailyTargets: nil
         }
     }
 }
 
 /// The four scores Oura builds from contributors, in the order a recovery is read.
-enum ContributorGroup: CaseIterable, Hashable, Sendable, Identifiable {
+enum OuraContributorGroup: CaseIterable, Hashable, Sendable, Identifiable {
     case readiness, sleep, activity, resilience
 
     var id: Self { self }
@@ -122,11 +113,11 @@ enum ContributorGroup: CaseIterable, Hashable, Sendable, Identifiable {
     }
 
     /// The group's components, in the order the screen reads them: what moves the score most first.
-    var contributors: [Contributor] { Contributor.allCases.filter { $0.group == self } }
+    var contributors: [OuraContributor] { OuraContributor.allCases.filter { $0.group == self } }
 
     /// Oura's own score for the group on the day, where it issues one. Resilience has a level, not
     /// a score.
-    func score(on day: OuraDay) -> Int? {
+    func score(on day: OuraDay) -> OuraScore? {
         switch self {
         case .readiness: day.readiness?.score
         case .sleep: day.sleep?.score
@@ -137,44 +128,51 @@ enum ContributorGroup: CaseIterable, Hashable, Sendable, Identifiable {
 }
 
 /// One contributor on one day, against the same contributor over the four weeks before.
-struct ContributorReading: Equatable, Sendable, Identifiable {
-    let contributor: Contributor
-    let value: Double
+///
+/// The baseline is of Oura's scores, so it says where this score sits among his recent scores —
+/// still Oura's rating, never the measurement behind it.
+struct OuraContributorReading: Equatable, Sendable, Identifiable {
+    let contributor: OuraContributor
+    let score: OuraScore
     /// `nil` when fewer than a week of the earlier days carry it.
     let baseline: MetricBaseline?
 
-    var id: Contributor { contributor }
+    var id: OuraContributor { contributor }
 
     /// Every contributor is higher-is-better, so the standing is the recovery figures' rule with
     /// that polarity.
     var standing: MetricStanding {
-        baseline?.standing(of: value, polarity: .higherIsBetter) ?? .noBaseline
+        baseline?.standing(of: score.value, polarity: .higherIsBetter) ?? .noBaseline
     }
 
     /// The band the athlete usually sits in — one spread either side of his mean — clipped to the
     /// 0–100 scale the scores live on.
     var usualRange: ClosedRange<Double>? {
         guard let baseline else { return nil }
-        let low = max(0, baseline.mean - baseline.standardDeviation)
-        let high = min(100, baseline.mean + baseline.standardDeviation)
+        let low = max(OuraScore.scale.lowerBound, baseline.mean - baseline.standardDeviation)
+        let high = min(OuraScore.scale.upperBound, baseline.mean + baseline.standardDeviation)
         return low...max(low, high)
     }
 
-    /// The group's contributors on `day`, each against the `MetricBaseline.windowDays` days before
-    /// it in `days`. A contributor Oura sent nothing for that day is left out.
-    static func readings(
-        of group: ContributorGroup, on day: OuraDay, among days: [OuraDay], calendar: Calendar = .current
-    ) -> [ContributorReading] {
+    /// One contributor on `day`, against the `MetricBaseline.windowDays` days before it in `days`,
+    /// or `nil` where Oura sent no score for it that day.
+    static func reading(
+        of contributor: OuraContributor, on day: OuraDay, among days: [OuraDay], calendar: Calendar = .current
+    ) -> OuraContributorReading? {
         let windowStart = day.date.adding(days: -MetricBaseline.windowDays, in: calendar)
         let earlier = days.filter { $0.date >= windowStart && $0.date < day.date }
-
-        return group.contributors.compactMap { contributor in
-            contributor.value(on: day).map { value in
-                ContributorReading(
-                    contributor: contributor,
-                    value: value,
-                    baseline: MetricBaseline.of(earlier.compactMap(contributor.value(on:))))
-            }
+        return contributor.score(on: day).map { score in
+            OuraContributorReading(
+                contributor: contributor,
+                score: score,
+                baseline: MetricBaseline.of(earlier.compactMap { contributor.score(on: $0)?.value }))
         }
+    }
+
+    /// The group's contributors on `day`. A contributor Oura sent nothing for that day is left out.
+    static func readings(
+        of group: OuraContributorGroup, on day: OuraDay, among days: [OuraDay], calendar: Calendar = .current
+    ) -> [OuraContributorReading] {
+        group.contributors.compactMap { reading(of: $0, on: day, among: days, calendar: calendar) }
     }
 }

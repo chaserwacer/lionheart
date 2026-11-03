@@ -120,6 +120,16 @@ struct TrainingSessionsAPI: Sendable {
             body: CompleteSessionRequest(period: period, effort: effort))
     }
 
+    /// Corrects a completed session: its sets, its period and its notes, restated whole. A change
+    /// to the sets or the start has the server re-detect every record over the whole history, and
+    /// is refused (409) while any record is withdrawn. Restating the same correction twice leaves
+    /// the same session, so a save whose answer was lost is safe to send again.
+    func revise(id: UUID, sets: [SetCommand], period: PeriodRequest, notes: String) async throws -> TrainingSession {
+        try await client.post(
+            "\(Self.root)/\(id.uuidString)/revise",
+            body: ReviseSessionRequest(sets: sets, period: period, notes: notes))
+    }
+
     /// Planned → Skipped. Terminal, and kept: the skip is data.
     func skip(id: UUID) async throws -> TrainingSession {
         try await client.post("\(Self.root)/\(id.uuidString)/skip")

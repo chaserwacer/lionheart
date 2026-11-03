@@ -95,10 +95,10 @@ struct OuraDaysView: View {
         days.flatMap { day -> [ScorePoint] in
             var points: [ScorePoint] = []
             if let score = day.readiness?.score {
-                points.append(ScorePoint(day: day.date, measure: "Readiness", score: score))
+                points.append(ScorePoint(day: day.date, measure: "Readiness", score: score.rounded))
             }
             if let score = day.sleep?.score {
-                points.append(ScorePoint(day: day.date, measure: "Sleep", score: score))
+                points.append(ScorePoint(day: day.date, measure: "Sleep", score: score.rounded))
             }
             return points
         }

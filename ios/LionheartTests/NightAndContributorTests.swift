@@ -60,7 +60,7 @@ struct NightAndContributorTests {
         }
         let today = Self.readinessDay(Self.day, hrvBalance: 70)
 
-        let readings = ContributorReading.readings(of: .readiness, on: today, among: earlier + [today])
+        let readings = OuraContributorReading.readings(of: .readiness, on: today, among: earlier + [today])
         let hrv = try #require(readings.first { $0.contributor == .hrvBalance })
 
         #expect(hrv.standing == .unfavourable)
@@ -72,7 +72,7 @@ struct NightAndContributorTests {
     func absentComponentIsLeftOut() {
         let today = Self.readinessDay(Self.day, hrvBalance: nil)
 
-        let readings = ContributorReading.readings(of: .readiness, on: today, among: [today])
+        let readings = OuraContributorReading.readings(of: .readiness, on: today, among: [today])
 
         #expect(!readings.contains { $0.contributor == .hrvBalance })
         #expect(readings.allSatisfy { $0.baseline == nil })
@@ -80,10 +80,10 @@ struct NightAndContributorTests {
 
     @Test("Every component belongs to exactly one score")
     func everyComponentHasAGroup() {
-        let grouped = ContributorGroup.allCases.flatMap(\.contributors)
+        let grouped = OuraContributorGroup.allCases.flatMap(\.contributors)
 
-        #expect(Set(grouped) == Set(Contributor.allCases))
-        #expect(grouped.count == Contributor.allCases.count)
+        #expect(Set(grouped) == Set(OuraContributor.allCases))
+        #expect(grouped.count == OuraContributor.allCases.count)
     }
 
     // MARK: - Today's night

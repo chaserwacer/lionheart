@@ -35,6 +35,11 @@ struct RootView: View {
         // sign-out that would lose it, and Chat, which cannot work without it.
         .environment(container.outbox)
         .environment(container.reachability)
+        // Read by History's day and week pages, which three stacks reach — History's, Today's and
+        // the logging surface's — through `HistoryDestination`.
+        .environment(container.diary)
+        .environment(container.cardio)
+        .environment(container.habits)
         .task { await container.start() }
         // Coming back to the app is when the athlete expects it to have caught up, so whatever was
         // waiting on the server is tried again then.

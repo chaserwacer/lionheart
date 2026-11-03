@@ -35,7 +35,7 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
     /// Oura's own score for the collection, where it issues one. Stress, blood oxygen and
     /// resilience have none — they have measurements and a verdict — which is why this is optional
     /// rather than a zero standing in for "no score".
-    var score: Int? {
+    var score: OuraScore? {
         switch self {
         case .readiness(let readiness): readiness.score
         case .sleep(let sleep): sleep.score
@@ -147,13 +147,13 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
                     Figure(label: "Level", value: $0.replacingOccurrences(of: "_", with: " "))
                 },
                 resilience.sleepRecovery.map {
-                    Figure(label: "Sleep recovery", value: MeasurementText.plain($0))
+                    Figure(label: "Sleep recovery", value: $0.description)
                 },
                 resilience.daytimeRecovery.map {
-                    Figure(label: "Daytime recovery", value: MeasurementText.plain($0))
+                    Figure(label: "Daytime recovery", value: $0.description)
                 },
                 resilience.stress.map {
-                    Figure(label: "Stress", value: MeasurementText.plain($0))
+                    Figure(label: "Stress", value: $0.description)
                 },
             ].compactMap(\.self)
 
@@ -172,7 +172,7 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
     }
 
     /// A contributor score out of 100, or nothing where Oura sent none.
-    private static func figure(_ label: String, _ score: Int?) -> Figure? {
+    private static func figure(_ label: String, _ score: OuraScore?) -> Figure? {
         score.map { Figure(label: label, value: "\($0)") }
     }
 

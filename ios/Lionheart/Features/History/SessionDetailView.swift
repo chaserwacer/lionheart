@@ -14,8 +14,15 @@ import SwiftUI
 struct SessionDetailView: View {
     let session: TrainingSession
     let catalogue: MovementCatalogue
-    /// Where the session's established records are read and held.
+    /// Where the session's established records are read and held, and a correction is sent.
     let history: HistoryStore
+    /// Names movements in the editor and offers the library to add one from.
+    let library: MovementLibraryStore
+    /// Run after a correction is saved, for a screen that holds its own copy of the session.
+    var afterRevision: () async -> Void = {}
+
+    @State private var isEditing = false
+    @State private var refusal: SessionRevisionDraft.Refusal?
 
     private var marks: RecordMarks {
         let records = history.established[.session(session.id)]?.value ?? []
@@ -66,9 +73,40 @@ struct SessionDetailView: View {
         .environment(\.defaultMinListRowHeight, 34)
         .navigationTitle(Formatting.date(session.date))
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: session.id) {
+        .toolbar {
+            if case .completed = session {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit") { edit() }
+                }
+            }
+        }
+        .sheet(isPresented: $isEditing) {
+            if case .success(let draft) = SessionRevisionDraft.of(session) {
+                SessionRevisionView(draft: draft, history: history, library: library, afterSaving: afterRevision)
+            }
+        }
+        .alert(
+            "Cannot edit",
+            isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } }),
+            presenting: refusal
+        ) { _ in
+            Button("OK") { refusal = nil }
+        } message: { refusal in
+            Text(refusal.message)
+        }
+        // Keyed on the session itself rather than its id, so a correction — the same id, other
+        // sets — reads the records it established again.
+        .task(id: session) {
             guard case .completed = session else { return }
             await history.loadEstablished(by: session)
+        }
+    }
+
+    /// Opens the editor, or says why this session cannot be written back from here.
+    private func edit() {
+        switch SessionRevisionDraft.of(session) {
+        case .success: isEditing = true
+        case .failure(let reason): refusal = reason
         }
     }
 

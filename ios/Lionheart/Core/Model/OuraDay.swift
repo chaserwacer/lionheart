@@ -48,7 +48,7 @@ struct OuraDay: Equatable, Sendable, Identifiable {
 
     /// How much the athlete moved, and Oura's score for it.
     struct Activity: Equatable, Sendable {
-        let score: Int?
+        let score: OuraScore?
         let steps: Int
         let activeCalories: Int
         let totalCalories: Int
@@ -69,20 +69,21 @@ struct OuraDay: Equatable, Sendable, Identifiable {
         let nonWearTimeSeconds: Int
         let contributors: Contributors
 
-        /// The six components Oura's activity score is built from, each 1–100.
+        /// The six components Oura's activity score is built from — Oura's scores, each 1–100, not
+        /// counts: `trainingFrequency` is how Oura rated the frequency, never a number of sessions.
         struct Contributors: Equatable, Sendable {
-            let meetDailyTargets: Int?
-            let moveEveryHour: Int?
-            let recoveryTime: Int?
-            let stayActive: Int?
-            let trainingFrequency: Int?
-            let trainingVolume: Int?
+            let meetDailyTargets: OuraScore?
+            let moveEveryHour: OuraScore?
+            let recoveryTime: OuraScore?
+            let stayActive: OuraScore?
+            let trainingFrequency: OuraScore?
+            let trainingVolume: OuraScore?
         }
     }
 
     /// Oura's read on how recovered the body is, and the components behind it.
     struct Readiness: Equatable, Sendable {
-        let score: Int?
+        let score: OuraScore?
         let temperatureDeviation: Double?
         let temperatureTrendDeviation: Double?
         let contributors: Contributors
@@ -94,32 +95,33 @@ struct OuraDay: Equatable, Sendable, Identifiable {
         /// rate, and labelling it as one on a screen is the mistake this doc comment exists to
         /// prevent. The rate itself lives on the night, as `OuraSleepPeriod.lowestHeartRate`.
         struct Contributors: Equatable, Sendable {
-            let activityBalance: Int?
-            let bodyTemperature: Int?
-            let hrvBalance: Int?
-            let previousDayActivity: Int?
-            let previousNight: Int?
-            let recoveryIndex: Int?
-            let restingHeartRate: Int?
-            let sleepBalance: Int?
-            let sleepRegularity: Int?
+            let activityBalance: OuraScore?
+            let bodyTemperature: OuraScore?
+            let hrvBalance: OuraScore?
+            let previousDayActivity: OuraScore?
+            let previousNight: OuraScore?
+            let recoveryIndex: OuraScore?
+            let restingHeartRate: OuraScore?
+            let sleepBalance: OuraScore?
+            let sleepRegularity: OuraScore?
         }
     }
 
     /// Oura's score for the night as a whole, and the components behind it.
     struct Sleep: Equatable, Sendable {
-        let score: Int?
+        let score: OuraScore?
         let contributors: Contributors
 
-        /// The seven components Oura's sleep score is built from, each 1–100.
+        /// The seven components Oura's sleep score is built from — Oura's scores, each 1–100, not the
+        /// durations they rate.
         struct Contributors: Equatable, Sendable {
-            let deepSleep: Int?
-            let efficiency: Int?
-            let latency: Int?
-            let remSleep: Int?
-            let restfulness: Int?
-            let timing: Int?
-            let totalSleep: Int?
+            let deepSleep: OuraScore?
+            let efficiency: OuraScore?
+            let latency: OuraScore?
+            let remSleep: OuraScore?
+            let restfulness: OuraScore?
+            let timing: OuraScore?
+            let totalSleep: OuraScore?
         }
     }
 
@@ -145,9 +147,9 @@ struct OuraDay: Equatable, Sendable, Identifiable {
     /// Oura's resilience level and the three recovery components behind it.
     struct Resilience: Equatable, Sendable {
         let level: String
-        let sleepRecovery: Double?
-        let daytimeRecovery: Double?
-        let stress: Double?
+        let sleepRecovery: OuraScore?
+        let daytimeRecovery: OuraScore?
+        let stress: OuraScore?
     }
 }
 
@@ -198,7 +200,7 @@ extension OuraDay.Activity: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
         self.init(
-            score: container.lenient(Int.self, "score"),
+            score: container.lenient(OuraScore.self, "score"),
             steps: container.lenient("steps", or: 0),
             activeCalories: container.lenient("activeCalories", or: 0),
             totalCalories: container.lenient("totalCalories", or: 0),
@@ -228,12 +230,12 @@ extension OuraDay.Activity.Contributors: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
         self.init(
-            meetDailyTargets: container.lenient(Int.self, "meetDailyTargets"),
-            moveEveryHour: container.lenient(Int.self, "moveEveryHour"),
-            recoveryTime: container.lenient(Int.self, "recoveryTime"),
-            stayActive: container.lenient(Int.self, "stayActive"),
-            trainingFrequency: container.lenient(Int.self, "trainingFrequency"),
-            trainingVolume: container.lenient(Int.self, "trainingVolume"))
+            meetDailyTargets: container.lenient(OuraScore.self, "meetDailyTargets"),
+            moveEveryHour: container.lenient(OuraScore.self, "moveEveryHour"),
+            recoveryTime: container.lenient(OuraScore.self, "recoveryTime"),
+            stayActive: container.lenient(OuraScore.self, "stayActive"),
+            trainingFrequency: container.lenient(OuraScore.self, "trainingFrequency"),
+            trainingVolume: container.lenient(OuraScore.self, "trainingVolume"))
     }
 }
 
@@ -241,7 +243,7 @@ extension OuraDay.Readiness: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
         self.init(
-            score: container.lenient(Int.self, "score"),
+            score: container.lenient(OuraScore.self, "score"),
             temperatureDeviation: container.lenient(Double.self, "temperatureDeviation"),
             temperatureTrendDeviation: container.lenient(Double.self, "temperatureTrendDeviation"),
             contributors: container.lenient(Contributors.self, "contributors") ?? .absent)
@@ -257,15 +259,15 @@ extension OuraDay.Readiness.Contributors: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
         self.init(
-            activityBalance: container.lenient(Int.self, "activityBalance"),
-            bodyTemperature: container.lenient(Int.self, "bodyTemperature"),
-            hrvBalance: container.lenient(Int.self, "hrvBalance"),
-            previousDayActivity: container.lenient(Int.self, "previousDayActivity"),
-            previousNight: container.lenient(Int.self, "previousNight"),
-            recoveryIndex: container.lenient(Int.self, "recoveryIndex"),
-            restingHeartRate: container.lenient(Int.self, "restingHeartRate"),
-            sleepBalance: container.lenient(Int.self, "sleepBalance"),
-            sleepRegularity: container.lenient(Int.self, "sleepRegularity"))
+            activityBalance: container.lenient(OuraScore.self, "activityBalance"),
+            bodyTemperature: container.lenient(OuraScore.self, "bodyTemperature"),
+            hrvBalance: container.lenient(OuraScore.self, "hrvBalance"),
+            previousDayActivity: container.lenient(OuraScore.self, "previousDayActivity"),
+            previousNight: container.lenient(OuraScore.self, "previousNight"),
+            recoveryIndex: container.lenient(OuraScore.self, "recoveryIndex"),
+            restingHeartRate: container.lenient(OuraScore.self, "restingHeartRate"),
+            sleepBalance: container.lenient(OuraScore.self, "sleepBalance"),
+            sleepRegularity: container.lenient(OuraScore.self, "sleepRegularity"))
     }
 }
 
@@ -273,7 +275,7 @@ extension OuraDay.Sleep: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
         self.init(
-            score: container.lenient(Int.self, "score"),
+            score: container.lenient(OuraScore.self, "score"),
             contributors: container.lenient(Contributors.self, "contributors") ?? .absent)
     }
 }
@@ -286,13 +288,13 @@ extension OuraDay.Sleep.Contributors: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
         self.init(
-            deepSleep: container.lenient(Int.self, "deepSleep"),
-            efficiency: container.lenient(Int.self, "efficiency"),
-            latency: container.lenient(Int.self, "latency"),
-            remSleep: container.lenient(Int.self, "remSleep"),
-            restfulness: container.lenient(Int.self, "restfulness"),
-            timing: container.lenient(Int.self, "timing"),
-            totalSleep: container.lenient(Int.self, "totalSleep"))
+            deepSleep: container.lenient(OuraScore.self, "deepSleep"),
+            efficiency: container.lenient(OuraScore.self, "efficiency"),
+            latency: container.lenient(OuraScore.self, "latency"),
+            remSleep: container.lenient(OuraScore.self, "remSleep"),
+            restfulness: container.lenient(OuraScore.self, "restfulness"),
+            timing: container.lenient(OuraScore.self, "timing"),
+            totalSleep: container.lenient(OuraScore.self, "totalSleep"))
     }
 }
 
@@ -332,14 +334,14 @@ extension OuraDay.Resilience: Decodable {
 /// Flattened because there are only three of them and no screen asks for them as a group — unlike
 /// readiness and sleep, whose contributors are a named nine and seven that a panel lists together.
 private struct ResilienceContributorsWire: Decodable {
-    let sleepRecovery: Double?
-    let daytimeRecovery: Double?
-    let stress: Double?
+    let sleepRecovery: OuraScore?
+    let daytimeRecovery: OuraScore?
+    let stress: OuraScore?
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
-        sleepRecovery = container.lenient(Double.self, "sleepRecovery")
-        daytimeRecovery = container.lenient(Double.self, "daytimeRecovery")
-        stress = container.lenient(Double.self, "stress")
+        sleepRecovery = container.lenient(OuraScore.self, "sleepRecovery")
+        daytimeRecovery = container.lenient(OuraScore.self, "daytimeRecovery")
+        stress = container.lenient(OuraScore.self, "stress")
     }
 }

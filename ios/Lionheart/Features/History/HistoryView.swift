@@ -2,9 +2,10 @@ import SwiftUI
 
 /// What have I done?
 ///
-/// The training log is the screen, because that is the question: every session newest first,
-/// grouped by month, each row a log-book entry — the day, how long, each movement's load and reps,
-/// and what it came to. Above it, the three readings of the log that answer the athlete's goals:
+/// The training log is the screen, because that is the question, read as a diary: weeks newest
+/// first, each headed by its sessions and opening onto the week's lifting, cardio and body; each row
+/// a day, a log-book entry of what was lifted, opening onto everything else the day held. A run of
+/// weeks with nothing logged is said once, between the weeks either side of it. Above it, the three readings of the log that answer the athlete's goals:
 /// what he has pinned to emphasise, how consistently he trains, and the ways into a movement,
 /// the records and the trends. They are destinations above the log rather than a segmented control
 /// fighting the search field for the top of the screen, and they step aside while searching.
@@ -173,7 +174,7 @@ struct HistoryView: View {
             if log.isEmpty {
                 searchFoundNothing
             } else {
-                months(of: log)
+                ForEach(log.weeks) { week in weekSection(week) }
             }
         } else {
             focusSection(snapshot)
@@ -182,7 +183,12 @@ struct HistoryView: View {
             if snapshot.log.isEmpty {
                 nothingLoggedYet
             } else {
-                months(of: log)
+                ForEach(log.stretches()) { stretch in
+                    switch stretch {
+                    case .week(let week): weekSection(week)
+                    case .quiet(let first, let count): quietSection(from: first, weeks: count)
+                    }
+                }
             }
         }
     }
@@ -267,20 +273,47 @@ struct HistoryView: View {
         }
     }
 
-    @ViewBuilder
-    private func months(of log: SessionLog) -> some View {
-        ForEach(log.months) { month in
-            Section {
-                ForEach(month.sessions) { session in
-                    NavigationLink(value: HistoryRoute.session(session.sessionId)) {
-                        LogRow(session: session, today: today)
-                    }
-                    .contextMenu { menu(for: session) }
-                    .swipeActions(edge: .trailing) { swipes(for: session) }
+    /// One week: its head opens the week, and each day in it opens the day.
+    private func weekSection(_ week: SessionLog.Week) -> some View {
+        Section {
+            ForEach(week.days) { day in
+                NavigationLink(value: HistoryRoute.day(day.day)) {
+                    DayLogRow(day: day, today: today)
                 }
-            } header: {
-                MonthHeader(month: month)
+                .contextMenu { menu(for: day) }
+                .swipeActions(edge: .trailing) { swipes(for: day) }
             }
+        } header: {
+            WeekHeader(week: week)
+        }
+    }
+
+    /// A run of weeks with nothing logged, as one line between the weeks either side.
+    private func quietSection(from first: CalendarDay, weeks count: Int) -> some View {
+        Section {
+            Text("\(Formatting.count(count, "week")) with nothing logged · \(Formatting.span(from: first, to: first.adding(days: 7 * count - 1)))")
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(Color(.secondaryLabel))
+        }
+    }
+
+    /// A day's long press: each session's movements, actions and copy, a section per session when
+    /// the day held more than one.
+    @ViewBuilder
+    private func menu(for day: SessionLog.Day) -> some View {
+        ForEach(day.sessions) { session in
+            Section(day.sessions.count > 1 ? session.headline : "") {
+                menu(for: session)
+            }
+        }
+    }
+
+    /// The delete swipe, offered only on a day holding one session, where it cannot mean the
+    /// wrong one.
+    @ViewBuilder
+    private func swipes(for day: SessionLog.Day) -> some View {
+        if day.sessions.count == 1, let session = day.sessions.first {
+            swipes(for: session)
         }
     }
 
@@ -386,18 +419,34 @@ struct MovementToken: Identifiable, Hashable {
     let name: String
 }
 
-/// A month's header: its name, and how many sessions it held — the month's count is the first
-/// thing a log read for consistency asks.
-private struct MonthHeader: View {
-    let month: SessionLog.Month
+/// A week's head: its dates, which open the week, and how many sessions it held — the figure the
+/// athlete's first goal is measured in.
+private struct WeekHeader: View {
+    let week: SessionLog.Week
 
     var body: some View {
-        let performed = month.sessions.filter(\.kind.isPerformed).count
         HStack(alignment: .firstTextBaseline) {
-            Text(Formatting.month(month.start))
+            NavigationLink(value: HistoryRoute.week(week.start)) {
+                HeaderLinkLabel(Text(Formatting.week(startingOn: week.start)))
+            }
+            .accessibilityHint("Opens the week")
             Spacer()
-            Text(Formatting.count(performed, "session"))
+            Text(Formatting.count(week.performedCount, "session"))
                 .monospacedDigit()
+        }
+    }
+}
+
+/// One day in the log: its date, then each session as a log-book entry.
+private struct DayLogRow: View {
+    let day: SessionLog.Day
+    let today: CalendarDay
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(day.sessions.enumerated()), id: \.element.id) { index, session in
+                LogRow(session: session, today: today, showsDay: index == 0)
+            }
         }
     }
 }
@@ -410,6 +459,8 @@ private struct MonthHeader: View {
 private struct LogRow: View {
     let session: LoggedSession
     let today: CalendarDay
+    /// Whether the row leads with the day — the first session of a day does, a second does not.
+    var showsDay = true
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -429,7 +480,7 @@ private struct LogRow: View {
 
         return VStack(alignment: .leading, spacing: 5) {
             heading {
-                Text(Formatting.date(session.day))
+                Text(showsDay ? Formatting.date(session.day) : (session.startedAt.map { "Then, at \($0.formatted(date: .omitted, time: .shortened))" } ?? "Then"))
                     .font(.subheadline.weight(.semibold))
                 if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 if case .performed(_, let duration?, _) = session.facts {

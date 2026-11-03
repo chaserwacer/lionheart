@@ -74,6 +74,8 @@ enum LoggedSessionFacts: Equatable, Sendable {
 struct LoggedSession: Equatable, Sendable, Identifiable {
     let sessionId: UUID
     let day: CalendarDay
+    /// When it began, where it has begun — what tells two sessions on one day apart.
+    let startedAt: Date?
     let kind: LoggedSessionKind
     /// The movements the session touched, named — or the lifecycle word when it touched none.
     let headline: String
@@ -100,26 +102,67 @@ struct LoggedSession: Equatable, Sendable, Identifiable {
     }
 }
 
-/// The session log, grouped the way a reader scans it.
+/// The session log, read as a diary: weeks, newest first, each holding the days that had a session.
 ///
-/// Months rather than a flat list: a year of training is a few hundred rows, and the only grouping
-/// a lifter reads a log by is the month. The grouping is here and not in the view so that the
-/// section headers and the search both see the same reading of the data.
+/// Weeks rather than months because the athlete's first goal is measured in them — sessions a
+/// week, and whether a week happens at all — so each week's head is that count, and opens the
+/// week. Within a week the rows are days rather than sessions: a day is what he lived, and it opens
+/// onto everything else that day held, the ring's night and the cardio among it. The grouping is
+/// here and not in the view so that the section heads and the search both see the same reading.
 struct SessionLog: Equatable, Sendable {
-    let months: [Month]
+    /// Newest first; only weeks that hold a row.
+    let weeks: [Week]
 
-    struct Month: Equatable, Sendable, Identifiable {
-        /// The first day of the month, which is what a date formatter needs to name it.
+    /// One Monday-to-Sunday week and the days in it that hold a session, newest first.
+    struct Week: Equatable, Sendable, Identifiable {
+        /// Monday.
         let start: CalendarDay
-        let sessions: [LoggedSession]
+        let days: [Day]
 
         var id: CalendarDay { start }
+        var sessions: [LoggedSession] { days.flatMap(\.sessions) }
+        /// The sessions that happened — what "sessions a week" counts.
+        var performedCount: Int { sessions.filter(\.kind.isPerformed).count }
     }
 
-    var isEmpty: Bool { months.allSatisfy(\.sessions.isEmpty) }
-    var sessionCount: Int { months.reduce(0) { $0 + $1.sessions.count } }
+    /// One day's sessions, in the order they happened.
+    struct Day: Equatable, Sendable, Identifiable {
+        let day: CalendarDay
+        let sessions: [LoggedSession]
 
-    /// The log with only the rows matching `query`, and months that kept nothing dropped.
+        var id: CalendarDay { day }
+    }
+
+    /// The log as a timeline: each week that holds a row, and between them each run of weeks that
+    /// held none, said once rather than left out — a gap of two months is part of the record.
+    enum Stretch: Equatable, Sendable, Identifiable {
+        case week(Week)
+        /// `count` weeks with nothing logged, the earliest beginning on `firstWeek`.
+        case quiet(firstWeek: CalendarDay, count: Int)
+
+        var id: String {
+            switch self {
+            case .week(let week): "week-\(week.start.wire)"
+            case .quiet(let first, _): "quiet-\(first.wire)"
+            }
+        }
+    }
+
+    var isEmpty: Bool { weeks.allSatisfy(\.days.isEmpty) }
+    var sessionCount: Int { weeks.reduce(0) { $0 + $1.sessions.count } }
+
+    /// The weeks with the quiet runs between them, newest first.
+    func stretches(calendar: Calendar = .current) -> [Stretch] {
+        zip(weeks, weeks.dropFirst().map(Optional.some) + [nil]).flatMap { newer, older -> [Stretch] in
+            guard let older else { return [.week(newer)] }
+            let between = older.start.days(until: newer.start, in: calendar) / 7 - 1
+            return between > 0
+                ? [.week(newer), .quiet(firstWeek: older.start.adding(days: 7, in: calendar), count: between)]
+                : [.week(newer)]
+        }
+    }
+
+    /// The log with only the rows matching `query`, and days and weeks that kept nothing dropped.
     func filtered(by query: String) -> SessionLog {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return self }
         return keeping { $0.matches(query) }
@@ -135,9 +178,12 @@ struct SessionLog: Equatable, Sendable {
     }
 
     private func keeping(_ isKept: (LoggedSession) -> Bool) -> SessionLog {
-        SessionLog(months: months.compactMap { month in
-            let kept = month.sessions.filter(isKept)
-            return kept.isEmpty ? nil : Month(start: month.start, sessions: kept)
+        SessionLog(weeks: weeks.compactMap { week in
+            let days = week.days.compactMap { day in
+                let kept = day.sessions.filter(isKept)
+                return kept.isEmpty ? nil : Day(day: day.day, sessions: kept)
+            }
+            return days.isEmpty ? nil : Week(start: week.start, days: days)
         })
     }
 }
@@ -145,23 +191,23 @@ struct SessionLog: Equatable, Sendable {
 extension SessionLog {
     /// Reads the log out of one session window.
     ///
-    /// Newest first, within the month and across them: a log is read backwards from now. `today` is
-    /// injected rather than taken from the clock, which is what lets "missed" be tested.
+    /// Newest first across weeks and days — a log is read backwards from now — and in the order
+    /// the server sent them within a day. `today` is injected rather than taken from the clock,
+    /// which is what lets "missed" be tested.
     static func reading(
         sessions: [TrainingSession],
         catalogue: MovementCatalogue,
-        today: CalendarDay
+        today: CalendarDay,
+        calendar: Calendar = .current
     ) -> SessionLog {
-        let rows = sessions
-            .map { row(for: $0, catalogue: catalogue, today: today) }
-            .sorted { $0.day > $1.day }
+        let rows = sessions.map { row(for: $0, catalogue: catalogue, today: today) }
+        let byDay = Dictionary(grouping: rows, by: \.day)
+        let byWeek = Dictionary(grouping: byDay.keys) { TrainingTrends.weekStart(of: $0, calendar: calendar) ?? $0 }
 
-        let byMonth = Dictionary(grouping: rows) {
-            CalendarDay(year: $0.day.year, month: $0.day.month, day: 1)
-        }
-
-        return SessionLog(months: byMonth.keys.sorted(by: >).map { start in
-            Month(start: start, sessions: byMonth[start] ?? [])
+        return SessionLog(weeks: byWeek.keys.sorted(by: >).map { start in
+            Week(start: start, days: (byWeek[start] ?? []).sorted(by: >).map { day in
+                Day(day: day, sessions: byDay[day] ?? [])
+            })
         })
     }
 
@@ -176,6 +222,7 @@ extension SessionLog {
         return LoggedSession(
             sessionId: session.id,
             day: session.date,
+            startedAt: session.startedAt,
             kind: kind,
             headline: headline,
             facts: facts(of: session),
