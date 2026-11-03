@@ -17,7 +17,7 @@ struct BodyView: View {
             List {
                 switch store.state {
                 case .loading:
-                    LoadingRow()
+                    loadingSections
                 case .unavailable(let failure):
                     unavailable(failure)
                 case .loaded(let snapshot):
@@ -30,8 +30,20 @@ struct BodyView: View {
             .navigationTitle("Body")
             .refreshable { await store.refresh() }
             .navigationDestination(for: BodyRoute.self) { destination(for: $0) }
+            // An injury action is the only thing on this tab that writes, and a 404 — the injury
+            // was deleted on the web app — looks exactly like a row that did nothing.
+            .alert(
+                "That did not happen",
+                isPresented: Binding(
+                    get: { store.action.refusal != nil },
+                    set: { if !$0 { store.dismissRefusal() } })
+            ) {
+                Button("OK") { store.dismissRefusal() }
+            } message: {
+                if let refusal = store.action.refusal { Text(refusal.message) }
+            }
         }
-        .task { await store.refresh() }
+        .task { await store.refreshIfNeeded() }
     }
 
     @ViewBuilder
@@ -39,7 +51,7 @@ struct BodyView: View {
         let snapshot = store.state.value
         switch route {
         case .ouraDays:
-            OuraDaysView(days: snapshot?.ouraDays ?? [])
+            OuraDaysView(days: snapshot?.ouraDays ?? [], refresh: { await store.refresh() })
         case .ouraDay(let day):
             if let snapshot, let ouraDay = snapshot.ouraDays.first(where: { $0.date == day }) {
                 OuraDayView(
@@ -54,12 +66,12 @@ struct BodyView: View {
                     description: Text("Pull to refresh on the Body screen."))
             }
         case .wellness:
-            WellnessHistoryView(readings: snapshot?.wellness ?? [])
+            WellnessHistoryView(readings: snapshot?.wellness ?? [], refresh: { await store.refresh() })
         case .injuries:
-            InjuriesView(injuries: snapshot?.injuries ?? [])
+            InjuriesView(injuries: snapshot?.injuries ?? [], store: store)
         case .injury(let id):
             if let injury = snapshot?.injuries.first(where: { $0.injuryId == id }) {
-                InjuryDetailView(history: InjuryHistory.of(injury))
+                InjuryDetailView(history: InjuryHistory.of(injury), store: store)
             } else {
                 ContentUnavailableView(
                     "That injury is no longer loaded",
@@ -128,9 +140,11 @@ struct BodyView: View {
         if !active.isEmpty {
             Section("Being tracked") {
                 ForEach(active) { injury in
+                    let history = InjuryHistory.of(injury)
                     NavigationLink(value: BodyRoute.injury(injury.injuryId)) {
-                        InjuryRow(history: InjuryHistory.of(injury), today: today)
+                        InjuryRow(history: history, today: today)
                     }
+                    .injuryActions(on: history, store: store)
                 }
             }
         }
@@ -169,6 +183,14 @@ struct BodyView: View {
 
     // MARK: - Empty and not loaded
 
+    /// The tab's own shape while the first read is out: a recovery card and the three records
+    /// behind it. Six requests in parallel, and this is what stands in for all of them.
+    @ViewBuilder
+    private var loadingSections: some View {
+        Section("Recovery") { SkeletonRows(count: 1, systemImage: "moon.zzz") }
+        Section("Records") { SkeletonRows(count: 3, systemImage: "bed.double") }
+    }
+
     private var nothingRecorded: some View {
         Section {
             ContentUnavailableView {
@@ -195,32 +217,4 @@ struct BodyView: View {
     }
 
     private var today: CalendarDay { CalendarDay(Date()) }
-}
-
-/// One injury in a list: what it is, how it is going, and since when.
-struct InjuryRow: View {
-    let history: InjuryHistory
-    let today: CalendarDay
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(history.injury.name.nonEmpty ?? "Unnamed injury")
-                .font(.headline)
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(Color(.secondaryLabel))
-        }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(history.injury.name.nonEmpty ?? "Unnamed injury"). \(subtitle)")
-    }
-
-    private var subtitle: String {
-        var parts = ["Since \(Formatting.date(history.injury.injuryDate))"]
-        // Absent is not zero: nothing logged against it yet is a different thing from no pain.
-        if let pain = history.latestPain { parts.append("last pain \(pain)/10") }
-        if !history.injury.isActive { parts.append("resolved") }
-        return parts.joined(separator: " · ")
-    }
 }

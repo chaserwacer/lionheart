@@ -195,6 +195,49 @@ clock and not the set list that will sit above it.
 **Only the iOS 26 path has been seen running.** No iOS 18 runtime is installed on this machine, so
 the `safeAreaInset` branch is compile-verified and `#available`-guarded but not observed.
 
+### The Lock Screen's copy, and keeping the two in step
+
+The same workout also runs as a Live Activity, drawn by the `LionheartWorkoutActivity` widget
+extension — a second representation of the device's one piece of owned state, living in another
+process. The failure that shape invites is the two disagreeing: an activity counting down a rest
+that ended, or outliving a workout that was discarded. Three decisions prevent it.
+
+**The clocks are never numbers.** `WorkoutActivityAttributes` carries instants, and WidgetKit
+renders the counting itself from a date range. A suspended app therefore still shows a correct
+countdown, and nothing has to be pushed once a second — which also happens to be the only design
+that works here at all, since updating a Live Activity from outside the app needs an APNs push and
+the owner is on the free Apple tier.
+
+**One funnel, one instruction.** `ActiveWorkoutStore.mirror()` is called from `adopt`, `restore`,
+`clearLocally` and `reset` — every way the workout can change — and hands
+`WorkoutActivityProjection.of(…)` to the presenter. That projection returning `nil` *is* the
+instruction to end the activity, so no caller has to tell "no workout" apart from "a workout that
+no longer warrants one", and there is no ordering of events that leaves one behind. Completion,
+discard and `AuthStore.signOut` all arrive through those four calls; an activity surviving a sign-out
+would leave the last athlete's session on the Lock Screen of a signed-out phone.
+
+**The chain is serialized.** Each `mirror()` awaits the previous one, because two mutations a few
+milliseconds apart could otherwise have their cross-process writes land in the other order. The
+projection is derived synchronously at the mutation, so each link carries the state it was made for.
+
+A stale activity from a previous launch is reconciled on `restore()`: `WorkoutLiveActivity` reads
+`Activity.activities` rather than trusting its own per-launch handle, adopts one whose `sessionId`
+matches the restored workout, and ends every other. Everything it does is best-effort and silent —
+the athlete can switch Live Activities off, and the Lock Screen is a mirror, never the record.
+
+Two things cost more than they look. `NSSupportsLiveActivities` has to be in `info.properties` in
+`project.yml`; as an `INFOPLIST_KEY_*` build setting it never reaches the app's own `Info.plist` and
+`areActivitiesEnabled` then answers false with nothing in the log saying why. And `ActivityKit.Activity`
+is deliberately not `Sendable` while its `update` and `end` are nonisolated `async`, so under this
+project's `NonisolatedNonsendingByDefault: off` every isolated caller is a sending error;
+`LiveActivityHandle` is where that escape is contained and documented.
+
+**What has not been seen.** The Lock Screen and Island presentations were photographed from a
+throwaway harness rather than from the device: `simctl io screenshot` captures the framebuffer and
+the Island composites its content elsewhere, and `simctl` cannot lock the screen. On the device
+itself the activity's creation, its content, its four render passes and its reconciliation at the
+next launch were read out of the ActivityKit and WidgetKit logs.
+
 ## Design
 
 There is no design system. Apple's is the design system, which is the direct expression of the

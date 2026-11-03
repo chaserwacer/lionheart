@@ -575,3 +575,42 @@ struct RestClockTests {
         #expect(RestClock.idle.extended(by: 30) == .idle)
     }
 }
+
+/// What the workout bar interrupts for.
+@Suite("Workout attention")
+struct WorkoutAttentionTests {
+    @Test("A workout the device has not written down is worth saying so, whatever the server thinks")
+    func unsavedToDiskNeedsAttention() {
+        // The disk and the server fail independently: these sets are synced and would still be
+        // lost by a force-quit, which is the case this rule exists to catch.
+        #expect(WorkoutAttention.isNeeded(for: AWorkout.live(sync: .synced), savedToDisk: false))
+    }
+
+    @Test("A refused push needs the athlete, because the next one will not fix it")
+    func refusedNeedsAttention() {
+        #expect(WorkoutAttention.isNeeded(
+            for: AWorkout.live(sync: .refused("the session is already complete")),
+            savedToDisk: true))
+    }
+
+    @Test("A failed push needs the athlete too — the server does not have the work")
+    func failedNeedsAttention() {
+        #expect(WorkoutAttention.isNeeded(
+            for: AWorkout.live(sync: .failed("offline")), savedToDisk: true))
+    }
+
+    @Test("A workout that is merely in progress is not a warning")
+    func syncedAndPendingAreQuiet() {
+        // Almost every set is pending for a second. Warning about that would teach the athlete to
+        // stop reading the line that also carries the two failures above.
+        #expect(!WorkoutAttention.isNeeded(for: AWorkout.live(sync: .synced), savedToDisk: true))
+        #expect(!WorkoutAttention.isNeeded(for: AWorkout.live(sync: .pending), savedToDisk: true))
+    }
+
+    @Test("Resting is not attention")
+    func restingIsQuiet() {
+        let resting = AWorkout.live(rest: .running(since: AWorkout.start, duration: 120))
+
+        #expect(!WorkoutAttention.isNeeded(for: resting, savedToDisk: true))
+    }
+}

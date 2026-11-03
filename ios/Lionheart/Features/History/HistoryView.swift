@@ -10,6 +10,19 @@ struct HistoryView: View {
     let store: HistoryStore
 
     @State private var query = ""
+    @State private var asked: AskedTransition?
+
+    /// A transition waiting on the athlete's confirmation.
+    ///
+    /// Held by the screen rather than the row, because the dialog is hung on the `List`: a
+    /// `confirmationDialog` on each row is a dialog per session, and the one that opens is then
+    /// whichever row SwiftUI happened to keep.
+    private struct AskedTransition: Identifiable {
+        let transition: SessionTransition
+        let session: LoggedSession
+
+        var id: UUID { session.sessionId }
+    }
 
     /// Where History can navigate. One `navigationDestination` per value type, registered once —
     /// register two for the same type and the later one silently wins.
@@ -24,7 +37,7 @@ struct HistoryView: View {
             List {
                 switch store.state {
                 case .loading:
-                    LoadingRow()
+                    Section("Sessions") { SkeletonRows(count: 6, systemImage: "checkmark.circle.fill") }
                 case .unavailable(let failure):
                     unavailable(failure)
                 case .loaded(let snapshot):
@@ -36,10 +49,62 @@ struct HistoryView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("History")
             .searchable(text: $query, prompt: "Movement or note")
+            .minimizingSearchField()
             .refreshable { await store.refresh() }
             .navigationDestination(for: Route.self) { destination(for: $0) }
+            .confirmationDialog(
+                asked?.transition.confirmation?.question ?? "",
+                isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
+                titleVisibility: .visible,
+                presenting: asked
+            ) { asked in
+                if let confirmation = asked.transition.confirmation {
+                    Button(confirmation.proceed, role: .destructive) {
+                        carryOut(asked.transition, on: asked.session)
+                    }
+                }
+            } message: { asked in
+                if let confirmation = asked.transition.confirmation {
+                    Text("\(asked.session.headline) · \(confirmation.warning)")
+                }
+            }
+            // A refusal is the one outcome the list itself cannot show: the row is still there
+            // whether the server took the transition or refused it.
+            .alert(
+                "That did not happen",
+                isPresented: Binding(
+                    get: { store.action.refusal != nil },
+                    set: { if !$0 { store.dismissRefusal() } })
+            ) {
+                Button("OK") { store.dismissRefusal() }
+            } message: {
+                if let refusal = store.action.refusal { Text(refusal.message) }
+            }
         }
         .task { await store.refresh() }
+    }
+
+    /// Runs a transition, or asks first when it is one that cannot be undone.
+    private func ask(_ transition: SessionTransition, about session: LoggedSession) {
+        guard transition.confirmation != nil else {
+            carryOut(transition, on: session)
+            return
+        }
+        asked = AskedTransition(transition: transition, session: session)
+    }
+
+    private func carryOut(_ transition: SessionTransition, on session: LoggedSession) {
+        asked = nil
+        Task {
+            switch transition {
+            case .skip: await store.skip(session.sessionId)
+            case .delete: await store.delete(session.sessionId)
+            case .start:
+                // Not offered here: starting a session hands this device a workout to log into, and
+                // the screen that does the logging belongs to Train. `transitions(on:)` drops it.
+                break
+            }
+        }
     }
 
     @ViewBuilder
@@ -116,9 +181,58 @@ struct HistoryView: View {
                     NavigationLink(value: Route.session(session.sessionId)) {
                         SessionRow(session: session, today: today)
                     }
+                    .contextMenu { menu(for: session) }
+                    .swipeActions(edge: .trailing) { swipes(for: session) }
                 }
             }
         }
+    }
+
+    /// The long press. Copying a session's own line is what gets it into a message or into a
+    /// question for the coach, and is the one action every row can offer whatever state it is in.
+    @ViewBuilder
+    private func menu(for session: LoggedSession) -> some View {
+        ForEach(transitions(on: session.kind)) { transition in
+            Button(role: transition.isDestructive ? .destructive : nil) {
+                ask(transition, about: session)
+            } label: {
+                Label(transition.label, systemImage: transition.systemImage)
+            }
+        }
+        Button {
+            Clipboard.copy(summary(of: session))
+        } label: {
+            Label("Copy", systemImage: "doc.on.doc")
+        }
+    }
+
+    /// The quick one. Only the delete swipes: a trailing swipe is iOS's delete gesture, and
+    /// offering two destructive swipes on one row turns an easy gesture into a choice.
+    @ViewBuilder
+    private func swipes(for session: LoggedSession) -> some View {
+        if transitions(on: session.kind).contains(.delete) {
+            Button(role: .destructive) {
+                ask(.delete, about: session)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    /// What History itself can carry out. Starting is dropped: it hands the device a workout to log
+    /// into, and the logging surface is reached from Train.
+    private func transitions(on kind: LoggedSessionKind) -> [SessionTransition] {
+        SessionTransition.offered(on: kind).filter { $0 != .start }
+    }
+
+    /// One session as a line of text, for the pasteboard: the day, what it was, and what it came to.
+    private func summary(of session: LoggedSession) -> String {
+        let day = Formatting.day(RelativeDay.of(session.day, today: today))
+        let parts = [day, session.headline, Formatting.sessionFacts(session.facts)]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        guard session.hasNotes else { return parts.joined(separator: " · ") }
+        return parts.joined(separator: " · ") + "\n" + session.notes
     }
 
     // MARK: - Empty and not loaded

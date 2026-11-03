@@ -8,6 +8,9 @@ import SwiftUI
 /// zero — which is the distinction a chart of synthesized zeroes would destroy.
 struct OuraDaysView: View {
     let days: [OuraDay]
+    /// The tab's own reload. Passed in rather than holding the store, because this screen reads a
+    /// slice of the snapshot and has nothing to write.
+    let refresh: () async -> Void
 
     var body: some View {
         List {
@@ -25,12 +28,33 @@ struct OuraDaysView: View {
                         NavigationLink(value: BodyRoute.ouraDay(day.date)) {
                             OuraDayRow(day: day, today: today)
                         }
+                        // Copying is the whole menu, and that is the data's doing rather than a gap
+                        // here: an Oura day is written by the ring through the sync and there is no
+                        // route that edits or removes one.
+                        .contextMenu {
+                            Button {
+                                Clipboard.copy(Self.summary(of: day))
+                            } label: {
+                                Label("Copy", systemImage: "doc.on.doc")
+                            }
+                        }
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Oura days")
+        .refreshable { await refresh() }
+    }
+
+    /// One day as a line of text: which day, and every score it carries.
+    static func summary(of day: OuraDay) -> String {
+        let scores = OuraPanel.panels(of: day).compactMap { panel in
+            panel.score.map { "\(panel.title) \($0)" }
+        }
+        let when = Formatting.date(day.date)
+        return scores.isEmpty ? "\(when) · recorded, not scored"
+            : "\(when) · \(scores.joined(separator: " · "))"
     }
 
     @ViewBuilder

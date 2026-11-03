@@ -31,6 +31,12 @@ targets:
     configFiles:
       Debug: Configs/Debug.xcconfig
       Release: Configs/Release.xcconfig
+    dependencies:
+      # Embeds the widget extension in the app's PlugIns folder, which is the only way a Live
+      # Activity's views are ever found: ActivityKit renders them in the extension's process, so an
+      # app that links ActivityKit but ships no extension can request an activity and will only
+      # ever draw a blank one.
+      - target: LionheartWorkoutActivity
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.chasebalmer.lionheart
@@ -57,6 +63,11 @@ targets:
         # this project supplies its own Info.plist, the INFOPLIST_KEY_UILaunchScreen_Generation
         # build setting never reaches it. An empty dictionary is the whole declaration.
         UILaunchScreen: {}
+        # Without this the app cannot start a Live Activity at all: ActivityKit reads it from the
+        # *app's* bundle, and `ActivityAuthorizationInfo().areActivitiesEnabled` answers false with
+        # nothing in the log saying why. It belongs here for the same reason UILaunchScreen does —
+        # this project supplies its own Info.plist, so no INFOPLIST_KEY_* build setting reaches it.
+        NSSupportsLiveActivities: true
         # The API origin is a build setting, not a literal, so a device build can point at a LAN
         # address or a tunnel without touching Swift. See Configs/Base.xcconfig.
         LHAPIBaseURL: $(LH_API_BASE_URL)
@@ -65,6 +76,46 @@ targets:
         # which is exactly what must not happen.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+
+  # The workout's Live Activity: the Lock Screen and Dynamic Island presentations, and nothing else.
+  #
+  # A separate target because a Live Activity's views are drawn by WidgetKit out of process — they
+  # cannot live in the app. It holds only views; every decision they render is derived in the app
+  # and arrives as `WorkoutActivityAttributes.ContentState`.
+  #
+  # The one app file it compiles is that attributes type, which both processes have to agree on
+  # byte for byte. Sharing it as a source file rather than through a framework keeps the shared
+  # surface visible here, in one line, instead of in a target graph.
+  LionheartWorkoutActivity:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LionheartWorkoutActivity
+      - path: Lionheart/Core/Derived/ActiveWorkout/WorkoutActivityAttributes.swift
+      # The accent is the app's one brand token and the activity has to inherit it, so the catalog
+      # is compiled into the extension too rather than duplicated as a literal.
+      - path: Lionheart/Resources/Assets.xcassets
+    configFiles:
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chasebalmer.lionheart.workout-activity
+        PRODUCT_NAME: LionheartWorkoutActivity
+        # Held equal to the app's: an extension whose version disagrees with its host is rejected
+        # at install time, with a message that does not say so.
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: LionheartWorkoutActivity/Info.plist
+      properties:
+        CFBundleDisplayName: Lionheart Workout
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
   LionheartTests:
     type: bundle.unit-test
@@ -83,6 +134,7 @@ schemes:
     build:
       targets:
         Lionheart: all
+        LionheartWorkoutActivity: all
         LionheartTests: [test]
     run:
       config: Debug
