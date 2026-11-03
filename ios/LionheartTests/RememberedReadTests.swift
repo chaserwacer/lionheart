@@ -102,9 +102,9 @@ struct ReadMemoryTests {
         let memory = Self.aMemory()
         let account = memory.currentAccount()
 
-        memory.remember(Data("[1,2]".utf8), as: .todaySessions, for: account, at: Self.asOf)
+        memory.remember(Data("[1,2]".utf8), as: .historySessions, for: account, at: Self.asOf)
 
-        let recalled = try #require(memory.recall(.todaySessions, for: account))
+        let recalled = try #require(memory.recall(.historySessions, for: account))
         #expect(recalled.body == Data("[1,2]".utf8))
         #expect(recalled.asOf == Self.asOf)
     }
@@ -114,8 +114,9 @@ struct ReadMemoryTests {
         let memory = Self.aMemory()
         let account = memory.currentAccount()
 
-        memory.remember(Data("today".utf8), as: .todaySessions, for: account, at: Self.asOf)
+        memory.remember(Data("train".utf8), as: .trainSessions, for: account, at: Self.asOf)
 
+        // Two windows of the same route, which must not stand in for each other.
         #expect(memory.recall(.historySessions, for: account) == nil)
     }
 
@@ -123,13 +124,13 @@ struct ReadMemoryTests {
     func forgettingIsTotal() {
         let memory = Self.aMemory()
         let first = memory.currentAccount()
-        memory.remember(Data("first".utf8), as: .todaySessions, for: first, at: Self.asOf)
+        memory.remember(Data("first".utf8), as: .historySessions, for: first, at: Self.asOf)
 
         memory.forget()
         let next = memory.currentAccount()
 
         #expect(next != first)
-        #expect(memory.recall(.todaySessions, for: next) == nil)
+        #expect(memory.recall(.historySessions, for: next) == nil)
     }
 
     @Test("A request that lands after a sign-out keeps nothing")
@@ -141,10 +142,10 @@ struct ReadMemoryTests {
         memory.forget()
         let next = memory.currentAccount()
 
-        memory.remember(Data("late".utf8), as: .todaySessions, for: gone, at: Self.asOf)
+        memory.remember(Data("late".utf8), as: .historySessions, for: gone, at: Self.asOf)
 
-        #expect(memory.recall(.todaySessions, for: next) == nil)
-        #expect(memory.recall(.todaySessions, for: gone) == nil)
+        #expect(memory.recall(.historySessions, for: next) == nil)
+        #expect(memory.recall(.historySessions, for: gone) == nil)
     }
 
     @Test("The account survives a relaunch, so its answers do too")
@@ -158,6 +159,19 @@ struct ReadMemoryTests {
 
         #expect(relaunched.currentAccount() == account)
         #expect(relaunched.recall(.profileBoot, for: account)?.body == Data("kept".utf8))
+    }
+
+    @Test("Today's current day keeps one answer, and a past day its own")
+    func todaysReadsAreKeyedByTheDayShown() {
+        let today = CalendarDay(year: 2026, month: 11, day: 3)
+        let yesterday = CalendarDay(year: 2026, month: 11, day: 2)
+
+        // The current day's key does not carry its date, so a launch tomorrow with no signal
+        // still finds today's answer to show, marked with its time.
+        #expect(ReadKey.today("sessions", showing: today, today: today)
+            == ReadKey.today("sessions", showing: yesterday, today: yesterday))
+        #expect(ReadKey.today("sessions", showing: yesterday, today: today)
+            != ReadKey.today("sessions", showing: today, today: today))
     }
 
     @Test("A key built from a record's identity cannot name a path outside its directory")
