@@ -33,10 +33,10 @@ internal abstract record HeldSession
 /// <remarks>
 /// The earlier import had no set kind to write. A warm-up became a freeform set holding its own
 /// words ("Warm-up — Bench Press (Barbell): 155 lb × 13"); drop and failure sets were plain lifts,
-/// with their kind named in two lines of the session notes. Re-running the import over the same
-/// export recognises each session it wrote that way — set by set, and the notes whole — and
-/// replaces its sets and notes. Nothing else about the session changes, so a routine it was saved
-/// as since keeps it.
+/// with their kind named in two lines of the session notes. Given the same export,
+/// <see cref="StrongSetKindUpgrader"/> recognises each session written that way — set by set, and
+/// the notes whole — and replaces its sets and notes. Nothing else about the session changes, so a
+/// routine it was saved as since keeps it.
 /// <para>
 /// Records do not change and are not re-detected: a freeform warm-up raised none and a warm-up
 /// lift raises none, and drop and failure sets were lifts before and after.

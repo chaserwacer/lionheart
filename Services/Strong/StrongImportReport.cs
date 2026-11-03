@@ -22,31 +22,18 @@ public sealed record StrongSetTally(int Working, int WarmUps, int Drops, int Fai
     }
 }
 
-/// <summary>What a run did to the sessions it already held.</summary>
-/// <remarks>
-/// <see cref="UpgradedSets"/> counts the sets of the upgraded workouts only, which is where the
-/// warm-ups, drops and failures that gained a kind are.
-/// </remarks>
-public sealed record StrongUpgradeReport(
-    int Upgraded,
-    int AlreadyCurrent,
-    IReadOnlyList<StrongWorkoutKey> LeftAlone,
-    StrongSetTally UpgradedSets);
-
 /// <summary>What one run of the Strong import did.</summary>
 /// <remarks>
-/// <see cref="Sets"/>, <see cref="Catalogue"/> and <see cref="RecordsEstablished"/> count over the
-/// workouts this run imported, not the whole export, so a second run over the same export reports
-/// the export's size, all of it already imported, and zeroes. What it did to the workouts it
-/// already held is <see cref="Upgrade"/>. <see cref="UnsureMappings"/> are the judgement calls in the
-/// movement map that this run applied, listed so that none of them reaches the database unannounced.
+/// Everything is counted over the workouts this run imported, not the whole export, so a second
+/// run over the same export reports the export's size, all of it already imported, and zeroes.
+/// <see cref="UnsureMappings"/> are the judgement calls in the movement map that this run applied,
+/// listed so that none of them reaches the database unannounced.
 /// </remarks>
 public sealed record StrongImportReport(
     int WorkoutsInExport,
     int AlreadyImported,
     int SessionsCreated,
     StrongSetTally Sets,
-    StrongUpgradeReport Upgrade,
     CatalogueGrowth Catalogue,
     int RecordsEstablished,
     IReadOnlyList<MovementMapping> UnsureMappings);

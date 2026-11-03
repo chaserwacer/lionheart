@@ -55,6 +55,11 @@ if (args is [RebuildRecordsCommand.Verb, ..])
     return await RebuildRecordsCommand.RunAsync(args, CancellationToken.None);
 }
 
+if (args is [StrongUpgradeCommand.Verb, ..])
+{
+    return await StrongUpgradeCommand.RunAsync(args, CancellationToken.None);
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 var configuration = builder.Configuration;
