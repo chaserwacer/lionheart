@@ -38,16 +38,7 @@ struct WorkoutSummaryView: View {
                     Button("Done") { dismiss() }.fontWeight(.semibold)
                 }
             }
-            .alert(
-                "Refused",
-                isPresented: Binding(
-                    get: { routines.action.refusal != nil },
-                    set: { if !$0 { routines.dismissRefusal() } })
-            ) {
-                Button("OK") { routines.dismissRefusal() }
-            } message: {
-                if let refusal = routines.action.refusal { Text(refusal.message) }
-            }
+            .onDisappear { routines.dismissRefusal() }
         }
     }
 
@@ -160,7 +151,7 @@ struct WorkoutSummaryView: View {
                     Button("Update \(held.name)") { Task { await update(held) } }
                         .disabled(routines.action.isRunning)
                 } footer: {
-                    Text("Today's movements and working sets differ from the routine. Updating it keeps today's order.")
+                    refusalOr("Today's movements and working sets differ from the routine. Updating it keeps today's order.")
                 }
             }
         } else if !summary.routineMovements.isEmpty {
@@ -172,8 +163,18 @@ struct WorkoutSummaryView: View {
             } header: {
                 Text("Routine")
             } footer: {
-                Text("Its movements and working sets, in today's order. Weights come from last time when you start it.")
+                refusalOr("Its movements and working sets, in today's order. Weights come from last time when you start it.")
             }
+        }
+    }
+
+    /// The server's refusal of the last routine write, where there is one, else the section's note.
+    @ViewBuilder
+    private func refusalOr(_ note: String) -> some View {
+        if let refusal = routines.action.refusal {
+            Text(refusal.message).foregroundStyle(.orange)
+        } else {
+            Text(note)
         }
     }
 

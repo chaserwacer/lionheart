@@ -128,8 +128,8 @@ struct SetEntryForm: View {
     /// a failure set, or distance and time.
     ///
     /// One control rather than a measure menu beside a kind menu, because the two never vary
-    /// independently on a row this narrow — a kind only means something on a lift — and a third
-    /// menu pushed the Log button onto a line of its own at the default text size.
+    /// independently on a row this narrow — a kind only means something on a lift — and three
+    /// menus would push the Log button onto a line of its own at the default text size.
     private var setTypePicker: some View {
         Picker("Set type", selection: Binding(
             get: { SetType(draft) },

@@ -110,16 +110,6 @@ struct TrainView: View {
         } message: { _ in
             Text("Sessions trained from it keep their sets. Comparisons with it stop.")
         }
-        .alert(
-            "Refused",
-            isPresented: Binding(
-                get: { routines.action.refusal != nil && editingRoutine == nil && !isSaveFromSessionAsked },
-                set: { if !$0 { routines.dismissRefusal() } })
-        ) {
-            Button("OK") { routines.dismissRefusal() }
-        } message: {
-            if let refusal = routines.action.refusal { Text(refusal.message) }
-        }
         .sheet(isPresented: $isPastWorkoutAsked) {
             LogPastWorkoutSheet(store: store, openWorkout: openWorkout)
         }
@@ -194,7 +184,9 @@ struct TrainView: View {
         } header: {
             Text("Routines")
         } footer: {
-            if case .stale(_, let staleness) = routines.state, case .unreachable(let asOf) = staleness {
+            if let refusal = routines.action.refusal {
+                Text(refusal.message).foregroundStyle(.orange)
+            } else if case .stale(_, let staleness) = routines.state, case .unreachable(let asOf) = staleness {
                 Text("\(Formatting.asOf(asOf)). A routine starts without the server.")
             }
         }

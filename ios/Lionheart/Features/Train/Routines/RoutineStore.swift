@@ -33,6 +33,13 @@ final class RoutineStore {
         await task.value
     }
 
+    /// Reads the routines unless a current list is held — what the logging surface wants, since its
+    /// finish readout compares with the routine's last session even when Train was never opened.
+    func refreshIfNeeded() async {
+        guard state.value == nil || state.isStale else { return }
+        await refresh()
+    }
+
     func reset() {
         load?.cancel()
         load = nil

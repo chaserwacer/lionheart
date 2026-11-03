@@ -78,6 +78,7 @@ struct ActiveWorkoutView: View {
                 openFocusedMovement()
                 await library.refreshIfNeeded()
                 await bodyweight.refreshIfNeeded()
+                if store.workout?.routine != nil { await routines.refreshIfNeeded() }
             }
             .onChange(of: store.workout == nil) { _, gone in
                 if gone { dismiss() }

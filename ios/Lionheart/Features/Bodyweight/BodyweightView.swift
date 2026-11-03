@@ -40,7 +40,7 @@ struct BodyweightView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await store.refresh() }
         .task { await store.refreshIfNeeded() }
-        .onChange(of: store.series.latest?.unit) { _, latest in
+        .onChange(of: store.series.latest?.unit, initial: true) { _, latest in
             if let latest, latest != unit, entry.isEmpty { unit = latest }
         }
         .alert(

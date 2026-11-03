@@ -34,11 +34,9 @@ enum WorkoutResumption {
     }
 
     private static func command(of entry: SetEntry) throws(Refusal) -> SetCommand {
-        guard let command = entry.command else {
-            // Only an unrecognised shape has no command.
-            if case .unrecognised(let type, _) = entry { throw .cannotRestate(type: type) }
-            throw .cannotRestate(type: "")
-        }
+        if case .unrecognised(let type, _) = entry { throw .cannotRestate(type: type) }
+        // Every shape this build knows restates; `command` is nil for the unrecognised one alone.
+        guard let command = entry.command else { throw .cannotRestate(type: "") }
         return command
     }
 }

@@ -174,11 +174,11 @@ final class TrainStore {
         guard !isWorkoutInFlight else { return false }
         action = .running
         let moment = now()
-        let plan = routine.map(WorkoutRoutine.init)
+        let followed = routine.map(WorkoutRoutine.init)
 
         do {
             let started = try await withinPatience { [sessions] in
-                try await sessions.startUnplanned(at: moment, routineId: plan?.routineId)
+                try await sessions.startUnplanned(at: moment, routineId: followed?.routineId)
             }
             guard let active = started.activeSession else {
                 action = .refused(.unavailable("That session did not become an active one."))
@@ -190,7 +190,7 @@ final class TrainStore {
                 prescriptions: [],
                 notes: active.envelope.notes,
                 plannedSessionId: nil,
-                routine: plan)
+                routine: followed)
             return true
         } catch let error where Self.isUnreachable(error) {
             adopt(
@@ -199,7 +199,7 @@ final class TrainStore {
                 prescriptions: [],
                 notes: "",
                 plannedSessionId: nil,
-                routine: plan)
+                routine: followed)
             return true
         } catch {
             action = ActionState.refusal(from: error)
@@ -258,11 +258,10 @@ final class TrainStore {
     /// Begins a workout that already happened. Nothing is sent: `POST /completed` carries the whole
     /// thing when the athlete finishes, which is why this one works with no connection at all.
     @discardableResult
-    func beginAfterTheFact(startedAt: Date, from routine: Routine? = nil) -> Bool {
+    func beginAfterTheFact(startedAt: Date) -> Bool {
         guard !isWorkoutInFlight else { return false }
         action = .idle
-        return activeWorkout.begin(
-            destination: .afterTheFact, startedAt: startedAt, routine: routine.map(WorkoutRoutine.init))
+        return activeWorkout.begin(destination: .afterTheFact, startedAt: startedAt)
     }
 
     /// Takes over an active session the server holds but this device has no document for — one
