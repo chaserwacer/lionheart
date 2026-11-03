@@ -218,6 +218,28 @@ struct ActiveWorkoutDocumentTests {
         #expect(restored.sets == written.sets)
     }
 
+    @Test("A version 2 document's current movement is not added when only a target names it")
+    func aVersionTwoPrescribedCurrentMovementIsNotAdded() throws {
+        // The plan already gives it a section; adding it would make it removable, which a
+        // prescribed movement is not.
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let written = AWorkout.live(prescriptions: [AWorkout.liftTarget(AWorkout.squat)])
+            .working(on: AWorkout.squat)
+        var json = try #require(
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(written)) as? [String: Any])
+        json["version"] = 2
+        json["addedMovementDataIds"] = nil
+        try JSONSerialization.data(withJSONObject: json)
+            .write(to: directory.appending(path: "active-workout.json"))
+
+        let restored = try #require(ActiveWorkoutDocument(directoryURL: directory).read())
+
+        #expect(restored.addedMovementDataIds.isEmpty)
+        #expect(restored.currentMovementDataId == AWorkout.squat)
+        #expect(!restored.canDrop(AWorkout.squat))
+    }
+
     @Test("Writing twice leaves the second workout, not both")
     func aWriteReplacesWhatWasThere() {
         let document = Self.aDocument()
@@ -354,6 +376,18 @@ struct ActiveWorkoutValueTests {
         let workout = AWorkout.live().adding(AWorkout.squat).adding(AWorkout.bench)
 
         #expect(workout.dropping(AWorkout.squat).currentMovementDataId == AWorkout.bench)
+    }
+
+    @Test("Only a movement the athlete added, with nothing planned or logged on it, can be dropped")
+    func onlyAnUntouchedPickCanBeDropped() {
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift(AWorkout.squat)],
+            prescriptions: [AWorkout.liftTarget(AWorkout.treadmill)]
+        ).adding(AWorkout.bench)
+
+        #expect(workout.canDrop(AWorkout.bench))
+        #expect(!workout.canDrop(AWorkout.squat))
+        #expect(!workout.canDrop(AWorkout.treadmill))
     }
 
     @Test("A movement with a set logged on it cannot be dropped")

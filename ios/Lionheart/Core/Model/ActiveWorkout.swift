@@ -208,28 +208,42 @@ struct ActiveWorkout: Equatable, Sendable {
 
     /// The workout with `movementDataId` added, and the athlete working on it.
     ///
-    /// Adding one already added only moves the athlete to it: it keeps its place rather than
-    /// jumping to the end, because the list is the order they chose them in.
+    /// A movement the workout already holds — prescribed, logged on, or added before — only moves
+    /// the athlete to it. Its section stays where it is, because a pick is a way back to a movement
+    /// as much as a way to a new one, and sections jumping about mid-workout lose the athlete's
+    /// place.
     func adding(_ movementDataId: UUID) -> ActiveWorkout {
-        let added = addedMovementDataIds.contains(movementDataId)
-            ? addedMovementDataIds
-            : addedMovementDataIds + [movementDataId]
-        return with(addedMovementDataIds: added).working(on: movementDataId)
+        guard !holds(movementDataId) else { return working(on: movementDataId) }
+        return with(addedMovementDataIds: addedMovementDataIds + [movementDataId])
+            .working(on: movementDataId)
     }
 
-    /// The workout without an added movement the athlete has logged nothing on — a pick they did
-    /// not mean.
+    /// Whether the athlete can take this movement back out: they added it, nothing was prescribed
+    /// for it and nothing has been logged on it.
     ///
-    /// A movement with a set against it is refused: the set is the record that it was trained, and
-    /// taking the movement out from under it is not a thing an intention can undo. Refusing here
-    /// keeps that rule in one place rather than in every caller.
+    /// A set is the record that a movement was trained and a prescription is the plan, and neither
+    /// is something taking back a pick can undo. This is the one statement of that rule — the
+    /// surface asks it before offering Remove, and `dropping(_:)` asks it before doing anything.
+    func canDrop(_ movementDataId: UUID) -> Bool {
+        addedMovementDataIds.contains(movementDataId)
+            && !sets.contains { $0.movementDataId == movementDataId }
+            && !prescriptions.contains { $0.movementDataId == movementDataId }
+    }
+
+    /// The workout without a movement the athlete added by mistake. Anything `canDrop(_:)` refuses
+    /// is returned unchanged.
     func dropping(_ movementDataId: UUID) -> ActiveWorkout {
-        guard addedMovementDataIds.contains(movementDataId),
-              !sets.contains(where: { $0.movementDataId == movementDataId })
-        else { return self }
+        guard canDrop(movementDataId) else { return self }
 
         let dropped = with(addedMovementDataIds: addedMovementDataIds.filter { $0 != movementDataId })
         return currentMovementDataId == movementDataId ? dropped.working(on: nil) : dropped
+    }
+
+    /// Whether the movement already has a section: prescribed, logged on, or added.
+    private func holds(_ movementDataId: UUID) -> Bool {
+        addedMovementDataIds.contains(movementDataId)
+            || prescriptions.contains { $0.movementDataId == movementDataId }
+            || sets.contains { $0.movementDataId == movementDataId }
     }
 
     func noting(_ notes: String) -> ActiveWorkout {
@@ -407,10 +421,12 @@ extension ActiveWorkout: Codable {
 
     /// What a document written before version 3 had added, recovered from the one trace it kept.
     ///
-    /// Version 2 held only the movement being worked on. One that no set and no target names can
-    /// only be a movement the athlete picked and had not logged on yet — the workout in flight on a
-    /// phone that updates mid-session — so it is carried forward as added rather than left with no
-    /// section to log against.
+    /// Version 2 held only the movement being worked on. One that no set and no target names is
+    /// almost always a movement the athlete picked and had not logged on yet — the workout in
+    /// flight on a phone that updates mid-session — and it is carried forward as added so it keeps
+    /// a section to log against. It can also be a movement whose only set was deleted, since
+    /// deleting a set leaves the current movement alone; that one comes back as an empty section
+    /// the athlete can remove, which loses nothing.
     private static func addedBeforeTheListExisted(
         current: UUID?, sets: [LoggedSet], prescriptions: [SetPrescription]
     ) -> [UUID] {

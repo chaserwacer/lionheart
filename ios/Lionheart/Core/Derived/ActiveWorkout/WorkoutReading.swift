@@ -47,10 +47,6 @@ struct WorkoutReading: Equatable, Sendable {
         /// is never "done" — there was nothing to finish.
         var isComplete: Bool { !targets.isEmpty && sets.count >= targets.count }
 
-        /// Whether the athlete can take this movement back out of the workout. Nothing was asked of
-        /// it and nothing has been done on it, so only their adding it keeps it here.
-        var isDroppable: Bool { targets.isEmpty && sets.isEmpty }
-
         var remainingTargetCount: Int { max(0, targets.count - sets.count) }
     }
 

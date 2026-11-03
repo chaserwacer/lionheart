@@ -267,7 +267,7 @@ struct ActiveWorkoutView: View {
                 }
                 // The picker lists near-identical movements side by side, so a wrong pick is
                 // ordinary. No confirmation: nothing is logged on it, and adding it back is a pick.
-                if movement.isDroppable {
+                if workout.canDrop(movement.movementDataId) {
                     // The draft is left as it is. The entry row reads it through a force-unwrapped
                     // binding, so clearing it in the update that removes this section crashes; once
                     // the section is gone nothing shows it, and the next `open` replaces it.
