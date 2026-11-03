@@ -10,6 +10,7 @@ using lionheart.Model.Chat;
 using lionheart.Model.Profile;
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
+using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.PersonalRecords;
 using Programs = lionheart.Model.Training.Programs;
 using Sessions = lionheart.Model.Training.Sessions;
@@ -46,6 +47,7 @@ namespace lionheart.Data
         public DbSet<Context> Contexts { get; set; }
         public DbSet<AnalyzableEntry> AnalyzableEntries { get; set; }
         public DbSet<FacetValue> FacetValues { get; set; }
+        public DbSet<FocusPin> FocusPins { get; set; }
 
         // Oura — design in docs/oura-integration.md. One table per collection: six documents that
         // describe a calendar day, four that describe events within one.

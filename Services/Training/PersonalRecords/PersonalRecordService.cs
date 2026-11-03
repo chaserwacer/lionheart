@@ -29,6 +29,13 @@ public interface IPersonalRecordService
         IdentityUser user, RecordHistoryQuery query, CancellationToken ct);
 
     /// <summary>
+    /// Every record set on a movement and/or inside a window, newest first, whatever became of it
+    /// since — what marks the sets that set records in a session or a movement's history.
+    /// </summary>
+    Task<Result<IReadOnlyList<PersonalRecordView>, Problem>> GetEstablishedAsync(
+        IdentityUser user, EstablishedRecordsQuery query, CancellationToken ct);
+
+    /// <summary>
     /// Withdraws the standing record, putting back whatever it replaced.
     /// </summary>
     Task<Result<RetractionOutcome, Problem>> RetractAsync(
@@ -80,6 +87,12 @@ public sealed class PersonalRecordService : IPersonalRecordService
         IdentityUser user, RecordHistoryQuery query, CancellationToken ct) =>
         query.Asked()
             .MapAsync(asked => HistoryAsync(Guid.Parse(user.Id), asked, ct));
+
+    public Task<Result<IReadOnlyList<PersonalRecordView>, Problem>> GetEstablishedAsync(
+        IdentityUser user, EstablishedRecordsQuery query, CancellationToken ct) =>
+        query.Ordered()
+            .BindAsync(ordered => NamedMovementOwnedAsync(user, ordered, ct))
+            .MapAsync(ordered => EstablishedAsync(Guid.Parse(user.Id), ordered, ct));
 
     public Task<Result<RetractionOutcome, Problem>> RetractAsync(
         IdentityUser user, Guid personalRecordId, CancellationToken ct) =>
@@ -171,6 +184,31 @@ public sealed class PersonalRecordService : IPersonalRecordService
             .ThenBy(record => record.Achievement.HeldIn)
             .ThenByDescending(record => record.PersonalRecordId);
     }
+
+    /// <remarks>
+    /// Every standing comes back, beaten and retracted included: a set that took a record still took
+    /// it after a later session beat it, and a client marking sets says what became of each.
+    /// </remarks>
+    private async Task<IReadOnlyList<PersonalRecordView>> EstablishedAsync(
+        Guid userId, EstablishedRecordsQuery query, CancellationToken ct)
+    {
+        var established = await _context.PersonalRecords
+            .AsNoTracking()
+            .Where(record => record.UserId == userId)
+            .OnMovement(query.MovementDataId)
+            .AchievedFrom(query.From)
+            .AchievedUntil(query.To)
+            .ToListAsync(ct);
+
+        return Views(Ordered(established));
+    }
+
+    /// <summary>The query, once the movement it names — if it names one — is found to be the athlete's.</summary>
+    private Task<Result<EstablishedRecordsQuery, Problem>> NamedMovementOwnedAsync(
+        IdentityUser user, EstablishedRecordsQuery query, CancellationToken ct) =>
+        query.MovementDataId is { } movementDataId
+            ? OwnMovementAsync(user, movementDataId, ct).MapAsync(_ => query)
+            : Task.FromResult(Result<EstablishedRecordsQuery, Problem>.Success(query));
 
     /// <summary>
     /// The movement as a subject, or a refusal. Ownership is part of the lookup rather than a
@@ -269,13 +307,16 @@ public sealed class PersonalRecordService : IPersonalRecordService
     /// <remarks>
     /// Every record one session set carries that session's instant, so the date alone leaves the
     /// order of a movement's fresh records undefined — and a rep-max grid reads as a grid
-    /// only if its rows come back in rep order.
+    /// only if its rows come back in rep order. The unit and then the id settle what is left, so a
+    /// read never comes back in two orders.
     /// </remarks>
     private static IEnumerable<PersonalRecord> Ordered(IEnumerable<PersonalRecord> records) =>
         records
             .OrderByDescending(record => record.AchievedAt)
             .ThenBy(record => record.Kind.Name, StringComparer.Ordinal)
-            .ThenBy(record => record.Kind.Bracket);
+            .ThenBy(record => record.Kind.Bracket)
+            .ThenBy(record => record.Achievement.HeldIn)
+            .ThenByDescending(record => record.PersonalRecordId);
 
     // ---- Chat tools ----
     //

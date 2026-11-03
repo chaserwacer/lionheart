@@ -4,11 +4,13 @@ using System.Text.Json.Serialization.Metadata;
 using lionheart.Endpoints;
 using lionheart.Functional;
 using lionheart.Model.Interpretation;
+using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sets;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using lionheart.Tests.Support;
 
 namespace lionheart.Tests.Endpoints;
 
@@ -90,6 +92,36 @@ public class ResponseDiscriminatorTests
         Assert.Equal(180, achievement.GetProperty("weight").GetDouble());
         // The estimate is the set's as performed, not a set of six that never stood alone.
         Assert.Equal(180 * (1 + 7 / 30.0), achievement.GetProperty("estimatedOneRepMax").GetDouble(), precision: 6);
+    }
+
+    [Theory]
+    [InlineData(true, "lift", "unpinned")]
+    [InlineData(false, "none", "pinned")]
+    public async Task AFocusPinNamesItsTargetsCaseAndItsStatussCase(bool unpinned, string target, string status)
+    {
+        // The iOS decoder switches on both discriminators, and reads the unpinning day and the
+        // horizon as plain calendar dates.
+        var view = new FocusPinView(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new DateOnly(2026, 11, 2),
+            new DateOnly(2027, 1, 31),
+            2,
+            unpinned
+                ? ResultAssert.Succeeded(FocusTarget.Lift.Of(70, WeightUnit.Pounds, 5))
+                : new FocusTarget.None(),
+            unpinned ? new FocusStatus.Unpinned(new DateOnly(2026, 12, 20)) : new FocusStatus.Pinned(),
+            DateTime.UnixEpoch);
+
+        var pin = JsonDocument.Parse(await WriteAsync(Endpoint.ToActionResult(
+            Result<FocusPinView, Problem>.Success(view)))).RootElement;
+
+        Assert.Equal("2026-11-02", pin.GetProperty("starts").GetString());
+        Assert.Equal(target, pin.GetProperty("target").GetProperty("$type").GetString());
+        Assert.Equal(status, pin.GetProperty("status").GetProperty("$type").GetString());
+        if (!unpinned) return;
+        Assert.Equal((int)WeightUnit.Pounds, pin.GetProperty("target").GetProperty("unit").GetInt32());
+        Assert.Equal("2026-12-20", pin.GetProperty("status").GetProperty("on").GetString());
     }
 
     /// <summary>
