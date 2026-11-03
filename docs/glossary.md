@@ -37,6 +37,12 @@ first and then in the code.
 | **Record lineage** | What a record replaced — nothing, for the first of its kind — carrying the predecessor's date so "how long the last one stood" answers without a second read. |
 | **Record rebuild** | Re-detecting an athlete's records from scratch over every completed session, oldest first — what keeps the chains right when history arrives out of order. Writes nothing when the records are already right. |
 | **Retracting a record** | Withdrawing the standing record because the set behind it was not real, which puts back whatever it beat. The only edit an athlete makes to a record. |
+| **Set kind** | What a lift was for: working, warm-up, drop or failure. A warm-up sets no record and counts toward no total or target; drop and failure sets count like working sets. |
+| **Working set** | A set that is the work rather than preparation for it — every kind but the warm-up. |
+| **Routine** | A session trained again and again, saved: a name and an order of movements with a working-set count each, and no weights. A workout starts from one in a tap. |
+| **Routine origin** | Whether a session was trained from a routine, and which: ad hoc, or from a routine. Kept when the routine is deleted. |
+| **Previous performance** | A movement's sets from the most recent completed session holding it — "last time". |
+| **Movement setup** | The athlete's notes on a movement, and whether its logged weight is plate added to bodyweight. |
 | **Estimated one-rep max** | A single rep implied by a set, by Epley. Derived from the stored weight and reps on the way out, never stored. |
 | **Established records** | Every record a movement or a window of time set, whatever became of each since — standing, beaten or withdrawn. What marks the sets that set a record. |
 | **Focus pin** | A movement the athlete has pinned to emphasise over a horizon, at a number of sessions a week, perhaps toward a target. Pinned or unpinned; an unpinned pin is kept as history. |
@@ -60,6 +66,8 @@ first and then in the code.
 | **Sample run** | An evenly spaced series the ring recorded across one period — the overnight heart-rate or HRV curve. Carries its interval and start, and its gaps are real. |
 | **Hypnogram** | The sleep stage per five-minute slot, kept as Oura's own digit-per-slot encoding. |
 | **Readiness** | Oura's own composite score for how recovered the body is. Not Lionheart's judgement. |
+| **Bodyweight measurement** | The athlete's bodyweight on one calendar day. One per day; logging the day again replaces it. |
+| **System load** | Bodyweight plus the plate, for a movement whose weight is added to bodyweight — what a weighted dip is judged by. |
 | **Injury** | A tracked problem with a body part, and the events logged against it over time. |
 
 ## Analysis
@@ -128,4 +136,9 @@ first and then in the code.
 | **Deviation** | How far a day's figure is from its baseline, in the figure's own unit. Outside one spread in the worse direction, the screen marks it. |
 | **Oura coverage** | How far the stored Oura data reaches: the newest day any collection covers, or nothing stored. What a sync is planned from. |
 | **Training load** | Sets per week, read against their four-week average. Counts rather than tonnage, because the server derives no session volume and units never convert. |
+| **Last time** | The entry row's and a movement section's reading of a previous performance: the working set at the same position, and the whole of it in one line. |
+| **Set guide** | The entry row's one line above the fields: last time at this position when it differs, the system load, and the plates. |
+| **Plate loading** | The plates a side for a barbell weight, heaviest first, on a 45 lb bar, and how far under the weight they fall when they cannot make it. |
+| **Warm-up ramp** | The warm-up sets offered before a working weight, each rounded down to what the equipment makes. Offered, never inserted. |
+| **Finish readout** | What a finished workout came to, built before it is handed over: duration, working sets, volume, records, the last session of its routine, and each movement's best set against last time. |
 | **Movement digest** | One movement of a session as a log-book line: the load and every set's reps for straight sets, the top set and the count otherwise. |
