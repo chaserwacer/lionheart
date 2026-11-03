@@ -20,9 +20,10 @@ import Foundation
 ///   distance conversions and paces to guess at them, and a guess that disagrees with the record
 ///   that lands is worse than silence.
 ///
-/// The server remains the authority. These records come from the summaries as they stood when the
-/// workout began, so two sets beating the same record both read as beating it; deciding which of
-/// them *became* the record is the server's job when the session completes.
+/// The records come from the summaries as they stood when the workout began, so the sets already
+/// logged on the movement this workout raise the bar too: once one set has beaten a record, a later
+/// set has to beat that set to say so. Three sets of 60 × 10 against a 55 × 10 record are one new
+/// rep max, not three. The server remains the authority on what the session establishes.
 enum SetRecordOutcome: Equatable, Sendable {
     /// Not a lift, so nothing to say mid-workout.
     case notApplicable
@@ -44,14 +45,22 @@ enum SetRecordOutcome: Equatable, Sendable {
     ///   is a larger number and a lighter lift than 110 kg — and the unit is part of a record's
     ///   identity, so a pounds set competes with the pounds records and a kilograms record is not
     ///   one it could beat.
-    static func of(_ command: SetCommand, against held: SubjectRecords?) -> SetRecordOutcome {
+    ///
+    /// `earlier` is the workout's sets logged before this one, in any order and on any movement;
+    /// only lifts of the same movement in the same unit raise a bar.
+    static func of(
+        _ command: SetCommand, after earlier: [SetCommand], against held: SubjectRecords?
+    ) -> SetRecordOutcome {
         guard let lift = command.liftPart else { return .notApplicable }
 
         let standing = (held?.records ?? []).filter {
             $0.standing == .standing && $0.achievement.heldIn == lift.unit
         }
+        let bestEarlier = bestFigures(in: earlier, competingWith: lift)
         let contests = contested(by: lift).compactMap { kind, figure in
-            standingFigure(of: kind, in: standing).map { (kind, beats: figure > $0) }
+            standingFigure(of: kind, in: standing).map { record in
+                (kind, beats: figure > max(record, bestEarlier[kind] ?? record))
+            }
         }
 
         guard !contests.isEmpty else { return .noRecordYet }
@@ -71,6 +80,19 @@ enum SetRecordOutcome: Equatable, Sendable {
         let repMaxes = RecordKind.repMaxes(heldBySetOf: lift.reps).reversed().map { ($0, lift.weight) }
         return [(.heaviestSet, lift.weight)] + repMaxes
             + [(.bestSetVolume, lift.weight * Double(lift.reps))]
+    }
+
+    /// The best figure for each record kind among the earlier sets that compete with `lift`.
+    private static func bestFigures(
+        in earlier: [SetCommand], competingWith lift: SetCommand.Lift
+    ) -> [RecordKind: Double] {
+        earlier
+            .compactMap(\.liftPart)
+            .filter { $0.movementDataId == lift.movementDataId && $0.unit == lift.unit }
+            .flatMap(contested(by:))
+            .reduce(into: [:]) { best, contest in
+                best[contest.0] = max(best[contest.0] ?? contest.1, contest.1)
+            }
     }
 
     /// The figure the standing record of `kind` is ranked by, if one stands.

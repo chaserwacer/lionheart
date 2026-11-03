@@ -239,6 +239,7 @@ struct ActiveWorkoutView: View {
                     numbered.logged,
                     number: numbered.number,
                     target: numbered.target,
+                    earlier: movement.sets.prefix(numbered.number - 1).map(\.logged.command),
                     records: library.records(for: numbered.logged.command))
             }
 
@@ -294,7 +295,7 @@ struct ActiveWorkoutView: View {
     private func otherSection(_ reading: WorkoutReading) -> some View {
         Section("Other work") {
             ForEach(Array(reading.unattached.enumerated()), id: \.element.id) { index, set in
-                loggedSetRow(set, number: index + 1, target: nil, records: nil)
+                loggedSetRow(set, number: index + 1, target: nil, earlier: [], records: nil)
             }
             ForEach(Array(reading.looseTargets.enumerated()), id: \.offset) { _, target in
                 Label(Formatting.target(target), systemImage: "target")
@@ -352,13 +353,14 @@ struct ActiveWorkoutView: View {
     /// the two actions a sheet is overkill for: logging the same set again — three sets of five at
     /// the same weight is the commonest thing in a gym — and deleting it.
     private func loggedSetRow(
-        _ logged: LoggedSet, number: Int, target: SetPrescription?, records: SubjectRecords?
+        _ logged: LoggedSet, number: Int, target: SetPrescription?, earlier: [SetCommand],
+        records: SubjectRecords?
     ) -> some View {
         SetRow(
             number: number,
             command: logged.command,
             target: target,
-            record: SetRecordOutcome.of(logged.command, against: records))
+            record: SetRecordOutcome.of(logged.command, after: earlier, against: records))
             .contentShape(.rect)
             .onTapGesture { editing = logged }
             .contextMenu {
@@ -443,13 +445,15 @@ struct ActiveWorkoutView: View {
     /// the athlete never has to find the button again. The rest clock starting at the same moment
     /// is what tells them it worked, along with the row appearing above.
     private func log(_ command: SetCommand, on movementDataId: UUID?) {
+        let earlier = store.workout?.sets.map(\.command) ?? []
         store.log(command, restingFor: startsRestAutomatically ? restSeconds : nil)
         Haptics.setLogged()
 
         if let movementDataId {
             library.noteUsed(movementDataId)
         }
-        if SetRecordOutcome.of(command, against: library.records(for: command)).isWorthSaying {
+        if SetRecordOutcome.of(command, after: earlier, against: library.records(for: command))
+            .isWorthSaying {
             Haptics.achievement()
         }
 

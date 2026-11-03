@@ -7,9 +7,9 @@ import Observation
 /// rows (which turn a movement id into a name), and the workout bar. Loading it three times would
 /// mean three lists that can disagree, and the catalogue changes about once a month.
 ///
-/// The records are loaded with it and deliberately not refreshed during a workout: `SetRecordOutcome`
-/// is judged against the records as they stood when the workout began, so that beating one twice
-/// reads as beating it twice rather than the second set silently losing to the first.
+/// The records are loaded with it and refreshed when a workout is finished, not during one:
+/// `SetRecordOutcome` judges a set against the records as they stood when the workout began plus the
+/// sets logged since, which is the whole of what the device knows until the server has the session.
 @Observable
 @MainActor
 final class MovementLibraryStore {
