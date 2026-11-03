@@ -104,8 +104,9 @@ Tailscale leaves a connection hanging rather than refusing it.
 
 The memory is per sign-in, not per device: answers live under an id minted after a sign-in and
 deleted with everything under it at sign-out, and a request that lands after a sign-out keeps
-nothing. Chat has nothing to remember — every answer is the model reading the server — so it says
-plainly that it needs a connection.
+nothing. A chat answer is the model reading the server, so sending needs a connection and the
+composer says so; the thread's newest page and the memory list are remembered like any other read,
+so what Lionheart last said can be read back with no signal.
 
 ### Knowing the server is there
 
@@ -602,6 +603,27 @@ Both are server-side derivations rather than `Core/` ones, because their input i
 heart-rate series and a year of five-minute classes, and because the chat analyst reads the same
 reports as tools; the client derives nothing it could get wrong differently. Each store holds one
 report per span, like Today's trends, and reads the span again after an Oura sync.
+
+## Chat: one thread, with memory
+
+The Chat tab opens on the **thread**, not a conversation list. The athlete never starts a chat: he
+scrolls back through everything, and the server decides what the model reads — the current
+session and what earlier sessions left in memory (`docs/api-surface.md` → Chat thread and memory).
+The screen draws the sessions as one transcript; each session's opening is a dated line between
+them, the only sign of the cut.
+
+- `ThreadStore` holds two states, not one: the transcript as a `LoadState<ChatThread>`, which can be
+  recalled offline, and the exchange (`ThreadExchange`: idle, awaiting a reply, refused). They vary
+  apart — a recalled thread can hold a question that failed to send — so a single enum would have to
+  multiply their cases.
+- Sending answers with the whole session the exchange went into, which replaces the session held or
+  is appended when the message opened a new one. Earlier sessions are read on request, by the
+  oldest opening on screen, and put in front.
+- The standalone conversations (`ChatView`) are pushed from the thread's toolbar. They are where a
+  question goes that should not be remembered, and keep their list sheet and new-conversation button.
+- `MemorySheet` lists memory by kind, standing kinds first; a memory's page shows the words it came
+  from and the versions it replaced, and the athlete can correct it (the old wording becomes its
+  history) or forget it (every version goes). A correction has a new id, and the page follows it.
 
 ## Design
 

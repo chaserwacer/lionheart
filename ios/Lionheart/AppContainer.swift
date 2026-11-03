@@ -21,6 +21,8 @@ final class AppContainer {
     let history: HistoryStore
     let focus: FocusStore
     let chat: ChatStore
+    let thread: ThreadStore
+    let chatMemory: MemoryStore
     let body: BodyStore
     let ouraSync: OuraSyncStore
     let cardio: CardioStore
@@ -86,6 +88,8 @@ final class AppContainer {
         chat = ChatStore(
             chat: ChatAPI(client: client),
             profile: ProfileAPI(client: client))
+        thread = ThreadStore(api: ChatThreadAPI(client: client))
+        chatMemory = MemoryStore(api: ChatMemoryAPI(client: client))
         body = BodyStore(
             oura: OuraAPI(client: client),
             wellness: WellnessAPI(client: client),
@@ -117,8 +121,8 @@ final class AppContainer {
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
-            [profile, today, train, routines, bodyweight, movements, history, focus, chat, body, ouraSync,
-             cardio, habits, memory] in
+            [profile, today, train, routines, bodyweight, movements, history, focus, chat, thread, chatMemory,
+             body, ouraSync, cardio, habits, memory] in
             profile.reset()
             today.reset()
             train.reset()
@@ -128,6 +132,8 @@ final class AppContainer {
             history.reset()
             focus.reset()
             chat.reset()
+            thread.reset()
+            chatMemory.reset()
             body.reset()
             ouraSync.reset()
             cardio.reset()
@@ -226,6 +232,7 @@ final class AppContainer {
             if habits.isWaitingOnServer { group.addTask { await self.habits.refreshLoaded() } }
             if movements.state.isWaitingOnServer { group.addTask { await self.movements.refresh() } }
             if case .unavailable = chat.state { group.addTask { await self.chat.refresh() } }
+            if thread.transcript.isWaitingOnServer { group.addTask { await self.thread.refresh() } }
         }
     }
 }

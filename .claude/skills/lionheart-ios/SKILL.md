@@ -69,7 +69,7 @@ ios/
 | **Today** | what should I do, and how am I? | readiness, last session, next session, quick log |
 | **Train** | let me do it | programs, planned sessions, start a workout, the exercise library |
 | **History** | what have I done? | the session log, records, trends |
-| **Chat** | what does it mean? | conversations with the model, and the athlete context card it draws on |
+| **Chat** | what does it mean? | the continuing thread and what it remembers, standalone conversations, and the athlete context card the model draws on |
 | **Body** | what is my body doing? | Oura days, wellness entries, injuries |
 
 Settings sits behind a toolbar button on Today, not in a sixth tab.

@@ -112,7 +112,7 @@ private struct SignedInTabs: View {
                 TabLabel("History", systemImage: "clock.arrow.circlepath")
             }
             Tab(value: Destination.chat) {
-                ChatView(store: container.chat)
+                ThreadView(thread: container.thread, memory: container.chatMemory, chat: container.chat)
             } label: {
                 TabLabel("Chat", systemImage: "bubble.left")
             }
