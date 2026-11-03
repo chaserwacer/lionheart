@@ -264,9 +264,17 @@ struct ActiveWorkoutView: View {
             HStack {
                 Text(library.title(of: movement.movementDataId))
                 Spacer()
-                if !movement.targets.isEmpty {
-                    Text("\(movement.sets.count) of \(movement.targets.count)")
+                switch movement.progress {
+                case .unplanned:
+                    EmptyView()
+                case .within(let logged, let planned):
+                    Text("\(logged) of \(planned)")
                         .monospacedDigit()
+                        .accessibilityLabel("\(logged) of \(planned) planned sets")
+                case .beyond(let planned, let extra):
+                    Text("\(planned) of \(planned) +\(extra)")
+                        .monospacedDigit()
+                        .accessibilityLabel("All \(planned) planned sets, and \(extra) more")
                 }
                 // The picker lists near-identical movements side by side, so a wrong pick is
                 // ordinary. No confirmation: nothing is logged on it, and adding it back is a pick.

@@ -48,6 +48,27 @@ struct WorkoutReading: Equatable, Sendable {
         var isComplete: Bool { !targets.isEmpty && sets.count >= targets.count }
 
         var remainingTargetCount: Int { max(0, targets.count - sets.count) }
+
+        /// Where the movement stands against its plan, as the section header states it.
+        var progress: TargetProgress {
+            if targets.isEmpty { return .unplanned }
+            if sets.count <= targets.count { return .within(logged: sets.count, of: targets.count) }
+            return .beyond(planned: targets.count, extra: sets.count - targets.count)
+        }
+    }
+
+    /// A movement's sets against its targets.
+    ///
+    /// Three cases because logging past the plan is ordinary — a back-off set, one more because
+    /// it moved well — and "7 of 3" is not a true sentence about it. Past the plan, every target
+    /// has been answered and the rest are extra, which is what the header should say.
+    enum TargetProgress: Equatable, Sendable {
+        /// Nothing was prescribed, so there is no plan to measure against.
+        case unplanned
+        /// `logged` sets so far against `of` targets, from none up to exactly the plan.
+        case within(logged: Int, of: Int)
+        /// Every one of `planned` targets answered, and `extra` sets beyond them.
+        case beyond(planned: Int, extra: Int)
     }
 
     /// A logged set with its place in its movement.

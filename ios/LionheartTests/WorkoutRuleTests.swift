@@ -146,6 +146,27 @@ struct WorkoutReadingTests {
         #expect(WorkoutReading.of(workout).movements.map(\.movementDataId) == [AWorkout.bench])
     }
 
+    @Test("Sets past the plan read as the plan met and the rest extra, never a ratio over the plan")
+    func progressPastThePlanIsExtra() {
+        let targets = [AWorkout.liftTarget(), AWorkout.liftTarget(), AWorkout.liftTarget()]
+        func progress(after count: Int) -> WorkoutReading.TargetProgress {
+            let sets = (0..<count).map { AWorkout.lift(at: TimeInterval($0) * 60) }
+            return WorkoutReading.of(AWorkout.live(sets: sets, prescriptions: targets))
+                .movements[0].progress
+        }
+
+        #expect(progress(after: 0) == .within(logged: 0, of: 3))
+        #expect(progress(after: 3) == .within(logged: 3, of: 3))
+        #expect(progress(after: 7) == .beyond(planned: 3, extra: 4))
+    }
+
+    @Test("A movement with nothing prescribed has no progress to state")
+    func anUnplannedMovementHasNoProgress() {
+        let workout = AWorkout.live(sets: [AWorkout.lift()])
+
+        #expect(WorkoutReading.of(workout).movements[0].progress == .unplanned)
+    }
+
     @Test("Picking a movement that already has a section does not move it")
     func pickingAHeldMovementKeepsItsPlace() {
         // A session resumed from the server has sets and no added list. Going back to its first
