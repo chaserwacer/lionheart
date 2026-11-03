@@ -11,6 +11,8 @@ struct TodayView: View {
     /// Passed through to Settings, which states it. Carried rather than re-read from the bundle
     /// so there is one place configuration is resolved.
     let apiBaseURL: URL
+    /// Passed through to Settings, whose sign-out says what it would cost the workout in flight.
+    let activeWorkout: ActiveWorkoutStore
 
     @State private var isQuickLogPresented = false
     @State private var isSettingsPresented = false
@@ -42,7 +44,7 @@ struct TodayView: View {
                 QuickLogSheet(store: store)
             }
             .sheet(isPresented: $isSettingsPresented) {
-                SettingsSheet(apiBaseURL: apiBaseURL)
+                SettingsSheet(apiBaseURL: apiBaseURL, activeWorkout: activeWorkout)
             }
         }
         .task { await store.refresh() }

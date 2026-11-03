@@ -130,6 +130,12 @@ final class ChatStore {
             await refresh()
         } catch {
             action = ActionState.refusal(from: error)
+            // Deleted elsewhere: the list is out of date. Only the list is read again — `refresh`
+            // would also move the athlete off the conversation they are reading. A failed re-read
+            // leaves the list as it was, under an alert that is already saying what went wrong.
+            if action.revealsOutdatedScreen, let listed = try? await chat.conversations() {
+                conversations = listed
+            }
         }
     }
 

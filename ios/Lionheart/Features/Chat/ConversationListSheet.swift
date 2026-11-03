@@ -70,6 +70,7 @@ struct ConversationListSheet: View {
                 isPresented: .init(
                     get: { pendingDeletion != nil },
                     set: { if !$0 { pendingDeletion = nil } }),
+                titleVisibility: .visible,
                 presenting: pendingDeletion
             ) { conversation in
                 Button("Delete", role: .destructive) {

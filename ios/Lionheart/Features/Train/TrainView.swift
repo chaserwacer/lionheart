@@ -81,7 +81,11 @@ struct TrainView: View {
                 }
             }
         } message: { asked in
-            if let confirmation = asked.transition.confirmation { Text(confirmation.warning) }
+            // Named, because the dialog is hung on the list and points at its middle rather than
+            // at the row that was swiped.
+            if let confirmation = asked.transition.confirmation {
+                Text("\(heading(of: asked.session).title) · \(confirmation.warning)")
+            }
         }
         // Every one of these transitions can be refused — the session was started or skipped on the
         // web app, or deleted from under this window — and the list looks the same either way.
@@ -214,20 +218,28 @@ struct TrainView: View {
         }
     }
 
-    private func plannedRow(_ session: TrainingSession.Planned) -> some View {
+    /// What a planned session is called, and its day.
+    ///
+    /// What the athlete called it leads, where they called it anything, and the day goes in the
+    /// line below. The day cannot lead: these rows sit under headers that are themselves days, so a
+    /// session planned for today would read "Today" under "Today" — the same word twice, saying
+    /// nothing either time.
+    private func heading(of session: TrainingSession.Planned) -> (title: String, day: String) {
         let summary = PlanSummary.of(session)
         let day = Formatting.day(RelativeDay.of(summary.plannedFor, today: CalendarDay(Date())))
+        return (summary.hasNotes ? summary.notes : day, day)
+    }
+
+    private func plannedRow(_ session: TrainingSession.Planned) -> some View {
+        let summary = PlanSummary.of(session)
+        let heading = heading(of: session)
 
         return NavigationLink(value: Route.plannedSession(session.envelope.trainingSessionId)) {
             VStack(alignment: .leading, spacing: 4) {
-                // What the athlete called it leads, where they called it anything, and the day goes
-                // in the line below. The day cannot lead: these rows sit under headers that are
-                // themselves days, so a session planned for today would read "Today" under
-                // "Today" — the same word twice, saying nothing either time.
-                Text(summary.hasNotes ? summary.notes : day)
+                Text(heading.title)
                     .font(.headline)
                     .lineLimit(2)
-                Text(detail(of: summary, on: day))
+                Text(detail(of: summary, on: heading.day))
                     .font(.subheadline)
                     .foregroundStyle(Color(.secondaryLabel))
             }

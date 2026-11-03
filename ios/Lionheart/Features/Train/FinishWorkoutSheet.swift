@@ -207,6 +207,10 @@ struct FinishWorkoutSheet: View {
         if await store.complete(effort: effort, endingAt: endedAt) {
             Haptics.achievement()
             dismiss()
+            // Completing is what establishes records, and the library's copy is what the next
+            // workout's set rows are judged against and what the picker shows as the number to aim
+            // at. Left alone it would hold the records as they stood at launch.
+            await library.refresh()
         }
     }
 }

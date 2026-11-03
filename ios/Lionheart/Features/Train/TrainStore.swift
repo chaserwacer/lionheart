@@ -116,6 +116,7 @@ final class TrainStore {
             return true
         } catch {
             action = ActionState.refusal(from: error)
+            if action.revealsOutdatedScreen { await refresh() }
             return false
         }
     }
@@ -169,6 +170,8 @@ final class TrainStore {
             await refresh()
         } catch {
             action = ActionState.refusal(from: error)
+            // Started or skipped elsewhere: the row is wrong, and would offer the same refusal again.
+            if action.revealsOutdatedScreen { await refresh() }
         }
     }
 

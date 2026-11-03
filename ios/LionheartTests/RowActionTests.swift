@@ -105,6 +105,20 @@ struct ActionStateTests {
             == .refused(.offline("no route to host")))
     }
 
+    @Test("A refusal or a not-found shows the screen was out of date; it is read again")
+    func refusalsRevealAnOutdatedScreen() {
+        #expect(ActionState.refused(.refused("A skipped session cannot be skipped.")).revealsOutdatedScreen)
+        #expect(ActionState.refused(.notFound).revealsOutdatedScreen)
+    }
+
+    @Test("A failure that says nothing about the server's state does not call for a re-read")
+    func otherFailuresDoNotRevealAnOutdatedScreen() {
+        #expect(!ActionState.refused(.offline("no route to host")).revealsOutdatedScreen)
+        #expect(!ActionState.refused(.unavailable("The server had a problem.")).revealsOutdatedScreen)
+        #expect(!ActionState.idle.revealsOutdatedScreen)
+        #expect(!ActionState.running.revealsOutdatedScreen)
+    }
+
     @Test("Only a running action is running, so one tap cannot start two")
     func onlyRunningIsRunning() {
         #expect(ActionState.running.isRunning)

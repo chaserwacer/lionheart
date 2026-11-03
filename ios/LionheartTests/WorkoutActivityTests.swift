@@ -125,6 +125,48 @@ struct WorkoutActivityProjectionTests {
     }
 }
 
+/// A rest that runs out while the app is suspended.
+///
+/// Nothing in the app is awake to take the rest off the Lock Screen then, so the content carries the
+/// instant it stops being true and reads differently once the system says that instant has passed.
+@Suite("Workout activity staleness")
+struct WorkoutActivityStalenessTests {
+    private static let began = AWorkout.start.addingTimeInterval(600)
+
+    private static func resting() -> WorkoutActivityAttributes.ContentState {
+        WorkoutActivityAttributes.ContentState(
+            movementTitle: "Bench Press",
+            setCount: 3,
+            rest: WorkoutActivityAttributes.Rest(startedAt: began, endsAt: began.addingTimeInterval(120)),
+            concern: "Waiting to sync")
+    }
+
+    @Test("A resting workout goes stale when its rest ends")
+    func restingGoesStaleAtRestEnd() {
+        #expect(Self.resting().staleDate == Self.began.addingTimeInterval(120))
+    }
+
+    @Test("A working workout never goes stale: both of its clocks count by themselves")
+    func workingNeverGoesStale() {
+        #expect(Self.resting().showing(isStale: true).staleDate == nil)
+    }
+
+    @Test("Once stale, the rest is over and the workout reads as working, keeping everything else")
+    func staleContentDropsTheRest() {
+        let shown = Self.resting().showing(isStale: true)
+
+        #expect(shown.rest == nil)
+        #expect(shown.movementTitle == "Bench Press")
+        #expect(shown.setCount == 3)
+        #expect(shown.concern == "Waiting to sync")
+    }
+
+    @Test("Content that is not stale is drawn as it was sent")
+    func freshContentIsUnchanged() {
+        #expect(Self.resting().showing(isStale: false) == Self.resting())
+    }
+}
+
 /// What the store tells the Lock Screen, and when.
 ///
 /// These are the claims that keep the two representations of one workout from disagreeing. Each

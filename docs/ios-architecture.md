@@ -220,6 +220,12 @@ countdown, and nothing has to be pushed once a second — which also happens to 
 that works here at all, since updating a Live Activity from outside the app needs an APNs push and
 the owner is on the free Apple tier.
 
+The one change the system cannot count to is the end of a rest: the app is suspended, so nothing
+is awake to take the countdown down, and it used to sit at 0:00 until the phone was unlocked. The
+content therefore carries the rest's end as the activity's **stale date**, and the extension draws
+stale content as working — elapsed clock and lifting glyph — which is what the app's own update
+will say once it next runs.
+
 **One funnel, one instruction.** `ActiveWorkoutStore.mirror()` is called from `adopt`, `restore`,
 `clearLocally` and `reset` — every way the workout can change — and hands
 `WorkoutActivityProjection.of(…)` to the presenter. That projection returning `nil` *is* the
@@ -274,11 +280,12 @@ app is in the foreground does not double up with the in-app haptic: with no
 `UNUserNotificationCenterDelegate` the system does not present a notification to a foreground app,
 which is the behaviour relied on here.
 
-**What has not been seen.** The Lock Screen and Island presentations were photographed from a
-throwaway harness rather than from the device: `simctl io screenshot` captures the framebuffer and
-the Island composites its content elsewhere, and `simctl` cannot lock the screen. On the device
-itself the activity's creation, its content, its four render passes and its reconciliation at the
-next launch were read out of the ActivityKit and WidgetKit logs.
+**How it has been seen.** `simctl io screenshot` photographs the Island as an empty capsule, but
+`XCUIScreen.main.screenshot()` from a UI-test runner composites it, and the runner can long-press
+the Island and pull down the Lock Screen through SpringBoard. Compact, expanded, the Lock Screen
+before and after a rest ran out in the background, the rest-end notification, and the activity
+ending on Finish, discard and sign-out were all seen that way. The minimal presentation needs a
+second app's activity on the Island and has not been seen.
 
 ## Personal records: one unit at a time
 
