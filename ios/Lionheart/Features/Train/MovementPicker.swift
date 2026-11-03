@@ -49,9 +49,9 @@ struct MovementPicker: View {
 
         if movements.isEmpty {
             ContentUnavailableView {
-                Label("No movements yet", systemImage: "dumbbell")
+                Text("No movements")
             } description: {
-                Text("Movements are built from equipment and an exercise on the Lionheart web app. Add a few there and they will appear here.")
+                Text("Movements are built from equipment and an exercise on the web app, and none exist yet.")
             }
         } else if matches.isEmpty {
             ContentUnavailableView.search(text: query)

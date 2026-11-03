@@ -100,7 +100,7 @@ struct ActiveWorkoutBar: View {
     private func icon(at now: Date) -> String {
         workout.rest.isResting(at: now)
             ? "hourglass"
-            : "figure.strengthtraining.traditional"
+            : "record.circle"
     }
 
     /// One line about where the workout stands, most pressing first.
@@ -123,7 +123,7 @@ struct ActiveWorkoutBar: View {
             Text("Resting \(Formatting.clock(seconds: workout.rest.remaining(at: now)))")
                 .monospacedDigit()
         } else if workout.sets.isEmpty {
-            Text("Tap to log sets")
+            Text("No sets logged")
         } else {
             Text(Formatting.count(workout.sets.count, "set"))
         }

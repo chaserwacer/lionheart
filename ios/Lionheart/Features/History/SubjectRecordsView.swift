@@ -33,14 +33,15 @@ struct SubjectRecordsView: View {
                 content(RecordReading.of(held), name: name)
             } else {
                 ContentUnavailableView {
-                    Label("Nothing stands here now", systemImage: "trophy")
+                    Text("No standing records")
                 } description: {
-                    Text("\(name) holds no records. The next completed session that sets one will show here.")
+                    Text("\(name) holds no records. The next completed session that sets one is listed here.")
                 }
                 .listRowBackground(Color.clear)
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.compact)
         .navigationTitle(name)
         .refreshable { await store.refresh() }
         .retractionDialog(asking: $asked, name: name, store: store)
@@ -117,7 +118,7 @@ struct SubjectRecordsView: View {
             } header: {
                 Text("Rep maxes")
             } footer: {
-                Text("Your heaviest weight at each rep count, \(lifting.unit.abbreviation). A set counts at its own reps and every count below, so a set of 7 can hold your 6RM; your 1RM is your heaviest set. The highlighted maxes were set in your latest session that set any. Tap one for its history.")
+                Text("Heaviest load at each rep count, \(lifting.unit.abbreviation). A set holds its own count and every count below it; the 1RM is the heaviest set. Filled: set in the latest session that set any.")
             }
         }
     }
