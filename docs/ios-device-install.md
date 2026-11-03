@@ -116,7 +116,14 @@ Security is concerned. So the phone uses Tailscale's own HTTPS rather than an AT
    LH_API_BASE_URL = https:$(LH_SLASH)$(LH_SLASH)<machine>.<tailnet>.ts.net
    ```
 
-That one address works at home and away, as long as Tailscale is connected on the phone.
+That one address works at home and away, as long as Tailscale is connected on the phone. Leave
+**Funnel** off: it would publish the server to the open internet, where Serve keeps it to the
+devices on the tailnet.
+
+The service below binds to loopback only, so once the phone goes through Tailscale the plain-HTTP
+same-Wi-Fi path above no longer reaches it. That is deliberate: nothing else on the home network
+can reach the server, and no password crosses the Wi-Fi unencrypted. The same-Wi-Fi recipe is still
+how to point a phone at a `dotnet run` backend during development.
 
 ### Keeping the backend running
 

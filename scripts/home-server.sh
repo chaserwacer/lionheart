@@ -24,8 +24,9 @@ domain="gui/$(id -u)"
 write_plist() {
   mkdir -p "$log_dir" "$(dirname "$plist")"
   # Production, not Development: Development regenerates the web client into the source tree and
-  # starts the Svelte dev server, neither of which a phone's server should do. Bound to every
-  # interface so a phone on the home Wi-Fi reaches it directly as well as through Tailscale.
+  # starts the Svelte dev server, neither of which a phone's server should do. Loopback only: the
+  # phone comes in through `tailscale serve`, which terminates HTTPS and proxies to 127.0.0.1, so
+  # nothing else on the home network can reach the server or see a password in plain HTTP.
   cat > "$plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -35,7 +36,7 @@ write_plist() {
   <key>ProgramArguments</key>
   <array>
     <string>$publish_dir/lionheart</string>
-    <string>--urls</string><string>http://0.0.0.0:$port</string>
+    <string>--urls</string><string>http://127.0.0.1:$port</string>
     <string>--contentRoot</string><string>$publish_dir</string>
   </array>
   <key>WorkingDirectory</key><string>$main_checkout</string>
