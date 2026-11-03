@@ -106,6 +106,12 @@ struct ActiveWorkoutView: View {
                 .fontWeight(.semibold)
                 .disabled(store.workout == nil)
         }
+        // Finish ends the workout; the menu behind it holds a sync and a discard. On iOS 26
+        // adjacent items share one glass capsule, and a committing action reading as part of the
+        // same control as an overflow menu is how a workout gets discarded by accident.
+        if #available(iOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Menu("More", systemImage: "ellipsis.circle") {
                 if store.workout?.sync.isWorthPushing == true {
@@ -146,8 +152,6 @@ struct ActiveWorkoutView: View {
                     rest: workout.rest,
                     extend: { store.extendRest(by: $0) },
                     skip: { store.skipRest() })
-                    .background(.bar)
-                    .overlay(alignment: .top) { Divider() }
             }
         }
     }
