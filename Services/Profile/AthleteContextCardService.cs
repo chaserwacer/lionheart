@@ -423,7 +423,10 @@ namespace lionheart.Services.Profile
               numbers are computed deterministically, not by a model, so rely on them.
             - When the card's data is stale or missing (see its as-of) and the question is time-sensitive, fetch
               it; otherwise prefer the card.
-            Do not narrate tool calls or mention this card to the athlete.
+            - You may refer to what the card holds when it is the reason for a point — an injury, a goal, a recent
+              trend — in passing, the way an analyst cites the record they are reading from. Do not announce the
+              card, describe it, or open an answer by summarising it.
+            Do not narrate tool calls.
             """;
 
         /// <summary>
