@@ -74,7 +74,7 @@ internal static class SheetLogs
                 equipment = entry.Equipment,
                 modifier = entry.Modifier,
             })),
-            CoachedSheetImportCommand.Movements));
+            SheetMovementMap.File));
 
     public static MovementMap SquatAndBench => Map(
         ("squat-barbell", "Squat", "Barbell", ""),

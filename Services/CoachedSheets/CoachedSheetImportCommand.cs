@@ -24,10 +24,6 @@ internal static class CoachedSheetImportCommand
     private const string Usage =
         "usage: dotnet run -- import-coached-sheets <training-os/derived/sets.tsv> --user <athlete-guid>";
 
-    /// <summary>The map from training-os's exercise slugs to movements, <c>coached-movements.json</c>.</summary>
-    public static MovementMapFile Movements { get; } = new(
-        "coached-movements.json", "lionheart.Services.CoachedSheets.coached-movements.json", "slug");
-
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {
         if (args is not [Verb, var log, "--user", var user] || !Guid.TryParse(user, out var userId))
@@ -42,7 +38,7 @@ internal static class CoachedSheetImportCommand
         var clock = TimeProvider.System;
         var rebuild = new PersonalRecordRebuild(context, new PersonalRecordDetector(context, clock));
 
-        var imported = await MovementMap.Shipped(Movements)
+        var imported = await SheetMovementMap.Shipped()
             .Bind(movements => SheetDecisions.Shipped().Map(decisions => (Movements: movements, Decisions: decisions)))
             .BindAsync(files => new CoachedSheetImporter(context, rebuild, files.Movements, files.Decisions, TimeZoneInfo.Local, clock)
                 .ImportAsync(log, userId, ct));
@@ -68,25 +64,8 @@ internal static class CoachedSheetImportCommand
         Console.WriteLine($"\n{report.ProgramsCreated.Count} programmes created.");
         foreach (var program in report.ProgramsCreated) Console.WriteLine($"  {program}");
 
-        var growth = report.Catalogue;
-        Console.WriteLine($"\n{growth.Movements.Count} movements created.");
-        foreach (var movement in growth.Movements.OrderBy(movement => movement.ToString(), StringComparer.OrdinalIgnoreCase))
-        {
-            Console.WriteLine($"  {movement}");
-        }
-
-        Describe("new movement bases", growth.Bases);
-        Describe("new equipment", growth.Equipment);
-        Describe("new modifiers", growth.Modifiers);
-
-        if (report.UnsureMappings.Count > 0)
-        {
-            Console.WriteLine($"\n{report.UnsureMappings.Count} mappings applied that {Movements.FileName} marks unsure:");
-            foreach (var mapping in report.UnsureMappings)
-            {
-                Console.WriteLine($"  {mapping.Name} -> {mapping.Movement}\n      {mapping.Unsure}");
-            }
-        }
+        ImportConsole.Growth(report.Catalogue);
+        ImportConsole.Unsure(report.UnsureMappings, SheetMovementMap.File);
 
         Console.WriteLine(report.Records switch
         {
@@ -106,11 +85,6 @@ internal static class CoachedSheetImportCommand
         NotPerformedKind.Implausible => "implausible weight",
         _ => throw new UnreachableException(),
     };
-
-    private static void Describe(string what, IReadOnlyList<string> names)
-    {
-        if (names.Count > 0) Console.WriteLine($"{what}: {string.Join("; ", names.Order(StringComparer.OrdinalIgnoreCase))}");
-    }
 
     private static int Refuse(Problem problem)
     {

@@ -71,32 +71,10 @@ internal static class StrongImportCommand
             + $"{report.Sets.WarmUps} warm-ups kept as freeform sets, {report.Sets.RestTimers} rest timers set aside.");
         Console.WriteLine($"{report.RecordsEstablished} personal records established.");
 
-        var growth = report.Catalogue;
-        Console.WriteLine($"\n{growth.Movements.Count} movements created.");
-        foreach (var movement in growth.Movements.OrderBy(movement => movement.ToString(), StringComparer.OrdinalIgnoreCase))
-        {
-            Console.WriteLine($"  {movement}");
-        }
-
-        Describe("new movement bases", growth.Bases);
-        Describe("new equipment", growth.Equipment);
-        Describe("new modifiers", growth.Modifiers);
-
-        if (report.UnsureMappings.Count > 0)
-        {
-            Console.WriteLine($"\n{report.UnsureMappings.Count} mappings applied that strong-movements.json marks unsure:");
-            foreach (var mapping in report.UnsureMappings)
-            {
-                Console.WriteLine($"  {mapping.Name} -> {mapping.Movement}\n      {mapping.Unsure}");
-            }
-        }
+        ImportConsole.Growth(report.Catalogue);
+        ImportConsole.Unsure(report.UnsureMappings, StrongMovementMap.File);
 
         return 0;
-    }
-
-    private static void Describe(string what, IReadOnlyList<string> names)
-    {
-        if (names.Count > 0) Console.WriteLine($"{what}: {string.Join("; ", names.Order(StringComparer.OrdinalIgnoreCase))}");
     }
 
     private static int Refuse(Problem problem)

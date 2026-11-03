@@ -12,7 +12,7 @@ namespace lionheart.Tests.CoachedSheets;
 /// </summary>
 public class CoachedSheetFilesTests
 {
-    private static MovementMap Movements => ResultAssert.Succeeded(MovementMap.Shipped(CoachedSheetImportCommand.Movements));
+    private static MovementMap Movements => ResultAssert.Succeeded(SheetMovementMap.Shipped());
 
     // ---- The movement map ----
 
