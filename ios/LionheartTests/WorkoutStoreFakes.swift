@@ -16,7 +16,7 @@ struct AnAgreeableServer: WorkoutSessionWriting {
     func start(id: UUID, at startedAt: Date) async throws -> TrainingSession { Self.active(id) }
 
     func startUnplanned(
-        at startedAt: Date, notes: String, programId: UUID?
+        at startedAt: Date, notes: String, programId: UUID?, routineId: UUID?
     ) async throws -> TrainingSession {
         Self.active(AWorkout.session)
     }
@@ -38,7 +38,8 @@ struct AnAgreeableServer: WorkoutSessionWriting {
         period: PeriodRequest,
         effort: PerceivedEffortRequest?,
         notes: String,
-        programId: UUID?
+        programId: UUID?,
+        routineId: UUID?
     ) async throws -> TrainingSession {
         Self.active(AWorkout.session)
     }
@@ -81,6 +82,9 @@ final class ARecordingServer: WorkoutSessionWriting, @unchecked Sendable {
     private(set) var efforts: [PerceivedEffortRequest?] = []
     private(set) var plannedStarts: [UUID] = []
     private(set) var unplannedStarts: [Date] = []
+    /// The routine each unplanned start and each whole-workout log named.
+    private(set) var unplannedRoutines: [UUID?] = []
+    private(set) var loggedRoutines: [UUID?] = []
     private(set) var windowReads = 0
 
     var failPushes: (any Error)?
@@ -132,10 +136,11 @@ final class ARecordingServer: WorkoutSessionWriting, @unchecked Sendable {
     }
 
     func startUnplanned(
-        at startedAt: Date, notes: String, programId: UUID?
+        at startedAt: Date, notes: String, programId: UUID?, routineId: UUID?
     ) async throws -> TrainingSession {
         try await Task.sleep(for: openingTakes)
         unplannedStarts.append(startedAt)
+        unplannedRoutines.append(routineId)
         if let failOpening { throw failOpening }
         return Self.anActiveSession(id: Self.opened, startedAt: startedAt)
     }
@@ -166,12 +171,14 @@ final class ARecordingServer: WorkoutSessionWriting, @unchecked Sendable {
         period: PeriodRequest,
         effort: PerceivedEffortRequest?,
         notes: String,
-        programId: UUID?
+        programId: UUID?,
+        routineId: UUID?
     ) async throws -> TrainingSession {
         if let failCompletion { throw failCompletion }
         if !failNextLogs.isEmpty { throw failNextLogs.removeFirst() }
         efforts.append(effort)
         logged.append(sets)
+        loggedRoutines.append(routineId)
         return Self.anActiveSession(id: AWorkout.session)
     }
 

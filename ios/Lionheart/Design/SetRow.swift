@@ -15,6 +15,9 @@ import SwiftUI
 /// repeat it underneath.
 struct SetRow: View {
     let number: Int
+    /// A warm-up is numbered apart from the work and marked "W" in the number's column, which is
+    /// where the eye goes to tell preparation from the sets that count.
+    let isWarmUp: Bool
     let figures: SetFigures
     /// The prescription the set answered, only where the set fell short of it.
     let unmetTarget: SetPrescription?
@@ -30,6 +33,7 @@ struct SetRow: View {
     /// A set on the logging surface, measured against its target and the standing records.
     init(number: Int, command: SetCommand, target: SetPrescription?, record: SetRecordOutcome) {
         self.number = number
+        self.isWarmUp = !command.isWork
         self.figures = .of(command)
         self.unmetTarget = target.flatMap { $0.isMet(by: command) ? nil : $0 }
         self.record = record
@@ -38,6 +42,7 @@ struct SetRow: View {
     /// A set in a finished session, read back from the server, with the records it established.
     init(number: Int, entry: SetEntry, record: SetRecordOutcome = .notApplicable) {
         self.number = number
+        self.isWarmUp = !entry.kind.isWork
         self.figures = .of(entry)
         self.unmetTarget = nil
         self.record = record
@@ -124,7 +129,7 @@ struct SetRow: View {
     // MARK: - Pieces
 
     private var numberText: some View {
-        Text("\(number)")
+        Text(isWarmUp ? "W" : "\(number)")
             .font(.subheadline.monospacedDigit())
             .foregroundStyle(Color(.secondaryLabel))
             .frame(minWidth: numberWidth, alignment: .trailing)
@@ -177,7 +182,7 @@ struct SetRow: View {
     /// Read out as a sentence, because the visual row leans on column position for the set number
     /// and on a glyph for the record — neither of which survives being spoken.
     private var accessibilityDescription: String {
-        var parts = ["Set \(number)"]
+        var parts = [isWarmUp ? "Warm-up \(number)" : "Set \(number)"]
         switch figures {
         case .measured(let measured):
             parts.append(measured.spoken)

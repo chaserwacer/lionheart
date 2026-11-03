@@ -234,7 +234,7 @@ public class PersonalRecordDetectionTests : IAsyncLifetime
     {
         var started = ResultAssert.Succeeded(await _athletes.SessionsAsync(service =>
             service.StartUnplannedAsync(
-                _athletes.Owner, new StartUnplannedSessionRequest(Performed, "bench day", null), default)));
+                _athletes.Owner, new StartUnplannedSessionRequest(Performed, "bench day", null, null), default)));
 
         ResultAssert.Succeeded(await _athletes.SessionsAsync(service =>
             service.ReplaceSetsAsync(
@@ -317,7 +317,7 @@ public class PersonalRecordDetectionTests : IAsyncLifetime
         _athletes.SessionsAsync(service => service.LogCompletedAsync(
             _athletes.Owner,
             new LogCompletedSessionRequest(
-                [.. sets], new PeriodCommand(Performed, null), null, "logged", null),
+                [.. sets], new PeriodCommand(Performed, null), null, "logged", null, null),
             default));
 
     private SetCommand Lift(

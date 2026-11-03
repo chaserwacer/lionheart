@@ -69,17 +69,17 @@ public sealed class TrainingSessionService : ITrainingSessionService
     public Task<Result<TrainingSessionView, Problem>> StartUnplannedAsync(
         IdentityUser user, StartUnplannedSessionRequest request, CancellationToken ct) =>
         _context.AthleteIdAsync(user, ct)
-            .BindAsync(userId => MembershipAsync(userId, request.TrainingProgramId, ct)
-                .MapAsync(membership => NewActive(userId, request, membership))
+            .BindAsync(userId => PlacementAsync(userId, request.TrainingProgramId, request.RoutineId, ct)
+                .MapAsync(placement => NewActive(userId, request, placement))
                 .BindAsync(session => AddAsync(session, ct)));
 
     public Task<Result<TrainingSessionView, Problem>> LogCompletedAsync(
         IdentityUser user, LogCompletedSessionRequest request, CancellationToken ct) =>
         _context.AthleteIdAsync(user, ct)
-            .BindAsync(userId => MembershipAsync(userId, request.TrainingProgramId, ct)
-                .BindAsync(membership => request.Sets.Traverse(set => set.ToEntry())
+            .BindAsync(userId => PlacementAsync(userId, request.TrainingProgramId, request.RoutineId, ct)
+                .BindAsync(placement => request.Sets.Traverse(set => set.ToEntry())
                     .Bind(sets => request.Period.ToPeriod()
-                        .Map(period => NewCompleted(userId, request, membership, sets, period))))
+                        .Map(period => NewCompleted(userId, request, placement, sets, period))))
                 .BindAsync(session => AddCompletedAsync(session, ct)));
 
     public Task<Result<TrainingSessionView, Problem>> StartAsync(
@@ -175,6 +175,25 @@ public sealed class TrainingSessionService : ITrainingSessionService
             : Result<ProgramMembership, Problem>.Failure(new Problem.NotFound("Training program not found."));
     }
 
+    /// <summary>Where a session the athlete starts or logs directly sits: its program, and its routine.</summary>
+    private Task<Result<Placement, Problem>> PlacementAsync(
+        Guid userId, Guid? trainingProgramId, Guid? routineId, CancellationToken ct) =>
+        MembershipAsync(userId, trainingProgramId, ct)
+            .MapAsync(async membership => new Placement(membership, await OriginAsync(userId, routineId, ct)));
+
+    /// <summary>
+    /// The routine a session was trained from, or ad hoc when the id is not one of the athlete's
+    /// routines. Dropped rather than refused, unlike a program: a workout started offline from a
+    /// routine deleted in the meantime still happened, and its sets are real whatever became of
+    /// the routine. Someone else's routine reads as no routine, so nothing about it is disclosed.
+    /// </summary>
+    private async Task<RoutineOrigin> OriginAsync(Guid userId, Guid? routineId, CancellationToken ct) =>
+        routineId is { } id && await _context.Routines.AnyAsync(r => r.RoutineId == id && r.UserId == userId, ct)
+            ? new RoutineOrigin.FromRoutine(id)
+            : new RoutineOrigin.AdHoc();
+
+    private sealed record Placement(ProgramMembership Membership, RoutineOrigin Origin);
+
     // ---- Stage: creation ----
     //
     // The server states the four members a client may not: the id, the owner, the authorship, and
@@ -193,25 +212,28 @@ public sealed class TrainingSessionService : ITrainingSessionService
             Notes = request.Notes,
             Provenance = Provenance.User,
             Membership = membership,
+            // Planning names no routine; a routine's sessions are started or logged from it.
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = Now(),
         };
 
     private ActiveTrainingSession NewActive(
-        Guid userId, StartUnplannedSessionRequest request, ProgramMembership membership) =>
+        Guid userId, StartUnplannedSessionRequest request, Placement placement) =>
         new(request.StartedAt, [])
         {
             TrainingSessionId = NextId(),
             UserId = userId,
             Notes = request.Notes,
             Provenance = Provenance.User,
-            Membership = membership,
+            Membership = placement.Membership,
+            Origin = placement.Origin,
             CreatedAt = Now(),
         };
 
     private CompletedTrainingSession NewCompleted(
         Guid userId,
         LogCompletedSessionRequest request,
-        ProgramMembership membership,
+        Placement placement,
         IReadOnlyList<SetEntry> sets,
         Period period) =>
         new(sets, period, Effort(request.Effort), new NotDecorated())
@@ -220,7 +242,8 @@ public sealed class TrainingSessionService : ITrainingSessionService
             UserId = userId,
             Notes = request.Notes,
             Provenance = Provenance.User,
-            Membership = membership,
+            Membership = placement.Membership,
+            Origin = placement.Origin,
             CreatedAt = Now(),
         };
 
@@ -239,6 +262,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
                 Notes = planned.Notes,
                 Provenance = planned.Provenance,
                 Membership = planned.Membership,
+                Origin = planned.Origin,
                 CreatedAt = planned.CreatedAt,
             })
             : Refusal(session, "started", "planned");
@@ -258,6 +282,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
                     Notes = active.Notes,
                     Provenance = active.Provenance,
                     Membership = active.Membership,
+                    Origin = active.Origin,
                     CreatedAt = active.CreatedAt,
                 })
             : Refusal<CompletedTrainingSession>(session, "completed", "active");
@@ -271,6 +296,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
                 Notes = planned.Notes,
                 Provenance = planned.Provenance,
                 Membership = planned.Membership,
+                Origin = planned.Origin,
                 CreatedAt = planned.CreatedAt,
             })
             : Refusal(session, "skipped", "planned");

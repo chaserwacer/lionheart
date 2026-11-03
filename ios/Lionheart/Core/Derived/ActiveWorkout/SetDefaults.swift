@@ -9,12 +9,18 @@ import Foundation
 ///
 /// The order is deliberate and is the whole of the rule:
 ///
-/// 1. the last set logged on this movement in this workout — what the athlete is actually doing;
+/// 1. the last working set logged on this movement in this workout — what the athlete is actually
+///    doing;
 /// 2. the movement's next target — what they meant to do;
-/// 3. an empty set of the right shape — a movement being logged for the first time ever.
+/// 3. last time on this movement, at the same working-set position — the "previous" column: the
+///    weight carried from step 1 where there is one, the reps from last time, because the reps are
+///    what a set to failure is trying to beat;
+/// 4. an empty set of the right shape — a movement being logged for the first time ever.
 ///
 /// Step 1 beats step 2 because a prescription is a plan and the last set is a fact: an athlete who
 /// dropped the weight on set three does not want set four pre-filled with the plan they abandoned.
+/// Step 2 beats step 3 because a plan written for today already knew about last time. A warm-up is
+/// never a precedent: after a ramp the next set is the work, not one more warm-up.
 enum SetDefaults {
     /// The set the entry row starts from for `movementDataId`.
     ///
@@ -25,20 +31,22 @@ enum SetDefaults {
     static func nextSet(
         on movementDataId: UUID,
         in workout: ActiveWorkout,
-        as modality: SetModality? = nil
+        as modality: SetModality? = nil,
+        previous: PreviousPerformance? = nil
     ) -> SetCommand {
-        let (last, target) = precedents(on: movementDataId, in: workout)
+        let (last, target, prior) = precedents(on: movementDataId, in: workout, previous: previous)
 
-        switch modality ?? last?.modality ?? target.flatMap(Self.modality(of:)) ?? .lift {
+        switch modality ?? last?.modality ?? target.flatMap(Self.modality(of:))
+            ?? prior.flatMap(Self.modality(of:)) ?? .lift {
         case .lift, .trailRun:
             // A trail run has no movement identity in the domain, so a movement's entry row cannot
             // produce one. Asking for it is a caller's mistake, and a lift is the harmless answer.
             return .lift(lift(
-                on: movementDataId, from: last, orTarget: target,
+                on: movementDataId, from: last, orTarget: target, orPrior: prior,
                 orLastUnitUsed: lastWeightUnit(in: workout)))
         case .distanceTime:
             return .distanceTime(distanceTime(
-                on: movementDataId, from: last, orTarget: target,
+                on: movementDataId, from: last, orTarget: target, orPrior: prior,
                 orLastUnitUsed: lastDistanceUnit(in: workout)))
         case .freeform:
             return .freeform(text: "")
@@ -51,24 +59,41 @@ enum SetDefaults {
     /// that happened. A target carries one only when it names a load, because a lift target saved
     /// without a weight reads as nought and the two cannot be told apart. With neither, the nought
     /// is the empty set's placeholder.
-    static func carriesWeightForward(on movementDataId: UUID, in workout: ActiveWorkout) -> Bool {
-        let (last, target) = precedents(on: movementDataId, in: workout)
+    static func carriesWeightForward(
+        on movementDataId: UUID, in workout: ActiveWorkout, previous: PreviousPerformance? = nil
+    ) -> Bool {
+        let (last, target, prior) = precedents(on: movementDataId, in: workout, previous: previous)
         if last != nil { return true }
         switch target {
         case .lift(let prescribed)?: return prescribed.targetWeight > 0
-        case .distanceTime?, .freeform?, .unrecognised?, nil: return false
+        case .distanceTime?, .freeform?, .unrecognised?: return false
+        case nil:
+            if case .lift? = prior { return true }
+            return false
         }
     }
 
-    /// Steps 1 and 2 of the rule: the last set on this movement, and its next target.
+    /// Steps 1 to 3 of the rule: the last working set on this movement, its next target, and last
+    /// time's working set at the position the next one will take.
     private static func precedents(
-        on movementDataId: UUID, in workout: ActiveWorkout
-    ) -> (last: SetCommand?, target: SetPrescription?) {
-        let last = workout.sets.last { $0.movementDataId == movementDataId }?.command
+        on movementDataId: UUID, in workout: ActiveWorkout, previous: PreviousPerformance?
+    ) -> (last: SetCommand?, target: SetPrescription?, prior: SetEntry?) {
+        let last = workout.sets.last { $0.movementDataId == movementDataId && $0.command.takesAPlace }
         let target = WorkoutReading.of(workout)
             .movements.first { $0.movementDataId == movementDataId }?
             .nextTarget
-        return (last, target)
+        let position = workout.workingSetCount(on: movementDataId)
+        let prior = previous.flatMap { $0.movementDataId == movementDataId ? $0.workingSet(at: position) : nil }
+        return (last?.command, target, prior)
+    }
+
+    /// Which entry shape last time's set was.
+    private static func modality(of entry: SetEntry) -> SetModality? {
+        switch entry {
+        case .lift: .lift
+        case .distanceTime: .distanceTime
+        case .trailRun, .freeform, .unrecognised: nil
+        }
     }
 
     /// The weight unit the athlete has been using anywhere in this workout.
@@ -109,12 +134,16 @@ enum SetDefaults {
         on movementDataId: UUID,
         from last: SetCommand?,
         orTarget target: SetPrescription?,
+        orPrior prior: SetEntry?,
         orLastUnitUsed unit: WeightUnit?
     ) -> SetCommand.Lift {
         if case .lift(let set)? = last {
+            // Today's weight, and — where no plan says otherwise — last time's reps at this
+            // position, which is the number this set is trying to beat.
+            let priorReps: Int? = if target == nil, case .lift(let before)? = prior { before.reps } else { nil }
             return SetCommand.Lift(
                 movementDataId: movementDataId,
-                reps: set.reps,
+                reps: priorReps ?? set.reps,
                 weight: set.weight,
                 unit: set.unit,
                 rpe: set.rpe)
@@ -125,6 +154,14 @@ enum SetDefaults {
                 reps: prescribed.targetReps,
                 weight: prescribed.targetWeight,
                 unit: prescribed.unit,
+                rpe: .unrated)
+        }
+        if case .lift(let before)? = prior {
+            return SetCommand.Lift(
+                movementDataId: movementDataId,
+                reps: before.reps,
+                weight: before.weight,
+                unit: before.unit,
                 rpe: .unrated)
         }
         return SetCommand.Lift(
@@ -139,6 +176,7 @@ enum SetDefaults {
         on movementDataId: UUID,
         from last: SetCommand?,
         orTarget target: SetPrescription?,
+        orPrior prior: SetEntry?,
         orLastUnitUsed unit: DistanceUnit?
     ) -> SetCommand.DistanceTime {
         if case .distanceTime(let set)? = last {
@@ -155,6 +193,14 @@ enum SetDefaults {
                 distance: prescribed.targetDistance,
                 unit: prescribed.unit,
                 duration: prescribed.targetDuration,
+                rpe: .unrated)
+        }
+        if case .distanceTime(let before)? = prior {
+            return SetCommand.DistanceTime(
+                movementDataId: movementDataId,
+                distance: before.distance,
+                unit: before.unit,
+                duration: before.duration,
                 rpe: .unrated)
         }
         return SetCommand.DistanceTime(

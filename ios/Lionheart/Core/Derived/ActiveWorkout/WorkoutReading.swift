@@ -27,33 +27,56 @@ struct WorkoutReading: Equatable, Sendable {
     /// The sets logged against one movement, and what was asked of it.
     struct MovementSets: Equatable, Sendable, Identifiable {
         let movementDataId: UUID
-        /// Logged sets in order, numbered from one within this movement.
+        /// Logged sets in order, each numbered within its movement and its kind.
         let sets: [NumberedSet]
         /// Every target for this movement, in prescribed order.
         let targets: [SetPrescription]
+        /// How many working sets the routine the workout started from gives this movement, or `nil`
+        /// where no routine names it. Only consulted where nothing was prescribed: a plan's own
+        /// targets are the more specific statement.
+        let routineSets: Int?
+
+        init(
+            movementDataId: UUID, sets: [NumberedSet], targets: [SetPrescription], routineSets: Int? = nil
+        ) {
+            self.movementDataId = movementDataId
+            self.sets = sets
+            self.targets = targets
+            self.routineSets = routineSets
+        }
 
         var id: UUID { movementDataId }
 
-        /// The first target no set has been logged against.
+        /// How many sets so far took a place in the plan, which is what targets and the plan count.
+        /// A warm-up answers nothing, and a drop set belongs to the set before it.
+        var workingSetCount: Int { sets.count(where: { $0.logged.command.takesAPlace }) }
+
+        /// How many working sets the movement is meant to get: one per target, else the routine's
+        /// count, else none.
+        var plannedSetCount: Int { targets.isEmpty ? (routineSets ?? 0) : targets.count }
+
+        /// The first target no working set has been logged against.
         ///
-        /// Targets are consumed in order *within the movement*: the nth set on a movement answers
-        /// its nth target. Counting across the whole session instead would make a set on one
-        /// movement tick off a target on another.
+        /// Targets are consumed in order *within the movement*: the nth working set on a movement
+        /// answers its nth target. Counting across the whole session instead would make a set on
+        /// one movement tick off a target on another.
         var nextTarget: SetPrescription? {
-            sets.count < targets.count ? targets[sets.count] : nil
+            workingSetCount < targets.count ? targets[workingSetCount] : nil
         }
 
-        /// Whether every target on this movement has a set against it. A movement with no targets
-        /// is never "done" — there was nothing to finish.
-        var isComplete: Bool { !targets.isEmpty && sets.count >= targets.count }
+        /// Whether every planned set on this movement has been logged. A movement with no plan is
+        /// never "done" — there was nothing to finish.
+        var isComplete: Bool { plannedSetCount > 0 && workingSetCount >= plannedSetCount }
 
-        var remainingTargetCount: Int { max(0, targets.count - sets.count) }
+        var remainingTargetCount: Int { max(0, targets.count - workingSetCount) }
 
         /// Where the movement stands against its plan, as the section header states it.
         var progress: TargetProgress {
-            if targets.isEmpty { return .unplanned }
-            if sets.count <= targets.count { return .within(logged: sets.count, of: targets.count) }
-            return .beyond(planned: targets.count, extra: sets.count - targets.count)
+            let planned = plannedSetCount
+            let logged = workingSetCount
+            if planned == 0 { return .unplanned }
+            if logged <= planned { return .within(logged: logged, of: planned) }
+            return .beyond(planned: planned, extra: logged - planned)
         }
     }
 
@@ -73,7 +96,9 @@ struct WorkoutReading: Equatable, Sendable {
 
     /// A logged set with its place in its movement.
     struct NumberedSet: Equatable, Sendable, Identifiable {
-        /// 1-based, within the movement rather than the session: "set 3 of bench press".
+        /// 1-based, within the movement rather than the session, and within the set's kind of work:
+        /// working sets count 1, 2, 3 and warm-ups count apart, so a warm-up does not make the
+        /// first working set "set 3".
         let number: Int
         /// Named `logged` and not `set`: inside a computed property's body `set` is the setter
         /// keyword, and `var id: UUID { set.id }` does not parse.
@@ -82,13 +107,16 @@ struct WorkoutReading: Equatable, Sendable {
         let target: SetPrescription?
 
         var id: UUID { logged.id }
+
+        var isWarmUp: Bool { !logged.command.isWork }
     }
 
     static func of(_ workout: ActiveWorkout) -> WorkoutReading {
         of(
             sets: workout.sets,
             prescriptions: workout.prescriptions,
-            added: workout.addedMovementDataIds)
+            added: workout.addedMovementDataIds,
+            routine: workout.routine)
     }
 
     /// The same reading over the lists it is made of.
@@ -97,7 +125,8 @@ struct WorkoutReading: Equatable, Sendable {
     /// shows a plan before starting it wants the targets grouped exactly as the logging surface
     /// will group them, and inventing a workout to hold them would be a lie about what it has.
     static func of(
-        sets: [LoggedSet], prescriptions: [SetPrescription], added: [UUID] = []
+        sets: [LoggedSet], prescriptions: [SetPrescription], added: [UUID] = [],
+        routine: WorkoutRoutine? = nil
     ) -> WorkoutReading {
         // Grouped by hand rather than with `Dictionary(grouping:)`, which needs a non-optional key
         // and so would want a sentinel id for the sets that legitimately have no movement.
@@ -121,13 +150,9 @@ struct WorkoutReading: Equatable, Sendable {
                 let logged = setsByMovement[movementDataId] ?? []
                 return MovementSets(
                     movementDataId: movementDataId,
-                    sets: logged.enumerated().map { index, performed in
-                        NumberedSet(
-                            number: index + 1,
-                            logged: performed,
-                            target: index < targets.count ? targets[index] : nil)
-                    },
-                    targets: targets)
+                    sets: numbered(logged, against: targets),
+                    targets: targets,
+                    routineSets: routine?.workingSets(of: movementDataId))
             },
             unattached: sets.filter { $0.movementDataId == nil },
             totals: WorkoutTotals.of(sets),
@@ -143,6 +168,22 @@ struct WorkoutReading: Equatable, Sendable {
         if let current, movements.contains(where: { $0.movementDataId == current }) { return current }
         return movements.first(where: { !$0.isComplete })?.movementDataId
             ?? movements.last?.movementDataId
+    }
+
+    /// Numbers each set within its kind of work (`SetKind.numbers`), and pairs each set that takes
+    /// a place in the plan with the target it answers: the nth such set, the nth target.
+    private static func numbered(_ logged: [LoggedSet], against targets: [SetPrescription]) -> [NumberedSet] {
+        let places = logged.reduce(into: (places: [Int?](), taken: 0)) { state, performed in
+            guard performed.command.takesAPlace else { state.places.append(nil); return }
+            state.places.append(state.taken)
+            state.taken += 1
+        }.places
+        return zip(zip(logged, SetKind.numbers(of: logged.map(\.command.kind))), places)
+            .map { pair, place in
+                let (performed, number) = pair
+                let target = place.flatMap { $0 < targets.count ? targets[$0] : nil }
+                return NumberedSet(number: number, logged: performed, target: target)
+            }
     }
 
     private static func firstAppearances(of ids: [UUID]) -> [UUID] {

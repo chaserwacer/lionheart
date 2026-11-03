@@ -34,38 +34,9 @@ enum WorkoutResumption {
     }
 
     private static func command(of entry: SetEntry) throws(Refusal) -> SetCommand {
-        switch entry {
-        case .lift(let set):
-            return .lift(SetCommand.Lift(
-                movementDataId: set.movementDataId,
-                reps: set.reps,
-                weight: set.weight,
-                unit: set.unit,
-                rpe: set.rpe))
-
-        case .distanceTime(let set):
-            return .distanceTime(SetCommand.DistanceTime(
-                movementDataId: set.movementDataId,
-                distance: set.distance,
-                unit: set.unit,
-                duration: set.duration,
-                rpe: set.rpe))
-
-        case .trailRun(let set):
-            return .trailRun(SetCommand.TrailRun(
-                distance: set.distance,
-                unit: set.unit,
-                duration: set.duration,
-                elevationGainMeters: set.elevationGainMeters,
-                rpe: set.rpe))
-
-        case .freeform(let common):
-            // The words live in the set's source, not in a field of its own — a freeform set is
-            // the raw utterance plus whatever the parser could not break down.
-            return .freeform(text: common.source.rawText ?? "")
-
-        case .unrecognised(let type, _):
-            throw .cannotRestate(type: type)
-        }
+        if case .unrecognised(let type, _) = entry { throw .cannotRestate(type: type) }
+        // Every shape this build knows restates; `command` is nil for the unrecognised one alone.
+        guard let command = entry.command else { throw .cannotRestate(type: "") }
+        return command
     }
 }

@@ -159,11 +159,12 @@ public class InterpretationRecordTests : IDisposable
             Notes = "texted",
             Provenance = Provenance.AiAssisted,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = Some.Clock,
         };
 
     private static LiftSet Lift(Guid movementDataId, double weight, int reps) =>
-        new(movementDataId, reps, weight, WeightUnit.Pounds, Rpe.Unrated)
+        new(movementDataId, reps, weight, WeightUnit.Pounds, Rpe.Unrated, SetKind.Working)
         {
             Source = Some.TextedSource,
             Facets = [],

@@ -29,7 +29,7 @@ protocol WorkoutSessionWriting: Sendable {
     func start(id: UUID, at startedAt: Date) async throws -> TrainingSession
     /// An unplanned start.
     func startUnplanned(
-        at startedAt: Date, notes: String, programId: UUID?
+        at startedAt: Date, notes: String, programId: UUID?, routineId: UUID?
     ) async throws -> TrainingSession
 
     func replaceSets(id: UUID, with sets: [SetCommand]) async throws -> TrainingSession
@@ -42,7 +42,8 @@ protocol WorkoutSessionWriting: Sendable {
         period: PeriodRequest,
         effort: PerceivedEffortRequest?,
         notes: String,
-        programId: UUID?
+        programId: UUID?,
+        routineId: UUID?
     ) async throws -> TrainingSession
     func delete(id: UUID) async throws
 }

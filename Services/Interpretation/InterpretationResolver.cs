@@ -120,6 +120,7 @@ public sealed class InterpretationResolver : IInterpretationResolver
             // exactly what this axis records.
             Provenance = Provenance.AiAssisted,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -130,8 +131,9 @@ public sealed class InterpretationResolver : IInterpretationResolver
 
         return draft switch
         {
+            // The parse schema states no set kind, so every lift it lifts out of text is a working set.
             DraftLiftSet lift => new LiftSet(
-                movements.Resolved[lift.Movement], lift.Reps, lift.Weight, lift.Unit, lift.Rpe)
+                movements.Resolved[lift.Movement], lift.Reps, lift.Weight, lift.Unit, lift.Rpe, SetKind.Working)
             {
                 Source = draft.Source,
                 Facets = facets

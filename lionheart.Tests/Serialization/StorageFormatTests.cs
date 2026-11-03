@@ -2,6 +2,7 @@ using System.Text.Json;
 using lionheart.Data;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training;
+using lionheart.Model.Training.Routines;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 
@@ -30,7 +31,7 @@ public class StorageFormatTests
     [Fact]
     public void Lift_set_stores_exactly()
     {
-        var lift = new LiftSet(MovementDataId, Reps: 5, Weight: 225, WeightUnit.Pounds, Rpe.Of(8.5))
+        var lift = new LiftSet(MovementDataId, Reps: 5, Weight: 225, WeightUnit.Pounds, Rpe.Of(8.5), SetKind.Working)
         {
             Source = new Formed(),
             Facets = [new(FacetAxis.Modality, "lift")],
@@ -38,7 +39,7 @@ public class StorageFormatTests
 
         Assert.Equal(
             """
-            {"$type":"lift","MovementDataId":"11111111-2222-3333-4444-555555555555","Reps":5,"Weight":225,"Unit":1,"Rpe":8.5,"Source":{"$type":"formed"},"Facets":[{"Axis":0,"Value":"lift"}]}
+            {"$type":"lift","MovementDataId":"11111111-2222-3333-4444-555555555555","Reps":5,"Weight":225,"Unit":1,"Rpe":8.5,"Kind":0,"Source":{"$type":"formed"},"Facets":[{"Axis":0,"Value":"lift"}]}
             """,
             Store<SetEntry>(lift));
     }
@@ -46,7 +47,7 @@ public class StorageFormatTests
     [Fact]
     public void Unrated_rpe_stores_as_null_inside_its_set()
     {
-        var lift = new LiftSet(MovementDataId, Reps: 3, Weight: 235, WeightUnit.Pounds, Rpe.Unrated)
+        var lift = new LiftSet(MovementDataId, Reps: 3, Weight: 235, WeightUnit.Pounds, Rpe.Unrated, SetKind.Working)
         {
             Source = new Texted("worked up to 235, 2 or 3 sets", 0.6),
             Facets = [],
@@ -54,9 +55,66 @@ public class StorageFormatTests
 
         Assert.Equal(
             """
-            {"$type":"lift","MovementDataId":"11111111-2222-3333-4444-555555555555","Reps":3,"Weight":235,"Unit":1,"Rpe":null,"Source":{"$type":"texted","RawText":"worked up to 235, 2 or 3 sets","StructureConfidence":0.6},"Facets":[]}
+            {"$type":"lift","MovementDataId":"11111111-2222-3333-4444-555555555555","Reps":3,"Weight":235,"Unit":1,"Rpe":null,"Kind":0,"Source":{"$type":"texted","RawText":"worked up to 235, 2 or 3 sets","StructureConfidence":0.6},"Facets":[]}
             """,
             Store<SetEntry>(lift));
+    }
+
+    [Fact]
+    public void A_lift_stores_its_kind_last_among_its_measures()
+    {
+        var warmUp = new LiftSet(MovementDataId, Reps: 10, Weight: 135, WeightUnit.Pounds, Rpe.Unrated, SetKind.WarmUp)
+        {
+            Source = new Formed(),
+            Facets = [],
+        };
+
+        Assert.Equal(
+            """
+            {"$type":"lift","MovementDataId":"11111111-2222-3333-4444-555555555555","Reps":10,"Weight":135,"Unit":1,"Rpe":null,"Kind":1,"Source":{"$type":"formed"},"Facets":[]}
+            """,
+            Store<SetEntry>(warmUp));
+    }
+
+    /// <summary>
+    /// Every lift stored before sets carried a kind has no Kind member at all. Those rows are the
+    /// athlete's whole history and nothing rewrites them, so they must read as what they were:
+    /// working sets.
+    /// </summary>
+    [Fact]
+    public void A_lift_stored_before_sets_carried_a_kind_reads_as_a_working_set()
+    {
+        var stored = JsonSerializer.Deserialize<SetEntry>(
+            """{"$type":"lift","MovementDataId":"11111111-2222-3333-4444-555555555555","Reps":5,"Weight":225,"Unit":1,"Rpe":null,"Source":{"$type":"formed"},"Facets":[]}""",
+            ValueConversions.StorageJson);
+
+        var lift = Assert.IsType<LiftSet>(stored);
+        Assert.Equal(SetKind.Working, lift.Kind);
+        Assert.Equal((5, 225.0), (lift.Reps, lift.Weight));
+    }
+
+    [Fact]
+    public void A_stored_kind_outside_the_enum_refuses_to_read()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => JsonSerializer.Deserialize<SetEntry>(
+            """{"$type":"lift","MovementDataId":"11111111-2222-3333-4444-555555555555","Reps":5,"Weight":225,"Unit":1,"Rpe":null,"Kind":9,"Source":{"$type":"formed"},"Facets":[]}""",
+            ValueConversions.StorageJson));
+    }
+
+    [Fact]
+    public void A_routines_movements_column_stores_its_order()
+    {
+        IReadOnlyList<RoutineMovement> movements =
+        [
+            new(MovementDataId, WorkingSets: 2),
+            new(Guid.Parse("66666666-7777-8888-9999-000000000000"), WorkingSets: 3),
+        ];
+
+        Assert.Equal(
+            """
+            [{"MovementDataId":"11111111-2222-3333-4444-555555555555","WorkingSets":2},{"MovementDataId":"66666666-7777-8888-9999-000000000000","WorkingSets":3}]
+            """,
+            Store(movements));
     }
 
     [Fact]
@@ -136,7 +194,7 @@ public class StorageFormatTests
     {
         IReadOnlyList<SetEntry> sets =
         [
-            new LiftSet(MovementDataId, Reps: 5, Weight: 225, WeightUnit.Pounds, Rpe.Of(8.5))
+            new LiftSet(MovementDataId, Reps: 5, Weight: 225, WeightUnit.Pounds, Rpe.Of(8.5), SetKind.Working)
             {
                 Source = new Formed(),
                 Facets = [new(FacetAxis.Modality, "lift")],
@@ -160,7 +218,7 @@ public class StorageFormatTests
 
         Assert.Equal(
             """
-            [{"$type":"lift","MovementDataId":"11111111-2222-3333-4444-555555555555","Reps":5,"Weight":225,"Unit":1,"Rpe":8.5,"Source":{"$type":"formed"},"Facets":[{"Axis":0,"Value":"lift"}]},{"$type":"distanceTime","MovementDataId":"11111111-2222-3333-4444-555555555555","Distance":1600,"Unit":0,"Duration":"00:08:00","Rpe":null,"Source":{"$type":"formed"},"Facets":[]},{"$type":"trailRun","Distance":6.2,"Unit":2,"Duration":"01:04:00","ElevationGainMeters":410,"Rpe":7,"Source":{"$type":"formed"},"Facets":[]},{"$type":"freeform","Source":{"$type":"texted","RawText":"felt flat, called it early","StructureConfidence":0.2},"Facets":[{"Axis":5,"Value":"fatigued"}]}]
+            [{"$type":"lift","MovementDataId":"11111111-2222-3333-4444-555555555555","Reps":5,"Weight":225,"Unit":1,"Rpe":8.5,"Kind":0,"Source":{"$type":"formed"},"Facets":[{"Axis":0,"Value":"lift"}]},{"$type":"distanceTime","MovementDataId":"11111111-2222-3333-4444-555555555555","Distance":1600,"Unit":0,"Duration":"00:08:00","Rpe":null,"Source":{"$type":"formed"},"Facets":[]},{"$type":"trailRun","Distance":6.2,"Unit":2,"Duration":"01:04:00","ElevationGainMeters":410,"Rpe":7,"Source":{"$type":"formed"},"Facets":[]},{"$type":"freeform","Source":{"$type":"texted","RawText":"felt flat, called it early","StructureConfidence":0.2},"Facets":[{"Axis":5,"Value":"fatigued"}]}]
             """,
             Store(sets));
     }
@@ -247,6 +305,12 @@ public class StorageFormatTests
 
         Assert.Equal(0, (int)WeightUnit.Kilograms);
         Assert.Equal(1, (int)WeightUnit.Pounds);
+
+        Assert.Equal(0, (int)SetKind.Working);
+        Assert.Equal(1, (int)SetKind.WarmUp);
+        Assert.Equal(2, (int)SetKind.Drop);
+        Assert.Equal(3, (int)SetKind.Failure);
+        Assert.Equal(4, Enum.GetValues<SetKind>().Length);
 
         Assert.Equal(0, (int)DistanceUnit.Meters);
         Assert.Equal(1, (int)DistanceUnit.Yards);

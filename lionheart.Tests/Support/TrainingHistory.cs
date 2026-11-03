@@ -46,7 +46,7 @@ internal static class TrainingHistory
     /// <summary>A completed session of pounds lifts on one movement, an hour long.</summary>
     public static CompletedTrainingSession Lifts(
         Guid userId, DateTimeOffset start, Guid movement, params (double Weight, int Reps)[] sets) =>
-        new([.. sets.Select(SetEntry (set) => new LiftSet(movement, set.Reps, set.Weight, WeightUnit.Pounds, Rpe.Unrated)
+        new([.. sets.Select(SetEntry (set) => new LiftSet(movement, set.Reps, set.Weight, WeightUnit.Pounds, Rpe.Unrated, SetKind.Working)
             {
                 Source = new Formed(),
                 Facets = [],
@@ -60,6 +60,7 @@ internal static class TrainingHistory
             Notes = string.Empty,
             Provenance = Provenance.User,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = start.UtcDateTime,
         };
 

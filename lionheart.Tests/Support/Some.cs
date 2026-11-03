@@ -1,6 +1,7 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
 using lionheart.Model.Training;
+using lionheart.Model.Training.Routines;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using Programs = lionheart.Model.Training.Programs;
@@ -36,7 +37,7 @@ public static class Some
         ExternalVariablesRating = 3,
     });
 
-    public static LiftSet LiftSet => new(Guid.NewGuid(), Reps: 5, Weight: 225, WeightUnit.Pounds, Rpe.Of(8.5))
+    public static LiftSet LiftSet => new(Guid.NewGuid(), Reps: 5, Weight: 225, WeightUnit.Pounds, Rpe.Of(8.5), SetKind.Working)
     {
         Source = new Formed(),
         Facets = Facets,
@@ -80,6 +81,7 @@ public static class Some
             Notes = "push day",
             Provenance = Provenance.User,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = Clock,
         };
 
@@ -91,6 +93,7 @@ public static class Some
             Notes = "in progress",
             Provenance = Provenance.User,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = Clock,
         };
 
@@ -102,6 +105,7 @@ public static class Some
             Notes = "done, felt strong",
             Provenance = Provenance.AiAssisted,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = Clock,
         };
 
@@ -113,6 +117,7 @@ public static class Some
             Notes = "travel day",
             Provenance = Provenance.User,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = Clock,
         };
 
@@ -168,6 +173,17 @@ public static class Some
             EndDate = new DateOnly(2026, 4, 26),
             Tags = ["peaking"],
         };
+
+    public static Routine UpperDay(Guid userId, params Guid[] movements) => Routine.Define(
+        Guid.NewGuid(),
+        userId,
+        ResultAssert.Succeeded(RoutineContent.Of(
+            "Upper day",
+            "pulldown pin 7",
+            movements.Length > 0
+                ? [.. movements.Select(movement => new RoutineMovement(movement, 2))]
+                : [new RoutineMovement(Guid.NewGuid(), 2), new RoutineMovement(Guid.NewGuid(), 3)])),
+        Clock);
 
     public static float[] Embedding => [0.12f, -0.5f, 0.98f, 0f];
 

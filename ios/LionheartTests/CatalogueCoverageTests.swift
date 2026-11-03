@@ -45,6 +45,7 @@ struct CatalogueCoverageTests {
             library = MovementLibraryStore(
                 movements: MovementsAPI(client: client),
                 records: PersonalRecordsAPI(client: client),
+                sessions: TrainingSessionsAPI(client: client),
                 defaults: UserDefaults(suiteName: host)!)
         }
 
@@ -146,7 +147,7 @@ final class ACatalogueServer: URLProtocol, @unchecked Sendable {
                 }
                 return "[\(listed.joined(separator: ","))]"
             }
-        case "/api/personal-records/summaries":
+        case "/api/personal-records/summaries", "/api/training/previous-performances":
             "[]"
         default:
             ""

@@ -32,6 +32,7 @@ public sealed class SessionPersistenceTests : IDisposable
         Assert.Equal(expected.Notes, actual.Notes);
         Assert.Equal(expected.Provenance, actual.Provenance);
         Assert.Equal(expected.Membership, actual.Membership);
+        Assert.Equal(expected.Origin, actual.Origin);
         Assert.Equal(expected.CreatedAt, actual.CreatedAt);
         Assert.Equal(expected.Date, actual.Date);
     }

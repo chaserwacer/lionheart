@@ -25,6 +25,34 @@ public sealed record InProgram : ProgramMembership
 }
 
 /// <summary>
+/// Whether a session was trained from one of the athlete's routines, as fill-state: the same
+/// shape <see cref="ProgramMembership"/> takes, and persisted the same way.
+/// </summary>
+/// <remarks>
+/// The routine id is a reference, not a guarantee the routine still exists: deleting a routine
+/// leaves the sessions trained from it saying so, because they were.
+/// </remarks>
+public abstract record RoutineOrigin
+{
+    private protected RoutineOrigin() { }
+
+    public sealed record AdHoc : RoutineOrigin;
+
+    public sealed record FromRoutine : RoutineOrigin
+    {
+        public FromRoutine(Guid routineId)
+        {
+            // Guid.Empty is the storage sentinel for AdHoc, so it cannot name a routine.
+            if (routineId == Guid.Empty)
+                throw new ArgumentException("FromRoutine requires a real routine id; use AdHoc.", nameof(routineId));
+            RoutineId = routineId;
+        }
+
+        public Guid RoutineId { get; }
+    }
+}
+
+/// <summary>
 /// A training session's lifecycle as sealed subtypes — prescriptions exist only while
 /// planned, actuals only once active/completed, decoration only on completion.
 /// </summary>
@@ -35,6 +63,7 @@ public abstract record TrainingSession
     public required string Notes { get; init; }
     public required Provenance Provenance { get; init; }
     public required ProgramMembership Membership { get; init; }
+    public required RoutineOrigin Origin { get; init; }
     public required DateTime CreatedAt { get; init; }
 
     /// <summary>

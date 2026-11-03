@@ -1,10 +1,12 @@
 using lionheart.Data;
 using lionheart.Model.Training;
 using lionheart.Model.User;
+using lionheart.Services;
 using lionheart.Services.Contexts;
 using lionheart.Services.Training.Focus;
 using lionheart.Services.Training.PersonalRecords;
 using lionheart.Services.Training.Programs;
+using lionheart.Services.Training.Routines;
 using lionheart.Services.Training.Sessions;
 using lionheart.Tests.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -98,6 +100,30 @@ public sealed class TwoAthletes : IDisposable
     {
         using var context = CreateContext();
         return await act(new ContextService(context, TimeProvider.System));
+    }
+
+    public async Task<T> RoutinesAsync<T>(Func<IRoutineService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        return await act(new RoutineService(context, TimeProvider.System));
+    }
+
+    public async Task<T> PreviousPerformancesAsync<T>(Func<IPreviousPerformanceService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        return await act(new PreviousPerformanceService(context));
+    }
+
+    public async Task<T> BodyweightAsync<T>(Func<IBodyweightService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        return await act(new BodyweightService(context));
+    }
+
+    public async Task<T> MovementDataAsync<T>(Func<IMovementDataService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        return await act(new MovementDataService(context, new MovementModifierService(context)));
     }
 
     /// <summary>

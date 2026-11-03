@@ -3,6 +3,7 @@ using lionheart.Model.Contexts;
 using lionheart.Model.Training;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.PersonalRecords;
+using lionheart.Model.Training.Routines;
 using lionheart.Model.User;
 using Microsoft.EntityFrameworkCore;
 using Programs = lionheart.Model.Training.Programs;
@@ -39,6 +40,7 @@ public static class RemodelConfiguration
         ConfigureFacetValues(modelBuilder);
         ConfigurePersonalRecords(modelBuilder);
         ConfigureFocusPins(modelBuilder);
+        ConfigureRoutines(modelBuilder);
     }
 
     private static void ConfigureFocusPins(ModelBuilder modelBuilder)
@@ -63,6 +65,22 @@ public static class RemodelConfiguration
             pin.Property(p => p.Terms).HasJsonConversion();
             pin.Property(p => p.Status).HasJsonConversion();
             pin.Ignore(p => p.IsPinned);
+        });
+    }
+
+    private static void ConfigureRoutines(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Routine>(routine =>
+        {
+            routine.ToTable("Routines");
+            routine.HasKey(r => r.RoutineId);
+            routine.HasOne<LionheartUser>().WithMany().HasForeignKey(r => r.UserId);
+
+            // What every read asks for: this athlete's routines, oldest first.
+            routine.HasIndex(r => new { r.UserId, r.CreatedAt });
+
+            // Read and written whole, as the routine's order, so one JSON column.
+            routine.Property(r => r.Movements).HasJsonConversion();
         });
     }
 
@@ -134,6 +152,13 @@ public static class RemodelConfiguration
                 .HasConversion(m => MembershipToGuid(m), g => GuidToMembership(g))
                 .HasColumnName("TrainingProgramId");
             session.HasIndex(s => s.Membership);
+
+            // The same fill-state ↔ sentinel shape as membership, and no FK for the same reason —
+            // and for one more: a routine deleted later leaves its sessions naming it.
+            session.Property(s => s.Origin)
+                .HasConversion(o => OriginToGuid(o), g => GuidToOrigin(g))
+                .HasColumnName("RoutineId");
+            session.HasIndex(s => s.Origin);
 
             session.HasDiscriminator<string>("Lifecycle")
                 .HasValue<Sessions.PlannedTrainingSession>("planned")
@@ -233,6 +258,14 @@ public static class RemodelConfiguration
             value.Property(v => v.Embedding).HasVectorConversion();
         });
     }
+
+    private static Guid OriginToGuid(Sessions.RoutineOrigin origin) =>
+        origin is Sessions.RoutineOrigin.FromRoutine fromRoutine ? fromRoutine.RoutineId : Guid.Empty;
+
+    private static Sessions.RoutineOrigin GuidToOrigin(Guid routineId) =>
+        routineId == Guid.Empty
+            ? new Sessions.RoutineOrigin.AdHoc()
+            : new Sessions.RoutineOrigin.FromRoutine(routineId);
 
     private static Guid MembershipToGuid(Sessions.ProgramMembership membership) =>
         membership is Sessions.InProgram inProgram ? inProgram.TrainingProgramId : Guid.Empty;

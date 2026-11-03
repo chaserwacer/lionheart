@@ -40,6 +40,7 @@ public class LifecycleTransitionTests : IDisposable
                 Notes = planned.Notes,
                 Provenance = planned.Provenance,
                 Membership = planned.Membership,
+                Origin = planned.Origin,
                 CreatedAt = planned.CreatedAt,
             });
 

@@ -167,6 +167,8 @@ final class ActiveWorkoutStore {
     /// could reach. Callers show "continue" rather than "start" instead of calling this.
     ///
     /// - Parameter plannedSessionId: the planned session this workout is the training of, if any.
+    /// - Parameter routine: the routine it was started from, if any. Its movements are added in
+    ///   order, so each has a section to log its first set in.
     /// - Returns: whether the workout began.
     @discardableResult
     func begin(
@@ -175,7 +177,8 @@ final class ActiveWorkoutStore {
         sets: [LoggedSet] = [],
         prescriptions: [SetPrescription] = [],
         notes: String = "",
-        plannedSessionId: UUID? = nil
+        plannedSessionId: UUID? = nil,
+        routine: WorkoutRoutine? = nil
     ) -> Bool {
         guard workout == nil else { return false }
 
@@ -185,8 +188,10 @@ final class ActiveWorkoutStore {
             sync: Self.syncAtStart(of: destination),
             sets: sets,
             prescriptions: prescriptions,
+            addedMovementDataIds: routine?.movements.map(\.movementDataId) ?? [],
             notes: notes,
-            plannedSessionId: plannedSessionId))
+            plannedSessionId: plannedSessionId,
+            routine: routine))
         finish = .idle
         // A deferred start has a session to open, and trying straight away costs nothing: the
         // server may well be back by the time the athlete has picked a movement.

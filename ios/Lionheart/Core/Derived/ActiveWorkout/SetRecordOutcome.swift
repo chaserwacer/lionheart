@@ -25,7 +25,7 @@ import Foundation
 /// set has to beat that set to say so. Three sets of 60 × 10 against a 55 × 10 record are one new
 /// rep max, not three. The server remains the authority on what the session establishes.
 enum SetRecordOutcome: Equatable, Sendable {
-    /// Not a lift, so nothing to say mid-workout.
+    /// Not a lift, or a warm-up — which never sets a record — so nothing to say mid-workout.
     case notApplicable
     /// No record stands in this set's unit for any of the records it competes for.
     case noRecordYet
@@ -51,7 +51,7 @@ enum SetRecordOutcome: Equatable, Sendable {
     static func of(
         _ command: SetCommand, after earlier: [SetCommand], against held: SubjectRecords?
     ) -> SetRecordOutcome {
-        guard let lift = command.liftPart else { return .notApplicable }
+        guard let lift = command.liftPart, lift.kind.isWork else { return .notApplicable }
 
         let standing = (held?.records ?? []).filter {
             $0.standing == .standing && $0.achievement.heldIn == lift.unit
@@ -88,7 +88,7 @@ enum SetRecordOutcome: Equatable, Sendable {
     ) -> [RecordKind: Double] {
         earlier
             .compactMap(\.liftPart)
-            .filter { $0.movementDataId == lift.movementDataId && $0.unit == lift.unit }
+            .filter { $0.kind.isWork && $0.movementDataId == lift.movementDataId && $0.unit == lift.unit }
             .flatMap(contested(by:))
             .reduce(into: [:]) { best, contest in
                 let (kind, figure) = contest

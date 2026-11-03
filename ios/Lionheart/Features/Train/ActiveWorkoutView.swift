@@ -14,6 +14,15 @@ import SwiftUI
 struct ActiveWorkoutView: View {
     let store: ActiveWorkoutStore
     let library: MovementLibraryStore
+    /// The athlete's bodyweight, for the load a weighted dip moved.
+    let bodyweight: BodyweightStore
+    /// The routines, for the finish readout's comparison with last time.
+    let routines: RoutineStore
+    /// Hands the finish readout to whoever presents it once this surface has gone.
+    let finished: (WorkoutSummary) -> Void
+    /// The log and the focus list, for a movement's page opened from its section.
+    let history: HistoryStore
+    let focus: FocusStore
 
     @Environment(\.dismiss) private var dismiss
 
@@ -27,6 +36,22 @@ struct ActiveWorkoutView: View {
     /// The set whose deletion is waiting on a yes. Hung on the surface rather than on a row,
     /// because a dialog per set is a dialog whose owner SwiftUI picks.
     @State private var deleting: LoggedSet?
+    /// The movement sheet asked for from a section's menu: its warm-up ramp, or its setup.
+    @State private var movementSheet: MovementSheet?
+    /// A movement's page pushed over the surface — its history and records, mid-workout.
+    @State private var route: [HistoryRoute] = []
+
+    private enum MovementSheet: Identifiable {
+        case warmUp(movementDataId: UUID, working: Double, unit: WeightUnit)
+        case setup(movementDataId: UUID)
+
+        var id: String {
+            switch self {
+            case .warmUp(let id, _, _): "warm-up \(id)"
+            case .setup(let id): "setup \(id)"
+            }
+        }
+    }
 
     /// How long a rest to start after a set. The athlete's own preference, so it lives with the
     /// view and is handed to the store when a set is logged — the store does not read preferences.
@@ -34,7 +59,7 @@ struct ActiveWorkoutView: View {
     @AppStorage("lh.rest.automatic") private var startsRestAutomatically = true
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $route) {
             Group {
                 if let workout = store.workout {
                     surface(workout, reading: WorkoutReading.of(workout))
@@ -46,9 +71,14 @@ struct ActiveWorkoutView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
+            .navigationDestination(for: HistoryRoute.self) { route in
+                HistoryDestination(route: route, history: history, focus: focus, library: library)
+            }
             .task {
                 openFocusedMovement()
                 await library.refreshIfNeeded()
+                await bodyweight.refreshIfNeeded()
+                if store.workout?.routine != nil { await routines.refreshIfNeeded() }
             }
             .onChange(of: store.workout == nil) { _, gone in
                 if gone { dismiss() }
@@ -64,7 +94,29 @@ struct ActiveWorkoutView: View {
             }
         }
         .sheet(isPresented: $isFinishPresented) {
-            FinishWorkoutSheet(store: store, library: library)
+            FinishWorkoutSheet(
+                store: store, library: library, bodyweight: bodyweight, routines: routines,
+                finished: finished)
+        }
+        .sheet(item: $movementSheet) { sheet in
+            switch sheet {
+            case .warmUp(let movementDataId, let working, let unit):
+                WarmUpSheet(
+                    title: library.title(of: movementDataId),
+                    ramp: WarmUpRamp.to(working, unit: unit, loading: loading(of: movementDataId, in: unit)),
+                    working: working,
+                    plates: library.movement(movementDataId)?.isBarbell == true ? PlateSet.for(unit) : nil
+                ) { step in
+                    logWarmUp(step, on: movementDataId, unit: unit)
+                }
+            case .setup(let movementDataId):
+                MovementSetupSheet(
+                    title: library.title(of: movementDataId),
+                    setup: library.movement(movementDataId)?.setup ?? .none
+                ) { setup in
+                    try await library.updateSetup(setup, of: movementDataId)
+                }
+            }
         }
         .sheet(item: $editing) { logged in
             EditSetSheet(logged: logged, library: library) { command in
@@ -113,15 +165,23 @@ struct ActiveWorkoutView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            if let workout = store.workout, workout.destination.isLive {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(Formatting.clock(seconds: workout.elapsed(at: context.date)))
-                        .font(.headline.monospacedDigit())
-                        .accessibilityLabel(
-                            "\(Formatting.duration(seconds: workout.elapsed(at: context.date))) elapsed")
+            VStack(spacing: 0) {
+                if let workout = store.workout, workout.destination.isLive {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(Formatting.clock(seconds: workout.elapsed(at: context.date)))
+                            .font(.headline.monospacedDigit())
+                            .accessibilityLabel(
+                                "\(Formatting.duration(seconds: workout.elapsed(at: context.date))) elapsed")
+                    }
+                } else {
+                    Text("Past workout").font(.headline)
                 }
-            } else {
-                Text("Past workout").font(.headline)
+                if let routine = store.workout?.routine {
+                    Text(routine.name)
+                        .font(.caption)
+                        .foregroundStyle(Color(.secondaryLabel))
+                        .lineLimit(1)
+                }
             }
         }
         ToolbarItem(placement: .topBarLeading) {
@@ -234,6 +294,18 @@ struct ActiveWorkoutView: View {
         _ movement: WorkoutReading.MovementSets, in workout: ActiveWorkout
     ) -> some View {
         Section {
+            if let setup = library.movement(movement.movementDataId)?.setup, setup.hasNotes {
+                Text(setup.notes)
+                    .font(.footnote)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .lineLimit(4)
+                    .onTapGesture { movementSheet = .setup(movementDataId: movement.movementDataId) }
+                    .accessibilityLabel("Setup notes: \(setup.notes)")
+            }
+            if let previous = library.previous[movement.movementDataId] {
+                lastTimeRow(previous)
+            }
+
             ForEach(movement.sets) { numbered in
                 loggedSetRow(
                     numbered.logged,
@@ -250,7 +322,14 @@ struct ActiveWorkoutView: View {
             }
 
             if isOpen(on: movement.movementDataId), let open = Binding($draft) {
-                SetEntryForm(draft: open) { command in
+                SetEntryForm(
+                    draft: open,
+                    guide: SetGuide.of(
+                        open.wrappedValue, in: workout,
+                        previous: library.previous[movement.movementDataId],
+                        movement: library.movement(movement.movementDataId),
+                        bodyweight: bodyweight.series)
+                ) { command in
                     log(command, on: movement.movementDataId)
                 }
             } else {
@@ -277,18 +356,95 @@ struct ActiveWorkoutView: View {
                         .monospacedDigit()
                         .accessibilityLabel("All \(planned) planned sets, and \(extra) more")
                 }
-                // The picker lists near-identical movements side by side, so a wrong pick is
-                // ordinary. No confirmation: nothing is logged on it, and adding it back is a pick.
-                if workout.canDrop(movement.movementDataId) {
-                    // The draft is left as it is. The entry row reads it through a force-unwrapped
-                    // binding, so clearing it in the update that removes this section crashes; once
-                    // the section is gone nothing shows it, and the next `open` replaces it.
-                    Button("Remove") { store.drop(movement.movementDataId) }
-                        .font(.subheadline)
-                        .accessibilityLabel("Remove \(library.title(of: movement.movementDataId))")
-                }
+                movementMenu(movement, in: workout)
             }
         }
+    }
+
+    /// Last time on this movement, as one line: the day and every set, warm-ups marked.
+    private func lastTimeRow(_ previous: PreviousPerformance) -> some View {
+        let sets = previous.sets.compactMap { entry -> String? in
+            guard let text = Formatting.lastTime(entry) else { return nil }
+            return entry.kind.isWork ? text : "W \(text)"
+        }
+        return LabeledContent {
+            Text(sets.joined(separator: ", "))
+                .font(.footnote.monospacedDigit())
+                .multilineTextAlignment(.trailing)
+        } label: {
+            Text("Last · \(Formatting.dayInline(previous.date))")
+                .font(.footnote)
+        }
+        .foregroundStyle(Color(.secondaryLabel))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// What can be done to a movement as a whole: warm up to it, keep notes on it, or take it out
+    /// of a workout it was added to by mistake.
+    private func movementMenu(_ movement: WorkoutReading.MovementSets, in workout: ActiveWorkout) -> some View {
+        Menu {
+            if let target = warmUpTarget(for: movement.movementDataId, in: workout) {
+                Button("Warm-up sets") {
+                    movementSheet = .warmUp(
+                        movementDataId: movement.movementDataId, working: target.weight, unit: target.unit)
+                }
+            }
+            Button("Setup and notes") {
+                movementSheet = .setup(movementDataId: movement.movementDataId)
+            }
+            Button("History and records") {
+                route.append(.movement(movement.movementDataId))
+            }
+            // The picker lists near-identical movements side by side, so a wrong pick is ordinary.
+            // No confirmation: nothing is logged on it, and adding it back is a pick.
+            if workout.canDrop(movement.movementDataId) {
+                // The draft is left as it is. The entry row reads it through a force-unwrapped
+                // binding, so clearing it in the update that removes this section crashes; once the
+                // section is gone nothing shows it, and the next `open` replaces it.
+                Button("Remove from workout", role: .destructive) { store.drop(movement.movementDataId) }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .accessibilityLabel("\(library.title(of: movement.movementDataId)) options")
+        }
+        .textCase(nil)
+    }
+
+    /// The weight a warm-up ramp builds to: the entry row's, where it is open on this movement with a
+    /// weight in it, else what the next working set would open with.
+    private func warmUpTarget(
+        for movementDataId: UUID, in workout: ActiveWorkout
+    ) -> (weight: Double, unit: WeightUnit)? {
+        if let draft, draft.movementDataId == movementDataId, draft.modality == .lift,
+           let weight = SetDraft.number(draft.weight), weight > 0 {
+            return (weight, draft.weightUnit)
+        }
+        guard case .lift(let next) = SetDefaults.nextSet(
+            on: movementDataId, in: workout, previous: library.previous[movementDataId]),
+              next.weight > 0
+        else { return nil }
+        return (next.weight, next.unit)
+    }
+
+    private func loading(of movementDataId: UUID, in unit: WeightUnit) -> WarmUpRamp.Loading {
+        let movement = library.movement(movementDataId)
+        if movement?.setup.addsToBodyweight == true { return .addedToBodyweight }
+        if movement?.isBarbell == true, let plates = PlateSet.for(unit) { return .barbell(plates) }
+        return .other
+    }
+
+    /// Logs one step of the ramp as a warm-up. No rest is started: the rest that matters is the one
+    /// after the work, and a two-minute clock after a set of ten with the empty bar is noise.
+    private func logWarmUp(_ step: WarmUpRamp.Step, on movementDataId: UUID, unit: WeightUnit) {
+        store.log(
+            .lift(SetCommand.Lift(
+                movementDataId: movementDataId, reps: step.reps, weight: step.weight, unit: unit,
+                rpe: .unrated, kind: .warmUp)),
+            restingFor: nil)
+        Haptics.setLogged()
+        library.noteUsed(movementDataId)
+        // The entry row moves on to the work, which a warm-up never seeds.
+        if draft?.movementDataId == movementDataId { open(movementDataId) }
     }
 
     @ViewBuilder
@@ -437,7 +593,7 @@ struct ActiveWorkoutView: View {
     /// Opens the entry row on a movement, pre-filled by the carry-forward rule.
     private func open(_ movementDataId: UUID) {
         guard let workout = store.workout else { return }
-        draft = SetDraft(next: movementDataId, in: workout)
+        draft = SetDraft(next: movementDataId, in: workout, previous: library.previous[movementDataId])
         store.work(on: movementDataId)
     }
 
@@ -459,8 +615,13 @@ struct ActiveWorkoutView: View {
             Haptics.achievement()
         }
 
-        // Re-seeded from the set just logged rather than kept as typed, so a correction made before
-        // logging does not persist into the next set unless it was logged.
-        draft = SetDraft(from: command)
+        // Re-seeded by the rule rather than kept as typed, so a correction made before logging does
+        // not persist into the next set unless it was logged — and the next set takes last time's
+        // reps at its own position.
+        if let movementDataId, let workout = store.workout {
+            draft = SetDraft(next: movementDataId, in: workout, previous: library.previous[movementDataId])
+        } else {
+            draft = SetDraft(from: command)
+        }
     }
 }

@@ -243,6 +243,36 @@ struct DeferredStartTests {
         #expect(held.workout.destination == .deferredStart(localId: Self.localId))
     }
 
+    // MARK: - From a routine
+
+    private static let upper = WorkoutRoutine(
+        routineId: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!, name: "Upper",
+        movements: [RoutineMovement(movementDataId: AWorkout.bench, workingSets: 2)])
+
+    @Test("A routine workout started offline opens its session named for the routine")
+    func aRoutineWorkoutOpensNamedForItsRoutine() async {
+        let (store, _, server, _) = Self.aStore()
+        store.begin(destination: .deferredStart(localId: Self.localId), startedAt: AWorkout.start, routine: Self.upper)
+        store.log(.freeform(text: "a set"), restingFor: nil)
+
+        await store.syncNow()
+
+        #expect(server.unplannedRoutines == [Self.upper.routineId])
+        // Its movements are in the workout from the start, so each has somewhere to log.
+        #expect(store.workout?.addedMovementDataIds == [AWorkout.bench])
+    }
+
+    @Test("A routine workout finished before it was opened lands whole, named for the routine")
+    func aRoutineWorkoutLandsWholeNamedForItsRoutine() async {
+        let (store, _, server, _) = Self.aStore()
+        store.begin(destination: .deferredStart(localId: Self.localId), startedAt: AWorkout.start, routine: Self.upper)
+        store.log(.freeform(text: "a set"), restingFor: nil)
+
+        _ = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+
+        #expect(server.loggedRoutines == [Self.upper.routineId])
+    }
+
     @Test("Finished once the server is back but before it was opened, it lands whole")
     func aNeverOpenedWorkoutLandsWhole() async {
         let (store, _, server, _) = Self.aStore()

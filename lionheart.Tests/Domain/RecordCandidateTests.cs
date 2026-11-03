@@ -263,6 +263,37 @@ public class RecordCandidateTests
     }
 
     [Fact]
+    public void A_warm_up_claims_no_lift_record_and_adds_nothing_to_the_session_volume()
+    {
+        // Heavier than the work and longer than it: counted, it would hold every lift record here.
+        var candidates = From(
+            Lift(Bench, weight: 275, reps: 12) with { Kind = SetKind.WarmUp },
+            Lift(Bench, weight: 225, reps: 5));
+
+        Assert.Equal(new LiftPerformance(225, WeightUnit.Pounds, 5), Single<Achievement.HeaviestSet>(candidates).Lift);
+        Assert.Equal(new LiftPerformance(225, WeightUnit.Pounds, 5), Single<Achievement.BestSetVolume>(candidates).Lift);
+        Assert.Equal(225 * 5, Single<Achievement.BestSessionVolume>(candidates).Total.Volume);
+        Assert.Equal(5, candidates.Select(c => c.Achievement).OfType<Achievement.RepMax>().Max(max => max.Reps));
+    }
+
+    [Fact]
+    public void A_session_of_warm_ups_alone_claims_nothing() =>
+        Assert.Empty(From(Lift(Bench, weight: 135, reps: 10) with { Kind = SetKind.WarmUp }));
+
+    [Theory]
+    [InlineData(SetKind.Drop)]
+    [InlineData(SetKind.Failure)]
+    public void A_drop_or_failure_set_counts_as_the_set_it_was(SetKind kind)
+    {
+        var candidates = From(
+            Lift(Bench, weight: 225, reps: 5),
+            Lift(Bench, weight: 185, reps: 10) with { Kind = kind });
+
+        Assert.Equal(new LiftPerformance(185, WeightUnit.Pounds, 10), Single<Achievement.BestSetVolume>(candidates).Lift);
+        Assert.Equal(225 * 5 + 185 * 10, Single<Achievement.BestSessionVolume>(candidates).Total.Volume);
+    }
+
+    [Fact]
     public void A_freeform_set_claims_nothing() =>
         Assert.Empty(RecordCandidates.From(SessionOf(Some.FreeformSet)));
 
@@ -281,11 +312,12 @@ public class RecordCandidateTests
             Notes = string.Empty,
             Provenance = Provenance.User,
             Membership = new Standalone(),
+            Origin = new RoutineOrigin.AdHoc(),
             CreatedAt = Some.Clock,
         };
 
     private static LiftSet Lift(Guid movementDataId, double weight, int reps, WeightUnit unit = WeightUnit.Pounds) =>
-        new(movementDataId, reps, weight, unit, Rpe.Unrated) { Source = new Formed(), Facets = [] };
+        new(movementDataId, reps, weight, unit, Rpe.Unrated, SetKind.Working) { Source = new Formed(), Facets = [] };
 
     private static DistanceTimeSet Measured(
         Guid movementDataId, double distance, DistanceUnit unit, TimeSpan duration) =>

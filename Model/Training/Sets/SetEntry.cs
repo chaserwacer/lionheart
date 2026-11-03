@@ -25,18 +25,25 @@ public abstract record SetEntry
 // only the guarded ones: System.Text.Json writes non-redeclared positional members first, so a
 // partial redeclaration would silently reorder the stored payload (pinned in StorageFormatTests).
 
+/// <remarks>
+/// <see cref="Kind"/> is the last member so a stored lift without one still reads, as
+/// <see cref="SetKind.Working"/>: the serializer leaves an absent constructor parameter at its
+/// default, and Working is the enum's zero.
+/// </remarks>
 public sealed record LiftSet(
     Guid MovementDataId,
     int Reps,
     double Weight,
     WeightUnit Unit,
-    Rpe Rpe) : SetEntry
+    Rpe Rpe,
+    SetKind Kind) : SetEntry
 {
     public Guid MovementDataId { get; init; } = MovementDataId;
     public int Reps { get; init; } = Reps;
     public double Weight { get; init; } = Require.Finite(Weight, nameof(Weight));
     public WeightUnit Unit { get; init; } = Require.ClosedEnum(Unit, nameof(Unit));
     public Rpe Rpe { get; init; } = Rpe;
+    public SetKind Kind { get; init; } = Require.ClosedEnum(Kind, nameof(Kind));
 }
 
 public sealed record DistanceTimeSet(

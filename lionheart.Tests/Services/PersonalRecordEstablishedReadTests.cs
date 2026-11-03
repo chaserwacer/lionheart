@@ -189,6 +189,6 @@ public class PersonalRecordEstablishedReadTests : IAsyncLifetime
         _athletes.SessionsAsync(service => service.LogCompletedAsync(
             _athletes.Owner,
             new LogCompletedSessionRequest(
-                [.. sets], new PeriodCommand(new DateTimeOffset(performed), null), null, "logged", null),
+                [.. sets], new PeriodCommand(new DateTimeOffset(performed), null), null, "logged", null, null),
             default));
 }

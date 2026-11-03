@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The athlete's movements, and the records standing against them.
+/// The athlete's movements, the records standing against them, and last time on each.
 ///
 /// It lives in `Store/` rather than in a feature because three places read it: the picker, the set
 /// rows (which turn a movement id into a name), and the workout bar. Loading it three times would
@@ -10,6 +10,9 @@ import Observation
 /// The records are loaded with it and refreshed when a workout is finished, not during one:
 /// `SetRecordOutcome` judges a set against the records as they stood when the workout began plus the
 /// sets logged since, which is the whole of what the device knows until the server has the session.
+/// Last time on each movement — the logging surface's previous column — is loaded and refreshed the
+/// same way, for the same reason: it is what the workout is measured against, and it only changes
+/// when a session is finished.
 @Observable
 @MainActor
 final class MovementLibraryStore {
@@ -26,8 +29,13 @@ final class MovementLibraryStore {
     /// a lift does.
     private(set) var records: [RecordSubject: SubjectRecords] = [:]
 
+    /// Last time on each movement, by movement. Empty until loaded, and a movement never trained
+    /// has none.
+    private(set) var previous: [UUID: PreviousPerformance] = [:]
+
     private let movements: MovementsAPI
     private let personalRecords: PersonalRecordsAPI
+    private let sessions: TrainingSessionsAPI
     private let defaults: UserDefaults
     private var load: Task<Void, Never>?
 
@@ -42,9 +50,13 @@ final class MovementLibraryStore {
     /// that landed from one cancelled by a newer refresh, which leaves the old value in place.
     @ObservationIgnored private var currentReads = 0
 
-    init(movements: MovementsAPI, records: PersonalRecordsAPI, defaults: UserDefaults = .standard) {
+    init(
+        movements: MovementsAPI, records: PersonalRecordsAPI, sessions: TrainingSessionsAPI,
+        defaults: UserDefaults = .standard
+    ) {
         self.movements = movements
         self.personalRecords = records
+        self.sessions = sessions
         self.defaults = defaults
     }
 
@@ -130,12 +142,34 @@ final class MovementLibraryStore {
         Task { await self.cover([id]) }
     }
 
+    /// The whole movement as one phrase, equipment included — for lists where the title alone is
+    /// ambiguous, two leg curls on different machines.
+    func fullName(of id: UUID) -> String {
+        movement(id)?.displayName ?? "Unknown movement"
+    }
+
     /// The records standing on the subject a set competes on, or `nil` for a set that has none.
     func records(for command: SetCommand) -> SubjectRecords? {
         command.recordSubject.flatMap { records[$0] }
     }
 
     func records(on movementDataId: UUID) -> SubjectRecords? { records[.movement(movementDataId)] }
+
+    /// Every movement's setup, by movement — what a finished workout's readout reads system load by.
+    var setups: [UUID: MovementSetup] {
+        Dictionary(all.map { ($0.movementDataId, $0.setup) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// Replaces a movement's setup on the server, and the catalogue's copy with the server's answer.
+    ///
+    /// There is no offline path: a note is not training, and the server is where it lives. A
+    /// failure is thrown as it came, for the sheet that asked to say so.
+    func updateSetup(_ setup: MovementSetup, of movementDataId: UUID) async throws {
+        let updated = try await movements.updateSetup(setup, of: movementDataId)
+        state = state.editing { catalogue in
+            catalogue.map { $0.movementDataId == updated.movementDataId ? updated : $0 }
+        }
+    }
 
     /// Remembers that a movement was just used, moving it to the front.
     func noteUsed(_ id: UUID) {
@@ -176,6 +210,7 @@ final class MovementLibraryStore {
         noticed = []
         covering?.cancel()
         covering = nil
+        previous = [:]
         defaults.removeObject(forKey: Self.recentsKey)
     }
 
@@ -186,14 +221,22 @@ final class MovementLibraryStore {
             // no signal: a workout started in a basement has to have movements to log against.
             async let catalogue = movements.movements(remembering: .movements)
             async let summaries = personalRecords.summaries(remembering: .recordSummaries)
+            async let lastTime = sessions.previousPerformances(remembering: .previousPerformances)
 
             let loaded = try await catalogue
             let found = try await summaries
+            // Last time is a convenience on top of the catalogue: a server that cannot answer it
+            // costs the previous column, not the movements to log against.
+            let performances = try? await lastTime
 
             state = state.applying(loaded)
             if case .current = loaded { currentReads += 1 }
             records = Dictionary(
                 found.value.map { ($0.subject, $0) }, uniquingKeysWith: { first, _ in first })
+            if let performances {
+                previous = Dictionary(
+                    performances.value.map { ($0.movementDataId, $0) }, uniquingKeysWith: { first, _ in first })
+            }
         } catch is CancellationError {
             return
         } catch {

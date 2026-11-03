@@ -2,23 +2,22 @@ using lionheart.Services.Import;
 
 namespace lionheart.Services.Strong;
 
-/// <summary>How many of each kind of set an import stored, and how many rest rows it set aside.</summary>
-/// <remarks>
-/// <see cref="Lifts"/> counts every set stored as a lift, the drop and failure sets included;
-/// those two are also counted on their own because their kind lives only in the session notes.
-/// </remarks>
-public sealed record StrongSetTally(int Lifts, int Drops, int Failures, int WarmUps, int RestTimers)
+/// <summary>How many sets of each kind a batch of workouts holds, and how many rest rows it set aside.</summary>
+/// <remarks>Every set is stored as a lift, so the four kinds together are the lifts.</remarks>
+public sealed record StrongSetTally(int Working, int WarmUps, int Drops, int Failures, int RestTimers)
 {
+    public int Lifts => Working + WarmUps + Drops + Failures;
+
     public static StrongSetTally Of(IEnumerable<StrongWorkout> workouts)
     {
         var all = workouts.ToList();
         var sets = all.SelectMany(workout => workout.Sets).ToList();
 
         return new StrongSetTally(
-            Lifts: sets.Count(set => set.Kind is not StrongSetKind.WarmUp),
+            Working: sets.Count(set => set.Kind is StrongSetKind.Working),
+            WarmUps: sets.Count(set => set.Kind is StrongSetKind.WarmUp),
             Drops: sets.Count(set => set.Kind is StrongSetKind.Drop),
             Failures: sets.Count(set => set.Kind is StrongSetKind.Failure),
-            WarmUps: sets.Count(set => set.Kind is StrongSetKind.WarmUp),
             RestTimers: all.Sum(workout => workout.RestTimers));
     }
 }
