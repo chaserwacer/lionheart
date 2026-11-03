@@ -76,7 +76,7 @@ Settings sits behind a toolbar button on Today, not in a sixth tab.
 
 **The active workout is the app's now-playing bar.** While a session is active it shows as a
 persistent accessory above the tab bar — elapsed time, the current movement, the rest clock — and
-taps up into the full-screen logging surface. It stays visible across all five tabs, exactly as
+taps up into the logging surface, presented as a sheet. It stays visible across all five tabs, exactly as
 Apple Music keeps the track you are playing. On iOS 26 that is `tabViewBottomAccessory`; the iOS 18
 path is a `safeAreaInset(edge: .bottom)` bar on the `TabView`. Both render the same
 `ActiveWorkoutBar`, so there is one appearance and one fallback, not two designs.

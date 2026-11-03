@@ -39,7 +39,7 @@ struct ActiveWorkoutView: View {
                 if let workout = store.workout {
                     surface(workout, reading: WorkoutReading.of(workout))
                 } else {
-                    // The workout finished — most likely from the Finish sheet — and this cover is
+                    // The workout finished — most likely from the Finish sheet — and this sheet is
                     // on its way out. A spinner is less jarring than an empty list for one frame.
                     ProgressView().controlSize(.large)
                 }
@@ -108,8 +108,8 @@ struct ActiveWorkoutView: View {
     ///
     /// It has to be here rather than in `navigationTitle`, which takes a string evaluated once: a
     /// clock has to be a `TimelineView` to tick, and this is the only placement that puts one where
-    /// a title goes. It is also the only elapsed clock the athlete can see while this cover is up,
-    /// since the cover is over the workout bar.
+    /// a title goes. It is also the only elapsed clock the athlete can see while this sheet is up,
+    /// since the sheet is over the workout bar.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {

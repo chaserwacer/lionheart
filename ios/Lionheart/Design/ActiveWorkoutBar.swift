@@ -174,7 +174,7 @@ struct ActiveWorkoutBar: View {
 /// `EmptyView` leaves an empty pill floating above the tab bar on every screen of the app. The
 /// condition costs a `TabView` rebuild when a workout starts or ends — the selected tab survives
 /// it, because the selection is `@State` outside the `TabView` — and each tab's navigation stack
-/// returns to its root, which happens under a full-screen cover either way.
+/// returns to its root, which happens under the logging sheet either way.
 ///
 /// The iOS 18 path keeps deciding inside the inset, where an `EmptyView` genuinely costs no height,
 /// and supplies the floating glass chrome the iOS 26 slot provides for free.

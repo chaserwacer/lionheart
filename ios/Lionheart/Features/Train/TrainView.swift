@@ -9,7 +9,7 @@ struct TrainView: View {
     let store: TrainStore
     let activeWorkout: ActiveWorkoutStore
     let library: MovementLibraryStore
-    /// Opens the logging surface. Held by the root so the bar and this tab open the same cover
+    /// Opens the logging surface. Held by the root so the bar and this tab open the same sheet
     /// rather than two.
     let openWorkout: () -> Void
 
