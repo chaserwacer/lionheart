@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Training;
 using Mapster;
@@ -9,10 +9,10 @@ namespace lionheart.Services;
 
 public interface IMovementDataService
 {
-    Task<Result<MovementDataDTO>> GetMovementDataAsync(IdentityUser user, Guid movementDataId);
-    Task<Result<List<MovementDataDTO>>> GetMovementDatasAsync(IdentityUser user);
-    Task<Result<MovementDataDTO>> CreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request);
-    Task<Result<MovementDataDTO>> FindOrCreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request);
+    Task<Result<MovementDataDTO, Problem>> GetMovementDataAsync(IdentityUser user, Guid movementDataId);
+    Task<Result<List<MovementDataDTO>, Problem>> GetMovementDatasAsync(IdentityUser user);
+    Task<Result<MovementDataDTO, Problem>> CreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request);
+    Task<Result<MovementDataDTO, Problem>> FindOrCreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request);
 }
 
 public class MovementDataService : IMovementDataService
@@ -26,7 +26,7 @@ public class MovementDataService : IMovementDataService
         _movementModifierService = movementModifierService;
     }
 
-    public async Task<Result<MovementDataDTO>> GetMovementDataAsync(IdentityUser user, Guid movementDataId)
+    public async Task<Result<MovementDataDTO, Problem>> GetMovementDataAsync(IdentityUser user, Guid movementDataId)
     {
         var userGuid = Guid.Parse(user.Id);
         var movementData = await _context.MovementDatas
@@ -37,13 +37,13 @@ public class MovementDataService : IMovementDataService
 
         if (movementData == null)
         {
-            return Result<MovementDataDTO>.NotFound("MovementData not found or access denied.");
+            return Result<MovementDataDTO, Problem>.Failure(new Problem.NotFound("MovementData not found or access denied."));
         }
 
-        return Result<MovementDataDTO>.Success(movementData.ToDTO());
+        return Result<MovementDataDTO, Problem>.Success(movementData.ToDTO());
     }
 
-    public async Task<Result<List<MovementDataDTO>>> GetMovementDatasAsync(IdentityUser user)
+    public async Task<Result<List<MovementDataDTO>, Problem>> GetMovementDatasAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);
         var movementDatas = await _context.MovementDatas
@@ -55,10 +55,10 @@ public class MovementDataService : IMovementDataService
             .ThenBy(md => md.Equipment.Name)
             .ToListAsync();
 
-        return Result<List<MovementDataDTO>>.Success(movementDatas.Select(md => md.ToDTO()).ToList());
+        return Result<List<MovementDataDTO>, Problem>.Success(movementDatas.Select(md => md.ToDTO()).ToList());
     }
 
-    public async Task<Result<MovementDataDTO>> CreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request)
+    public async Task<Result<MovementDataDTO, Problem>> CreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
 
@@ -79,7 +79,7 @@ public class MovementDataService : IMovementDataService
 
         if (existing != null)
         {
-            return Result<MovementDataDTO>.Conflict("A MovementData with this combination already exists.");
+            return Result<MovementDataDTO, Problem>.Failure(new Problem.Conflict("A MovementData with this combination already exists."));
         }
 
         // Verify equipment exists and belongs to user
@@ -87,7 +87,7 @@ public class MovementDataService : IMovementDataService
             .FirstOrDefaultAsync(e => e.EquipmentID == request.EquipmentID && e.UserID == userGuid);
         if (equipment == null)
         {
-            return Result<MovementDataDTO>.NotFound("Equipment not found or access denied.");
+            return Result<MovementDataDTO, Problem>.Failure(new Problem.NotFound("Equipment not found or access denied."));
         }
 
         // Verify movement base exists and belongs to user
@@ -95,7 +95,7 @@ public class MovementDataService : IMovementDataService
             .FirstOrDefaultAsync(mb => mb.MovementBaseID == request.MovementBaseID && mb.UserID == userGuid);
         if (movementBase == null)
         {
-            return Result<MovementDataDTO>.NotFound("MovementBase not found or access denied.");
+            return Result<MovementDataDTO, Problem>.Failure(new Problem.NotFound("MovementBase not found or access denied."));
         }
 
         // Get the movement modifier entity if we have an ID
@@ -122,10 +122,10 @@ public class MovementDataService : IMovementDataService
         _context.MovementDatas.Add(movementData);
         await _context.SaveChangesAsync();
 
-        return Result<MovementDataDTO>.Created(movementData.ToDTO());
+        return Result<MovementDataDTO, Problem>.Success(movementData.ToDTO());
     }
 
-    public async Task<Result<MovementDataDTO>> FindOrCreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request)
+    public async Task<Result<MovementDataDTO, Problem>> FindOrCreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request)
     {
         var userGuid = Guid.Parse(user.Id);
 
@@ -146,7 +146,7 @@ public class MovementDataService : IMovementDataService
 
         if (existing != null)
         {
-            return Result<MovementDataDTO>.Success(existing.ToDTO());
+            return Result<MovementDataDTO, Problem>.Success(existing.ToDTO());
         }
 
         // Create new if not found

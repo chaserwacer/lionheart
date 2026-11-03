@@ -1,53 +1,71 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import { onMount, onDestroy } from 'svelte';
-
+  import { page } from "$app/state";
+  import { goto } from "$app/navigation";
+  import { onDestroy } from "svelte";
   import {
-    session,
-    movements,
-    isLoading,
-    errorMsg,
-    isEditing,
-    pendingOrderIds,
-    loadSession,
-    resetSessionStore,
-    enterEditMode,
-  } from '$lib/stores/sessionStore';
-  import { idOfMovement } from '$lib/utils/training';
+    LIFECYCLE_BADGES,
+    LIFECYCLE_LABELS,
+    prescriptionsOf,
+    setsOf,
+    WEIGHT_UNIT_LABELS,
+    type SetCommand,
+    type SetPrescriptionCommand,
+    type WeightUnit,
+  } from "$lib/api/training";
+  import { sessionDetail } from "$lib/stores/session.svelte";
+  import { relativeDay, training } from "$lib/stores/training.svelte";
+  import { describePrescription, describeSet, facetLabel } from "$lib/utils/setFormat";
 
-  import SessionHeader from '$lib/components/training/SessionHeader.svelte';
-  import SessionEffortRatings from '$lib/components/training/SessionEffortRatings.svelte';
-  import SessionDetailsPanel from '$lib/components/training/SessionDetailsPanel.svelte';
-  import MovementCard from '$lib/components/training/MovementCard.svelte';
-  import QuickAddMovement from '$lib/components/training/QuickAddMovement.svelte';
-  import ModifyTrainingSessionModal from '$lib/components/modals/ModifyTrainingSessionModal.svelte';
+  const sessionId = $derived(page.params.sessionId ?? "");
 
-  let sessionId = '';
-  $: ({ sessionId } = $page.params as any);
-
-  let showAddModal = false;
-  let showAiModal = false;
-
-  onMount(() => {
-    loadSession(sessionId);
+  // Reload whenever the route's id changes, not only on first mount.
+  $effect(() => {
+    if (sessionId !== "") sessionDetail.load(sessionId);
   });
 
-  onDestroy(() => {
-    resetSessionStore();
+  $effect(() => {
+    if (training.movementDatas.length === 0) training.loadLibrary();
   });
 
-  function handleOpenAddMovement() {
-    enterEditMode();
-    // Scroll to the quick add section
-    setTimeout(() => {
-      const quickAdd = document.querySelector('[data-quick-add]');
-      quickAdd?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
+  onDestroy(() => sessionDetail.reset());
+
+  const session = $derived(sessionDetail.session);
+  const nameOf = (id: string) => training.movementName(id);
+
+  // A new set needs a movement, and the library is the only place ids come from.
+  let pickedMovement = $state("");
+  let reps = $state(5);
+  let weight = $state(100);
+  let unit = $state<WeightUnit>(1);
+  let freeformText = $state("");
+
+  const facets = $derived(
+    session?.$type === "completed" && session.decoration.$type === "decorated"
+      ? session.decoration.facets
+      : [],
+  );
+
+  function addStructured() {
+    if (pickedMovement === "") return;
+    if (sessionDetail.editable === "prescriptions") {
+      sessionDetail.addLiftPrescription(pickedMovement, reps, weight, unit);
+    } else {
+      sessionDetail.addLiftSet(pickedMovement, reps, weight, unit);
+    }
   }
 
-  function handleAiModalClose() {
-    showAiModal = false;
-    loadSession(sessionId);
+  function addFreeform() {
+    if (freeformText.trim() === "") return;
+    if (sessionDetail.editable === "prescriptions") {
+      sessionDetail.addFreeformPrescription(freeformText.trim());
+    } else {
+      sessionDetail.addFreeformSet(freeformText.trim());
+    }
+    freeformText = "";
+  }
+
+  async function remove() {
+    if (await sessionDetail.remove()) goto("/training");
   }
 </script>
 
@@ -55,111 +73,249 @@
   <title>Session - Lionheart</title>
 </svelte:head>
 
-<div class={`min-h-screen bg-gradient-to-b from-base-200 to-base-300 ${$isEditing ? 'editing' : ''}`}>
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-32">
-    <SessionHeader {sessionId} />
+<div class="min-h-full bg-base-200">
+  <div class="mx-auto max-w-3xl px-4 py-6 pb-24 sm:px-6 sm:py-10">
+    <a
+      href="/training"
+      class="mb-6 inline-block font-mono text-xs uppercase tracking-widest text-base-content/50"
+    >
+      &larr; Training
+    </a>
 
-    {#if $isLoading}
-      <div class="flex items-center justify-center py-16">
-        <div class="flex flex-col items-center gap-4">
-          <span class="loading loading-spinner loading-lg text-primary"></span>
-          <span class="text-base-content/60 font-medium">Loading session...</span>
-        </div>
-      </div>
-    {:else if $errorMsg}
-      <div class="alert alert-error shadow-lg rounded-2xl">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        <span>{$errorMsg}</span>
-      </div>
-    {:else if $session}
-      <SessionEffortRatings />
-      <SessionDetailsPanel />
-
-      <!-- Movements Section -->
-      <section class="mt-8">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-sm font-semibold uppercase tracking-wider text-base-content/50">
-            Movements
-          </h2>
-          <span class="text-xs font-mono text-base-content/40">
-            {$movements?.length ?? 0} total
+    {#if sessionDetail.loading}
+      <p class="text-sm text-base-content/50">Loading…</p>
+    {:else if session === null}
+      <p class="text-sm text-base-content/50">That session is not here.</p>
+    {:else}
+      <header class="mb-6">
+        <div class="flex items-start justify-between gap-3">
+          <h1 class="font-display text-4xl font-black leading-none tracking-tightest">
+            {session.notes?.trim() || "Session"}
+          </h1>
+          <span class="badge {LIFECYCLE_BADGES[session.$type]} shrink-0">
+            {LIFECYCLE_LABELS[session.$type]}
           </span>
         </div>
+        <p class="mt-3 font-mono text-sm uppercase tracking-widest text-base-content/50">
+          {relativeDay(session.$type === "planned" || session.$type === "skipped"
+            ? session.plannedFor
+            : session.date)}
+        </p>
+      </header>
 
-        {#if ($movements?.length ?? 0) === 0}
-          <div class="card bg-base-100/50 backdrop-blur border border-dashed border-base-content/20 rounded-2xl">
-            <div class="card-body items-center text-center py-12">
-              <div class="w-16 h-16 rounded-full bg-base-200 flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </div>
-              <h3 class="font-display font-bold text-xl text-base-content/80">No movements yet</h3>
-              <p class="text-base-content/50 max-w-xs">
-                Add your first movement to start building this session.
-              </p>
-            </div>
-          </div>
-        {:else}
-          <div class="space-y-4">
-            {#each $movements as m (idOfMovement(m))}
-              <MovementCard movement={m} />
-            {/each}
-          </div>
+      {#if sessionDetail.error}
+        <p class="mb-4 rounded-xl border-2 border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
+          {sessionDetail.error}
+        </p>
+      {/if}
 
-          {#if $pendingOrderIds}
-            <div class="mt-4 flex items-center gap-2 text-sm text-warning">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span>Order changed — save with <kbd class="kbd kbd-xs">Done</kbd></span>
-            </div>
+      <!-- Transitions, not a status field. Each is offered only from the state it is legal in. -->
+      <div class="mb-8 flex flex-wrap gap-2">
+        {#if session.$type === "planned"}
+          <button
+            onclick={() => sessionDetail.start()}
+            disabled={sessionDetail.saving}
+            class="btn btn-neutral min-h-11 h-11 rounded-xl px-5 text-xs font-bold uppercase tracking-widest"
+          >
+            Start
+          </button>
+          <button
+            onclick={() => sessionDetail.skip()}
+            disabled={sessionDetail.saving}
+            class="btn btn-outline min-h-11 h-11 rounded-xl border-2 px-5 text-xs font-bold uppercase tracking-widest"
+          >
+            Skip
+          </button>
+        {:else if session.$type === "active"}
+          <button
+            onclick={() => sessionDetail.complete()}
+            disabled={sessionDetail.saving}
+            class="btn btn-neutral min-h-11 h-11 rounded-xl px-5 text-xs font-bold uppercase tracking-widest"
+          >
+            Complete
+          </button>
+        {/if}
+
+        {#if sessionDetail.editable !== "none"}
+          {#if sessionDetail.editing}
+            <button
+              onclick={() => sessionDetail.save()}
+              disabled={sessionDetail.saving}
+              class="btn btn-neutral min-h-11 h-11 rounded-xl px-5 text-xs font-bold uppercase tracking-widest"
+            >
+              Save
+            </button>
+            <button
+              onclick={() => sessionDetail.cancelEditing()}
+              class="btn btn-ghost min-h-11 h-11 text-xs font-bold uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+          {:else}
+            <button
+              onclick={() => sessionDetail.startEditing()}
+              class="btn btn-outline min-h-11 h-11 rounded-xl border-2 px-5 text-xs font-bold uppercase tracking-widest"
+            >
+              Edit
+            </button>
           {/if}
         {/if}
 
-        <!-- Quick Add Movement -->
-        <div data-quick-add class="mt-6">
-          <QuickAddMovement {sessionId} />
-        </div>
-      </section>
-    {:else}
-      <div class="card bg-base-100 shadow-xl rounded-2xl">
-        <div class="card-body items-center text-center py-16">
-          <div class="w-16 h-16 rounded-full bg-error/10 flex items-center justify-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 class="font-display font-bold text-xl">Session not found</h3>
-          <p class="text-base-content/50">This session may have been deleted or doesn't exist.</p>
-        </div>
+        <button
+          onclick={remove}
+          class="btn btn-ghost min-h-11 h-11 text-xs font-bold uppercase tracking-widest text-error"
+        >
+          Delete
+        </button>
       </div>
+
+      {#if sessionDetail.editing}
+        <section class="mb-6 rounded-2xl border-2 border-base-content/10 bg-base-100 p-5">
+          <label class="label" for="session-notes">
+            <span class="label-text text-xs font-bold uppercase tracking-widest">Notes</span>
+          </label>
+          <textarea
+            id="session-notes"
+            bind:value={sessionDetail.draftNotes}
+            rows="2"
+            class="textarea textarea-bordered w-full"
+          ></textarea>
+
+          <h2 class="mt-6 font-display text-xl font-black tracking-tight">
+            {sessionDetail.editable === "prescriptions" ? "Prescribed" : "Sets"}
+          </h2>
+          <p class="mt-1 text-xs text-base-content/40">
+            The whole list is written at once — there is no per-set save.
+          </p>
+
+          <ul class="mt-3 flex flex-col gap-2">
+            {#each sessionDetail.editable === "prescriptions" ? sessionDetail.draftPrescriptions : sessionDetail.draftSets as item, index (index)}
+              <li class="flex items-center gap-2 rounded-xl border border-base-content/10 px-3 py-2">
+                <span class="min-w-0 flex-1 truncate text-sm">
+                  {sessionDetail.editable === "prescriptions"
+                    ? describePrescription(item as SetPrescriptionCommand, nameOf)
+                    : describeSet(item as SetCommand, nameOf)}
+                </span>
+                <button
+                  aria-label="Move up"
+                  onclick={() =>
+                    sessionDetail.editable === "prescriptions"
+                      ? sessionDetail.movePrescription(index, -1)
+                      : sessionDetail.moveSet(index, -1)}
+                  class="btn btn-ghost btn-xs min-h-11 h-11">↑</button
+                >
+                <button
+                  aria-label="Move down"
+                  onclick={() =>
+                    sessionDetail.editable === "prescriptions"
+                      ? sessionDetail.movePrescription(index, 1)
+                      : sessionDetail.moveSet(index, 1)}
+                  class="btn btn-ghost btn-xs min-h-11 h-11">↓</button
+                >
+                <button
+                  aria-label="Remove"
+                  onclick={() =>
+                    sessionDetail.editable === "prescriptions"
+                      ? sessionDetail.removePrescription(index)
+                      : sessionDetail.removeSet(index)}
+                  class="btn btn-ghost btn-xs min-h-11 h-11 text-error">✕</button
+                >
+              </li>
+            {/each}
+          </ul>
+
+          <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <select bind:value={pickedMovement} class="select select-bordered col-span-2 text-sm">
+              <option value="">Pick a movement</option>
+              {#each training.movementDatas as movement (movement.movementDataID)}
+                <option value={movement.movementDataID}>
+                  {training.movementName(movement.movementDataID ?? "")}
+                </option>
+              {/each}
+            </select>
+            <input
+              type="number"
+              bind:value={reps}
+              min="1"
+              aria-label="Reps"
+              class="input input-bordered"
+            />
+            <input
+              type="number"
+              bind:value={weight}
+              min="0"
+              aria-label="Weight"
+              class="input input-bordered"
+            />
+            <select bind:value={unit} aria-label="Unit" class="select select-bordered">
+              <option value={0}>{WEIGHT_UNIT_LABELS[0]}</option>
+              <option value={1}>{WEIGHT_UNIT_LABELS[1]}</option>
+            </select>
+          </div>
+          <button
+            onclick={addStructured}
+            class="btn btn-outline mt-2 min-h-11 h-11 w-full rounded-xl border-2 text-xs font-bold uppercase tracking-widest"
+          >
+            Add set
+          </button>
+
+          <div class="mt-4 flex gap-2">
+            <input
+              type="text"
+              bind:value={freeformText}
+              placeholder="Or describe it in words"
+              class="input input-bordered flex-1"
+            />
+            <button onclick={addFreeform} class="btn btn-ghost min-h-11 h-11">Add</button>
+          </div>
+        </section>
+      {:else}
+        <section class="rounded-2xl border-2 border-base-content/10 bg-base-100 p-5">
+          {#if session.$type === "planned"}
+            <h2 class="font-display text-xl font-black tracking-tight">Prescribed</h2>
+            {#if prescriptionsOf(session).length === 0}
+              <p class="mt-3 text-sm text-base-content/50">Nothing prescribed.</p>
+            {:else}
+              <ul class="mt-3 space-y-2">
+                {#each prescriptionsOf(session) as prescription, index (index)}
+                  <li class="text-sm text-base-content/80">
+                    • {describePrescription(prescription, nameOf)}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          {:else if session.$type === "skipped"}
+            <p class="text-sm text-base-content/50">Skipped — nothing was logged.</p>
+          {:else}
+            <h2 class="font-display text-xl font-black tracking-tight">Sets</h2>
+            {#if setsOf(session).length === 0}
+              <p class="mt-3 text-sm text-base-content/50">No sets yet.</p>
+            {:else}
+              <ul class="mt-3 space-y-2">
+                {#each setsOf(session) as set, index (index)}
+                  <li class="text-sm text-base-content/80">• {describeSet(set, nameOf)}</li>
+                {/each}
+              </ul>
+            {/if}
+          {/if}
+
+          {#if session.notes}
+            <p class="mt-5 border-t-2 border-base-content/10 pt-4 text-sm text-base-content/60">
+              {session.notes}
+            </p>
+          {/if}
+
+          {#if facets.length > 0}
+            <div class="mt-4 flex flex-wrap gap-1.5">
+              {#each facets as facet, index (index)}
+                <span class="badge badge-outline badge-sm font-mono text-[0.625rem]">
+                  {facetLabel(facet)}
+                </span>
+              {/each}
+            </div>
+          {/if}
+        </section>
+      {/if}
     {/if}
   </div>
 </div>
-
-
-<!-- AI Modification Modal -->
-{#if showAiModal && $session}
-  <ModifyTrainingSessionModal
-    show={showAiModal}
-    session={$session}
-    on:close={handleAiModalClose}
-  />
-{/if}
-
-<style>
-  :global(.editing) :global(.wiggle) {
-    animation: wiggle 0.18s infinite alternate ease-in-out;
-    transform-origin: 50% 50%;
-  }
-
-  @keyframes wiggle {
-    from {
-      transform: rotate(-0.6deg);
-    }
-    to {
-      transform: rotate(0.6deg);
-    }
-  }
-</style>

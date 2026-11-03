@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  backend:
+    name: Backend — build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.301'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - run: dotnet restore lionheart.sln
+
+      # Release, not Debug: the Debug build has a target that runs `npm install` in ClientApp
+      # when node_modules is missing, which is the frontend job's business, not this one's.
+      - run: dotnet build lionheart.sln --configuration Release --no-restore
+
+      # The hermetic suite only. lionheart.all.runsettings and lionheart.localmodel.runsettings
+      # select tests that need a live LM Studio server with a model loaded (see
+      # lionheart.Tests/README.md); they have no meaning on a build agent. The suite is kept
+      # hermetic by a [Trait("Category", "LocalModel")] on those classes, which the filter in
+      # lionheart.runsettings excludes — so nothing here reaches the network.
+      - name: Test
+        run: dotnet test lionheart.sln --configuration Release --no-build --settings lionheart.runsettings
+
+  frontend:
+    name: Frontend — svelte-check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ClientApp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ClientApp/package-lock.json
+
+      - run: npm ci
+
+      # Type-checks the Svelte components against ClientApp/src/lib/api/ApiClient.ts, the
+      # NSwag-generated client. A failure here usually means the client is stale: run the
+      # backend once and commit what it regenerates.
+      - run: npm run check
+
+      # The unit suite over lib/utils and lib/stores. Not `npm test`, which also chains a
+      # Playwright step whose testDir holds no tests (see docs/api-and-composition.md §11).
+      - run: npm run test:unit

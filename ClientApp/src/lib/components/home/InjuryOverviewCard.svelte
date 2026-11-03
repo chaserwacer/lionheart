@@ -5,29 +5,30 @@
     type InjuryDTO,
   } from "$lib/api/ApiClient";
 
-  export let baseUrl = "";
+  let { baseUrl = "" }: { baseUrl?: string } = $props();
 
-  let injuries: InjuryDTO[] = [];
-  let activeInjuries: InjuryDTO[] = [];
-  let loading = true;
-  let modalOpen = false;
+  let injuries = $state<InjuryDTO[]>([]);
+  let loading = $state(true);
+  let modalOpen = $state(false);
 
-  $: activeInjuries = (injuries ?? []).filter((i) => i.isActive);
-  $: mostRecentEvent = getRecentEvent();
+  const activeInjuries = $derived(injuries.filter((i) => i.isActive));
+  const mostRecentEvent = $derived.by(getRecentEvent);
+
+  // An empty baseUrl prop means "call the origin that served the page".
+  const requestBaseUrl = $derived(
+    baseUrl ||
+      (typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost:5174"),
+  );
 
   onMount(async () => {
     await loadInjuries();
   });
 
   async function loadInjuries() {
-    if (!baseUrl) {
-      baseUrl =
-        typeof window !== "undefined"
-          ? window.location.origin
-          : "http://localhost:5174";
-    }
     try {
-      const client = new GetInjuriesEndpointClient(baseUrl);
+      const client = new GetInjuriesEndpointClient(requestBaseUrl);
       const result = await client.get();
       injuries = Array.isArray(result) ? result : [];
     } catch (e) {
@@ -39,8 +40,6 @@
   }
 
   function getRecentEvent() {
-    if (!activeInjuries || !Array.isArray(activeInjuries)) return null;
-
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
 
@@ -105,7 +104,7 @@
 
 <!-- Card -->
 <button
-  on:click={openModal}
+  onclick={openModal}
   class="card bg-base-100 shadow-editorial hover:shadow-editorial-lg transition-all duration-200
          cursor-pointer p-6 text-left w-full h-full
          border-2 border-base-content/10 hover:border-base-content/30
@@ -198,7 +197,7 @@
               : "injuries"}
           </p>
         </div>
-        <button on:click={closeModal} class="btn btn-ghost btn-sm btn-circle">
+        <button onclick={closeModal} aria-label="Close" class="btn btn-ghost btn-circle h-11 min-h-11 w-11">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -301,7 +300,7 @@
       {/if}
     </div>
   </div>
-  <form method="dialog" class="modal-backdrop bg-black/50 backdrop-blur-sm">
-    <button on:click={closeModal}>close</button>
+  <form method="dialog" class="modal-backdrop bg-black/50 backdrop-blur-xs">
+    <button onclick={closeModal}>close</button>
   </form>
 </dialog>

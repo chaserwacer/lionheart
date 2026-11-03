@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Runs ONLY the opt-in LM Studio integration tests. Select it with the "settings" option:
+      dotnet test  (settings) lionheart.localmodel.runsettings
+  A command-line filter cannot express this: VSTest ANDs the filter with the default
+  runsettings filter, so "Category=LocalModel" resolves to an empty set. Selecting a
+  different settings file replaces the default outright, which is why this file exists.
+-->
+<RunSettings>
+  <RunConfiguration>
+    <TestCaseFilter>Category=LocalModel</TestCaseFilter>
+  </RunConfiguration>
+</RunSettings>

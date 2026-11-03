@@ -14,9 +14,9 @@
     messages: ChatMessage[];
   };
 
-  let loadingPreview = true;
-  let previewConversation: ChatConversation | null = null;
-  let previewError = false;
+  let loadingPreview = $state(true);
+  let previewConversation = $state<ChatConversation | null>(null);
+  let previewError = $state(false);
 
   const quickPrompts: string[] = [
     "How am I trending this week (readiness, sleep, stress)?",
@@ -24,8 +24,9 @@
     "Any signs I'm overreaching in the last 7 days?",
   ];
 
-  $: hasPreviewMessages =
-    (previewConversation?.messages ?? []).filter((m) => (m.content ?? "").trim().length > 0).length > 0;
+  const hasPreviewMessages = $derived(
+    (previewConversation?.messages ?? []).filter((m) => (m.content ?? "").trim().length > 0).length > 0,
+  );
 
   function formatMessage(text: string | null | undefined): string {
     if (!text) return "";
@@ -82,8 +83,8 @@
 <div
   role="button"
   tabindex="0"
-  on:click={goToChat}
-  on:keydown={onCardKeydown}
+  onclick={goToChat}
+  onkeydown={onCardKeydown}
   class="card bg-base-100 shadow-editorial hover:shadow-editorial-lg transition-all duration-200
          cursor-pointer p-6 text-left w-full h-full
          border-2 border-base-content/10 hover:border-base-content/30"
@@ -174,7 +175,7 @@
               <button
                 type="button"
                 class="w-full text-left btn bg-base-100 border-2 border-base-content/10 hover:border-base-content/30 hover:bg-base-100/60 justify-start h-auto min-h-0 py-3 px-4 rounded-xl"
-                on:click={(ev) => {
+                onclick={(ev) => {
                   ev.stopPropagation();
                   openChatWithPrefill(prompt);
                 }}

@@ -1,6 +1,8 @@
 using lionheart.Data;
 using lionheart.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
@@ -13,15 +15,19 @@ using lionheart.Services.Training;
 using lionheart.Services.Profile;
 using System.ClientModel;
 using OpenAI;
+using OpenAI.Embeddings;
+using lionheart.Services.Embedding;
+using lionheart.Services.Interpretation;
+using lionheart.Services.Contexts;
+using lionheart.Services.Training.Programs;
+using lionheart.Services.Training.Sessions;
+using lionheart.Endpoints.OpenApi;
 
 // Load .env into the process environment before the host reads configuration,
 // so LmStudio__* keys flow through the default environment-variable provider.
 DotNetEnv.Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
-
-var services = builder.Services;
-
 
 var configuration = builder.Configuration;
 
@@ -32,10 +38,7 @@ if (!builder.Environment.IsEnvironment("Testing"))
         options.UseSqlite("Data Source=./Data/lionheart.db"));
 }
 
-builder.Services.AddOpenApi();
-
 builder.Services.AddAuthorization();
-services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
@@ -64,37 +67,59 @@ builder.Services.AddSingleton(provider =>
     new NarrativeChatClient(new ChatClient(model: narrativeModel, credential: credential, options: clientOptions))
 );
 
-builder.Services
-  .AddControllers()
-  .AddJsonOptions(opts =>
-  { 
+// Embeddings come from the same LM Studio server. The model is pinned in configuration because
+// vectors from different models are incomparable: changing it invalidates every stored vector
+// and requires a full re-decoration pass, never a partial one.
+var embeddingModel = configuration["LmStudio:EmbeddingModel"];
+if (string.IsNullOrWhiteSpace(embeddingModel))
+{
+    throw new InvalidOperationException(
+        "LM Studio embedding configuration is missing. Set LmStudio__EmbeddingModel in your .env file.");
+}
 
-      opts.JsonSerializerOptions.Converters.Add(
-        new DateOnlyJsonConverter("yyyy-MM-dd"));
-  });
+builder.Services.AddSingleton(provider =>
+    new EmbeddingClient(model: embeddingModel, credential: credential, options: clientOptions)
+);
+
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new DateOnlyJsonConverter("yyyy-MM-dd"));
+
+        // System.Text.Json requires "$type" to be the FIRST property when reading a polymorphic
+        // payload. The interpretation resume path echoes a parsed draft back to us, and any client
+        // that reorders keys on the way would otherwise fail to deserialize for no visible reason.
+        options.JsonSerializerOptions.AllowOutOfOrderMetadataProperties = true;
+    });
 
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddTransient<IUserService, UserService>();
-builder.Services.AddTransient<IActivityService, ActivityService>();
 builder.Services.AddTransient<IOuraService, OuraService>();
 builder.Services.AddTransient<IWellnessService, WellnessService>();
-builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
-builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
-builder.Services.AddTransient<IMovementService, MovementService>();
 builder.Services.AddTransient<IMovementDataService, MovementDataService>();
 builder.Services.AddTransient<IMovementBaseService, MovementBaseService>();
 builder.Services.AddTransient<IEquipmentService, EquipmentService>();
 builder.Services.AddTransient<IMovementModifierService, MovementModifierService>();
 builder.Services.AddScoped<IInjuryService, InjuryService>();
-builder.Services.AddTransient<ILiftSetEntryService, LiftSetEntryService>();
-builder.Services.AddTransient<IDTSetEntryService, DTSetEntryService>();
 builder.Services.AddTransient<IPersonalRecordService, PersonalRecordService>();
 builder.Services.AddTransient<IChatMessageService, ChatMessageService>();
 builder.Services.AddTransient<ChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
 builder.Services.AddTransient<IAthleteContextCardService, AthleteContextCardService>();
+builder.Services.AddTransient<IEmbeddingGenerator, LmStudioEmbeddingGenerator>();
+builder.Services.AddTransient<IInterpretationParser, InterpretationParser>();
+builder.Services.AddTransient<IFacetResolver, FacetResolver>();
+builder.Services.AddTransient<IMovementResolver, MovementResolver>();
+builder.Services.AddTransient<IInterpretationResolver, InterpretationResolver>();
+builder.Services.AddTransient<IInterpretationCommitter, InterpretationCommitter>();
+builder.Services.AddTransient<IInterpretationEngine, InterpretationEngine>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
+builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
+builder.Services.AddTransient<IContextService, ContextService>();
 
 
 builder.Services.AddSingleton<ToolRegistry>(sp =>
@@ -118,18 +143,22 @@ builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
 });
 
 
-
-
-
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new DateOnlyJsonConverter());
-    });
-
 builder.Services.AddHttpClient();
+
+// One OpenAPI document, from Swashbuckle. It is not only what the Scalar UI renders: the NSwag
+// TypeScript generator below reads it too, and NSwag reads OpenAPI 3.0, which is the version
+// Swashbuckle emits. AddOpenApi() describes the same endpoints but emits 3.1, so adding it back
+// would mean a second document and a generator that has to cope with a version NSwag does not.
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(); // <-- Add this
+builder.Services.AddSwaggerGen(options => options.DescribePolymorphicTypes());
+
+// The Svelte app imports a generated API client, so it has to be regenerated whenever the
+// endpoints change. Development only — it writes into the source tree.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHostedService<TypeScriptApiClientGenerator>();
+}
+
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole(options =>
 {
@@ -141,21 +170,23 @@ builder.Logging.AddConsole(options =>
 var app = builder.Build();
 
 app.MapIdentityApi<IdentityUser>();
-app.MapOpenApi();
-app.MapScalarApiReference();
 
-if (!app.Environment.IsDevelopment())
+// Serves the document at /swagger/v1/swagger.json; Scalar renders it at /scalar.
+app.UseSwagger();
+app.MapScalarApiReference(options => options
+    .WithTitle("Lionheart API")
+    .WithOpenApiRoutePattern("/swagger/{documentName}/swagger.json"));
+
+if (app.Environment.IsDevelopment())
+{
+    // Renders unhandled exceptions with the stack trace and the request. Development only:
+    // in any other environment the handler below answers with an opaque 500 instead.
+    app.UseDeveloperExceptionPage();
+}
+else
 {
     app.UseHsts();
 }
-app.UseDeveloperExceptionPage();
-
-app.UseSwagger(); // <-- Add this
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Lionheart API V1");
-    c.RoutePrefix = "swagger";
-});
 
 app.UseRouting();
 
@@ -185,26 +216,92 @@ app.UseAuthorization();
 
 app.UseHttpsRedirection();
 
+app.UseStaticFiles();
+
 app.MapControllers();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller}/{action=Index}/{id?}");
 
-// Only run TypeScript generation in non-test environments
-if (!app.Environment.IsEnvironment("Testing"))
+// SPA deep links. adapter-static emits one index.html shell, so a non-API path that matched no
+// endpoint has to serve it or a refresh on /training/session/{id} 404s. Unmatched /api paths must
+// still 404 honestly — returning the shell there would hand the client HTML to parse as JSON.
+app.MapFallback(async context =>
 {
-#pragma warning disable CS4014 
-    Task.Run(async () =>
-        {
-            Thread.Sleep(2000); // wait for the server to start
-            await new TsClientGenerator().SimpleGenerate("http://localhost:7025/swagger/v1/swagger.json");
-        });
-#pragma warning restore CS4014 
-}
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    var shell = Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html");
+    if (!File.Exists(shell))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    context.Response.ContentType = "text/html";
+    await context.Response.SendFileAsync(shell);
+});
 
 app.Run();
 
+/// <summary>
+/// Regenerates ClientApp's TypeScript API client from this server's own OpenAPI document, once
+/// per run. The document is read over HTTP, so there is nothing to read until Kestrel is
+/// listening: <see cref="StartedAsync"/> is the first moment at which that is true, which is
+/// why this is an <see cref="IHostedLifecycleService"/> and not an ordinary hosted service.
+/// </summary>
+internal sealed class TypeScriptApiClientGenerator(
+    IServer server,
+    ILogger<TypeScriptApiClientGenerator> logger) : IHostedLifecycleService
+{
+    private static readonly TimeSpan GenerationTimeout = TimeSpan.FromSeconds(30);
 
+    public async Task StartedAsync(CancellationToken cancellationToken)
+    {
+        if (ServerOrigin() is not { } origin)
+        {
+            logger.LogWarning("Skipped TypeScript client generation: the server reported no address to read the API document from.");
+            return;
+        }
 
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(GenerationTimeout);
+
+        try
+        {
+            await new TsClientGenerator()
+                .SimpleGenerate($"{origin}/swagger/v1/swagger.json")
+                .WaitAsync(timeout.Token);
+
+            logger.LogInformation("Regenerated ClientApp/src/lib/api/ApiClient.ts from {Origin}.", origin);
+        }
+        catch (Exception exception)
+        {
+            // A stale TypeScript client breaks the frontend build, not the API. Say so and serve.
+            logger.LogWarning(exception, "TypeScript client generation failed; ApiClient.ts is unchanged.");
+        }
+    }
+
+    /// <summary>
+    /// The address to read the document from, preferring plain HTTP: NSwag fetches with its own
+    /// HttpClient, which does not trust the local development certificate.
+    /// </summary>
+    private string? ServerOrigin()
+    {
+        var addresses = server.Features.Get<IServerAddressesFeature>()?.Addresses ?? [];
+        var address = addresses.FirstOrDefault(a => a.StartsWith("http://")) ?? addresses.FirstOrDefault();
+
+        return address?.TrimEnd('/').Replace("[::]", "localhost").Replace("0.0.0.0", "localhost");
+    }
+
+    public Task StartingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StoppingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StoppedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
 
 

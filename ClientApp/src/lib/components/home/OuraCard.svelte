@@ -2,13 +2,13 @@
   import type {  DailyOuraDataDTO } from "$lib/api/ApiClient";
   import { pageUpdate } from "$lib/stores/stores";
 
-  export let dailyOuraData: DailyOuraDataDTO;
+  let { dailyOuraData }: { dailyOuraData: DailyOuraDataDTO } = $props();
 
-  let modalOpen = false;
-  let activeTab: 'readiness' | 'sleep' | 'activity' | 'resilience' = 'readiness';
-  let syncing = false;
-  let syncError = "";
-  let syncSuccess = false;
+  let modalOpen = $state(false);
+  let activeTab = $state<'readiness' | 'sleep' | 'activity' | 'resilience'>('readiness');
+  let syncing = $state(false);
+  let syncError = $state("");
+  let syncSuccess = $state(false);
 
   function openModal() {
     modalOpen = true;
@@ -82,7 +82,7 @@
 
 <!-- Card -->
 <button
-  on:click={openModal}
+  onclick={openModal}
   class="card bg-base-100 shadow-editorial hover:shadow-editorial-lg transition-all duration-200
          cursor-pointer p-6 text-left w-full h-full
          border-2 border-base-content/10 hover:border-base-content/30"
@@ -133,7 +133,7 @@
         </div>
         <div class="flex gap-2">
           <button
-            on:click={syncTodayData}
+            onclick={syncTodayData}
             disabled={syncing}
             class="btn btn-ghost btn-sm btn-circle"
             title="Sync today's data"
@@ -146,7 +146,7 @@
               </svg>
             {/if}
           </button>
-          <button on:click={closeModal} class="btn btn-ghost btn-sm btn-circle">
+          <button onclick={closeModal} aria-label="Close" class="btn btn-ghost btn-circle h-11 min-h-11 w-11">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
@@ -177,30 +177,30 @@
     <div class="px-6 pt-4">
       <div class="flex gap-2 p-1 bg-base-200 rounded-2xl">
         <button
-          on:click={() => activeTab = 'readiness'}
+          onclick={() => activeTab = 'readiness'}
           class="flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all duration-200
-                 {activeTab === 'readiness' ? 'bg-base-100 shadow-sm' : 'hover:bg-base-300'}"
+                 {activeTab === 'readiness' ? 'bg-base-100 shadow-xs' : 'hover:bg-base-300'}"
         >
           Readiness
         </button>
         <button
-          on:click={() => activeTab = 'sleep'}
+          onclick={() => activeTab = 'sleep'}
           class="flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all duration-200
-                 {activeTab === 'sleep' ? 'bg-base-100 shadow-sm' : 'hover:bg-base-300'}"
+                 {activeTab === 'sleep' ? 'bg-base-100 shadow-xs' : 'hover:bg-base-300'}"
         >
           Sleep
         </button>
         <button
-          on:click={() => activeTab = 'activity'}
+          onclick={() => activeTab = 'activity'}
           class="flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all duration-200
-                 {activeTab === 'activity' ? 'bg-base-100 shadow-sm' : 'hover:bg-base-300'}"
+                 {activeTab === 'activity' ? 'bg-base-100 shadow-xs' : 'hover:bg-base-300'}"
         >
           Activity
         </button>
         <button
-          on:click={() => activeTab = 'resilience'}
+          onclick={() => activeTab = 'resilience'}
           class="flex-1 py-2 px-4 rounded-xl text-sm font-medium transition-all duration-200
-                 {activeTab === 'resilience' ? 'bg-base-100 shadow-sm' : 'hover:bg-base-300'}"
+                 {activeTab === 'resilience' ? 'bg-base-100 shadow-xs' : 'hover:bg-base-300'}"
         >
           Resilience
         </button>
@@ -323,7 +323,7 @@
       {/if}
     </div>
   </div>
-  <form method="dialog" class="modal-backdrop bg-black/50 backdrop-blur-sm">
-    <button on:click={closeModal}>close</button>
+  <form method="dialog" class="modal-backdrop bg-black/50 backdrop-blur-xs">
+    <button onclick={closeModal}>close</button>
   </form>
 </dialog>

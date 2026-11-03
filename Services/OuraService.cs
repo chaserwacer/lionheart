@@ -7,7 +7,7 @@ using lionheart.Model.Oura;
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Model.Request;
 using Model.Chat.Tools;
 
@@ -18,15 +18,15 @@ namespace lionheart.Services
         /// <summary>
         /// Synchronize Oura data for a user within a specified date range.
         /// </summary>
-        Task<Result> SyncOuraAPI(IdentityUser user, DateRangeRequest dateRange);
+        Task<Result<Unit, Problem>> SyncOuraAPI(IdentityUser user, DateRangeRequest dateRange);
         /// <summary>
         /// Get the daily Oura information for a user on a specific date.
         /// </summary>
-        Task<Result<DailyOuraDataDTO>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date);
+        Task<Result<DailyOuraDataDTO, Problem>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date);
         /// <summary>
         /// Get the daily Oura information for a user within a specified date range.
         /// </summary>
-        Task<Result<List<DailyOuraDataDTO>>> GetDailyOuraInfosAsync(IdentityUser user, DateRangeRequest dateRange);
+        Task<Result<List<DailyOuraDataDTO>, Problem>> GetDailyOuraInfosAsync(IdentityUser user, DateRangeRequest dateRange);
     }
     /// <summary>
     /// OuraService handles fetching, conversion, and storage of Oura Ring data for users.
@@ -50,7 +50,7 @@ namespace lionheart.Services
             _context = context;
         }
 
-        public async Task<Result<DailyOuraDataDTO>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date)
+        public async Task<Result<DailyOuraDataDTO, Problem>> GetDailyOuraInfoAsync(IdentityUser user, DateOnly date)
         {
             var userGuid = Guid.Parse(user.Id);
             var dto = await _context.DailyOuraDatas.FirstOrDefaultAsync(x => x.UserID == userGuid && x.Date == date) ?? null;
@@ -58,7 +58,7 @@ namespace lionheart.Services
 
             if (dto is not null)
             {
-                return Result<DailyOuraDataDTO>.Success(new DailyOuraDataDTO()
+                return Result<DailyOuraDataDTO, Problem>.Success(new DailyOuraDataDTO()
                 {
                     ObjectID = dto.ObjectID,
                     Date = dto.Date,
@@ -70,7 +70,7 @@ namespace lionheart.Services
             }
             else
             {
-                return Result<DailyOuraDataDTO>.Success(new DailyOuraDataDTO()
+                return Result<DailyOuraDataDTO, Problem>.Success(new DailyOuraDataDTO()
                 {
                     ObjectID = new Guid(),
                     Date = date,
@@ -124,7 +124,7 @@ namespace lionheart.Services
             }
         }
 
-        public async Task<Result> SyncOuraAPI(IdentityUser user, DateRangeRequest dateRange)
+        public async Task<Result<Unit, Problem>> SyncOuraAPI(IdentityUser user, DateRangeRequest dateRange)
         {
             var userGuid = Guid.Parse(user.Id);
             var userPersonalToken = await GetUserPersonalTokenAsync(userGuid);
@@ -172,10 +172,11 @@ namespace lionheart.Services
             var readinessUrl = "https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=" + earliestDateToInclude.ToString("yyyy-MM-dd") + "&end_date=" + endDate.ToString("yyyy-MM-dd");
 
 
-            //TODO: Update to return an uncessfessful result 
             if (earliestDateToInclude > endDate)
             {
-                return Result.Error("Earliest date to include is after the end date. No data to sync.");
+                return Result<Unit, Problem>.Failure(new Problem.Invalid(
+                    nameof(dateRange.EndDate),
+                    "Every day in the requested range is already synced past its own date, so the range covers nothing."));
             }
 
             (List<OuraDailyActivityDocument> activityDocuments, string activityJson) = await GetOuraDataFromApiAsync<OuraDailyActivityDocument>(activityUrl, userPersonalToken);
@@ -371,7 +372,7 @@ namespace lionheart.Services
                 }
                 currentDate = currentDate.AddDays(1);
             }
-            return Result.Success();
+            return Result<Unit, Problem>.Success(Unit.Value);
         }
 
         /// <summary>
@@ -475,7 +476,7 @@ namespace lionheart.Services
             return dtos;
         }
 
-        public async Task<Result<List<DailyOuraDataDTO>>> GetDailyOuraInfosAsync(IdentityUser user, DateRangeRequest dateRange)
+        public async Task<Result<List<DailyOuraDataDTO>, Problem>> GetDailyOuraInfosAsync(IdentityUser user, DateRangeRequest dateRange)
         {
             var userGuid = Guid.Parse(user.Id);
             var startDate = DateOnly.FromDateTime(dateRange.StartDate);
@@ -495,7 +496,7 @@ namespace lionheart.Services
                 })
                 .ToListAsync();
 
-            return Result<List<DailyOuraDataDTO>>.Success(dailyOuraInfos);
+            return Result<List<DailyOuraDataDTO>, Problem>.Success(dailyOuraInfos);
         }
 
     }

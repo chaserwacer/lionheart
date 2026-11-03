@@ -1,6 +1,5 @@
 using Ardalis.ApiEndpoints;
-using Ardalis.Filters;
-using Ardalis.Result.AspNetCore;
+using lionheart.Endpoints.Filters;
 using lionheart.Model.Training;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;
@@ -33,6 +32,8 @@ public class CreateMovementDataEndpoint : EndpointBaseAsync
         var user = await _userManager.GetUserAsync(User);
         if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-        return this.ToActionResult(await _movementDataService.CreateMovementDataAsync(user, request));
+        return this.ToActionResult(
+                await _movementDataService.CreateMovementDataAsync(user, request),
+                StatusCodes.Status201Created);
     }
 }

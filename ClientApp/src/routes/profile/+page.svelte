@@ -3,10 +3,10 @@
   import { bootUserDto } from "$lib/stores/stores";
   import { onMount } from "svelte";
 
-  let applicationName = "";
-  let personalApiAccessToken = "";
-  let showAccessTokenAdded = false;
-  let showApiAccessModal = false;
+  let applicationName = $state("");
+  let personalApiAccessToken = $state("");
+  let showAccessTokenAdded = $state(false);
+  let showApiAccessModal = $state(false);
 
   const themes = [
     { value: "bumblebee", label: "Bumblebee" },
@@ -94,7 +94,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span>Personal Access Token added successfully!</span>
-        <button class="btn btn-sm btn-ghost" on:click={() => showAccessTokenAdded = false}>✕</button>
+        <button class="btn btn-sm btn-ghost" onclick={() => showAccessTokenAdded = false}>✕</button>
       </div>
     {/if}
 
@@ -108,7 +108,7 @@
         </h2>
         <p class="text-xs text-base-content/60 mb-6 uppercase tracking-wider font-bold">Connect external services</p>
 
-        <button class="btn btn-primary w-full sm:w-auto px-5 gap-2 rounded-xl" on:click={showApiModal}>
+        <button class="btn btn-primary w-full sm:w-auto px-5 gap-2 rounded-xl" onclick={showApiModal}>
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
@@ -125,7 +125,7 @@
         </h2>
         <p class="text-xs text-base-content/60 mb-6 uppercase tracking-wider font-bold">Manage your account settings</p>
 
-        <button class="btn btn-outline btn-error w-full sm:w-auto px-5 gap-2 rounded-xl" on:click={logout}>
+        <button class="btn btn-outline btn-error w-full sm:w-auto px-5 gap-2 rounded-xl" onclick={logout}>
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
@@ -140,7 +140,7 @@
 {#if showApiAccessModal}
   <div class="modal modal-open">
     <div class="modal-box w-11/12 max-w-md">
-      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" on:click={closeApiModal}>✕</button>
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick={closeApiModal}>✕</button>
 
       <h3 class="text-xl font-bold uppercase tracking-wider mb-2">Add API Access Token</h3>
       <p class="text-xs text-base-content/60 mb-6 uppercase tracking-wider font-bold">
@@ -148,7 +148,7 @@
         See the API provider's documentation for token generation.
       </p>
 
-      <form on:submit|preventDefault={addPersonalApiAccessToken}>
+      <form onsubmit={(event) => { event.preventDefault(); addPersonalApiAccessToken(); }}>
         <div class="form-control w-full mb-4">
           <label class="label" for="app-name">
             <span class="label-text text-xs font-bold uppercase tracking-wider">Application</span>
@@ -179,7 +179,7 @@
         </div>
 
         <div class="modal-action">
-          <button type="button" class="btn btn-outline px-5 rounded-xl" on:click={closeApiModal}>Cancel</button>
+          <button type="button" class="btn btn-outline px-5 rounded-xl" onclick={closeApiModal}>Cancel</button>
           <button type="submit" class="btn btn-primary px-5 rounded-xl">Save Token</button>
         </div>
       </form>
@@ -189,8 +189,8 @@
       role="button"
       tabindex="0"
       aria-label="Close modal"
-      on:click={closeApiModal}
-      on:keydown={(e) => (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') && closeApiModal()}
+      onclick={closeApiModal}
+      onkeydown={(e) => (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') && closeApiModal()}
     ></div>
   </div>
 {/if}

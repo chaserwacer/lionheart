@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Training;
 using Microsoft.AspNetCore.Identity;
@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 public interface IMovementModifierService
 {
-    Task<Result<List<MovementModifierDTO>>> GetMovementModifiersAsync(IdentityUser user);
+    Task<Result<List<MovementModifierDTO>, Problem>> GetMovementModifiersAsync(IdentityUser user);
     Task<MovementModifierDTO?> FindOrCreateMovementModifierAsync(IdentityUser user, string? name);
 }
 
@@ -19,14 +19,14 @@ public class MovementModifierService : IMovementModifierService
         _context = context;
     }
 
-    public async Task<Result<List<MovementModifierDTO>>> GetMovementModifiersAsync(IdentityUser user)
+    public async Task<Result<List<MovementModifierDTO>, Problem>> GetMovementModifiersAsync(IdentityUser user)
     {
         var userGuid = Guid.Parse(user.Id);
         var modifiers = await _context.MovementModifiers
             .Where(mm => mm.UserID == userGuid)
             .OrderBy(mm => mm.Name)
             .ToListAsync();
-        return Result<List<MovementModifierDTO>>.Success(modifiers.Select(mm => mm.ToDTO()).ToList());
+        return Result<List<MovementModifierDTO>, Problem>.Success(modifiers.Select(mm => mm.ToDTO()).ToList());
     }
 
     /// <summary>

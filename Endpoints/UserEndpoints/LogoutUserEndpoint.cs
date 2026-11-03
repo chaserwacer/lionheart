@@ -3,7 +3,7 @@ using lionheart.Services;
 using lionheart.Model.User;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Ardalis.Filters;
+using lionheart.Endpoints.Filters;
 using Microsoft.AspNetCore.Authentication;
 
 namespace lionheart.Endpoints.UserEndpoints

@@ -1,6 +1,6 @@
 
 
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Chat;
 using lionheart.Services.Profile;
@@ -14,12 +14,12 @@ namespace lionheart.Services.Chat
 
     public interface IChatConversationService
     {
-        Task<Result<LHChatConversationDTO>> CreateChatConversationAsync(IdentityUser user, CreateChatConversationRequest request);
-        Task<Result<LHChatConversationDTO>> GetChatConversationAsync(IdentityUser user, Guid conversationId);
-        Task<Result<List<LHChatConversationDTO>>> GetAllChatConversationsAsync(IdentityUser user);
-        Task<Result<LHChatConversationDTO>> GetMostRecentChatConversationAsync(IdentityUser user);
-        Task<Result<LHChatConversationDTO>> UpdateChatConversationAsync(IdentityUser user, UpdateChatConversationRequest request);
-        Task<Result> DeleteChatConversationAsync(IdentityUser user, Guid chatConversationId);
+        Task<Result<LHChatConversationDTO, Problem>> CreateChatConversationAsync(IdentityUser user, CreateChatConversationRequest request);
+        Task<Result<LHChatConversationDTO, Problem>> GetChatConversationAsync(IdentityUser user, Guid conversationId);
+        Task<Result<List<LHChatConversationDTO>, Problem>> GetAllChatConversationsAsync(IdentityUser user);
+        Task<Result<LHChatConversationDTO, Problem>> GetMostRecentChatConversationAsync(IdentityUser user);
+        Task<Result<LHChatConversationDTO, Problem>> UpdateChatConversationAsync(IdentityUser user, UpdateChatConversationRequest request);
+        Task<Result<Unit, Problem>> DeleteChatConversationAsync(IdentityUser user, Guid chatConversationId);
     }
     public class ChatConversationService : IChatConversationService
     {
@@ -50,7 +50,7 @@ namespace lionheart.Services.Chat
             You are a training intelligence layer, not a dashboard.
             """;
 
-        public async Task<Result<LHChatConversationDTO>> CreateChatConversationAsync(IdentityUser user, CreateChatConversationRequest request)
+        public async Task<Result<LHChatConversationDTO, Problem>> CreateChatConversationAsync(IdentityUser user, CreateChatConversationRequest request)
         {
             var userId = Guid.Parse(user.Id);
             var conversationId = Guid.NewGuid();
@@ -61,10 +61,8 @@ namespace lionheart.Services.Chat
             string systemContent;
             try
             {
-                var cardResult = await _cardService.GetOrBuildCardAsync(user);
-                systemContent = cardResult.IsSuccess
-                    ? _cardService.RenderSystemMessage(cardResult.Value)
-                    : FallbackSystemPrompt;
+                systemContent = (await _cardService.GetOrBuildCardAsync(user))
+                    .Match(_cardService.RenderSystemMessage, _ => FallbackSystemPrompt);
             }
             catch
             {
@@ -96,10 +94,10 @@ namespace lionheart.Services.Chat
             _context.ChatConversations.Add(conversation);
             await _context.SaveChangesAsync();
 
-            return Result<LHChatConversationDTO>.Created(conversation.ToDTO());
+            return Result<LHChatConversationDTO, Problem>.Success(conversation.ToDTO());
         }
 
-        public async Task<Result> DeleteChatConversationAsync(IdentityUser user, Guid chatConversationId)
+        public async Task<Result<Unit, Problem>> DeleteChatConversationAsync(IdentityUser user, Guid chatConversationId)
         {
             var userId = Guid.Parse(user.Id);
             var conversation = await _context.ChatConversations
@@ -107,16 +105,16 @@ namespace lionheart.Services.Chat
 
             if (conversation == null)
             {
-                return Result.NotFound("Conversation not found.");
+                return Result<Unit, Problem>.Failure(new Problem.NotFound("Conversation not found."));
             }
 
             _context.ChatConversations.Remove(conversation);
             await _context.SaveChangesAsync();
 
-            return Result.Success();
+            return Result<Unit, Problem>.Success(Unit.Value);
         }
 
-        public async Task<Result<List<LHChatConversationDTO>>> GetAllChatConversationsAsync(IdentityUser user)
+        public async Task<Result<List<LHChatConversationDTO>, Problem>> GetAllChatConversationsAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
             var conversations = await _context.ChatConversations
@@ -124,11 +122,11 @@ namespace lionheart.Services.Chat
                 .OrderByDescending(c => c.LastUpdate)
                 .ProjectToType<LHChatConversationDTO>()
                 .ToListAsync();
-            return Result.Success(conversations);
+            return Result<List<LHChatConversationDTO>, Problem>.Success(conversations);
             
         }
 
-        public async Task<Result<LHChatConversationDTO>> GetChatConversationAsync(IdentityUser user, Guid conversationId)
+        public async Task<Result<LHChatConversationDTO, Problem>> GetChatConversationAsync(IdentityUser user, Guid conversationId)
         {
             var userId = Guid.Parse(user.Id);
             var conversation = await _context.ChatConversations
@@ -140,13 +138,13 @@ namespace lionheart.Services.Chat
 
             if (conversation == null)
             {
-                return Result.NotFound("Conversation not found.");
+                return Result<LHChatConversationDTO, Problem>.Failure(new Problem.NotFound("Conversation not found."));
             }
 
-            return Result.Success(conversation.ToDTO());
+            return Result<LHChatConversationDTO, Problem>.Success(conversation.ToDTO());
         }
 
-        public async Task<Result<LHChatConversationDTO>> GetMostRecentChatConversationAsync(IdentityUser user)
+        public async Task<Result<LHChatConversationDTO, Problem>> GetMostRecentChatConversationAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
             var conversation = await _context.ChatConversations
@@ -157,14 +155,14 @@ namespace lionheart.Services.Chat
                 .FirstOrDefaultAsync();
             if (conversation == null)
             {
-                return Result.NotFound("No conversations found.");
+                return Result<LHChatConversationDTO, Problem>.Failure(new Problem.NotFound("No conversations found."));
             }
-            return Result.Success(conversation.ToDTO());
+            return Result<LHChatConversationDTO, Problem>.Success(conversation.ToDTO());
 
 
         }
 
-        public async Task<Result<LHChatConversationDTO>> UpdateChatConversationAsync(IdentityUser user, UpdateChatConversationRequest request)
+        public async Task<Result<LHChatConversationDTO, Problem>> UpdateChatConversationAsync(IdentityUser user, UpdateChatConversationRequest request)
         {
             var userId = Guid.Parse(user.Id);
             var conversation = await _context.ChatConversations
@@ -172,7 +170,7 @@ namespace lionheart.Services.Chat
 
             if (conversation == null)
             {
-                return Result.NotFound("Conversation not found.");
+                return Result<LHChatConversationDTO, Problem>.Failure(new Problem.NotFound("Conversation not found."));
             }
 
             conversation.Name = request.Name;
@@ -180,7 +178,7 @@ namespace lionheart.Services.Chat
 
             await _context.SaveChangesAsync();
 
-            return Result.Success(conversation.ToDTO());
+            return Result<LHChatConversationDTO, Problem>.Success(conversation.ToDTO());
         }
 
         

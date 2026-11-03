@@ -1,15 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using lionheart.WellBeing;
-using lionheart.ActivityTracking;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using lionheart.Model.Oura;
 using lionheart.Model.Training;
 using lionheart.Model.InjuryManagement;
-using lionheart.Model.Training.SetEntry;
 using lionheart.Model.User;
 using lionheart.Model.Chat;
 using lionheart.Model.Profile;
+using lionheart.Model.Analysis;
+using lionheart.Model.Contexts;
+using Programs = lionheart.Model.Training.Programs;
+using Sessions = lionheart.Model.Training.Sessions;
 
 namespace lionheart.Data
 {
@@ -21,19 +23,13 @@ namespace lionheart.Data
     {
         public DbSet<LionheartUser> LionheartUsers { get; set; }
         public DbSet<WellnessState> WellnessStates { get; set; }
-        public DbSet<Activity> Activities { get; set; }
         public DbSet<ApiAccessToken> ApiAccessTokens { get; set; }
         public DbSet<DailyOuraData> DailyOuraDatas { get; set; }
-        public DbSet<TrainingProgram> TrainingPrograms { get; set; }
-        public DbSet<TrainingSession> TrainingSessions { get; set; }
         public DbSet<MovementBase> MovementBases { get; set; }
         public DbSet<Equipment> Equipments { get; set; }
         public DbSet<MuscleGroup> MuscleGroups { get; set;}
-        public DbSet<Movement> Movements { get; set; }
         public DbSet<MovementData> MovementDatas { get; set; }
         public DbSet<MovementModifier> MovementModifiers { get; set; }
-        public DbSet<LiftSetEntry> LiftSetEntries { get; set; }
-        public DbSet<DTSetEntry> DTSetEntries { get; set; }
         public DbSet<PersonalRecord> PersonalRecords { get; set; }
         public DbSet<Injury> Injuries { get; set; }
         public DbSet<InjuryEvent> InjuryEvents { get; set; }
@@ -43,8 +39,48 @@ namespace lionheart.Data
         public DbSet<LHSystemChatMessage> SystemChatMessages { get; set; }
         public DbSet<LHChatToolCallResult> ToolChatMessages { get; set; }
         public DbSet<AthleteContextCard> AthleteContextCards { get; set; }
+
+        // Training domain — design in docs/data-remodel.md
+        public DbSet<Sessions.TrainingSession> Sessions { get; set; }
+        public DbSet<Programs.TrainingProgram> Programs { get; set; }
+        public DbSet<Context> Contexts { get; set; }
+        public DbSet<AnalyzableEntry> AnalyzableEntries { get; set; }
+        public DbSet<FacetValue> FacetValues { get; set; }
+
         public ModelContext(DbContextOptions<ModelContext> options) : base(options)
         {
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            StampDerivedTimeColumns();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            StampDerivedTimeColumns();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        /// <summary>
+        /// Domain time-truth lives inside JSON Period columns; queries need a real indexed
+        /// column. Recomputing the duplicate on every save is what keeps it unable to drift.
+        /// </summary>
+        private void StampDerivedTimeColumns()
+        {
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
+                var period = entry.Entity switch
+                {
+                    Sessions.CompletedTrainingSession completed => completed.Period,
+                    Context context => context.Period,
+                    AnalyzableEntry analyzable => analyzable.Period,
+                    _ => null
+                };
+                if (period is not null) entry.Property("StartTime").CurrentValue = period.StartTimeUtc;
+            }
         }
 
 
@@ -91,59 +127,7 @@ namespace lionheart.Data
             // IdentityPasskeyData. Passkeys are unused, matching the framework default.
             modelBuilder.Ignore<IdentityUserPasskey<string>>();
 
-            // Activities
-            modelBuilder.Entity<Activity>()
-                .HasKey(a => a.ActivityID);
-
-            modelBuilder.Entity<Activity>()
-                .HasOne<LionheartUser>()
-                .WithMany(u => u.Activities)
-                .HasForeignKey(a => a.UserID);
-
-            modelBuilder.Entity<Activity>()
-                .HasOne<PerceivedEffortRatings>(a => a.PerceivedEffortRatings)
-                .WithOne()
-                .OnDelete(DeleteBehavior.Cascade)
-                .IsRequired(false);
-                       
-
-            // Training Programs
-            modelBuilder.Entity<TrainingProgram>()
-                .HasKey(p => p.TrainingProgramID);
-            modelBuilder.Entity<TrainingProgram>()
-                .HasOne<LionheartUser>()
-                .WithMany(u => u.TrainingPrograms)
-                .HasForeignKey(p => p.UserID);
-
-            // Training Sessions
-            modelBuilder.Entity<TrainingSession>()
-                .HasKey(s => s.TrainingSessionID);
-            modelBuilder.Entity<TrainingSession>()
-                .HasOne<TrainingProgram>(s => s.TrainingProgram)
-                .WithMany(p => p.TrainingSessions)
-                .HasForeignKey(s => s.TrainingProgramID)
-                .IsRequired(false);
-
-            modelBuilder.Entity<TrainingSession>()
-                .HasOne<LionheartUser>()
-                .WithMany(u => u.TrainingSessions)
-                .HasForeignKey(s => s.UserID);
-            
-            modelBuilder.Entity<TrainingSession>()
-                .HasOne<PerceivedEffortRatings>(s => s.PerceivedEffortRatings)
-                .WithOne()
-                .OnDelete(DeleteBehavior.Cascade)
-                .IsRequired(false) ;
-
-            // Movements + Movement Bases + Movement Modifiers + MovementData
-            modelBuilder.Entity<Movement>()
-                .HasKey(m => m.MovementID);
-            modelBuilder.Entity<Movement>()
-                .HasOne<TrainingSession>(t => t.TrainingSession)
-                .WithMany(s => s.Movements)
-                .HasForeignKey(m => m.TrainingSessionID);
-
-            // MovementData is now a separate table referenced by Movement via FK
+            // MovementData: reusable movement identity (base + equipment + modifier)
             modelBuilder.Entity<MovementData>()
                 .HasKey(md => md.MovementDataID);
 
@@ -174,13 +158,6 @@ namespace lionheart.Data
             modelBuilder.Entity<MovementData>()
                 .HasIndex(md => new { md.UserID, md.EquipmentID, md.MovementBaseID, md.MovementModifierID })
                 .IsUnique();
-
-            // Movement references MovementData via FK
-            modelBuilder.Entity<Movement>()
-                .HasOne(m => m.MovementData)
-                .WithMany()
-                .HasForeignKey(m => m.MovementDataID)
-                .OnDelete(DeleteBehavior.Restrict);
 
             // MovementModifier configuration
             modelBuilder.Entity<MovementModifier>()
@@ -214,21 +191,6 @@ namespace lionheart.Data
                 .WithMany(u => u.Equipments)
                 .HasForeignKey(e => e.UserID);
 
-            // Set Entries
-            modelBuilder.Entity<LiftSetEntry>()
-                .HasKey(s => s.SetEntryID);
-            modelBuilder.Entity<LiftSetEntry>()
-                .HasOne<Movement>(s => s.Movement)
-                .WithMany(m => m.LiftSets)
-                .HasForeignKey(s => s.MovementID);
-
-            modelBuilder.Entity<DTSetEntry>()
-                .HasKey(s => s.SetEntryID);
-            modelBuilder.Entity<DTSetEntry>()
-                .HasOne<Movement>(s => s.Movement)
-                .WithMany(m => m.DistanceTimeSets)
-                .HasForeignKey(s => s.MovementID);
-
             // Personal Records
             modelBuilder.Entity<PersonalRecord>()
                 .HasKey(pr => pr.PersonalRecordID);
@@ -248,12 +210,6 @@ namespace lionheart.Data
                 .HasOne(pr => pr.PreviousPersonalRecord)
                 .WithMany()
                 .HasForeignKey(pr => pr.PreviousPersonalRecordID)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            modelBuilder.Entity<PersonalRecord>()
-                .HasOne(pr => pr.SourceLiftSetEntry)
-                .WithMany()
-                .HasForeignKey(pr => pr.SourceLiftSetEntryID)
                 .OnDelete(DeleteBehavior.SetNull);
 
             // Index for fast lookup of active PRs by user and movement data
@@ -334,7 +290,7 @@ namespace lionheart.Data
                 .HasIndex(c => c.UserID)
                 .IsUnique();
 
-
+            RemodelConfiguration.Apply(modelBuilder);
         }
     }
 }

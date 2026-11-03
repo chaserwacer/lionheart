@@ -2,8 +2,7 @@ using Ardalis.ApiEndpoints;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Ardalis.Filters;
-using Ardalis.Result.AspNetCore;
+using lionheart.Endpoints.Filters;
 using lionheart.Model.Request;
 
 namespace lionheart.Endpoints.OuraEndpoints

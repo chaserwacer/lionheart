@@ -1,10 +1,10 @@
+using System.Diagnostics;
 using Ardalis.ApiEndpoints;
 using lionheart.Services;
 using lionheart.Model.User;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Ardalis.Result.AspNetCore;
-using Ardalis.Filters;
+using lionheart.Endpoints.Filters;
 
 namespace lionheart.Endpoints.UserEndpoints
 {
@@ -32,7 +32,21 @@ namespace lionheart.Endpoints.UserEndpoints
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-            return this.ToActionResult(await _userService.SetPersonalApiAccessToken(user, request));
+            return this.ToActionResult(
+                await _userService.SetPersonalApiAccessToken(user, request),
+                _ => true,
+                StatusCodeFor);
         }
+
+        /// <summary>
+        /// An application the athlete had not authorized is a new resource; one they had is an
+        /// edit of the token that was already there.
+        /// </summary>
+        private static int StatusCodeFor(ApiAccessTokenWrite written) => written switch
+        {
+            ApiAccessTokenWrite.Created => StatusCodes.Status201Created,
+            ApiAccessTokenWrite.Updated => StatusCodes.Status200OK,
+            _ => throw new UnreachableException()
+        };
     }
 }

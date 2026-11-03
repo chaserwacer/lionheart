@@ -2,8 +2,7 @@ using Ardalis.ApiEndpoints;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Ardalis.Filters;
-using Ardalis.Result.AspNetCore;
+using lionheart.Endpoints.Filters;
 using lionheart.Model.Request;
 
 namespace lionheart.Endpoints.OuraEndpoints
@@ -32,7 +31,6 @@ namespace lionheart.Endpoints.OuraEndpoints
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
             return this.ToActionResult(await _ouraService.SyncOuraAPI(user, request));
-            //return NoContent();
         }
     }
 }

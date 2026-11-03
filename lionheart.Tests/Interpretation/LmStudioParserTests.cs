@@ -1,0 +1,91 @@
+using System.ClientModel;
+using lionheart.Model.Interpretation;
+using lionheart.Model.Training.Sets;
+using lionheart.Services.Embedding;
+using lionheart.Services.Interpretation;
+using lionheart.Tests.Support;
+using OpenAI;
+using OpenAI.Chat;
+using OpenAI.Embeddings;
+
+namespace lionheart.Tests.Interpretation;
+
+/// <summary>
+/// Live checks against LM Studio. These exist because the fakes cannot answer the only question
+/// that matters here: does the configured model actually return content matching our schema?
+/// </summary>
+[Trait("Category", "LocalModel")]
+public class LmStudioParserTests
+{
+    private const string KnownMovements = """
+        Use these existing names verbatim when the text means one of them:
+        Movements this athlete logs: Bench Press, Front Squat
+        Equipment they own: Barbell, Sled, Bodyweight
+        """;
+
+    private static InterpretationParser BuildParser()
+    {
+        LmStudioFactAttribute.SkipUnlessAvailable();
+        return new InterpretationParser(LmStudio.CreateChatClient());
+    }
+
+    /// <summary>
+    /// Guards the reasoning-model trap specifically: with thinking enabled, LM Studio routes the
+    /// JSON to `reasoning_content` and leaves `content` empty, which surfaces here as an empty
+    /// response rather than a parse.
+    /// </summary>
+    [LmStudioFact]
+    public async Task StructuredLiftLogParsesIntoASessionWithSets()
+    {
+        var parsed = await BuildParser().ParseAsync(
+            new InterpretationRequest("Bench press 225x5, 235x5, 240x3 today. Felt strong.", DateTime.UtcNow),
+            KnownMovements);
+
+        var interpretation = ResultAssert.Succeeded(parsed);
+
+        var session = Assert.IsType<DraftSession>(Assert.Single(interpretation.Entries));
+        Assert.NotEmpty(session.Sets);
+        Assert.NotEmpty(session.Decoration.Facets);
+        Assert.NotEmpty(session.Decoration.SummaryText);
+        Assert.All(session.Sets, set => Assert.NotEmpty(Assert.IsType<Texted>(set.Source).RawText));
+    }
+
+    /// <summary>Terse input must stay loggable — a guessed lift here would be worse than a freeform set.</summary>
+    [LmStudioFact]
+    public async Task TerseLogStillProducesAnEntry()
+    {
+        var parsed = await BuildParser().ParseAsync(
+            new InterpretationRequest("sled pull+push worked up to 235, 2 or 3 sets. brutal", DateTime.UtcNow),
+            KnownMovements);
+
+        var interpretation = ResultAssert.Succeeded(parsed);
+        Assert.NotEmpty(interpretation.Entries);
+    }
+
+    [LmStudioFact]
+    public async Task NonTrainingTextBecomesAContextRatherThanASession()
+    {
+        var parsed = await BuildParser().ParseAsync(
+            new InterpretationRequest("Slept terribly last night, maybe four hours.", DateTime.UtcNow),
+            KnownMovements);
+
+        var interpretation = ResultAssert.Succeeded(parsed);
+        var entry = Assert.Single(interpretation.Entries);
+        Assert.False(entry is DraftSession, "A sleep note is a context, not a training session.");
+    }
+
+    [LmStudioFact]
+    public async Task EmbeddingsComeBackWithAStableDimensionCount()
+    {
+        LmStudioFactAttribute.SkipUnlessAvailable();
+        var generator = new LmStudioEmbeddingGenerator(LmStudio.CreateEmbeddingClient());
+
+        var vectors = await generator.GenerateBatchAsync(["heavy push session", "terrible sleep"]);
+
+        var embeddings = ResultAssert.Succeeded(vectors);
+        Assert.Equal(2, embeddings.Count);
+        Assert.NotEmpty(embeddings[0]);
+        // Equal dimensions are what make stored vectors comparable at all — see Vectors.CosineSimilarity.
+        Assert.Equal(embeddings[0].Length, embeddings[1].Length);
+    }
+}

@@ -1,4 +1,4 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Chat;
 using Microsoft.AspNetCore.Identity;
@@ -16,13 +16,13 @@ public interface IChatMessageService
     /// Intake user chat message, generate model response, store both + potential tool calls.
     /// Return model response message DTO.
     /// </summary>
-    Task<Result<LHChatMessageDTO>> ProcessUserChatMessageAsync(IdentityUser user, AddChatMessageRequest request);
+    Task<Result<LHChatMessageDTO, Problem>> ProcessUserChatMessageAsync(IdentityUser user, AddChatMessageRequest request);
     /// <summary>
     /// Stores collection of chat messages in a conversation.
     /// Works with collection of varying LHChatMessage derived types.
     /// </summary>
-    Task<Result<List<LHChatMessageDTO>>> StoreLHChatMessagesAsync(IdentityUser user, StoreLHChatMessagesRequest request);
-    Task<Result> DeleteChatMessageAsync(IdentityUser user, Guid chatMessageId);
+    Task<Result<List<LHChatMessageDTO>, Problem>> StoreLHChatMessagesAsync(IdentityUser user, StoreLHChatMessagesRequest request);
+    Task<Result<Unit, Problem>> DeleteChatMessageAsync(IdentityUser user, Guid chatMessageId);
 
 }
 
@@ -39,7 +39,7 @@ public class ChatMessageService : IChatMessageService
         _toolRegistry = toolRegistry;
     }
 
-    public async Task<Result<LHChatMessageDTO>> ProcessUserChatMessageAsync(IdentityUser user, AddChatMessageRequest request)
+    public async Task<Result<LHChatMessageDTO, Problem>> ProcessUserChatMessageAsync(IdentityUser user, AddChatMessageRequest request)
     {
         var userId = Guid.Parse(user.Id);
 
@@ -52,7 +52,7 @@ public class ChatMessageService : IChatMessageService
 
         if (storedConversation == null)
         {
-            return Result.NotFound("Conversation not found.");
+            return Result<LHChatMessageDTO, Problem>.Failure(new Problem.NotFound("Conversation not found."));
         }
 
         var message = new LHUserChatMessage
@@ -71,25 +71,25 @@ public class ChatMessageService : IChatMessageService
             Conversation = storedConversation,
             Options = GetChatCompletionOptions(_toolRegistry.GetAllChatTools())
         };
-        var responseMessage = await _chatCompletionService.GenerateChatCompletionAsync(user, chatCompletionRequest);
+        return await _chatCompletionService.GenerateChatCompletionAsync(user, chatCompletionRequest)
+            .BindAsync(response => StoreLHChatMessagesAsync(user, new StoreLHChatMessagesRequest
+                {
+                    ChatConversationID = request.ChatConversationID,
+                    Messages = response.CompletionGeneratedMessages
+                })
+                .MapAsync(_ => response))
+            .BindAsync(response => CompleteExchangeAsync(storedConversation, response));
+    }
 
-        if (responseMessage.IsError())
-        {
-            return Result.Error(responseMessage.Errors.ToString());
-        }
-        var storageResult = await StoreLHChatMessagesAsync(user, new StoreLHChatMessagesRequest
-        {
-            ChatConversationID = request.ChatConversationID,
-            Messages = responseMessage.Value.CompletionGeneratedMessages
-        });
-        if (storageResult.IsError())
-        {
-            return Result.Error(storageResult.Errors.ToString());
-        }
-
-        storedConversation.LastUpdate = DateTime.UtcNow;
+    private async Task<Result<LHChatMessageDTO, Problem>> CompleteExchangeAsync(
+        LHChatConversation conversation, ChatCompletionResponse response)
+    {
+        conversation.LastUpdate = DateTime.UtcNow;
         await _context.SaveChangesAsync();
-        return Result.Success(new LHChatMessageDTO(responseMessage.Value.CompletionGeneratedMessages.Select(m => m).First(m => m.ChatMessageItemID == responseMessage.Value.ModelFinalChatMessageID)));
+
+        return Result<LHChatMessageDTO, Problem>.Success(new LHChatMessageDTO(
+            response.CompletionGeneratedMessages.First(
+                m => m.ChatMessageItemID == response.ModelFinalChatMessageID)));
     }
     // Reasoning models spend output tokens "thinking" before answering, so the cap must cover both.
     // Running against a local LM Studio server, generosity is free.
@@ -106,7 +106,7 @@ public class ChatMessageService : IChatMessageService
         return completionOptions;
     }
 
-    public async Task<Result<List<LHChatMessageDTO>>> StoreLHChatMessagesAsync(IdentityUser user, StoreLHChatMessagesRequest request)
+    public async Task<Result<List<LHChatMessageDTO>, Problem>> StoreLHChatMessagesAsync(IdentityUser user, StoreLHChatMessagesRequest request)
     {
         var userId = Guid.Parse(user.Id);
         var conversation = await _context.ChatConversations
@@ -114,7 +114,7 @@ public class ChatMessageService : IChatMessageService
 
         if (conversation == null)
         {
-            return Result.NotFound("Conversation not found.");
+            return Result<List<LHChatMessageDTO>, Problem>.Failure(new Problem.NotFound("Conversation not found."));
         }
 
         var storedMessages = new List<LHChatMessageDTO>();
@@ -146,10 +146,10 @@ public class ChatMessageService : IChatMessageService
 
         await _context.SaveChangesAsync();
 
-        return Result.Success(storedMessages);
+        return Result<List<LHChatMessageDTO>, Problem>.Success(storedMessages);
     }
 
-    public async Task<Result> DeleteChatMessageAsync(IdentityUser user, Guid chatMessageId)
+    public async Task<Result<Unit, Problem>> DeleteChatMessageAsync(IdentityUser user, Guid chatMessageId)
     {
         var userId = Guid.Parse(user.Id);
 
@@ -162,11 +162,11 @@ public class ChatMessageService : IChatMessageService
         {
             if (userMessage.ChatConversation.UserID != userId)
             {
-                return Result.Forbidden();
+                return Result<Unit, Problem>.Failure(new Problem.Forbidden("This message belongs to another user."));
             }
             _context.UserChatMessages.Remove(userMessage);
             await _context.SaveChangesAsync();
-            return Result.Success();
+            return Result<Unit, Problem>.Success(Unit.Value);
         }
 
         var modelMessage = await _context.ModelChatMessages
@@ -177,11 +177,11 @@ public class ChatMessageService : IChatMessageService
         {
             if (modelMessage.ChatConversation.UserID != userId)
             {
-                return Result.Forbidden();
+                return Result<Unit, Problem>.Failure(new Problem.Forbidden("This message belongs to another user."));
             }
             _context.ModelChatMessages.Remove(modelMessage);
             await _context.SaveChangesAsync();
-            return Result.Success();
+            return Result<Unit, Problem>.Success(Unit.Value);
         }
 
         var toolMessage = await _context.ToolChatMessages
@@ -192,14 +192,14 @@ public class ChatMessageService : IChatMessageService
         {
             if (toolMessage.ChatConversation.UserID != userId)
             {
-                return Result.Forbidden();
+                return Result<Unit, Problem>.Failure(new Problem.Forbidden("This message belongs to another user."));
             }
             _context.ToolChatMessages.Remove(toolMessage);
             await _context.SaveChangesAsync();
-            return Result.Success();
+            return Result<Unit, Problem>.Success(Unit.Value);
         }
 
-        return Result.NotFound("Message not found.");
+        return Result<Unit, Problem>.Failure(new Problem.NotFound("Message not found."));
     }
 
     private static int EstimateTokenCount(string? content)

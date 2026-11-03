@@ -1,5 +1,4 @@
 using Ardalis.ApiEndpoints;
-using Ardalis.Result.AspNetCore;
 using lionheart.Model.Training;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;

@@ -3,8 +3,7 @@ using lionheart.Services;
 using lionheart.Model.User;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Ardalis.Result.AspNetCore;
-using Ardalis.Filters;
+using lionheart.Endpoints.Filters;
 
 namespace lionheart.Endpoints.UserEndpoints
 {
@@ -32,7 +31,9 @@ namespace lionheart.Endpoints.UserEndpoints
             var user = await _userManager.GetUserAsync(User);
             if (user is null) { return Unauthorized("User is not recognized or no longer exists."); }
 
-            return this.ToActionResult(await _userService.CreateProfileAsync(user, request));
+            return this.ToActionResult(
+                await _userService.CreateProfileAsync(user, request),
+                StatusCodes.Status201Created);
         }
     }
 }

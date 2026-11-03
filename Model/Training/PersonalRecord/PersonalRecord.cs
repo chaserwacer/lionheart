@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using lionheart.Model.Training.SetEntry;
+using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Training;
 
@@ -53,14 +53,6 @@ public class PersonalRecord
     public PersonalRecord? PreviousPersonalRecord { get; set; }
 
     /// <summary>
-    /// The LiftSetEntry that achieved this PR (if tracked from a training session).
-    /// </summary>
-    public Guid? SourceLiftSetEntryID { get; set; }
-
-    [ForeignKey("SourceLiftSetEntryID")]
-    public LiftSetEntry? SourceLiftSetEntry { get; set; }
-
-    /// <summary>
     /// Whether this PR is currently active (the current record).
     /// When a new PR is set, the old one becomes inactive.
     /// </summary>
@@ -81,7 +73,6 @@ public class PersonalRecord
             CreatedAt: CreatedAt,
             PreviousPRCreatedAt: PreviousPRCreatedAt,
             PreviousPersonalRecordID: PreviousPersonalRecordID,
-            SourceLiftSetEntryID: SourceLiftSetEntryID,
             IsActive: IsActive
         );
     }
@@ -113,7 +104,6 @@ public record PersonalRecordDTO(
     DateTime CreatedAt,
     DateTime? PreviousPRCreatedAt,
     Guid? PreviousPersonalRecordID,
-    Guid? SourceLiftSetEntryID,
     bool IsActive
 );
 

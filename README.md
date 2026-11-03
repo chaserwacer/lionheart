@@ -1,66 +1,124 @@
-# Project Lionheart
-*see LinkedIn for Demo
-## Overview
-Project Lionheart is a comprehensive athletic training data management platform designed to centralize, contextualize, and analyze the full spectrum of data that influences athletic performance. Unlike traditional fitness applications that focus narrowly on isolated activities or metrics, Lionheart is built around a holistic model of the athlete—capturing training, lifestyle, recovery, and subjective experience in a unified system.
+# Lionheart
 
-**Athletic performance cannot be meaningfully understood when data is fragmented**. By aggregating diverse data sources into a single, extensible platform, Lionheart enables athletes to view their performance in context.
+[![CI](https://github.com/chaserwacer/lionheart/actions/workflows/ci.yml/badge.svg)](https://github.com/chaserwacer/lionheart/actions/workflows/ci.yml)
 
----
+A personal athletic-training platform: one place for training, recovery, wearable data, injuries and
+subjective experience, built so a language model can reason over the whole picture rather than a slice
+of it.
 
-## Design Philosophy
+It is also, deliberately, a demonstration of how I think a modern C#/.NET and Svelte codebase should be
+built. The design decisions are written down rather than implied — see [Architecture](#architecture).
 
-Lionheart is guided by the following principles:
+> Product motivation and long-term vision: [`docs/project-vision.md`](docs/project-vision.md).
 
- 1. Holistic Athlete Modeling
+## Stack
 
- 2. Aggregation of Measured *and* Perceived Metrics
+| | |
+|---|---|
+| Backend | C# 14 · .NET 10 · EF Core 10 · SQLite |
+| API | Ardalis.ApiEndpoints (one class per endpoint) · OpenAPI via Swashbuckle · Scalar |
+| Frontend | SvelteKit 2 · **Svelte 5 runes** · Tailwind 4 · daisyUI 5 · installable PWA |
+| Intelligence | Local LLM through LM Studio's OpenAI-compatible API — no cloud dependency, no per-token cost |
+| Tests | xUnit — a hermetic suite plus a live-model suite behind an explicit gate |
 
- 3. Contextual Intelligence
+## Architecture
 
----
+Three ideas carry most of the design. Each has a document behind it, because a decision nobody wrote
+down gets re-litigated by the next person to touch the code — including the next model.
 
-## Motivation
+### 1. The domain is made of algebraic data types
 
-The development of Project Lionheart originated from a practical limitation encountered in real-world training: **data fragmentation**.
+Impossible states are unrepresentable, and *fidelity is a first-class axis* — a terse log is a
+genuinely smaller typed shape, never a god-schema full of nullable columns.
 
-Modern athletes often rely on numerous tools—strength training logs, activity trackers, wearable devices, injury notes, and subjective journaling—each siloed in its own application. While these tools may excel individually, they fail collectively.
+```csharp
+public abstract record TrainingSession { /* id, user, notes, provenance, membership */ }
 
-Lionheart was created to solve this problem by offering a unified platform where all relevant data can coexist, be explored cohesively, and be interpreted intelligently.
+public sealed record PlannedTrainingSession(DateOnly PlannedFor, IReadOnlyList<SetPrescription> Prescriptions) : TrainingSession;
+public sealed record ActiveTrainingSession(DateTimeOffset StartedAt, IReadOnlyList<SetEntry> Sets)            : TrainingSession;
+public sealed record CompletedTrainingSession(IReadOnlyList<SetEntry> Sets, Period Period,
+                                              EffortState Effort, DecorationState Decoration)                : TrainingSession, IAnalyzable;
+public sealed record SkippedTrainingSession(DateOnly PlannedFor)                                             : TrainingSession;
+```
 
----
+A status enum plus nullable fields would let a *planned* session carry actuals. This cannot. The same
+treatment runs through the model: `SetEntry` is `LiftSet | DistanceTimeSet | TrailRunSet | FreeformSet`,
+a moment is `Instant | Interval`, and optional values carry encapsulated fill-state (`Rpe.Unrated`,
+`EffortNotReported`, `Standalone`) rather than nulls.
 
-## Intelligent Analysis & AI Integration
+Typed domain, JSON storage: polymorphic lists persist through value converters with pinned `$type`
+discriminators, so the schema stays flexible while the code stays total.
+→ [`docs/data-remodel.md`](docs/data-remodel.md)
 
-A long-term objective of Project Lionheart is to enable intelligent analysis through large language models that can reason over the full context of an athlete’s data. By maintaining clean, structured, and semantically meaningful data models, Lionheart creates an environment in which machine intelligence can interpret training, recovery, lifestyle stressors, and subjective experience as parts of a unified system.
+### 2. Failure is a value, and composition is the point
 
-Large language models are uniquely well-suited to this problem domain. Athletic performance is inherently contextual and nonlinear—fatigue, readiness, and adaptation emerge from the interaction of many variables across time. Lionheart’s architecture is designed to allow LLMs to reason about these relationships holistically.
+`Result<T, Problem>` is owned rather than imported. The reason is concrete: the library it replaced had
+no `Bind`, so every pipeline in the repo hand-unwrapped its own results. `Problem` is a closed ADT, so a
+failure carries a *case* the code can match on instead of a string, and it becomes an HTTP status once,
+at the edge — a domain refusal never learns what a 404 is.
 
----
+The async combinator matrix is filled deliberately: both source shapes (`Result<T,E>` and
+`Task<Result<T,E>>`) crossed with both selector shapes. A missing cell is what forces `await (await …)`
+at a call site, which is the tell for an incomplete monad layer.
 
-## Technology Stack
+→ [`docs/api-and-composition.md`](docs/api-and-composition.md)
 
-- **Backend**: C#, .NET, Entity Framework Core  
-- **Database**: SQLite  
-- **Frontend**: SvelteKit  
-- **Styling**: Tailwind CSS, DaisyUI  
+### 3. One interpretation engine turns text into structured training data
 
----
+> "sled pull+push worked up to 235, 2 or 3 sets, shoulder felt tweaky"
 
-## Project Vision
+**Parse → Resolve → Commit**, versioned and re-runnable. An LLM extracts sets and a proposed
+annotation under a strict JSON schema; a resolver snaps movement names to the athlete's own vocabulary
+and facet values to canonical ones by embedding similarity; the committer writes the domain entity plus
+a denormalised row for retrieval. What it cannot break down stays a `FreeformSet` **by design** rather
+than becoming a guessed lift — and the raw utterance survives every later enrichment.
 
-Project Lionheart aims to become more than a training log—it is intended to function as an **athletic intelligence platform**. By combining comprehensive data aggregation with modern software architecture and AI-driven analysis, Lionheart seeks to empower athletes to better understand their bodies, their training, and the complex interactions that drive performance.
+Every annotation is stamped with the extractor version, so the same engine backfills its own past
+output when the prompt or the model improves.
 
-The ultimate goal is not just better tracking, but **better insight**.
+The surface for it is **Quick Log** (`/log`), which is the landing screen on a phone: one text
+box, a microphone where the browser supports it, and a confirmation step that only ever asks about
+the names it could not resolve.
 
-## Looking Ahead 
+→ [`docs/quick-log.md`](docs/quick-log.md)
 
-The more data Lionheart can agtgregate only increases the possibilities for this application. Incorporating a system enabling users to define custom data items for storage and analysis would encourge more personalized data models. Developing an intelligent natural language input system would simplify and encourage more data input from users. Currently, the project has been centered around athletic training and performance. In the future, this could change. With more data input centered around wellbeing and mental health, the reach of the application could grow. With systems supporting medication/supplementation tracking and monitoring, combined with the ability to provide data access to medical professionals, Lionheart could become an even more powerful tool. 
+## Testing
 
+Two suites, one gate:
 
-## Disclaimer 
+```bash
+dotnet test --settings lionheart.runsettings            # hermetic — no network, no model
+dotnet test --settings lionheart.localmodel.runsettings # live — needs LM Studio running
+```
 
-Project Lionheart is intended for educational, informational, and exploratory purposes only. The platform is designed to assist users in organizing, visualizing, and reflecting on athletic training, lifestyle, and performance-related data, but it does not provide medical, diagnostic, or therapeutic advice.
+The hermetic suite covers domain invariants, JSON round-trips against **hand-written fixtures that pin
+the on-disk bytes** (a round-trip test that uses the serializer as its own oracle cannot see a
+serializer bug), EF behaviour against real in-memory SQLite, generated SQL rather than just results,
+and the LLM tool-call loop through a fake transport under the real SDK.
 
-Any insights, analyses, recommendations, or interpretations generated by the system—including those produced through automated or AI-assisted processes—are not a substitute for professional medical advice, diagnosis, or treatment. Users should not rely on Project Lionheart to make medical decisions or to diagnose, treat, or prevent any injury, illness, or health condition.
+It was written adversarially — a second pass aimed at breaking the first — and that pass found six real
+defects, each of which now has a test that fails without its fix. They are listed in
+[`docs/data-remodel.md`](docs/data-remodel.md), along with a **Traps** section recording non-obvious
+failures already paid for. The most expensive: a reasoning model returns schema-conformant JSON in
+`reasoning_content` and leaves `content` empty, so parses silently come back blank until
+`reasoning_effort: "none"` is set.
 
-Always seek the guidance of a qualified healthcare professional, sports medicine specialist, or other licensed practitioner with any questions regarding physical health, injury management, recovery, or training decisions. Use of Project Lionheart is at the user’s own discretion and risk.
+## Running it
+
+Requires .NET 10 SDK, Node 24, and [LM Studio](https://lmstudio.ai) for the chat and interpretation
+features.
+
+```bash
+cp .env.example .env      # then set LmStudio__BaseUrl / ApiKey / Model / EmbeddingModel
+dotnet run                # API + SPA proxy; regenerates the TypeScript client on startup
+```
+
+`ClientApp/src/lib/api/ApiClient.ts` is **generated** from the OpenAPI document each time the backend
+starts. Never edit it by hand.
+
+## Repository conventions
+
+`CLAUDE.local.md` wires this repo to a set of engineering-standards skills, and the docs above are
+written to be read by both people and coding agents — decisions, a decision log, traps, and open
+questions with owners. Design intent that lives only in someone's head does not survive contact with an
+agent, and increasingly does not survive contact with a team either.

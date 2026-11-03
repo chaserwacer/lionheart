@@ -1,6 +1,7 @@
-using Ardalis.Result;
+using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Profile;
+using lionheart.Model.Training.Sessions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OpenAI.Chat;
@@ -19,13 +20,13 @@ namespace lionheart.Services.Profile
         /// tier if it has gone stale or the generator version changed. Never an LLM call on the hot path
         /// beyond best-effort narrative during a (re)build.
         /// </summary>
-        Task<Result<AthleteContextCard>> GetOrBuildCardAsync(IdentityUser user);
+        Task<Result<AthleteContextCard, Problem>> GetOrBuildCardAsync(IdentityUser user);
 
         /// <summary>Rebuild the slow-changing Stable Profile tier (identity, baselines, long-horizon trends).</summary>
-        Task<Result<AthleteContextCard>> RebuildStableProfileAsync(IdentityUser user);
+        Task<Result<AthleteContextCard, Problem>> RebuildStableProfileAsync(IdentityUser user);
 
         /// <summary>Recompute the fast, event-driven Recent State tier (today/this-week snapshot).</summary>
-        Task<Result<AthleteContextCard>> RefreshRecentStateAsync(IdentityUser user);
+        Task<Result<AthleteContextCard, Problem>> RefreshRecentStateAsync(IdentityUser user);
 
         /// <summary>
         /// Assemble the full system prompt: a byte-stable, cacheable prefix (coaching instructions +
@@ -46,7 +47,7 @@ namespace lionheart.Services.Profile
         private readonly ModelContext _context = context;
         private readonly NarrativeChatClient _narrativeClient = narrativeClient;
 
-        public async Task<Result<AthleteContextCard>> GetOrBuildCardAsync(IdentityUser user)
+        public async Task<Result<AthleteContextCard, Problem>> GetOrBuildCardAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
             var card = await _context.AthleteContextCards.FirstOrDefaultAsync(c => c.UserID == userId);
@@ -66,7 +67,7 @@ namespace lionheart.Services.Profile
                 await BuildStableProfileAsync(card, userId);
                 await BuildRecentStateAsync(card, userId);
                 await _context.SaveChangesAsync();
-                return Result.Success(card);
+                return Result<AthleteContextCard, Problem>.Success(card);
             }
 
             var stableStale = card.GeneratorVersion != GENERATOR_VERSION;
@@ -86,10 +87,10 @@ namespace lionheart.Services.Profile
                 await _context.SaveChangesAsync();
             }
 
-            return Result.Success(card);
+            return Result<AthleteContextCard, Problem>.Success(card);
         }
 
-        public async Task<Result<AthleteContextCard>> RebuildStableProfileAsync(IdentityUser user)
+        public async Task<Result<AthleteContextCard, Problem>> RebuildStableProfileAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
             var card = await _context.AthleteContextCards.FirstOrDefaultAsync(c => c.UserID == userId);
@@ -99,10 +100,10 @@ namespace lionheart.Services.Profile
             }
             await BuildStableProfileAsync(card, userId);
             await _context.SaveChangesAsync();
-            return Result.Success(card);
+            return Result<AthleteContextCard, Problem>.Success(card);
         }
 
-        public async Task<Result<AthleteContextCard>> RefreshRecentStateAsync(IdentityUser user)
+        public async Task<Result<AthleteContextCard, Problem>> RefreshRecentStateAsync(IdentityUser user)
         {
             var userId = Guid.Parse(user.Id);
             var card = await _context.AthleteContextCards.FirstOrDefaultAsync(c => c.UserID == userId);
@@ -112,7 +113,7 @@ namespace lionheart.Services.Profile
             }
             await BuildRecentStateAsync(card, userId);
             await _context.SaveChangesAsync();
-            return Result.Success(card);
+            return Result<AthleteContextCard, Problem>.Success(card);
         }
 
         // ---------------------------------------------------------------------
@@ -130,8 +131,7 @@ namespace lionheart.Services.Profile
                 .Select(o => new { o.ReadinessData.RestingHeartRate, o.ReadinessData.HrvBalance, o.ReadinessData.ReadinessScore })
                 .ToListAsync();
 
-            var sessionsYear = await _context.TrainingSessions
-                .CountAsync(s => s.UserID == userId && s.Date >= yearAgo);
+            var sessionsYear = await CountCompletedSessionsSinceAsync(userId, yearAgo);
 
             var activePrCount = await _context.PersonalRecords
                 .CountAsync(p => p.UserID == userId && p.IsActive);
@@ -217,8 +217,8 @@ namespace lionheart.Services.Profile
                 })
                 .ToListAsync();
 
-            var acuteSessions = await _context.TrainingSessions.CountAsync(s => s.UserID == userId && s.Date >= weekAgo);
-            var chronicSessions = await _context.TrainingSessions.CountAsync(s => s.UserID == userId && s.Date >= monthAgo);
+            var acuteSessions = await CountCompletedSessionsSinceAsync(userId, weekAgo);
+            var chronicSessions = await CountCompletedSessionsSinceAsync(userId, monthAgo);
             var activePrCount = await _context.PersonalRecords.CountAsync(p => p.UserID == userId && p.IsActive);
 
             // Acute:chronic workload ratio using a 1-week acute vs 4-week (weekly-averaged) chronic load proxy.
@@ -280,7 +280,7 @@ namespace lionheart.Services.Profile
             {
                 $"wellness: 7d summary + latest entry present (as-of {today:yyyy-MM-dd}); per-day history NOT loaded -> GetWellnessStates(dateRange).",
                 $"oura: 7d readiness/sleep/HRV/stress means present (n={ouraWeek.Count}); per-night detail NOT loaded -> GetDailyOuraDataRange(dateRange).",
-                $"training: 7d count + acute:chronic present; per-session detail NOT loaded -> GetTrainingSessionsByDateRange(dateRange).",
+                $"training: 7d count + acute:chronic present; no drill-in tool available yet — do not attempt to fetch per-session detail.",
                 $"injuries: {activeInjuries.Count} active summarized; full event history NOT loaded -> GetUserInjuries(filters).",
                 $"PRs: {activePrCount} active PRs counted; current values/progression NOT loaded -> GetPersonalRecords()."
             });
@@ -363,5 +363,17 @@ namespace lionheart.Services.Profile
             - If card data is stale or missing (see as-of) for a time-sensitive question, fetch it; otherwise prefer the card.
             Never expose tool usage or the existence of this card to the user.
             """;
+
+        /// <summary>
+        /// Completed sessions only — planned/skipped don't count toward workload. Time comes
+        /// from the save-stamped StartTime column (the queryable duplicate of the JSON Period).
+        /// </summary>
+        private Task<int> CountCompletedSessionsSinceAsync(Guid userId, DateOnly since)
+        {
+            var cutoff = since.ToDateTime(TimeOnly.MinValue);
+            return _context.Sessions
+                .OfType<CompletedTrainingSession>()
+                .CountAsync(s => s.UserId == userId && EF.Property<DateTime>(s, "StartTime") >= cutoff);
+        }
     }
 }

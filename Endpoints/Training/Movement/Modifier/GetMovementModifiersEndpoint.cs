@@ -1,8 +1,7 @@
 using Ardalis.ApiEndpoints;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Ardalis.Result.AspNetCore;
-using Ardalis.Filters;
+using lionheart.Endpoints.Filters;
 using lionheart.Model.Training;
 
 namespace lionheart.Endpoints.Training.Movement.Modifier

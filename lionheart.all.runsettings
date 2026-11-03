@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Runs everything, mocked and local-model alike. No filter, so it overrides the default
+  exclusion. Needs LM Studio reachable, or the LocalModel tests report themselves skipped.
+-->
+<RunSettings>
+  <RunConfiguration>
+  </RunConfiguration>
+</RunSettings>

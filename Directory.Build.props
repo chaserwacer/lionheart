@@ -1,0 +1,45 @@
+<Project>
+
+  <!--
+    Settings shared by lionheart and lionheart.Tests. Anything a project needs to state for
+    itself (package references, SPA wiring, runsettings) stays in that project's .csproj.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Reproducible builds">
+    <Deterministic>true</Deterministic>
+    <!--
+      Rewrites source paths in the PDB to deterministic, machine-independent ones. Only on a
+      build server: locally it would break the debugger's ability to find the sources.
+    -->
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    Enabled once the vulnerable-package listing came back empty for both projects (see the pin below);
+    until then this would only have failed builds over advisories no code change here could clear.
+    NuGet advisory warnings stay errors deliberately: a new advisory should stop the build, and the
+    pin below is how one gets cleared.
+  -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!--
+    Transitive security pin, not a dependency of ours. EF Core Sqlite 10.0.10 resolves
+    SQLitePCLRaw.lib.e_sqlite3 2.1.11, which carries GHSA-2m69-gcr7-jv3q (high). Pinning the patched
+    version here rather than in each .csproj is deliberate: a vulnerability pin that only some
+    projects carry is the one that gets missed. Remove once EF Core resolves a patched version itself.
+  -->
+  <ItemGroup>
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
+  </ItemGroup>
+
+</Project>

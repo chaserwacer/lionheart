@@ -1,57 +1,43 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
-    import {
-        equipments,
-        movementBases,
-        muscleGroups,
-        fetchEquipments,
-        fetchMovementBases,
-        fetchMuscleGroups,
-        createEquipment,
-        updateEquipment,
-        deleteEquipment,
-        createMovementBase,
-        updateMovementBase,
-        deleteMovementBase,
-        trainingError,
-    } from '$lib/stores/trainingStore';
+    import { training } from '$lib/stores/training.svelte';
     import type { EquipmentDTO, MovementBaseDTO } from '$lib/api/ApiClient';
 
     const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
-    let isSubmitting = false;
+    let isSubmitting = $state(false);
 
-    let showEquipmentList = true;
-    let showMovementBaseList = true;
+    let showEquipmentList = $state(true);
+    let showMovementBaseList = $state(true);
 
-    let editingEquipmentId: string | null = null;
-    let equipmentDraftName = '';
-    let equipmentDraftEnabled = true;
+    let editingEquipmentId = $state<string | null>(null);
+    let equipmentDraftName = $state('');
+    let equipmentDraftEnabled = $state(true);
 
-    let editingMovementBaseId: string | null = null;
-    let movementBaseDraftName = '';
-    let movementBaseDraftDescription = '';
-    let movementBaseDraftMuscleGroupIDs: string[] = [];
+    let editingMovementBaseId = $state<string | null>(null);
+    let movementBaseDraftName = $state('');
+    let movementBaseDraftDescription = $state('');
+    let movementBaseDraftMuscleGroupIDs = $state<string[]>([]);
 
     // Equipment modal states
-    let equipmentModalOpen = false;
-    let equipmentForm = { name: '' };
+    let equipmentModalOpen = $state(false);
+    let equipmentForm = $state({ name: '' });
 
     // Movement base modal states
-    let movementBaseModalOpen = false;
-    let movementBaseForm = {
+    let movementBaseModalOpen = $state(false);
+    let movementBaseForm = $state({
         name: '',
         description: '',
         muscleGroupIDs: [] as string[]
-    };
+    });
 
     // Delete confirmation modal
-    let deleteModalOpen = false;
-    let deleteTarget: { type: 'equipment' | 'movementBase'; id: string; name: string } | null = null;
+    let deleteModalOpen = $state(false);
+    let deleteTarget = $state<{ type: 'equipment' | 'movementBase'; id: string; name: string } | null>(null);
 
     onMount(async () => {
-        await Promise.all([fetchEquipments(), fetchMovementBases(), fetchMuscleGroups()]);
+        await training.loadLibrary();
     });
 
     function goBack() {
@@ -74,7 +60,7 @@
         isSubmitting = true;
 
         try {
-            await createEquipment(equipmentForm.name.trim());
+            await training.createEquipment(equipmentForm.name.trim());
             closeEquipmentModal();
         } finally {
             isSubmitting = false;
@@ -99,7 +85,7 @@
         if (!equipmentDraftName.trim()) return;
         isSubmitting = true;
         try {
-            await updateEquipment(equipment.equipmentID, equipmentDraftName.trim(), equipmentDraftEnabled);
+            await training.updateEquipment(equipment.equipmentID, equipmentDraftName.trim(), equipmentDraftEnabled);
             cancelEditEquipment();
         } finally {
             isSubmitting = false;
@@ -132,11 +118,11 @@
         isSubmitting = true;
 
         try {
-            const selectedMuscleGroups = $muscleGroups.filter(mg =>
+            const selectedMuscleGroups = training.muscleGroups.filter(mg =>
                 movementBaseForm.muscleGroupIDs.includes(mg.muscleGroupID)
             );
 
-            await createMovementBase(
+            await training.createMovementBase(
                 movementBaseForm.name.trim(),
                 movementBaseForm.description.trim() || "",
                 selectedMuscleGroups.length > 0 ? selectedMuscleGroups : []
@@ -169,11 +155,11 @@
         if (!movementBaseDraftName.trim()) return;
         isSubmitting = true;
         try {
-            const selectedMuscleGroups = $muscleGroups.length > 0
-                ? $muscleGroups.filter(mg => movementBaseDraftMuscleGroupIDs.includes(mg.muscleGroupID))
+            const selectedMuscleGroups = training.muscleGroups.length > 0
+                ? training.muscleGroups.filter(mg => movementBaseDraftMuscleGroupIDs.includes(mg.muscleGroupID))
                 : (movementBase.muscleGroups ?? []);
 
-            await updateMovementBase(
+            await training.updateMovementBase(
                 movementBase.movementBaseID,
                 movementBaseDraftName.trim(),
                 movementBaseDraftDescription.trim() || "",
@@ -206,15 +192,12 @@
         isSubmitting = true;
 
         try {
-            let success = false;
             if (deleteTarget.type === 'equipment') {
-                success = await deleteEquipment(deleteTarget.id);
+                await training.deleteEquipment(deleteTarget.id);
             } else {
-                success = await deleteMovementBase(deleteTarget.id);
+                await training.deleteMovementBase(deleteTarget.id);
             }
-            if (success) {
-                closeDeleteModal();
-            }
+            closeDeleteModal();
         } finally {
             isSubmitting = false;
         }
@@ -231,7 +214,7 @@
         <!-- Header -->
         <header class="mb-8">
             <button
-                on:click={goBack}
+                onclick={goBack}
                 class="flex items-center gap-2 text-base-content/50 hover:text-base-content transition-colors mb-4"
             >
                 <span>&larr;</span>
@@ -249,10 +232,10 @@
                 </div>
                 <div class="divider p-0 m-0"></div>
                 <div class="flex items-center gap-8">
-                    <button class="btn btn-white px-5 btn-outline btn-lg outline" on:click={openAddEquipmentModal}>
+                    <button class="btn btn-white px-5 btn-outline btn-lg outline" onclick={openAddEquipmentModal}>
                         Add Equipment
                     </button>
-                    <button class="btn btn-white px-5 btn-outline btn-lg outline" on:click={openAddMovementBaseModal}>
+                    <button class="btn btn-white px-5 btn-outline btn-lg outline" onclick={openAddMovementBaseModal}>
                         Add Movement Base
                     </button>
                 </div>
@@ -260,10 +243,10 @@
         </header>
 
         <!-- Error Display -->
-        {#if $trainingError}
+        {#if training.error}
             <div class="alert alert-error mb-6 rounded-xl">
-                <span>{$trainingError}</span>
-                <button class="btn btn-sm btn-ghost" on:click={() => trainingError.set(null)}>✕</button>
+                <span>{training.error}</span>
+                <button class="btn btn-sm btn-ghost" onclick={() => (training.error = "")}>✕</button>
             </div>
         {/if}
 
@@ -272,15 +255,15 @@
         {#if !showEquipmentList || !showMovementBaseList}
             <div class="flex flex-wrap gap-2 mb-6">
                 {#if !showEquipmentList}
-                    <button class="btn btn-sm rounded-xl" on:click={() => (showEquipmentList = true)}>
+                    <button class="btn btn-sm rounded-xl" onclick={() => (showEquipmentList = true)}>
                         Show Equipment
-                        <span class="badge badge-sm ml-2">{$equipments.length}</span>
+                        <span class="badge badge-sm ml-2">{training.equipment.length}</span>
                     </button>
                 {/if}
                 {#if !showMovementBaseList}
-                    <button class="btn btn-sm rounded-xl" on:click={() => (showMovementBaseList = true)}>
+                    <button class="btn btn-sm rounded-xl" onclick={() => (showMovementBaseList = true)}>
                         Show Movement Bases
-                        <span class="badge badge-sm ml-2">{$movementBases.length}</span>
+                        <span class="badge badge-sm ml-2">{training.movementBases.length}</span>
                     </button>
                 {/if}
             </div>
@@ -292,11 +275,11 @@
                     <li class="p-4 pb-2 text-xs opacity-60 tracking-wide flex items-center justify-between">
                         <span>Equipment</span>
                         <div class="flex items-center gap-2">
-                            <button class="btn btn-xs btn-ghost" on:click={openAddEquipmentModal}>Add</button>
+                            <button class="btn btn-xs btn-ghost" onclick={openAddEquipmentModal}>Add</button>
                             <button
                                 class="btn btn-xs btn-square btn-ghost"
                                 aria-label="Close equipment list"
-                                on:click={() => {
+                                onclick={() => {
                                     showEquipmentList = false;
                                     cancelEditEquipment();
                                 }}
@@ -309,10 +292,10 @@
                         </div>
                     </li>
 
-                    {#if $equipments.length === 0}
+                    {#if training.equipment.length === 0}
                         <li class="p-4 text-sm text-base-content/60">No equipment yet.</li>
                     {:else}
-                        {#each $equipments as equipment (equipment.equipmentID)}
+                        {#each training.equipment as equipment (equipment.equipmentID)}
                             <li class="list-row">
                                 <div class="size-10 rounded-box bg-base-200 flex items-center justify-center font-mono text-xs text-base-content/60">
                                     EQ
@@ -341,7 +324,7 @@
                                         class="btn btn-square btn-ghost"
                                         aria-label="Save equipment"
                                         disabled={isSubmitting}
-                                        on:click={() => saveEditEquipment(equipment)}
+                                        onclick={() => saveEditEquipment(equipment)}
                                     >
                                         <svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M20 6 9 17l-5-5" />
@@ -351,7 +334,7 @@
                                         class="btn btn-square btn-ghost"
                                         aria-label="Cancel edit"
                                         disabled={isSubmitting}
-                                        on:click={cancelEditEquipment}
+                                        onclick={cancelEditEquipment}
                                     >
                                         <svg class="size-[1.1em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M18 6 6 18"></path>
@@ -363,7 +346,7 @@
                                         class="btn btn-square btn-ghost"
                                         aria-label="Edit equipment"
                                         disabled={!equipment.equipmentID || isSubmitting}
-                                        on:click={() => startEditEquipment(equipment)}
+                                        onclick={() => startEditEquipment(equipment)}
                                     >
                                         <svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M12 20h9" />
@@ -374,7 +357,7 @@
                                         class="btn btn-square btn-ghost text-error"
                                         aria-label="Delete equipment"
                                         disabled={!equipment.equipmentID || isSubmitting}
-                                        on:click={() => confirmDeleteEquipment(equipment)}
+                                        onclick={() => confirmDeleteEquipment(equipment)}
                                     >
                                         <svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M3 6h18" />
@@ -396,11 +379,11 @@
                     <li class="p-4 pb-2 text-xs opacity-60 tracking-wide flex items-center justify-between">
                         <span>Movement Base</span>
                         <div class="flex items-center gap-2">
-                            <button class="btn btn-xs btn-ghost" on:click={openAddMovementBaseModal}>Add</button>
+                            <button class="btn btn-xs btn-ghost" onclick={openAddMovementBaseModal}>Add</button>
                             <button
                                 class="btn btn-xs btn-square btn-ghost"
                                 aria-label="Close movement base list"
-                                on:click={() => {
+                                onclick={() => {
                                     showMovementBaseList = false;
                                     cancelEditMovementBase();
                                 }}
@@ -413,10 +396,10 @@
                         </div>
                     </li>
 
-                    {#if $movementBases.length === 0}
+                    {#if training.movementBases.length === 0}
                         <li class="p-4 text-sm text-base-content/60">No movement bases yet.</li>
                     {:else}
-                        {#each $movementBases as movementBase, index (movementBase.movementBaseID && movementBase.movementBaseID !== EMPTY_GUID ? movementBase.movementBaseID : `movementBase-temp:${index}`)}
+                        {#each training.movementBases as movementBase, index (movementBase.movementBaseID && movementBase.movementBaseID !== EMPTY_GUID ? movementBase.movementBaseID : `movementBase-temp:${index}`)}
                             <li class="list-row">
                                 <div class="size-10 rounded-box bg-base-200 flex items-center justify-center font-mono text-xs text-base-content/60">
                                     MB
@@ -437,11 +420,11 @@
 
                                         <div class="mt-3">
                                             <div class="text-xs uppercase font-semibold opacity-60">Muscle Groups</div>
-                                            {#if $muscleGroups.length === 0}
+                                            {#if training.muscleGroups.length === 0}
                                                 <div class="text-xs opacity-50 italic mt-1">No muscle groups available.</div>
                                             {:else}
                                                 <div class="flex flex-wrap gap-2 mt-2">
-                                                    {#each $muscleGroups as mg (mg.muscleGroupID)}
+                                                    {#each training.muscleGroups as mg (mg.muscleGroupID)}
                                                         <label class="flex items-center gap-2 px-2 py-1 bg-base-200 rounded-lg cursor-pointer">
                                                             <input
                                                                 type="checkbox"
@@ -479,7 +462,7 @@
                                         class="btn btn-square btn-ghost"
                                         aria-label="Save movement base"
                                         disabled={isSubmitting}
-                                        on:click={() => saveEditMovementBase(movementBase)}
+                                        onclick={() => saveEditMovementBase(movementBase)}
                                     >
                                         <svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M20 6 9 17l-5-5" />
@@ -489,7 +472,7 @@
                                         class="btn btn-square btn-ghost"
                                         aria-label="Cancel edit"
                                         disabled={isSubmitting}
-                                        on:click={cancelEditMovementBase}
+                                        onclick={cancelEditMovementBase}
                                     >
                                         <svg class="size-[1.1em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M18 6 6 18"></path>
@@ -501,7 +484,7 @@
                                         class="btn btn-square btn-ghost"
                                         aria-label="Edit movement base"
                                         disabled={!movementBase.movementBaseID || isSubmitting}
-                                        on:click={() => startEditMovementBase(movementBase)}
+                                        onclick={() => startEditMovementBase(movementBase)}
                                     >
                                         <svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M12 20h9" />
@@ -512,7 +495,7 @@
                                         class="btn btn-square btn-ghost text-error"
                                         aria-label="Delete movement base"
                                         disabled={!movementBase.movementBaseID || isSubmitting}
-                                        on:click={() => confirmDeleteMovementBase(movementBase)}
+                                        onclick={() => confirmDeleteMovementBase(movementBase)}
                                     >
                                         <svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M3 6h18" />
@@ -563,7 +546,7 @@
                             Create new equipment
                         </p>
                     </div>
-                    <button on:click={closeEquipmentModal} class="btn btn-ghost btn-sm btn-circle">
+                    <button onclick={closeEquipmentModal} aria-label="Close" class="btn btn-ghost btn-circle h-11 min-h-11 w-11">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
@@ -571,7 +554,7 @@
                 </div>
             </div>
 
-            <form on:submit|preventDefault={handleEquipmentSubmit} class="p-6">
+            <form onsubmit={(event) => { event.preventDefault(); handleEquipmentSubmit(); }} class="p-6">
                 <div class="form-control w-full">
                     <label class="label" for="equipment-name">
                         <span class="label-text font-bold uppercase text-xs tracking-wider">Name</span>
@@ -587,7 +570,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 mt-6">
-                    <button type="button" class="btn btn-ghost px-5 rounded-xl" on:click={closeEquipmentModal}>
+                    <button type="button" class="btn btn-ghost px-5 rounded-xl" onclick={closeEquipmentModal}>
                         Cancel
                     </button>
                     <button
@@ -606,8 +589,8 @@
         </div>
         <div
             class="modal-backdrop bg-base-300/80"
-            on:click={closeEquipmentModal}
-            on:keydown={(e) => e.key === 'Escape' && closeEquipmentModal()}
+            onclick={closeEquipmentModal}
+            onkeydown={(e) => e.key === 'Escape' && closeEquipmentModal()}
             role="button"
             tabindex="0"
             aria-label="Close modal"
@@ -629,7 +612,7 @@
                             Create new movement pattern
                         </p>
                     </div>
-                    <button on:click={closeMovementBaseModal} class="btn btn-ghost btn-sm btn-circle">
+                    <button onclick={closeMovementBaseModal} aria-label="Close" class="btn btn-ghost btn-circle h-11 min-h-11 w-11">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
@@ -637,7 +620,7 @@
                 </div>
             </div>
 
-            <form on:submit|preventDefault={handleMovementBaseSubmit} class="flex flex-col min-h-0">
+            <form onsubmit={(event) => { event.preventDefault(); handleMovementBaseSubmit(); }} class="flex flex-col min-h-0">
                 <div class="p-6 space-y-4 overflow-y-auto min-h-0">
                     <div class="form-control w-full">
                         <label class="label" for="movement-name">
@@ -672,11 +655,11 @@
                             <span class="label-text font-bold uppercase text-xs tracking-wider">Muscle Groups (optional)</span>
                         </div>
 
-                        {#if $muscleGroups.length === 0}
+                        {#if training.muscleGroups.length === 0}
                             <p class="text-xs text-base-content/50 italic">No muscle groups available.</p>
                         {:else}
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {#each $muscleGroups as mg (mg.muscleGroupID)}
+                                {#each training.muscleGroups as mg (mg.muscleGroupID)}
                                     <label class="flex items-center gap-3 p-3 bg-base-200 rounded-xl cursor-pointer">
                                         <input
                                             type="checkbox"
@@ -693,7 +676,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 p-6 pt-4 border-t-2 border-base-content/10 bg-base-100">
-                    <button type="button" class="btn btn-ghost px-5 rounded-xl" on:click={closeMovementBaseModal}>
+                    <button type="button" class="btn btn-ghost px-5 rounded-xl" onclick={closeMovementBaseModal}>
                         Cancel
                     </button>
                     <button
@@ -712,8 +695,8 @@
         </div>
         <div
             class="modal-backdrop bg-base-300/80"
-            on:click={closeMovementBaseModal}
-            on:keydown={(e) => e.key === 'Escape' && closeMovementBaseModal()}
+            onclick={closeMovementBaseModal}
+            onkeydown={(e) => e.key === 'Escape' && closeMovementBaseModal()}
             role="button"
             tabindex="0"
             aria-label="Close modal"
@@ -733,7 +716,7 @@
                             This action cannot be undone
                         </p>
                     </div>
-                    <button on:click={closeDeleteModal} class="btn btn-ghost btn-sm btn-circle">
+                    <button onclick={closeDeleteModal} aria-label="Close" class="btn btn-ghost btn-circle h-11 min-h-11 w-11">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
@@ -752,12 +735,12 @@
                 {/if}
 
                 <div class="flex justify-end gap-2 mt-6">
-                    <button class="btn btn-ghost px-5 rounded-xl" on:click={closeDeleteModal}>
+                    <button class="btn btn-ghost px-5 rounded-xl" onclick={closeDeleteModal}>
                         Cancel
                     </button>
                     <button
                         class="btn btn-error px-5 rounded-xl"
-                        on:click={handleDelete}
+                        onclick={handleDelete}
                         disabled={isSubmitting}
                     >
                         {#if isSubmitting}
@@ -771,8 +754,8 @@
         </div>
         <div
             class="modal-backdrop bg-base-300/80"
-            on:click={closeDeleteModal}
-            on:keydown={(e) => e.key === 'Escape' && closeDeleteModal()}
+            onclick={closeDeleteModal}
+            onkeydown={(e) => e.key === 'Escape' && closeDeleteModal()}
             role="button"
             tabindex="0"
             aria-label="Close modal"
