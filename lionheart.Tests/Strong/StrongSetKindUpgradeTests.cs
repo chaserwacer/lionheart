@@ -2,6 +2,7 @@ using lionheart.Functional;
 using lionheart.Model.Training;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
+using lionheart.Services.Import;
 using lionheart.Services.Strong;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
@@ -36,7 +37,7 @@ public class StrongSetKindUpgradeTests : IDisposable
         Set("2025-01-10 17:00:00", "Squat (Barbell)", "D", 185, 8),
     ];
 
-    private static StrongMovementMap SquatMap => Map(("Squat (Barbell)", "Squat", "Barbell", ""));
+    private static MovementMap SquatMap => Map(("Squat (Barbell)", "Squat", "Barbell", ""));
 
     private static CompletedTrainingSession AsTheEarlierImportWroteIt(CompletedTrainingSession session, Guid squat) =>
         session with

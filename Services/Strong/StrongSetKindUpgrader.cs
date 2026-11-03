@@ -1,5 +1,6 @@
 using lionheart.Data;
 using lionheart.Functional;
+using lionheart.Services.Import;
 using lionheart.Model.Training.Sessions;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,12 +35,12 @@ public sealed record StrongUpgradeReport(
 public sealed class StrongSetKindUpgrader
 {
     private readonly ModelContext _context;
-    private readonly StrongMovementMap _map;
+    private readonly MovementMap _map;
     private readonly TimeZoneInfo _zone;
     private readonly TimeProvider _clock;
 
     /// <param name="zone">Where the export's wall-clock times were kept; Strong records no offset.</param>
-    public StrongSetKindUpgrader(ModelContext context, StrongMovementMap map, TimeZoneInfo zone, TimeProvider clock)
+    public StrongSetKindUpgrader(ModelContext context, MovementMap map, TimeZoneInfo zone, TimeProvider clock)
     {
         _context = context;
         _map = map;
@@ -123,8 +124,8 @@ public sealed class StrongSetKindUpgrader
         return held.Workouts
             .SelectMany(workout => workout.Workout.Sets)
             .Select(set => held.Export.Mappings[set.Exercise])
-            .DistinctBy(mapping => mapping.StrongName, StringComparer.OrdinalIgnoreCase)
-            .Select(mapping => (mapping.StrongName, Match: movements.FirstOrDefault(movement => SameName(movement.Name, mapping.Movement))))
+            .DistinctBy(mapping => mapping.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(mapping => (StrongName: mapping.Name, Match: movements.FirstOrDefault(movement => SameName(movement.Name, mapping.Movement))))
             .Where(found => found.Match.Name is not null)
             .ToDictionary(found => found.StrongName, found => found.Match.MovementDataID, StringComparer.OrdinalIgnoreCase);
     }
