@@ -235,6 +235,35 @@ public sealed class AnthropicChatModelTests : IDisposable
         Assert.False(sent.TryGetProperty("effort", out _));
     }
 
+    /// <summary>
+    /// A conversation resends itself with one more turn on every request, so it asks the API to
+    /// cache everything up to its last block — for an hour, because the athlete comes back to a
+    /// conversation after ten or forty minutes far more often than within the default five.
+    /// </summary>
+    [Fact]
+    public async Task A_conversation_is_cached_for_an_hour_up_to_its_last_block()
+    {
+        _server.Responds(CannedAnthropic.Text("ok"));
+
+        await Respond(ChatTurnRequest.Conversation(
+            "You are a training analyst.", [new ModelMessage.UserSaid("how did last week go?")], [], 1024));
+
+        var cache = Request(Assert.Single(_server.ReceivedRequests)).GetProperty("cache_control");
+        Assert.Equal("ephemeral", cache.GetProperty("type").GetString());
+        Assert.Equal("1h", cache.GetProperty("ttl").GetString());
+    }
+
+    /// <summary>A one-off call is never sent again, so a cache write would be paid for and never read.</summary>
+    [Fact]
+    public async Task A_one_off_call_asks_for_no_cache()
+    {
+        _server.Responds(CannedAnthropic.Text("ok"));
+
+        await Respond();
+
+        Assert.False(Request(Assert.Single(_server.ReceivedRequests)).TryGetProperty("cache_control", out _));
+    }
+
     /// <summary>Conversation leaves the depth to the model's own default rather than pinning it.</summary>
     [Fact]
     public async Task Conversation_does_not_pin_a_reasoning_depth()

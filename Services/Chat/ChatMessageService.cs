@@ -39,7 +39,7 @@ public class ChatMessageService : IChatMessageService
     {
         var userId = Guid.Parse(user.Id);
 
-        var storedConversation = await _context.ChatConversations
+        var storedConversation = await _context.StandaloneConversations
         .Include(c => c.ChatSystemMessage)
                 .Include(c => c.UserMessages)
                 .Include(c => c.ModelMessages)
@@ -65,7 +65,7 @@ public class ChatMessageService : IChatMessageService
         var chatCompletionRequest = new ChatCompletionRequest
         {
             Conversation = storedConversation,
-            MaxOutputTokens = MaxOutputTokens
+            MaxOutputTokens = ChatCompletionRequest.ExchangeOutputTokens
         };
         return await _chatCompletionService.GenerateChatCompletionAsync(user, chatCompletionRequest)
             .BindAsync(response => StoreLHChatMessagesAsync(user, new StoreLHChatMessagesRequest
@@ -87,45 +87,20 @@ public class ChatMessageService : IChatMessageService
             response.CompletionGeneratedMessages.First(
                 m => m.ChatMessageItemID == response.ModelFinalChatMessageID)));
     }
-    // Reasoning models spend output tokens "thinking" before answering, so the cap must cover both.
-    // Both providers reason by default, and on Claude Opus 5.5 thinking cannot be switched off.
-    private const int MaxOutputTokens = 32_000;
 
     public async Task<Result<List<LHChatMessageDTO>, Problem>> StoreLHChatMessagesAsync(IdentityUser user, StoreLHChatMessagesRequest request)
     {
         var userId = Guid.Parse(user.Id);
-        var conversation = await _context.ChatConversations
-    .FirstOrDefaultAsync(c => c.ChatConversationID == request.ChatConversationID && c.UserID == userId);
+        var conversation = await _context.StandaloneConversations
+            .FirstOrDefaultAsync(c => c.ChatConversationID == request.ChatConversationID && c.UserID == userId);
 
         if (conversation == null)
         {
             return Result<List<LHChatMessageDTO>, Problem>.Failure(new Problem.NotFound("Conversation not found."));
         }
 
-        var storedMessages = new List<LHChatMessageDTO>();
-
-        foreach (var message in request.Messages)
-        {
-            switch (message)
-            {
-                case LHUserChatMessage userMessage:
-                    _context.UserChatMessages.Add(userMessage);
-                    storedMessages.Add(new LHChatMessageDTO(userMessage));
-                    break;
-                case LHModelChatMessage modelMessage:
-                    _context.ModelChatMessages.Add(modelMessage);
-                    storedMessages.Add(new LHChatMessageDTO(modelMessage));
-                    break;
-                case LHChatToolCallResult toolMessage:
-                    _context.ToolChatMessages.Add(toolMessage);
-                    storedMessages.Add(new LHChatMessageDTO(toolMessage));
-                    break;
-                case LHSystemChatMessage systemMessage:
-                    _context.SystemChatMessages.Add(systemMessage);
-                    storedMessages.Add(new LHChatMessageDTO(systemMessage));
-                    break;
-            }
-        }
+        _context.StageChatMessages(request.Messages);
+        var storedMessages = request.Messages.Select(message => new LHChatMessageDTO(message)).ToList();
 
         conversation.LastUpdate = DateTime.UtcNow;
 

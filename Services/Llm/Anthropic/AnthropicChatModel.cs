@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Exceptions;
@@ -33,10 +34,11 @@ namespace lionheart.Services.Llm.Anthropic;
 /// </item>
 /// </list>
 /// </remarks>
-public sealed class AnthropicChatModel(AnthropicClient client, string model) : IChatModel
+public sealed class AnthropicChatModel(AnthropicClient client, string model, ILogger logger) : IChatModel
 {
     private readonly AnthropicClient _client = client;
     private readonly string _model = model;
+    private readonly ILogger _logger = logger;
 
     public Task<Result<ModelTurn, Problem>> RespondAsync(
         ChatTurnRequest request, CancellationToken cancellationToken = default) =>
@@ -58,10 +60,28 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
 
         // Added only when tools are actually on offer: the SDK serialises an empty collection as
         // "tools": [], and a request that offers none should not carry the field at all.
-        return request.Tools.Count == 0
+        var offered = request.Tools.Count == 0
             ? parameters
             : parameters with { Tools = [.. request.Tools.Select(Describe)] };
+
+        return request.Caching switch
+        {
+            PromptCaching.None => offered,
+            PromptCaching.Conversation => offered with { CacheControl = ConversationCache },
+            _ => throw new UnreachableException(),
+        };
     }
+
+    /// <summary>
+    /// Automatic caching: the API puts the breakpoint on the last block and moves it forward as the
+    /// conversation grows, so each request reads what the one before it wrote.
+    /// </summary>
+    /// <remarks>
+    /// An hour rather than the default five minutes. The athlete comes back to a conversation after
+    /// ten or forty minutes far more often than within five, and the hour's dearer write (2x input
+    /// against 1.25x) is repaid by the first read inside it.
+    /// </remarks>
+    private static readonly Messages.CacheControlEphemeral ConversationCache = new() { Ttl = Messages.Ttl.Ttl1h };
 
     /// <summary>
     /// How the answer is asked for. A schema goes in <c>OutputConfig.Format</c>, never through a
@@ -291,8 +311,9 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
     {
         try
         {
-            return Result<Messages.Message, Problem>.Success(
-                await _client.Messages.Create(parameters, cancellationToken));
+            var message = await _client.Messages.Create(parameters, cancellationToken);
+            Account(message);
+            return Result<Messages.Message, Problem>.Success(message);
         }
         catch (AnthropicUnauthorizedException ex)
         {
@@ -334,6 +355,20 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model) : I
         static Result<Messages.Message, Problem> Upstream(string detail) =>
             Result<Messages.Message, Problem>.Failure(new Problem.Upstream(detail));
     }
+
+    /// <summary>
+    /// What the call cost, as the API reports it. The cache fields are the only evidence that
+    /// conversation caching is working: a regression that makes every request miss the cache
+    /// changes nothing but the bill, and these lines are where it shows.
+    /// </summary>
+    private void Account(Messages.Message message) =>
+        _logger.LogInformation(
+            "Anthropic {Model}: {Input} input, {CacheWrite} cache write, {CacheRead} cache read, {Output} output tokens.",
+            _model,
+            message.Usage?.InputTokens,
+            message.Usage?.CacheCreationInputTokens,
+            message.Usage?.CacheReadInputTokens,
+            message.Usage?.OutputTokens);
 
     /// <summary>
     /// Why the model stopped, and what the caller owes next. The stop reason is read before the

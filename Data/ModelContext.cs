@@ -14,6 +14,8 @@ using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Routines;
 using lionheart.Model.BodyMeasurements;
+using lionheart.Model.Chat.Memory;
+using lionheart.Model.Chat.Thread;
 using Programs = lionheart.Model.Training.Programs;
 using Sessions = lionheart.Model.Training.Sessions;
 
@@ -42,6 +44,8 @@ namespace lionheart.Data
         public DbSet<LHSystemChatMessage> SystemChatMessages { get; set; }
         public DbSet<LHChatToolCallResult> ToolChatMessages { get; set; }
         public DbSet<AthleteContextCard> AthleteContextCards { get; set; }
+        public DbSet<ChatThreadSession> ChatThreadSessions { get; set; }
+        public DbSet<ChatMemory> ChatMemories { get; set; }
 
         // Training domain — design in docs/data-remodel.md
         public DbSet<Sessions.TrainingSession> Sessions { get; set; }
@@ -94,6 +98,7 @@ namespace lionheart.Data
         {
             StampDerivedTimeColumns();
             StampRecordLookupColumns();
+            StampChatThreadLookupColumns();
         }
 
         /// <summary>
@@ -137,6 +142,26 @@ namespace lionheart.Data
             }
         }
 
+
+        /// <summary>
+        /// Whether a thread session is consolidated and whether a memory is current both live in
+        /// JSON columns; stamped out so the reads that ask for them are indexed.
+        /// </summary>
+        private void StampChatThreadLookupColumns()
+        {
+            foreach (var entry in ChangeTracker.Entries<ChatThreadSession>())
+            {
+                if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
+                entry.Property(ChatThreadConfiguration.SessionIsConsolidatedColumn).CurrentValue =
+                    entry.Entity.IsConsolidated;
+            }
+
+            foreach (var entry in ChangeTracker.Entries<ChatMemory>())
+            {
+                if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
+                entry.Property(ChatThreadConfiguration.MemoryIsCurrentColumn).CurrentValue = entry.Entity.IsCurrent;
+            }
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -315,6 +340,7 @@ namespace lionheart.Data
             RemodelConfiguration.Apply(modelBuilder);
             OuraConfiguration.Apply(modelBuilder);
             BodyMeasurementConfiguration.Apply(modelBuilder);
+            ChatThreadConfiguration.Apply(modelBuilder);
         }
     }
 }
