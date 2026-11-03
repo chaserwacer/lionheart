@@ -57,17 +57,20 @@ enum ThreadTranscript {
         return kept + (tail.map { [ThreadRow.turn($0)] } ?? [])
     }
 
-    /// How a session's opening reads: the time alone today, "Yesterday" and the time, then the
-    /// weekday and date, with the year only once it is not this one.
+    /// How a session's opening reads: "Today" or "Yesterday" and the time, then the weekday and
+    /// date with the time, with the year only once it is not this one.
     static func openingLabel(_ opened: Date, now: Date, calendar: Calendar = .current) -> String {
-        let time = opened.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(calendar.locale ?? .current))
+        let time = opened.formatted(Date.FormatStyle(
+            date: .omitted, time: .shortened, locale: calendar.locale ?? .current, calendar: calendar,
+            timeZone: calendar.timeZone))
         if calendar.isDate(opened, inSameDayAs: now) { return "Today \(time)" }
         if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
            calendar.isDate(opened, inSameDayAs: yesterday) {
             return "Yesterday \(time)"
         }
 
-        var style = Date.FormatStyle(calendar: calendar).weekday(.abbreviated).day().month(.abbreviated)
+        var style = Date.FormatStyle(locale: calendar.locale ?? .current, calendar: calendar, timeZone: calendar.timeZone)
+            .weekday(.abbreviated).day().month(.abbreviated)
         if calendar.component(.year, from: opened) != calendar.component(.year, from: now) {
             style = style.year()
         }

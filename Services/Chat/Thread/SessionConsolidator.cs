@@ -125,8 +125,8 @@ public sealed class SessionConsolidator(
     }
 
     /// <summary>
-    /// Read, ask, stage, mark — then one save, which writes either the consolidation or the record
-    /// that it failed.
+    /// Read, ask, stage, mark, save. A failure anywhere is saved instead, as the record that this
+    /// attempt failed — either way, one save.
     /// </summary>
     private async Task<Result<ChatThreadSession, Problem>> ConsolidateAsync(
         ChatThreadSession session, CancellationToken ct)
@@ -137,17 +137,15 @@ public sealed class SessionConsolidator(
         var prompt = ConsolidationPrompt.For(
             session.OpenedAt, transcript, await CandidatesAsync(current, transcript), _clock.LocalTimeZone);
 
-        var outcome = await PlanAsync(prompt, transcript)
+        return await PlanAsync(prompt, transcript)
             .TapAsync(plan => Report(session, plan))
             .MapAsync(plan => Stage(session, plan, current, now))
             .BindAsync(staged => session
                 .Consolidated(now.UtcDateTime, staged.Remembered, staged.Revised, staged.Retired)
                 .Map(_ => staged))
-            .MapAsync(staged => KeepAsync(staged, current))
-            .TapErrorAsync(problem => Abandon(session, problem, now));
-
-        await _context.SaveChangesAsync(ct);
-        return outcome.Map(_ => session);
+            .MapAsync(staged => KeepAsync(staged, current, ct))
+            .TapErrorAsync(problem => RecordFailureAsync(session, problem, now, ct))
+            .MapAsync(_ => session);
     }
 
     // ---- Reading ----
@@ -212,19 +210,20 @@ public sealed class SessionConsolidator(
             Staged.Over(session.UserId, current),
             (staged, change) => staged.Apply(change, session.ChatConversationId, now));
 
-    /// <summary>Embeds what is new, and anything current still waiting for a vector, then stages the new versions.</summary>
-    private async Task<Staged> KeepAsync(Staged staged, IReadOnlyList<ChatMemory> current)
+    /// <summary>Embeds what is new, and anything current still waiting for a vector, then saves the consolidation.</summary>
+    private async Task<Staged> KeepAsync(Staged staged, IReadOnlyList<ChatMemory> current, CancellationToken ct)
     {
         await _vectors.EmbedAsync(current.Where(memory => memory.IsCurrent).Concat(staged.Added));
         _context.ChatMemories.AddRange(staged.Added);
+        await _context.SaveChangesAsync(ct);
         return staged;
     }
 
     /// <summary>
-    /// Undoes what staging did to the current memories and records the failure on the session, so
-    /// the save that follows writes only that.
+    /// Undoes what staging did to the current memories and saves the failure on the session, and
+    /// nothing else.
     /// </summary>
-    private void Abandon(ChatThreadSession session, Problem problem, DateTimeOffset now)
+    private async Task RecordFailureAsync(ChatThreadSession session, Problem problem, DateTimeOffset now, CancellationToken ct)
     {
         foreach (var entry in _context.ChangeTracker.Entries<ChatMemory>().Where(entry => entry.State is EntityState.Modified))
         {
@@ -233,6 +232,7 @@ public sealed class SessionConsolidator(
         }
 
         session.ConsolidationFailed(now.UtcDateTime, problem.Description);
+        await _context.SaveChangesAsync(ct);
         _logger.LogWarning(
             "Consolidating session {SessionId} failed: {Reason}", session.ChatConversationId, problem.Description);
     }
