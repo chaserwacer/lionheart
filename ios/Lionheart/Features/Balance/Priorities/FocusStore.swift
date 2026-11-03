@@ -1,7 +1,8 @@
 import Foundation
 import Observation
 
-/// The focus pins: what the athlete has chosen to emphasise, and the four things he can do to one.
+/// The focus pins — each family's priority lift and the movements emphasised on their own — and the
+/// four things the athlete can do to one.
 ///
 /// It holds the pins and nothing derived from them. How a pin is going is a reading of the log
 /// (`FocusReading`), which `HistoryStore` already holds whole, so the screen reads the two stores
@@ -50,9 +51,15 @@ final class FocusStore {
 
     // MARK: - Writes
 
-    /// Pins a movement. Answers the refusal, if there was one, for the sheet to state.
-    func pin(_ movementDataId: UUID, _ draft: FocusDraft) async -> LoadFailure? {
-        await answering { _ = try await self.api.pin(movementDataId, draft) }
+    /// Pins a movement — as a family's priority when one is named. Answers the refusal, if there
+    /// was one, for the sheet to state.
+    func pin(_ movementDataId: UUID, _ draft: FocusDraft, priority: PatternFamily? = nil) async -> LoadFailure? {
+        await answering { _ = try await self.api.pin(movementDataId, draft, priority: priority) }
+    }
+
+    /// The pin standing as the family's priority today, if any.
+    func priority(for family: PatternFamily) -> FocusPin? {
+        (state.value ?? []).first { $0.isPinned && $0.role.priorityFamily == family }
     }
 
     func revise(_ pin: FocusPin, to draft: FocusDraft) async -> LoadFailure? {

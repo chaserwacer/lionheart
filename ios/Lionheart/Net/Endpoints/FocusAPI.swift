@@ -17,8 +17,16 @@ struct FocusAPI: Sendable {
             .map(\.elements)
     }
 
-    func pin(_ movementDataId: UUID, _ draft: FocusDraft) async throws -> FocusPin {
-        try await client.post(Self.root, body: PinFocusRequest(movementDataId: movementDataId, draft))
+    /// Pins a movement — as the family's priority when one is named, which lets the family's
+    /// standing priority go on the server in the same write.
+    func pin(_ movementDataId: UUID, _ draft: FocusDraft, priority: PatternFamily? = nil) async throws -> FocusPin {
+        try await client.post(
+            Self.root, body: PinFocusRequest(movementDataId: movementDataId, draft, priority: priority))
+    }
+
+    /// Each family's priority lift and the week's cardio, over the seven days ending on `day`.
+    func priorities(endingOn day: CalendarDay, remembering key: ReadKey) async throws -> Remembered<PriorityReport> {
+        try await client.get("/api/training/priorities/\(day.wire)", as: PriorityReport.self, remembering: key)
     }
 
     func revise(_ focusPinId: UUID, to draft: FocusDraft) async throws -> FocusPin {
@@ -42,10 +50,13 @@ private struct PinFocusRequest: Encodable, Sendable {
     let ends: String
     let sessionsPerWeek: Int
     let target: LiftTargetRequest?
+    /// `push`, `pull` or `legs` for a priority; absent for emphasis.
+    let priority: String?
 
-    init(movementDataId: UUID, _ draft: FocusDraft) {
+    init(movementDataId: UUID, _ draft: FocusDraft, priority: PatternFamily?) {
         let terms = FocusTermsRequest(draft)
         self.movementDataId = movementDataId
+        self.priority = priority?.wire
         starts = terms.starts
         ends = terms.ends
         sessionsPerWeek = terms.sessionsPerWeek

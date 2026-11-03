@@ -31,6 +31,43 @@ struct MovementsAPI: Sendable {
     }
 }
 
+extension MovementsAPI {
+    /// States what a movement base trains, for every movement built on it. Answers the base's
+    /// classification as it now stands.
+    func classify(base movementBaseId: UUID, as classification: MovementClassification) async throws -> ClassificationStanding {
+        let answered: MovementBaseAnswer = try await client.put(
+            "/api/movement-bases/\(movementBaseId.uuidString)/classification",
+            body: ClassificationBody(
+                pattern: classification.pattern.wire,
+                primary: classification.primary.map(\.wire),
+                secondary: classification.secondary.map(\.wire)))
+        return answered.classification
+    }
+
+    /// Withdraws the athlete's classification, so the shipped map answers for the base again.
+    func withdrawClassification(base movementBaseId: UUID) async throws -> ClassificationStanding {
+        let answered: MovementBaseAnswer = try await client.deleteAnswering(
+            "/api/movement-bases/\(movementBaseId.uuidString)/classification")
+        return answered.classification
+    }
+}
+
+private struct ClassificationBody: Encodable, Sendable {
+    let pattern: String
+    let primary: [String]
+    let secondary: [String]
+}
+
+/// A `MovementBaseDTO`, of which only the classification is read back.
+private struct MovementBaseAnswer: Decodable, Sendable {
+    let classification: ClassificationStanding
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        classification = container.lenient(ClassificationStanding.self, "classification") ?? .unrecognised("")
+    }
+}
+
 private struct MovementSetupBody: Encodable, Sendable {
     let notes: String
     let addsToBodyweight: Bool

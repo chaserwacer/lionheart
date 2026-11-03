@@ -117,6 +117,13 @@ final class APIClient: Sendable {
         _ = try await authenticated(.delete, path, query: [], body: nil) as Empty
     }
 
+    /// A delete the server answers with the record as it now stands, rather than with nothing.
+    func deleteAnswering<Response: Decodable>(
+        _ path: String, as type: Response.Type = Response.self
+    ) async throws -> Response {
+        try await authenticated(.delete, path, query: [], body: nil)
+    }
+
     // MARK: - Unauthenticated
 
     /// For the Identity routes that establish a session in the first place — `/login` and

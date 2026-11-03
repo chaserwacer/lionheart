@@ -21,7 +21,7 @@ enum HistoryRoute: Hashable {
     case movements
     /// Training days and sessions per week.
     case consistency
-    /// The focus list.
+    /// The priorities, and the pins made for emphasis.
     case focus
     /// One day of the diary: the body, every workout, and his rating of it.
     case day(CalendarDay)

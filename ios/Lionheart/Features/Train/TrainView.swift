@@ -3,9 +3,9 @@ import SwiftUI
 /// Let me do it.
 ///
 /// The tab answers one question — what am I training, and how do I start — so the first section is
-/// always the answer to it: continue what is running, resume what the server has, or start one of
-/// the three ways. The routines come next, because starting from one is how most sessions begin, and
-/// then bodyweight and the plan.
+/// always the answer to it: start a workout or log one already done. Then what it is time for, from
+/// what was trained and when; the week's volume across push, pull and legs; the priorities and the
+/// score. Routines, bodyweight and the plan follow, there when wanted.
 struct TrainView: View {
     let store: TrainStore
     let activeWorkout: ActiveWorkoutStore
@@ -14,18 +14,23 @@ struct TrainView: View {
     let library: MovementLibraryStore
     let routines: RoutineStore
     let bodyweight: BodyweightStore
+    /// The whole log and the pins, for the movement pages and the priorities this tab opens.
+    let history: HistoryStore
+    let focus: FocusStore
     /// Opens the logging surface. Held by the root so the bar and this tab open the same sheet
     /// rather than two.
     let openWorkout: () -> Void
 
     @State private var isPastWorkoutAsked = false
-    @State private var route: [Route] = []
+    /// Any value either destination below is registered for: this tab's own routes and the log's.
+    @State private var route = NavigationPath()
     @State private var asked: AskedTransition?
     @State private var discarding: FinishedWorkout?
     /// The routine editor, open on a new routine or an existing one.
     @State private var editingRoutine: RoutineEditing?
     @State private var isSaveFromSessionAsked = false
     @State private var deletingRoutine: Routine?
+    @Environment(TrainingBalanceStore.self) private var balance
 
     /// A transition waiting on the athlete's confirmation. Hung on the `List` rather than on a row,
     /// so there is one dialog rather than one per session.
@@ -36,11 +41,13 @@ struct TrainView: View {
         var id: UUID { session.envelope.trainingSessionId }
     }
 
-    /// Where this tab can navigate. One case today, and an enum rather than a bare value because
+    /// Where this tab can navigate, as an enum rather than bare values because
     /// `navigationDestination` registers per type and a second screen must not silently win.
     enum Route: Hashable {
         case plannedSession(UUID)
         case bodyweight
+        case volume
+        case score
     }
 
     var body: some View {
@@ -48,6 +55,9 @@ struct TrainView: View {
             List {
                 startSection
                 if !outbox.finished.isEmpty { finishedSection }
+                upNextSection
+                volumeSection
+                standingSection
                 routinesSection
                 bodyweightSection
                 switch store.state {
@@ -68,7 +78,8 @@ struct TrainView: View {
                 async let plan: Void = store.refresh()
                 async let saved: Void = routines.refresh()
                 async let weighed: Void = bodyweight.refresh()
-                _ = await (plan, saved, weighed)
+                async let standing: Void = balance.refresh()
+                _ = await (plan, saved, weighed, standing)
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -80,14 +91,28 @@ struct TrainView: View {
                         openWorkout: openWorkout)
                 case .bodyweight:
                     BodyweightView(store: bodyweight)
+                case .volume:
+                    if let volume = balance.volume.value {
+                        VolumeView(volume: volume)
+                    } else {
+                        ContentUnavailableView("Volume not available", systemImage: "exclamationmark.triangle")
+                    }
+                case .score:
+                    TrainingScoreView()
                 }
+            }
+            .navigationDestination(for: HistoryRoute.self) { route in
+                HistoryDestination(route: route, history: history, focus: focus, library: library)
             }
         }
         .task {
             async let plan: Void = store.refresh()
             async let saved: Void = routines.refresh()
             async let weighed: Void = bodyweight.refreshIfNeeded()
-            _ = await (plan, saved, weighed)
+            // Read every time the tab is shown: a workout finished elsewhere moves all of it.
+            async let standing: Void = balance.refresh()
+            async let pins: Void = focus.refreshIfNeeded()
+            _ = await (plan, saved, weighed, standing, pins)
             await library.refreshIfNeeded()
         }
         .sheet(item: $editingRoutine) { editing in
@@ -156,6 +181,86 @@ struct TrainView: View {
         } message: { _ in
             Text("The server would not take it, and this phone holds the only copy. This cannot be undone.")
         }
+    }
+
+    // MARK: - What it is time for
+
+    /// The family trained longest ago, with its reason. Nothing while the first read is out, so the
+    /// start buttons above do not jump.
+    @ViewBuilder
+    private var upNextSection: some View {
+        if let volume = balance.volume.value {
+            Section {
+                UpNextRow(upNext: volume.upNext, families: volume.families)
+            } header: {
+                Text("Up next")
+            } footer: {
+                Text("The family trained longest ago. Families last trained the same day are named together.")
+            }
+        }
+    }
+
+    /// Push, pull and legs this week against their targets, opening the patterns and muscle groups.
+    @ViewBuilder
+    private var volumeSection: some View {
+        switch balance.volume {
+        case .loading:
+            Section("Last 7 days") { SkeletonRows(count: 3) }
+        case .unavailable(let failure):
+            Section("Last 7 days") {
+                Text(failure.message).font(.footnote).foregroundStyle(Color(.secondaryLabel))
+            }
+        case .loaded(let volume), .stale(let volume, _):
+            Section {
+                ForEach(volume.families) { family in
+                    VolumeRow(
+                        label: family.family.name, sets: Double(family.hardSets), target: family.target,
+                        lastTrained: family.lastTrained)
+                }
+                NavigationLink(value: Route.volume) {
+                    LabeledContent("Patterns and muscle groups") {
+                        if !volume.unplaced.isEmpty {
+                            Text("\(volume.unplaced.count) not counted").monospacedDigit()
+                        }
+                    }
+                }
+            } header: {
+                Text("Last 7 days")
+            } footer: {
+                Text("Hard sets — working, drop and failure sets, never warm-ups — against 8 a family.")
+            }
+        }
+    }
+
+    /// The priorities and the score, each a line opening its own screen.
+    private var standingSection: some View {
+        Section {
+            NavigationLink(value: HistoryRoute.focus) {
+                LabeledContent("Priorities") {
+                    Text(prioritySummary).lineLimit(1)
+                }
+            }
+            NavigationLink(value: Route.score) {
+                if let score = balance.score.value {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Training score")
+                        TrainingScoreSummary(score: score)
+                    }
+                } else {
+                    Text("Training score")
+                }
+            }
+        }
+    }
+
+    /// "Dip, pull-up, hack squat", or how many families have none.
+    private var prioritySummary: String {
+        guard let report = balance.priorities.value else { return "" }
+        let pinned = report.families.compactMap { family -> String? in
+            guard case .chosen(let chosen) = family.lift, case .pinned = chosen.choice else { return nil }
+            return chosen.name
+        }
+        return pinned.isEmpty ? "None pinned" : pinned.joined(separator: ", ")
     }
 
     // MARK: - Routines

@@ -56,7 +56,7 @@ struct HistoryDestination: View {
         case .consistency:
             ConsistencyView(history: history, diary: diary, library: library)
         case .focus:
-            FocusView(focus: focus, history: history, library: library)
+            PrioritiesView(focus: focus, history: history, library: library)
         case .day(let day):
             DayView(day: day, history: history, diary: diary, library: library)
         case .week(let start):

@@ -210,7 +210,7 @@ struct HistoryView: View {
                     }
                 }
             } header: {
-                Text("Focus")
+                Text("Priorities")
             }
         }
     }
@@ -251,7 +251,7 @@ struct HistoryView: View {
     private func readingsSection(_ snapshot: HistorySnapshot) -> some View {
         Section {
             NavigationLink(value: HistoryRoute.focus) {
-                LabeledContent("Focus") {
+                LabeledContent("Priorities") {
                     let pinned = (focus.state.value ?? []).filter(\.isPinned).count
                     Text(pinned == 0 ? "None pinned" : "\(pinned) pinned").monospacedDigit()
                 }
