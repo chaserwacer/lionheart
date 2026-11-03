@@ -108,6 +108,7 @@ rather than anything computed. Design and the collections behind it: `docs/oura-
 |---|---|---|---|
 | GET | `/days?from=&to=` | `DayRange` | one `OuraDayView` per day any collection covered |
 | GET | `/days/{day}` | — | that day's `OuraDayView`, or 404 |
+| GET | `/days/latest` | — | the newest day any collection covers, as an `OuraDayView`, or 404 when nothing is stored |
 | GET | `/sleep?from=&to=` | `TimeWindow` | sleep periods, with stages, hypnogram and both overnight curves |
 | GET | `/workouts?from=&to=` | `TimeWindow` | workouts the ring saw or the athlete logged on it |
 | GET | `/sessions?from=&to=` | `TimeWindow` | guided meditation, breathing and rest |
@@ -124,7 +125,13 @@ day view, and a day with nothing at all is missing from a range rather than pres
 
 `/sync` answers 200 with its tallies rather than 204: it is the one write here whose outcome the
 caller cannot see any other way. A failure to reach Oura or to authenticate is `Problem.Upstream`,
-so 502; a missing stored credential is a `Conflict`, so 409.
+so 502; a missing stored credential is a `Conflict`, so 409. **Oura rejecting the stored token is
+also a 502**, with a detail naming the token — a 401 from this route means the caller's own
+Lionheart session, never Oura's credential.
+
+`/days/latest` is what a client syncs from: the newest stored day says how far behind the store is,
+which a range read could only answer by guessing how far back to look. The newest day takes the
+latest of all six collections, since they cover different days.
 
 ## Interpretation engine — `/api/interpretation`
 

@@ -94,6 +94,30 @@ public class OuraReadServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_latest_day_is_the_newest_day_any_collection_covers()
+    {
+        // The archive's newest day is 2024-11-01, and only SpO2 reaches it: activity stops at
+        // 2024-01-01 and readiness much earlier. Taking the newest of one collection would report
+        // the store ten months further behind than it is.
+        var latest = ResultAssert.Succeeded(await Read().GetLatestDayAsync(_user, CancellationToken.None));
+
+        Assert.Equal(new DateOnly(2024, 11, 1), latest.Day);
+        Assert.NotNull(latest.Spo2);
+        Assert.Null(latest.Activity);
+    }
+
+    [Fact]
+    public async Task An_athlete_with_nothing_stored_has_no_latest_day()
+    {
+        // The tester's archive is in the same database, so this is also the ownership check.
+        var stranger = new IdentityUser("stranger@lionheart.local") { Id = Guid.NewGuid().ToString() };
+
+        var refused = await Read().GetLatestDayAsync(stranger, CancellationToken.None);
+
+        Assert.IsType<Problem.NotFound>(ResultAssert.Failed(refused));
+    }
+
+    [Fact]
     public async Task A_backwards_range_is_refused_rather_than_answered_with_nothing()
     {
         var refused = await Read().GetDaysAsync(
