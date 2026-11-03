@@ -6,26 +6,34 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Identity;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
-using OpenAI.Chat;
+using lionheart.Functional;
 using Model.Chat.Tools;
 using lionheart.Services.Chat;
 using Services.Chat;
 using Model.Tools;
 using lionheart.Services.Training;
 using lionheart.Services.Profile;
-using System.ClientModel;
-using OpenAI;
-using OpenAI.Embeddings;
 using lionheart.Services.Embedding;
+using lionheart.Services.Llm;
 using lionheart.Services.Interpretation;
 using lionheart.Services.Contexts;
 using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.Sessions;
 using lionheart.Endpoints.OpenApi;
+using lionheart.Services.Oura;
+using lionheart.Services.Oura.Import;
 
-// Load .env into the process environment before the host reads configuration,
-// so LmStudio__* keys flow through the default environment-variable provider.
+// Load .env into the process environment before the host reads configuration, so the Llm__,
+// Anthropic__, LmStudio__ and Embedding__ keys flow through the default environment-variable
+// provider (which maps "__" to ":").
 DotNetEnv.Env.TraversePath().Load();
+
+// A one-off command runs instead of the server, and before it is built: the web host refuses to
+// start without LM Studio configured, which an archive import has no use for.
+if (args is [OuraImportCommand.Verb, ..])
+{
+    return await OuraImportCommand.RunAsync(args, CancellationToken.None);
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,8 +42,7 @@ var configuration = builder.Configuration;
 // Only register SQLite if not running in Testing environment
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    builder.Services.AddDbContext<ModelContext>(options =>
-        options.UseSqlite("Data Source=./Data/lionheart.db"));
+    builder.AddLionheartDatabase();
 }
 
 builder.Services.AddAuthorization();
@@ -43,43 +50,29 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
     .AddEntityFrameworkStores<ModelContext>();
 
 
-// Chat is served by LM Studio over its OpenAI-compatible API. BaseUrl (must end at the /v1 root),
-// ApiKey, and Model come from .env.
-var baseUrl = configuration["LmStudio:BaseUrl"];
-var apiKey = configuration["LmStudio:ApiKey"];
-var chatModel = configuration["LmStudio:Model"];
-if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(chatModel))
-{
-    throw new InvalidOperationException(
-        "LM Studio configuration is incomplete. Set LmStudio__BaseUrl, LmStudio__ApiKey, and LmStudio__Model in your .env file.");
-}
+// Which model serves chat, and which server serves embeddings — read and validated here so a
+// missing or contradictory key stops the host naming the key, rather than failing the first
+// request that needs a model. The two are independent: Anthropic has no embeddings endpoint, so
+// "chat on Anthropic, embeddings on a local OpenAI-compatible server" is the expected production
+// shape, not a fallback.
+var llm = LlmConfiguration.Read(configuration).Match(
+    valid => valid,
+    problem => throw new InvalidOperationException(
+        $"Language-model configuration is incomplete. {problem.Description}"));
 
-var credential = new ApiKeyCredential(apiKey);
-var clientOptions = new OpenAIClientOptions { Endpoint = new Uri(baseUrl) };
+builder.Services.AddSingleton(llm);
 
-builder.Services.AddSingleton(provider =>
-    new ChatClient(model: chatModel, credential: credential, options: clientOptions)
-);
+builder.Services.AddSingleton<IChatModel>(_ => ChatModelFactory.Create(llm.Chat, llm.Chat.Model));
 
-// Optional smaller model for off-the-hot-path Athlete Context Card narratives; defaults to the chat model.
-var narrativeModel = configuration["LmStudio:NarrativeModel"] ?? chatModel;
-builder.Services.AddSingleton(provider =>
-    new NarrativeChatClient(new ChatClient(model: narrativeModel, credential: credential, options: clientOptions))
-);
+// A cheaper model for Athlete Context Card narratives, off the hot path. Wrapped so it and the
+// flagship chat model can be two singletons of the same type without DI ambiguity.
+builder.Services.AddSingleton(_ =>
+    new NarrativeChatClient(ChatModelFactory.Create(llm.Chat, llm.Chat.NarrativeModel)));
 
-// Embeddings come from the same LM Studio server. The model is pinned in configuration because
-// vectors from different models are incomparable: changing it invalidates every stored vector
-// and requires a full re-decoration pass, never a partial one.
-var embeddingModel = configuration["LmStudio:EmbeddingModel"];
-if (string.IsNullOrWhiteSpace(embeddingModel))
-{
-    throw new InvalidOperationException(
-        "LM Studio embedding configuration is missing. Set LmStudio__EmbeddingModel in your .env file.");
-}
-
-builder.Services.AddSingleton(provider =>
-    new EmbeddingClient(model: embeddingModel, credential: credential, options: clientOptions)
-);
+// Embeddings always come from an OpenAI-compatible server. The model is pinned in configuration
+// because vectors from different models are incomparable: changing it invalidates every stored
+// vector and requires a full re-decoration pass, never a partial one.
+builder.Services.AddSingleton(_ => ChatModelFactory.CreateEmbeddingClient(llm.Embedding));
 
 builder.Services
     .AddControllers()
@@ -97,7 +90,6 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddTransient<IUserService, UserService>();
-builder.Services.AddTransient<IOuraService, OuraService>();
 builder.Services.AddTransient<IWellnessService, WellnessService>();
 builder.Services.AddTransient<IMovementDataService, MovementDataService>();
 builder.Services.AddTransient<IMovementBaseService, MovementBaseService>();
@@ -106,10 +98,10 @@ builder.Services.AddTransient<IMovementModifierService, MovementModifierService>
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 builder.Services.AddTransient<IPersonalRecordService, PersonalRecordService>();
 builder.Services.AddTransient<IChatMessageService, ChatMessageService>();
-builder.Services.AddTransient<ChatCompletionService, ChatCompletionService>();
+builder.Services.AddTransient<IChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
 builder.Services.AddTransient<IAthleteContextCardService, AthleteContextCardService>();
-builder.Services.AddTransient<IEmbeddingGenerator, LmStudioEmbeddingGenerator>();
+builder.Services.AddTransient<IEmbeddingGenerator, OpenAiCompatibleEmbeddingGenerator>();
 builder.Services.AddTransient<IInterpretationParser, InterpretationParser>();
 builder.Services.AddTransient<IFacetResolver, FacetResolver>();
 builder.Services.AddTransient<IMovementResolver, MovementResolver>();
@@ -137,10 +129,11 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddSingleton<ChatToolCallExecutor>();
 
 
-builder.Services.AddHttpClient<IOuraService, OuraService>(client =>
-{
-    client.BaseAddress = new Uri("https://api.ouraring.com/v2/usercollection");
-});
+builder.Services.AddTransient<IOuraReadService, OuraReadService>();
+
+// The sync service reaches Oura over this client; OuraClient spells the absolute collection URLs,
+// so no BaseAddress is set here.
+builder.Services.AddHttpClient<IOuraSyncService, OuraSyncService>();
 
 
 builder.Services.AddHttpClient();
@@ -246,6 +239,8 @@ app.MapFallback(async context =>
 });
 
 app.Run();
+
+return 0;
 
 /// <summary>
 /// Regenerates ClientApp's TypeScript API client from this server's own OpenAPI document, once

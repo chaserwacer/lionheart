@@ -4,8 +4,7 @@ using lionheart.Model.Analysis;
 using lionheart.Model.Interpretation;
 using lionheart.Model.Training;
 using lionheart.Model.Training.Sets;
-using lionheart.Services.Chat;
-using OpenAI.Chat;
+using lionheart.Services.Llm;
 
 namespace lionheart.Services.Interpretation;
 
@@ -21,9 +20,15 @@ public interface IInterpretationParser
 /// </summary>
 public sealed class InterpretationParser : IInterpretationParser
 {
-    private readonly ChatClient _chatClient;
+    /// <summary>
+    /// Generous: the parse is one JSON object, but a log describing several entries with their sets
+    /// is long, and a truncated object is unreadable rather than merely shorter.
+    /// </summary>
+    private const int ParseTokenBudget = 8192;
 
-    public InterpretationParser(ChatClient chatClient) => _chatClient = chatClient;
+    private readonly IChatModel _chatModel;
+
+    public InterpretationParser(IChatModel chatModel) => _chatModel = chatModel;
 
     public Task<Result<ParsedInterpretation, Problem>> ParseAsync(
         InterpretationRequest request, string knownMovementContext) =>
@@ -33,33 +38,37 @@ public sealed class InterpretationParser : IInterpretationParser
             : RequestParseAsync(request, knownMovementContext)
                 .BindAsync(parse => MapToDrafts(parse, request.LoggedAt));
 
-    private async Task<Result<LlmParse, Problem>> RequestParseAsync(
-        InterpretationRequest request, string knownMovementContext)
-    {
-        var messages = new List<ChatMessage>
-        {
-            new SystemChatMessage(BuildSystemPrompt(request.LoggedAt, knownMovementContext)),
-            new UserChatMessage(request.RawText)
-        };
+    /// <summary>
+    /// The model call. Asks for a schema-conformant object through the provider's structured-output
+    /// path — notably <b>not</b> by forcing a tool call, which Anthropic answers with a 400 — and for
+    /// the shallowest reasoning available, which is what keeps the answer in the content.
+    /// </summary>
+    private Task<Result<LlmParse, Problem>> RequestParseAsync(
+        InterpretationRequest request, string knownMovementContext) =>
+        _chatModel
+            .RespondAsync(ChatTurnRequest.Extraction(
+                systemPrompt: BuildSystemPrompt(request.LoggedAt, knownMovementContext),
+                userText: request.RawText,
+                schemaName: "interpretation",
+                schemaJson: ParseSchema,
+                maxOutputTokens: ParseTokenBudget))
+            .BindAsync(ReadParse);
 
-        var completion = await _chatClient.CompleteAsResultAsync(messages, BuildParseOptions());
-        return completion.Bind(ReadParse);
-    }
-
-    private static Result<LlmParse, Problem> ReadParse(ChatCompletion completion)
+    private static Result<LlmParse, Problem> ReadParse(ModelTurn turn)
     {
-        if (completion.FinishReason != ChatFinishReason.Stop)
+        if (turn is not ModelTurn.Answered answered)
         {
-            return Result<LlmParse, Problem>.Failure(
-                new Problem.Upstream($"Parse stopped early: {completion.FinishReason}."));
+            return Result<LlmParse, Problem>.Failure(new Problem.Upstream(
+                "The parser model asked to call a tool; extraction offers none."));
         }
 
-        var json = completion.Content.FirstOrDefault()?.Text;
+        var json = answered.Text;
         if (string.IsNullOrWhiteSpace(json))
         {
             return Result<LlmParse, Problem>.Failure(new Problem.Upstream(
                 "Parser returned an empty response. If the configured model reasons, the content " +
-                "may have been routed to `reasoning_content` instead."));
+                "may have been routed to its reasoning channel instead — see the \"Traps\" section " +
+                "of docs/data-remodel.md."));
         }
 
         try
@@ -193,26 +202,6 @@ public sealed class InterpretationParser : IInterpretationParser
     };
 
     private const string DefaultEquipment = "Bodyweight";
-
-    // OPENAI001: ReasoningEffortLevel is still marked experimental in the SDK. Suppressed here
-    // only, so the rest of the codebase keeps warning about experimental OpenAI surface.
-#pragma warning disable OPENAI001
-    private static ChatCompletionOptions BuildParseOptions() => new()
-    {
-        ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
-            jsonSchemaFormatName: "interpretation",
-            jsonSchema: BinaryData.FromString(ParseSchema),
-            jsonSchemaIsStrict: true),
-        Temperature = 0.1f,
-
-        // Load-bearing, not a tuning knob: the configured model reasons, and while it thinks
-        // LM Studio returns the schema-conformant JSON in `reasoning_content` and leaves
-        // `content` empty — which reads here as an empty response. "none" is not one of the
-        // SDK's presets; it is what LM Studio accepts to suppress thinking. Extraction gains
-        // nothing from a reasoning pass anyway.
-        ReasoningEffortLevel = new ChatReasoningEffortLevel("none")
-    };
-#pragma warning restore OPENAI001
 
     private static string BuildSystemPrompt(DateTime loggedAt, string knownMovementContext) =>
         $$"""

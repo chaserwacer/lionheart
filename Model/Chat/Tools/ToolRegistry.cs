@@ -1,8 +1,8 @@
 using lionheart.Functional;
+using lionheart.Services.Llm;
 using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Model.Tools;
-using OpenAI.Chat;
 
 namespace Model.Chat.Tools
 {
@@ -25,7 +25,10 @@ namespace Model.Chat.Tools
         }
 
         public IEnumerable<ToolDescriptor> GetAllTools() => _tools.Values;
-        public IEnumerable<ChatTool> GetAllChatTools() => _tools.Values.Select(td => td.ChatToolDefinition);
+
+        /// <summary>Every tool, as the model is offered them.</summary>
+        public IReadOnlyList<ToolDefinition> GetAllToolDefinitions() =>
+            [.. _tools.Values.Select(td => td.Definition)];
     }
 
     /// <summary>
@@ -51,16 +54,16 @@ namespace Model.Chat.Tools
                 foreach (var method in methods)
                 {
                     var toolAttr = method.GetCustomAttribute<ToolAttribute>()!;
-                    if (await OpenAIToolMapper.MapTool(method) is Success<ChatTool, Problem> chatTool)
-                    {
-                        var descriptor = new ToolDescriptor(
+
+                    // A method whose signature the mapper cannot describe is left out of the
+                    // registry, so the model is never offered a tool it could not call.
+                    await ToolSchemaMapper.MapTool(method).TapAsync(definition =>
+                        toolDescriptors.Add(new ToolDescriptor(
                             toolAttr.Name,
                             toolProvider,
                             method,
-                            chatTool.Value,
-                            RequiresAuthorization(method));
-                        toolDescriptors.Add(descriptor);
-                    }
+                            definition,
+                            RequiresAuthorization(method))));
                 }
             }
             var tools = toolDescriptors.ToDictionary(t => t.ToolName, StringComparer.Ordinal);
@@ -83,13 +86,14 @@ namespace Model.Chat.Tools
 
 
     /// <summary>
-    /// Descriptor for a chat tool. Produces ChatTool definitions for OpenAI and holds metadata for execution.
+    /// Descriptor for a chat tool: what the model is told about it, and what the executor needs to
+    /// invoke it.
     /// </summary>
     public sealed record ToolDescriptor(
         string ToolName,
         Type ServiceType,
         MethodInfo MethodInfo,
-        ChatTool ChatToolDefinition,
+        ToolDefinition Definition,
         bool RequireAuthorization = false
 
     );

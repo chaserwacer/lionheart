@@ -288,7 +288,13 @@ returns with the interpretation engine).
 
 ## Out of scope (unchanged for now)
 
-Chat, Oura, Profile, Wellness, Injury.
+Chat, Profile, Wellness, Injury.
+
+Oura was out of scope for the remodel and has since been reworked on its own terms — ten
+collections, a new model and an import of the athlete's archived history. It reuses this domain's
+`Period` for events and stamps `StartTime` the same way, but it does **not** feed
+`AnalyzableEntry`, and `docs/oura-integration.md` carries the reasoning for that along with
+everything else about it.
 
 ## Decision log
 
@@ -313,10 +319,10 @@ Chat, Oura, Profile, Wellness, Injury.
 | Measure validity | Non-finite rejected at construction; sign deliberately unpoliced, since net elevation gain is legitimately negative (2026-07-20) |
 | Closed enums at the boundary | `FacetAxis`/`Valence` guarded in constructors, so deserialization, `with`, and app code are all covered (2026-07-20) |
 | JSON encoder | Relaxed encoder on storage options — payloads never reach HTML, and readability of the SQLite file wins (2026-07-20) |
-| Embedding provider | Local LM Studio, same server as chat; no external dependency or cost (2026-07-20) |
+| Embedding provider | Local LM Studio (2026-07-20). Still the local server once chat moved to Anthropic, since Anthropic has no embeddings endpoint |
 | Entity matching | Movements/equipment stay **lexical**; only facet values resolve semantically — a deliberate narrowing of "snap entities and facet values" (2026-07-20) |
 | Live-test gating | One mechanism: `Category=LocalModel` trait selects, `[LmStudioFact]` skips with the failing key named (2026-07-20) |
-| Embedding provider | LM Studio local endpoint (2026-07-20), same server as chat. Model pinned in `LmStudio__EmbeddingModel`; dimension mismatch is a hard error, never a silent rescore |
+| Embedding provider | An OpenAI-compatible server, configured independently of chat under `Embedding__*` — Anthropic serves no embeddings endpoint, so there is deliberately no provider choice here. Model pinned in `Embedding__Model`; dimension mismatch is a hard error, never a silent rescore |
 | Entity vs facet resolution | Facets snap semantically (embeddings); movements/equipment stay lexical — no embedding column on those tables, and exact names dominate in practice |
 
 ## Status & roadmap — source of truth
@@ -403,14 +409,18 @@ concurrent stamping across two contexts on one connection.
 `ValueConversions.StorageJson` public so the literal fixtures pin the bytes that actually
 reach storage.
 
-**Mocked-LLM tests need no production seam.** `ChatClient` accepts a `Transport`, so tests
-build a real client over a fake `HttpMessageHandler` serving canned OpenAI-format bodies.
-That is both the smallest change (none) and the highest fidelity — it keeps real SDK request
-building, real response parsing, and `ChatCompletionResultExtensions.ToResult` in the path,
-all of which an app-owned interface fake would bypass. Covers the tool-call loop end to end:
-unknown tool, malformed arguments, throwing tool, multi-round chains, empty and whitespace
-output, `length`/`content_filter` finish reasons, refusals, and LM Studio's
-HTTP-200-with-error-body.
+**Mocked-LLM tests fake the transport, not a seam.** Tests build a real SDK client over a fake
+`HttpMessageHandler` serving canned wire bodies, which keeps real request building, real response
+parsing, and `OpenAiCompletionResult.ToResult` in the path — all of which an interface fake would
+bypass. Covers the tool-call loop end to end: unknown tool, malformed arguments, throwing tool,
+multi-round chains, empty and whitespace output, `length`/`content_filter` finish reasons,
+refusals, and LM Studio's HTTP-200-with-error-body.
+
+A later step added an app-owned `IChatModel` port so chat can run on Anthropic in production
+(`Services/Llm/`), which does **not** supersede the reasoning above: both providers are still
+faked at the wire, with their own SDK in the path, and each fake hands out an `IChatModel` so the
+consumer under test is wired exactly as the app wires it. What the port bought was one tool loop
+instead of two, not a test double.
 
 ### 🟨 Step 3 — Interpretation engine (core landed; PR detection + chat tools remain)
 
@@ -418,7 +428,7 @@ HTTP-200-with-error-body.
 — the deleted ingestion pipeline resolved names with Levenshtein only. Embeddings now come
 from LM Studio's OpenAI-compatible endpoint (the same local server that serves chat, user
 call 2026-07-20), wired as an `EmbeddingClient` singleton behind `IEmbeddingGenerator`
-(`Services/Embedding/`). The model is pinned in `LmStudio__EmbeddingModel`; because vectors
+(`Services/Embedding/`). The model is pinned in `Embedding__Model`; because vectors
 from different models are incomparable, `Vectors.CosineSimilarity` returns an **error** on a
 dimension mismatch rather than scoring it, so a model swap surfaces as a loud "must be
 recomputed" instead of silently corrupting resolution.
@@ -447,11 +457,17 @@ parsed text carries movement *names*, not ids) and the outcome hierarchies:
 (`qwen/qwen3.6-35b-a3b`) is a reasoning model: while it thinks, LM Studio returns the
 schema-conformant JSON in `reasoning_content` and leaves `content` **empty**, which the
 parser sees as an empty response. Neither `chat_template_kwargs.enable_thinking=false` nor
-`/no_think` changes this; **`reasoning_effort: "none"` does**, and that is what
-`BuildParseOptions` sets (SDK property still experimental — `OPENAI001` suppressed at that
-one site). The parser also now fails with a Result error naming this cause instead of
-indexing an empty `Content` collection. Extraction gains nothing from a reasoning pass, so
-this costs nothing.
+`/no_think` changes this; **`reasoning_effort: "none"` does**, and that is what the LM Studio
+provider sets when a request asks for `ReasoningDepth.Minimal` (SDK property still experimental —
+`OPENAI001` suppressed at that one site). The parser also now fails with a Result error naming
+this cause instead of indexing an empty `Content` collection. Extraction gains nothing from a
+reasoning pass, so this costs nothing.
+
+**The same trap on Anthropic, in a different spelling.** On Claude Opus 5.5 thinking is always on
+and cannot be switched off at all — `ThinkingConfigDisabled` and a token budget are both a 400 —
+so a turn routinely carries thinking blocks that are not the answer. The Anthropic provider reads
+only the text blocks, and asks for `OutputConfig.Effort = Low` for the same
+`ReasoningDepth.Minimal`. The depth knob is nested under `OutputConfig`, not top-level.
 
 Tests: the hermetic set (fakes, needs nothing running) covers cosine + dimension mismatch,
 facet literal/alias/snap/admit paths, alias accrual, two-near-values-one-pass key-collision
@@ -523,8 +539,20 @@ Read this before debugging something that "should obviously work".
 - **Reasoning models return an empty `content`.** With thinking enabled, LM Studio routes the
   schema-conformant JSON to `reasoning_content` and leaves `content` empty. Neither
   `chat_template_kwargs.enable_thinking=false` nor `/no_think` changes it; **`reasoning_effort:
-  "none"` does**, and that is what `BuildParseOptions` sets. If parses come back empty, look
-  here first.
+  "none"` does**, and that is what the LM Studio provider sends for `ReasoningDepth.Minimal`. If
+  parses come back empty, look here first.
+- **On Anthropic, thinking cannot be turned off at all.** `ThinkingConfigDisabled` and any token
+  budget are both a 400 on Claude Opus 5.5, so every turn may carry thinking blocks. Read the
+  **text** blocks only; concatenating the content union puts the model's reasoning in front of the
+  athlete. Depth is `OutputConfig.Effort`, nested there rather than top-level.
+- **Forcing a tool call to get JSON back is gone.** A `tool_choice` of `any` or `tool` returns a
+  400 on Claude Opus 5.5, so structured output is `OutputConfig.Format = new JsonOutputFormat
+  { Schema = ... }`. Assistant prefill is a 400 too. `Llm/AnthropicChatModelTests.cs` asserts the
+  request carries neither.
+- **Anthropic has no `.ToParam()`.** Echoing a turn back means rebuilding each content block as its
+  `*Param` counterpart, and a thinking block's `Signature` must survive unchanged or the request is
+  rejected. Every `tool_use` id needs exactly one matching `tool_result` in the follow-up, which is
+  why a round's tool outcomes cross the port together rather than one at a time.
 - **`[JsonIgnore]` does not inherit through an override.** Every `Period` subtype repeats it,
   or the derived member leaks back into stored JSON.
 - **Redeclaring *some* positional record members reorders the stored JSON.** System.Text.Json

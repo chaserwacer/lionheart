@@ -2,7 +2,7 @@ using System.Text.Json;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.Sets;
-using lionheart.Services.Chat;
+using lionheart.Services.Llm.LmStudio;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
 using Model.Chat.Completion;
@@ -22,6 +22,7 @@ namespace lionheart.Tests.LocalModel;
 /// test that would fail because the model chose different words is a broken test, not a finding.
 /// </remarks>
 [Trait("Category", "LocalModel")]
+[Collection(LiveModelCollection.Name)]
 public sealed class LocalModelChatTests : IDisposable
 {
     private static readonly TimeSpan Budget = TimeSpan.FromMinutes(5);
@@ -119,27 +120,25 @@ public sealed class LocalModelChatTests : IDisposable
     }
 
     /// <summary>
-    /// A real tool-call round trip through the real executor: the model must emit a call the
-    /// registry recognises, and the loop must run it and come back with a final answer.
+    /// A real tool-call round trip through the real executor and the real loop: the model must
+    /// emit a call the registry recognises, and the loop must run it and come back with a final
+    /// answer. The tools on offer come from the registry, which is where the app gets them too.
     /// </summary>
     [LmStudioFact]
     public async Task A_registered_tool_is_actually_called_and_its_result_returned()
     {
-        var client = Client();
-        var options = Deterministic();
-        options.Tools.Add(ChatTool.CreateFunctionTool(
-            "count_sets",
-            "Returns how many sets the athlete performed over the given number of days.",
-            BinaryData.FromString(
-                "{\"type\":\"object\",\"properties\":{\"days\":{\"type\":\"integer\"}},\"required\":[\"days\"]}")));
+        LmStudioFactAttribute.SkipUnlessAvailable();
 
-        var service = new ChatCompletionService(client, _toolbox.Executor);
+        var service = new ChatCompletionService(
+            LmStudio.CreateChatModel(), _toolbox.Registry, _toolbox.Executor);
+
         var result = await service.GenerateChatCompletionAsync(
             new IdentityUser("tester@lionheart.local"),
             new ChatCompletionRequest
             {
-                Conversation = AConversation.With("Use the count_sets tool for the last 5 days, then tell me the number."),
-                Options = options,
+                Conversation = AConversation.With(
+                    "Use the count_sets tool for the last 5 days, then tell me the number."),
+                MaxOutputTokens = 4096,
             });
 
         ResultAssert.Succeeded(result);

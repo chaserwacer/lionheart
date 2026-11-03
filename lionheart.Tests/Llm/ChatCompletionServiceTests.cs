@@ -3,7 +3,6 @@ using lionheart.Model.Chat;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
 using Model.Chat.Completion;
-using OpenAI.Chat;
 using Services.Chat;
 
 namespace lionheart.Tests.Llm;
@@ -26,13 +25,15 @@ public sealed class ChatCompletionServiceTests : IDisposable
 
     private Task<Result<ChatCompletionResponse, Problem>> Complete(string userMessage = "how did last week go?")
     {
-        var service = new ChatCompletionService(_server.CreateChatClient(), _toolbox.Executor);
+        var service = new ChatCompletionService(
+            _server.CreateChatModel(), _toolbox.Registry, _toolbox.Executor);
+
         return service.GenerateChatCompletionAsync(
             new IdentityUser("tester@lionheart.local"),
             new ChatCompletionRequest
             {
                 Conversation = AConversation.With(userMessage),
-                Options = new ChatCompletionOptions(),
+                MaxOutputTokens = 1024,
             });
     }
 
@@ -263,14 +264,15 @@ public sealed class ChatCompletionServiceTests : IDisposable
     [Fact]
     public async Task An_oversized_system_prompt_is_rejected_before_the_model_is_called()
     {
-        var service = new ChatCompletionService(_server.CreateChatClient(), _toolbox.Executor);
+        var service = new ChatCompletionService(
+            _server.CreateChatModel(), _toolbox.Registry, _toolbox.Executor);
 
         var result = await service.GenerateChatCompletionAsync(
             new IdentityUser("tester@lionheart.local"),
             new ChatCompletionRequest
             {
                 Conversation = AConversation.With("hello", systemTokens: 500_000),
-                Options = new ChatCompletionOptions(),
+                MaxOutputTokens = 1024,
             });
 
         Assert.False(result.IsSuccess);

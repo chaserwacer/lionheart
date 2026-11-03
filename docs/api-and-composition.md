@@ -121,9 +121,13 @@ inactive personal record" is `Conflict` (409). A `Problem` ADT only pays for its
 carries the meaning.
 
 **`AddWellnessState` keeps its 200-vs-201 distinction.** The migration collapsed both branches to
-201; updating an existing state is 200, creating one is 201. The old code was right. The four other
-status changes (deletes and Oura sync, 200 → 204) are correct and stand — they now return what their
+201; updating an existing state is 200, creating one is 201. The old code was right. The other
+status changes (the deletes, 200 → 204) are correct and stand — they now return what their
 `[ProducesResponseType]` always claimed.
+
+Oura sync was among those 204s and has since gone back to 200: it answers with the run's
+per-collection tallies, which are the one thing about a sync a caller cannot learn any other way.
+See `docs/oura-integration.md`.
 
 **The Problem→HTTP map is pinned by a test.** It had been verified with a throwaway test that was
 then deleted to hold a test count steady. Wrong trade: an unpinned mapping table is exactly the kind
@@ -296,7 +300,7 @@ type with `allOf` — the standard OpenAPI 3.0 encoding — and the regenerated 
 The likeliest runtime condition for a local-model app — LM Studio not running, or misconfigured —
 produced an opaque `"An internal server error occurred."`
 
-`ChatCompletionResultExtensions.ToResult` only ever covered a response that *arrived*: it guards LM
+`OpenAiCompletionResult.ToResult` only ever covered a response that *arrived*: it guards LM
 Studio's HTTP-200-with-an-error-body, but a connection failure makes the SDK **throw**, and two of
 the three transport call sites had no guard, so the throw reached the generic exception handler.
 `EmbeddingGenerator` caught its own; the parser and chat service did not — the same logic missing

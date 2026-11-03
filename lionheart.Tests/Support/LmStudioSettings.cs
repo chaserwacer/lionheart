@@ -1,20 +1,29 @@
+using lionheart.Functional;
+using lionheart.Services.Llm;
 using Microsoft.Extensions.Configuration;
 
 namespace lionheart.Tests.Support;
 
 /// <summary>
-/// The LmStudio configuration, read exactly the way Program.cs reads it: DotNetEnv loads
-/// <c>.env</c> into the process environment (traversing upward from the working directory),
+/// The configuration the live tests need, read exactly the way Program.cs reads it: DotNetEnv
+/// loads <c>.env</c> into the process environment (traversing upward from the working directory),
 /// and the environment-variable provider maps <c>LmStudio__X</c> to <c>LmStudio:X</c>.
 /// One reader for every test that needs the local model — no parallel configuration system,
 /// and no hardcoded URL or model name anywhere in test code.
 /// </summary>
-public sealed record LmStudioSettings(string BaseUrl, string ApiKey, string Model, string EmbeddingModel)
+/// <remarks>
+/// The LM Studio keys are read directly rather than through <see cref="ChatProviderSettings.Read"/>,
+/// which honours <c>Llm__ChatProvider</c>: these tests exercise the LM Studio provider itself, so
+/// they must target it whichever provider is configured to serve chat. The embedding half is the
+/// application's own <see cref="EmbeddingSettings"/>, because embeddings are configured
+/// independently of chat and there is nothing provider-specific about reaching them.
+/// </remarks>
+public sealed record LmStudioSettings(
+    string BaseUrl, string ApiKey, string Model, EmbeddingSettings Embedding)
 {
-    public const string BaseUrlKey = "LmStudio__BaseUrl";
-    public const string ApiKeyKey = "LmStudio__ApiKey";
-    public const string ModelKey = "LmStudio__Model";
-    public const string EmbeddingModelKey = "LmStudio__EmbeddingModel";
+    public const string BaseUrlKey = ChatProviderSettings.LmStudio.BaseUrlKey;
+    public const string ApiKeyKey = ChatProviderSettings.LmStudio.ApiKeyKey;
+    public const string ModelKey = ChatProviderSettings.LmStudio.ModelKey;
 
     /// <summary>
     /// The settings, or the name of the first key that is missing. Absence is an ordinary
@@ -35,9 +44,12 @@ public sealed record LmStudioSettings(string BaseUrl, string ApiKey, string Mode
         var model = configuration["LmStudio:Model"];
         if (string.IsNullOrWhiteSpace(model)) return (null, ModelKey);
 
-        var embeddingModel = configuration["LmStudio:EmbeddingModel"];
-        if (string.IsNullOrWhiteSpace(embeddingModel)) return (null, EmbeddingModelKey);
-
-        return (new LmStudioSettings(baseUrl, apiKey, model, embeddingModel), null);
+        return EmbeddingSettings.Read(configuration).Match(
+            embedding => (new LmStudioSettings(baseUrl, apiKey, model, embedding), (string?)null),
+            problem => ((LmStudioSettings?)null, MissingKeyName(problem)));
     }
+
+    private static string MissingKeyName(Problem problem) => problem is Problem.Invalid invalid
+        ? invalid.Fields[0].Field
+        : problem.Description;
 }

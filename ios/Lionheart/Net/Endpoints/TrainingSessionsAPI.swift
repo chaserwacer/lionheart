@@ -1,0 +1,113 @@
+import Foundation
+
+/// The training-session routes, one method per route in `docs/api-surface.md`.
+///
+/// The server exposes **transitions, not shapes**. There is no `PUT /sessions/{id}`; a session
+/// moves state through its own route, and asking for a transition from the wrong state answers
+/// 409, which arrives here as `APIError.refused` and is a refusal the UI states rather than an
+/// error it swallows. Every one of these answers with the session in its new state, so a caller
+/// never has to re-read to find out what happened.
+///
+/// `PUT /prescriptions` is not here. Nothing in the app plans a session yet — the Train tab starts
+/// and logs them — and a route with no caller is surface to keep correct for nothing.
+struct TrainingSessionsAPI: Sendable {
+    let client: APIClient
+
+    private static let root = "/api/training/sessions"
+
+    /// Every session whose own time-truth falls inside the window.
+    ///
+    /// Each lifecycle state is matched on a different column server-side — a completed session on
+    /// its stamped start instant, a planned or skipped one on the day it was planned for — so a
+    /// window reaching into the future does return planned sessions, which is what the Today
+    /// screen's "next session" depends on.
+    func sessions(from: Date, to: Date) async throws -> [TrainingSession] {
+        try await client.get(
+            Self.root,
+            query: [
+                URLQueryItem(name: "from", value: WireDate.wire(from: from)),
+                URLQueryItem(name: "to", value: WireDate.wire(from: to)),
+            ],
+            as: LenientList<TrainingSession>.self).elements
+    }
+
+    func session(id: UUID) async throws -> TrainingSession {
+        try await client.get("\(Self.root)/\(id.uuidString)")
+    }
+
+    // MARK: - Starting
+
+    /// Planned → Active.
+    func start(id: UUID, at startedAt: Date) async throws -> TrainingSession {
+        try await client.post(
+            "\(Self.root)/\(id.uuidString)/start",
+            body: StartSessionRequest(startedAt: startedAt))
+    }
+
+    /// An unplanned start: nothing was planned and the athlete began training.
+    func startUnplanned(
+        at startedAt: Date, notes: String = "", programId: UUID? = nil
+    ) async throws -> TrainingSession {
+        try await client.post(
+            "\(Self.root)/active",
+            body: StartUnplannedSessionRequest(
+                startedAt: startedAt, notes: notes, trainingProgramId: programId))
+    }
+
+    /// A session that already happened, in one request.
+    func logCompleted(
+        sets: [SetCommand],
+        period: PeriodRequest,
+        effort: PerceivedEffortRequest?,
+        notes: String = "",
+        programId: UUID? = nil
+    ) async throws -> TrainingSession {
+        try await client.post(
+            "\(Self.root)/completed",
+            body: LogCompletedSessionRequest(
+                sets: sets, period: period, effort: effort,
+                notes: notes, trainingProgramId: programId))
+    }
+
+    // MARK: - While it runs
+
+    /// Replaces the session's whole ordered set list.
+    func replaceSets(id: UUID, with sets: [SetCommand]) async throws -> TrainingSession {
+        try await client.put(
+            "\(Self.root)/\(id.uuidString)/sets",
+            body: ReplaceSetsRequest(sets: sets))
+    }
+
+    func updateNotes(id: UUID, to notes: String) async throws -> TrainingSession {
+        try await client.patch(
+            "\(Self.root)/\(id.uuidString)/notes",
+            body: SessionNotesRequest(notes: notes))
+    }
+
+    // MARK: - Ending
+
+    /// Active → Completed.
+    func complete(
+        id: UUID, period: PeriodRequest, effort: PerceivedEffortRequest?
+    ) async throws -> TrainingSession {
+        try await client.post(
+            "\(Self.root)/\(id.uuidString)/complete",
+            body: CompleteSessionRequest(period: period, effort: effort))
+    }
+
+    /// Planned → Skipped. Terminal, and kept: the skip is data.
+    func skip(id: UUID) async throws -> TrainingSession {
+        try await client.post("\(Self.root)/\(id.uuidString)/skip")
+    }
+
+    /// Removes the session entirely — what discarding a workout the athlete never meant to start
+    /// does, so an accidental tap does not leave an empty session in their history for ever.
+    func delete(id: UUID) async throws {
+        try await client.delete("\(Self.root)/\(id.uuidString)")
+    }
+}
+
+/// Notes are editable in every lifecycle state — they are commentary, not state.
+struct SessionNotesRequest: Encodable, Sendable {
+    let notes: String
+}

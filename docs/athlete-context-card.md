@@ -17,7 +17,7 @@ money, and produces inconsistent analysis across sessions.
 
 Today in Lionheart (`Services/Chat/`), every conversation starts from a static,
 200-token system prompt (`ChatConversationService.CreateChatConversationAsync`)
-and the model must call tools (`GetWellnessStates`, `GetDailyOuraDataRange`,
+and the model must call tools (`GetWellnessStates`, `GetOuraDays`,
 `GetTrainingSessionsByDateRange`, `GetAllUserInjuries`, `GetPersonalRecords`, …)
 to discover *who the athlete even is*. The tool results are persisted as
 assistant messages (`LHChatToolCallResult`) to avoid re-fetching within a
@@ -47,7 +47,7 @@ tier is computed rarely, the fast tier is cheap to recompute and small.
 
 ### 2.2 The card is a *derived materialized view*, never a source of truth
 
-- Source tables (`WellnessState`, `Injury`, `DailyOuraData`, `TrainingSession`,
+- Source tables (`WellnessState`, `Injury`, the Oura document tables, `TrainingSession`,
   `PersonalRecord`, …) remain canonical.
 - The ACC is **regenerable from scratch** at any time → safe, auditable,
   idempotent, versioned. Store a schema/version stamp so cards can be rebuilt
@@ -206,9 +206,9 @@ repo):
   - Data/ModelContext.cs                        (DbSets, relationships, migrations)
   - Program.cs                                  (DI registration, ChatClient/model config)
   - One representative ToolProvider service, e.g. Services/WellnessService.cs,
-    and skim Services/OuraService.cs, Services/InjuryService.cs,
+    and skim Services/Oura/, Services/InjuryService.cs,
     Services/Training/TrainingSessionService.cs, Services/Training/PersonalRecordService.cs
-    for the data shapes (DailyOuraData, WellnessState, Injury/InjuryEvent,
+    for the data shapes (the Oura readings, WellnessState, Injury/InjuryEvent,
     TrainingSession, PersonalRecord).
 Use targeted reads/greps; don't re-read files already in context. Then produce a
 phased implementation plan and the data model, and STOP for my approval before
@@ -286,7 +286,7 @@ coding. Your plan must cover:
     claude/lionheart-user-profiles-Ob5y0; push with git push -u origin <branch>.
     Do NOT open a pull request unless asked.
   - Do not invent data fields the source models don't have — ground every card
-    field in real entities (WellnessState scores, DailyOuraData readiness/sleep/
+    field in real entities (WellnessState scores, Oura readiness/sleep/
     resilience/activity, Injury/InjuryEvent, TrainingSession load, PersonalRecord).
 
 Begin with Phase 0 and present the plan.

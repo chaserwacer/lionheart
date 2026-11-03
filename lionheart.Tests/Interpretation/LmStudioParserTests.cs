@@ -1,12 +1,8 @@
-using System.ClientModel;
 using lionheart.Model.Interpretation;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Embedding;
 using lionheart.Services.Interpretation;
 using lionheart.Tests.Support;
-using OpenAI;
-using OpenAI.Chat;
-using OpenAI.Embeddings;
 
 namespace lionheart.Tests.Interpretation;
 
@@ -15,6 +11,7 @@ namespace lionheart.Tests.Interpretation;
 /// that matters here: does the configured model actually return content matching our schema?
 /// </summary>
 [Trait("Category", "LocalModel")]
+[Collection(LiveModelCollection.Name)]
 public class LmStudioParserTests
 {
     private const string KnownMovements = """
@@ -26,7 +23,7 @@ public class LmStudioParserTests
     private static InterpretationParser BuildParser()
     {
         LmStudioFactAttribute.SkipUnlessAvailable();
-        return new InterpretationParser(LmStudio.CreateChatClient());
+        return new InterpretationParser(LmStudio.CreateChatModel());
     }
 
     /// <summary>
@@ -78,7 +75,7 @@ public class LmStudioParserTests
     public async Task EmbeddingsComeBackWithAStableDimensionCount()
     {
         LmStudioFactAttribute.SkipUnlessAvailable();
-        var generator = new LmStudioEmbeddingGenerator(LmStudio.CreateEmbeddingClient());
+        var generator = new OpenAiCompatibleEmbeddingGenerator(LmStudio.CreateEmbeddingClient());
 
         var vectors = await generator.GenerateBatchAsync(["heavy push session", "terrible sleep"]);
 

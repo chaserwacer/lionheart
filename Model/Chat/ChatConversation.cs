@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Model.Chat.Completion;
-using OpenAI.Chat;
 namespace lionheart.Model.Chat
 {
     ////////NOTES
-    /// All of these models have been prefixed with "LH" to avoid confusion with OpenAI SDK models (ChatMessage, ChatConversation, etc).
+    /// All of these models are prefixed with "LH" to tell a stored message apart from the
+    /// <see cref="ModelMessage"/> one converts into for a model call.
 
     /// <summary>
     /// Represents a chat conversation that contain a collection of <see cref="LHChatMessage"/>.
@@ -97,14 +97,10 @@ namespace lionheart.Model.Chat
         /// Integer count of tokens number for this object.
         /// </summary>
         /// <remarks>
-        /// Use the OpenAI ChatTokenUsage object to retreive this number if possible.
+        /// Taken from the model's own reported usage where a turn has one.
         /// </remarks>
         public required int TokenCount { get; set; }
         public required string? Content { get; set; }
-        /// <summary>
-        /// Convert this LH chat message to its corresponding OpenAI ChatMessage.
-        /// </summary>
-        public abstract ChatMessage ToChatMessage();
     }
 
 
@@ -114,10 +110,6 @@ namespace lionheart.Model.Chat
     /// </summary>
     public class LHUserChatMessage : LHChatMessage
     {
-        public override ChatMessage ToChatMessage()
-        {
-            return new UserChatMessage(Content);
-        }
     }
 
     /// <summary>
@@ -126,41 +118,30 @@ namespace lionheart.Model.Chat
     /// </summary>
     public class LHModelChatMessage : LHChatMessage
     {
-        public override ChatMessage ToChatMessage()
-        {
-
-            return new AssistantChatMessage(Content);
-
-        }
     }
 
     /// <summary>
     /// Represents the system chat message that provides instructions to the AI model.
     /// </summary>
+    /// <remarks>
+    /// Not a turn in the conversation: a model call carries the system prompt as its own field, so
+    /// this message's text is read directly rather than converted alongside the turns.
+    /// </remarks>
     public class LHSystemChatMessage : LHChatMessage
     {
-        public override ChatMessage ToChatMessage()
-        {
-            return new SystemChatMessage(Content);
-        }
     }
 
     /// <summary> 
     /// Represents the stored result from a tool call made by the AI model.
     /// </summary>
+    /// <remarks>
+    /// Only the result is stored, never the model's request for it: the request costs tokens on
+    /// every later turn and carries nothing the result does not. The consequence is that a replayed
+    /// tool result cannot be sent back as a tool result — every provider rejects one whose matching
+    /// request is absent — so history replays it as an assistant statement instead.
+    /// </remarks>
     public class LHChatToolCallResult : LHChatMessage
     {
-        /// <summary>
-        /// Wrapped via <see cref="AssistantChatMessage"/> instead of <see cref="ToolChatMessage"/>,  
-        /// because we are only storing the result of the tool call, not the tool call request itself.
-        /// Open AI throws errors if we try to pass tool call messages back into the chat completion without the tool call request.
-        /// We avoid this to minimize token usage.
-        /// </summary>
-        /// <returns></returns>
-        public override ChatMessage ToChatMessage()
-        {
-            return new AssistantChatMessage(Content);
-        }
     }
 
 

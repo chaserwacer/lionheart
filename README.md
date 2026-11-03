@@ -18,7 +18,7 @@ built. The design decisions are written down rather than implied — see [Archit
 | Backend | C# 14 · .NET 10 · EF Core 10 · SQLite |
 | API | Ardalis.ApiEndpoints (one class per endpoint) · OpenAPI via Swashbuckle · Scalar |
 | Frontend | SvelteKit 2 · **Svelte 5 runes** · Tailwind 4 · daisyUI 5 · installable PWA |
-| Intelligence | Local LLM through LM Studio's OpenAI-compatible API — no cloud dependency, no per-token cost |
+| Intelligence | A provider seam over chat, structured output and embeddings: Anthropic in production, a local LM Studio server for development and test |
 | Tests | xUnit — a hermetic suite plus a live-model suite behind an explicit gate |
 
 ## Architecture
@@ -82,6 +82,26 @@ the names it could not resolve.
 
 → [`docs/quick-log.md`](docs/quick-log.md)
 
+### 4. The wearable data is stored as what the ring said, not as what is convenient
+
+Ten Oura collections, in the two shapes Oura actually has: six documents that describe a calendar
+day, and four — sleep periods, workouts, sessions, tags — that are zero-to-many events inside one.
+Each table is keyed by **Oura's own document id**, which is what makes both the live sync and the
+history import idempotent with no sync ledger to maintain: a document either exists or it does not.
+
+A missing reading is absent, never a sentinel. The integration this replaced wrote `0` for a
+contributor Oura could not compute and `-1` for a day with no document, which made a bad day
+indistinguishable from an unmeasured one and dragged every baseline average toward zero.
+
+Keeping everything is not the same as keeping all of it: the overnight HRV and heart-rate curves and
+the 5-minute hypnogram are stored because an athlete reasoning about recovery wants them, while the
+1440-sample minute-by-minute MET series — 87% of the activity payload — is dropped, because the
+MET-minute totals beside it say the same thing at the resolution anything reads.
+
+Three and a half years of his real history, 9194 documents, were imported from an archive of
+recorded API responses rather than re-pulled.
+→ [`docs/oura-integration.md`](docs/oura-integration.md)
+
 ## Testing
 
 Two suites, one gate:
@@ -105,13 +125,19 @@ failures already paid for. The most expensive: a reasoning model returns schema-
 
 ## Running it
 
-Requires .NET 10 SDK, Node 24, and [LM Studio](https://lmstudio.ai) for the chat and interpretation
-features.
+Requires .NET 10 SDK, Node 24, and [LM Studio](https://lmstudio.ai) — for the chat and
+interpretation features in development, and for embeddings in every configuration.
 
 ```bash
-cp .env.example .env      # then set LmStudio__BaseUrl / ApiKey / Model / EmbeddingModel
+cp .env.example .env      # then fill in the keys it describes
 dotnet run                # API + SPA proxy; regenerates the TypeScript client on startup
 ```
+
+Chat runs on whichever provider `Llm__ChatProvider` names — `LmStudio` (the default) or
+`Anthropic`. Embeddings are configured separately, under `Embedding__*`, and are **always** an
+OpenAI-compatible server: Anthropic has no embeddings endpoint, so "chat on Anthropic, embeddings
+on LM Studio" is the expected production configuration rather than a fallback. A missing or
+contradictory key stops the host at startup naming the key, not at the first request.
 
 `ClientApp/src/lib/api/ApiClient.ts` is **generated** from the OpenAPI document each time the backend
 starts. Never edit it by hand.
