@@ -63,19 +63,26 @@ struct TrainingTrends: Equatable, Sendable {
     /// The mean sets per week over the four weeks ending on each week, from the fourth week on —
     /// the line a week's bar is read against. Empty weeks count, because a week off is load too.
     static func loadAverage(of weeks: [TrainingWeek]) -> [WeeklyLoad] {
+        trailingAverage(of: weeks, counting: \.setCount)
+    }
+
+    /// The four-week trailing mean of any weekly count — sets for load, sessions for consistency.
+    static func trailingAverage(
+        of weeks: [TrainingWeek], counting count: (TrainingWeek) -> Int
+    ) -> [WeeklyLoad] {
         weeks.indices.compactMap { index in
             guard index + 1 >= loadAverageWeeks else { return nil }
             let window = weeks[(index + 1 - loadAverageWeeks)...index]
             return WeeklyLoad(
                 start: weeks[index].start,
-                sets: Double(window.reduce(0) { $0 + $1.setCount }) / Double(loadAverageWeeks))
+                value: Double(window.reduce(0) { $0 + count($1) }) / Double(loadAverageWeeks))
         }
     }
 
-    /// One week's trailing average.
+    /// One week's trailing average of a weekly count.
     struct WeeklyLoad: Equatable, Sendable, Identifiable {
         let start: CalendarDay
-        let sets: Double
+        let value: Double
 
         var id: CalendarDay { start }
     }
@@ -143,10 +150,18 @@ extension TrainingTrends {
     static func weeks(
         of sessions: [TrainingSession], today: CalendarDay, calendar: Calendar = .current
     ) -> [TrainingWeek] {
-        let counted = sessions.reduce(into: [CalendarDay: (sessions: Int, sets: Int)]()) { tally, session in
-            guard let start = weekStart(of: session.date, calendar: calendar) else { return }
+        weeks(ofDays: sessions.map(\.date), setCounts: sessions.map(\.sets.count), today: today, calendar: calendar)
+    }
+
+    /// Weekly counts of sessions given as their days and set counts, pairwise — the shape a
+    /// movement's history has, where only that movement's sets count.
+    static func weeks(
+        ofDays days: [CalendarDay], setCounts: [Int], today: CalendarDay, calendar: Calendar = .current
+    ) -> [TrainingWeek] {
+        let counted = zip(days, setCounts).reduce(into: [CalendarDay: (sessions: Int, sets: Int)]()) { tally, session in
+            guard let start = weekStart(of: session.0, calendar: calendar) else { return }
             let running = tally[start] ?? (0, 0)
-            tally[start] = (running.sessions + 1, running.sets + session.sets.count)
+            tally[start] = (running.sessions + 1, running.sets + session.1)
         }
 
         guard let earliest = counted.keys.min(), let thisWeek = weekStart(of: today, calendar: calendar)

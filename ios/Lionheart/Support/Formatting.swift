@@ -39,6 +39,14 @@ enum Formatting {
         day.middayDate(in: calendar).formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
     }
 
+    /// A day with its year when it is not this year's — for lists that run back across years,
+    /// where "Sun, Sep 20" alone could be either.
+    static func date(_ day: CalendarDay, today: CalendarDay, calendar: Calendar = .current) -> String {
+        guard day.year != today.year else { return date(day, calendar: calendar) }
+        return day.middayDate(in: calendar)
+            .formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
+    }
+
     /// A month as a section header — "October 2026".
     static func month(_ day: CalendarDay, calendar: Calendar = .current) -> String {
         day.middayDate(in: calendar).formatted(.dateTime.month(.wide).year())
@@ -166,6 +174,28 @@ enum Formatting {
         "\(volume.formatted(.number.precision(.fractionLength(0...1)))) \(unit.abbreviation)"
     }
 
+    /// What a session's sets came to — "14 sets · 12,450 lb" — with a volume per unit lifted in,
+    /// because weights never convert. A unit whose lifts moved no load (bodyweight work recorded at
+    /// zero) adds no volume to say.
+    static func totals(_ totals: WorkoutTotals) -> String {
+        ([count(totals.setCount, "set")] + totals.weights.filter { $0.volume > 0 }.map(volume))
+            .joined(separator: " · ")
+    }
+
+    /// How much of a session set a record: the sets that did, and the movements whose best
+    /// session volume it set.
+    static func recordSummary(sets: Int, sessionVolumes: Int) -> String {
+        let setPart = sets > 0 ? [count(sets, "set")] : []
+        let volumePart = sessionVolumes > 0
+            ? ["session volume on \(count(sessionVolumes, "movement"))"] : []
+        return (setPart + volumePart).joined(separator: " · ")
+    }
+
+    /// Sessions a week to two places, the way the athlete's own analysis states it: `0.19`.
+    static func rate(_ rate: Double) -> String {
+        rate.formatted(.number.precision(.fractionLength(2)))
+    }
+
     // MARK: - Recovery
 
     /// A recovery figure as a number and the unit beside it, apart so the number can carry the
@@ -261,7 +291,12 @@ enum Formatting {
 
     /// An estimate, rounded to the whole number it can honestly claim and marked as one.
     static func estimate(_ value: Double, _ unit: WeightUnit) -> String {
-        "≈ \(value.formatted(.number.precision(.fractionLength(0)).grouping(.never))) \(unit.abbreviation)"
+        "≈ \(estimateFigure(value)) \(unit.abbreviation)"
+    }
+
+    /// An estimated single as a whole number, rounded the one way everywhere it is shown.
+    static func estimateFigure(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0)).grouping(.never))
     }
 
     /// The day a record was set, with its year: records are read across years.

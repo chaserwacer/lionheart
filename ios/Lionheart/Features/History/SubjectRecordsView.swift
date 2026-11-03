@@ -16,10 +16,6 @@ struct SubjectRecordsView: View {
     let catalogue: MovementCatalogue
     let store: HistoryStore
 
-    /// Which unit's lifting records are shown. View state: the athlete looking at their kilogram
-    /// numbers is not a fact about their training. `nil` means "the most recent", which is also
-    /// what a unit that has since lost all its records falls back to.
-    @State private var chosenUnit: WeightUnit?
     @State private var asked: PersonalRecord?
     /// The chain a grid cell opened. See `RepMaxGridView.open` for why the grid cannot push with a
     /// link of its own.
@@ -30,7 +26,7 @@ struct SubjectRecordsView: View {
 
         List {
             if let held {
-                content(RecordReading.of(held), name: name)
+                SubjectRecordsSections(held: held, name: name, ask: { asked = $0 }, open: { opened = $0 })
             } else {
                 ContentUnavailableView {
                     Text("No standing records")
@@ -48,6 +44,29 @@ struct SubjectRecordsView: View {
         .navigationDestination(item: $opened) { key in
             RecordHistoryView(key: key, name: name, store: store)
         }
+    }
+}
+
+/// One subject's standing records as list sections — the unit control, the bests, the rep-max grid
+/// and the distance records — for any list that shows them: the records screen, and a movement's
+/// page.
+///
+/// The list it sits in owns the retraction dialog and the push to a chain, because a dialog or a
+/// destination hung inside a section belongs to whichever row SwiftUI happened to keep.
+struct SubjectRecordsSections: View {
+    let held: SubjectRecords
+    let name: String
+    let ask: (PersonalRecord) -> Void
+    /// Opens a grid cell's chain. The rows push with a `HistoryRoute` link of their own.
+    let open: (RecordKey) -> Void
+
+    /// Which unit's lifting records are shown. View state: the athlete looking at their kilogram
+    /// numbers is not a fact about their training. `nil` means "the most recent", which is also
+    /// what a unit that has since lost all its records falls back to.
+    @State private var chosenUnit: WeightUnit?
+
+    var body: some View {
+        content(RecordReading.of(held), name: name)
     }
 
     @ViewBuilder
@@ -114,7 +133,7 @@ struct SubjectRecordsView: View {
 
         if lifting.grid.holdsRepMaxes {
             Section {
-                RepMaxGridView(grid: lifting.grid, name: name, ask: ask, open: { opened = $0 })
+                RepMaxGridView(grid: lifting.grid, name: name, ask: ask, open: open)
             } header: {
                 Text("Rep maxes")
             } footer: {
@@ -162,9 +181,6 @@ struct SubjectRecordsView: View {
             set: { chosenUnit = $0 })
     }
 
-    private func ask(_ record: PersonalRecord) {
-        asked = record
-    }
 }
 
 // MARK: - Rows

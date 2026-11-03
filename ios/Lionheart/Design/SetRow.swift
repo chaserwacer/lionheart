@@ -35,12 +35,12 @@ struct SetRow: View {
         self.record = record
     }
 
-    /// A set in a finished session, read back from the server.
-    init(number: Int, entry: SetEntry) {
+    /// A set in a finished session, read back from the server, with the records it established.
+    init(number: Int, entry: SetEntry, record: SetRecordOutcome = .notApplicable) {
         self.number = number
         self.figures = .of(entry)
         self.unmetTarget = nil
-        self.record = .notApplicable
+        self.record = record
     }
 
     var body: some View {
