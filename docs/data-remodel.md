@@ -725,8 +725,11 @@ the `sheet:<sheet>#w<week>` rows; the `strong:` rows are counted and left to `im
   week and day, then the coach's notes per row, then the rows not counted. RPE comes only from an
   "RPE Actual" column; a prescribed RPE stays in the notes.
 - **Movements** come from `coached-movements.json`, keyed by training-os slug, spelled as the Strong
-  map spells them so shared lifts reuse one movement. Variations stay separate. The deadlift's stance
-  is never written in the sheets; it maps to conventional `Deadlift / Barbell` and is flagged.
+  map spells them so shared lifts reuse one movement. Variations stay separate. The sheets never write
+  the deadlift's stance, so a programme's `readAs` in `coached-sheets.json` says what its slug means:
+  the owner pulled conventional while running the Jamal block and sumo through Blake's sheets (their
+  463 × 3 and 474 × 3 are past his 463 conventional single), so Blake's deadlifts land on the
+  `Sumo Deadlift` movements his Strong history uses.
 - **Records rebuilt.** Inside the import's transaction, `PersonalRecordRebuild.ReplayAsync` deletes
   the athlete's records and runs every completed session through `PersonalRecordDetector` in one
   batch, oldest first. A newer record that an older set already beats was never a record and is

@@ -43,7 +43,10 @@ public sealed partial record SheetHistory(
     /// </remarks>
     public static Result<SheetHistory, Problem> Of(SheetLog log, SheetDecisions decisions) =>
         Matched(log, decisions)
-            .Bind(matched => Grouped(log, [.. log.Sets.Where(set => !matched.Contains(set))], decisions.NotPerformed))
+            .Bind(matched => Grouped(
+                log,
+                [.. log.Sets.Where(set => !matched.Contains(set)).Select(set => ReadThrough(set, decisions))],
+                decisions.NotPerformed))
             .Bind(Unclustered)
             .Map(workouts => new SheetHistory(
                 log,
@@ -73,6 +76,13 @@ public sealed partial record SheetHistory(
             ? Result<HashSet<SheetSet>, Problem>.Success(matches.SelectMany(match => match.Sets).ToHashSet())
             : Result<HashSet<SheetSet>, Problem>.Failure(new Problem.Invalid(drifted));
     }
+
+    // ---- What each sheet means by its exercise ----
+
+    private static SheetSet ReadThrough(SheetSet set, SheetDecisions decisions) =>
+        decisions.Programs.TryGetValue(set.Source.Sheet, out var program)
+            ? set with { Exercise = program.Reading(set.Exercise) }
+            : set;
 
     // ---- Sessions ----
 

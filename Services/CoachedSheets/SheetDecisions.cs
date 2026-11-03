@@ -4,7 +4,16 @@ using lionheart.Functional;
 namespace lionheart.Services.CoachedSheets;
 
 /// <summary>A programme sheet as the coached programme it becomes.</summary>
-public sealed record SheetProgram(string Sheet, string Title, string Summary, IReadOnlyList<string> Tags);
+public sealed record SheetProgram(
+    string Sheet, string Title, string Summary, IReadOnlyList<string> Tags, IReadOnlyDictionary<string, string> ReadAs)
+{
+    /// <summary>
+    /// The slug this programme's sheet means by <paramref name="exercise"/>. A sheet can say less than
+    /// its era did: Blake's sheets write "Heave" for a deadlift pulled sumo, where the earlier Jamal
+    /// block's deadlift was conventional, and training-os gives both one slug.
+    /// </summary>
+    public string Reading(string exercise) => ReadAs.GetValueOrDefault(exercise, exercise);
+}
 
 /// <summary>Why a row the set log holds is not a set the athlete performed.</summary>
 public enum NotPerformedKind
@@ -130,7 +139,9 @@ public sealed class SheetDecisions
     private static Result<SheetProgram, InvalidField> Program(ProgramEntry? entry) =>
         entry is { Sheet: { Length: > 0 } sheet, Title: { Length: > 0 } title }
             ? Result<SheetProgram, InvalidField>.Success(new SheetProgram(
-                sheet.Trim(), title.Trim(), entry.Summary?.Trim() ?? string.Empty, [.. entry.Tags ?? []]))
+                sheet.Trim(), title.Trim(), entry.Summary?.Trim() ?? string.Empty, [.. entry.Tags ?? []],
+                (entry.ReadAs ?? []).ToDictionary(
+                    reading => reading.Key.Trim(), reading => reading.Value.Trim(), StringComparer.OrdinalIgnoreCase)))
             : Result<SheetProgram, InvalidField>.Failure(new InvalidField(
                 "programs", $"{FileName}: every programme needs a \"sheet\" and a \"title\"."));
 
@@ -163,7 +174,9 @@ public sealed class SheetDecisions
     private sealed record FileContents(
         List<ProgramEntry?>? Programs = null, List<string>? TemplateText = null, List<NotPerformedEntry?>? NotPerformed = null);
 
-    private sealed record ProgramEntry(string? Sheet = null, string? Title = null, string? Summary = null, List<string>? Tags = null);
+    private sealed record ProgramEntry(
+        string? Sheet = null, string? Title = null, string? Summary = null, List<string>? Tags = null,
+        Dictionary<string, string>? ReadAs = null);
 
     private sealed record NotPerformedEntry(
         string? Source = null, string? Date = null, string? Exercise = null, double? Weight = null, int? Reps = null,
