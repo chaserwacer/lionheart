@@ -239,7 +239,7 @@ struct ActiveWorkoutView: View {
                     numbered.logged,
                     number: numbered.number,
                     target: numbered.target,
-                    earlier: movement.sets.prefix(numbered.number - 1).map(\.logged.command),
+                    earlier: movement.sets.prefix { $0.id != numbered.id }.map(\.logged.command),
                     records: library.records(for: numbered.logged.command))
             }
 

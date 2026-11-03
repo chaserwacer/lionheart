@@ -91,7 +91,8 @@ enum SetRecordOutcome: Equatable, Sendable {
             .filter { $0.movementDataId == lift.movementDataId && $0.unit == lift.unit }
             .flatMap(contested(by:))
             .reduce(into: [:]) { best, contest in
-                best[contest.0] = max(best[contest.0] ?? contest.1, contest.1)
+                let (kind, figure) = contest
+                best[kind] = max(best[kind] ?? figure, figure)
             }
     }
 
