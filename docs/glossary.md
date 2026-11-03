@@ -19,6 +19,8 @@ first and then in the code.
 | **Movement data** | The identity of a thing you do: a movement base plus equipment plus a modifier. Records hang off it. |
 | **Movement base** | The bare exercise, before equipment: "bench press", "deadlift". |
 | **Strong movement map** | The athlete-editable file saying which movement each exercise name in a Strong export becomes. |
+| **Coached programme sheets** | The athlete's 2023–24 powerlifting spreadsheets (Jamal V5; Blake Rossi's Perfect Powerlifting), read through training-os's derived set log. Each sheet imports as a completed training program. |
+| **Not-performed row** | A row the set log holds that the athlete did not lift as written — a weight the spreadsheet computed, a placeholder, a row his own note contradicts. Left out of the session and named in its notes. |
 | **Rpe** | Rate of perceived exertion for a set. Rated or unrated — never a nullable number. |
 | **Perceived effort ratings** | The athlete's own read on a session, as a cluster, not loose fields. |
 | **Training program** | A block of training with a title and dates. Planned, active or completed. |
@@ -33,6 +35,7 @@ first and then in the code.
 | **Record standing** | Whether a record is the current one, one the athlete beat, or one they withdrew. Three states, because "beaten" and "withdrawn" read nothing alike. |
 | **Record chain** | Every record of one identity — subject, kind and weight unit — newest first: the one standing, the ones it beat, and any withdrawn. What a record's history shows. |
 | **Record lineage** | What a record replaced — nothing, for the first of its kind — carrying the predecessor's date so "how long the last one stood" answers without a second read. |
+| **Record rebuild** | Re-detecting an athlete's records from scratch over every completed session, oldest first — what keeps the chains right when history arrives out of order. Writes nothing when the records are already right. |
 | **Retracting a record** | Withdrawing the standing record because the set behind it was not real, which puts back whatever it beat. The only edit an athlete makes to a record. |
 | **Estimated one-rep max** | A single rep implied by a set, by Epley. Derived from the stored weight and reps on the way out, never stored. |
 | **Established records** | Every record a movement or a window of time set, whatever became of each since — standing, beaten or withdrawn. What marks the sets that set a record. |
