@@ -338,6 +338,15 @@ final class ActiveWorkoutStore {
             finish = .idle
             return false
         } catch {
+            // A failure here does not establish that the workout did not land. If the server
+            // committed the completion and only the response was lost, the device's belief is
+            // wrong in the one direction that costs the athlete everything: it would offer to
+            // discard a workout the server is holding. So ask before concluding.
+            if await serverHasCompleted(workout.destination) {
+                clearLocally()
+                return true
+            }
+
             let failure = (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))
             finish = .refused(failure)
             if case .refused = failure { mark(.refused(failure.message)) }
@@ -348,18 +357,37 @@ final class ActiveWorkoutStore {
         return true
     }
 
+    /// Whether the server already holds this workout as a completed session.
+    ///
+    /// Only ever consulted to avoid destroying work. A read that itself fails answers `false`,
+    /// which keeps the local document — the recoverable mistake. Answering `true` on a failed read
+    /// would clear the only copy on a guess.
+    private func serverHasCompleted(_ destination: WorkoutDestination) async -> Bool {
+        guard let sessionId = destination.sessionId else { return false }
+
+        guard let session = try? await sessions.session(id: sessionId) else { return false }
+        if case .completed = session { return true }
+        return false
+    }
+
     /// Abandons the workout, and removes the session it was holding.
     ///
     /// The delete is best-effort and the local clear is not. A session left active on the server is
     /// visible in the Train tab and can be discarded again from there; a workout the athlete cannot
     /// dismiss is a dead end, and an accidental tap on "start" must not be one.
+    ///
+    /// **A session the server has already completed is never deleted.** The athlete reaches this
+    /// from a finish that looked refused, which a lost response produces just as readily as a
+    /// genuine failure — so "discard" can mean "throw away the workout I just saved". The local
+    /// copy still goes, because the server is holding the real one.
     func discard() async {
         guard let workout else { return }
         pushHandle?.cancel()
         pushHandle = nil
 
         if let sessionId = workout.destination.sessionId {
-            try? await sessions.delete(id: sessionId)
+            let alreadySaved = await serverHasCompleted(workout.destination)
+            if !alreadySaved { try? await sessions.delete(id: sessionId) }
         }
         clearLocally()
     }
