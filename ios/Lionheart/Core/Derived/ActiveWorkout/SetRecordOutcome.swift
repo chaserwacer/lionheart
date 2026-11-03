@@ -1,61 +1,93 @@
 import Foundation
 
-/// Whether a set beat the records standing against its movement.
+/// Whether a set just logged beat a record standing against its movement.
 ///
-/// Mirrors the server's two `PersonalRecordType` cases exactly: **Strength** compares the weight
-/// alone, **Volume** compares weight × reps. Both are strict — equalling a record does not beat it,
-/// which is also what keeps a repeated set from announcing itself five times.
+/// A lift competes for three records at once, the same three the server's detector stages for a
+/// set: the heaviest set, the rep max at its own rep count, and the best set volume. Beating any
+/// of them is news the athlete wants while the bar is still loaded — "that was a five-rep max" is
+/// the sentence the rep-max grid exists for.
 ///
-/// It is derived on the device so the news arrives when the set is logged rather than when the
-/// session is pushed, which is the whole point of showing it. The server remains the authority:
-/// these records come from `GET /api/personal-records/summaries` as they stood when the workout
-/// started, so two sets beating the same record in one workout both read as beating it. Correcting
-/// that would mean the device deciding which of them *became* the record, which is the server's job.
+/// What is deliberately not said here:
+///
+/// - **Records the set would be the first of.** A movement's first rep max at seven, or its first
+///   record in a unit the athlete just switched to, is a record the server will set — but saying
+///   so on every new rep count, or on every set of the first workout in kilograms, would make the
+///   badge mean nothing by the time it was earned. Only beating a standing record is news.
+/// - **Best session volume, and the distance records.** Those are decided over a whole session or
+///   a whole effort, which the server reads on completion; the device would have to re-derive its
+///   distance conversions and paces to guess at them, and a guess that disagrees with the record
+///   that lands is worse than silence.
+///
+/// The server remains the authority. These records come from the summaries as they stood when the
+/// workout began, so two sets beating the same record both read as beating it; deciding which of
+/// them *became* the record is the server's job when the session completes.
 enum SetRecordOutcome: Equatable, Sendable {
-    /// Not a shape that has records. Only a lift does — the server tracks none for distance.
+    /// Not a lift, so nothing to say mid-workout.
     case notApplicable
-    /// There is no record for this movement to beat.
+    /// No record stands in this set's unit for any of the three it competes for.
     case noRecordYet
     case none
-    case strength
-    case volume
-    case both
+    /// The records it beat, in the order they are worth saying: heaviest set, rep max, set volume.
+    case beats(RecordKind, also: [RecordKind])
 
-    /// Whether this is worth telling the athlete about.
-    ///
-    /// `.noRecordYet` is deliberately silent. A new athlete logging their first ever set has not
-    /// achieved anything by having no history, and announcing it on every set of their first weeks
-    /// would make the badge mean nothing by the time it was earned.
     var isWorthSaying: Bool {
         switch self {
         case .notApplicable, .noRecordYet, .none: false
-        case .strength, .volume, .both: true
+        case .beats: true
         }
     }
 
-    /// - Note: A record held in a different unit from the set is **not** compared. The server
-    ///   stores a record's unit and compares weights numerically without converting, so a
-    ///   device-side conversion would announce a record the server then disagrees with — 225 lb
-    ///   would "beat" a 100 kg record. Silence is the honest answer until the athlete's units
-    ///   agree again, and it is the same reasoning that keeps volume totals unconverted.
-    static func of(_ command: SetCommand, against records: MovementRecords?) -> SetRecordOutcome {
+    /// Every record beaten, in the order they are worth saying.
+    var beaten: [RecordKind] {
+        switch self {
+        case .notApplicable, .noRecordYet, .none: []
+        case .beats(let first, let rest): [first] + rest
+        }
+    }
+
+    /// - Note: Only records held in the set's own unit are compared. Weights never convert — 225 lb
+    ///   is a larger number and a lighter lift than 110 kg — and the unit is part of a record's
+    ///   identity, so a pounds set competes with the pounds records and a kilograms record is not
+    ///   one it could beat.
+    static func of(_ command: SetCommand, against held: SubjectRecords?) -> SetRecordOutcome {
         guard let lift = command.liftPart else { return .notApplicable }
-        guard let records, !records.isEmpty else { return .noRecordYet }
 
-        func comparable(_ record: PersonalRecord?) -> PersonalRecord? {
-            guard let record, record.unit == lift.unit else { return nil }
-            return record
+        let standing = (held?.records ?? []).filter {
+            $0.standing == .standing && $0.achievement.heldIn == lift.unit
+        }
+        let contests = contested(by: lift).compactMap { kind, figure in
+            standingFigure(of: kind, in: standing).map { (kind, beats: figure > $0) }
         }
 
-        let beatsWeight = comparable(records.strength).map { lift.weight > $0.weight } ?? false
-        let beatsVolume = comparable(records.volume)
-            .map { lift.weight * Double(lift.reps) > $0.volume } ?? false
+        guard !contests.isEmpty else { return .noRecordYet }
+        let beaten = contests.filter(\.beats).map(\.0)
+        guard let first = beaten.first else { return .none }
+        return .beats(first, also: Array(beaten.dropFirst()))
+    }
 
-        switch (beatsWeight, beatsVolume) {
-        case (true, true): return .both
-        case (true, false): return .strength
-        case (false, true): return .volume
-        case (false, false): return .none
-        }
+    /// The records a lift competes for, with its figure for each — mirroring the server's
+    /// `RecordCandidates`. Zero load or zero reps raises nothing there, so it contests nothing
+    /// here; and the rep-max grid stops at `RecordKind.highestGradedRepCount`.
+    private static func contested(by lift: SetCommand.Lift) -> [(RecordKind, Double)] {
+        guard lift.weight > 0, lift.reps > 0 else { return [] }
+        let repMax: [(RecordKind, Double)] = lift.reps <= RecordKind.highestGradedRepCount
+            ? [(.repMax(reps: lift.reps), lift.weight)]
+            : []
+        return [(.heaviestSet, lift.weight)] + repMax
+            + [(.bestSetVolume, lift.weight * Double(lift.reps))]
+    }
+
+    /// The figure the standing record of `kind` is ranked by, if one stands.
+    private static func standingFigure(of kind: RecordKind, in standing: [PersonalRecord]) -> Double? {
+        standing
+            .first { $0.achievement.kind == kind }
+            .flatMap { record in
+                switch record.achievement {
+                case .heaviestSet(let lift), .repMax(let lift): lift.weight
+                case .bestSetVolume(let set): set.volume
+                case .bestSessionVolume, .longestDistance, .fastestTime, .bestPace, .unrecognised:
+                    nil
+                }
+            }
     }
 }

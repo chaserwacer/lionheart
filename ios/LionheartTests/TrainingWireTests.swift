@@ -261,42 +261,4 @@ struct MovementDecodingTests {
         #expect(movement.matches(""))
         #expect(!movement.matches("squat"))
     }
-
-    @Test("A record summary reads the two figures a workout needs")
-    func recordSummariesDecode() throws {
-        // A record carries its own id and its unit, both of which the comparison depends on: the
-        // server stores a weight's unit and compares numerically without converting.
-        let payload = Data(#"""
-            [{"movementDataID":"22222222-2222-2222-2222-222222222222",
-              "strengthPR":{"personalRecordID":"33333333-3333-3333-3333-333333333333",
-                            "movementDataID":"22222222-2222-2222-2222-222222222222",
-                            "prType":0,"weight":110.0,"weightUnit":0,"reps":3,"volume":330.0},
-              "volumePR":{"personalRecordID":"44444444-4444-4444-4444-444444444444",
-                          "movementDataID":"22222222-2222-2222-2222-222222222222",
-                          "prType":1,"weight":100.0,"weightUnit":0,"reps":10,"volume":1000.0},
-              "lastPRDate":"2026-10-01T00:00:00"}]
-            """#.utf8)
-
-        let records = try JSONDecoder()
-            .decode(LenientList<MovementRecords>.self, from: payload).elements
-
-        #expect(records[0].strength?.weight == 110)
-        #expect(records[0].strength?.unit == .kilograms)
-        #expect(records[0].volume?.volume == 1000)
-        #expect(!records[0].isEmpty)
-    }
-
-    @Test("A movement the server holds no record for reads as empty, not as zero")
-    func anAbsentRecordIsEmpty() throws {
-        let payload = Data(#"""
-            {"movementDataID":"22222222-2222-2222-2222-222222222222",
-             "strengthPR":null,"volumePR":null,"lastPRDate":null}
-            """#.utf8)
-
-        let records = try JSONDecoder().decode(MovementRecords.self, from: payload)
-
-        #expect(records.isEmpty)
-        #expect(records.strength == nil)
-        #expect(records.volume == nil)
-    }
 }

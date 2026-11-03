@@ -29,6 +29,7 @@ first and then in the code.
 | **Achievement** | A record's kind fused with the performance that holds it, so a heaviest-set record cannot hold a distance. |
 | **Rep-max grid** | A movement's best weight at each rep count from one to twelve. The thing most lifters actually train against. |
 | **Record standing** | Whether a record is the current one, one the athlete beat, or one they withdrew. Three states, because "beaten" and "withdrawn" read nothing alike. |
+| **Record chain** | Every record of one identity — subject, kind and weight unit — newest first: the one standing, the ones it beat, and any withdrawn. What a record's history shows. |
 | **Record lineage** | What a record replaced — nothing, for the first of its kind — carrying the predecessor's date so "how long the last one stood" answers without a second read. |
 | **Retracting a record** | Withdrawing the standing record because the set behind it was not real, which puts back whatever it beat. The only edit an athlete makes to a record. |
 | **Estimated one-rep max** | A single rep implied by a set, by Epley. Derived from the stored weight and reps on the way out, never stored. |

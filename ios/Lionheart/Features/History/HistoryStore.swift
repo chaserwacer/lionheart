@@ -25,6 +25,10 @@ final class HistoryStore {
     /// screen's data: a skip that the server refuses must not make the log unavailable.
     private(set) var action: ActionState = .idle
 
+    /// Each record chain a pushed history screen has asked for, by key. Held here rather than in
+    /// the screen so a retraction made on it re-reads the chain it was made from.
+    private(set) var histories: [RecordKey: LoadState<RecordHistory>] = [:]
+
     private let sessions: TrainingSessionsAPI
     private let movements: MovementsAPI
     private let records: PersonalRecordsAPI
@@ -58,6 +62,7 @@ final class HistoryStore {
         load = nil
         state = .loading
         action = .idle
+        histories = [:]
     }
 
     // MARK: - Acting on a row
@@ -71,6 +76,37 @@ final class HistoryStore {
     /// one skipped by mistake, since there is no route back from skipped.
     func delete(_ sessionId: UUID) async {
         await write { try await self.sessions.delete(id: sessionId) }
+    }
+
+    /// Withdraws a standing record, then re-reads both the records and the chain it belonged to.
+    ///
+    /// The outcome is not applied by hand: whether the record it beat stands again or nothing
+    /// does, the summaries say so, and splicing the restored record in would be a second account
+    /// of the chain. A 409 — the record was already beaten or withdrawn elsewhere — is kept and
+    /// stated with the server's own sentence, and the chain is re-read either way so the screen
+    /// shows what does stand.
+    func retract(_ record: PersonalRecord) async {
+        await write { _ = try await self.records.retract(record.personalRecordId) }
+        if histories[record.key] != nil {
+            await loadHistory(of: record.key)
+        }
+    }
+
+    /// Reads one record chain. A failed re-read keeps the chain already shown.
+    ///
+    /// The state is read again after the await rather than before it: a retraction's re-read and
+    /// the screen's own can overlap, and applying to a stale copy would let the slower failure
+    /// blank a chain the faster one had just loaded.
+    func loadHistory(of key: RecordKey) async {
+        let outcome: Result<RecordHistory, LoadFailure>
+        do {
+            outcome = .success(RecordHistory.reading(try await records.history(of: key), of: key))
+        } catch is CancellationError {
+            return
+        } catch {
+            outcome = .failure((try? LoadFailure.from(error)) ?? .unavailable(String(describing: error)))
+        }
+        histories[key] = (histories[key] ?? .loading).applying(outcome)
     }
 
     /// One transition, then a re-read of the window.
@@ -109,12 +145,12 @@ final class HistoryStore {
                 from: moment.addingTimeInterval(-Double(Self.lookBackDays) * 86_400),
                 to: moment.addingTimeInterval(Double(Self.lookAheadDays) * 86_400))
             async let catalogue = movements.movements()
-            async let byMovement = records.recordsByMovement()
+            async let bySubject = records.summaries()
 
             let snapshot = HistorySnapshot.reading(
                 sessions: try await window,
                 movements: try await catalogue,
-                records: try await byMovement,
+                records: try await bySubject,
                 today: today)
             state = state.applying(.success(snapshot))
         } catch is CancellationError {
