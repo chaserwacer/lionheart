@@ -91,23 +91,52 @@ works on the home network and correctly refuses to work for a public HTTP host.
 
 The address changes when DHCP reassigns it, which is the main irritation of this path.
 
-### Away from the Mac's network
+### Away from the Mac's network: Tailscale
 
-The backend is a personal server on a laptop, so the honest options are a tunnel or nothing:
+**Decided 2026-11-03 (owner): the Mac stays at home and awake, and the phone reaches it over
+Tailscale.** The Mac and the phone join the same private network, nothing is exposed publicly, and
+the app is usable at the gym. Rejected alternatives:
+- **ngrok**: a public URL in front of a personal training database and an Anthropic key, and its
+  basic auth collides with the app's own bearer token.
+- **Hosting the backend elsewhere**: needed only if the Mac could not stay on. It would also mean
+  moving embeddings off LM Studio.
 
-- **Tailscale** is the better fit. The Mac and the phone join the same private network, the Mac's
-  Tailscale address is stable, and nothing is exposed publicly. The address is in the
-  `100.64.0.0/10` range, which is *not* an ATS private range — so either use Tailscale's HTTPS
-  (`tailscale serve`) or accept that this needs an ATS exemption that Release should not have.
-- **ngrok** gives a public HTTPS URL, which ATS allows with no exemption at all, so it is the
-  lowest-friction option for a quick test. It also means a public URL in front of a personal
-  training database; use `ngrok http --basic-auth` or keep the tunnel short-lived.
-- **Neither.** The app needs the backend, so without one of these it works at home and not
-  elsewhere. For an app used in a gym, that is a real limitation and worth deciding on
-  deliberately rather than discovering.
+A Tailscale address is in `100.64.0.0/10`, which is *not* a private range as far as App Transport
+Security is concerned. So the phone uses Tailscale's own HTTPS rather than an ATS exemption:
 
-A longer-term answer is hosting the backend somewhere always-on, which is a different project and
-would want HTTPS and a non-SQLite database behind it.
+1. Install Tailscale on the Mac and the phone and sign both in to the same account. In the admin
+   console's DNS page, turn on MagicDNS and HTTPS certificates.
+2. On the Mac, put the backend behind Tailscale's HTTPS:
+   ```bash
+   /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg 7025
+   ```
+   It prints the address, `https://<machine>.<tailnet>.ts.net`, and keeps serving across restarts.
+3. Point the build at it in `Local.xcconfig`, then rebuild and reinstall:
+   ```
+   LH_API_BASE_URL = https:$(LH_SLASH)$(LH_SLASH)<machine>.<tailnet>.ts.net
+   ```
+
+That one address works at home and away, as long as Tailscale is connected on the phone.
+
+### Keeping the backend running
+
+A server started from a terminal dies with the terminal. `scripts/home-server.sh` runs it as a
+per-user launchd service instead, which starts at login and restarts if it exits:
+
+```bash
+scripts/home-server.sh deploy   # publish what is checked out and (re)start the service
+scripts/home-server.sh status   # running or not, and the last log lines
+scripts/home-server.sh stop
+```
+
+- **Where it runs.** It runs in the main checkout, on its `Data/lionheart.db` and `.env`, whichever
+  worktree the script is called from.
+- **Deploying new code.** It serves the checked-out code as of the last `deploy`, so after merging
+  into `dev`, update the main checkout and deploy again.
+- **Environment.** It runs as Production, so it neither regenerates the web client nor starts the
+  Svelte dev server. The published build includes the built web app, so the web app is served on
+  the same port.
+- **Logs.** They go to `~/Library/Logs/Lionheart/backend.log`.
 
 ## 3. First run on a new phone
 
