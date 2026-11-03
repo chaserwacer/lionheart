@@ -1,8 +1,7 @@
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.Sets;
+using lionheart.Services.Import;
 
 namespace lionheart.Services.Strong;
 
@@ -31,26 +30,13 @@ public sealed record StrongWorkoutKey(DateTime Start, string Name)
     /// moved with the machine's locale would import the history a second time.
     /// </remarks>
     public Guid SessionIdFor(Guid userId) =>
-        NameBasedId(string.Create(CultureInfo.InvariantCulture, $"{userId:D}|{Start:yyyy-MM-dd HH:mm:ss}"));
+        NameBasedId.Of(Namespace, string.Create(CultureInfo.InvariantCulture, $"{userId:D}|{Start:yyyy-MM-dd HH:mm:ss}"));
 
     /// <summary>
     /// The namespace every Strong workout id is derived under. Fixed forever: changing it would
     /// give every imported workout a new id and let the next run import the history twice.
     /// </summary>
     private static readonly Guid Namespace = new("6f1f3c0e-2a4b-5c8d-9e7f-0a1b2c3d4e5f");
-
-    /// <summary>RFC 9562 version 5: SHA-1 over the namespace and the name, big-endian throughout.</summary>
-    private static Guid NameBasedId(string name)
-    {
-        Span<byte> namespaceBytes = stackalloc byte[16];
-        Namespace.TryWriteBytes(namespaceBytes, bigEndian: true, out _);
-
-        var hash = SHA1.HashData([.. namespaceBytes, .. Encoding.UTF8.GetBytes(name)]);
-        hash[6] = (byte)((hash[6] & 0x0F) | 0x50);
-        hash[8] = (byte)((hash[8] & 0x3F) | 0x80);
-
-        return new Guid(hash.AsSpan(0, 16), bigEndian: true);
-    }
 }
 
 /// <summary>What Strong's "Set Order" column says a set was.</summary>

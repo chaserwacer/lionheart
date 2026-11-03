@@ -1,4 +1,5 @@
 using lionheart.Functional;
+using lionheart.Services.Import;
 using lionheart.Services.Strong;
 using lionheart.Tests.Support;
 
@@ -9,7 +10,7 @@ namespace lionheart.Tests.Strong;
 /// </summary>
 public class StrongMovementMapTests
 {
-    private static StrongMovementMap Shipped => ResultAssert.Succeeded(StrongMovementMap.Shipped());
+    private static MovementMap Shipped => ResultAssert.Succeeded(StrongMovementMap.Shipped());
 
     // ---- The shipped map ----
 

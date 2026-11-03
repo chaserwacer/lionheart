@@ -6,6 +6,7 @@ using lionheart.Model.Training;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
+using lionheart.Services.Import;
 using lionheart.Services.Strong;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
@@ -319,7 +320,7 @@ public class StrongImportTests : IDisposable
     private Task<Result<StrongImportReport, Problem>> ImportAsync(string path) =>
         ImportAsync(path, ResultAssert.Succeeded(StrongMovementMap.Shipped()));
 
-    private async Task<Result<StrongImportReport, Problem>> ImportAsync(string path, StrongMovementMap map)
+    private async Task<Result<StrongImportReport, Problem>> ImportAsync(string path, MovementMap map)
     {
         await using var context = _database.CreateContext();
         return await Importer(context, map).ImportAsync(path, _database.UserId, CancellationToken.None);

@@ -31,5 +31,18 @@ internal static class AthleteProfiles
                 : Result<Guid, Problem>.Failure(new Problem.Conflict(
                     "This account has no Lionheart profile yet. Create one before logging training."));
         }
+
+        /// <summary>
+        /// The athlete named by a raw id, or a refusal saying no such athlete exists.
+        /// </summary>
+        /// <remarks>
+        /// For the command-line tools, which are given an id rather than an identity: a mistyped one
+        /// should say so rather than fail later as a foreign-key violation.
+        /// </remarks>
+        public async Task<Result<Guid, Problem>> KnownAthleteAsync(Guid userId, CancellationToken ct) =>
+            await context.LionheartUsers.AnyAsync(user => user.UserID == userId, ct)
+                ? Result<Guid, Problem>.Success(userId)
+                : Result<Guid, Problem>.Failure(new Problem.NotFound(
+                    $"No Lionheart athlete with id {userId}, so there is nobody to attach this to."));
     }
 }

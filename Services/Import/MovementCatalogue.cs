@@ -2,7 +2,7 @@ using lionheart.Data;
 using lionheart.Model.Training;
 using Microsoft.EntityFrameworkCore;
 
-namespace lionheart.Services.Strong;
+namespace lionheart.Services.Import;
 
 /// <summary>
 /// One athlete's movements, bases, equipment and modifiers, held for a batch that finds each

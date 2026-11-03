@@ -1,5 +1,6 @@
 using System.Globalization;
 using lionheart.Data;
+using lionheart.Services.Import;
 using lionheart.Services.Strong;
 using lionheart.Services.Training.PersonalRecords;
 using lionheart.Tests.Support;
@@ -54,7 +55,7 @@ internal static class StrongExports
     private static string Quoted(string text) => $"\"{text.Replace("\"", "\"\"")}\"";
 
     /// <summary>A map holding exactly the entries a test states, so its premise is on the page.</summary>
-    public static StrongMovementMap Map(params (string Strong, string Base, string Equipment, string Modifier)[] entries) =>
+    public static MovementMap Map(params (string Strong, string Base, string Equipment, string Modifier)[] entries) =>
         ResultAssert.Succeeded(StrongMovementMap.Parse(System.Text.Json.JsonSerializer.Serialize(
             entries.Select(entry => new
             {
@@ -64,7 +65,7 @@ internal static class StrongExports
                 modifier = entry.Modifier,
             }))));
 
-    public static StrongImporter Importer(ModelContext context, StrongMovementMap map) =>
+    public static StrongImporter Importer(ModelContext context, MovementMap map) =>
         new(context, new PersonalRecordDetector(context, TimeProvider.System), map, NewYork, TimeProvider.System);
 }
 

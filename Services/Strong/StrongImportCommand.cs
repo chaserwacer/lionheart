@@ -1,5 +1,6 @@
 using lionheart.Data;
 using lionheart.Functional;
+using lionheart.Services.Import;
 using lionheart.Services.Training.PersonalRecords;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -86,7 +87,7 @@ internal static class StrongImportCommand
             Console.WriteLine($"\n{report.UnsureMappings.Count} mappings applied that strong-movements.json marks unsure:");
             foreach (var mapping in report.UnsureMappings)
             {
-                Console.WriteLine($"  {mapping.StrongName} -> {mapping.Movement}\n      {mapping.Unsure}");
+                Console.WriteLine($"  {mapping.Name} -> {mapping.Movement}\n      {mapping.Unsure}");
             }
         }
 
