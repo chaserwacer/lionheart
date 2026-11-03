@@ -270,8 +270,10 @@ final class TrainStore {
     /// Refused outright when the session carries a set shape this build cannot write back, because
     /// `PUT /sets` replaces the whole list and the next set logged would delete it. Losing the
     /// athlete's work by carrying on is worse than not carrying on.
+    /// - Parameter routine: the routine the session was started from, where this device holds it,
+    ///   so its set counts and its comparison come back with the workout.
     @discardableResult
-    func resume(_ session: TrainingSession.Active) -> Bool {
+    func resume(_ session: TrainingSession.Active, routine: Routine? = nil) -> Bool {
         guard !isWorkoutInFlight else { return false }
 
         do {
@@ -281,7 +283,8 @@ final class TrainStore {
                 destination: .liveSession(session.envelope.trainingSessionId),
                 startedAt: session.startedAt,
                 sets: sets,
-                notes: session.envelope.notes)
+                notes: session.envelope.notes,
+                routine: routine.map(WorkoutRoutine.init))
         } catch {
             switch error {
             case .cannotRestate(let type):

@@ -170,22 +170,13 @@ struct WorkoutReading: Equatable, Sendable {
             ?? movements.last?.movementDataId
     }
 
-    /// Numbers each set within its kind of work, and pairs each working set with the target it
-    /// answers. A fold, because each set's number depends on how many of its kind came before.
+    /// Numbers each set within its kind of work (`SetKind.numbers`), and pairs each working set
+    /// with the target it answers: the nth working set, the nth target.
     private static func numbered(_ logged: [LoggedSet], against targets: [SetPrescription]) -> [NumberedSet] {
-        logged.reduce(into: (sets: [NumberedSet](), work: 0, warmUps: 0)) { state, performed in
-            if performed.command.isWork {
-                let index = state.work
-                state.work += 1
-                state.sets.append(NumberedSet(
-                    number: state.work,
-                    logged: performed,
-                    target: index < targets.count ? targets[index] : nil))
-            } else {
-                state.warmUps += 1
-                state.sets.append(NumberedSet(number: state.warmUps, logged: performed, target: nil))
-            }
-        }.sets
+        zip(logged, SetKind.numbers(of: logged.map(\.command.kind))).map { performed, number in
+            let target = performed.command.isWork && number <= targets.count ? targets[number - 1] : nil
+            return NumberedSet(number: number, logged: performed, target: target)
+        }
     }
 
     private static func firstAppearances(of ids: [UUID]) -> [UUID] {

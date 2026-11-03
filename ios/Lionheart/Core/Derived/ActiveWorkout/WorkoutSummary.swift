@@ -78,9 +78,10 @@ struct WorkoutSummary: Equatable, Sendable, Identifiable {
         var estimate: Double { reps <= 1 ? load : load * (1 + Double(reps) / 30) }
     }
 
-    /// Whether the workout trained its routine differently — another order, a movement added or
-    /// dropped, a different number of working sets — which is when updating the routine is worth
-    /// offering.
+    /// Whether the workout trained its routine differently — a movement added or taken out, a
+    /// different number of working sets — which is when updating the routine is worth offering.
+    /// The order is the routine's own: its movements are in the workout from the start, so the
+    /// order they were trained in does not move them.
     var departsFromRoutine: Bool {
         guard let routine else { return false }
         return routineMovements != routine.movements
@@ -138,11 +139,18 @@ struct WorkoutSummary: Equatable, Sendable, Identifiable {
     /// A routine movement with nothing logged keeps the routine's own count — the athlete ran out
     /// of time or skipped it today, which is not a decision to drop it from the routine; taking it
     /// out of the workout is. A movement added today and never trained is left out, and so is one
-    /// only warmed up on.
+    /// only warmed up on. A drop set extends the set before it rather than being one of the
+    /// routine's sets, as the server counts a routine saved from a session.
     private static func routineMovements(of reading: WorkoutReading, routine: WorkoutRoutine?) -> [RoutineMovement] {
         reading.movements.compactMap { movement in
-            let sets = movement.workingSetCount > 0
-                ? movement.workingSetCount
+            let trained = movement.sets.count(where: {
+                switch $0.logged.command.kind {
+                case .working, .failure, .unrecognised: true
+                case .warmUp, .drop: false
+                }
+            })
+            let sets = trained > 0
+                ? trained
                 : routine?.workingSets(of: movement.movementDataId) ?? 0
             guard sets > 0 else { return nil }
             return RoutineMovement(
@@ -185,30 +193,5 @@ struct WorkoutSummary: Equatable, Sendable, Identifiable {
                         .total ?? lift.weight)
             }
             .max { ($0.estimate, $0.weight) < ($1.estimate, $1.weight) }
-    }
-}
-
-extension SetEntry {
-    /// The set as the athlete would state it, where it has a shape a client can state. Used to read
-    /// a past session's sets with the arithmetic the workout in flight uses.
-    var command: SetCommand? {
-        switch self {
-        case .lift(let set):
-            .lift(SetCommand.Lift(
-                movementDataId: set.movementDataId, reps: set.reps, weight: set.weight,
-                unit: set.unit, rpe: set.rpe, kind: set.kind))
-        case .distanceTime(let set):
-            .distanceTime(SetCommand.DistanceTime(
-                movementDataId: set.movementDataId, distance: set.distance, unit: set.unit,
-                duration: set.duration, rpe: set.rpe))
-        case .trailRun(let set):
-            .trailRun(SetCommand.TrailRun(
-                distance: set.distance, unit: set.unit, duration: set.duration,
-                elevationGainMeters: set.elevationGainMeters, rpe: set.rpe))
-        case .freeform(let common):
-            .freeform(text: common.source.rawText ?? "")
-        case .unrecognised:
-            nil
-        }
     }
 }

@@ -58,7 +58,7 @@ public class RoutineContentTests
         ResultAssert.Succeeded(RoutineContent.Of("Upper", string.Empty, [new RoutineMovement(Press, workingSets)]));
 
     [Fact]
-    public void A_sessions_movements_read_in_first_appearance_order_counting_every_set_but_warm_ups()
+    public void A_sessions_movements_read_in_first_appearance_order_counting_every_set_but_warm_ups_and_drops()
     {
         IReadOnlyList<SetEntry> sets =
         [
@@ -71,7 +71,7 @@ public class RoutineContentTests
         ];
 
         Assert.Equal(
-            [new RoutineMovement(Press, 3), new RoutineMovement(Pulldown, 2)],
+            [new RoutineMovement(Press, 3), new RoutineMovement(Pulldown, 1)],
             RoutineMovement.TrainedIn(sets));
     }
 

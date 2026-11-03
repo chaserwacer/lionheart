@@ -274,6 +274,12 @@ struct ActiveWorkout: Equatable, Sendable {
         return currentMovementDataId == movementDataId ? dropped.working(on: nil) : dropped
     }
 
+    /// How many working sets are logged on a movement — the position the next one takes, which is
+    /// what last time and the plan are read at. A warm-up holds no position.
+    func workingSetCount(on movementDataId: UUID) -> Int {
+        sets.count(where: { $0.movementDataId == movementDataId && $0.command.isWork })
+    }
+
     /// Whether the movement already has a section: prescribed, logged on, or added.
     private func holds(_ movementDataId: UUID) -> Bool {
         addedMovementDataIds.contains(movementDataId)

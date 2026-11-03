@@ -150,7 +150,7 @@ extension TrainingTrends {
     static func weeks(
         of sessions: [TrainingSession], today: CalendarDay, calendar: Calendar = .current
     ) -> [TrainingWeek] {
-        weeks(ofDays: sessions.map(\.date), setCounts: sessions.map(\.sets.count), today: today, calendar: calendar)
+        weeks(ofDays: sessions.map(\.date), setCounts: sessions.map(\.sets.work.count), today: today, calendar: calendar)
     }
 
     /// Weekly counts of sessions given as their days and set counts, pairwise — the shape a
@@ -181,7 +181,7 @@ extension TrainingTrends {
         var heaviest: [SeriesKey: [CalendarDay: StrengthSeries.Point]] = [:]
 
         for session in sessions {
-            for case .lift(let lift) in session.sets {
+            for case .lift(let lift) in session.sets.work {
                 let key = SeriesKey(movementDataId: lift.movementDataId, unit: lift.unit)
                 let point = StrengthSeries.Point(
                     day: session.date, weight: lift.weight, reps: lift.reps)

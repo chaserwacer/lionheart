@@ -44,7 +44,10 @@ struct MovementDigest: Equatable, Sendable, Identifiable {
             order: movements.count, movementDataId: nil, movementName: "Other work", line: .counted(setCount: detail.unattached.count))]
     }
 
-    static func line(of entries: [SetEntry]) -> Line {
+    /// A movement's line reads its work: a warm-up ramp before two sets at one load is still
+    /// straight sets at that load.
+    static func line(of all: [SetEntry]) -> Line {
+        let entries = all.work.isEmpty ? all : all.work
         let lifts = entries.compactMap { entry -> (weight: Double, unit: WeightUnit, reps: Int)? in
             guard case .lift(let lift) = entry else { return nil }
             return (lift.weight, lift.unit, lift.reps)

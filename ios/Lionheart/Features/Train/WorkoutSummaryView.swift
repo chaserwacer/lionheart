@@ -151,7 +151,7 @@ struct WorkoutSummaryView: View {
                     Button("Update \(held.name)") { Task { await update(held) } }
                         .disabled(routines.action.isRunning)
                 } footer: {
-                    refusalOr("Today's movements and working sets differ from the routine. Updating it keeps today's order.")
+                    refusalOr("Today's movements or working sets differ from the routine. Updating it takes today's.")
                 }
             }
         } else if !summary.routineMovements.isEmpty {

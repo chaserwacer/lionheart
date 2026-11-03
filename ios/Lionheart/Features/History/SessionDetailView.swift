@@ -110,10 +110,11 @@ struct SessionDetailView: View {
             }
         } else {
             ForEach(detail.blocks) { block in
+                let numbers = SetKind.numbers(of: block.sets.map(\.entry.kind))
                 Section {
                     ForEach(Array(block.sets.enumerated()), id: \.element.id) { position, set in
                         SetRow(
-                            number: position + 1,
+                            number: numbers[position],
                             entry: set.entry,
                             record: marks.outcome(of: .init(sessionId: session.id, order: set.order)))
                     }

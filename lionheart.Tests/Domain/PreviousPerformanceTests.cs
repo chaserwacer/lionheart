@@ -59,6 +59,17 @@ public class PreviousPerformanceTests
     }
 
     [Fact]
+    public void A_session_that_only_warmed_up_on_a_movement_is_not_last_time_for_it()
+    {
+        var worked = Session(Monday, Lift(Press, 205));
+        var rampedOnly = Session(Monday.AddDays(2), Lift(Press, 135, SetKind.WarmUp));
+
+        var press = Assert.Single(PreviousPerformances.Of([rampedOnly, worked]));
+
+        Assert.Equal(worked.TrainingSessionId, press.TrainingSessionId);
+    }
+
+    [Fact]
     public void Sets_with_no_movement_never_appear() =>
         Assert.Empty(PreviousPerformances.Of([Session(Monday, Some.TrailRunSet, Some.FreeformSet)]));
 

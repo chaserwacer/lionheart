@@ -48,8 +48,8 @@ do.
 ### Previous performances — `GET /api/training/previous-performances`
 
 One entry per movement the athlete has a completed set on: `movementDataId`, the `trainingSessionId`,
-`date` and `startedAt` of the most recent completed session holding it (most recent by the stamped
-start time), and `sets` — that movement's sets from that session in performed order, warm-ups
+`date` and `startedAt` of the most recent completed session that worked it — a session that only
+warmed up on it is passed over (most recent by the stamped start time), and `sets` — that movement's sets from that session in performed order, warm-ups
 included with their kind. Sets with no movement (trail runs, freeform) never appear. The list's order
 carries no meaning. It reads every completed session, since which sessions hold a movement lives in
 the sets' JSON column.
@@ -138,7 +138,7 @@ is the most recent **completed** session trained from the routine, as the sessio
   `Movements[i].WorkingSets`). A movement that is not the athlete's is a 404.
 - **From a session.** The session must be the athlete's (404) and completed (409). Its movements
   are read in first-appearance order, `workingSets` being the count of that movement's sets that are
-  not warm-up lifts; a movement trained only in warm-ups is left out, and a session left with no
+  neither warm-ups nor drop sets (a drop set extends the set before it); a movement trained only in warm-ups is left out, and a session left with no
   movement is a 400 on `SessionId`. An ad hoc session takes the new routine as its origin in the same
   save, so the routine answers with it as `lastSession`; a session already trained from another
   routine keeps that origin.

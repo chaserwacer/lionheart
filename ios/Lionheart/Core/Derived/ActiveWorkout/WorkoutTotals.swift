@@ -60,8 +60,10 @@ struct WorkoutTotals: Equatable, Sendable {
     }
 
     /// A finished session's sets, totalled by the same arithmetic as the workout in flight, so a
-    /// session reads the same total in the log as it did while it was being logged.
-    static func of(entries: [SetEntry]) -> WorkoutTotals {
+    /// session reads the same total in the log as it did while it was being logged — warm-ups
+    /// left out of both.
+    static func of(entries all: [SetEntry]) -> WorkoutTotals {
+        let entries = all.work
         let lifts = entries.compactMap { entry -> SetCommand.Lift? in
             guard case .lift(let lift) = entry else { return nil }
             return SetCommand.Lift(

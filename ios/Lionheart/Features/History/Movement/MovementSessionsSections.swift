@@ -9,10 +9,11 @@ struct MovementSessionsSections: View {
 
     var body: some View {
         ForEach(movement.sessions) { session in
+            let numbers = SetKind.numbers(of: session.sets.map(\.entry.kind))
             Section {
                 ForEach(Array(session.sets.enumerated()), id: \.element.id) { position, set in
                     SetRow(
-                        number: position + 1,
+                        number: numbers[position],
                         entry: set.entry,
                         record: marks.outcome(of: .init(sessionId: session.sessionId, order: set.order)))
                 }

@@ -426,7 +426,9 @@ untrained today keeps its count, since running out of time is not a decision to 
 
 `GET /api/training/previous-performances` answers, for every movement, its sets from the most recent
 completed session holding it, and `MovementLibraryStore` keeps it beside the catalogue and the
-records — remembered, so a routine started in a basement still has last time. Each movement's
+records — remembered, so a routine started in a basement still has last time — and read again when a
+finished workout lands, straight away or from the outbox (`WorkoutOutbox.onLanded`). A session
+that only warmed up on a movement is not last time for it. Each movement's
 section shows it as one line, and the entry row opens on it (`SetDefaults`): the first set on last
 time's first working set; later sets on today's weight with last time's reps at the same position,
 which is the number a set to failure is trying to beat. A plan's target still beats last time, and a
@@ -437,7 +439,8 @@ warm-up is never a precedent, so the set after a ramp opens on the work. The row
 
 A lift is working, warm-up, drop or failure. Warm-ups are numbered apart and marked "W", answer no
 target, count toward no total and never badge a record — the server keeps them out of every record
-for the same reason. The kind is chosen in the entry row's set-type menu, beside the measure, and a
+for the same reason. History, a movement's page and the training load read finished sessions the
+same way: their counts, totals, lines and charts are the work. The kind is chosen in the entry row's set-type menu, beside the measure, and a
 warm-up ramp logs its steps as warm-ups.
 
 ### Plates and warm-ups

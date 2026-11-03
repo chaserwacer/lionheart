@@ -221,3 +221,29 @@ extension KeyedDecodingContainer where Key == WireKey {
         return value
     }
 }
+
+extension SetEntry {
+    /// The set as the athlete would state it, where it has a shape a client can state: how a past
+    /// session's sets are read with the arithmetic the workout in flight uses, and how a session
+    /// held on the server is taken over as a workout.
+    var command: SetCommand? {
+        switch self {
+        case .lift(let set):
+            .lift(SetCommand.Lift(
+                movementDataId: set.movementDataId, reps: set.reps, weight: set.weight,
+                unit: set.unit, rpe: set.rpe, kind: set.kind))
+        case .distanceTime(let set):
+            .distanceTime(SetCommand.DistanceTime(
+                movementDataId: set.movementDataId, distance: set.distance, unit: set.unit,
+                duration: set.duration, rpe: set.rpe))
+        case .trailRun(let set):
+            .trailRun(SetCommand.TrailRun(
+                distance: set.distance, unit: set.unit, duration: set.duration,
+                elevationGainMeters: set.elevationGainMeters, rpe: set.rpe))
+        case .freeform(let common):
+            .freeform(text: common.source.rawText ?? "")
+        case .unrecognised:
+            nil
+        }
+    }
+}

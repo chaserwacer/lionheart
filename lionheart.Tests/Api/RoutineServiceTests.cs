@@ -98,7 +98,7 @@ public class RoutineServiceTests : IDisposable
 
         var view = ResultAssert.Succeeded(await FromSessionAsync(session, "Upper day"));
 
-        Assert.Equal([new RoutineMovement(_pulldown, 2), new RoutineMovement(_press, 2)], view.Movements);
+        Assert.Equal([new RoutineMovement(_pulldown, 1), new RoutineMovement(_press, 2)], view.Movements);
         Assert.Equal(("Upper day", string.Empty), (view.Name, view.Notes));
     }
 

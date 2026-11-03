@@ -19,7 +19,7 @@ struct PreviousPerformance: Equatable, Sendable, Identifiable {
 
     /// The sets that were the work, in order. Position in this list is what a set in the workout in
     /// flight is compared against: the second working set today against the second last time.
-    var workingSets: [SetEntry] { sets.filter(\.kind.isWork) }
+    var workingSets: [SetEntry] { sets.work }
 
     /// The working set at `position` (0-based), where last time went that deep.
     func workingSet(at position: Int) -> SetEntry? {

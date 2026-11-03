@@ -25,7 +25,7 @@ extension SessionSummary {
     static func of(_ session: TrainingSession.Completed) -> SessionSummary {
         SessionSummary(
             day: session.envelope.date,
-            setCount: session.sets.count,
+            setCount: session.sets.work.count,
             movementCount: distinctMovements(in: session.sets),
             duration: session.period.duration,
             hasEffort: session.effort.ratings.map { !$0.isEmpty } ?? false,

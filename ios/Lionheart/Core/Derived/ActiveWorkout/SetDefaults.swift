@@ -78,12 +78,13 @@ enum SetDefaults {
     private static func precedents(
         on movementDataId: UUID, in workout: ActiveWorkout, previous: PreviousPerformance?
     ) -> (last: SetCommand?, target: SetPrescription?, prior: SetEntry?) {
-        let work = workout.sets.filter { $0.movementDataId == movementDataId && $0.command.isWork }
+        let last = workout.sets.last { $0.movementDataId == movementDataId && $0.command.isWork }
         let target = WorkoutReading.of(workout)
             .movements.first { $0.movementDataId == movementDataId }?
             .nextTarget
-        let prior = previous.flatMap { $0.movementDataId == movementDataId ? $0.workingSet(at: work.count) : nil }
-        return (work.last?.command, target, prior)
+        let position = workout.workingSetCount(on: movementDataId)
+        let prior = previous.flatMap { $0.movementDataId == movementDataId ? $0.workingSet(at: position) : nil }
+        return (last?.command, target, prior)
     }
 
     /// Which entry shape last time's set was.

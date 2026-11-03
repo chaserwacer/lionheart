@@ -33,7 +33,7 @@ struct SetGuide: Equatable, Sendable {
         }
 
         // A warm-up has no position among the working sets, so last time says nothing about it.
-        let position = workout.sets.count(where: { $0.movementDataId == movementDataId && $0.command.isWork })
+        let position = workout.workingSetCount(on: movementDataId)
         // Said only when the fields differ from it: a row opened on last time's numbers already
         // shows them, and the line is for comparing once the athlete has changed one.
         let prior = draft.kind.isWork

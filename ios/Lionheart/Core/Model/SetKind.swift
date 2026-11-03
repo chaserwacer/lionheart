@@ -49,4 +49,19 @@ enum SetKind: Hashable, Sendable {
 
     /// The kinds the entry row offers.
     static let offered: [SetKind] = [.working, .warmUp, .drop, .failure]
+
+    /// Each set's number among one movement's sets, counted within its kind of work: the working
+    /// sets 1, 2, 3 and the warm-ups apart, so a warm-up does not make the first working set
+    /// "set 2". A fold, because each number depends on how many of its kind came before.
+    static func numbers(of kinds: [SetKind]) -> [Int] {
+        kinds.reduce(into: (numbers: [Int](), work: 0, warmUps: 0)) { state, kind in
+            if kind.isWork {
+                state.work += 1
+                state.numbers.append(state.work)
+            } else {
+                state.warmUps += 1
+                state.numbers.append(state.warmUps)
+            }
+        }.numbers
+    }
 }

@@ -17,7 +17,9 @@ public sealed record RoutineMovement(Guid MovementDataId, int WorkingSets)
     public static IReadOnlyList<RoutineMovement> TrainedIn(IEnumerable<SetEntry> sets) =>
     [
         .. sets.ByMovement()
-            .Select(movement => new RoutineMovement(movement.Key, movement.Count(set => set.IsWorking)))
+            // A drop set extends the set before it rather than being one of the routine's sets.
+            .Select(movement => new RoutineMovement(
+                movement.Key, movement.Count(set => set.IsWorking && set is not LiftSet { Kind: SetKind.Drop })))
             .Where(movement => movement.WorkingSets > 0)
     ];
 }

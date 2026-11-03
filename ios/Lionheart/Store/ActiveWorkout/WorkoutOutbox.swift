@@ -29,6 +29,11 @@ final class WorkoutOutbox {
     /// sending the same workout twice at once.
     private var delivering: Task<Void, Never>?
 
+    /// Run after a delivery run that landed at least one workout. What the server derives from a
+    /// session — last time on each movement, the records, a routine's last session — has moved,
+    /// and the stores holding them registered here rather than this type knowing they exist.
+    private var landedHandlers: [@MainActor () async -> Void] = []
+
     init(document: FinishedWorkoutsDocument = FinishedWorkoutsDocument(), sessions: any WorkoutSessionWriting) {
         self.document = document
         delivery = WorkoutDelivery(sessions: sessions)
@@ -52,16 +57,24 @@ final class WorkoutOutbox {
         return true
     }
 
+    /// Registers something to run after a delivery run lands a workout.
+    func onLanded(_ handler: @escaping @MainActor () async -> Void) {
+        landedHandlers.append(handler)
+    }
+
     /// Delivers every waiting workout, oldest first. Joins a run already in progress.
     func deliver() async {
         if let delivering {
             await delivering.value
             return
         }
+        let before = finished.count
         let run = Task { await self.deliverWaiting() }
         delivering = run
         await run.value
         if delivering == run { delivering = nil }
+        guard finished.count < before else { return }
+        for handler in landedHandlers { await handler() }
     }
 
     /// Throws away a workout the server would not take. Only the athlete does this, and only to

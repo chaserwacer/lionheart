@@ -26,12 +26,16 @@ public static class PreviousPerformances
     /// <remarks>
     /// Ordered by the absolute instant rather than the calendar day, so two sessions on one day
     /// still have a most recent, and one logged at another offset still ranks where it happened.
+    /// A session that only warmed up on a movement is passed over for it: last time is the last
+    /// time it was worked, and a ramp with no work behind it would hide that.
     /// </remarks>
     public static IReadOnlyList<PreviousPerformanceView> Of(IEnumerable<CompletedTrainingSession> sessions) =>
     [
         .. sessions
             .OrderByDescending(session => session.Period.StartTimeUtc)
-            .SelectMany(session => session.Sets.ByMovement().Select(movement => new PreviousPerformanceView(
+            .SelectMany(session => session.Sets.ByMovement()
+                .Where(movement => movement.Any(set => set.IsWorking))
+                .Select(movement => new PreviousPerformanceView(
                 movement.Key,
                 session.TrainingSessionId,
                 session.Date,

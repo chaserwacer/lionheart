@@ -103,6 +103,12 @@ enum SetEntry: Equatable, Sendable {
     }
 }
 
+extension Sequence where Element == SetEntry {
+    /// The sets that were the work, warm-ups left out — what every count, total and chart of a
+    /// finished session reads, as the workout in flight does.
+    var work: [SetEntry] { filter(\.kind.isWork) }
+}
+
 extension SetEntry: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)

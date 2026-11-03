@@ -358,6 +358,20 @@ struct WorkoutSummaryTests {
         #expect(summary.departsFromRoutine)
     }
 
+    @Test("A drop set extends the set before it rather than becoming one of the routine's sets")
+    func aDropSetIsNotARoutineSet() {
+        let routine = WorkoutRoutine(routineId: UUID(), name: "Upper", movements: [
+            RoutineMovement(movementDataId: Self.dip, workingSets: 2),
+        ])
+        let workout = ActiveWorkout(
+            destination: .liveSession(AWorkout.session), startedAt: AWorkout.start,
+            sets: [Self.dipSet(50, 6), Self.dipSet(50, 5),
+                   AWorkout.lift(Self.dip, reps: 8, weight: 25, unit: .pounds, kind: .drop)],
+            addedMovementDataIds: [Self.dip], routine: routine)
+
+        #expect(!Self.summary(workout).departsFromRoutine)
+    }
+
     @Test("A workout trained exactly as its routine offers no update")
     func aFaithfulWorkoutOffersNoUpdate() {
         let routine = WorkoutRoutine(routineId: UUID(), name: "Upper", movements: [
@@ -387,5 +401,75 @@ struct WorkoutSummaryTests {
         #expect(comparison.duration == 3600)
         #expect(comparison.totals.setCount == 1)
         #expect(comparison.totals.weights.first?.volume == 925)
+    }
+}
+
+/// A finished session read back in History and on a movement's page, warm-ups and all.
+@Suite("Set kinds in the log")
+struct SetKindLogTests {
+    private static func entry(_ weight: Double, _ reps: Int, kind: SetKind = .working) -> SetEntry {
+        PreviousColumnTests.entry(weight, reps, kind: kind)
+    }
+
+    @Test("A finished session's totals leave its warm-ups out, as the workout did")
+    func aSessionsTotalsLeaveWarmUpsOut() {
+        let totals = WorkoutTotals.of(entries: [Self.entry(135, 10, kind: .warmUp), Self.entry(225, 5)])
+
+        #expect(totals.setCount == 1)
+        #expect(totals.weights.first?.volume == 1125)
+    }
+
+    @Test("A ramp before straight sets still reads as straight sets at the working load")
+    func aRampBeforeStraightSetsReadsStraight() {
+        let line = MovementDigest.line(of: [
+            Self.entry(45, 10, kind: .warmUp), Self.entry(135, 5, kind: .warmUp),
+            Self.entry(225, 8), Self.entry(225, 6),
+        ])
+
+        #expect(line == .straight(weight: 225, unit: .pounds, reps: [8, 6]))
+    }
+
+    @Test("Sets are numbered within their kind, so the first working set is set 1")
+    func setsAreNumberedWithinTheirKind() {
+        #expect(SetKind.numbers(of: [.warmUp, .warmUp, .working, .drop, .working]) == [1, 2, 1, 2, 3])
+    }
+}
+
+/// What finished workouts landing from the outbox set off.
+@MainActor
+@Suite("Outbox landing")
+struct OutboxLandingTests {
+    private static func aFinishedWorkout() -> FinishedWorkout {
+        FinishedWorkout(
+            workout: ActiveWorkout(destination: .afterTheFact, startedAt: AWorkout.start, sets: [AWorkout.words()]),
+            endedAt: AWorkout.start.addingTimeInterval(3000), effort: nil)
+    }
+
+    @Test("A workout landing from the outbox has last time read again")
+    func aLandingRunsTheHandlers() async {
+        let (outbox, _) = anOutbox(sending: ARecordingServer())
+        var landings = 0
+        outbox.onLanded { landings += 1 }
+        _ = outbox.hold(Self.aFinishedWorkout())
+
+        await outbox.deliver()
+
+        #expect(landings == 1)
+        #expect(outbox.finished.isEmpty)
+    }
+
+    @Test("A run the server was not there for sets nothing off")
+    func aRunThatLandsNothingRunsNoHandler() async {
+        let server = ARecordingServer()
+        server.failNextLogs = [APIError.transport("The network is not reachable.")]
+        let (outbox, _) = anOutbox(sending: server)
+        var landings = 0
+        outbox.onLanded { landings += 1 }
+        _ = outbox.hold(Self.aFinishedWorkout())
+
+        await outbox.deliver()
+
+        #expect(landings == 0)
+        #expect(outbox.finished.count == 1)
     }
 }

@@ -135,6 +135,12 @@ final class AppContainer {
             activeWorkout.reset()
             outbox.reset()
         }
+        // A workout that waited in the outbox is now the last session on its movements and of its
+        // routine, so what the next workout opens on is read again once it lands.
+        outbox.onLanded { [movements, routines] in
+            await movements.refresh()
+            await routines.refresh()
+        }
         auth.onSignIn { [weak self] in
             Task { await self?.signedIn() }
         }

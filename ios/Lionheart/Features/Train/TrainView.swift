@@ -373,7 +373,7 @@ struct TrainView: View {
     /// app, or left behind by a reinstall.
     private func resumeRow(_ session: TrainingSession.Active) -> some View {
         Button {
-            if store.resume(session) { openWorkout() }
+            if store.resume(session, routine: session.envelope.routineId.flatMap(routines.routine)) { openWorkout() }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Resume session in progress")
