@@ -7,11 +7,14 @@ import Foundation
 /// is next are the same counting done once. Doing it in the view would mean three loops that can
 /// disagree about the same list.
 ///
-/// A movement appears here as soon as it is **prescribed**, before anything is logged against it —
-/// which is what makes opening a planned session show the plan rather than an empty screen.
+/// A movement appears here as soon as it is **prescribed or added**, before anything is logged
+/// against it. Prescribed is what makes opening a planned session show the plan rather than an
+/// empty screen; added is what gives a movement picked in an unplanned workout a place to log its
+/// first set.
 struct WorkoutReading: Equatable, Sendable {
-    /// Movements, in the order they first appear: prescribed ones in prescribed order, then any
-    /// the athlete added, in the order they were first logged.
+    /// Movements, in the order they first appear: prescribed ones in prescribed order, then the
+    /// ones the athlete added, in the order they added them, then any that only a logged set names
+    /// — a session resumed from the server carries sets and no list of what was added.
     let movements: [MovementSets]
     /// Sets that have no movement identity at all — a trail run, a set logged as words. The domain
     /// gives them no movement, so they are not forced into one.
@@ -44,6 +47,10 @@ struct WorkoutReading: Equatable, Sendable {
         /// is never "done" — there was nothing to finish.
         var isComplete: Bool { !targets.isEmpty && sets.count >= targets.count }
 
+        /// Whether the athlete can take this movement back out of the workout. Nothing was asked of
+        /// it and nothing has been done on it, so only their adding it keeps it here.
+        var isDroppable: Bool { targets.isEmpty && sets.isEmpty }
+
         var remainingTargetCount: Int { max(0, targets.count - sets.count) }
     }
 
@@ -61,15 +68,20 @@ struct WorkoutReading: Equatable, Sendable {
     }
 
     static func of(_ workout: ActiveWorkout) -> WorkoutReading {
-        of(sets: workout.sets, prescriptions: workout.prescriptions)
+        of(
+            sets: workout.sets,
+            prescriptions: workout.prescriptions,
+            added: workout.addedMovementDataIds)
     }
 
-    /// The same reading over the two lists it is made of.
+    /// The same reading over the lists it is made of.
     ///
     /// Taken separately so a *planned* session can be read before it is a workout: the screen that
     /// shows a plan before starting it wants the targets grouped exactly as the logging surface
     /// will group them, and inventing a workout to hold them would be a lie about what it has.
-    static func of(sets: [LoggedSet], prescriptions: [SetPrescription]) -> WorkoutReading {
+    static func of(
+        sets: [LoggedSet], prescriptions: [SetPrescription], added: [UUID] = []
+    ) -> WorkoutReading {
         // Grouped by hand rather than with `Dictionary(grouping:)`, which needs a non-optional key
         // and so would want a sentinel id for the sets that legitimately have no movement.
         let targetsByMovement: [UUID: [SetPrescription]] = prescriptions
@@ -84,7 +96,7 @@ struct WorkoutReading: Equatable, Sendable {
             }
 
         let order = firstAppearances(
-            of: prescriptions.compactMap(\.movementDataId) + sets.compactMap(\.movementDataId))
+            of: prescriptions.compactMap(\.movementDataId) + added + sets.compactMap(\.movementDataId))
 
         return WorkoutReading(
             movements: order.map { movementDataId in

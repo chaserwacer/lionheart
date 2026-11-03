@@ -75,6 +75,23 @@ struct SetDraftTests {
         #expect(next.command == pullUp)
     }
 
+    @Test("The first set on a movement with nothing to carry forward starts with every field empty")
+    func aFreshMovementStartsEmpty() {
+        // A placeholder nought in the weight is typed over into "0100".
+        let draft = SetDraft(next: AWorkout.bench, in: AWorkout.live().adding(AWorkout.bench))
+
+        #expect(draft.modality == .lift)
+        #expect(draft.weight.isEmpty)
+        #expect(draft.reps.isEmpty)
+    }
+
+    @Test("A bodyweight set already logged still carries its nought into the next row")
+    func aLoggedBodyweightSetStillSeedsItsNought() {
+        let workout = AWorkout.live(sets: [AWorkout.lift(AWorkout.bench, reps: 10, weight: 0)])
+
+        #expect(SetDraft(next: AWorkout.bench, in: workout).weight == "0")
+    }
+
     @Test("A lift with no reps has not happened")
     func aLiftNeedsReps() {
         #expect(!Self.aLiftDraft(reps: "", weight: "100").isLoggable)

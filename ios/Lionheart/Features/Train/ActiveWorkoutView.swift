@@ -56,6 +56,9 @@ struct ActiveWorkoutView: View {
         }
         .sheet(isPresented: $isPickerPresented) {
             MovementPicker(library: library) { movement in
+                // Added before the row opens: the row lives in the movement's section, and the
+                // section exists only once the workout holds the movement.
+                store.add(movement.movementDataId)
                 open(movement.movementDataId)
                 library.noteUsed(movement.movementDataId)
             }
@@ -262,6 +265,16 @@ struct ActiveWorkoutView: View {
                     Text("\(movement.sets.count) of \(movement.targets.count)")
                         .monospacedDigit()
                 }
+                // The picker lists near-identical movements side by side, so a wrong pick is
+                // ordinary. No confirmation: nothing is logged on it, and adding it back is a pick.
+                if movement.isDroppable {
+                    // The draft is left as it is. The entry row reads it through a force-unwrapped
+                    // binding, so clearing it in the update that removes this section crashes; once
+                    // the section is gone nothing shows it, and the next `open` replaces it.
+                    Button("Remove") { store.drop(movement.movementDataId) }
+                        .font(.subheadline)
+                        .accessibilityLabel("Remove \(library.title(of: movement.movementDataId))")
+                }
             }
         }
     }
@@ -407,7 +420,7 @@ struct ActiveWorkoutView: View {
     /// Opens the entry row on a movement, pre-filled by the carry-forward rule.
     private func open(_ movementDataId: UUID) {
         guard let workout = store.workout else { return }
-        draft = SetDraft(from: SetDefaults.nextSet(on: movementDataId, in: workout))
+        draft = SetDraft(next: movementDataId, in: workout)
         store.work(on: movementDataId)
     }
 

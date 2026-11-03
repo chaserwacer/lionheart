@@ -70,7 +70,8 @@ first and then in the code.
 
 | Word | What it means |
 |---|---|
-| **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement. The one piece of state the device owns. |
+| **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement, the movements the athlete added. The one piece of state the device owns. |
+| **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |
 | **Rest clock** | The countdown between sets. |
 | **Load state** | A screen's enum for what it has: not loaded, loaded, or unavailable with a reason. Never flags plus an optional error. |

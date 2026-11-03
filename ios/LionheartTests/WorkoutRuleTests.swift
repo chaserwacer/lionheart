@@ -105,6 +105,60 @@ struct WorkoutReadingTests {
         #expect(reading.movements.allSatisfy { $0.sets.isEmpty })
     }
 
+    @Test("A movement the athlete adds has a section before anything is logged on it")
+    func anAddedMovementAppearsBeforeItsFirstSet() throws {
+        // Walking in with nothing planned and picking a lift: the section is where its entry row
+        // lives, so without it there is nowhere to log the first set.
+        let workout = AWorkout.live().adding(AWorkout.bench)
+
+        let reading = WorkoutReading.of(workout)
+
+        #expect(reading.movements.map(\.movementDataId) == [AWorkout.bench])
+        #expect(try #require(reading.movements.first).sets.isEmpty)
+        #expect(reading.focus(given: workout.currentMovementDataId) == AWorkout.bench)
+    }
+
+    @Test("Adding a second movement keeps the first, in the order they were added")
+    func aSecondAddedMovementDoesNotDisplaceTheFirst() {
+        let workout = AWorkout.live().adding(AWorkout.bench).adding(AWorkout.squat)
+
+        #expect(WorkoutReading.of(workout).movements.map(\.movementDataId)
+            == [AWorkout.bench, AWorkout.squat])
+    }
+
+    @Test("Prescribed movements lead, then added ones, then any only a logged set names")
+    func addedMovementsSitBetweenThePlanAndTheSets() {
+        // A session resumed from the server carries its sets and no list of what was added.
+        let workout = AWorkout.live(
+            sets: [AWorkout.run(AWorkout.treadmill)],
+            prescriptions: [AWorkout.liftTarget(AWorkout.squat)]
+        ).adding(AWorkout.bench)
+
+        #expect(WorkoutReading.of(workout).movements.map(\.movementDataId)
+            == [AWorkout.squat, AWorkout.bench, AWorkout.treadmill])
+    }
+
+    @Test("Adding a movement already in the workout does not give it a second section")
+    func addingAPrescribedMovementDoesNotDuplicateIt() {
+        let workout = AWorkout.live(prescriptions: [AWorkout.liftTarget(AWorkout.bench)])
+            .adding(AWorkout.bench)
+
+        #expect(WorkoutReading.of(workout).movements.map(\.movementDataId) == [AWorkout.bench])
+    }
+
+    @Test("Only a movement with nothing asked and nothing done can be taken back out")
+    func onlyAnUntouchedMovementIsDroppable() {
+        let workout = AWorkout.live(
+            sets: [AWorkout.lift(AWorkout.squat)],
+            prescriptions: [AWorkout.liftTarget(AWorkout.treadmill)]
+        ).adding(AWorkout.bench)
+
+        let droppable = WorkoutReading.of(workout).movements
+            .filter(\.isDroppable).map(\.movementDataId)
+
+        #expect(droppable == [AWorkout.bench])
+    }
+
     @Test("Prescribed movements come before ones the athlete added")
     func prescribedOrderLeads() {
         let workout = AWorkout.live(

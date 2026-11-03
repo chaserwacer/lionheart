@@ -193,6 +193,25 @@ final class ActiveWorkoutStore {
         schedulePush()
     }
 
+    /// Adds a movement to the workout and moves the athlete onto it — what picking one does.
+    ///
+    /// Persisted like a set, because it is what the athlete is about to log against: a force-quit
+    /// between picking a lift and logging it must not leave them hunting for it again. Nothing is
+    /// pushed, since the server's set list has not changed.
+    func add(_ movementDataId: UUID) {
+        guard let workout else { return }
+        adopt(workout.adding(movementDataId))
+    }
+
+    /// Takes back a movement added by mistake. A movement with a set on it stays; see
+    /// `ActiveWorkout.dropping(_:)`.
+    func drop(_ movementDataId: UUID) {
+        guard let workout else { return }
+        let dropped = workout.dropping(movementDataId)
+        guard dropped != workout else { return }
+        adopt(dropped)
+    }
+
     func work(on movementDataId: UUID?) {
         guard let workout, workout.currentMovementDataId != movementDataId else { return }
         adopt(workout.working(on: movementDataId))
