@@ -128,6 +128,7 @@ first and then in the code.
 | **Log span** | How far back a reading of the log reaches: three months, six, a year, or all of it. |
 | **Movement catalogue** | Movement names by id, so a set — which carries only a `movementDataId` — can say what it was. |
 | **Chat turn** | One thing in the Chat transcript: something said, a question in flight, or a question the server did not keep because the exchange failed. |
+| **Contributor reading** | One of Oura's 0–100 score components on a day, against the band the athlete usually sits in — the 28 days before, mean ± one spread. Every component is higher-is-better. |
 | **Oura panel** | One collection of an Oura day as a screen shows it — its score, where Oura issues one, and the figures behind it. |
 | **Session transition** | A lifecycle move a session row can offer directly — start, skip or delete. Which ones a row offers is read from its state, because the server refuses the others. |
 | **Injury action** | What an injury row can offer: resolve, take up again, or delete. Resolving and reopening are one route in two directions, so a row offers exactly one of them. |

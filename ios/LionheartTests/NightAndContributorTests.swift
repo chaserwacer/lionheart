@@ -86,6 +86,25 @@ struct NightAndContributorTests {
         #expect(grouped.count == Contributor.allCases.count)
     }
 
+    // MARK: - Today's night
+
+    @Test("Today shows the newest night on or before the reading's day when Oura filed a readiness first")
+    func todayFallsBackToTheLastNight() {
+        let today = Self.day
+        let snapshot = TodaySnapshot.reading(
+            sessions: [],
+            ouraDays: [ARecovery.day(today), ARecovery.day(today.adding(days: -1))],
+            nights: [
+                ARecovery.night(today.adding(days: -1)),
+                ARecovery.night(today.adding(days: -2)),
+                ARecovery.night(today.adding(days: -1), isMainSleep: false),
+            ],
+            today: today)
+
+        #expect(snapshot.night?.day == today.adding(days: -1))
+        #expect(snapshot.night?.reading.isMainSleep == true)
+    }
+
     // MARK: - Trend lines
 
     @Test("A mean line breaks across a gap longer than a week instead of drawing a trend through it")

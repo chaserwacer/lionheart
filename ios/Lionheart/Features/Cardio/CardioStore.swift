@@ -54,7 +54,11 @@ final class CardioStore {
         }
     }
 
-    /// Reads again every span already read — after a sync has stored new days.
+    /// Whether any span on screen is what the device last knew rather than the server's answer.
+    var isWaitingOnServer: Bool { reports.values.contains(where: \.isWaitingOnServer) }
+
+    /// Reads again every span already read — after a sync has stored new days, or once the server
+    /// answers again.
     func refreshLoaded() async {
         for span in reports.keys { await load(span) }
     }

@@ -184,15 +184,15 @@ struct CardioView: View {
         let shown = week.map { [$0] } ?? report.weeks
         let caption = week.map { "Week of \(Formatting.date($0.weekStarting))" } ?? "\(span.label), per week"
         let weeks = Double(max(1, shown.count))
-        let figures = [
-            OuraPanel.Figure(label: "Sessions", value: Self.number(Double(shown.reduce(0) { $0 + $1.sessions }) / weeks, digits: week == nil ? 1 : 0)),
-            OuraPanel.Figure(label: "Minutes", value: Self.number(shown.reduce(0) { $0 + $1.minutes } / weeks)),
-            OuraPanel.Figure(label: "Zone 2", value: Self.number(shown.reduce(0) { $0 + $1.zones.zone2 } / weeks)),
-            OuraPanel.Figure(label: "Load", value: Self.number(shown.reduce(0) { $0 + $1.zones.load } / weeks)),
+        let figures: [(label: String, value: String)] = [
+            ("Sessions", Self.number(Double(shown.reduce(0) { $0 + $1.sessions }) / weeks, digits: week == nil ? 1 : 0)),
+            ("Minutes", Self.number(shown.reduce(0) { $0 + $1.minutes } / weeks)),
+            ("Zone 2", Self.number(shown.reduce(0) { $0 + $1.zones.zone2 } / weeks)),
+            ("Load", Self.number(shown.reduce(0) { $0 + $1.zones.load } / weeks)),
         ]
         return VStack(alignment: .leading, spacing: 6) {
             Text(caption).font(.subheadline).foregroundStyle(Color(.secondaryLabel))
-            FigureGrid(figures: figures)
+            SummaryFigures(figures: figures)
         }
     }
 

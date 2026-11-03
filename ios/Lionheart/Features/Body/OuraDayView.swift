@@ -155,18 +155,18 @@ struct NightSummaryRow: View {
                     .font(.subheadline)
                     .foregroundStyle(Color(.secondaryLabel))
             }
-            HStack(alignment: .firstTextBaseline) {
-                Text(Formatting.hoursAndMinutes(seconds: Double(reading.totalSleepSeconds)))
-                    .font(.headline.monospacedDigit())
-                Text("asleep")
-                    .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
-                Spacer()
-                Text(facts)
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(Color(.secondaryLabel))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            // The facts beside the figure where they fit, under it where they do not, so neither
+            // wraps a word at a time at the accessibility sizes.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    asleep
+                    Spacer()
+                    factsText
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    asleep
+                    factsText
+                }
             }
             if case .interval(let start, let end) = night.period, end > start {
                 let runs = Hypnogram.runs(of: reading, from: start)
@@ -186,6 +186,24 @@ struct NightSummaryRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Night")
         .accessibilityValue("\(Formatting.hoursAndMinutes(seconds: Double(reading.totalSleepSeconds))) asleep, \(facts)")
+    }
+
+    private var asleep: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(Formatting.hoursAndMinutes(seconds: Double(night.reading.totalSleepSeconds)))
+                .font(.headline.monospacedDigit())
+            Text("asleep")
+                .font(.subheadline)
+                .foregroundStyle(Color(.secondaryLabel))
+        }
+        .fixedSize()
+    }
+
+    private var factsText: some View {
+        Text(facts)
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(Color(.secondaryLabel))
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var facts: String {

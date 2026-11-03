@@ -205,6 +205,8 @@ final class AppContainer {
             if history.state.isWaitingOnServer { group.addTask { await self.history.refresh() } }
             if focus.state.isWaitingOnServer { group.addTask { await self.focus.refresh() } }
             if body.state.isWaitingOnServer { group.addTask { await self.body.refresh() } }
+            if cardio.isWaitingOnServer { group.addTask { await self.cardio.refreshLoaded() } }
+            if habits.isWaitingOnServer { group.addTask { await self.habits.refreshLoaded() } }
             if movements.state.isWaitingOnServer { group.addTask { await self.movements.refresh() } }
             if case .unavailable = chat.state { group.addTask { await self.chat.refresh() } }
         }

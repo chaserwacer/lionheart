@@ -45,7 +45,13 @@ final class HabitsStore {
         }
     }
 
-    /// Reads again every span and day already read — after a sync has stored new days.
+    /// Whether any span or day on screen is what the device last knew rather than the server's answer.
+    var isWaitingOnServer: Bool {
+        reports.values.contains(where: \.isWaitingOnServer) || days.values.contains(where: \.isWaitingOnServer)
+    }
+
+    /// Reads again every span and day already read — after a sync has stored new days, or once the
+    /// server answers again.
     func refreshLoaded() async {
         for span in reports.keys { await load(span) }
         for day in days.keys { await loadDay(day) }

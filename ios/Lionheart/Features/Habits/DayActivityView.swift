@@ -197,19 +197,15 @@ struct DayActivityRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(detail.figures.steps.formatted())
-                    .font(.headline.monospacedDigit())
-                Text("steps")
-                    .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
-                Spacer()
-                if let longest = detail.figures.longestSittingMinutes {
-                    Text("Longest sitting \(Formatting.minutes(Double(longest)))")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(Color(.secondaryLabel))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    steps
+                    Spacer()
+                    longest
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    steps
+                    longest
                 }
             }
             ActivityTimelineChart(detail: detail, isCompact: true)
@@ -218,5 +214,26 @@ struct DayActivityRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
+    }
+
+    private var steps: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(detail.figures.steps.formatted())
+                .font(.headline.monospacedDigit())
+            Text("steps")
+                .font(.subheadline)
+                .foregroundStyle(Color(.secondaryLabel))
+        }
+        .fixedSize()
+    }
+
+    @ViewBuilder
+    private var longest: some View {
+        if let longest = detail.figures.longestSittingMinutes {
+            Text("Longest sitting \(Formatting.minutes(Double(longest)))")
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(Color(.secondaryLabel))
+                .fixedSize()
+        }
     }
 }
