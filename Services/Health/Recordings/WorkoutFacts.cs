@@ -4,7 +4,7 @@ using lionheart.Model.Health;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 
-namespace lionheart.Services.Health.Runs;
+namespace lionheart.Services.Health.Recordings;
 
 /// <summary>
 /// A recorded run as the chat model reads it: one block of text per run, every figure with its unit.
@@ -14,7 +14,7 @@ namespace lionheart.Services.Health.Runs;
 /// given what was derived from it — distance, time, pace, climb, splits — and never the path.
 /// The heart rate says whose it is, since a strap's and the ring's are not the same instrument.
 /// </remarks>
-public static class RunFacts
+public static class WorkoutFacts
 {
     /// <summary>
     /// The context card's line: how many runs came from Health over the window, how far they went,
@@ -41,7 +41,7 @@ public static class RunFacts
                 sets.Sum(set => set.ElevationGainMeters));
     }
 
-    public static string Summary(RecordedRunView run)
+    public static string Summary(RecordedWorkoutView run)
     {
         var lines = new List<string>
         {
@@ -62,7 +62,7 @@ public static class RunFacts
         return string.Join("\n", lines);
     }
 
-    private static string HeartRate(RecordedRunView run) => run.HeartRate switch
+    private static string HeartRate(RecordedWorkoutView run) => run.HeartRate switch
     {
         SessionHeartRate.Recorded recorded =>
             $"Heart rate ({Whose(recorded.Source, run)}): average {recorded.AverageBpm} bpm, peak {recorded.PeakBpm} bpm, "
@@ -77,7 +77,7 @@ public static class RunFacts
         _ => throw new System.Diagnostics.UnreachableException(),
     };
 
-    private static string Whose(HeartRateSource source, RecordedRunView run) => source switch
+    private static string Whose(HeartRateSource source, RecordedWorkoutView run) => source switch
     {
         HeartRateSource.AppleHealth => $"from {run.RecordedBy.Name} via Apple Health",
         HeartRateSource.Ring => "from the Oura ring's all-day series; the recording app wrote none",

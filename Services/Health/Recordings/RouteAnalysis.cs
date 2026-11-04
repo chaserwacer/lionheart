@@ -2,7 +2,7 @@ using lionheart.Model.Cardio;
 using lionheart.Model.Health;
 using lionheart.Model.Oura.Readings;
 
-namespace lionheart.Services.Health.Runs;
+namespace lionheart.Services.Health.Recordings;
 
 /// <summary>What a route says on its own: its length, its time in motion, and its climb and descent.</summary>
 /// <param name="ClimbMeters">Absent where no fix carried an altitude.</param>

@@ -1,7 +1,7 @@
 using lionheart.Services.BodyComposition;
 using lionheart.Services.Cardio;
 using lionheart.Services.Habits;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 using lionheart.Services.Training.Score;
 using Microsoft.Extensions.DependencyInjection;
 using Model.Chat.Tools;
@@ -23,7 +23,7 @@ public class AnalysisToolRegistrationTests
     [InlineData("GetHabitsReport", typeof(HabitsReportService), typeof(IHabitsReportService))]
     [InlineData("GetTrainingScore", typeof(TrainingScoreService), typeof(ITrainingScoreService))]
     [InlineData("GetBodyCompositionScans", typeof(BodyCompositionService), typeof(IBodyCompositionService))]
-    [InlineData("GetRecordedRuns", typeof(RecordedRunService), typeof(IRecordedRunService))]
+    [InlineData("GetRecordedRuns", typeof(RecordedWorkoutService), typeof(IRecordedWorkoutService))]
     public async Task Each_report_is_a_tool_scoped_to_the_signed_in_athlete(string name, Type service, Type contract)
     {
         var services = new ServiceCollection();
@@ -31,7 +31,7 @@ public class AnalysisToolRegistrationTests
         services.AddTransient<IHabitsReportService, HabitsReportService>();
         services.AddTransient<ITrainingScoreService, TrainingScoreService>();
         services.AddTransient<IBodyCompositionService, BodyCompositionService>();
-        services.AddTransient<IRecordedRunService, RecordedRunService>();
+        services.AddTransient<IRecordedWorkoutService, RecordedWorkoutService>();
 
         var registry = await ToolRegistryBuilder.Build(services);
 

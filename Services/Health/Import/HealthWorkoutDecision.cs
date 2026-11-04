@@ -4,7 +4,7 @@ using lionheart.Model.Training;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Cardio;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 
 namespace lionheart.Services.Health.Import;
 

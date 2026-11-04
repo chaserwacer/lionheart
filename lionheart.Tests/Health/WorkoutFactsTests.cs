@@ -1,18 +1,18 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 using lionheart.Tests.Support;
 
 namespace lionheart.Tests.Health;
 
 /// <summary>The context card's line about the runs imported from Apple Health.</summary>
-public class RunFactsTests
+public class WorkoutFactsTests
 {
     [Fact]
     public void A_window_with_no_imported_run_says_so()
     {
-        Assert.Equal("Runs from Apple Health: none in the last 28 days.", RunFacts.Recent([], days: 28));
+        Assert.Equal("Runs from Apple Health: none in the last 28 days.", WorkoutFacts.Recent([], days: 28));
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public class RunFactsTests
 
         Assert.Equal(
             "Runs from Apple Health: 2 in the last 28 days, 15.00 km in all; latest 2026-10-07, 10.00 km in 50:00, pace 5:00/km, climb 140 m.",
-            RunFacts.Recent(runs, days: 28));
+            WorkoutFacts.Recent(runs, days: 28));
     }
 
     private static CompletedTrainingSession Run(DateTimeOffset start, double kilometres, double minutes, double climb) =>

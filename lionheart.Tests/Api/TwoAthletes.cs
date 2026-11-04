@@ -5,7 +5,7 @@ using lionheart.Services;
 using lionheart.Services.BodyComposition;
 using lionheart.Services.Cardio;
 using lionheart.Services.Health.Import;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 using lionheart.Services.Contexts;
 using lionheart.Services.Training.Balance;
 using lionheart.Services.Training.Focus;
@@ -154,10 +154,10 @@ public sealed class TwoAthletes : IDisposable
             context, TimeProvider.System, detector, new PersonalRecordRebuild(context, detector)));
     }
 
-    public async Task<T> RecordedRunsAsync<T>(Func<IRecordedRunService, Task<T>> act)
+    public async Task<T> RecordedRunsAsync<T>(Func<IRecordedWorkoutService, Task<T>> act)
     {
         using var context = CreateContext();
-        return await act(new RecordedRunService(context, new CardioReportService(context)));
+        return await act(new RecordedWorkoutService(context, new CardioReportService(context)));
     }
 
     public async Task<T> MovementDataAsync<T>(Func<IMovementDataService, Task<T>> act)

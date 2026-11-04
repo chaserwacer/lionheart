@@ -5,10 +5,10 @@ using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Cardio;
 
-namespace lionheart.Services.Health.Runs;
+namespace lionheart.Services.Health.Recordings;
 
 /// <summary>The heart-rate samples a run is read against, and whose they are.</summary>
-public sealed record RunHeartRate(IReadOnlyList<HeartRateSample> Samples, HeartRateSource Source);
+public sealed record WorkoutHeartRate(IReadOnlyList<HeartRateSample> Samples, HeartRateSource Source);
 
 /// <summary>
 /// A recorded run read whole for its page and for the chat model: the session's figures, the
@@ -19,15 +19,15 @@ public sealed record RunHeartRate(IReadOnlyList<HeartRateSample> Samples, HeartR
 /// samples and the same maximum the cardio report uses, so the run's page and the cardio screen
 /// never give one run two averages.
 /// </remarks>
-public static class RunReadouts
+public static class WorkoutReadouts
 {
     /// <param name="heartRate">The recording app's samples where it wrote any, the ring's otherwise.</param>
     /// <param name="maximum">The maximum the cardio report draws zones from, or nothing without one.</param>
-    public static RecordedRunView Of(
+    public static RecordedWorkoutView Of(
         CompletedTrainingSession session,
         SessionSource.AppleHealth source,
         WorkoutRecording recording,
-        RunHeartRate heartRate,
+        WorkoutHeartRate heartRate,
         MaxHeartRate? maximum)
     {
         var (start, end) = SessionMatching.Span(session.Period) ?? (session.Period.StartTime, session.Period.StartTime);
@@ -36,7 +36,7 @@ public static class RunReadouts
         var moving = recording.Route.HasPath ? route.Moving : (TimeSpan?)null;
         var samples = heartRate.Samples.Where(sample => sample.At >= start && sample.At < end).ToList();
 
-        return new RecordedRunView(
+        return new RecordedWorkoutView(
             session.TrainingSessionId,
             source.RecordedBy,
             start,

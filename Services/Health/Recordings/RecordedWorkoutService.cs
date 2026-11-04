@@ -10,12 +10,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Tools;
 
-namespace lionheart.Services.Health.Runs;
+namespace lionheart.Services.Health.Recordings;
 
-public interface IRecordedRunService
+public interface IRecordedWorkoutService
 {
     /// <summary>One imported run read whole, or not found for a session that is not one of the athlete's imported runs.</summary>
-    Task<Result<RecordedRunView, Problem>> GetAsync(IdentityUser user, Guid trainingSessionId, CancellationToken ct);
+    Task<Result<RecordedWorkoutView, Problem>> GetAsync(IdentityUser user, Guid trainingSessionId, CancellationToken ct);
 }
 
 /// <summary>
@@ -28,7 +28,7 @@ public interface IRecordedRunService
 /// the cardio report's, so a run reads the same here as there.
 /// </remarks>
 [ToolProvider]
-public sealed class RecordedRunService : IRecordedRunService
+public sealed class RecordedWorkoutService : IRecordedWorkoutService
 {
     /// <summary>The most days one chat call reads, the same bound the cardio tool keeps.</summary>
     private const int ChatDayLimit = 92;
@@ -36,13 +36,13 @@ public sealed class RecordedRunService : IRecordedRunService
     private readonly ModelContext _context;
     private readonly ICardioReportService _cardio;
 
-    public RecordedRunService(ModelContext context, ICardioReportService cardio)
+    public RecordedWorkoutService(ModelContext context, ICardioReportService cardio)
     {
         _context = context;
         _cardio = cardio;
     }
 
-    public Task<Result<RecordedRunView, Problem>> GetAsync(IdentityUser user, Guid trainingSessionId, CancellationToken ct) =>
+    public Task<Result<RecordedWorkoutView, Problem>> GetAsync(IdentityUser user, Guid trainingSessionId, CancellationToken ct) =>
         OwnedRunAsync(Guid.Parse(user.Id), trainingSessionId, ct)
             .BindAsync(run => _cardio.GetReportAsync(user, new DayRange(run.Session.Date, run.Session.Date), ct)
                 .MapAsync(report => ReadoutAsync(run, report.MaxHeartRate, ct)));
@@ -51,7 +51,7 @@ public sealed class RecordedRunService : IRecordedRunService
         Description = "The athlete's runs imported from Apple Health (recorded by an app such as Strava) in a range of days, oldest first, one block of text per run: start, recording app, distance, time, moving time, pace and moving pace per km, climb and descent; heart rate (average, peak, how much of the run it covers, minutes in the five zones and Edwards load) and whose it is — the recording app's, or the Oura ring's all-day series where the app wrote none; and splits per km with pace, climb, descent and average heart rate. No route or location is ever given. At most 92 days per call — a longer range returns its most recent 92 days.")]
     public async Task<IReadOnlyList<string>> GetRecordedRunsForChatAsync(IdentityUser user, DayRange range) =>
         await RunsInAsync(user, Recent(range), CancellationToken.None)
-            .MatchAsync(runs => runs.Select(RunFacts.Summary).ToList(), _ => []);
+            .MatchAsync(runs => runs.Select(WorkoutFacts.Summary).ToList(), _ => []);
 
     // ---- Reads ----
 
@@ -72,17 +72,17 @@ public sealed class RecordedRunService : IRecordedRunService
             : Result<ImportedRun, Problem>.Failure(new Problem.NotFound("No run imported from Apple Health with that id."));
     }
 
-    private Task<Result<IReadOnlyList<RecordedRunView>, Problem>> RunsInAsync(
+    private Task<Result<IReadOnlyList<RecordedWorkoutView>, Problem>> RunsInAsync(
         IdentityUser user, DayRange range, CancellationToken ct) =>
         _cardio.GetReportAsync(user, range, ct)
             .MapAsync(async report => await ReadoutsAsync(
                 await ImportedInAsync(Guid.Parse(user.Id), range, ct), report.MaxHeartRate, ct));
 
     /// <remarks>One after another: they share this context, which is not safe to use from two reads at once.</remarks>
-    private async Task<IReadOnlyList<RecordedRunView>> ReadoutsAsync(
+    private async Task<IReadOnlyList<RecordedWorkoutView>> ReadoutsAsync(
         IReadOnlyList<ImportedRun> runs, MaxHeartRate? maximum, CancellationToken ct)
     {
-        var readouts = new List<RecordedRunView>(runs.Count);
+        var readouts = new List<RecordedWorkoutView>(runs.Count);
         foreach (var run in runs) readouts.Add(await ReadoutAsync(run, maximum, ct));
         return readouts;
     }
@@ -118,17 +118,17 @@ public sealed class RecordedRunService : IRecordedRunService
         ];
     }
 
-    private async Task<RecordedRunView> ReadoutAsync(ImportedRun run, MaxHeartRate? maximum, CancellationToken ct) =>
-        RunReadouts.Of(run.Session, run.Source, run.Recording, await HeartRateAsync(run, ct), maximum);
+    private async Task<RecordedWorkoutView> ReadoutAsync(ImportedRun run, MaxHeartRate? maximum, CancellationToken ct) =>
+        WorkoutReadouts.Of(run.Session, run.Source, run.Recording, await HeartRateAsync(run, ct), maximum);
 
     /// <summary>The recording app's heart rate, or the ring's series over the run's clock time where it wrote none.</summary>
-    private async Task<RunHeartRate> HeartRateAsync(ImportedRun run, CancellationToken ct)
+    private async Task<WorkoutHeartRate> HeartRateAsync(ImportedRun run, CancellationToken ct)
     {
         if (run.Recording.HeartRate.IsRecorded)
-            return new RunHeartRate(run.Recording.HeartRate.Samples, HeartRateSource.AppleHealth);
+            return new WorkoutHeartRate(run.Recording.HeartRate.Samples, HeartRateSource.AppleHealth);
 
         var (start, end) = SessionMatching.Span(run.Session.Period) ?? (run.Session.Period.StartTime, run.Session.Period.StartTime);
-        return new RunHeartRate(
+        return new WorkoutHeartRate(
             await _context.OuraHeartRateDays.SamplesAsync(run.Session.UserId, new TimeWindow(start, end), ct),
             HeartRateSource.Ring);
     }

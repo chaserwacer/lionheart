@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using lionheart.Services.Chat;
 using lionheart.Services.Llm;
 using lionheart.Services.BodyComposition;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 
 namespace lionheart.Services.Profile
 {
@@ -307,7 +307,7 @@ namespace lionheart.Services.Profile
 
             lines.Add($"Training load: {acuteSessions} sessions in 7d, acute:chronic ratio {acwr} (vs trailing 28d).");
 
-            lines.Add(RunFacts.Recent(await ImportedRunsSinceAsync(userId, monthAgo), days: 28));
+            lines.Add(WorkoutFacts.Recent(await ImportedRunsSinceAsync(userId, monthAgo), days: 28));
             lines.AddRange(await BodyFactsAsync(userId));
 
             if (activeInjuries.Count > 0)

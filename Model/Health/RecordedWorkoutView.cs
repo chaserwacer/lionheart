@@ -26,7 +26,7 @@ namespace lionheart.Model.Health;
 /// <param name="HeartRate">What the trace says across the run, the cardio report's own reading.</param>
 /// <param name="Trace">The samples the heart rate was read from, for drawing.</param>
 /// <param name="Route">The path, for the map. Coordinates only: the times stay on the server.</param>
-public sealed record RecordedRunView(
+public sealed record RecordedWorkoutView(
     Guid TrainingSessionId,
     RecordingApp RecordedBy,
     DateTimeOffset Start,

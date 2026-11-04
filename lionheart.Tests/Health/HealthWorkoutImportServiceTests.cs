@@ -8,7 +8,7 @@ using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Health.Import;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 using lionheart.Tests.Api;
 using lionheart.Tests.Support;
 using Microsoft.EntityFrameworkCore;
@@ -267,7 +267,7 @@ public class HealthWorkoutImportServiceTests : IDisposable
     {
         await ImportAsync(AHealthRun.Outdoor(meters: 5000));
 
-        var runs = await _athletes.RecordedRunsAsync(service => ((RecordedRunService)service).GetRecordedRunsForChatAsync(
+        var runs = await _athletes.RecordedRunsAsync(service => ((RecordedWorkoutService)service).GetRecordedRunsForChatAsync(
             _athletes.Owner, new Model.Analysis.DayRange(DateOnly.FromDateTime(AHealthRun.Start.DateTime), DateOnly.FromDateTime(AHealthRun.Start.DateTime))));
 
         var text = Assert.Single(runs);
