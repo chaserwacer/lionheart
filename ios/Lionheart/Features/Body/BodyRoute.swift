@@ -19,4 +19,8 @@ enum BodyRoute: Hashable {
     case wellness
     case injuries
     case injury(UUID)
+    case composition
+    case bodyweight
+    /// One recorded scan, by its id.
+    case scan(UUID)
 }

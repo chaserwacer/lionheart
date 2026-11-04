@@ -68,6 +68,8 @@ targets:
         # nothing in the log saying why. It belongs here for the same reason UILaunchScreen does —
         # this project supplies its own Info.plist, so no INFOPLIST_KEY_* build setting reaches it.
         NSSupportsLiveActivities: true
+        # The document camera reads a printed body-composition sheet; the photo stays on the phone.
+        NSCameraUsageDescription: Photographs a printed body-composition sheet so its figures can be read on this phone.
         # The API origin is a build setting, not a literal, so a device build can point at a LAN
         # address or a tunnel without touching Swift. See Configs/Base.xcconfig.
         LHAPIBaseURL: $(LH_API_BASE_URL)

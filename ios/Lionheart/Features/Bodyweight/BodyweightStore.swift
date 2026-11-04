@@ -11,7 +11,7 @@ import Observation
 final class BodyweightStore {
     /// How far back the series is read. A year for the trend's longest span, and a margin so a day
     /// at the start of it still has a reading in force from before.
-    private static let lookBack = 400
+    static let lookBack = 400
 
     private(set) var state: LoadState<BodyweightSeries> = .loading
     private(set) var action: ActionState = .idle
