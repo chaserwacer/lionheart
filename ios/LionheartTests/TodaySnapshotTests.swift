@@ -23,7 +23,7 @@ struct TodaySnapshotTests {
         let reading = TodaySnapshot.latestReadiness(in: days)
 
         #expect(reading?.day == CalendarDay(year: 2026, month: 3, day: 3))
-        #expect(reading?.score == 88)
+        #expect(reading?.score == OuraScore(88))
     }
 
     @Test("A day with no readiness panel is not a reading")
@@ -46,7 +46,7 @@ struct TodaySnapshotTests {
         let reading = TodaySnapshot.latestReadiness(in: days)
 
         #expect(reading?.day == CalendarDay(year: 2026, month: 3, day: 3))
-        #expect(reading?.score == 0)
+        #expect(reading?.score == OuraScore(0))
     }
 
     @Test("A readiness Oura filed without a score is not a reading")
@@ -81,7 +81,7 @@ struct TodaySnapshotTests {
         arguments: [(0, ReadinessReading.Band.payAttention), (69, .payAttention), (70, .good),
                     (84, .good), (85, .optimal), (100, .optimal)])
     func readinessBandsFollowOura(score: Int, expected: ReadinessReading.Band) {
-        let reading = ReadinessReading(day: Self.today, score: score)
+        let reading = ReadinessReading(day: Self.today, score: OuraScore(score))
 
         #expect(reading.band == expected)
     }
@@ -183,7 +183,7 @@ struct TodaySnapshotTests {
 
         let snapshot = TodaySnapshot.reading(sessions: sessions, ouraDays: days, today: Self.today)
 
-        #expect(snapshot.readiness?.score == 79)
+        #expect(snapshot.readiness?.score == OuraScore(79))
         #expect(snapshot.lastCompleted?.envelope.date == CalendarDay(year: 2026, month: 3, day: 2))
         #expect(snapshot.nextPlanned?.plannedFor == CalendarDay(year: 2026, month: 3, day: 6))
         #expect(snapshot.inProgress != nil)

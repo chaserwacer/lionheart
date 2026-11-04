@@ -36,6 +36,7 @@ first and then in the code.
 | **Record chain** | Every record of one identity — subject, kind and weight unit — newest first: the one standing, the ones it beat, and any withdrawn. What a record's history shows. |
 | **Record lineage** | What a record replaced — nothing, for the first of its kind — carrying the predecessor's date so "how long the last one stood" answers without a second read. |
 | **Record rebuild** | Re-detecting an athlete's records from scratch over every completed session, oldest first — what keeps the chains right when history arrives out of order. Writes nothing when the records are already right. |
+| **Revising a session** | Correcting a completed session after the fact: its sets, when it happened and its notes, restated whole. It stays completed. A change to the sets or the start rebuilds the records. |
 | **Retracting a record** | Withdrawing the standing record because the set behind it was not real, which puts back whatever it beat. The only edit an athlete makes to a record. |
 | **Set kind** | What a lift was for: working, warm-up, drop or failure. A warm-up sets no record and counts toward no total or target; drop and failure sets count like working sets. |
 | **Working set** | A set that takes a place in the plan: a working or failure set, the nth of its movement, read against the nth target, a routine's count and last time's nth working set. A warm-up prepares and a drop set extends the set before it, so neither takes a place; a drop set still counts toward totals and records. |
@@ -58,7 +59,7 @@ first and then in the code.
 | **Context** | Anything outside a training session that bears on performance — a night's sleep, a stressful week, a day of pressure-washing. |
 | **Exertion context** | Physical effort outside training. Carries effort ratings. |
 | **State context** | A body or life state. Its valence lives in its decoration. |
-| **Wellness state** | A self-reported daily reading the athlete enters. |
+| **Wellness state** | The athlete's own rating of a day: energy, mood, motivation and stress, each 1–5, and the server's overall mean of them with stress counted the other way round. One per day; logging the day again replaces it. |
 | **Oura day** | One day of wearable data: the eight daily documents Oura files under that date — activity, readiness, sleep, SpO2, stress, resilience, VO2max, cardiovascular age. |
 | **Oura document** | One record as Oura issued it, keyed by Oura's own id. Either a day document or an event. |
 | **Reading** | The measurement half of an Oura document — what the ring recorded, as against which day it belongs to. |
@@ -80,6 +81,10 @@ first and then in the code.
 | **VO2max estimate** | Oura's estimate of maximal oxygen uptake from heart rate and walking. An estimate, not a test; read for its trend. |
 | **Cardiovascular age** | Oura's predicted vascular age. A model output; read for its trend. |
 | **Readiness** | Oura's own composite score for how recovered the body is. Not Lionheart's judgement. |
+| **Oura score** | Any of Oura's 0–100 ratings — readiness, sleep, activity and every contributor behind them. How Oura rated something against the athlete's baseline, never a measurement: a resting-heart-rate score of 80 is not 80 bpm. `OuraScore` in the client. |
+| **Readiness contributor** | One of the nine Oura scores readiness is built from. Today shows six of them, each beside the measurement it rests on: HRV, the night's lowest heart rate and when it came, the fortnight's sleep, the night's sleep, temperature. |
+| **Diary day** | One day as History's day page reads it: Oura's scores, the night's measurements, steps, every workout — lifting from the log, the ring's workouts from the cardio report — and the athlete's wellness rating. |
+| **Diary week** | One Monday-to-Sunday week: its lifting by session (working sets, volume per unit), its cardio minutes by zone, and the ring's week in means. |
 | **Bodyweight measurement** | The athlete's bodyweight on one calendar day. One per day; logging the day again replaces it. |
 | **System load** | Bodyweight plus the plate, for a movement whose weight is added to bodyweight — what a weighted dip is judged by. |
 | **Injury** | A tracked problem with a body part, and the events logged against it over time. |

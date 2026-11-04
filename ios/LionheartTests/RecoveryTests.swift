@@ -17,10 +17,10 @@ enum ARecovery {
             activity: steps.map { activity(steps: $0) },
             readiness: readiness.map {
                 OuraDay.Readiness(
-                    score: $0, temperatureDeviation: temperature, temperatureTrendDeviation: nil,
+                    score: OuraScore($0), temperatureDeviation: temperature, temperatureTrendDeviation: nil,
                     contributors: .absent)
             },
-            sleep: sleepScore.map { OuraDay.Sleep(score: $0, contributors: .absent) },
+            sleep: sleepScore.map { OuraDay.Sleep(score: OuraScore($0), contributors: .absent) },
             spo2: nil, stress: nil, resilience: nil, vo2Max: nil, cardiovascularAge: nil)
     }
 
@@ -178,7 +178,7 @@ struct RecoveryTests {
 
         let reading = try #require(RecoveryReading.reading(for: Self.day, days: days, nights: [], today: Self.later))
 
-        #expect(reading.readiness?.score == 85)
+        #expect(reading.readiness?.score == OuraScore(85))
         #expect(reading.readinessFigure?.deviation == 15)
         #expect(!reading.figures.contains { $0.metric == .readiness })
     }

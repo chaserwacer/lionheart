@@ -29,6 +29,7 @@ struct TodayView: View {
     @State private var isQuickLogPresented = false
     @State private var isSettingsPresented = false
     @State private var isDayPickerPresented = false
+    @State private var isRecoveryExplained = false
 
     /// Where the Today tab can navigate, registered once on the stack.
     enum Route: Hashable {
@@ -77,6 +78,9 @@ struct TodayView: View {
             .sheet(isPresented: $isSettingsPresented) {
                 SettingsSheet(apiBaseURL: apiBaseURL, activeWorkout: activeWorkout)
             }
+            .sheet(isPresented: $isRecoveryExplained) {
+                RecoveryExplanationSheet()
+            }
             .sheet(isPresented: $isDayPickerPresented) {
                 DayPickerSheet(day: day, today: today) { chosen in
                     Task { await store.show(DaySelection.of(chosen, today: today)) }
@@ -123,7 +127,7 @@ struct TodayView: View {
         switch route {
         case .session(let id):
             if let session = store.state.value.flatMap({ session(id, in: $0) }) {
-                SessionDetailView(session: session, catalogue: catalogue, history: history)
+                SessionDetailView(session: session, catalogue: catalogue, history: history, library: library)
             } else {
                 ContentUnavailableView {
                     Text("Session not available")
@@ -172,7 +176,7 @@ struct TodayView: View {
         }
 
         let isToday = snapshot.day == today
-        recoverySection(snapshot.recovery, day: snapshot.day, today: today)
+        recoverySection(snapshot, today: today)
         bodyDaySection(snapshot)
         // Under the figures it qualifies, so the verdict leads, and in a section of its own so the
         // figures' footer stays with them: how current they are, and the control that updates them.
@@ -187,17 +191,27 @@ struct TodayView: View {
         }
     }
 
+    /// The verdict, then the readiness contributors that answer "how recovered am I", each Oura's
+    /// score beside the measurement it rests on, then the figures no contributor carries.
     @ViewBuilder
-    private func recoverySection(_ recovery: RecoveryReading?, day: CalendarDay, today: CalendarDay) -> some View {
+    private func recoverySection(_ snapshot: TodaySnapshot, today: CalendarDay) -> some View {
+        let day = snapshot.day
         Section {
-            if let recovery {
+            if let recovery = snapshot.recovery {
                 if let readiness = recovery.readiness {
                     NavigationLink(value: Route.trend(.readiness, endingOn: recovery.day)) {
                         RecoveryVerdictView(
                             readiness: readiness, figure: recovery.readinessFigure, shownDay: day, today: today)
                     }
                 }
-                ForEach(recovery.figures) { figure in
+                ForEach(snapshot.contributors) { reading in
+                    if let route = route(for: reading, on: recovery.day) {
+                        NavigationLink(value: route) { ReadinessContributorRow(reading: reading) }
+                    } else {
+                        ReadinessContributorRow(reading: reading)
+                    }
+                }
+                ForEach(snapshot.otherFigures) { figure in
                     NavigationLink(value: Route.trend(figure.metric, endingOn: recovery.day)) {
                         RecoveryFigureRow(reading: figure)
                     }
@@ -207,11 +221,31 @@ struct TodayView: View {
                     .foregroundStyle(Color(.secondaryLabel))
             }
         } header: {
-            Text("Recovery")
+            HStack(alignment: .firstTextBaseline) {
+                Text("Recovery")
+                Spacer()
+                if !snapshot.contributors.isEmpty {
+                    Text("Oura")
+                        .accessibilityHidden(true)
+                }
+                Button("How to read this", systemImage: "info.circle") { isRecoveryExplained = true }
+                    .labelStyle(.iconOnly)
+            }
         } footer: {
-            if let recovery, !recovery.figures.isEmpty {
+            if let recovery = snapshot.recovery, !recovery.figures.isEmpty {
                 Text(footer(for: recovery, shownDay: day, today: today))
             }
+        }
+    }
+
+    /// Where a contributor row opens: the measurement's own trend, or the night for the recovery
+    /// index, whose measurement is a point on the night's curve.
+    private func route(for reading: ReadinessContributorReading, on day: CalendarDay) -> Route? {
+        switch reading.basis {
+        case .measured(let figure): .trend(figure.metric, endingOn: day)
+        case .lowestHeartRate: .night(day)
+        case .recentSleep: .trend(.sleepDuration, endingOn: day)
+        case nil: nil
         }
     }
 
@@ -245,7 +279,7 @@ struct TodayView: View {
     }
 
     private func footer(for recovery: RecoveryReading, shownDay: CalendarDay, today: CalendarDay) -> String {
-        let against = "Deviation from the \(MetricBaseline.windowDays) days before."
+        let against = "Tracks are Oura's scores out of 100; figures are measured, against your \(MetricBaseline.windowDays) days before."
         guard recovery.readiness == nil, recovery.day != shownDay else { return against }
         return "From \(Formatting.day(RelativeDay.of(recovery.day, today: today)).lowercased()). \(against)"
     }

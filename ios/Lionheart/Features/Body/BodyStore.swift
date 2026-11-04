@@ -25,6 +25,9 @@ final class BodyStore {
 
     private(set) var state: LoadState<BodySnapshot> = .loading
 
+    /// The first day the window reaches back to.
+    var firstDay: CalendarDay { CalendarDay(now()).adding(days: 1 - Self.lookBackDays) }
+
     /// Where an action asked for from a row stands. Separate from `state`: an injury that will not
     /// delete must not take the tab's data down with it.
     private(set) var action: ActionState = .idle
@@ -59,8 +62,8 @@ final class BodyStore {
     ///
     /// The tab's `.task` runs again on every return to it, and a refresh over this window is about
     /// 290 KB (see `lookBackDays`) — worth paying when something could have changed, and not
-    /// otherwise. Nothing on the device writes an Oura day or a wellness entry, and the two actions
-    /// that do write here reload for themselves, so a tab switch has nothing to learn. Pull to
+    /// otherwise. Nothing on the device writes an Oura day, and the writes that touch this tab —
+    /// an injury, a wellness entry — reload it for themselves, so a tab switch has nothing to learn. Pull to
     /// refresh stays the athlete's own way of asking, and a new ring sync is what it is for. A
     /// screen that is not current is asked again, since it has something to learn.
     func refreshIfNeeded() async {

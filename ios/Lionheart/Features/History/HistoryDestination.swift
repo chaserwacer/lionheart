@@ -11,6 +11,14 @@ struct HistoryDestination: View {
     let focus: FocusStore
     let library: MovementLibraryStore
 
+    /// The ring and cardio reads behind the day and week pages, supplied from the root so every
+    /// stack that registers this reaches the same ones.
+    @Environment(DiaryStore.self) private var diary
+    /// Draws a cardio session's heart-rate curve.
+    @Environment(CardioStore.self) private var cardio
+    /// A day's movement timeline.
+    @Environment(HabitsStore.self) private var habits
+
     var body: some View {
         let snapshot = history.state.value
         let catalogue = snapshot?.catalogue ?? library.catalogue
@@ -18,7 +26,7 @@ struct HistoryDestination: View {
         switch route {
         case .session(let id):
             if let session = snapshot?.session(id) {
-                SessionDetailView(session: session, catalogue: catalogue, history: history)
+                SessionDetailView(session: session, catalogue: catalogue, history: history, library: library)
             } else {
                 // Reachable: a refresh can land while a pushed row's session is no longer in the
                 // window. Saying so beats an empty screen with a title.
@@ -46,9 +54,35 @@ struct HistoryDestination: View {
         case .movements:
             MovementsView(history: history)
         case .consistency:
-            ConsistencyView(history: history)
+            ConsistencyView(history: history, diary: diary, library: library)
         case .focus:
             FocusView(focus: focus, history: history, library: library)
+        case .day(let day):
+            DayView(day: day, history: history, diary: diary, library: library)
+        case .week(let start):
+            WeekView(weekStarting: start, history: history, diary: diary)
+        case .cardioSession(let id, let day):
+            if let (session, maximum) = diary.cardioSession(id, on: day) {
+                CardioSessionView(session: session, maxHeartRate: maximum, store: cardio)
+            } else {
+                ContentUnavailableView {
+                    Text("Session not available")
+                } description: {
+                    Text("Open it again from its day.")
+                }
+            }
+        case .night(let day):
+            if let night = diary.days[day]?.value?.night {
+                NightView(night: night)
+            } else {
+                ContentUnavailableView {
+                    Text("Night not available")
+                } description: {
+                    Text("Open it again from its day.")
+                }
+            }
+        case .dayActivity(let day):
+            DayActivityView(day: day, store: habits)
         }
     }
 }

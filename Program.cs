@@ -128,6 +128,7 @@ builder.Services.AddTransient<IMovementModifierService, MovementModifierService>
 builder.Services.AddScoped<IInjuryService, InjuryService>();
 builder.Services.AddTransient<IPersonalRecordService, PersonalRecordService>();
 builder.Services.AddTransient<IPersonalRecordDetector, PersonalRecordDetector>();
+builder.Services.AddTransient<PersonalRecordRebuild>();
 builder.Services.AddTransient<IChatMessageService, ChatMessageService>();
 builder.Services.AddTransient<IChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();

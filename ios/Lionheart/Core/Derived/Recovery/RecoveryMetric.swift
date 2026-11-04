@@ -59,6 +59,15 @@ enum RecoveryMetric: String, CaseIterable, Hashable, Sendable, Identifiable {
         }
     }
 
+    /// Whether the figure is one of Oura's 0–100 scores rather than a measurement. Such a figure is
+    /// labelled as Oura's wherever it is shown beside measured ones.
+    var isOuraScore: Bool {
+        switch self {
+        case .readiness, .sleepScore: true
+        case .hrv, .lowestHeartRate, .sleepDuration, .respiratoryRate, .temperatureDeviation, .steps: false
+        }
+    }
+
     /// Whether the figure is read from the night rather than the day's documents — which decides
     /// whether a trend of it needs the sleep periods read.
     var isReadFromTheNight: Bool {
@@ -74,8 +83,8 @@ enum RecoveryMetric: String, CaseIterable, Hashable, Sendable, Identifiable {
     /// rate, so it reads as absent — the same rule the night's own screen applies.
     func value(day: OuraDay?, night: OuraSleepPeriod?) -> Double? {
         switch self {
-        case .readiness: day?.readiness?.score.map(Double.init)
-        case .sleepScore: day?.sleep?.score.map(Double.init)
+        case .readiness: day?.readiness?.score?.value
+        case .sleepScore: day?.sleep?.score?.value
         case .temperatureDeviation: day?.readiness?.temperatureDeviation
         case .steps: day?.activity.map { Double($0.steps) }
         case .hrv: night?.averageHrv.map(Double.init)

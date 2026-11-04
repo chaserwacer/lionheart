@@ -27,6 +27,8 @@ final class AppContainer {
     let ouraSync: OuraSyncStore
     let cardio: CardioStore
     let habits: HabitsStore
+    let diary: DiaryStore
+    let wellness: WellnessStore
     let activeWorkout: ActiveWorkoutStore
     let outbox: WorkoutOutbox
     let train: TrainStore
@@ -97,6 +99,9 @@ final class AppContainer {
         ouraSync = OuraSyncStore(oura: OuraAPI(client: client))
         cardio = CardioStore(cardio: CardioAPI(client: client), oura: OuraAPI(client: client))
         habits = HabitsStore(habits: HabitsAPI(client: client))
+        diary = DiaryStore(
+            oura: OuraAPI(client: client), cardio: CardioAPI(client: client), wellness: WellnessAPI(client: client))
+        wellness = WellnessStore(wellness: WellnessAPI(client: client), oura: OuraAPI(client: client))
     }
 
     /// Settles the signed-in root and reads back anything that survived the last run.
@@ -109,11 +114,20 @@ final class AppContainer {
 
         // A sync stores new days, so the two tabs that show them read again — Body only when it has
         // been opened, since an unopened tab reads for itself when it is.
-        ouraSync.onSynced { [today, body, cardio, habits] in
+        ouraSync.onSynced { [today, body, cardio, habits, diary] in
             await today.refresh()
             if body.state.value != nil { await body.refresh() }
             await cardio.refreshLoaded()
             await habits.refreshLoaded()
+            // A sync re-pulls from the newest stored day, so only the last week's pages can change.
+            await diary.refreshLoaded(since: CalendarDay(Date()).adding(days: -7))
+        }
+        // Today holds its own window of sessions, so a correction made from History shows there too.
+        history.onRevised { [today] in await today.refresh() }
+        // A rating shows on Body's row for it and on the day it rates.
+        wellness.onLogged { [body, diary] entry in
+            await body.refresh()
+            await diary.refresh(around: entry.day)
         }
 
         // Registered before the session is settled, so a sign-out during the first load still
@@ -122,7 +136,7 @@ final class AppContainer {
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
             [profile, today, train, routines, bodyweight, movements, history, focus, chat, thread, chatMemory,
-             body, ouraSync, cardio, habits, memory] in
+             body, ouraSync, cardio, habits, diary, wellness, memory] in
             profile.reset()
             today.reset()
             train.reset()
@@ -138,6 +152,8 @@ final class AppContainer {
             ouraSync.reset()
             cardio.reset()
             habits.reset()
+            diary.reset()
+            wellness.reset()
             // Every answer the screens remembered. The next athlete on this phone must never open
             // onto the last one's readiness, offline or not.
             memory.forget()

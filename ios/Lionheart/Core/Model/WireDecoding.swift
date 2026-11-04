@@ -240,9 +240,13 @@ enum WireDuration {
         return negative ? -total : total
     }
 
+    /// Whole seconds as `hh:mm:ss`, and a fraction to the millisecond after them where there is
+    /// one — a set read back and sent again unchanged must say the same duration it was stored with.
     static func wire(fromSeconds seconds: Double) -> String {
-        let whole = Int(seconds.rounded())
-        return String(format: "%02d:%02d:%02d", whole / 3600, (whole % 3600) / 60, whole % 60)
+        let milliseconds = Int((seconds * 1000).rounded())
+        let whole = milliseconds / 1000
+        let clock = String(format: "%02d:%02d:%02d", whole / 3600, (whole % 3600) / 60, whole % 60)
+        return milliseconds % 1000 == 0 ? clock : clock + String(format: ".%03d", milliseconds % 1000)
     }
 }
 

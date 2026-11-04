@@ -67,6 +67,14 @@ struct CompleteSessionRequest: Encodable, Sendable {
     let effort: PerceivedEffortRequest?
 }
 
+/// `POST /{id}/revise` — a completed session's sets, period and notes, restated whole. The effort,
+/// the program and the routine are not part of it and stay as they were.
+struct ReviseSessionRequest: Encodable, Sendable {
+    let sets: [SetCommand]
+    let period: PeriodRequest
+    let notes: String
+}
+
 /// `PUT /{id}/sets` — replaces the whole ordered list. There is deliberately no per-set route:
 /// the sets persist as one JSON column, so a whole-list write is what happens at the storage layer
 /// however the route is shaped.

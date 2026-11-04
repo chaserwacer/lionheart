@@ -5,12 +5,15 @@ import SwiftUI
 /// sleep is, weekdays against weekends — each against the span before.
 ///
 /// Measured and comparative rather than advisory: every figure is his own, and the only judgement
-/// on the screen is the orange on a change that went the worse way.
+/// on the screen is the orange on a change that went the worse way. Every comparison says what it
+/// is against in words, and what counts as sitting or as a whole day is in the method sheet behind
+/// the info button.
 struct HabitsView: View {
     let store: HabitsStore
 
     @State private var span: TrendSpan = .month
     @State private var dayKind: DayKind = .weekdays
+    @State private var isMethodShown = false
 
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
     @ScaledMetric(relativeTo: .body) private var smallChartHeight: CGFloat = 64
@@ -39,6 +42,8 @@ struct HabitsView: View {
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
+            } footer: {
+                Text("\(Formatting.spanCaption(span, endingOn: CalendarDay(Date()))), each figure against the \(span.days) days before.")
             }
 
             switch store.reports[span] ?? .loading {
@@ -64,6 +69,12 @@ struct HabitsView: View {
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)
         .navigationTitle("Daily movement")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("How this is worked out", systemImage: "info.circle") { isMethodShown = true }
+            }
+        }
+        .sheet(isPresented: $isMethodShown) { HabitsMethodSheet() }
         .refreshable { await store.load(span) }
         .task(id: span) {
             if store.reports[span]?.value == nil { await store.load(span) }
@@ -107,7 +118,7 @@ struct HabitsView: View {
                     .accessibilityElement(children: .combine)
                 }
             } header: {
-                Text("Mean day")
+                Text("A mean day")
             } footer: {
                 Text(comparisonFooter(report))
             }
@@ -146,7 +157,7 @@ struct HabitsView: View {
             }
             .padding(.vertical, 4)
         } header: {
-            Text("Mean day")
+            Text("A mean day")
         } footer: {
             Text(comparisonFooter(report))
         }
@@ -195,11 +206,12 @@ struct HabitsView: View {
     private func comparisonFooter(_ report: HabitsReport) -> String {
         let current = report.current
         let previous = report.previous
-        let days = "\(current.weekdays.completeDays) weekdays and \(current.weekends.completeDays) weekend days, against \(previous.weekdays.completeDays) and \(previous.weekends.completeDays) in the \(span.days) days before."
+        let reading = "Each figure is the mean over the last \(span.days) days; under it, the change from the \(span.days) days before. Orange: the change went the worse way."
+        let days = " Read from \(current.weekdays.completeDays) whole weekdays and \(current.weekends.completeDays) weekend days, against \(previous.weekdays.completeDays) and \(previous.weekends.completeDays) before."
         let jetLag = SocialJetLag.minutes(current).map {
-            " Weekend sleep midpoint \(Formatting.change($0)) min from weekdays."
+            " The middle of your weekend sleep is \(Formatting.change($0)) min from your weekday one."
         } ?? ""
-        return days + jetLag + " Orange: a change in the worse direction."
+        return reading + days + jetLag
     }
 
     // MARK: - By hour
@@ -451,6 +463,41 @@ struct HabitsView: View {
                                 .foregroundStyle(Color(.secondaryLabel))
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/// What the daily-movement screen counts and how: a sitting, a whole day, the spans compared. Opened
+/// from the screen's info button.
+private struct HabitsMethodSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Where it comes from") {
+                    Text("Oura's five-minute activity classes: each five minutes of the day read as not worn, rest, inactive, or low, medium or high activity, from 04:00 to 04:00.")
+                }
+                Section("What counts as sitting") {
+                    Text("A sitting is a waking run of inactive time and the brief rest inside it. One five-minute slot of movement ends it, as do taking the ring off, sleep, and half an hour or more of rest outside a scored sleep — an unscored nap, or the ring lying on a table.")
+                    Text("Sitting time is every sitting minute of the day; the longest sitting is its longest single run; sittings over an hour are counted.")
+                }
+                Section("Which days count") {
+                    Text("A day counts when its classification covers at least 23 hours and no more than 3 hours of it are unaccounted for — the ring off, or lying still outside sleep. Today never counts, since it is not over. A day left out still shows in the day list, marked incomplete.")
+                }
+                Section("The comparisons") {
+                    Text("Every figure is a mean over the span chosen, split into weekdays and weekends, and compared with the same span immediately before it — the last 30 days against the 30 before, and so on. Active time is low, medium and high activity together.")
+                    Text("Bedtime and wake time are each night's main sleep; spread is how much they vary from night to night (one standard deviation). At least 3 nights are needed.")
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("How movement is worked out")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
                 }
             }
         }

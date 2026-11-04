@@ -53,6 +53,7 @@ final class HistoryStore {
     private let now: @Sendable () -> Date
 
     private var load: Task<Void, Never>?
+    private var whenRevised: [@MainActor () async -> Void] = []
 
     init(
         sessions: TrainingSessionsAPI,
@@ -102,6 +103,47 @@ final class HistoryStore {
     /// one skipped by mistake, since there is no route back from skipped.
     func delete(_ sessionId: UUID) async {
         await write { try await self.sessions.delete(id: sessionId) }
+    }
+
+    /// How long a correction is given before the athlete is told it could not be confirmed. Longer
+    /// than a read's patience: a correction that reaches the records has the server replay the
+    /// whole history before it answers.
+    private static let revisionPatience: Duration = .seconds(20)
+
+    /// Corrects a completed session, then re-reads the log.
+    ///
+    /// The record chains and the records each screen holds are forgotten rather than re-read in
+    /// place: a correction that reaches the records rebuilds them, which gives every record a new
+    /// id, so a chain held from before would name records that no longer exist.
+    ///
+    /// Thrown rather than kept in `action`, for the reason `BodyStore.createInjury` throws: the
+    /// form asking is a sheet, which has to stay up holding the edit while it says why.
+    ///
+    /// - Throws: `LoadFailure` when the server refuses or cannot be reached in time;
+    ///   `CancellationError` when the sheet went away first.
+    func revise(_ draft: SessionRevisionDraft) async throws {
+        let period = PeriodRequest(start: draft.start, end: draft.end)
+        do {
+            _ = try await Deadline.waiting(
+                atMost: Self.revisionPatience,
+                expiring: { APIError.transport("The server did not answer in time.") },
+                for: { [sessions] in
+                    try await sessions.revise(
+                        id: draft.sessionId, sets: draft.commands, period: period, notes: draft.notes)
+                })
+        } catch {
+            throw try LoadFailure.from(error)
+        }
+        histories = [:]
+        established = [:]
+        await refresh()
+        for action in whenRevised { await action() }
+    }
+
+    /// Runs after every correction the server takes, for the tabs that hold a session of their own
+    /// — Today's day.
+    func onRevised(_ action: @escaping @MainActor () async -> Void) {
+        whenRevised.append(action)
     }
 
     /// Withdraws a standing record, then re-reads both the records and the chain it belonged to.

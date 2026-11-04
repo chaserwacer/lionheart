@@ -119,7 +119,7 @@ struct ActiveWorkoutView: View {
             }
         }
         .sheet(item: $editing) { logged in
-            EditSetSheet(logged: logged, library: library) { command in
+            EditSetSheet(command: logged.command, library: library) { command in
                 store.restate(logged.id, as: command)
             }
         }

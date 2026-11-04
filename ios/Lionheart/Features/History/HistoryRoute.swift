@@ -23,4 +23,14 @@ enum HistoryRoute: Hashable {
     case consistency
     /// The focus list.
     case focus
+    /// One day of the diary: the body, every workout, and his rating of it.
+    case day(CalendarDay)
+    /// One Monday-to-Sunday week, by its Monday.
+    case week(CalendarDay)
+    /// A cardio session a day or week page has read, by the report's id and a day it falls on.
+    case cardioSession(String, on: CalendarDay)
+    /// The main sleep filed under this waking day, as a day page read it.
+    case night(CalendarDay)
+    /// One day's movement, five minutes at a time.
+    case dayActivity(CalendarDay)
 }

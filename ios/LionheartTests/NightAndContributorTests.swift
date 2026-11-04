@@ -60,7 +60,7 @@ struct NightAndContributorTests {
         }
         let today = Self.readinessDay(Self.day, hrvBalance: 70)
 
-        let readings = ContributorReading.readings(of: .readiness, on: today, among: earlier + [today])
+        let readings = OuraContributorReading.readings(of: .readiness, on: today, among: earlier + [today])
         let hrv = try #require(readings.first { $0.contributor == .hrvBalance })
 
         #expect(hrv.standing == .unfavourable)
@@ -72,7 +72,7 @@ struct NightAndContributorTests {
     func absentComponentIsLeftOut() {
         let today = Self.readinessDay(Self.day, hrvBalance: nil)
 
-        let readings = ContributorReading.readings(of: .readiness, on: today, among: [today])
+        let readings = OuraContributorReading.readings(of: .readiness, on: today, among: [today])
 
         #expect(!readings.contains { $0.contributor == .hrvBalance })
         #expect(readings.allSatisfy { $0.baseline == nil })
@@ -80,10 +80,10 @@ struct NightAndContributorTests {
 
     @Test("Every component belongs to exactly one score")
     func everyComponentHasAGroup() {
-        let grouped = ContributorGroup.allCases.flatMap(\.contributors)
+        let grouped = OuraContributorGroup.allCases.flatMap(\.contributors)
 
-        #expect(Set(grouped) == Set(Contributor.allCases))
-        #expect(grouped.count == Contributor.allCases.count)
+        #expect(Set(grouped) == Set(OuraContributor.allCases))
+        #expect(grouped.count == OuraContributor.allCases.count)
     }
 
     // MARK: - Today's night
@@ -132,11 +132,12 @@ struct NightAndContributorTests {
             date: date,
             activity: nil,
             readiness: OuraDay.Readiness(
-                score: 80, temperatureDeviation: nil, temperatureTrendDeviation: nil,
+                score: OuraScore(80), temperatureDeviation: nil, temperatureTrendDeviation: nil,
                 contributors: .init(
-                    activityBalance: 80, bodyTemperature: 90, hrvBalance: hrvBalance, previousDayActivity: 80,
-                    previousNight: 80, recoveryIndex: 80, restingHeartRate: 80, sleepBalance: 80,
-                    sleepRegularity: 80)),
+                    activityBalance: OuraScore(80), bodyTemperature: OuraScore(90),
+                    hrvBalance: hrvBalance.map(OuraScore.init), previousDayActivity: OuraScore(80),
+                    previousNight: OuraScore(80), recoveryIndex: OuraScore(80), restingHeartRate: OuraScore(80),
+                    sleepBalance: OuraScore(80), sleepRegularity: OuraScore(80))),
             sleep: nil, spo2: nil, stress: nil, resilience: nil, vo2Max: nil, cardiovascularAge: nil)
     }
 }

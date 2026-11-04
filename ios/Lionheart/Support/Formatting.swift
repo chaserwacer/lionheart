@@ -47,6 +47,30 @@ enum Formatting {
             .formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
     }
 
+    /// A Monday-to-Sunday week by its two ends — "27 Oct – 2 Nov".
+    static func week(startingOn start: CalendarDay, today: CalendarDay = CalendarDay(Date()), calendar: Calendar = .current) -> String {
+        span(from: start, to: start.adding(days: 6, in: calendar), today: today, calendar: calendar)
+    }
+
+    /// A run of days by its two ends — "3 Mar – 27 Apr" — with the year where it is not this one,
+    /// said once when both ends share it.
+    static func span(
+        from first: CalendarDay, to last: CalendarDay, today: CalendarDay = CalendarDay(Date()), calendar: Calendar = .current
+    ) -> String {
+        let day = Date.FormatStyle.dateTime.day().month(.abbreviated)
+        let end = last.year == today.year ? last.middayDate(in: calendar).formatted(day)
+            : last.middayDate(in: calendar).formatted(day.year())
+        let start = first.year == last.year ? first.middayDate(in: calendar).formatted(day)
+            : first.middayDate(in: calendar).formatted(day.year())
+        return "\(start) – \(end)"
+    }
+
+    /// What a span of days covers, said under the control that picks it: "Last 90 days: 6 Aug –
+    /// 3 Nov".
+    static func spanCaption(_ span: TrendSpan, endingOn today: CalendarDay, calendar: Calendar = .current) -> String {
+        "Last \(span.days) days: \(Formatting.span(from: today.adding(days: 1 - span.days, in: calendar), to: today, today: today, calendar: calendar))"
+    }
+
     /// A month as a section header — "October 2026".
     static func month(_ day: CalendarDay, calendar: Calendar = .current) -> String {
         day.middayDate(in: calendar).formatted(.dateTime.month(.wide).year())

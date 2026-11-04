@@ -16,6 +16,9 @@ struct TodaySnapshot: Equatable, Sendable {
     /// The ring's reading, for `day` — or, on today, for the newest day it has filed, which the
     /// screen labels when it is not today.
     let recovery: RecoveryReading?
+    /// The readiness contributors picked out for the recovery's day, each beside the measurement it
+    /// rests on. Empty when there is no recovery to read.
+    let contributors: [ReadinessContributorReading]
     /// The newest main sleep filed on or before the recovery's day — the night its figures were
     /// read from, or the last one the ring scored when it filed a readiness without a night — with
     /// its clock time, for the hypnogram.
@@ -31,6 +34,15 @@ struct TodaySnapshot: Equatable, Sendable {
     let inProgress: TrainingSession.Active?
 
     var readiness: ReadinessReading? { recovery?.readiness }
+
+    /// The recovery figures no contributor row already shows, in their reading order.
+    var otherFigures: [MetricReading] {
+        let shown = Set(contributors.compactMap { reading -> RecoveryMetric? in
+            if case .measured(let figure) = reading.basis { return figure.metric }
+            return nil
+        })
+        return (recovery?.figures ?? []).filter { !shown.contains($0.metric) }
+    }
 
     /// How far back Today will reach for a reading when the ring has not filed today. A fortnight
     /// finds a ring left in a drawer for a few days; past it, a long gap reads as no data rather
@@ -50,12 +62,12 @@ struct TodaySnapshot: Equatable, Sendable {
 /// the ring had not synced. The figures behind it are `RecoveryReading`'s.
 struct ReadinessReading: Equatable, Sendable {
     let day: CalendarDay
-    let score: Int
+    let score: OuraScore
 
     /// How Oura itself bands the score, which is what the verdict reads by. Lionheart does not
     /// invent its own judgement of recovery; it reports Oura's.
     var band: Band {
-        switch score {
+        switch score.rounded {
         case ..<70: .payAttention
         case 70..<85: .good
         default: .optimal
@@ -106,10 +118,16 @@ extension TodaySnapshot {
                 return session.plannedCase == nil && session.activeCase == nil
             }
         let performedToday = onDay.contains { $0.completedCase != nil }
+        let recovery = recoveryDay.flatMap {
+            RecoveryReading.reading(for: $0, days: ouraDays, nights: nights, today: today)
+        }
 
         return TodaySnapshot(
             day: day,
-            recovery: recoveryDay.flatMap { RecoveryReading.reading(for: $0, days: ouraDays, nights: nights, today: today) },
+            recovery: recovery,
+            contributors: recovery.map {
+                ReadinessContributorReading.readings(for: $0, days: ouraDays, nights: nights)
+            } ?? [],
             night: recoveryDay.flatMap { recoveryDay in
                 nights
                     .filter { $0.reading.isMainSleep && $0.day <= recoveryDay && $0.day >= earliestFallback }

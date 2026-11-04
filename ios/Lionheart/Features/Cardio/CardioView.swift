@@ -4,6 +4,11 @@ import SwiftUI
 /// Is the aerobic base improving? The figures that answer it, then the weeks, the estimates and
 /// the sessions behind them.
 ///
+/// Every span and comparison says what it is in words: the aerobic base is always the last four
+/// weeks against the eight before, so it sits above the span control it does not depend on, and
+/// the control says which days it covers. How zones are set and what is left out is one tap away,
+/// in the method sheet, rather than spread through the footers.
+///
 /// Its own screen under Body rather than a section of it, because cardio is a question of its own —
 /// trail running and better cardio are a stated goal — with its own span, its own heart-rate
 /// method to state, and sessions to open. Everything on it is the server's cardio report; this
@@ -13,6 +18,7 @@ struct CardioView: View {
 
     @State private var span: TrendSpan = .quarter
     @State private var selectedWeek: Date?
+    @State private var isMethodShown = false
 
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 190
     @ScaledMetric(relativeTo: .body) private var trendHeight: CGFloat = 120
@@ -21,6 +27,9 @@ struct CardioView: View {
 
     var body: some View {
         List {
+            if let report = store.reports[span]?.value {
+                aerobicBaseSection(report)
+            }
             Section {
                 Picker("Span", selection: $span) {
                     ForEach(TrendSpan.allCases) { span in
@@ -30,6 +39,8 @@ struct CardioView: View {
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
+            } footer: {
+                Text("\(Formatting.spanCaption(span, endingOn: store.today)). The weeks, estimates and sessions below cover these days.")
             }
 
             switch store.reports[span] ?? .loading {
@@ -55,6 +66,14 @@ struct CardioView: View {
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)
         .navigationTitle("Cardio")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("How this is worked out", systemImage: "info.circle") { isMethodShown = true }
+            }
+        }
+        .sheet(isPresented: $isMethodShown) {
+            CardioMethodSheet(report: store.reports[span]?.value)
+        }
         .refreshable { await store.load(span) }
         .task(id: span) {
             if store.reports[span]?.value == nil { await store.load(span) }
@@ -65,11 +84,12 @@ struct CardioView: View {
     private func content(_ report: CardioReport, staleBecause staleness: Staleness?) -> some View {
         if let staleness { StaleBanner(staleness) }
 
-        aerobicBaseSection(report)
         weeksSection(report)
         estimatesSection(report)
         sessionsSection(report)
-        methodSection(report)
+        Section {
+            Button("How zones are set, and what is left out") { isMethodShown = true }
+        }
     }
 
     // MARK: - Aerobic base
@@ -79,7 +99,7 @@ struct CardioView: View {
         if dynamicTypeSize.isAccessibilitySize {
             // Four columns cannot hold at these sizes; each figure becomes its own row instead.
             Section {
-                ForEach(AerobicBaseFigure.of(report.aerobicBase)) { figure in
+                ForEach(Self.shown(report.aerobicBase)) { figure in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(figure.measure.name)
                         Text(stackedLine(figure))
@@ -89,7 +109,7 @@ struct CardioView: View {
                     .accessibilityElement(children: .combine)
                 }
             } header: {
-                Text("Aerobic base")
+                Text(Self.aerobicBaseTitle)
             } footer: {
                 Text(aerobicBaseFooter(report))
             }
@@ -104,7 +124,7 @@ struct CardioView: View {
             value.map { $0.formatted(.number.precision(.fractionLength(digits))) } ?? "—"
         }
         let change = figure.comparison.change.map { ", \(Formatting.change($0, fractionDigits: digits))" } ?? ""
-        return "\(text(figure.comparison.recent)) \(figure.measure.unit), was \(text(figure.comparison.before))\(change)"
+        return "Last 4 weeks \(text(figure.comparison.recent)) \(figure.measure.unit), the 8 before \(text(figure.comparison.before))\(change)"
     }
 
     private func aerobicBaseTable(_ report: CardioReport) -> some View {
@@ -112,14 +132,15 @@ struct CardioView: View {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
                 GridRow {
                     Text("")
-                    Text("4 wk").gridColumnAlignment(.trailing)
-                    Text("8 before").gridColumnAlignment(.trailing)
+                    Text("Last 4\nweeks").gridColumnAlignment(.trailing)
+                    Text("8 weeks\nbefore").gridColumnAlignment(.trailing)
                     Text("Change").gridColumnAlignment(.trailing)
                 }
+                .multilineTextAlignment(.trailing)
                 .font(.caption)
                 .foregroundStyle(Color(.secondaryLabel))
 
-                ForEach(AerobicBaseFigure.of(report.aerobicBase)) { figure in
+                ForEach(Self.shown(report.aerobicBase)) { figure in
                     GridRow {
                         VStack(alignment: .leading, spacing: 0) {
                             Text(figure.measure.name).font(.subheadline)
@@ -139,11 +160,19 @@ struct CardioView: View {
             }
             .padding(.vertical, 4)
         } header: {
-            Text("Aerobic base")
+            Text(Self.aerobicBaseTitle)
         } footer: {
             Text(aerobicBaseFooter(report))
         }
     }
+
+    /// The figures with something in either window: a figure Oura never issued — VO₂max, for
+    /// this athlete — would be a row of dashes.
+    private static func shown(_ base: AerobicBase) -> [AerobicBaseFigure] {
+        AerobicBaseFigure.of(base).filter { $0.comparison.recent != nil || $0.comparison.before != nil }
+    }
+
+    private static let aerobicBaseTitle = "Aerobic base: last 4 weeks against the 8 before"
 
     private func figureText(_ value: Double?, _ measure: AerobicBaseFigure.Measure) -> some View {
         Text(value.map { $0.formatted(.number.precision(.fractionLength(digits(measure)))) } ?? "—")
@@ -158,11 +187,13 @@ struct CardioView: View {
     }
 
     private func aerobicBaseFooter(_ report: CardioReport) -> String {
-        let window = "\(Formatting.date(report.aerobicBase.recent.from)) to \(Formatting.date(report.aerobicBase.recent.to)) against the 8 weeks before."
-        let unknown = report.aerobicBase.zone2MinutesPerWeek.recent == nil
+        let base = report.aerobicBase
+        let windows = "Weekly means. The last 4 weeks are \(Formatting.span(from: base.recent.from, to: base.recent.to)); the 8 before, \(Formatting.span(from: base.before.from, to: base.before.to)). These do not change with the span below."
+        let change = " Change is the last 4 weeks minus the 8 before; orange when it went the worse way."
+        let unknown = base.zone2MinutesPerWeek.recent == nil
             ? " Zone 2 is blank where sessions exist but no heart rate is synced for them."
             : ""
-        return window + unknown
+        return windows + change + unknown
     }
 
     // MARK: - Weeks
@@ -205,9 +236,9 @@ struct CardioView: View {
 
             zoneLegend(report)
         } header: {
-            Text("Weekly minutes by zone")
+            Text("Minutes a week, by heart-rate zone")
         } footer: {
-            Text("Bar height is time in sessions; grey is time below zone 1, between samples, or with no heart rate synced. Load is Edwards': minutes × zone number.")
+            Text("One bar a week, Monday to Sunday: its height the time in sessions, coloured by zone. Grey is time below zone 1, between samples, or with no heart rate synced. Press and drag across the chart to read one week.")
         }
     }
 
@@ -216,15 +247,14 @@ struct CardioView: View {
             report.weeks.min { abs($0.weekStarting.middayDate().timeIntervalSince(date)) < abs($1.weekStarting.middayDate().timeIntervalSince(date)) }
         }
         let shown = week.map { [$0] } ?? report.weeks
-        let caption = week.map { "Week of \(Formatting.date($0.weekStarting))" } ?? "\(span.label), per week"
+        let caption = week.map { "Week of \(Formatting.date($0.weekStarting))" } ?? "A mean week, last \(span.days) days"
         // Per week of days actually in the span, so a part-week at either end does not read as a
         // light one.
         let weeks = max(1, Double(shown.reduce(0) { $0 + $1.daysInRange }) / 7)
         let figures: [(label: String, value: String)] = [
             ("Sessions", Self.number(Double(shown.reduce(0) { $0 + $1.sessions }) / weeks, digits: week == nil ? 1 : 0)),
             ("Minutes", Self.number(shown.reduce(0) { $0 + $1.minutes } / weeks)),
-            ("Zone 2", Self.number(shown.reduce(0) { $0 + $1.zones.zone2 } / weeks)),
-            ("Load", Self.number(shown.reduce(0) { $0 + $1.zones.load } / weeks)),
+            ("Zone 2 min", Self.number(shown.reduce(0) { $0 + $1.zones.zone2 } / weeks)),
         ]
         return VStack(alignment: .leading, spacing: 6) {
             Text(caption).font(.subheadline).foregroundStyle(Color(.secondaryLabel))
@@ -266,15 +296,18 @@ struct CardioView: View {
 
     @ViewBuilder
     private func estimatesSection(_ report: CardioReport) -> some View {
-        trendSection(
-            "VO₂max, ml/kg/min", points: report.vo2Max, smooths: false,
-            footer: "Oura's estimate from heart rate and walking, not a test, issued on the days it has walking to work from. Read the trend, not the number.")
+        // Oura has issued no VO₂max for this athlete; a section saying so for every span is noise.
+        if !report.vo2Max.isEmpty {
+            trendSection(
+                "VO₂max, ml/kg/min", points: report.vo2Max, smooths: false,
+                footer: "Oura's estimate from heart rate and walking, not a test, issued on the days it has walking to work from. Read the trend, not the number.")
+        }
         trendSection(
             "Lowest night heart rate, bpm", points: report.restingHeartRate, smooths: true,
             footer: "From each night's main sleep; the line is the seven-day mean. A falling resting rate is the slowest-moving sign of a growing aerobic base.")
         trendSection(
             "Cardiovascular age, years", points: report.cardiovascularAge, smooths: false,
-            footer: "Oura's prediction from pulse-wave velocity. A model output.")
+            footer: "Oura's prediction from pulse-wave velocity: a model's estimate, not a measurement.")
     }
 
     @ViewBuilder
@@ -349,19 +382,47 @@ struct CardioView: View {
         }
     }
 
-    // MARK: - Method
+}
 
-    private func methodSection(_ report: CardioReport) -> some View {
-        Section {
-            Text(methodText(report.maxHeartRate))
-                .font(.footnote)
-                .foregroundStyle(Color(.secondaryLabel))
-        } header: {
-            Text("How zones are set")
+/// How the cardio screen's figures are worked out: the zones, what counts as a session, and the
+/// aerobic base — the method, in one place, opened from the screen's info button.
+private struct CardioMethodSheet: View {
+    /// The report on screen, for the maximum heart rate in use and what was left out. `nil` before
+    /// one has loaded, when the sheet states the method alone.
+    let report: CardioReport?
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Heart-rate zones") {
+                    Text(Self.zones(report?.maxHeartRate))
+                }
+                Section("What counts as a session") {
+                    Text("Your logged runs and distance work, and the workouts the ring recorded. A ring workout is left out when it is housework, yard work or stretching, a walk under 30 minutes, strength work, or at least half inside a logged session — which is that session as the ring saw it.")
+                    if let excluded = report?.excluded, !excluded.isEmpty {
+                        Text("Left out in this span: " + excluded.map { "\($0.count) \($0.reason.phrase)" }.joined(separator: ", ") + ".")
+                            .foregroundStyle(Color(.secondaryLabel))
+                    }
+                    Text("Each session's heart rate is the ring's all-day heart rate across its clock time. A session with no samples synced has no zones.")
+                }
+                Section("Aerobic base") {
+                    Text("Five figures, each the last 4 weeks against the 8 weeks before them: zone 2 minutes a week, cardio minutes a week, VO₂max, the nights' lowest heart rate, and cardiovascular age. More zone 2 and cardio time, a higher VO₂max and a lower resting rate are the better direction. VO₂max and cardiovascular age are Oura's estimates, not tests.")
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("How cardio is worked out")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 
-    private func methodText(_ maximum: MaxHeartRate?) -> String {
+    private static func zones(_ maximum: MaxHeartRate?) -> String {
         let scheme = "Five zones at 50, 60, 70, 80 and 90% of maximum heart rate; zone 2 is 60–70%."
         switch maximum {
         case .agePredicted(let bpm, let age, let peak)?:

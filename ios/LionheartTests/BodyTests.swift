@@ -61,7 +61,7 @@ struct BodySnapshotTests {
         let readiness = snapshot.latestRecovery(today: today)?.readiness
 
         #expect(readiness == TodaySnapshot.reading(sessions: [], ouraDays: days, today: today).readiness)
-        #expect(readiness?.score == 0)
+        #expect(readiness?.score == OuraScore(0))
         #expect(readiness?.day == CalendarDay(year: 2026, month: 3, day: 3))
     }
 
@@ -112,7 +112,7 @@ struct OuraPanelTests {
             Oura.day(date: "2026-03-03", readinessScore: "80", resilience: Oura.resilience))
         let panels = OuraPanel.panels(of: day)
 
-        #expect(panels.first { $0.title == "Readiness" }?.score == 80)
+        #expect(panels.first { $0.title == "Readiness" }?.score == OuraScore(80))
         #expect(panels.first { $0.title == "Stress" }?.score == nil)
         #expect(panels.first { $0.title == "Blood oxygen" }?.score == nil)
         #expect(panels.first { $0.title == "Resilience" }?.score == nil)

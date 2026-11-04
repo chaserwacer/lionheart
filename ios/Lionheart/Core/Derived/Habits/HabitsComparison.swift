@@ -19,12 +19,12 @@ struct HabitsComparison: Equatable, Sendable, Identifiable {
         var name: String {
             switch self {
             case .steps: "Steps"
-            case .activeMinutes: "Active"
-            case .sittingMinutes: "Sedentary"
+            case .activeMinutes: "Active time"
+            case .sittingMinutes: "Sitting time"
             case .longestSitting: "Longest sitting"
-            case .longSittings: "Sittings ≥ 1 h"
+            case .longSittings: "Sittings over an hour"
             case .bedtime: "Bedtime"
-            case .wakeTime: "Wake"
+            case .wakeTime: "Wake time"
             case .bedtimeSpread: "Bedtime spread"
             case .wakeSpread: "Wake spread"
             }
