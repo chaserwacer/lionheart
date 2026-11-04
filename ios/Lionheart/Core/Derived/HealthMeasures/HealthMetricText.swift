@@ -76,16 +76,17 @@ extension HealthMetric {
         unit == "%" ? "\(number(stored))%" : "\(number(stored)) \(unit)"
     }
 
-    /// "+0.4", "−1.2": a change in the unit shown, signed.
+    /// "+0.4", "−1.2", "±0": a change in the unit shown, signed where it shows at all.
     func change(_ storedChange: Double) -> String {
+        guard isImprovement(storedChange) != nil else { return "±0" }
         let shown = shown(storedChange)
         let magnitude = abs(shown).formatted(.number.precision(.fractionLength(fractionDigits)))
         return shown < 0 ? "−\(magnitude)" : "+\(magnitude)"
     }
 
-    /// Whether a change is in the better direction; `nil` for one too small to show.
+    /// Whether a change is in the better direction; `nil` for one that rounds to nothing.
     func isImprovement(_ storedChange: Double) -> Bool? {
-        guard number(abs(storedChange)) != 0.formatted(.number.precision(.fractionLength(fractionDigits))) else { return nil }
+        guard (abs(shown(storedChange)) * pow(10, Double(fractionDigits))).rounded() > 0 else { return nil }
         return switch polarity {
         case .higherIsBetter: storedChange > 0
         case .lowerIsBetter: storedChange < 0

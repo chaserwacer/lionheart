@@ -25,7 +25,7 @@ struct AppleWatchHistoryLink: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Apple Watch · \(watch.title)")
-                                Text("\(Formatting.date(first.day)) to \(Formatting.date(last.day)) · mean")
+                                Text("\(Formatting.span(from: first.day, to: last.day)) · mean")
                                     .font(.subheadline.monospacedDigit())
                                     .foregroundStyle(Color(.secondaryLabel))
                             }

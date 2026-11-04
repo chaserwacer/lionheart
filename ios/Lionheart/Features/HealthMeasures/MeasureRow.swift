@@ -11,46 +11,72 @@ struct MeasureRow: View {
     let days: [MeasuredDay]
     let today: CalendarDay
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         let comparison = MeasureComparison.of(days, endingOn: today)
-        let weeks = WeekMean.of(days)
 
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(metric.title)
-                Text(detail(comparison))
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(Color(.secondaryLabel))
-            }
-            Spacer(minLength: 8)
-            if let comparison {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(metric.text(comparison.recent))
-                        .font(.body.monospacedDigit())
-                    if let change = comparison.change {
-                        Text(metric.change(change))
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(Self.colour(of: metric.isImprovement(change)))
-                    }
+        Group {
+            // At accessibility sizes the figure goes under the name and the sparkline goes: three
+            // columns of large type leave none of them room.
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 4) {
+                    name(comparison)
+                    figure(comparison, alignment: .leading)
                 }
-            }
-            if weeks.count >= 2 {
-                Sparkline(points: Array(weeks.suffix(26)).map { MetricPoint(day: $0.weekStarting, value: metric.shown($0.mean)) })
-                    .frame(width: 64, height: 28)
+            } else {
+                HStack(alignment: .center, spacing: 12) {
+                    name(comparison)
+                    Spacer(minLength: 8)
+                    figure(comparison, alignment: .trailing)
+                    sparkline
+                }
             }
         }
         .accessibilityElement(children: .combine)
         .accessibilityValue(accessibilityValue(comparison))
     }
 
-    private func detail(_ comparison: MeasureComparison?) -> String {
-        if let comparison {
-            return comparison.before == nil
-                ? "Last 4 weeks · \(Formatting.count(comparison.recentDays, "day"))"
-                : "Last 4 weeks against the 12 before"
+    private func name(_ comparison: MeasureComparison?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(metric.title)
+            if let lapsed = lapsed(comparison) {
+                Text(lapsed)
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(Color(.secondaryLabel))
+            }
         }
-        guard let last = days.last else { return "Not measured" }
-        return "Last \(metric.text(last.mean)) · \(Formatting.date(last.day))"
+    }
+
+    @ViewBuilder
+    private func figure(_ comparison: MeasureComparison?, alignment: HorizontalAlignment) -> some View {
+        if let comparison {
+            VStack(alignment: alignment, spacing: 2) {
+                Text(metric.text(comparison.recent))
+                    .font(.body.monospacedDigit())
+                if let change = comparison.change {
+                    Text(metric.change(change))
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(Self.colour(of: metric.isImprovement(change)))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sparkline: some View {
+        let weeks = PeriodMean.weekly(days).suffix(26)
+        if weeks.count >= 2 {
+            Sparkline(points: weeks.map { MetricPoint(day: $0.start, value: metric.shown($0.mean)) })
+                .frame(width: 64, height: 28)
+        }
+    }
+
+    /// For a figure not measured in the last four weeks, its last reading and when; nothing for a
+    /// current one, whose level the section's footer explains.
+    private func lapsed(_ comparison: MeasureComparison?) -> String? {
+        guard comparison == nil, let last = days.last else { return nil }
+        return "Last \(metric.text(last.mean)) · \(Formatting.recordDate(last.day.middayDate()))"
     }
 
     private func accessibilityValue(_ comparison: MeasureComparison?) -> String {

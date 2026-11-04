@@ -113,15 +113,27 @@ struct HealthMeasureTests {
         #expect(MeasureComparison.of(days, endingOn: end.adding(days: 400)) == nil)
     }
 
-    @Test("Weeks start on Monday and hold the mean of their days")
+    @Test("Weeks start on Monday, months on the first, and each holds the mean of its days")
     func weeksStartOnMonday() {
         // 4 November 2026 is a Wednesday.
         let wednesday = CalendarDay(year: 2026, month: 11, day: 4)
-        let weeks = WeekMean.of([Self.day(wednesday, mean: 1.2), Self.day(wednesday.adding(days: 4), mean: 1.4)])
+        let weeks = PeriodMean.weekly([Self.day(wednesday, mean: 1.2), Self.day(wednesday.adding(days: 4), mean: 1.4)])
+        let months = PeriodMean.monthly([Self.day(wednesday, mean: 1.2), Self.day(wednesday.adding(days: 30), mean: 1.4)])
 
-        #expect(weeks.map(\.weekStarting) == [CalendarDay(year: 2026, month: 11, day: 2)])
+        #expect(weeks.map(\.start) == [CalendarDay(year: 2026, month: 11, day: 2)])
+        #expect(months.map(\.start) == [CalendarDay(year: 2026, month: 11, day: 1), CalendarDay(year: 2026, month: 12, day: 1)])
         #expect(Self.close(weeks.first?.mean, 1.3))
         #expect(weeks.first?.days == 2)
+    }
+
+    @Test("A line breaks where more than the bridged gap is missing")
+    func runsBreakAtLongGaps() {
+        let first = CalendarDay(year: 2020, month: 1, day: 1)
+        let months = [0, 1, 3, 20, 21].map { PeriodMean(start: first.adding(days: 31 * $0), mean: 1, days: 1) }
+
+        let runs = PeriodMean.runs(months, bridging: 62)
+
+        #expect(runs.map(\.count) == [3, 2])
     }
 
     @Test("An injury's gait sets the eight weeks before it against the four from it, and the last four once it is older")
@@ -165,6 +177,7 @@ struct HealthMeasureTests {
         #expect(HealthMetric.walkingAsymmetry.isImprovement(-0.011) == true)
         #expect(HealthMetric.walkingSpeed.isImprovement(-0.05) == false)
         #expect(HealthMetric.restingHeartRate.isImprovement(0.2) == nil)
+        #expect(HealthMetric.restingHeartRate.change(0.2) == "±0")
     }
 
     @Test("The principal series is the device that measured a figure on the most days")

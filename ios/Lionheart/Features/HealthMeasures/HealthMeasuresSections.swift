@@ -46,17 +46,18 @@ struct HealthMeasuresSections: View {
             HStack {
                 Text("Gait")
                 Spacer()
+                // The sheet hangs on the button: a Section's modifiers reach every row, not one host.
                 Button("What these are", systemImage: "info.circle") { isExplained = true }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.borderless)
+                    .sheet(isPresented: $isExplained) {
+                        MeasureInfoSheet(metrics: HealthMetric.gaitFigures, title: "Gait")
+                    }
             }
         } footer: {
             if !gait.isEmpty {
                 Text("Measured by your iPhone on every walk. Four-week mean, and its change against the twelve weeks before.")
             }
-        }
-        .sheet(isPresented: $isExplained) {
-            MeasureInfoSheet(metrics: HealthMetric.gaitFigures, title: "Gait")
         }
         .task { await store.refreshIfNeeded() }
     }
