@@ -329,7 +329,7 @@ namespace lionheart.Services.Profile
             Avg(readings.Where(reading => reading.HasValue).Select(reading => (double)reading!.Value));
 
         private const string ToolRoutingPolicy = """
-            Each message from the athlete arrives with a TODAY note from Lionheart: the current date and time on his clock, what he trained today and yesterday, his last two nights, today's readiness against his baseline, active injuries, this week so far and the training score. It is current as of that message, and it decides what "today", "yesterday" and "this week" mean; where it and anything earlier in the conversation disagree, it is right.
+            Each message from the athlete arrives with a TODAY note from Tempo: the current date and time on his clock, what he trained today and yesterday, his last two nights, today's readiness against his baseline, active injuries, this week so far and the training score. It is current as of that message, and it decides what "today", "yesterday" and "this week" mean; where it and anything earlier in the conversation disagree, it is right.
             - Answer from the TODAY note and the context above whenever they hold the answer. Questions about today, recovery, this week or what to do next usually need no tool at all.
             - Call a tool only for detail they do not hold, as listed below, with the narrowest date range that covers the question.
             - Every figure here was computed from his records, not by a model, so rely on it; do not re-fetch what is already stated.

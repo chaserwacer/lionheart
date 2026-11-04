@@ -66,7 +66,7 @@ public sealed class NextSessionsService : INextSessionsService
                     })));
 
     [Tool(Name = "GetNextSessions",
-        Description = "What Lionheart recommends training next as of the range's last day, as a few lines: which comes first (lift or cardio) and why; the next lift (the push/pull/legs family trained longest ago, with each due family's priority lift and its next top set: the last session's best set plus 5 lb / 2.5 kg, or one more rep on bodyweight lifts, against the 12-week best estimate); the next cardio (zone 2 for a number of minutes, or a quality interval session such as 4 x 4 min at zone 4-5) and why; and the recovery read (Oura readiness against its usual range, last night's HRV against the 28 nights before, sleep). Each with its reasons.")]
+        Description = "What Tempo recommends training next as of the range's last day, as a few lines: which comes first (lift or cardio) and why; the next lift (the push/pull/legs family trained longest ago, with each due family's priority lift and its next top set: the last session's best set plus 5 lb / 2.5 kg, or one more rep on bodyweight lifts, against the 12-week best estimate); the next cardio (zone 2 for a number of minutes, or a quality interval session such as 4 x 4 min at zone 4-5) and why; and the recovery read (Oura readiness against its usual range, last night's HRV against the 28 nights before, sleep). Each with its reasons.")]
     public Task<IReadOnlyList<string>?> GetNextSessionsForChatAsync(IdentityUser user, DayRange range) =>
         GetNextAsync(user, range.To, CancellationToken.None)
             .MatchAsync(next => (IReadOnlyList<string>?)Lines(next), _ => null);
