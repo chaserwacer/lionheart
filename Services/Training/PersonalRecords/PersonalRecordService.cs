@@ -1,6 +1,7 @@
 using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Training.PersonalRecords;
+using lionheart.Services.Training.Movement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Tools;
@@ -343,10 +344,13 @@ public sealed class PersonalRecordService : IPersonalRecordService
             .Select(movement => new
             {
                 movement.MovementDataID,
-                Name = movement.MovementBase.Name + " / " + movement.Equipment.Name
-                       + (movement.MovementModifier == null ? "" : " / " + movement.MovementModifier.Name),
+                Base = movement.MovementBase.Name,
+                Equipment = movement.Equipment.Name,
+                Modifier = movement.MovementModifier == null ? null : movement.MovementModifier.Name,
             })
-            .ToDictionaryAsync(movement => movement.MovementDataID, movement => movement.Name);
+            .ToDictionaryAsync(
+                movement => movement.MovementDataID,
+                movement => MovementNames.Of(movement.Base, movement.Equipment, movement.Modifier));
 
         return
         [

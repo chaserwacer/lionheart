@@ -1,4 +1,5 @@
 using lionheart.Data;
+using lionheart.Services.Training.Movement;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Training.Patterns;
