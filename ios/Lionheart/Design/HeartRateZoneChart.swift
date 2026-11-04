@@ -10,6 +10,7 @@ struct HeartRateZoneChart: View {
     let start: Date
     let end: Date
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 220
 
     var body: some View {
@@ -41,7 +42,8 @@ struct HeartRateZoneChart: View {
         }
         .chartYScale(domain: max(0, min(low, Double(floors.first ?? Int(low))) - 5)...(top + 5))
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+            // Four clock times do not fit across at the accessibility sizes; two do.
+            AxisMarks(values: .automatic(desiredCount: dynamicTypeSize.isAccessibilitySize ? 2 : 4)) { _ in
                 AxisGridLine()
                 AxisValueLabel(format: .dateTime.hour().minute())
             }

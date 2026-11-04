@@ -9,6 +9,7 @@ struct MetricTraceChart: View {
     let start: Date
     let end: Date
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 140
 
     var body: some View {
@@ -33,7 +34,8 @@ struct MetricTraceChart: View {
         // The spread is what reads — a cadence of 80 to 92 drawn from nought is a flat line.
         .chartYScale(domain: .automatic(includesZero: false))
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+            // Four clock times do not fit across at the accessibility sizes; two do.
+            AxisMarks(values: .automatic(desiredCount: dynamicTypeSize.isAccessibilitySize ? 2 : 4)) { _ in
                 AxisGridLine()
                 AxisValueLabel(format: .dateTime.hour().minute())
             }

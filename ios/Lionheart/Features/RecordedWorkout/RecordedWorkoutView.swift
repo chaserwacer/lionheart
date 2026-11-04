@@ -85,7 +85,7 @@ struct RecordedWorkoutView: View {
                     .foregroundStyle(Color(.secondaryLabel))
             }
         } footer: {
-            Text("Recorded by \(run.recordedBy.nonEmpty ?? "an app") and imported from Apple Health, \(run.start.formatted(date: .omitted, time: .shortened))–\(run.end.formatted(date: .omitted, time: .shortened)). The route is kept on this phone and your server only; the chat model is given the figures, never the route.")
+            Text("Recorded by \(run.recordedBy.nonEmpty ?? "an app") and imported from Apple Health, \(run.start.formatted(date: .omitted, time: .shortened))–\(run.end.formatted(date: .omitted, time: .shortened)).\(run.route.count >= 2 ? " The route is kept on this phone and your server only; the chat model is given the figures, never the route." : "")")
         }
     }
 
@@ -205,16 +205,30 @@ struct RecordedWorkoutView: View {
         }
     }
 
+    /// The splits, under the unit the whole page reads in. Indoors there is no route to cut, so only
+    /// the unit stays.
     @ViewBuilder
     private func splitsSection(_ run: RecordedWorkout) -> some View {
         let splits = unit.splits(of: run)
+        if splits.isEmpty && isIndoors(run) {
+            Section { unitPicker }
+        } else {
+            routeSplitsSection(run, splits: splits)
+        }
+    }
+
+    private var unitPicker: some View {
+        Picker("Unit", selection: $unit) {
+            Text("Kilometres").tag(RunUnit.kilometres)
+            Text("Miles").tag(RunUnit.miles)
+        }
+        .pickerStyle(.segmented)
+        .listRowSeparator(.hidden)
+    }
+
+    private func routeSplitsSection(_ run: RecordedWorkout, splits: [WorkoutSplit]) -> some View {
         Section {
-            Picker("Unit", selection: $unit) {
-                Text("Kilometres").tag(RunUnit.kilometres)
-                Text("Miles").tag(RunUnit.miles)
-            }
-            .pickerStyle(.segmented)
-            .listRowSeparator(.hidden)
+            unitPicker
 
             if splits.isEmpty {
                 Text("No route to cut into splits.").foregroundStyle(Color(.secondaryLabel))
