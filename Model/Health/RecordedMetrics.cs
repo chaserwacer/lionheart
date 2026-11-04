@@ -117,7 +117,7 @@ public sealed record RecordedMetrics
         ]);
 
     /// <summary>One metric's samples, or none where the app did not write it.</summary>
-    public IReadOnlyList<MetricSample> Of(WorkoutMetric metric) =>
+    public IReadOnlyList<MetricSample> Samples(WorkoutMetric metric) =>
         Series.FirstOrDefault(series => series.Metric == metric)?.Samples ?? [];
 
     /// <summary>Compared by the series it holds, not by the list holding them.</summary>

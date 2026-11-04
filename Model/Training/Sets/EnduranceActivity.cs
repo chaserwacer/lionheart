@@ -18,3 +18,16 @@ public enum EnduranceActivity
     [JsonStringEnumMemberName("walk")] Walk,
     [JsonStringEnumMemberName("indoorRun")] IndoorRun,
 }
+
+public static class EnduranceSets
+{
+    extension(IEnumerable<SetEntry> sets)
+    {
+        /// <summary>
+        /// The activity of the first endurance set, or none for sets holding no endurance set — a
+        /// session imported from Health holds one set, so this is what the session was.
+        /// </summary>
+        public EnduranceActivity? EnduranceActivity =>
+            sets.OfType<EnduranceSet>().Select(set => (EnduranceActivity?)set.Activity).FirstOrDefault();
+    }
+}

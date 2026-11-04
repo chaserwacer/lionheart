@@ -127,7 +127,7 @@ public static class CardioAnalysis
                         session.TrainingSessionId,
                         session.Sets.OfType<TrailRunSet>().Any(),
                         session.Source is SessionSource.AppleHealth,
-                        session.Sets.OfType<EnduranceSet>().Select(set => (EnduranceActivity?)set.Activity).FirstOrDefault()),
+                        session.Sets.EnduranceActivity),
                     span.Start,
                     span.End,
                     DistanceMeters(session))

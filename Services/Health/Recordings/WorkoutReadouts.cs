@@ -54,7 +54,7 @@ public static class WorkoutReadouts
                         session.TrainingSessionId,
                         IsTrailRun: session.Sets.OfType<TrailRunSet>().Any(),
                         IsRecorded: true,
-                        session.Sets.OfType<EnduranceSet>().Select(set => (EnduranceActivity?)set.Activity).FirstOrDefault()),
+                        session.Sets.EnduranceActivity),
                     start, end, stated.Meters),
                 samples,
                 heartRate.Source,
@@ -73,7 +73,7 @@ public static class WorkoutReadouts
     /// correction can leave no set at all, and a session imported as a run reads as one still.
     /// </summary>
     public static RecordedActivity ActivityOf(CompletedTrainingSession session) =>
-        session.Sets.OfType<EnduranceSet>().FirstOrDefault()?.Activity switch
+        session.Sets.EnduranceActivity switch
         {
             null => RecordedActivity.Run,
             EnduranceActivity.Ride => RecordedActivity.Ride,

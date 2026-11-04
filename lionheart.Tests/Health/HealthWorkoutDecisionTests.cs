@@ -103,8 +103,8 @@ public class HealthWorkoutDecisionTests
 
         var import = Assert.IsType<HealthWorkoutDecision.Import>(Decide(workout));
 
-        Assert.Equal([212.0, 231.0], import.Recording.Metrics.Of(WorkoutMetric.Power).Select(sample => sample.Value));
-        Assert.Equal([88.0], import.Recording.Metrics.Of(WorkoutMetric.Cadence).Select(sample => sample.Value));
+        Assert.Equal([212.0, 231.0], import.Recording.Metrics.Samples(WorkoutMetric.Power).Select(sample => sample.Value));
+        Assert.Equal([88.0], import.Recording.Metrics.Samples(WorkoutMetric.Cadence).Select(sample => sample.Value));
     }
 
     // ---- What is left out ----

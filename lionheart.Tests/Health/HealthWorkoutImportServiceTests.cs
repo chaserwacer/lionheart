@@ -284,7 +284,7 @@ public class HealthWorkoutImportServiceTests : IDisposable
         Assert.All(answers, answer => Assert.Equal(new HealthImportOutcome.AlreadyImported(imported.Session.TrainingSessionId), answer));
         await using var context = _athletes.CreateContext();
         var recording = await context.WorkoutRecordings.SingleAsync();
-        Assert.Equal([245.0], recording.Metrics.Of(WorkoutMetric.GroundContactTime).Select(sample => sample.Value));
+        Assert.Equal([245.0], recording.Metrics.Samples(WorkoutMetric.GroundContactTime).Select(sample => sample.Value));
         Assert.Equal(ResultAssert.Succeeded(bare.Stated()).Route, recording.Route);
         Assert.Equal(1, await context.Sessions.CountAsync());
     }
@@ -305,7 +305,7 @@ public class HealthWorkoutImportServiceTests : IDisposable
 
         Assert.Equal(new HealthImportOutcome.NotImported(HealthWorkoutExclusion.SameAsLoggedRun, imported.Session.TrainingSessionId), answer);
         await using var context = _athletes.CreateContext();
-        Assert.Equal([8.6], (await context.WorkoutRecordings.SingleAsync()).Metrics.Of(WorkoutMetric.VerticalOscillation).Select(sample => sample.Value));
+        Assert.Equal([8.6], (await context.WorkoutRecordings.SingleAsync()).Metrics.Samples(WorkoutMetric.VerticalOscillation).Select(sample => sample.Value));
     }
 
     // ---- Reading a run back ----

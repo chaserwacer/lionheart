@@ -133,8 +133,8 @@ public sealed class HabitsReportService : IHabitsReportService
     /// <summary>What a logged session was, in the same camel-cased style as Oura's activity names.</summary>
     private static string LoggedActivity(CompletedTrainingSession session) =>
         session.Sets.OfType<TrailRunSet>().Any() ? "trailRun"
-        : session.Sets.OfType<EnduranceSet>().FirstOrDefault() is { } endurance
-            ? endurance.Activity switch
+        : session.Sets.EnduranceActivity is { } endurance
+            ? endurance switch
             {
                 EnduranceActivity.Ride => "ride",
                 EnduranceActivity.IndoorRide => "indoorRide",
