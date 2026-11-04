@@ -62,6 +62,7 @@ public static class RemodelConfiguration
             // property to a constructor parameter, so columns would cost the terms and the pin a
             // constructor that exists only for EF. Nothing queries a horizon in SQL — the list is
             // ordered in app, because the status it leads with is JSON too.
+            pin.Property(p => p.Role).HasJsonConversion();
             pin.Property(p => p.Terms).HasJsonConversion();
             pin.Property(p => p.Status).HasJsonConversion();
             pin.Ignore(p => p.IsPinned);

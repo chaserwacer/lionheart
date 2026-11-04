@@ -10,6 +10,7 @@ using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using lionheart.Services.Training.Patterns;
 
 namespace lionheart.Tests.Interpretation;
 
@@ -34,8 +35,7 @@ public class LmStudioEngineTests : IDisposable
             MovementBaseID = Guid.NewGuid(),
             Name = "Bench Press",
             UserID = _database.UserId,
-            Description = string.Empty,
-            MuscleGroups = []
+            Description = string.Empty
         });
         context.Equipments.Add(new Equipment
         {
@@ -58,7 +58,7 @@ public class LmStudioEngineTests : IDisposable
             context,
             new InterpretationParser(LmStudio.CreateChatModel()),
             new InterpretationResolver(
-                new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context))),
+                new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context), MovementPatternMap.Shipped)),
                 new FacetResolver(context, embeddings)),
             new InterpretationCommitter(context, embeddings, new PersonalRecordDetector(context, TimeProvider.System)));
     }

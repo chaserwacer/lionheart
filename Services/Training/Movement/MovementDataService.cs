@@ -1,5 +1,6 @@
 using lionheart.Functional;
 using lionheart.Data;
+using lionheart.Services.Training.Patterns;
 using lionheart.Model.Training;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
@@ -20,12 +21,17 @@ public class MovementDataService : IMovementDataService
 {
     private readonly ModelContext _context;
     private readonly IMovementModifierService _movementModifierService;
+    private readonly MovementPatternMap _map;
 
-    public MovementDataService(ModelContext context, IMovementModifierService movementModifierService)
+    public MovementDataService(
+        ModelContext context, IMovementModifierService movementModifierService, MovementPatternMap map)
     {
         _context = context;
         _movementModifierService = movementModifierService;
+        _map = map;
     }
+
+    private MovementDataDTO Described(MovementData movement) => movement.ToDTO(_map.StandingOf(movement.MovementBase));
 
     public async Task<Result<MovementDataDTO, Problem>> GetMovementDataAsync(IdentityUser user, Guid movementDataId)
     {
@@ -41,7 +47,7 @@ public class MovementDataService : IMovementDataService
             return Result<MovementDataDTO, Problem>.Failure(new Problem.NotFound("MovementData not found or access denied."));
         }
 
-        return Result<MovementDataDTO, Problem>.Success(movementData.ToDTO());
+        return Result<MovementDataDTO, Problem>.Success(Described(movementData));
     }
 
     /// <summary>Replaces how the athlete sets a movement up. Someone else's movement is not found.</summary>
@@ -55,7 +61,7 @@ public class MovementDataService : IMovementDataService
     {
         movement.ReplaceSetup(setup);
         await _context.SaveChangesAsync(ct);
-        return movement.ToDTO();
+        return Described(movement);
     }
 
     private async Task<Result<MovementData, Problem>> OwnedAsync(IdentityUser user, Guid movementDataId, CancellationToken ct)
@@ -84,7 +90,7 @@ public class MovementDataService : IMovementDataService
             .ThenBy(md => md.Equipment.Name)
             .ToListAsync();
 
-        return Result<List<MovementDataDTO>, Problem>.Success(movementDatas.Select(md => md.ToDTO()).ToList());
+        return Result<List<MovementDataDTO>, Problem>.Success(movementDatas.Select(Described).ToList());
     }
 
     public async Task<Result<MovementDataDTO, Problem>> CreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request)
@@ -151,7 +157,7 @@ public class MovementDataService : IMovementDataService
         _context.MovementDatas.Add(movementData);
         await _context.SaveChangesAsync();
 
-        return Result<MovementDataDTO, Problem>.Success(movementData.ToDTO());
+        return Result<MovementDataDTO, Problem>.Success(Described(movementData));
     }
 
     public async Task<Result<MovementDataDTO, Problem>> FindOrCreateMovementDataAsync(IdentityUser user, CreateMovementDataRequest request)
@@ -175,7 +181,7 @@ public class MovementDataService : IMovementDataService
 
         if (existing != null)
         {
-            return Result<MovementDataDTO, Problem>.Success(existing.ToDTO());
+            return Result<MovementDataDTO, Problem>.Success(Described(existing));
         }
 
         // Create new if not found

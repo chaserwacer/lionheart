@@ -17,6 +17,11 @@ struct MovementData: Equatable, Sendable, Identifiable {
     let modifierName: String?
     /// The athlete's own notes on the movement, and how its weight is read.
     let setup: MovementSetup
+    /// The base this movement is a variation of; what a classification is stated against. `nil`
+    /// only from a payload that drifted.
+    let movementBaseId: UUID?
+    /// What the base trains, shared by every variation of it.
+    let classification: ClassificationStanding
 
     var id: UUID { movementDataId }
 
@@ -24,7 +29,16 @@ struct MovementData: Equatable, Sendable, Identifiable {
     func with(setup: MovementSetup) -> MovementData {
         MovementData(
             movementDataId: movementDataId, baseName: baseName, equipmentName: equipmentName,
-            modifierName: modifierName, setup: setup)
+            modifierName: modifierName, setup: setup, movementBaseId: movementBaseId,
+            classification: classification)
+    }
+
+    /// The same movement with the base's classification as the server answered it after a change.
+    func with(classification: ClassificationStanding) -> MovementData {
+        MovementData(
+            movementDataId: movementDataId, baseName: baseName, equipmentName: equipmentName,
+            modifierName: modifierName, setup: setup, movementBaseId: movementBaseId,
+            classification: classification)
     }
 
     /// Whether the plate calculator and the warm-up ramp's bar step apply: a straight barbell,
@@ -105,7 +119,10 @@ extension MovementData: Decodable {
         }
 
         self.movementDataId = movementDataId
-        baseName = container.lenient(NamedEntity.self, "movementBase")?.name ?? ""
+        let movementBase = container.lenient(BaseEntity.self, "movementBase")
+        baseName = movementBase?.name ?? ""
+        movementBaseId = movementBase?.movementBaseId
+        classification = movementBase?.classification ?? .unclassified
         equipmentName = container.lenient(NamedEntity.self, "equipment")?.name ?? ""
         modifierName = container.lenient(NamedEntity.self, "movementModifier")?.name
         setup = container.lenient(MovementSetup.self, "setup") ?? .none
@@ -138,11 +155,23 @@ extension MovementSetup: Decodable {
     }
 }
 
-/// Anything on the wire whose only interesting member is its name.
-///
-/// `Equipment`, `MovementBase` and `MovementModifier` all carry more than this, and none of it is
-/// anything the client shows: a base's description and muscle groups belong to the screens that
-/// edit the catalogue, which live on the web app.
+/// The movement base: its name, its id, and what it trains. Its description belongs to the screens
+/// that edit the catalogue, which live on the web app.
+private struct BaseEntity: Decodable {
+    let name: String
+    let movementBaseId: UUID?
+    let classification: ClassificationStanding
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        name = container.lenient("name", or: "")
+        movementBaseId = container.lenient(UUID.self, "movementBaseID")
+        classification = container.lenient(ClassificationStanding.self, "classification") ?? .unclassified
+    }
+}
+
+/// Anything on the wire whose only interesting member is its name: equipment and a modifier carry
+/// more, none of which the client shows.
 private struct NamedEntity: Decodable {
     let name: String
 

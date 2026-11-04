@@ -8,6 +8,7 @@ using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using lionheart.Services.Training.Patterns;
 
 namespace lionheart.Tests.Interpretation;
 
@@ -31,8 +32,7 @@ public class MovementResolverTests : IDisposable
                 MovementBaseID = Guid.NewGuid(),
                 Name = name,
                 UserID = _database.UserId,
-                Description = string.Empty,
-                MuscleGroups = []
+                Description = string.Empty
             });
         }
 
@@ -50,7 +50,7 @@ public class MovementResolverTests : IDisposable
     }
 
     private static MovementResolver BuildResolver(ModelContext context) =>
-        new(context, new MovementDataService(context, new MovementModifierService(context)));
+        new(context, new MovementDataService(context, new MovementModifierService(context), MovementPatternMap.Shipped));
 
     [Fact]
     public async Task ExactNamesResolveToAMovementDataId()
@@ -193,8 +193,7 @@ public class MovementResolverTests : IDisposable
                 MovementBaseID = Guid.NewGuid(),
                 Name = "Bench Press",
                 UserID = otherUserId,
-                Description = string.Empty,
-                MuscleGroups = []
+                Description = string.Empty
             });
             await seed.SaveChangesAsync();
         }

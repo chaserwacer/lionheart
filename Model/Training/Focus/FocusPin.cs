@@ -4,8 +4,8 @@ using lionheart.Functional;
 namespace lionheart.Model.Training.Focus;
 
 /// <summary>
-/// A movement the athlete has pinned to emphasise over a horizon, at a frequency, perhaps toward
-/// a target.
+/// A movement the athlete has pinned over a horizon, at a frequency, perhaps toward a target: the
+/// priority lift of push, pull or legs for a block, or a movement emphasised on its own.
 /// </summary>
 /// <remarks>
 /// A sealed class rather than a record for the reason <see cref="PersonalRecords.PersonalRecord"/>
@@ -20,11 +20,13 @@ namespace lionheart.Model.Training.Focus;
 public sealed class FocusPin
 {
     private FocusPin(
-        Guid focusPinId, Guid userId, Guid movementDataId, FocusTerms terms, FocusStatus status, DateTime pinnedAt)
+        Guid focusPinId, Guid userId, Guid movementDataId, FocusRole role, FocusTerms terms, FocusStatus status,
+        DateTime pinnedAt)
     {
         FocusPinId = focusPinId;
         UserId = userId;
         MovementDataId = movementDataId;
+        Role = role;
         Terms = terms;
         Status = status;
         PinnedAt = pinnedAt;
@@ -36,6 +38,8 @@ public sealed class FocusPin
 
     public Guid MovementDataId { get; private init; }
 
+    public FocusRole Role { get; private init; }
+
     public FocusTerms Terms { get; private set; }
 
     public FocusStatus Status { get; private set; }
@@ -46,8 +50,19 @@ public sealed class FocusPin
     public bool IsPinned => Status is FocusStatus.Pinned;
 
     public static FocusPin Pin(
-        Guid focusPinId, Guid userId, Guid movementDataId, FocusTerms terms, DateTime pinnedAt) =>
-        new(focusPinId, userId, movementDataId, terms, new FocusStatus.Pinned(), pinnedAt);
+        Guid focusPinId, Guid userId, Guid movementDataId, FocusRole role, FocusTerms terms, DateTime pinnedAt) =>
+        new(focusPinId, userId, movementDataId, role, terms, new FocusStatus.Pinned(), pinnedAt);
+
+    /// <summary>
+    /// Lets this pin go because <paramref name="successor"/> takes its family over, on the day before
+    /// the successor's horizon starts — or on this pin's own first day, if the successor starts
+    /// before it, so a pin is never unpinned before it began.
+    /// </summary>
+    public Result<FocusPin, Problem> SupersededBy(FocusPin successor)
+    {
+        var dayBefore = successor.Terms.Horizon.Starts.AddDays(-1);
+        return Unpin(dayBefore < Terms.Horizon.Starts ? Terms.Horizon.Starts : dayBefore);
+    }
 
     /// <summary>
     /// Replaces the terms whole, while the pin is still meant.

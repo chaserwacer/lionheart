@@ -137,6 +137,13 @@ extension ReadKey {
     static let chatThread = ReadKey("chat.thread")
     static let chatMemories = ReadKey("chat.memories")
 
+    /// The seven days ending today, each kept as one answer whatever its date, so a launch with no
+    /// signal opens on the last week read, marked with its time.
+    static let trainingVolume = ReadKey("balance.volume")
+    static let trainingScore = ReadKey("balance.score")
+    static let trainingScoreWeeks = ReadKey("balance.score-weeks")
+    static let priorities = ReadKey("balance.priorities")
+
     /// The records one movement established, for its history.
     static func establishedRecords(movement movementDataId: UUID) -> ReadKey {
         ReadKey("records.established.movement.\(movementDataId.uuidString)")

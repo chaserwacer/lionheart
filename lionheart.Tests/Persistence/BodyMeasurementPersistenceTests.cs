@@ -92,7 +92,7 @@ public sealed class BodyMeasurementPersistenceTests : IDisposable
         var equipment = new Equipment { EquipmentID = Guid.NewGuid(), Name = "Bodyweight", UserID = _db.UserId };
         var movementBase = new MovementBase
         {
-            MovementBaseID = Guid.NewGuid(), Name = "Dip", UserID = _db.UserId, Description = string.Empty, MuscleGroups = [],
+            MovementBaseID = Guid.NewGuid(), Name = "Dip", UserID = _db.UserId, Description = string.Empty,
         };
         var movement = new MovementData
         {

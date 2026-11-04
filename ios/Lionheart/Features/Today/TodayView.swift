@@ -185,6 +185,7 @@ struct TodayView: View {
         }
         if let active = snapshot.inProgress { inProgressSection(active) }
         trainingSection(snapshot, today: today)
+        if isToday { TrainingScoreSection() }
         if isToday {
             nextSessionSection(snapshot.nextPlanned, today: today)
             quickLogSection

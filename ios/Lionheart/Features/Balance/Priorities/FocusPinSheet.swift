@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Pinning a movement, or revising a pin: the horizon, the sessions a week, and an optional target.
+/// Pinning a movement — as a family's priority lift or for emphasis — or revising a pin: the
+/// horizon, the sessions a week, and an optional target.
 ///
 /// The horizon is offered as lengths — four weeks to a year — because that is how a block is
 /// thought about, with its own dates beneath for a horizon that does not fit one. A refusal is
@@ -15,11 +16,15 @@ struct FocusPinSheet: View {
     enum Editing: Identifiable {
         /// A new pin, on a movement already chosen or one to choose here.
         case pinning(movementDataId: UUID?, name: String?)
+        /// A new priority lift for the family, chosen from its compound lifts. Pinning it lets the
+        /// family's standing priority go.
+        case prioritising(PatternFamily, standing: FocusPin?)
         case revising(FocusPin)
 
         var id: String {
             switch self {
             case .pinning(let id, _): "pin-\(id?.uuidString ?? "new")"
+            case .prioritising(let family, _): "priority-\(family.wire)"
             case .revising(let pin): "revise-\(pin.focusPinId.uuidString)"
             }
         }
@@ -59,7 +64,7 @@ struct FocusPinSheet: View {
                         }
                     }
                 } footer: {
-                    Text("What the horizon asks for. The focus list counts the sessions done against it.")
+                    Text("What the horizon asks for, read against the sessions done.")
                 }
                 targetSection
                 if case .revising(let pin) = editing, pin.isPinned {
@@ -89,7 +94,7 @@ struct FocusPinSheet: View {
                     }
                 }
             }
-            .navigationTitle(isRevising ? "Edit focus" : "Pin to focus")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -114,6 +119,15 @@ struct FocusPinSheet: View {
         if case .revising = editing { true } else { false }
     }
 
+    private var title: String {
+        switch editing {
+        case .pinning: "Pin to focus"
+        case .prioritising(let family, _): "\(family.name) priority"
+        case .revising(let pin):
+            if let family = pin.role.priorityFamily { "\(family.name) priority" } else { "Edit focus" }
+        }
+    }
+
     // MARK: - Sections
 
     @ViewBuilder
@@ -123,6 +137,8 @@ struct FocusPinSheet: View {
             case .revising:
                 // A pin's movement is fixed for its life: a different movement is a different focus.
                 LabeledContent("Movement", value: movement?.name ?? "")
+            case .prioritising(let family, _):
+                priorityPicker(family)
             case .pinning(let preset, _):
                 if preset != nil {
                     LabeledContent("Movement", value: movement?.name ?? "")
@@ -138,7 +154,35 @@ struct FocusPinSheet: View {
                     .foregroundStyle(Color(.label))
                 }
             }
+        } footer: {
+            if case .prioritising(let family, let standing) = editing {
+                if let standing {
+                    Text("Pinning lets \(library.catalogue.name(for: standing.movementDataId)) go as the \(family.name.lowercased()) priority on the day before this starts. It stays as a past priority.")
+                } else {
+                    Text("The one lift \(family.name.lowercased()) is built around this block. Its progress and frequency are read on Priorities and in the training score.")
+                }
+            }
         }
+    }
+
+    /// The family's compound lifts, then the unclassified ones, which the server takes at the
+    /// athlete's word.
+    @ViewBuilder
+    private func priorityPicker(_ family: PatternFamily) -> some View {
+        let candidates = PriorityCandidates.of(library.all, for: family)
+        Picker("Lift", selection: Binding(
+            get: { movement?.id },
+            set: { id in movement = id.flatMap { id in library.movement(id).map { (id, $0.displayName) } } }
+        )) {
+            Text("Choose").tag(UUID?.none)
+            ForEach(candidates.fitting) { Text($0.displayName).tag(Optional($0.movementDataId)) }
+            if !candidates.unclassified.isEmpty {
+                Section("Unclassified") {
+                    ForEach(candidates.unclassified) { Text($0.displayName).tag(Optional($0.movementDataId)) }
+                }
+            }
+        }
+        .pickerStyle(.navigationLink)
     }
 
     private var horizonSection: some View {
@@ -234,6 +278,7 @@ struct FocusPinSheet: View {
         defer { isSaving = false }
         let failure = switch editing {
         case .pinning: await focus.pin(movement.id, draft)
+        case .prioritising(let family, _): await focus.pin(movement.id, draft, priority: family)
         case .revising(let pin): await focus.revise(pin, to: draft)
         }
         if let failure {
@@ -252,6 +297,9 @@ struct FocusPinSheet: View {
         case .pinning(let id, let name):
             if let id { movement = (id, name ?? library.catalogue.name(for: id)) }
             if let unit = id.flatMap(lastUnit) { targetUnit = unit }
+        case .prioritising:
+            // A block, which is how long a priority is usually held.
+            length = .preset(.twelveWeeks)
         case .revising(let pin):
             movement = (pin.movementDataId, library.catalogue.name(for: pin.movementDataId))
             starts = pin.horizon.starts.middayDate()

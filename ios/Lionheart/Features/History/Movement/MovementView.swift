@@ -20,6 +20,7 @@ struct MovementView: View {
     @State private var asked: PersonalRecord?
     @State private var opened: RecordKey?
     @State private var editing: FocusPinSheet.Editing?
+    @State private var classifying: MovementData?
 
     enum Page: CaseIterable, Identifiable {
         case history
@@ -86,6 +87,9 @@ struct MovementView: View {
         .sheet(item: $editing) { editing in
             FocusPinSheet(editing: editing, focus: focus, library: library)
         }
+        .sheet(item: $classifying) { movement in
+            ClassificationSheet(movement: movement, library: library)
+        }
     }
 
     // MARK: - Content
@@ -105,6 +109,7 @@ struct MovementView: View {
         } else {
             summary(movement, today: today)
             focusSection(movement, today: today, catalogue: snapshot.catalogue)
+            ClassificationSection(movementDataId: movementDataId, library: library) { classifying = $0 }
 
             Section {
                 Picker("Page", selection: $page) {
@@ -187,7 +192,7 @@ struct MovementView: View {
             .filter(\.phase.isCurrent)
 
         if !current.isEmpty {
-            Section("Focus") {
+            Section(current.first?.pin.role.priorityFamily.map { "\($0.name) priority" } ?? "Focus") {
                 ForEach(current) { reading in
                     FocusReadingRows(reading: reading, showsLastDone: false)
                 }

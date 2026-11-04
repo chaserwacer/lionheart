@@ -1,6 +1,7 @@
 import Foundation
 
-/// A movement pinned for emphasis over a horizon — the server's `FocusPinView`.
+/// A movement pinned over a horizon — a family's priority lift for a block, or a movement emphasised
+/// on its own. The server's `FocusPinView`.
 ///
 /// The server stores two things about a pin's life: whether it is still pinned, and its terms.
 /// Whether its horizon has begun or passed, and whether its target has been met, are readings made
@@ -8,6 +9,7 @@ import Foundation
 struct FocusPin: Equatable, Sendable, Identifiable {
     let focusPinId: UUID
     let movementDataId: UUID
+    let role: FocusRole
     let horizon: FocusHorizon
     /// The sessions a week the pin asks for, one to seven.
     let sessionsPerWeek: Int
@@ -20,6 +22,32 @@ struct FocusPin: Equatable, Sendable, Identifiable {
         switch status {
         case .pinned: true
         case .unpinned, .unrecognised: false
+        }
+    }
+}
+
+/// What a pin stands for, fixed for its life.
+enum FocusRole: Equatable, Sendable {
+    /// A movement emphasised on its own.
+    case emphasis
+    /// The family's priority lift for the horizon. A family has one pinned at a time.
+    case priority(PatternFamily)
+    case unrecognised(String)
+
+    var priorityFamily: PatternFamily? {
+        guard case .priority(let family) = self else { return nil }
+        return family
+    }
+}
+
+extension FocusRole: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        let type = container.wireType
+        switch type {
+        case "emphasis": self = .emphasis
+        case "priority": self = .priority(PatternFamily(wire: container.lenient("family", or: "")))
+        default: self = .unrecognised(type)
         }
     }
 }
@@ -73,6 +101,8 @@ extension FocusPin: Decodable {
         self.init(
             focusPinId: focusPinId,
             movementDataId: movementDataId,
+            // A pin from a server older than roles is an emphasis, which is what every pin then was.
+            role: container.lenient(FocusRole.self, "role") ?? .emphasis,
             horizon: FocusHorizon(starts: starts, ends: ends),
             sessionsPerWeek: container.lenient("sessionsPerWeek", or: 1),
             target: container.lenient(FocusTarget.self, "target") ?? .none,

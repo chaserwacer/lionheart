@@ -1,6 +1,8 @@
 using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Training.Focus;
+using lionheart.Model.Training.Patterns;
+using lionheart.Services.Training.Patterns;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,11 +33,13 @@ public sealed class FocusPinService : IFocusPinService
 {
     private readonly ModelContext _context;
     private readonly TimeProvider _clock;
+    private readonly MovementPatternMap _map;
 
-    public FocusPinService(ModelContext context, TimeProvider clock)
+    public FocusPinService(ModelContext context, TimeProvider clock, MovementPatternMap map)
     {
         _context = context;
         _clock = clock;
+        _map = map;
     }
 
     /// <remarks>
@@ -54,12 +58,18 @@ public sealed class FocusPinService : IFocusPinService
         return Result<IReadOnlyList<FocusPinView>, Problem>.Success([.. Listed(pins).Select(FocusPinView.Of)]);
     }
 
+    /// <remarks>
+    /// A priority lets go of the family's pinned priority in the same commit, because a family has
+    /// one priority lift at a time and changing it block to block is the point.
+    /// </remarks>
     public Task<Result<FocusPinView, Problem>> PinAsync(
         IdentityUser user, PinFocusRequest request, CancellationToken ct) =>
         _context.AthleteIdAsync(user, ct)
             .BindAsync(userId => request.ToTerms()
-                .BindAsync(terms => OwnMovementAsync(userId, request.MovementDataId, ct)
-                    .MapAsync(movementDataId => NewPin(userId, movementDataId, terms))))
+                .Bind(terms => request.ToRole().Map(role => (terms, role)))
+                .BindAsync(stated => OwnMovementAsync(userId, request.MovementDataId, stated.role, ct)
+                    .MapAsync(movementDataId => NewPin(userId, movementDataId, stated.role, stated.terms))))
+            .BindAsync(pin => SupersedeAsync(pin, ct))
             .BindAsync(pin => AddAsync(pin, ct));
 
     public Task<Result<FocusPinView, Problem>> ReviseAsync(
@@ -94,15 +104,46 @@ public sealed class FocusPinService : IFocusPinService
             : Result<FocusPin, Problem>.Success(pin);
     }
 
-    /// <summary>The movement, if it is this athlete's — the foreign key alone would accept anyone's.</summary>
-    private async Task<Result<Guid, Problem>> OwnMovementAsync(Guid userId, Guid movementDataId, CancellationToken ct)
+    /// <summary>
+    /// The movement, if it is this athlete's — the foreign key alone would accept anyone's — and,
+    /// for a priority, if it trains that family. An unclassified movement is taken at the
+    /// athlete's word.
+    /// </summary>
+    private async Task<Result<Guid, Problem>> OwnMovementAsync(
+        Guid userId, Guid movementDataId, FocusRole role, CancellationToken ct)
     {
-        var exists = await _context.MovementDatas
-            .AnyAsync(movement => movement.MovementDataID == movementDataId && movement.UserID == userId, ct);
+        var movementBase = await _context.MovementDatas
+            .AsNoTracking()
+            .Where(movement => movement.MovementDataID == movementDataId && movement.UserID == userId)
+            .Select(movement => movement.MovementBase)
+            .FirstOrDefaultAsync(ct);
 
-        return exists
-            ? Result<Guid, Problem>.Success(movementDataId)
-            : Result<Guid, Problem>.Failure(new Problem.NotFound("Movement not found."));
+        if (movementBase is null) return Result<Guid, Problem>.Failure(new Problem.NotFound("Movement not found."));
+
+        return (role, _map.StandingOf(movementBase)) switch
+        {
+            (FocusRole.Priority priority, ClassificationStanding.Classified { Classification: var trains })
+                when trains.Family != priority.Family =>
+                Result<Guid, Problem>.Failure(new Problem.Invalid(
+                    nameof(PinFocusRequest.Priority),
+                    $"{movementBase.Name} trains {PatternWords.Of(trains.Family)}, not {PatternWords.Of(priority.Family)}.")),
+            _ => Result<Guid, Problem>.Success(movementDataId),
+        };
+    }
+
+    /// <summary>The family's pinned priorities, let go in favour of the new one; nothing for an emphasis.</summary>
+    private async Task<Result<FocusPin, Problem>> SupersedeAsync(FocusPin pin, CancellationToken ct)
+    {
+        if (pin.Role is not FocusRole.Priority priority) return Result<FocusPin, Problem>.Success(pin);
+
+        var standing = (await _context.FocusPins
+                .Where(other => other.UserId == pin.UserId)
+                .ToListAsync(ct))
+            .Where(other => other.IsPinned && other.Role.IsPriorityFor(priority.Family));
+
+        return standing
+            .Traverse(other => other.SupersededBy(pin))
+            .Map(_ => pin);
     }
 
     /// <summary>
@@ -122,10 +163,10 @@ public sealed class FocusPinService : IFocusPinService
     // ---- Stage ----
 
     /// <summary>The id and the pinning instant come from one read of the clock, so they agree.</summary>
-    private FocusPin NewPin(Guid userId, Guid movementDataId, FocusTerms terms)
+    private FocusPin NewPin(Guid userId, Guid movementDataId, FocusRole role, FocusTerms terms)
     {
         var now = _clock.GetUtcNow();
-        return FocusPin.Pin(Guid.CreateVersion7(now), userId, movementDataId, terms, now.UtcDateTime);
+        return FocusPin.Pin(Guid.CreateVersion7(now), userId, movementDataId, role, terms, now.UtcDateTime);
     }
 
     // ---- Commit ----

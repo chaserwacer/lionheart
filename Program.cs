@@ -18,6 +18,9 @@ using lionheart.Services.Llm;
 using lionheart.Services.Interpretation;
 using lionheart.Services.Contexts;
 using lionheart.Services.Training.Focus;
+using lionheart.Services.Training.Patterns;
+using lionheart.Services.Training.Balance;
+using lionheart.Services.Training.Score;
 using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.Routines;
 using lionheart.Services.Training.PersonalRecords;
@@ -62,6 +65,11 @@ if (args is [RebuildRecordsCommand.Verb, ..])
 if (args is [StrongUpgradeCommand.Verb, ..])
 {
     return await StrongUpgradeCommand.RunAsync(args, CancellationToken.None);
+}
+
+if (args is [ScoreCalibrationCommand.Verb, ..])
+{
+    return await ScoreCalibrationCommand.RunAsync(args, CancellationToken.None);
 }
 
 var builder = WebApplication.CreateBuilder(args);
@@ -151,6 +159,11 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
 builder.Services.AddTransient<IFocusPinService, FocusPinService>();
+builder.Services.AddSingleton(_ => MovementPatternMap.Shipped);
+builder.Services.AddTransient<IMovementClassificationService, MovementClassificationService>();
+builder.Services.AddTransient<ITrainingVolumeService, TrainingVolumeService>();
+builder.Services.AddTransient<IPriorityReportService, PriorityReportService>();
+builder.Services.AddTransient<ITrainingScoreService, TrainingScoreService>();
 builder.Services.AddTransient<IContextService, ContextService>();
 builder.Services.AddTransient<IRoutineService, RoutineService>();
 builder.Services.AddTransient<IPreviousPerformanceService, PreviousPerformanceService>();

@@ -1,9 +1,8 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.EntityFrameworkCore;
+using lionheart.Model.Training.Patterns;
 
 /// <summary>
-/// Base definition of a physical movement.
-/// Contains associated <see cref="Description"/> and collection of <see cref="TrainedMuscles"/>.
+/// Base definition of a physical movement: its name, a description, and what it trains.
 /// </summary>
 public class MovementBase
 {
@@ -12,43 +11,35 @@ public class MovementBase
     public required string Name { get; set; } = string.Empty;
     public required Guid UserID { get; init; }
     public required string Description { get; set; } = string.Empty;
-    public required List<MuscleGroup> MuscleGroups { get; set; } = new();
 
-    public MovementBaseDTO ToDTO()
-    {
-        return new MovementBaseDTO(
-            MovementBaseID: MovementBaseID,
-            Name: Name,
-            Description: Description,
-            MuscleGroups: MuscleGroups
-        );
-    }
+    /// <summary>
+    /// What the athlete has said this movement trains, if he has. The shipped map answers for a base
+    /// he has not classified; <c>MovementPatternMap.StandingOf</c> reads the two together.
+    /// </summary>
+    public StatedClassification Classification { get; private set; } = new StatedClassification.Unstated();
 
+    public void State(MovementClassification classification) =>
+        Classification = new StatedClassification.Stated(classification);
 
+    /// <summary>Withdraws the athlete's statement, so the map's entry answers again.</summary>
+    public void Unstate() => Classification = new StatedClassification.Unstated();
+
+    /// <param name="standing">What the base trains as the map reads it with the athlete's statement.</param>
+    public MovementBaseDTO ToDTO(ClassificationStanding standing) => new(MovementBaseID, Name, Description, standing);
 }
-
-public class MuscleGroup
-{
-    [Key]
-    public required Guid MuscleGroupID { get; init; }
-    public required string Name { get; set; } = string.Empty;
-}
-
 
 public record CreateMovementBaseRequest(
     [Required]string Name,
-    [Required(AllowEmptyStrings = true)]string Description,
-    [Required]List<MuscleGroup> MuscleGroups    
+    [Required(AllowEmptyStrings = true)]string Description
 );
 public record MovementBaseDTO(
     Guid MovementBaseID,
     string Name,
     string Description,
-    List<MuscleGroup> MuscleGroups
+    ClassificationStanding Classification
 );
 public record UpdateMovementBaseRequest(
     [Required]Guid MovementBaseID,
     [Required]string Name,
-    [Required(AllowEmptyStrings = true)]string Description,
-    [Required]List<MuscleGroup> MuscleGroups
+    [Required(AllowEmptyStrings = true)]string Description
 );

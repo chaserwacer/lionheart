@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using lionheart.Functional;
+using lionheart.Model.Training.Patterns;
 
 namespace lionheart.Model.Training
 {
@@ -64,14 +65,15 @@ namespace lionheart.Model.Training
             return HashCode.Combine(UserID, EquipmentID, MovementBaseID, MovementModifierID);
         }
 
-        public MovementDataDTO ToDTO()
+        /// <param name="baseStanding">What the movement's base trains, as the map reads it with the athlete's statement.</param>
+        public MovementDataDTO ToDTO(ClassificationStanding baseStanding)
         {
             return new MovementDataDTO(
                 MovementDataID: MovementDataID,
                 EquipmentID: EquipmentID,
                 Equipment: Equipment.ToDTO(),
                 MovementBaseID: MovementBaseID,
-                MovementBase: MovementBase.ToDTO(),
+                MovementBase: MovementBase.ToDTO(baseStanding),
                 MovementModifierID: MovementModifierID,
                 MovementModifier: MovementModifier?.ToDTO(),
                 Setup: Setup

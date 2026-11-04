@@ -38,7 +38,7 @@ public class FocusPinPersistenceTests : IAsyncLifetime
         var target = liftTarget
             ? ResultAssert.Succeeded(FocusTarget.Lift.Of(70, WeightUnit.Pounds, 5))
             : new FocusTarget.None();
-        var pin = FocusPin.Pin(Guid.CreateVersion7(), _athletes.OwnerId, _dip, Terms(target), PinnedAt);
+        var pin = FocusPin.Pin(Guid.CreateVersion7(), _athletes.OwnerId, _dip, new FocusRole.Emphasis(), Terms(target), PinnedAt);
         if (unpinned) ResultAssert.Succeeded(pin.Unpin(new DateOnly(2026, 12, 20)));
 
         await _athletes.PlantAsync(context => context.FocusPins.Add(pin));
@@ -59,7 +59,7 @@ public class FocusPinPersistenceTests : IAsyncLifetime
     public async Task The_terms_and_status_are_stored_as_this_json()
     {
         var pin = FocusPin.Pin(
-            Guid.CreateVersion7(), _athletes.OwnerId, _dip,
+            Guid.CreateVersion7(), _athletes.OwnerId, _dip, new FocusRole.Emphasis(),
             Terms(ResultAssert.Succeeded(FocusTarget.Lift.Of(70, WeightUnit.Pounds, 5))), PinnedAt);
         ResultAssert.Succeeded(pin.Unpin(new DateOnly(2026, 12, 20)));
         await _athletes.PlantAsync(context => context.FocusPins.Add(pin));
@@ -78,7 +78,7 @@ public class FocusPinPersistenceTests : IAsyncLifetime
     public async Task A_pin_naming_a_movement_that_does_not_exist_is_rejected()
     {
         var orphan = FocusPin.Pin(
-            Guid.CreateVersion7(), _athletes.OwnerId, Guid.NewGuid(), Terms(new FocusTarget.None()), PinnedAt);
+            Guid.CreateVersion7(), _athletes.OwnerId, Guid.NewGuid(), new FocusRole.Emphasis(), Terms(new FocusTarget.None()), PinnedAt);
 
         var refused = await Assert.ThrowsAsync<DbUpdateException>(() =>
             _athletes.PlantAsync(context => context.FocusPins.Add(orphan)));
@@ -89,7 +89,7 @@ public class FocusPinPersistenceTests : IAsyncLifetime
     public async Task A_movement_with_a_pin_on_it_cannot_be_deleted_from_under_it()
     {
         await _athletes.PlantAsync(context => context.FocusPins.Add(FocusPin.Pin(
-            Guid.CreateVersion7(), _athletes.OwnerId, _dip, Terms(new FocusTarget.None()), PinnedAt)));
+            Guid.CreateVersion7(), _athletes.OwnerId, _dip, new FocusRole.Emphasis(), Terms(new FocusTarget.None()), PinnedAt)));
 
         await Assert.ThrowsAsync<DbUpdateException>(() => _athletes.PlantAsync(context =>
             context.MovementDatas.Remove(context.MovementDatas.Single(m => m.MovementDataID == _dip))));
@@ -99,13 +99,55 @@ public class FocusPinPersistenceTests : IAsyncLifetime
     public async Task Deleting_the_athlete_takes_their_pins_with_them()
     {
         await _athletes.PlantAsync(context => context.FocusPins.Add(FocusPin.Pin(
-            Guid.CreateVersion7(), _athletes.OwnerId, _dip, Terms(new FocusTarget.None()), PinnedAt)));
+            Guid.CreateVersion7(), _athletes.OwnerId, _dip, new FocusRole.Emphasis(), Terms(new FocusTarget.None()), PinnedAt)));
 
         await _athletes.PlantAsync(context =>
             context.LionheartUsers.Remove(context.LionheartUsers.Single(u => u.UserID == _athletes.OwnerId)));
 
         using var fresh = _athletes.CreateContext();
         Assert.Empty(fresh.FocusPins);
+    }
+
+    [Fact]
+    public async Task A_priority_round_trips_and_is_stored_as_this_json()
+    {
+        var pin = FocusPin.Pin(
+            Guid.CreateVersion7(), _athletes.OwnerId, _dip,
+            ResultAssert.Succeeded(FocusRole.Priority.For(Model.Training.Patterns.PatternFamily.Push)),
+            Terms(new FocusTarget.None()), PinnedAt);
+        await _athletes.PlantAsync(context => context.FocusPins.Add(pin));
+
+        Assert.Equal(pin.Role, (await LoadAsync(pin.FocusPinId)).Role);
+        Assert.Equal(
+            """{"$type":"priority","Family":"push"}""",
+            await StoredAsync(context => context.Database.SqlQuery<string>(
+                $"select Role as Value from FocusPins where FocusPinId = {pin.FocusPinId}")));
+    }
+
+    [Fact]
+    public async Task A_classification_the_athlete_stated_round_trips_and_is_stored_as_this_json()
+    {
+        var classification = ResultAssert.Succeeded(Model.Training.Patterns.MovementClassification.Of(
+            Model.Training.Patterns.MovementPattern.HorizontalPush,
+            [Model.Training.Patterns.MuscleGroup.Chest, Model.Training.Patterns.MuscleGroup.Triceps],
+            [Model.Training.Patterns.MuscleGroup.FrontDelts]));
+        Guid baseId;
+        using (var context = _athletes.CreateContext())
+        {
+            var movementBase = await context.MovementDatas.Where(m => m.MovementDataID == _dip).Select(m => m.MovementBase).SingleAsync();
+            movementBase.State(classification);
+            baseId = movementBase.MovementBaseID;
+            await context.SaveChangesAsync();
+        }
+
+        using var fresh = _athletes.CreateContext();
+        var stated = Assert.IsType<Model.Training.Patterns.StatedClassification.Stated>(
+            (await fresh.MovementBases.SingleAsync(mb => mb.MovementBaseID == baseId)).Classification);
+        Assert.Equal(classification, stated.Classification);
+        Assert.Equal(
+            """{"$type":"stated","Classification":{"Pattern":"horizontalPush","Primary":["chest","triceps"],"Secondary":["frontDelts"]}}""",
+            await StoredAsync(context => context.Database.SqlQuery<string>(
+                $"select Classification as Value from MovementBases where MovementBaseID = {baseId}")));
     }
 
     private static FocusTerms Terms(FocusTarget target) => ResultAssert.Succeeded(

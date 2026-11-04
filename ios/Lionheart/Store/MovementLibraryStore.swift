@@ -171,6 +171,23 @@ final class MovementLibraryStore {
         }
     }
 
+    /// States what a movement base trains. Every variation of the base shares it, so each movement
+    /// on the base takes the classification the server answered.
+    func classify(base movementBaseId: UUID, as classification: MovementClassification) async throws {
+        adopt(try await movements.classify(base: movementBaseId, as: classification), onBase: movementBaseId)
+    }
+
+    /// Withdraws the athlete's classification, so the shipped map answers for the base again.
+    func withdrawClassification(base movementBaseId: UUID) async throws {
+        adopt(try await movements.withdrawClassification(base: movementBaseId), onBase: movementBaseId)
+    }
+
+    private func adopt(_ classification: ClassificationStanding, onBase movementBaseId: UUID) {
+        state = state.editing { catalogue in
+            catalogue.map { $0.movementBaseId == movementBaseId ? $0.with(classification: classification) : $0 }
+        }
+    }
+
     /// Remembers that a movement was just used, moving it to the front.
     func noteUsed(_ id: UUID) {
         let next = ([id] + recentIds.filter { $0 != id }).prefix(Self.recentLimit)

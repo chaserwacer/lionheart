@@ -312,7 +312,7 @@ everything else about it.
 | Program status | `Planned/Active/CompletedTrainingProgram` subtypes (kills `IsCompleted`) |
 | Activity | Deleted; absorbed by `ExertionContext` |
 | Movement wrapper | Deleted; flat ordered set list, grouping derivable. `MovementData` kept |
-| Old data | Abandoned (user call 2026-07-19) — no backfill; legacy tables dropped. Kept: MovementData/Base/Modifier, Equipment, MuscleGroups, PersonalRecords |
+| Old data | Abandoned (user call 2026-07-19) — no backfill; legacy tables dropped. Kept: MovementData/Base/Modifier, Equipment, MuscleGroups, PersonalRecords (MuscleGroups since replaced; see Movement classification) |
 | Session date | Derived (`abstract Date`) from each lifecycle state's own time-truth (PlannedFor / StartedAt / Period) — never stored alongside it |
 | Storage provider | SQLite (already in use; no quality loss at this scale). Retrieval interface stays provider-shaped for a contained Postgres swap later |
 | Embedding storage | No EmbeddingRef indirection — vectors live directly on `FacetValue` and the `AnalyzableEntry` projection; `Decoration` carries `SummaryText` |
@@ -335,6 +335,9 @@ everything else about it.
 | Routine origin | A session carries `RoutineOrigin` — `AdHoc` or `FromRoutine(id)`, persisted as a `RoutineId` column with `Guid.Empty` for ad hoc, no FK, the shape `ProgramMembership` has. A routine id that is not the athlete's is **dropped to ad hoc, never refused**, unlike a program: a workout started offline from a routine deleted meanwhile still happened. Deleting a routine leaves its sessions naming it (2026-11-03) |
 | Bodyweight | A dated `BodyweightMeasurement`, one per day keyed by `(UserId, Day)`, holding `Bodyweight(value, unit)`, is the source for what the athlete weighs. `LionheartUser.Weight` — the profile's undated, unitless number — is left alone and is not the source. "Bodyweight on a day" is the newest measurement on or before it, a rule for the reader (2026-11-03) |
 | Movement setup | `MovementData` carries `MovementSetup(notes, addsToBodyweight)`: the athlete's setup cues, and whether the weight logged on it is plate added to bodyweight (weighted dips, pull-ups), so system load is bodyweight plus weight. A fact about the movement, set per movement by the athlete; nothing seeds it (2026-11-03) |
+| Movement classification | What a movement trains is a `MovementClassification` — pattern, primary and secondary muscle groups from closed vocabularies — on the **base**, so every variation shares it. Only the athlete's statement is stored (`MovementBases.Classification`, JSON); the shipped `movement-patterns.json` answers for a base without one and is read live, so a correction reaches every unclassified base without a re-seed. The `MuscleGroups` table, which hung each group off a single base, is dropped (2026-11-03) |
+| Weekly volume and the score | Counted in hard sets — working, drop and failure lifts — whole toward primary muscles and half toward secondary ones (Pelland 2026). Read over the seven days ending on a day rather than a calendar week, so nothing empties on a Monday; a week view asks for the seven days ending on its Sunday. Derived on the server and never stored (2026-11-03) |
+| Priority lifts | A focus pin carries a `FocusRole` — `Emphasis`, or `Priority(push \| pull \| legs)` — fixed for its life. A family has one pinned priority at a time; a new one unpins the last in the same commit (2026-11-03) |
 
 ## Status & roadmap — source of truth
 
@@ -764,6 +767,21 @@ Backend half of the native logging round; the wire is in `docs/api-surface.md`.
   tables, `Sessions.RoutineId` (existing rows `Guid.Empty`, indexed, no FK), and
   `MovementDatas.SetupNotes` (default `''`) and `AddsToBodyweight` (default `0`). Applied to a
   worktree copy of the database only.
+
+### ✅ Training intelligence — patterns, volume, priorities, the training score
+
+- **Classification** (`Model/Training/Patterns/`, `Services/Training/Patterns/`): `MovementBase.Standing(map)`
+  reads the athlete's statement, else the map's entry, else unclassified. `PUT`/`DELETE
+  /api/movement-bases/{id}/classification`.
+- **Volume** (`Model/Training/Balance/`, `Services/Training/Balance/`): `TrainingLogReader` reads the
+  whole completed log once into a `TrainingLog`; `TrainingVolumeAnalysis` is pure.
+- **Priorities** (`Model/Training/Focus/FocusRole.cs`, `PriorityReport.cs`, `Services/Training/Focus/PriorityAnalysis.cs`).
+- **Score** (`Model/Training/Score/`, `Services/Training/Score/`): `TrainingScoreAnalysis` is pure;
+  weights and targets live in `ScoreRules`. `dotnet run -- score-calibration --user <id>` prints the
+  distribution over every week of the history and writes nothing.
+- **Migration `MovementPatternsAndPriorities`** — drops `MuscleGroups`, adds
+  `MovementBases.Classification` (existing rows unstated) and `FocusPins.Role` (existing rows
+  emphasis). Applied to a worktree copy of the database only.
 
 ### Traps — non-obvious failures already paid for
 

@@ -107,6 +107,8 @@ private struct SignedInTabs: View {
                     library: container.movements,
                     routines: container.routines,
                     bodyweight: container.bodyweight,
+                    history: container.history,
+                    focus: container.focus,
                     openWorkout: { isWorkoutPresented = true })
             } label: {
                 TabLabel("Train", systemImage: "record.circle")
@@ -133,6 +135,8 @@ private struct SignedInTabs: View {
             }
         }
         .minimizingTabBarOnScroll()
+        // Read by the score on Today, the priorities and the classification sheet, wherever they open.
+        .environment(container.balance)
         // Coming back to the app is when the ring's night has usually reached Oura, so a store
         // that is behind syncs then — at most once per `OuraSyncPlan.automaticRetryInterval`.
         .onChange(of: scenePhase, initial: true) { _, phase in

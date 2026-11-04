@@ -506,7 +506,7 @@ against last time's, as a change in estimated one-rep max — on bodyweight plus
 dip when both days have a reading in force, and on the plate alone otherwise, so a day with no
 bodyweight never reads as a leap.
 
-## History: the training log, a movement's page, and the focus list
+## History: the training log, a movement's page, and pinned movements
 
 **The log reads as a diary.** It is grouped by Monday-to-Sunday week, newest first — the unit his
 first goal is measured in — each week's head its dates (opening the week) and its session count,
@@ -569,13 +569,11 @@ detection. A first of its kind marks nothing, for the reason the live badge stay
 and a withdrawn record marks nothing because the athlete said it was not real. A best session volume
 belongs to the session's work on a movement and is said under that movement, not on a set.
 
-**Focus lives in History**, because every figure on it is a reading of the log against what was
-meant: sessions done against the frequency the pin asks for, the estimated single before the
-horizon against the best inside it, the heaviest load at the target's reps against the target. The
-server stores only the pin and whether it is still pinned; whether its horizon has begun or passed
-and whether its target was met are read here (`FocusReading`), so a session logged late can never
-leave a stored "met" disagreeing with the log. The pins being worked on lead History; the list
-keeps the past ones.
+**Pins made for emphasis are read here.** Sessions done against the frequency a pin asks for, the
+estimated single before the horizon against the best inside it, the heaviest load at the target's
+reps against the target: each a reading of the log (`FocusReading`), so a session logged late can
+never leave a stored "met" disagreeing with it. The server stores only the pin, its role and whether
+it is still pinned. History's Priorities row opens the screen described under Train.
 
 ### Naming every movement
 
@@ -587,6 +585,53 @@ how Train and the workout bar are covered without each asking. A miss reads the 
 once; an id a current catalogue still does not hold is remembered as unlisted and not asked about
 again, so a deleted movement costs one read rather than one per render. A read that could not reach
 the server proves nothing and leaves the id to be asked about again.
+
+## Train: what it is time for, the week's volume, priorities and the score
+
+Train leads with **Start workout** and **Log a past workout**, then answers what it is time for.
+Routines, bodyweight and the plan follow; they stay, below the reading of the week.
+
+**Everything on the week is the server's reading.** Weekly volume (`GET /api/training/volume/{day}`),
+the priorities (`/api/training/priorities/{day}`), the training score and its weeks are derived on
+the server, which holds what every movement trains and the bodyweight a weighted dip's system load
+is built on, and which hands the same answer to the chat model. `TrainingBalanceStore` reads all four
+for the seven days ending on the device's today, each into its own load state and each remembered,
+so a failed score read never blanks the volume and a launch with no signal opens on the last week
+read. It is supplied through the environment, which is how Today carries the score in one line and
+the classification sheet refreshes the week after a change, without either screen's initialiser
+knowing.
+
+**Seven days, not a calendar week.** Every figure on the week is the seven days ending today, so
+nothing empties on a Monday and the number reads the same whichever day it is opened. History's week
+page asks the same routes for the seven days ending on its Sunday, or today for the week in
+progress (`TrainingBalanceStore.loadWeek`, drawn by `WeekBalanceSections`), so a week there and the
+week on Train agree when they are the same week.
+
+**Up next** names the family or families trained longest ago — together when last trained the same
+day, which is how an upper day followed by a lower day leaves push and pull up next as one — with
+their week's hard sets. Oura's readiness score is mentioned only when it is under the tenth
+percentile of his last ninety days, beside the recommendation, never instead of it.
+
+**Volume is one instrument at three resolutions**: push, pull and legs on the tab, then the nine
+patterns and the sixteen muscle groups behind a link, every row the same `VolumeRow` — the name and
+when it was last trained, hard sets of the target, and a `TargetBar` that is grey under the target
+and green at it. Movements nothing classifies are listed as not counted rather than dropped.
+
+**Priorities** (`PrioritiesView`) is the one place that says what he is striving for: each family's
+priority lift with its best estimated single against the twelve weeks before, a run of session bests,
+and its sessions in four weeks; the week's zone 2 and high-intensity minutes against their targets;
+then the pins made for emphasis and the past ones. With no priority pinned the family's most-trained
+compound lift of eight weeks stands in, and says so. Setting a priority picks from the family's
+compound lifts (`PriorityCandidates`), and pinning one lets the last go on the server in the same
+write.
+
+**The score** is a number with its measurements: Today shows it beside push, pull and legs hard sets,
+zone 2 and the week's sessions; its screen shows half a year of weeks against 90 and every part as
+"x of y" rows. A part with no data says unknown, never zero, and a week read with one is drawn pale.
+
+**What a movement trains** is shown and edited on its page (`ClassificationSection`), stated for the
+base so every variation shares it. A judgement call from the shipped map is shown in orange with its
+reason until he confirms or corrects it.
 
 ## Personal records: one unit at a time
 

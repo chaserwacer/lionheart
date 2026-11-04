@@ -1,0 +1,82 @@
+// What each movement base trains: its movement pattern, and the muscle groups it works as the
+// primary mover and as a secondary one. Weekly hard sets on the Train page and in the training
+// score are counted from this file. Edit an entry to correct it; the build embeds the file, so
+// `dotnet run` picks up a change with nothing else to do.
+//
+// - "base" is the movement base's name. Matching ignores case and surrounding spaces. Every
+//   variation of a base (incline, paused, dumbbell, machine) shares its entry.
+// - "pattern" is one of: horizontalPush, verticalPush, horizontalPull, verticalPull, squat, hinge,
+//   singleLeg, isolation, other. Push patterns count toward push, pull patterns toward pull, and
+//   squat, hinge and single-leg toward legs. An isolation or other movement counts toward the
+//   family of its first primary muscle group (curls toward pull, lateral raises toward push, ab
+//   work toward core, which the score does not judge).
+// - "primary" and "secondary" name muscle groups: chest, frontDelts, sideDelts, rearDelts,
+//   triceps, lats, upperBack, biceps, forearms, quads, hamstrings, glutes, adductors, calves,
+//   lowerBack, abs. A set counts as one set for each primary group and half a set for each
+//   secondary one (Pelland et al., Sports Medicine 2026).
+// - "unsure" marks an entry that was a judgement call, and says why. The app shows it as unsure
+//   until the athlete confirms or corrects it there. Delete the field once settled.
+// - A classification the athlete states in the app replaces the entry here for that base.
+// - A base with no entry is unclassified: its sets are listed as unplaced, never guessed at.
+[
+  { "base": "Ab Rollout", "pattern": "other", "primary": ["abs"], "secondary": ["lats"] },
+  { "base": "Archer Row", "pattern": "horizontalPull", "primary": ["lats", "upperBack"], "secondary": ["biceps", "rearDelts"], "unsure": "A single-arm cable row with a wide sweep; read as a row rather than a pulldown." },
+  { "base": "Back Extension", "pattern": "hinge", "primary": ["lowerBack", "glutes"], "secondary": ["hamstrings"] },
+  { "base": "Bench Press", "pattern": "horizontalPush", "primary": ["chest"], "secondary": ["frontDelts", "triceps"] },
+  { "base": "Bent Over Row", "pattern": "horizontalPull", "primary": ["upperBack", "lats"], "secondary": ["biceps", "rearDelts", "lowerBack"] },
+  { "base": "Bicep Curl", "pattern": "isolation", "primary": ["biceps"], "secondary": ["forearms"] },
+  { "base": "Calf Press", "pattern": "isolation", "primary": ["calves"], "secondary": [] },
+  { "base": "Calf Raise", "pattern": "isolation", "primary": ["calves"], "secondary": [] },
+  { "base": "Chest Fly", "pattern": "isolation", "primary": ["chest"], "secondary": ["frontDelts"] },
+  { "base": "Chest Press", "pattern": "horizontalPush", "primary": ["chest"], "secondary": ["frontDelts", "triceps"] },
+  { "base": "Chin Up", "pattern": "verticalPull", "primary": ["lats", "biceps"], "secondary": ["upperBack"] },
+  { "base": "Deadlift", "pattern": "hinge", "primary": ["glutes", "hamstrings", "lowerBack"], "secondary": ["quads", "upperBack", "forearms"] },
+  { "base": "Dip", "pattern": "horizontalPush", "primary": ["chest", "triceps"], "secondary": ["frontDelts"], "unsure": "A dip sits between a horizontal and a vertical press; filed with the bench because it stands in for one as the push priority." },
+  { "base": "Face Pull", "pattern": "isolation", "primary": ["rearDelts"], "secondary": ["upperBack"], "unsure": "A pull, but a rear-delt and external-rotation movement rather than a row, so it is not counted as horizontal pulling." },
+  { "base": "Forearm Curl", "pattern": "isolation", "primary": ["forearms"], "secondary": [] },
+  { "base": "Front Raise", "pattern": "isolation", "primary": ["frontDelts"], "secondary": [] },
+  { "base": "Glute Kickback", "pattern": "isolation", "primary": ["glutes"], "secondary": ["hamstrings"] },
+  { "base": "Hack Squat", "pattern": "squat", "primary": ["quads"], "secondary": ["glutes", "adductors"] },
+  { "base": "Hammer Curl", "pattern": "isolation", "primary": ["biceps"], "secondary": ["forearms"] },
+  { "base": "Hip Abductor", "pattern": "isolation", "primary": ["glutes"], "secondary": [] },
+  { "base": "Hip Adductor", "pattern": "isolation", "primary": ["adductors"], "secondary": [] },
+  { "base": "Hip Thrust", "pattern": "hinge", "primary": ["glutes"], "secondary": ["hamstrings"] },
+  { "base": "Inverted Row", "pattern": "horizontalPull", "primary": ["upperBack", "lats"], "secondary": ["biceps", "rearDelts"] },
+  { "base": "Iso-Lateral Low Row", "pattern": "horizontalPull", "primary": ["lats", "upperBack"], "secondary": ["biceps", "rearDelts"] },
+  { "base": "Iso-Lateral Row", "pattern": "horizontalPull", "primary": ["upperBack", "lats"], "secondary": ["biceps", "rearDelts"] },
+  { "base": "Lat Pulldown", "pattern": "verticalPull", "primary": ["lats"], "secondary": ["biceps", "upperBack"] },
+  { "base": "Lat Pullover", "pattern": "isolation", "primary": ["lats"], "secondary": [], "unsure": "A shoulder-extension isolation for the lats; counted toward pull but not as vertical pulling." },
+  { "base": "Lateral Raise", "pattern": "isolation", "primary": ["sideDelts"], "secondary": [] },
+  { "base": "Leg Curl", "pattern": "isolation", "primary": ["hamstrings"], "secondary": [] },
+  { "base": "Leg Extension", "pattern": "isolation", "primary": ["quads"], "secondary": [] },
+  { "base": "Leg Press", "pattern": "squat", "primary": ["quads"], "secondary": ["glutes", "adductors"], "unsure": "The single-leg variation shares this entry and is counted as a squat, not as single-leg work." },
+  { "base": "Lunge", "pattern": "singleLeg", "primary": ["quads", "glutes"], "secondary": ["adductors", "hamstrings"] },
+  { "base": "Mid Row", "pattern": "horizontalPull", "primary": ["upperBack", "lats"], "secondary": ["biceps", "rearDelts"] },
+  { "base": "Overhead Tricep Extension", "pattern": "isolation", "primary": ["triceps"], "secondary": [] },
+  { "base": "Pec Deck", "pattern": "isolation", "primary": ["chest"], "secondary": ["frontDelts"] },
+  { "base": "Pendulum Squat", "pattern": "squat", "primary": ["quads"], "secondary": ["glutes"] },
+  { "base": "Pike Pushup", "pattern": "verticalPush", "primary": ["frontDelts"], "secondary": ["triceps"] },
+  { "base": "Preacher Curl", "pattern": "isolation", "primary": ["biceps"], "secondary": [] },
+  { "base": "Pseudo Planche Pushup", "pattern": "horizontalPush", "primary": ["chest", "frontDelts"], "secondary": ["triceps", "abs"], "unsure": "The lean puts more on the front delts than a push-up; both counted as primary." },
+  { "base": "Pull Up", "pattern": "verticalPull", "primary": ["lats"], "secondary": ["biceps", "upperBack"] },
+  { "base": "Pullover", "pattern": "isolation", "primary": ["lats"], "secondary": ["chest"], "unsure": "Machine and plate-loaded pullovers read as lat isolation; chest counted as secondary." },
+  { "base": "Rear Delt Fly", "pattern": "isolation", "primary": ["rearDelts"], "secondary": ["upperBack"] },
+  { "base": "Rear Delt Row", "pattern": "horizontalPull", "primary": ["rearDelts", "upperBack"], "secondary": ["lats", "biceps"], "unsure": "A wide-elbow row: counted as horizontal pulling, with the rear delts primary." },
+  { "base": "Romanian Deadlift", "pattern": "hinge", "primary": ["hamstrings", "glutes"], "secondary": ["lowerBack"] },
+  { "base": "Row", "pattern": "horizontalPull", "primary": ["lats", "upperBack"], "secondary": ["biceps", "rearDelts"] },
+  { "base": "Seated Row", "pattern": "horizontalPull", "primary": ["upperBack", "lats"], "secondary": ["biceps", "rearDelts"] },
+  { "base": "Shoulder Press", "pattern": "verticalPush", "primary": ["frontDelts"], "secondary": ["triceps", "sideDelts"] },
+  { "base": "Shrug", "pattern": "isolation", "primary": ["upperBack"], "secondary": [] },
+  { "base": "Side Lying Leg Raise", "pattern": "isolation", "primary": ["glutes"], "secondary": [], "unsure": "Read as hip abduction, which is glute medius work." },
+  { "base": "Sissy Squat", "pattern": "isolation", "primary": ["quads"], "secondary": [], "unsure": "Knee-dominant with almost no hip drive; counted as quad isolation rather than a squat." },
+  { "base": "Skullcrusher", "pattern": "isolation", "primary": ["triceps"], "secondary": [] },
+  { "base": "Sled Push and Pull", "pattern": "other", "primary": ["quads", "glutes"], "secondary": ["calves", "hamstrings"], "unsure": "Conditioning as much as strength; counted toward legs." },
+  { "base": "Split Squat", "pattern": "singleLeg", "primary": ["quads", "glutes"], "secondary": ["adductors"] },
+  { "base": "Squat", "pattern": "squat", "primary": ["quads", "glutes"], "secondary": ["adductors", "lowerBack"] },
+  { "base": "Stiff Leg Deadlift", "pattern": "hinge", "primary": ["hamstrings", "glutes"], "secondary": ["lowerBack"] },
+  { "base": "Sumo Deadlift", "pattern": "hinge", "primary": ["glutes", "hamstrings"], "secondary": ["quads", "adductors", "lowerBack"] },
+  { "base": "Tricep Extension", "pattern": "isolation", "primary": ["triceps"], "secondary": [] },
+  { "base": "Tricep Press", "pattern": "isolation", "primary": ["triceps"], "secondary": ["chest"], "unsure": "The machine is a seated dip and the TRX version a bodyweight extension; both read as triceps work rather than a press." },
+  { "base": "Tricep Pushdown", "pattern": "isolation", "primary": ["triceps"], "secondary": [] },
+  { "base": "Tricep Pushup", "pattern": "horizontalPush", "primary": ["triceps", "chest"], "secondary": ["frontDelts"] }
+]

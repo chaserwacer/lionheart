@@ -5,6 +5,7 @@ using lionheart.Endpoints;
 using lionheart.Functional;
 using lionheart.Model.Interpretation;
 using lionheart.Model.Training.Focus;
+using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sets;
 using Microsoft.AspNetCore.Http;
@@ -95,15 +96,16 @@ public class ResponseDiscriminatorTests
     }
 
     [Theory]
-    [InlineData(true, "lift", "unpinned")]
-    [InlineData(false, "none", "pinned")]
-    public async Task AFocusPinNamesItsTargetsCaseAndItsStatussCase(bool unpinned, string target, string status)
+    [InlineData(true, "lift", "unpinned", "priority")]
+    [InlineData(false, "none", "pinned", "emphasis")]
+    public async Task AFocusPinNamesItsTargetsCaseAndItsStatussCase(bool unpinned, string target, string status, string role)
     {
-        // The iOS decoder switches on both discriminators, and reads the unpinning day and the
+        // The iOS decoder switches on every discriminator, and reads the unpinning day and the
         // horizon as plain calendar dates.
         var view = new FocusPinView(
             Guid.NewGuid(),
             Guid.NewGuid(),
+            unpinned ? ResultAssert.Succeeded(FocusRole.Priority.For(PatternFamily.Push)) : new FocusRole.Emphasis(),
             new DateOnly(2026, 11, 2),
             new DateOnly(2027, 1, 31),
             2,
@@ -119,9 +121,52 @@ public class ResponseDiscriminatorTests
         Assert.Equal("2026-11-02", pin.GetProperty("starts").GetString());
         Assert.Equal(target, pin.GetProperty("target").GetProperty("$type").GetString());
         Assert.Equal(status, pin.GetProperty("status").GetProperty("$type").GetString());
+        Assert.Equal(role, pin.GetProperty("role").GetProperty("$type").GetString());
         if (!unpinned) return;
+        Assert.Equal("push", pin.GetProperty("role").GetProperty("family").GetString());
         Assert.Equal((int)WeightUnit.Pounds, pin.GetProperty("target").GetProperty("unit").GetInt32());
         Assert.Equal("2026-12-20", pin.GetProperty("status").GetProperty("on").GetString());
+    }
+
+    [Fact]
+    public async Task TheScoreNamesItsCardioMeasuresAndPriorityLiftsCases()
+    {
+        // The iOS decoders switch on each of these, and on the standing and the readiness note.
+        var log = Balance.ALog.Catalogue
+            .WithSession(new DateOnly(2026, 10, 20), Balance.ALog.Set(Balance.ALog.Bench, 200, 5))
+            .WithSession(new DateOnly(2026, 11, 2), Balance.ALog.Set(Balance.ALog.Bench, 210, 5))
+            .Build();
+        var score = lionheart.Services.Training.Score.TrainingScoreAnalysis.Score(
+            log, [], new Model.Cardio.CardioMeasure.Unknown(Model.Cardio.CardioUnknownReason.NoHeartRate),
+            new DateOnly(2026, 11, 3));
+        var volume = lionheart.Services.Training.Balance.TrainingVolumeAnalysis.Build(
+            log, new DateOnly(2026, 11, 3), new Model.Training.Balance.ReadinessNote.Low(58, 63, 87));
+
+        var scoreBody = JsonDocument.Parse(await WriteAsync(Endpoint.ToActionResult(
+            Result<Model.Training.Score.TrainingScore, Problem>.Success(score)))).RootElement;
+        var volumeBody = JsonDocument.Parse(await WriteAsync(Endpoint.ToActionResult(
+            Result<Model.Training.Balance.TrainingVolume, Problem>.Success(volume)))).RootElement;
+
+        Assert.Equal("unknown", scoreBody.GetProperty("cardio").GetProperty("measure").GetProperty("$type").GetString());
+        Assert.Equal("noHeartRate", scoreBody.GetProperty("cardio").GetProperty("measure").GetProperty("reason").GetString());
+        var push = scoreBody.GetProperty("progress").GetProperty("families")[0].GetProperty("lift");
+        Assert.Equal("chosen", push.GetProperty("$type").GetString());
+        Assert.Equal("mostTrained", push.GetProperty("choice").GetProperty("$type").GetString());
+        Assert.Equal("compared", push.GetProperty("progress").GetProperty("$type").GetString());
+        Assert.Equal("lifetimeBest", push.GetProperty("progress").GetProperty("standing").GetString());
+        Assert.Equal("train", volumeBody.GetProperty("upNext").GetProperty("$type").GetString());
+        Assert.Equal(58, volumeBody.GetProperty("upNext").GetProperty("readiness").GetProperty("ouraScore").GetInt32());
+        Assert.Equal("horizontalPush", volumeBody.GetProperty("patterns")[0].GetProperty("pattern").GetString());
+    }
+
+    [Fact]
+    public void APinRequestReadsItsPriorityFamilyByName()
+    {
+        var request = JsonSerializer.Deserialize<PinFocusRequest>(
+            """{"movementDataId":"11111111-1111-1111-1111-111111111111","starts":"2026-11-02","ends":"2027-01-31","sessionsPerWeek":2,"target":null,"priority":"pull"}""",
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Equal(PatternFamily.Pull, Assert.IsType<FocusRole.Priority>(ResultAssert.Succeeded(request!.ToRole())).Family);
     }
 
     /// <summary>

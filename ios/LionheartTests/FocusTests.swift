@@ -19,7 +19,7 @@ struct FocusTests {
         sessionsPerWeek: Int = 2, target: FocusTarget = .none, status: FocusStatus = .pinned
     ) -> FocusPin {
         FocusPin(
-            focusPinId: UUID(), movementDataId: UUID(uuidString: dip)!,
+            focusPinId: UUID(), movementDataId: UUID(uuidString: dip)!, role: .emphasis,
             horizon: FocusHorizon(starts: starts, ends: ends),
             sessionsPerWeek: sessionsPerWeek, target: target, status: status)
     }

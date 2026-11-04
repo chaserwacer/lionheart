@@ -20,6 +20,7 @@ final class AppContainer {
     let today: TodayStore
     let history: HistoryStore
     let focus: FocusStore
+    let balance: TrainingBalanceStore
     let chat: ChatStore
     let thread: ThreadStore
     let chatMemory: MemoryStore
@@ -87,6 +88,7 @@ final class AppContainer {
             library: movements,
             records: PersonalRecordsAPI(client: client))
         focus = FocusStore(api: FocusAPI(client: client))
+        balance = TrainingBalanceStore(balance: TrainingBalanceAPI(client: client), focus: FocusAPI(client: client))
         chat = ChatStore(
             chat: ChatAPI(client: client),
             profile: ProfileAPI(client: client))
@@ -114,16 +116,22 @@ final class AppContainer {
 
         // A sync stores new days, so the two tabs that show them read again — Body only when it has
         // been opened, since an unopened tab reads for itself when it is.
-        ouraSync.onSynced { [today, body, cardio, habits, diary] in
+        ouraSync.onSynced { [today, body, cardio, habits, diary, balance] in
             await today.refresh()
             if body.state.value != nil { await body.refresh() }
             await cardio.refreshLoaded()
             await habits.refreshLoaded()
             // A sync re-pulls from the newest stored day, so only the last week's pages can change.
             await diary.refreshLoaded(since: CalendarDay(Date()).adding(days: -7))
+            // New heart rate is new cardio, and new readiness can change what is up next.
+            if balance.score.value != nil { await balance.refresh() }
         }
         // Today holds its own window of sessions, so a correction made from History shows there too.
-        history.onRevised { [today] in await today.refresh() }
+        history.onRevised { [today, balance] in
+            await today.refresh()
+            // A corrected session changes the week's hard sets and its score.
+            await balance.refresh()
+        }
         // A rating shows on Body's row for it and on the day it rates.
         wellness.onLogged { [body, diary] entry in
             await body.refresh()
@@ -135,8 +143,8 @@ final class AppContainer {
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
-            [profile, today, train, routines, bodyweight, movements, history, focus, chat, thread, chatMemory,
-             body, ouraSync, cardio, habits, diary, wellness, memory] in
+            [profile, today, train, routines, bodyweight, movements, history, focus, balance, chat, thread,
+             chatMemory, body, ouraSync, cardio, habits, diary, wellness, memory] in
             profile.reset()
             today.reset()
             train.reset()
@@ -145,6 +153,7 @@ final class AppContainer {
             movements.reset()
             history.reset()
             focus.reset()
+            balance.reset()
             chat.reset()
             thread.reset()
             chatMemory.reset()
@@ -168,9 +177,10 @@ final class AppContainer {
         }
         // A workout that waited in the outbox is now the last session on its movements and of its
         // routine, so what the next workout opens on is read again once it lands.
-        outbox.onLanded { [movements, routines] in
+        outbox.onLanded { [movements, routines, balance] in
             await movements.refresh()
             await routines.refresh()
+            await balance.refresh()
         }
         auth.onSignIn { [weak self] in
             Task { await self?.signedIn() }
@@ -243,6 +253,7 @@ final class AppContainer {
             if bodyweight.state.isWaitingOnServer { group.addTask { await self.bodyweight.refresh() } }
             if history.state.isWaitingOnServer { group.addTask { await self.history.refresh() } }
             if focus.state.isWaitingOnServer { group.addTask { await self.focus.refresh() } }
+            if balance.isWaitingOnServer { group.addTask { await self.balance.refresh() } }
             if body.state.isWaitingOnServer { group.addTask { await self.body.refresh() } }
             if cardio.isWaitingOnServer { group.addTask { await self.cardio.refreshLoaded() } }
             if habits.isWaitingOnServer { group.addTask { await self.habits.refreshLoaded() } }
