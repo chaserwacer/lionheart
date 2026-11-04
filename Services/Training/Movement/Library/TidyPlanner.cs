@@ -199,14 +199,14 @@ public static class TidyPlanner
     /// </remarks>
     private static CarryPlan BaseCarries(LibraryState state, IReadOnlyList<MovementOutcome> outcomes, PartPlan bases)
     {
-        var survivors = Survivors(outcomes);
+        var landsOn = LandingNames(outcomes);
         var byId = state.Bases.ToDictionary(row => row.Id);
 
         var going = bases.Outcomes
             .SelectMany(outcome => outcome.Fate switch
             {
                 PartFate.Folded folded => [(Row: byId[folded.RowId], Receivers: (IReadOnlyList<string>)[folded.Into], Folded: true)],
-                PartFate.Removed removed => [(Row: byId[removed.RowId], Receivers: ReceiversOf(removed.RowId, state, survivors), Folded: false)],
+                PartFate.Removed removed => [(Row: byId[removed.RowId], Receivers: ReceiversOf(removed.RowId, state, landsOn), Folded: false)],
                 _ => Array.Empty<(BaseRow Row, IReadOnlyList<string> Receivers, bool Folded)>(),
             })
             .Where(entry => entry.Row.SaysAnything && entry.Receivers.Count > 0)
@@ -263,14 +263,28 @@ public static class TidyPlanner
         || ((lost.Statement is StatedClassification.Unstated || receiver.Statement is StatedClassification.Unstated)
             && (lost.Description.Length == 0 || receiver.Description.Trim().Length == 0));
 
+    /// <summary>The bases a going base's movements land on, kept or merged; a retired one lands nowhere.</summary>
     private static IReadOnlyList<string> ReceiversOf(
-        Guid baseId, LibraryState state, IReadOnlyDictionary<Guid, MovementName> survivors) =>
+        Guid baseId, LibraryState state, IReadOnlyDictionary<Guid, MovementName> landsOn) =>
         [
             .. state.Movements
-                .Where(movement => movement.BaseId == baseId && survivors.ContainsKey(movement.Id))
-                .Select(movement => survivors[movement.Id].Base.Trim())
+                .Where(movement => movement.BaseId == baseId && landsOn.ContainsKey(movement.Id))
+                .Select(movement => landsOn[movement.Id].Base.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         ];
+
+    /// <summary>The name each movement ends up under, whether it is kept or merged into another.</summary>
+    private static IReadOnlyDictionary<Guid, MovementName> LandingNames(IReadOnlyList<MovementOutcome> outcomes) =>
+        outcomes
+            .SelectMany(outcome => outcome.Fate switch
+            {
+                MovementFate.Kept => [(outcome.MovementDataId, Name: outcome.From)],
+                MovementFate.Restated restated => [(outcome.MovementDataId, Name: restated.To)],
+                MovementFate.Merged merged => [(outcome.MovementDataId, Name: merged.To)],
+                MovementFate.Retired => Array.Empty<(Guid MovementDataId, MovementName Name)>(),
+                _ => throw new System.Diagnostics.UnreachableException(),
+            })
+            .ToDictionary(landing => landing.MovementDataId, landing => landing.Name);
 
     private static string Said(BaseRow row) =>
         string.Join(" and ", new[]

@@ -63,10 +63,10 @@ public sealed class MovementLibraryTidy
     // ---- Guard ----
 
     /// <summary>The plan, if the records it would replay can be: a merge moves records, so a withdrawn one refuses it.</summary>
-    private async Task<Result<Planned, Problem>> ReplayableAsync(Guid userId, Planned planned, CancellationToken ct) =>
+    private Task<Result<Planned, Problem>> ReplayableAsync(Guid userId, Planned planned, CancellationToken ct) =>
         planned.Plan.Merges.Count == 0
-            ? Result<Planned, Problem>.Success(planned)
-            : (await _records.ReplayableAsync(userId, ct)).Map(_ => planned);
+            ? Task.FromResult(Result<Planned, Problem>.Success(planned))
+            : _records.ReplayableAsync(userId, ct).MapAsync(_ => planned);
 
     // ---- Reading the library ----
 
@@ -188,7 +188,7 @@ public sealed class MovementLibraryTidy
     {
         foreach (var carry in planned.Plan.BaseCarries)
         {
-            var receiver = planned.Held.PartsFor(new MovementName(carry.Into, string.Empty, string.Empty)).Base;
+            var receiver = planned.Held.BaseNamed(carry.Into);
             if (carry.Statement is StatedClassification.Stated stated) receiver.State(stated.Classification);
             if (carry.Description.Length > 0) receiver.Description = carry.Description;
         }
@@ -250,11 +250,11 @@ public sealed class MovementLibraryTidy
 
     // ---- Replay ----
 
-    private async Task<Result<Replayed, Problem>> ReplayAsync(Guid userId, Planned planned, CancellationToken ct) =>
+    private Task<Result<Replayed, Problem>> ReplayAsync(Guid userId, Planned planned, CancellationToken ct) =>
         planned.Plan.Merges.Count == 0
-            ? Result<Replayed, Problem>.Success(new Replayed(planned, new RecordReplay.NotNeeded()))
-            : (await _records.ReplayAsync(userId, ct))
-                .Map(report => new Replayed(planned, new RecordReplay.Replayed(report)));
+            ? Task.FromResult(Result<Replayed, Problem>.Success(new Replayed(planned, new RecordReplay.NotNeeded())))
+            : _records.ReplayAsync(userId, ct)
+                .MapAsync(report => new Replayed(planned, new RecordReplay.Replayed(report)));
 
     // ---- Report ----
 

@@ -798,7 +798,9 @@ Backend half of the native logging round; the wire is in `docs/api-surface.md`.
   `MovementLibraryTidy` stages the plan in one transaction: a merge repoints sets, prescriptions,
   routines, pins and injury notes (refusing a routine that holds both halves of one), then replays
   the records. The dry run does all of it and rolls back. Run it against the live database only
-  after a backup.
+  after a backup, and as soon as this lands: until it runs, the three renamed push-up bases read
+  unclassified, and an import would create clean-named movements beside the old ones for the tidy
+  to merge.
 
 ### Traps — non-obvious failures already paid for
 

@@ -128,6 +128,22 @@ public class TidyPlannerTests
     }
 
     [Fact]
+    public void A_base_emptied_by_a_merge_onto_one_that_states_nothing_is_refused()
+    {
+        // Its only movement merges into one on another base; the statement must not vanish with it.
+        var library = new ALibrary()
+            .WithBase("Pushup", new StatedClassification.Stated(Classification(MovementPattern.HorizontalPush)))
+            .With("Pushup", "Bodyweight")
+            .With("Push Up", "Bodyweight");
+
+        var problem = Refused(library, """
+            { "movements": [ { "from": { "base": "Pushup", "equipment": "Bodyweight" }, "to": { "base": "Push Up", "equipment": "Bodyweight" } } ] }
+            """);
+
+        Assert.Contains("base 'Pushup' goes, and what the athlete said about it — a stated classification — would be lost", problem.What);
+    }
+
+    [Fact]
     public void Two_movements_the_library_would_show_under_one_name_are_refused()
     {
         var library = new ALibrary().With("Incline Bench Press", "Dumbbell").With("Bench Press", "Dumbbell", "incline");

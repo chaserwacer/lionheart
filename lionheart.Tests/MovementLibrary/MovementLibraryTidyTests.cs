@@ -2,6 +2,7 @@ using lionheart.Functional;
 using lionheart.Model.InjuryManagement;
 using lionheart.Model.Training;
 using lionheart.Model.Training.Focus;
+using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Routines;
 using lionheart.Model.Training.Sessions;
@@ -123,6 +124,22 @@ public class MovementLibraryTidyTests : IDisposable
 
         Assert.Equal("routine 'Upper day' holds two movements that merge into one; take one out in the app first.", problem.What);
         Assert.Equal(before, await FingerprintAsync());
+    }
+
+    [Fact]
+    public async Task A_folded_base_hands_its_stated_classification_to_the_base_it_folds_into()
+    {
+        await PlantAsync("Pushup", "Bodyweight");
+        await PlantAsync("Push Up", "Barbell");
+        var stated = ResultAssert.Succeeded(MovementClassification.Of(MovementPattern.HorizontalPush, [MuscleGroup.Chest], []));
+        await PlantAsync(context => context.MovementBases.Single(row => row.Name == "Pushup").State(stated));
+
+        ResultAssert.Succeeded(await TidyAsync("""{ "bases": [ { "from": "Pushup", "to": "Push Up" } ] }""", TidyRun.Write));
+
+        await using var context = _database.CreateContext();
+        var pushUp = Assert.Single(await context.MovementBases.ToListAsync());
+        Assert.Equal("Push Up", pushUp.Name);
+        Assert.Equal(new StatedClassification.Stated(stated), pushUp.Classification);
     }
 
     [Fact]
