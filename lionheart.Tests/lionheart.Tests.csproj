@@ -28,11 +28,10 @@
   </ItemGroup>
 
   <!--
-    Oura fixtures are real recorded API payloads, kept as files rather than string literals so the
-    bytes stay exactly what Oura sent and so the importer can be pointed at a directory the way it
-    is in production. Archive/ is a miniature of the athlete's own archive; Damaged/ holds lines
-    broken on purpose. Strong/Exports holds four of the athlete's own Strong workouts, copied byte
-    for byte from his export, for the same reason.
+    Fixtures are invented, in the exact shape their source writes, and kept as files so the
+    importers can be pointed at a directory or an export the way they are in production.
+    Oura/Archive/ is a miniature archive; Oura/Damaged/ holds lines broken on purpose;
+    Strong/Exports/ holds four workouts as Strong exports them.
   -->
   <ItemGroup>
     <Content Include="Oura\Archive\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
