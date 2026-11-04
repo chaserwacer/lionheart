@@ -3,11 +3,11 @@ import SwiftUI
 /// A run imported from Apple Health: the route on a map, the figures, the splits, and the heart
 /// rate against the zones.
 ///
-/// Every figure is the server's (`RecordedRun`). The page converts only the unit — kilometres or
+/// Every figure is the server's (`RecordedWorkout`). The page converts only the unit — kilometres or
 /// miles, the athlete's choice, kept between runs.
-struct RunView: View {
+struct RecordedWorkoutView: View {
     let trainingSessionId: UUID
-    let store: RunStore
+    let store: RecordedWorkoutStore
 
     @AppStorage("lh.runUnit") private var unit: RunUnit = .kilometres
     @State private var isMapExpanded = false
@@ -51,7 +51,7 @@ struct RunView: View {
     }
 
     @ViewBuilder
-    private func content(_ run: RecordedRun) -> some View {
+    private func content(_ run: RecordedWorkout) -> some View {
         routeSection(run)
         figuresSection(run)
         splitsSection(run)
@@ -62,7 +62,7 @@ struct RunView: View {
     // MARK: - Sections
 
     @ViewBuilder
-    private func routeSection(_ run: RecordedRun) -> some View {
+    private func routeSection(_ run: RecordedWorkout) -> some View {
         Section {
             if run.route.count >= 2 {
                 Button { isMapExpanded = true } label: {
@@ -84,7 +84,7 @@ struct RunView: View {
         }
     }
 
-    private func figuresSection(_ run: RecordedRun) -> some View {
+    private func figuresSection(_ run: RecordedWorkout) -> some View {
         Section {
             FigureGrid(figures: figures(run))
         } footer: {
@@ -92,7 +92,7 @@ struct RunView: View {
         }
     }
 
-    private func figures(_ run: RecordedRun) -> [OuraPanel.Figure] {
+    private func figures(_ run: RecordedWorkout) -> [OuraPanel.Figure] {
         var figures = [
             OuraPanel.Figure(label: "Distance", value: unit.distance(run.distanceMeters)),
             OuraPanel.Figure(label: "Time", value: MeasurementText.clock(seconds: run.duration)),
@@ -118,7 +118,7 @@ struct RunView: View {
     }
 
     @ViewBuilder
-    private func splitsSection(_ run: RecordedRun) -> some View {
+    private func splitsSection(_ run: RecordedWorkout) -> some View {
         let splits = unit.splits(of: run)
         Section {
             Picker("Unit", selection: $unit) {
@@ -141,7 +141,7 @@ struct RunView: View {
     }
 
     @ViewBuilder
-    private func heartRateSection(_ run: RecordedRun) -> some View {
+    private func heartRateSection(_ run: RecordedWorkout) -> some View {
         Section {
             if run.trace.samples.count >= 2 {
                 HeartRateZoneChart(
@@ -160,7 +160,7 @@ struct RunView: View {
         }
     }
 
-    private func heartRateSource(_ run: RecordedRun) -> String {
+    private func heartRateSource(_ run: RecordedWorkout) -> String {
         switch run.trace.source {
         case .appleHealth:
             "From \(run.recordedBy.nonEmpty ?? "the recording app") via Apple Health. Bands are the five zones."
@@ -172,7 +172,7 @@ struct RunView: View {
     }
 
     @ViewBuilder
-    private func zonesSection(_ run: RecordedRun) -> some View {
+    private func zonesSection(_ run: RecordedWorkout) -> some View {
         if case .recorded(_, _, let coverage, let zones?, _) = run.heartRate {
             Section {
                 ZoneMinutesGrid(zones: zones, maxHeartRate: run.maxHeartRate)
@@ -188,7 +188,7 @@ struct RunView: View {
 /// A run's splits as a table: each one's distance where it is short, its pace, its climb and
 /// descent, and its average heart rate.
 private struct SplitsGrid: View {
-    let splits: [RunSplit]
+    let splits: [WorkoutSplit]
     let unit: RunUnit
 
     var body: some View {
@@ -225,7 +225,7 @@ private struct SplitsGrid: View {
     }
 
     /// The split's number, or for a short last one, the distance it covered: "0.42".
-    private func label(_ split: RunSplit) -> String {
+    private func label(_ split: WorkoutSplit) -> String {
         split.distanceMeters < unit.meters - 0.5
             ? String(format: "%.2f", split.distanceMeters / unit.meters)
             : "\(split.number)"

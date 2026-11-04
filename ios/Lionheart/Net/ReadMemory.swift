@@ -172,7 +172,7 @@ extension ReadKey {
     }
 
     /// One run imported from Apple Health, for its page.
-    static func recordedRun(_ trainingSessionId: UUID) -> ReadKey {
+    static func recordedWorkout(_ trainingSessionId: UUID) -> ReadKey {
         ReadKey("run.\(trainingSessionId.uuidString)")
     }
 }

@@ -6,7 +6,7 @@ import Foundation
 /// splits, moving time and descent are derived from the route there, so the page, the records and
 /// the chat model read one number each. The client converts a per-kilometre pace to per-mile, which
 /// is a change of unit and not a second derivation.
-struct RecordedRun: Equatable, Sendable {
+struct RecordedWorkout: Equatable, Sendable {
     let trainingSessionId: UUID
     /// The app that wrote the run to Health, as Health names it.
     let recordedBy: String
@@ -28,8 +28,8 @@ struct RecordedRun: Equatable, Sendable {
     let heartRate: SessionHeartRate
     let maxHeartRate: MaxHeartRate?
     let trace: HeartRateTrace
-    let kilometres: [RunSplit]
-    let miles: [RunSplit]
+    let kilometres: [WorkoutSplit]
+    let miles: [WorkoutSplit]
     /// The path, oldest fix first. Where the athlete was: drawn on his own phone and nowhere else.
     let route: [RouteCoordinate]
 
@@ -43,7 +43,7 @@ struct HeartRateTrace: Equatable, Sendable {
 }
 
 /// One stretch of a run a unit long — a kilometre or a mile — or what is left after the last whole one.
-struct RunSplit: Equatable, Sendable, Identifiable {
+struct WorkoutSplit: Equatable, Sendable, Identifiable {
     let number: Int
     let distanceMeters: Double
     /// Clock time across the split, a stop included.
@@ -66,7 +66,7 @@ struct RouteCoordinate: Equatable, Sendable {
 
 // MARK: - Decoding
 
-extension RecordedRun: Decodable {
+extension RecordedWorkout: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
         guard let id = container.lenient(UUID.self, "trainingSessionId"),
@@ -92,8 +92,8 @@ extension RecordedRun: Decodable {
             heartRate: container.lenient(SessionHeartRate.self, "heartRate") ?? .notRecorded,
             maxHeartRate: container.lenient(MaxHeartRate.self, "maxHeartRate"),
             trace: container.lenient(HeartRateTrace.self, "trace") ?? HeartRateTrace(source: .ring, samples: []),
-            kilometres: container.lenientList(RunSplit.self, "kilometres"),
-            miles: container.lenientList(RunSplit.self, "miles"),
+            kilometres: container.lenientList(WorkoutSplit.self, "kilometres"),
+            miles: container.lenientList(WorkoutSplit.self, "miles"),
             route: container.lenientList(RouteCoordinate.self, "route"))
     }
 
@@ -111,7 +111,7 @@ extension HeartRateTrace: Decodable {
     }
 }
 
-extension RunSplit: Decodable {
+extension WorkoutSplit: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
         guard let number = container.lenient(Int.self, "number"),

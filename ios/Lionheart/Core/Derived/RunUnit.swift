@@ -33,12 +33,12 @@ enum RunUnit: String, CaseIterable, Sendable {
     }
 
     /// A split's own pace, which the server gives per the split's unit: "5:07".
-    static func splitPace(_ split: RunSplit) -> String {
+    static func splitPace(_ split: WorkoutSplit) -> String {
         MeasurementText.clock(seconds: split.pace.rounded())
     }
 
     /// The run's splits in this unit.
-    func splits(of run: RecordedRun) -> [RunSplit] {
+    func splits(of run: RecordedWorkout) -> [WorkoutSplit] {
         switch self {
         case .kilometres: run.kilometres
         case .miles: run.miles

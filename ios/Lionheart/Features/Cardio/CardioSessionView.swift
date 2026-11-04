@@ -5,7 +5,7 @@ import SwiftUI
 ///
 /// The curve is the all-day series, read a little either side of the session so the climb into it
 /// and the recovery out of it are visible; dashed rules mark where the session begins and ends. A
-/// run imported from Apple Health opens onto its own page instead (`RunView`), which draws the
+/// run imported from Apple Health opens onto its own page instead (`RecordedWorkoutView`), which draws the
 /// recording app's heart rate where it wrote one.
 struct CardioSessionView: View {
     let session: CardioSession

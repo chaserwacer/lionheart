@@ -111,7 +111,7 @@ struct HealthWireTests {
 
     @Test("A run decodes its figures, its splits in both units, its trace and its route")
     func aRunDecodes() throws {
-        let run = try Decoding.decode(RecordedRun.self, Self.runJSON)
+        let run = try Decoding.decode(RecordedWorkout.self, Self.runJSON)
 
         #expect(run.recordedBy == "Strava")
         #expect(run.distanceMeters == 2500)
@@ -131,7 +131,7 @@ struct HealthWireTests {
     func aMalformedSplitDegrades() throws {
         let json = Self.runJSON.replacingOccurrences(of: #""number":2,"#, with: #""number":"two","#)
 
-        #expect(try Decoding.decode(RecordedRun.self, json).kilometres.map(\.number) == [1, 3])
+        #expect(try Decoding.decode(RecordedWorkout.self, json).kilometres.map(\.number) == [1, 3])
     }
 
     static let runJSON = """
