@@ -547,8 +547,10 @@ which is a trail-run set and holds records, and the endurance activities (ride, 
 walk, indoor run) — then any movement last logged as distance and time (a rower, a treadmill). The
 server takes endurance sets from a client; they were previously only written by the Health import. A
 cardio pick opens the entry row in an "Other work" section titled with what is being logged, on the
-last of the same work in the workout, or empty in the unit the last distance was logged in.
-`AddWorkMenu` is the pure rule for what is listed.
+last of the same work in the workout, or empty in the unit the last run or ride was logged in.
+`AddWorkMenu` is the pure rule for what is listed. Distance and time and words never wait on the
+catalogue: while it loads, or with nothing remembered and no signal, they are listed and only the
+movement sections say where the catalogue stands.
 
 ### The going-in header
 
@@ -575,8 +577,9 @@ rep, with a selection tick, and no keyboard. Marking a set a drop takes a fifth 
 a step, since a drop set is by definition lighter than the set before it. After every set the list
 scrolls the entry row back above the rest bar that appears with it, and the keyboard bar's Log is
 never disabled — the system draws that bar once on first focus and keeps its state, so a row opened
-empty kept a dead button. A record lands as the heavy haptic, a bounce on the trophy and the record's
-name in words under the set.
+empty kept a dead button. A record lands as the heavy haptic and the record's name in words under
+the set — on the logging surface only; a session's history keeps the trophy mark alone, since a line
+under every record set of a long history is noise.
 
 ### The rest bar
 
