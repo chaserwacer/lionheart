@@ -119,7 +119,7 @@ public sealed class ChatThreadServiceTests : IDisposable
 
         await using var context = _thread.Database.CreateContext();
         var result = await _thread.Thread(context).SendAsync(
-            _thread.Athlete, new SendThreadMessageRequest { Content = "Hello?" }, CancellationToken.None);
+            _thread.Athlete, new SendThreadMessageRequest { Content = "Hello?" }, ExchangeObserver.Unwatched, CancellationToken.None);
 
         ResultAssert.Failed(result);
         await using var after = _thread.Database.CreateContext();
@@ -134,7 +134,7 @@ public sealed class ChatThreadServiceTests : IDisposable
         await using var context = _thread.Database.CreateContext();
 
         var problem = ResultAssert.Failed(await _thread.Thread(context).SendAsync(
-            _thread.Athlete, new SendThreadMessageRequest { Content = "   " }, CancellationToken.None));
+            _thread.Athlete, new SendThreadMessageRequest { Content = "   " }, ExchangeObserver.Unwatched, CancellationToken.None));
 
         Assert.IsType<Problem.Invalid>(problem);
         Assert.Equal(0, _thread.Model.RequestCount);
@@ -206,7 +206,7 @@ public sealed class ChatThreadServiceTests : IDisposable
 
         await using var context = _thread.Database.CreateContext();
         ResultAssert.Failed(await _thread.Thread(context).SendAsync(
-            _thread.Athlete, new SendThreadMessageRequest { Content = "Plan legs." }, CancellationToken.None));
+            _thread.Athlete, new SendThreadMessageRequest { Content = "Plan legs." }, ExchangeObserver.Unwatched, CancellationToken.None));
 
         Assert.True(_thread.Session(ended.SessionId).IsConsolidated);
         Assert.Single(_thread.Memories());

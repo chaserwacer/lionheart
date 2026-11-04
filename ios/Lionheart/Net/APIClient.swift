@@ -136,6 +136,37 @@ final class APIClient: Sendable {
         try await authenticated(.post, path, query: [], body: nil)
     }
 
+    /// A POST answered with server-sent events, read as they arrive.
+    ///
+    /// Returns once the server has accepted the request, with every event still to come. Up to that
+    /// point it fails as `post` does — renewing once on a 401, throwing the server's refusal as an
+    /// `APIError` — so a throw here means the server took nothing on. A failure after it is the
+    /// events' own, thrown while they are read.
+    func postReceivingEvents(
+        _ path: String, body: some Encodable
+    ) async throws -> ServerSentEvents<AsyncLineSequence<URLSession.AsyncBytes>> {
+        let encoded = try Wire.encoder().encode(body)
+        guard let accessToken = try await unreachedIsReported({ try await tokens.accessToken() }) else {
+            throw APIError.unauthenticated
+        }
+
+        var (bytes, status) = try await openEvents(path, body: encoded, bearer: accessToken)
+        if status == 401 {
+            bytes.task.cancel()
+            let renewed = try await unreachedIsReported { try await tokens.renewed(replacing: accessToken) }
+            (bytes, status) = try await openEvents(path, body: encoded, bearer: renewed.accessToken)
+        }
+
+        guard (200..<300).contains(status) else {
+            let problem = try await HTTP.collect(bytes)
+            await reachability.record(answered: !HTTP.isGatewayStandIn(status: status, body: problem))
+            throw HTTP.failure(status: status, body: problem) ?? APIError.http(status: status, detail: nil)
+        }
+        await reachability.record(answered: true)
+        writes.recordAccepted()
+        return ServerSentEvents(lines: bytes.lines)
+    }
+
     func put<Response: Decodable>(
         _ path: String, body: some Encodable, as type: Response.Type = Response.self
     ) async throws -> Response {
@@ -228,6 +259,21 @@ final class APIClient: Sendable {
         if let timeout { request.timeoutInterval = timeout }
         request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
         return try await reported { try await HTTP.send(request, on: session) }
+    }
+
+    private func openEvents(
+        _ path: String, body: Data, bearer: String
+    ) async throws -> (URLSession.AsyncBytes, Int) {
+        var request = HTTP.request(.post, path: path, baseURL: configuration.baseURL, body: body)
+        request.timeoutInterval = HTTP.streamSilence
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+        do {
+            return try await HTTP.open(request, on: session)
+        } catch let error as APIError {
+            await reachability.record(answered: false)
+            throw error
+        }
     }
 
     /// Runs one request and tells `ServerReachability` what it came to.

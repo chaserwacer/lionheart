@@ -1,5 +1,6 @@
 using Ardalis.ApiEndpoints;
 using lionheart.Endpoints.Filters;
+using lionheart.Model.Chat;
 using lionheart.Model.Chat.Thread;
 using lionheart.Services.Chat.Thread;
 using Microsoft.AspNetCore.Identity;
@@ -35,6 +36,6 @@ public class SendThreadMessageEndpoint : EndpointBaseAsync
         var user = await _userManager.GetUserAsync(User);
         if (user is null) return Unauthorized("User is not recognized or no longer exists.");
 
-        return this.ToActionResult(await _service.SendAsync(user, request, cancellationToken));
+        return this.ToActionResult(await _service.SendAsync(user, request, ExchangeObserver.Unwatched, cancellationToken));
     }
 }

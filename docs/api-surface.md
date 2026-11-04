@@ -580,6 +580,7 @@ said in the old one rather than its transcript.
 |---|---|---|---|
 | GET | `/api/chat/thread` | `before?` — an instant, the `openedAt` of the oldest session already shown | `ChatThreadPage`: up to ten `sessions`, oldest first, and `hasEarlier` |
 | POST | `/api/chat/thread/messages` | `{ content }` | the `ThreadSessionView` the exchange went into, whole — a new session when the message opened one. 400 for an empty message, 502 when the model failed; a failed exchange stores nothing |
+| POST | `/api/chat/thread/messages/stream` | `{ content }` | the same exchange, followed as it is written: `text/event-stream`, see below. The iOS app sends here |
 | GET | `/api/chat/memories` | — | every current `MemoryView`: goals, injuries and preferences first, then newest first |
 | PUT | `/api/chat/memories/{id}` | `{ kind, text }` | the new `MemoryView`; the version it replaces is kept and listed under `earlier`. 409 when the memory is no longer current |
 | DELETE | `/api/chat/memories/{id}` | — | 204; the memory and every earlier version of it are gone |
@@ -591,6 +592,19 @@ said in the old one rather than its transcript.
   `4` decision, `5` fact), `text`, `recordedAt`, `source` (int: `0` distilled from the chat, `1`
   written by the athlete), `quotes[]` (`messageId`, `byAthlete`, `said` — clipped to 280 characters,
   `at`), and `earlier[]` (`kind`, `text`, `recordedAt`, `replacedAt`), newest first.
+- **The streamed exchange** answers 200 at once and then sends server-sent events, each a named
+  `event:` with one line of JSON `data:`:
+  - `delta` `{ text }` — the next piece of the answer;
+  - `tools` `{ tools }` — the tool names a round is running. Any text sent before it was a preamble
+    and is withdrawn; only the last round's text is the answer;
+  - `done` — the `ThreadSessionView` the exchange was stored in, the plain route's body;
+  - `failed` — the problem document the plain route would have answered with (`status`, `title`,
+    `detail`, and `errors` for a 400). Nothing was stored.
+
+  A comment line (`: still working`) goes every 15 seconds while nothing else does. The exchange
+  runs to its end even if the connection drops, and is stored as usual, so a client that loses the
+  stream reads the thread to find the answer. Validation of the body itself (a missing `content`)
+  is still a plain 400 before any event.
 - A memory changes by being **superseded**: a correction, or a session that revises it, writes a new
   current version and keeps the old one dated. A session can also **retire** a memory that no longer
   holds; a retired memory is no longer listed.

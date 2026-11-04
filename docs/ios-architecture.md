@@ -809,27 +809,48 @@ The screen draws the sessions as one transcript; each session's opening is a dat
 them, the only sign of the cut.
 
 - `ThreadStore` holds two states, not one: the transcript as a `LoadState<ChatThread>`, which can be
-  recalled offline, and the exchange (`ThreadExchange`: idle, awaiting a reply, refused). They vary
-  apart — a recalled thread can hold a question that failed to send — so a single enum would have to
-  multiply their cases.
-- Sending answers with the whole session the exchange went into, which replaces the session held or
-  is appended when the message opened a new one. Earlier sessions are read on request, by the
-  oldest opening on screen, and put in front.
+  recalled offline, and the exchange (`ThreadExchange`: idle, awaiting a reply with its
+  `ReplyProgress`, recovering, refused). They vary apart — a recalled thread can hold a question
+  that failed to send — so a single enum would have to multiply their cases.
+- The exchange ends with the whole session it went into, which replaces the session held or is
+  appended when the message opened a new one. Earlier sessions are read on request, by the oldest
+  opening on screen, and put in front.
 - The standalone conversations (`ChatView`) are pushed from the thread's toolbar. They are where a
   question goes that should not be remembered, and keep their list sheet and new-conversation button.
 - `MemorySheet` lists memory by kind, standing kinds first; a memory's page shows the words it came
   from and the versions it replaced, and the athlete can correct it (the old wording becomes its
   history) or forget it (every version goes). A correction has a new id, and the page follows it.
-- **Quick questions.** The questions asked most days ("Should I train today?", "Am I recovered?",
-  and so on) sit as a row of capsule buttons above the composer. The row shows only while the field
-  is empty and the keyboard is down, and a tap sends the question as written. A one-line question
-  is enough because the server sends the TODAY briefing with every message.
-- **The answer is set down, not dropped in.** The server answers in one piece, so the answer that
-  has just arrived (`ThreadStore.arrivedReply`) is revealed word by word over at most 1.2 s
-  (`ChatReveal`). The full answer is laid out invisibly from the first frame, so the bubble has its
-  final size and the transcript never shifts. Reduce Motion shows the answer whole. A message waits
-  five minutes for its answer (`HTTP.modelPatience`), not the system's one minute. A long tool loop
-  would otherwise show the question as unsent while the server went on to answer and store it.
+- **The answer is streamed.** A message goes to `POST /api/chat/thread/messages/stream` and the
+  answer arrives as server-sent events (`ChatThreadAPI.ask`, read by `ServerSentEventReader`): the
+  waiting row says "Thinking", then which tools the model is reading ("Reading training score and
+  memory"), and the answer is written into its bubble as it comes (`WritingBubble`), the transcript
+  following it down. Text written before a round of tools is withdrawn, since only the last round's
+  text is stored. The bubble is silent to VoiceOver while it fills; the finished answer is announced
+  once. A heartbeat every fifteen seconds keeps the connection open while the model thinks, so the
+  request gives up after 45 s of silence (`HTTP.streamSilence`) rather than the five minutes a
+  blocking request needed.
+- **A lost connection does not lose the answer.** The server finishes and stores the exchange
+  whatever happens to the connection. If the stream ends without its outcome, the screen says so and
+  reads the thread every three seconds until the answer to those words is there, for up to
+  `HTTP.modelPatience` from the drop (`ThreadTranscript.answer(to:after:in:)`, which takes no turn
+  the thread already held, so the same words asked earlier do not count). An answer found that way
+  arrived whole, so it is set down word by word over at most 1.2 s (`ChatReveal`), laid out
+  invisibly first so the bubble does not grow; Reduce Motion shows it whole. Only a refusal the
+  server sent, a request it never accepted, or a thread it refuses to read hands the words back to
+  the composer.
+- **The transcript follows a growing answer** only while the athlete is at the bottom; scrolled
+  up to re-read, he is left where he is.
+- **The composer sits beside the folded tab bar (iOS 26).** On Chat the system tab bar is hidden
+  and its folded form, the Chat glyph in glass, starts the composer's row (`InlineComposer`,
+  `FoldedTabBar`). Tapping it unfolds the real tab bar and puts the composer away; scrolling the
+  transcript or leaving the tab folds it again, so typing happens only in the folded state. It is
+  drawn rather than asked for because iOS 26 cannot hold a tab bar folded: `tabBarMinimizeBehavior`
+  folds only on scroll and has no "always", and `tabViewBottomAccessory` is one slot for the whole
+  `TabView` (the workout bar's) whose placement follows the fold rather than setting it. On iOS 18,
+  which has no folded tab bar, the tab bar stays and the composer sits above it. The other tabs keep
+  their tab bar as it is.
+- **Not lazy.** The thread's stack draws every row of the page: a `LazyVStack` opened at its bottom
+  on iOS 26 was left past the end of the transcript, blank, when the rows were long answers.
 - **The context sheet leads with the briefing**, exactly as the next message will carry it, then
   the two standing tiers with their as-of instants.
 

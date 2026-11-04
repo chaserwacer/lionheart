@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text;
+using System.Text.Json.Nodes;
 using lionheart.Services.Llm;
 using lionheart.Services.Llm.Anthropic;
+using lionheart.Services.Llm.Relay;
 
 namespace lionheart.Tests.Support;
 
@@ -31,6 +33,16 @@ public sealed class FakeAnthropicServer : IDisposable
     public FakeAnthropicServer Responds(string body, HttpStatusCode status = HttpStatusCode.OK)
     {
         _responses.Enqueue(new CannedResponse(body, status));
+        return this;
+    }
+
+    /// <summary>
+    /// A streamed answer written out by hand, for the streams the API can send that a whole message
+    /// cannot describe: one cut off before its end, or one that reports an error partway.
+    /// </summary>
+    public FakeAnthropicServer RespondsWithStream(string eventStream)
+    {
+        _responses.Enqueue(new CannedResponse(eventStream, HttpStatusCode.OK, IsEventStream: true));
         return this;
     }
 
@@ -69,23 +81,33 @@ public sealed class FakeAnthropicServer : IDisposable
         : _standingResponse ?? throw new InvalidOperationException(
             $"The model was called {RequestCount} time(s) but no response was queued for call {RequestCount}.");
 
-    private sealed record CannedResponse(string? Body, HttpStatusCode Status);
+    private sealed record CannedResponse(string? Body, HttpStatusCode Status, bool IsEventStream = false);
 
     private sealed class Handler(FakeAnthropicServer server) : HttpMessageHandler
     {
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            server.ReceivedRequests.Add(
-                request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken));
+            var body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
+            server.ReceivedRequests.Add(body);
 
             var canned = server.Next();
             if (canned.Body is null)
                 throw new HttpRequestException("Connection refused (fake Anthropic is unreachable).");
 
+            // A request that asks to stream gets the canned message told as the API's event stream,
+            // so one canned body serves both routes. A refusal of the request itself is answered
+            // before any stream begins, as the API answers it.
+            var streams = JsonNode.Parse(body)?["stream"]?.GetValue<bool>() is true;
             return new HttpResponseMessage(canned.Status)
             {
-                Content = new StringContent(canned.Body, Encoding.UTF8, "application/json"),
+                Content = canned.IsEventStream
+                    ? new StringContent(canned.Body, Encoding.UTF8, RelayStream.ContentType)
+                    : streams && canned.Status == HttpStatusCode.OK
+                    ? new StringContent(
+                        string.Concat(RelayStream.Events(JsonNode.Parse(canned.Body)!.AsObject()).Select(e => e.Frame())),
+                        Encoding.UTF8, RelayStream.ContentType)
+                    : new StringContent(canned.Body, Encoding.UTF8, "application/json"),
             };
         }
     }

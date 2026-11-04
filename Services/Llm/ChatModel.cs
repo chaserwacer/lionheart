@@ -19,6 +19,19 @@ public interface IChatModel
 {
     Task<Result<ModelTurn, Problem>> RespondAsync(
         ChatTurnRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The same round, with the answer's text handed to <paramref name="written"/> piece by piece
+    /// as the model writes it. The turn it ends with is the one <see cref="RespondAsync"/> would
+    /// have answered.
+    /// </summary>
+    /// <remarks>
+    /// Only text reaches <paramref name="written"/>, never reasoning or a tool call's arguments.
+    /// Text written in a round that ends by asking for tools was a preamble rather than the answer;
+    /// the caller is the one who learns that, from the turn, and says so to whoever is listening.
+    /// </remarks>
+    Task<Result<ModelTurn, Problem>> StreamAsync(
+        ChatTurnRequest request, Action<string> written, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Everything one round needs. A record so a loop can vary only the messages.</summary>

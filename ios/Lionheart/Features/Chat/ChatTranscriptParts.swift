@@ -3,15 +3,21 @@ import SwiftUI
 /// The field and the send button, floating on glass over a transcript — shared by the thread and
 /// the standalone conversations.
 ///
-/// Two sibling glass surfaces in one container rather than an opaque bar: it is the composer every
+/// Sibling glass surfaces in one container rather than an opaque bar: it is the composer every
 /// messaging app on this platform now has, and the transcript scrolling visibly under it is what
 /// says the conversation continues below. The container is what makes them one piece of glass —
-/// two separate ones this close together bend light against each other.
+/// separate ones this close together bend light against each other.
+///
+/// On iOS 26 the row starts with the tab bar, minimised to the Chat tab's glyph (`InlineComposer`),
+/// so the bottom of the screen is one row: the tabs, folded, then the field.
 struct ChatComposer: View {
     @Binding var typed: String
     var isFocused: FocusState<Bool>.Binding
     let acceptsTyping: Bool
-    let isAwaitingReply: Bool
+    /// A line above the field saying what the wait is, for a screen whose answer arrives whole.
+    var waitingNote: String? = nil
+    /// Unfolds the tab bar, when the row starts with it folded.
+    var showTabs: (() -> Void)? = nil
     let onSend: () -> Void
 
     /// Chat has nothing to answer from memory: every answer is the model reading the server. So
@@ -27,12 +33,19 @@ struct ChatComposer: View {
             if !reachability.isReachable, acceptsTyping {
                 caption("Server unreachable. Chat needs a connection to it.")
             }
-            if isAwaitingReply {
-                caption("Reading your training data. This can take a minute.")
+            if let waitingNote {
+                caption(waitingNote)
             }
 
             GlassChromeGroup(spacing: 10) {
                 HStack(alignment: .bottom, spacing: 10) {
+                    if let showTabs {
+                        FoldedTabBar {
+                            isFocused.wrappedValue = false
+                            showTabs()
+                        }
+                    }
+
                     TextField("Ask a question", text: $typed, axis: .vertical)
                         .lineLimit(1...5)
                         .textFieldStyle(.plain)
@@ -183,53 +196,6 @@ struct TurnBubble: View {
     }
 }
 
-/// The questions asked most days, one tap from being asked.
-///
-/// Capsules on the same glass as the composer, in a row that scrolls sideways, so the row stays
-/// one line at any text size and a question never wraps into two. Glass rather than a bordered
-/// button's tint because the transcript scrolls under the composer, and a tint alone lets the words
-/// beneath it read through the question. Each is sent as written, exactly as if typed: the briefing
-/// that goes with every message is what makes a one-line question enough.
-struct QuickPrompts: View {
-    let onAsk: (String) -> Void
-
-    @Environment(ServerReachability.self) private var reachability
-
-    static let questions = [
-        "Should I train today?",
-        "Am I recovered?",
-        "How was my week?",
-        "What should I do for cardio?",
-        "Plan my next 7 days",
-    ]
-
-    var body: some View {
-        ScrollView(.horizontal) {
-            GlassChromeGroup(spacing: 8) {
-                HStack(spacing: 8) {
-                    ForEach(Self.questions, id: \.self) { question in
-                        Button { onAsk(question) } label: {
-                            Text(question)
-                                .font(.subheadline)
-                                .foregroundStyle(reachability.isReachable ? Tokens.accent : Color(.tertiaryLabel))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .glassChrome(in: .capsule, interactive: true)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!reachability.isReachable)
-                    }
-                }
-                .padding(.horizontal, Tokens.cardPadding)
-                .padding(.vertical, 4)
-            }
-        }
-        .scrollIndicators(.hidden)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Suggested questions")
-    }
-}
-
 /// A bubble with nothing in it yet, for the moment before a transcript has been read.
 ///
 /// Its own view rather than a `TurnBubble` holding invented turns: a screen should not have to
@@ -277,8 +243,21 @@ struct LoadingTranscript: View {
 ///
 /// It counts, because a spinner with no number is indistinguishable from a spinner that has stopped
 /// meaning anything. `TimelineView(.periodic)` ticks the label and nothing else — the transcript
-/// above it does not redraw once a second.
+/// above it does not redraw once a second. The count runs from when the row appeared, through every
+/// change of what it says, so it is always the length of the whole wait.
 struct WorkingRow: View {
+    /// What the wait is for.
+    enum Activity: Equatable {
+        /// Nothing is known beyond the time, which is all a screen whose answer arrives whole has.
+        case answering
+        /// The model is reading these tools.
+        case consulting(tools: [String])
+        /// The connection went; the answer is being looked for in the thread.
+        case recovering
+    }
+
+    var activity: Activity = .answering
+
     /// When the wait started. `@State` initialised at its declaration, so it is the moment this
     /// row appeared rather than the moment the view was recreated.
     @State private var startedAt = Date()
@@ -295,14 +274,52 @@ struct WorkingRow: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 18))
-        .accessibilityLabel("Lionheart is working on an answer")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spoken)
     }
 
-    /// Says what it is doing, not just that it is busy — and only mentions the tool loop once the
-    /// wait is long enough for the athlete to be wondering.
+    /// Says what it is doing, not just that it is busy. With nothing else to go on, it mentions the
+    /// tool loop only once the wait is long enough for the athlete to be wondering.
     private func waiting(for elapsed: TimeInterval) -> String {
         let seconds = Int(max(0, elapsed))
-        guard seconds >= 8 else { return "Thinking… \(seconds)s" }
-        return "Reading your sessions, wellness and Oura days… \(seconds)s"
+        switch activity {
+        case .answering:
+            guard seconds >= 8 else { return "Thinking… \(seconds)s" }
+            return "Reading your sessions, wellness and Oura days… \(seconds)s"
+        case .consulting(let tools):
+            return "Reading \(ReplyProgress.reading(tools))… \(seconds)s"
+        case .recovering:
+            return "Connection lost. Finding the answer in the thread… \(seconds)s"
+        }
+    }
+
+    private var spoken: String {
+        switch activity {
+        case .answering: "Lionheart is working on an answer"
+        case .consulting(let tools): "Lionheart is reading \(ReplyProgress.reading(tools))"
+        case .recovering: "Connection lost. Lionheart is finding the answer in the thread"
+        }
+    }
+}
+
+/// The answer while it is being written: the model's bubble, filling as the words arrive.
+///
+/// Silent to VoiceOver until it is whole. Read out as it grows, an answer would be interrupted by
+/// its own next words every moment; the screen says it once, when it has been stored.
+struct WritingBubble: View {
+    let text: String
+
+    var body: some View {
+        HStack {
+            Text(ChatProse.attributed(text))
+                .font(.body)
+                .foregroundStyle(Color(.label))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 18))
+            Spacer(minLength: 40)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Lionheart is answering")
     }
 }

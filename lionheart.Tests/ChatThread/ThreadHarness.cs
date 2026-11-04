@@ -74,7 +74,7 @@ public sealed class ThreadHarness : IDisposable
     {
         await using var context = Database.CreateContext();
         return ResultAssert.Succeeded(await Thread(context).SendAsync(
-            Athlete, new SendThreadMessageRequest { Content = words }, CancellationToken.None));
+            Athlete, new SendThreadMessageRequest { Content = words }, ExchangeObserver.Unwatched, CancellationToken.None));
     }
 
     /// <summary>A session already in the thread, as an earlier exchange would have left it.</summary>
@@ -181,6 +181,13 @@ public sealed class MeanwhileChatModel(IChatModel inner, Func<Task> meanwhile) :
     {
         await meanwhile();
         return await inner.RespondAsync(request, cancellationToken);
+    }
+
+    public async Task<lionheart.Functional.Result<ModelTurn, Problem>> StreamAsync(
+        ChatTurnRequest request, Action<string> written, CancellationToken cancellationToken = default)
+    {
+        await meanwhile();
+        return await inner.StreamAsync(request, written, cancellationToken);
     }
 }
 
