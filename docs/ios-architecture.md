@@ -735,12 +735,14 @@ side:
   one sheet; `WorkoutReader` is its first reader. A later reader adds its types to
   `HealthLibrary.readTypes` and sits beside it. Nothing outside `Health/` sees a HealthKit type: a
   reader hands over `HealthWorkoutImport`, a plain wire value.
-- **Read only.** `SampleRuns`, the Debug-only seeding behind a Settings button, is the one writer, and
-  is compiled out of Release.
+- **Read only.** `SampleRuns`, the seeding behind a Settings button, is the one writer, and it is
+  compiled only into a Debug build for the simulator — never Release, and never a Debug build on the
+  phone, whose Health store is the athlete's own.
 - **`HealthSyncStore`** keeps HealthKit's anchor in a file, reads ten runs a page after it, offers
   each, and moves the anchor on only once the page is answered — so a sync that loses the server
   resumes at that page, and the server's idempotence absorbs the overlap. A run the server refuses is
-  counted and the sync goes on; anything else stops it. It runs on returning to the app (once per
+  counted, its id held back and offered again first on the next sync, and the sync goes on; anything
+  else stops it. It runs on returning to the app (once per
   15 minutes, and only once connected) and on pull to refresh in History and on Cardio. Connecting is
   a tap on the row, never a sheet sprung at launch. Its row sits beside Oura's on Today and in
   Settings.

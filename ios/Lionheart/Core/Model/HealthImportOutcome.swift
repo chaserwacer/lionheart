@@ -11,6 +11,13 @@ enum HealthImportOutcome: Equatable, Sendable {
     case unrecognised(String)
 }
 
+/// What the server said to one workout offered: an answer, or its refusal of that one workout in
+/// its own words — a workout it could not read, or one it would not write yet.
+enum HealthOfferReply: Equatable, Sendable {
+    case answered(HealthImportOutcome)
+    case refused(String)
+}
+
 /// Why the server left an Apple Health workout out of the log.
 enum HealthWorkoutExclusion: Hashable, Sendable {
     /// Written by an app Lionheart reads by its own route — Oura or Strong.

@@ -46,7 +46,7 @@ public sealed record HealthWorkoutImport(
         Identity()
             .Bind(_ => Times())
             .Bind(period => Measures().Map(_ => period))
-            .Bind(period => Path().Bind(route => Pulse().Map(heartRate => new StatedHealthWorkout(
+            .Bind(period => Path().Map(route => new StatedHealthWorkout(
                 new SessionSource.AppleHealth(WorkoutId, new RecordingApp(AppName.Trim(), AppBundleId.Trim())),
                 Activity.Trim(),
                 Indoor,
@@ -55,7 +55,7 @@ public sealed record HealthWorkoutImport(
                 DistanceMeters,
                 ElevationAscendedMeters,
                 route,
-                heartRate))));
+                Pulse())));
 
     private Result<Unit, Problem> Identity() =>
         WorkoutId == Guid.Empty ? Refused(nameof(WorkoutId), "A workout carries its Health UUID.")
@@ -83,9 +83,13 @@ public sealed record HealthWorkoutImport(
                 ? Result<WorkoutRoute, Problem>.Failure(new Problem.Invalid(nameof(Route), "A route's fixes run oldest first."))
                 : Result<WorkoutRoute, Problem>.Success(new WorkoutRoute(points)));
 
-    private Result<RecordedHeartRate, Problem> Pulse() =>
-        (HeartRate ?? []).Traverse(sample => sample.ToReading())
-            .Map(readings => RecordedHeartRate.Of(readings));
+    /// <summary>
+    /// The heart rate, without any reading that cannot be one. A sensor's zero or a unit mistake is
+    /// left out rather than averaged — and rather than refusing the run, which one glitch in an
+    /// hour of samples would otherwise cost.
+    /// </summary>
+    private RecordedHeartRate Pulse() =>
+        RecordedHeartRate.Of((HeartRate ?? []).Where(sample => sample.IsHeartRate).Select(sample => (sample.At, sample.Bpm)));
 
     private static Result<Unit, Problem> Refused(string field, string message) =>
         Result<Unit, Problem>.Failure(new Problem.Invalid(field, message));
@@ -117,14 +121,10 @@ public sealed record RoutePointCommand(DateTimeOffset At, double Latitude, doubl
 
 public sealed record HeartRateCommand(DateTimeOffset At, int Bpm)
 {
-    /// <summary>The widest a human heart rate is, so a sensor's zero or a unit mistake is refused rather than averaged.</summary>
+    /// <summary>Above any human heart rate, so a reading past it is a sensor's mistake.</summary>
     private const int Highest = 260;
 
-    public Result<(DateTimeOffset At, int Bpm), Problem> ToReading() =>
-        Bpm is > 0 and <= Highest
-            ? Result<(DateTimeOffset At, int Bpm), Problem>.Success((At, Bpm))
-            : Result<(DateTimeOffset At, int Bpm), Problem>.Failure(new Problem.Invalid(
-                nameof(HealthWorkoutImport.HeartRate), $"{Bpm} bpm at {At:O} is not a heart rate."));
+    public bool IsHeartRate => Bpm is > 0 and <= Highest;
 }
 
 /// <summary>A Health workout that has passed the wire: every field read, nothing yet decided.</summary>

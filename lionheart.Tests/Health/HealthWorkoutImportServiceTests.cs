@@ -135,6 +135,58 @@ public class HealthWorkoutImportServiceTests : IDisposable
         Assert.IsType<RecordLineage.FirstOfItsKind>(longest.Lineage);
     }
 
+    [Fact]
+    public async Task An_older_run_is_refused_and_nothing_written_while_a_record_is_withdrawn()
+    {
+        // Placing it means replaying the records, which would award the withdrawn one again.
+        await ImportAsync(AHealthRun.Outdoor(meters: 5000, start: AHealthRun.Start.AddDays(7)));
+        var pace = Assert.Single(await StandingAsync(), record => record.Achievement is Achievement.BestPace);
+        ResultAssert.Succeeded(await _athletes.RecordsAsync(service =>
+            service.RetractAsync(_athletes.Owner, pace.PersonalRecordId, default)));
+
+        var problem = ResultAssert.Failed(await _athletes.HealthImportAsync(service =>
+            service.ImportAsync(_athletes.Owner, AHealthRun.Outdoor(meters: 10000, start: AHealthRun.Start), default)));
+
+        Assert.IsType<Problem.Conflict>(problem);
+        await using var context = _athletes.CreateContext();
+        Assert.Equal((1, 1), (await context.Sessions.CountAsync(), await context.WorkoutRecordings.CountAsync()));
+    }
+
+    // ---- Correcting ----
+
+    [Fact]
+    public async Task Correcting_an_imported_run_keeps_where_it_came_from_and_its_recording()
+    {
+        var workout = AHealthRun.Outdoor(meters: 5000);
+        var imported = Assert.IsType<HealthImportOutcome.Imported>(await ImportAsync(workout));
+        var id = imported.Session.TrainingSessionId;
+
+        ResultAssert.Succeeded(await _athletes.SessionsAsync(service =>
+            service.UpdateNotesAsync(_athletes.Owner, id, new SessionNotesRequest("hilly"), default)));
+        ResultAssert.Succeeded(await _athletes.SessionsAsync(service => service.ReviseAsync(
+            _athletes.Owner,
+            id,
+            new ReviseSessionRequest(
+                [new TrailRunSetCommand(5.1, DistanceUnit.Kilometers, workout.Duration, 40, null)],
+                new Model.Analysis.PeriodCommand(workout.Start, workout.End),
+                "hilly"),
+            default)));
+
+        await using var context = _athletes.CreateContext();
+        var session = await context.Sessions.SingleAsync();
+        Assert.Equal(workout.WorkoutId, Assert.IsType<SessionSource.AppleHealth>(session.Source).WorkoutId);
+        Assert.Equal(RemodelDatabaseGuid(workout.WorkoutId), await StampedWorkoutIdAsync(context));
+        Assert.Equal(id, (await context.WorkoutRecordings.SingleAsync()).TrainingSessionId);
+        Assert.Equal(new HealthImportOutcome.AlreadyImported(id), await ImportAsync(workout));
+    }
+
+    private static string RemodelDatabaseGuid(Guid id) => Persistence.RemodelDatabase.SqlGuid(id);
+
+    private static async Task<string?> StampedWorkoutIdAsync(ModelContext context) =>
+        (await context.Sessions
+            .Select(session => EF.Property<Guid?>(session, RemodelConfiguration.HealthWorkoutIdColumn))
+            .SingleAsync())?.ToString().ToUpperInvariant();
+
     // ---- Deleting ----
 
     [Fact]

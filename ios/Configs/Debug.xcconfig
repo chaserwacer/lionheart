@@ -4,7 +4,8 @@
 // `dotnet run --launch-profile lionheart` is simply there.
 LH_API_BASE_URL = http:$(LH_SLASH)$(LH_SLASH)localhost:7025
 
-// Only a Debug build asks to write to Health, to seed invented sample runs into a simulator.
+// Only a Debug build for the simulator asks to write to Health, to seed invented sample runs; on a
+// phone the code that asks is not compiled in.
 LH_HEALTH_UPDATE_USAGE = Debug builds write invented sample runs to this device's Health store for testing.
 
 // A physical device cannot see the Mac's loopback. Point it somewhere reachable by overriding

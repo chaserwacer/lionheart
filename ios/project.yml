@@ -80,8 +80,8 @@ targets:
         NSCameraUsageDescription: Photographs a printed body-composition sheet so its figures can be read on this phone.
         # Read only: the runs other apps write to Health, with their routes and heart rate.
         NSHealthShareUsageDescription: Reads the runs other apps write to Apple Health, with their routes and heart rate, so they count as training in Lionheart.
-        # Never asked for in Release: only a Debug build's sample-run seeding writes, and only to a
-        # simulator. The text is a build setting so Release states that it does not write.
+        # Never asked for outside a Debug simulator build: only its sample-run seeding writes, and the
+        # code that asks is compiled into nothing else. The text is a build setting so Release states that it does not write.
         NSHealthUpdateUsageDescription: $(LH_HEALTH_UPDATE_USAGE)
         # The API origin is a build setting, not a literal, so a device build can point at a LAN
         # address or a tunnel without touching Swift. See Configs/Base.xcconfig.

@@ -4,7 +4,6 @@ using lionheart.Model.BodyMeasurements;
 using lionheart.Model.BodyMeasurements.Composition;
 using lionheart.Services.Profile;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Tools;
 
@@ -127,16 +126,12 @@ public sealed class BodyCompositionService : IBodyCompositionService
             await _context.SaveChangesAsync(ct);
             return Result<ScanView, Problem>.Success(ScanView.Of(scan));
         }
-        catch (DbUpdateException e) when (e.InnerException is SqliteException { SqliteErrorCode: SqliteUniqueFailure } sqlite
-                                          && sqlite.Message.Contains(BodyMeasurementConfiguration.ScanMinuteColumns))
+        catch (DbUpdateException e) when (e.IsRefusedBy(BodyMeasurementConfiguration.ScanMinuteColumns))
         {
             return Result<ScanView, Problem>.Failure(new Problem.Conflict(
                 $"A scan taken {scan.Day:yyyy-MM-dd} at {scan.Time:HH\\:mm} is already recorded."));
         }
     }
-
-    /// <summary>SQLite's SQLITE_CONSTRAINT, which a unique index's refusal raises.</summary>
-    private const int SqliteUniqueFailure = 19;
 
     private async Task StageBodyweightAsync(Guid userId, StatedScan stated, CancellationToken ct)
     {

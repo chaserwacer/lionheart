@@ -112,7 +112,8 @@ struct HealthSyncRow: View {
             .map { "\($0.value) \($0.key.phrase)" }
         let parts = [
             left.isEmpty ? nil : "Left out: " + left.joined(separator: ", ") + ".",
-            tally.refused.isEmpty ? nil : "Not taken: " + tally.refused.joined(separator: " "),
+            tally.refused.isEmpty ? nil : "Not taken yet: " + tally.refused.joined(separator: " ")
+                + " Offered again on every sync.",
         ].compactMap(\.self)
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }

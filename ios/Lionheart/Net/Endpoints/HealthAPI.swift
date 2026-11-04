@@ -7,8 +7,15 @@ import Foundation
 struct HealthAPI: Sendable {
     let client: APIClient
 
-    func offer(_ workout: HealthWorkoutImport) async throws -> HealthImportOutcome {
-        try await client.post("/api/health/workouts", body: workout)
+    /// The server's answer to one workout, with its refusal of that one workout restated here, once,
+    /// as a reply rather than an error; anything else — the server out of reach — still throws.
+    func offer(_ workout: HealthWorkoutImport) async throws -> HealthOfferReply {
+        do {
+            return .answered(try await client.post("/api/health/workouts", body: workout))
+        } catch {
+            guard let reason = HealthSyncFailure.refusalOfOneWorkout(error) else { throw error }
+            return .refused(reason)
+        }
     }
 
     func run(_ trainingSessionId: UUID, remembering key: ReadKey) async throws -> Remembered<RecordedRun> {

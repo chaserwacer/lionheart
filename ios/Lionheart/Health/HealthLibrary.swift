@@ -3,8 +3,8 @@ import HealthKit
 /// The app's one door into Apple Health: the store, whether this device has one, and access to
 /// everything Lionheart reads.
 ///
-/// **Read only.** Lionheart asks to read and never to write; only a Debug build's sample seeding
-/// writes, and it is compiled out of Release (`SampleRuns`).
+/// **Read only.** Lionheart asks to read and never to write; the one writer, the sample seeding in
+/// `SampleRuns`, exists only in a Debug build for the simulator.
 ///
 /// Each kind of Health data Lionheart takes has a reader of its own beside this file — workouts are
 /// `WorkoutReader` — and access is asked for all of their types at once, so the athlete sees one

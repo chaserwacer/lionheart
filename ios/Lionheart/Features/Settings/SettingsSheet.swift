@@ -32,7 +32,7 @@ struct SettingsSheet: View {
 
                 Section {
                     HealthSyncRow(store: healthSync)
-                    #if DEBUG
+                    #if DEBUG && targetEnvironment(simulator)
                     SampleRunsButton(healthSync: healthSync)
                     #endif
                 } header: {

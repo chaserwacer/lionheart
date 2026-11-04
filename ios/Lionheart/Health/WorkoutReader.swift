@@ -39,6 +39,22 @@ struct WorkoutReader: Sendable {
             isLast: result.addedSamples.count + result.deletedObjects.count < Self.pageSize)
     }
 
+    /// The workouts Health still holds with these ids, oldest first — the ones the server turned
+    /// down, offered again.
+    func workouts(_ ids: [UUID]) async throws -> [HealthWorkoutImport] {
+        guard !ids.isEmpty else { return [] }
+        let held = try await HKSampleQueryDescriptor(
+            predicates: [.workout(HKQuery.predicateForObjects(with: Set(ids)))],
+            sortDescriptors: [SortDescriptor(\.startDate)]
+        ).result(for: store)
+
+        var offers: [HealthWorkoutImport] = []
+        for workout in held {
+            offers.append(try await offer(of: workout))
+        }
+        return offers
+    }
+
     // MARK: - One workout
 
     private func offer(of workout: HKWorkout) async throws -> HealthWorkoutImport {

@@ -37,6 +37,12 @@ public static class RemodelConfiguration
     /// </summary>
     public const string HealthWorkoutIdColumn = "HealthWorkoutId";
 
+    /// <summary>
+    /// The columns of the index that holds one session per imported Health workout, as SQLite
+    /// names them when it refuses a second — shared with the import, which answers that refusal.
+    /// </summary>
+    public const string HealthWorkoutIndexColumns = "Sessions.UserId, Sessions.HealthWorkoutId";
+
     public static void Apply(ModelBuilder modelBuilder)
     {
         ConfigureSessions(modelBuilder);

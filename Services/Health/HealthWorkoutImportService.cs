@@ -6,7 +6,6 @@ using lionheart.Model.Training.Sessions;
 using lionheart.Services.Profile;
 using lionheart.Services.Training.PersonalRecords;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace lionheart.Services.Health;
@@ -148,16 +147,16 @@ public sealed class HealthWorkoutImportService : IHealthWorkoutImportService
             await _context.SaveChangesAsync(ct);
             return Answer(new HealthImportOutcome.Imported(TrainingSessionView.Of(import.Session)));
         }
-        catch (DbUpdateException e) when (e.InnerException is SqliteException { SqliteErrorCode: SqliteConstraint } sqlite
-                                          && sqlite.Message.Contains(RemodelConfiguration.HealthWorkoutIdColumn))
+        catch (DbUpdateException e) when (e.IsRefusedBy(RemodelConfiguration.HealthWorkoutIndexColumns))
         {
-            return Result<HealthImportOutcome, Problem>.Failure(new Problem.Conflict(
-                "This workout was imported by another request at the same moment. Nothing more was written."));
+            // Another request imported the same workout between this one's check and its save — the
+            // phone resending a page it was unsure of. That import stands, and this one is its echo.
+            _context.ChangeTracker.Clear();
+            return await ImportedAsAsync(import.Session.UserId, import.Source.WorkoutId, ct) is { } existing
+                ? Answer(new HealthImportOutcome.AlreadyImported(existing))
+                : throw new InvalidOperationException("A unique refusal named a Health workout no session holds.", e);
         }
     }
-
-    /// <summary>SQLite's SQLITE_CONSTRAINT, which a unique index's refusal raises.</summary>
-    private const int SqliteConstraint = 19;
 
     /// <summary>The replay's refusal, said about the run rather than about record ids.</summary>
     private static Problem ReplayRefusal(Problem problem) => problem switch

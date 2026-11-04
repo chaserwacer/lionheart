@@ -20,8 +20,10 @@ to an AI, which Lionheart's chat does. Strava can write each run to Apple Health
 there.
 
 **Read only.** Lionheart asks to read workouts, workout routes and heart rate, and never asks to
-write. The one exception is a Debug build's "Write sample runs to Health" button in Settings, which
-seeds invented runs into a simulator's empty Health store and is compiled out of Release.
+write. The one exception is the "Write sample runs to Health" button in Settings, which seeds
+invented runs into a simulator's empty Health store and exists only in a Debug build for the
+simulator — a Debug build installed on the phone (Xcode's Run) does not have it, so the athlete's
+own Health store can never be given an invented run.
 
 ## A run becomes a completed session
 
@@ -114,8 +116,10 @@ Deleting an imported session and signing in again on a fresh install would impor
 record it contests cannot be judged against what stands — it would claim to have beaten a record set
 after it. Such a run is placed by replaying the athlete's records over his whole history in the same
 transaction, the rule a correction to a session already follows. While any record is withdrawn the
-replay would award it again, so that run is refused with a sentence saying so, the sync counts it as
-not taken, and moves on.
+replay would award it again, so that run is refused with a sentence saying so. The phone counts it
+as not taken yet, holds its id back, and offers it again first on every sync after, so it lands once
+the condition clears rather than being passed by the anchor and forgotten. A heart-rate reading that
+cannot be one (zero, or past 260 bpm) is dropped from the run rather than refusing it.
 
 ## When it syncs
 
@@ -137,9 +141,11 @@ run's page, the cardio report and the chat model's summary all say whose it is
 rate.
 
 The cardio report reads an imported run's heart rate the same way, so the run's page and the cardio
-screen never give one run two averages; the zones and their maximum come from the cardio report in
-both places. The maximum's observed peak may now be read from a strap's samples as well as the
-ring's, which is the better evidence of the two.
+screen never give one run two averages. The zones are drawn from the cardio report's maximum as it
+stands on the run's own day; the cardio screen draws them from the maximum at the end of its span,
+so where a later session has raised the observed peak, the two can split a run's minutes between
+zones a little differently. The maximum's observed peak may now be read from a strap's samples as
+well as the ring's, which is the better evidence of the two.
 
 ## What the route gives
 

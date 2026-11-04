@@ -12,7 +12,9 @@ public abstract record HealthWorkoutDecision
 {
     private HealthWorkoutDecision() { }
 
-    public sealed record Import(CompletedTrainingSession Session, WorkoutRecording Recording) : HealthWorkoutDecision;
+    /// <param name="Source">The workout the session was imported from — the session's own source, held typed.</param>
+    public sealed record Import(CompletedTrainingSession Session, WorkoutRecording Recording, SessionSource.AppleHealth Source)
+        : HealthWorkoutDecision;
 
     /// <param name="MatchedSessionId">The logged session the workout already is, where it matched one.</param>
     public sealed record Excluded(HealthWorkoutExclusion Reason, Guid? MatchedSessionId) : HealthWorkoutDecision;
@@ -69,7 +71,8 @@ public static class HealthWorkoutDecisions
             SessionMatch.LoggedLifting lifting => Excluded(HealthWorkoutExclusion.InsideLoggedLifting, lifting.TrainingSessionId),
             SessionMatch.None => new HealthWorkoutDecision.Import(
                 Session(workout, distance, identity),
-                WorkoutRecording.Of(identity.TrainingSessionId, identity.UserId, workout.Route, workout.HeartRate)),
+                WorkoutRecording.Of(identity.TrainingSessionId, identity.UserId, workout.Route, workout.HeartRate),
+                workout.Source),
             _ => throw new System.Diagnostics.UnreachableException(),
         };
     }

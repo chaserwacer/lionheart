@@ -1,7 +1,7 @@
-#if DEBUG
+#if DEBUG && targetEnvironment(simulator)
 import SwiftUI
 
-/// Debug builds only: writes the invented sample runs to this device's Health store, then syncs, so
+/// Debug simulator builds only: writes the invented sample runs to this device's Health store, then syncs, so
 /// the import and the run page can be seen in a simulator.
 struct SampleRunsButton: View {
     let healthSync: HealthSyncStore

@@ -74,7 +74,7 @@ struct HealthSyncTests {
 
         #expect(health.askedAfter == [nil, Data("one".utf8)])
         #expect(server.offered.count == 3)
-        #expect(marks.mark == HealthSyncMark(anchor: Data("two".utf8), lastSynced: Self.now))
+        #expect(marks.mark == HealthSyncMark(anchor: Data("two".utf8), lastSynced: Self.now, heldBack: []))
         guard case .synced(let tally, let at) = store.state else {
             Issue.record("Expected a finished sync, got \(store.state)")
             return
@@ -135,6 +135,27 @@ struct HealthSyncTests {
         #expect(health.askedAfter.isEmpty)
     }
 
+    @Test("A run the server turns down is held back, offered again first next time, and let go once answered")
+    @MainActor
+    func aRefusedRunIsOfferedAgain() async {
+        let refused = Self.run()
+        let health = AHealth(pages: [
+            .init(workouts: [refused, Self.run()], anchor: Data("one".utf8), isLast: true),
+        ], held: [refused])
+        let server = AServer(answers: [], failures: [APIError.refused(detail: "A record is withdrawn.")])
+        let marks = Marks()
+        let store = HealthSyncStore(health: health, server: server, marks: marks, now: { Self.now })
+
+        await store.sync()
+        #expect(marks.mark.heldBack == [refused.workoutId])
+
+        await store.sync()
+
+        #expect(health.askedFor == [[refused.workoutId]])
+        #expect(server.offered.last == refused.workoutId)
+        #expect(marks.mark.heldBack.isEmpty)
+    }
+
     @Test("Signing out forgets the anchor, so the next athlete's first sync offers everything")
     @MainActor
     func signingOutForgetsTheAnchor() async {
@@ -167,18 +188,27 @@ struct HealthSyncTests {
     }
 }
 
-/// Health as the sync sees it: pages handed out in order, and every anchor it was asked after.
+/// Health as the sync sees it: pages handed out in order, every anchor it was asked after, and the
+/// workouts it holds by id.
 private final class AHealth: HealthWorkoutSource {
-    private let state: Mutex<(pages: [HealthWorkoutPage], asked: [Data?])>
+    private let state: Mutex<(pages: [HealthWorkoutPage], asked: [Data?], askedFor: [[UUID]])>
     private let needsAsking: Bool
+    private let held: [HealthWorkoutImport]
 
-    init(pages: [HealthWorkoutPage], needsAuthorization: Bool = false) {
-        state = Mutex((pages, []))
+    init(pages: [HealthWorkoutPage], needsAuthorization: Bool = false, held: [HealthWorkoutImport] = []) {
+        state = Mutex((pages, [], []))
         needsAsking = needsAuthorization
+        self.held = held
     }
 
     var isAvailable: Bool { true }
     var askedAfter: [Data?] { state.withLock { $0.asked } }
+    var askedFor: [[UUID]] { state.withLock { $0.askedFor } }
+
+    func workouts(_ ids: [UUID]) async throws -> [HealthWorkoutImport] {
+        state.withLock { $0.askedFor.append(ids) }
+        return held.filter { ids.contains($0.workoutId) }
+    }
 
     func needsAuthorization() async -> Bool { needsAsking }
     func requestAuthorization() async throws {}
@@ -204,11 +234,15 @@ private final class AServer: HealthImporting {
 
     var offered: [UUID] { state.withLock { $0.offered } }
 
-    func offer(_ workout: HealthWorkoutImport) async throws -> HealthImportOutcome {
+    /// Restates a refusal of one workout as `HealthAPI` does, so the store meets the reply it will.
+    func offer(_ workout: HealthWorkoutImport) async throws -> HealthOfferReply {
         try state.withLock { held in
             held.offered.append(workout.workoutId)
-            if !held.failures.isEmpty, let failure = held.failures.removeFirst() { throw failure }
-            return held.answers.isEmpty ? .imported(trainingSessionId: workout.workoutId) : held.answers.removeFirst()
+            if !held.failures.isEmpty, let failure = held.failures.removeFirst() {
+                guard let reason = HealthSyncFailure.refusalOfOneWorkout(failure) else { throw failure }
+                return .refused(reason)
+            }
+            return .answered(held.answers.isEmpty ? .imported(trainingSessionId: workout.workoutId) : held.answers.removeFirst())
         }
     }
 }

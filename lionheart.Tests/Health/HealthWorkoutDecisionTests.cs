@@ -154,12 +154,21 @@ public class HealthWorkoutDecisionTests
     }
 
     [Fact]
-    public void A_heart_rate_of_zero_is_refused_rather_than_averaged()
+    public void A_reading_that_is_not_a_heart_rate_is_left_out_and_the_run_kept()
     {
-        var workout = AHealthRun.Outdoor() with { HeartRate = [new HeartRateCommand(AHealthRun.Start, 0)] };
+        var workout = AHealthRun.Outdoor() with
+        {
+            HeartRate =
+            [
+                new HeartRateCommand(AHealthRun.Start, 0),
+                new HeartRateCommand(AHealthRun.Start.AddSeconds(5), 151),
+                new HeartRateCommand(AHealthRun.Start.AddSeconds(10), 1510),
+            ],
+        };
 
-        var problem = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(workout.Stated()));
-        Assert.Equal(nameof(HealthWorkoutImport.HeartRate), Assert.Single(problem.Fields).Field);
+        var heartRate = ResultAssert.Succeeded(workout.Stated()).HeartRate;
+
+        Assert.Equal([151], heartRate.Samples.Select(sample => sample.Bpm));
     }
 
     [Fact]

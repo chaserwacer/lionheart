@@ -1,12 +1,13 @@
-#if DEBUG
+#if DEBUG && targetEnvironment(simulator)
 import CoreLocation
 import HealthKit
 
 /// Invented runs written to this device's Health store, so the import and the run page can be seen
 /// working in a simulator, whose Health store starts empty.
 ///
-/// **Debug builds only.** It is the one thing in the app that asks to write to Health, and it is
-/// compiled out of Release, which therefore never asks. Every value is made up: the loops circle an
+/// **Debug simulator builds only.** It is the one thing in the app that asks to write to Health,
+/// and it is compiled into nothing else — not Release, and not a Debug build run on a phone, whose
+/// Health store is the athlete's own and must never hold an invented run. Every value is made up: the loops circle an
 /// open meadow nobody here lives near, at paces and heart rates no one recorded.
 enum SampleRuns {
     /// Writes the sample runs, each ending before `now`, asking for write access first.

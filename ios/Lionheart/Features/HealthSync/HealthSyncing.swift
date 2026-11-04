@@ -11,17 +11,23 @@ protocol HealthWorkoutSource: Sendable {
     func needsAuthorization() async -> Bool
     func requestAuthorization() async throws
     func page(after anchor: Data?) async throws -> HealthWorkoutPage
+    /// The workouts Health still holds with these ids, oldest first; one deleted since is not there.
+    func workouts(_ ids: [UUID]) async throws -> [HealthWorkoutImport]
 }
 
 extension HealthLibrary: HealthWorkoutSource {
     func page(after anchor: Data?) async throws -> HealthWorkoutPage {
         try await WorkoutReader(store: store).page(after: anchor)
     }
+
+    func workouts(_ ids: [UUID]) async throws -> [HealthWorkoutImport] {
+        try await WorkoutReader(store: store).workouts(ids)
+    }
 }
 
-/// What the sync needs from the server: an answer for each workout offered.
+/// What the sync needs from the server: a reply for each workout offered.
 protocol HealthImporting: Sendable {
-    func offer(_ workout: HealthWorkoutImport) async throws -> HealthImportOutcome
+    func offer(_ workout: HealthWorkoutImport) async throws -> HealthOfferReply
 }
 
 extension HealthAPI: HealthImporting {}

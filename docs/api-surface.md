@@ -452,9 +452,10 @@ fix: `at`, `latitude`, `longitude`, `altitude` or null) and `heartRate` (`at`, `
 samples). Which workouts become sessions is the server's rule (`docs/apple-health.md`), so every
 answer but a refusal is a 2xx; `reason` is `readDirectly`, `notARun`, `indoor`, `noDistance`,
 `sameAsLoggedRun` or `insideLoggedLifting`. Idempotent on (athlete, `workoutId`). A workout that
-cannot be read is a 400; a 409 is a run older than a standing trail-running record while a record is
-withdrawn (placing it would replay the records), or the same workout imported by another request at
-the same moment.
+cannot be read is a 400 (a heart-rate reading that is not one is dropped, not refused); a 409 is a
+run older than a standing trail-running record while a record is withdrawn, since placing it would
+replay the records. The same workout imported by two requests at once answers `alreadyImported` to
+the second.
 
 `GET /api/training/sessions/{id}/recording` answers `RecordedRunView` for a session imported from
 Health, and 404 for any other: `recordedBy`, `start`, `end`, the session's `distanceMeters`,

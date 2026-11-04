@@ -67,6 +67,13 @@ struct HealthSyncTally: Equatable, Sendable {
 
     var offered: Int { imported + alreadyImported + leftOut.values.reduce(0, +) + refused.count }
 
+    func adding(_ reply: HealthOfferReply) -> HealthSyncTally {
+        switch reply {
+        case .answered(let outcome): adding(outcome)
+        case .refused(let reason): refusing(reason)
+        }
+    }
+
     func adding(_ outcome: HealthImportOutcome) -> HealthSyncTally {
         switch outcome {
         case .imported:
