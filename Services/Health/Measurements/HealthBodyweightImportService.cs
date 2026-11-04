@@ -80,7 +80,10 @@ public sealed class HealthBodyweightImportService : IHealthBodyweightImportServi
 
     private sealed record LoggedLift(DateOnly Day, LiftSet Set, bool AddsToBodyweight);
 
-    /// <summary>Every lift set the athlete has completed, on its day, and whether its plate adds to bodyweight.</summary>
+    /// <summary>
+    /// Every hard lift set the athlete has completed, on its day, and whether its plate adds to
+    /// bodyweight — the sets the system load is read for (<see cref="TrainingLogReader"/>).
+    /// </summary>
     private async Task<IReadOnlyList<LoggedLift>> LiftsAsync(Guid userId, CancellationToken ct)
     {
         var addsToBodyweight = (await _context.MovementDatas
@@ -96,7 +99,7 @@ public sealed class HealthBodyweightImportService : IHealthBodyweightImportServi
                    .AsNoTracking()
                    .Where(session => session.UserId == userId)
                    .ToListAsync(ct)
-               from set in session.Sets.OfType<LiftSet>()
+               from set in session.Sets.OfType<LiftSet>().Where(HardSets.IsHard)
                select new LoggedLift(session.Date, set, addsToBodyweight.Contains(set.MovementDataId))
         ];
     }

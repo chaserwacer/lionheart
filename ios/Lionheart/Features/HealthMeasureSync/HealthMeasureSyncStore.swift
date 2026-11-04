@@ -8,10 +8,13 @@ import Observation
 /// things on different clocks (an anchor of workouts against a re-read week of days), and share only
 /// Health's permission sheet, which `HealthLibrary` asks for everything at once.
 ///
-/// A sync reads Health a quarter at a time from a week before the last day it finished
-/// (`HealthMeasureSyncPlan`), offers each quarter's days and weigh-ins, and moves the mark on after
-/// each quarter, so one stopped partway starts the next where it stopped. The server restates a day
-/// offered twice, so the overlap costs nothing.
+/// A sync offers the weigh-ins of everything it is about to read in one request, then reads Health
+/// a quarter at a time from a week before the last day it finished (`HealthMeasureSyncPlan`),
+/// offering each quarter's days and moving the mark on after each, so one stopped partway starts
+/// the next where it stopped. The server restates a day offered twice, so the overlap costs
+/// nothing. The weigh-ins go in one request because the server reports how many weighted sets
+/// read a different bodyweight against what it held before; quarter by quarter, every quarter's
+/// weigh-ins would re-read the later sets again and the count would add them up many times.
 @Observable
 @MainActor
 final class HealthMeasureSyncStore {
@@ -90,8 +93,14 @@ final class HealthMeasureSyncStore {
     }
 
     /// Syncs on returning to the app, once Health is connected and the last attempt was long enough ago.
+    ///
+    /// Asks Health again while not connected: the workout sync's row asks for the same sheet, and
+    /// connecting there connects this too.
     func syncIfDue() async {
-        if case .unknown = state { await refreshStatus() }
+        switch state {
+        case .unknown, .notConnected: await refreshStatus()
+        case .unavailable, .idle, .syncing, .synced, .failed: break
+        }
         guard HealthMeasureSyncPlan.warrantsAutomaticSync(state, lastAttempt: lastAttempt, now: now()) else { return }
         await sync()
     }
@@ -127,15 +136,14 @@ final class HealthMeasureSyncStore {
                 ? try await health.earliestReading().map { CalendarDay($0, in: calendar) }
                 : nil
             let windows = HealthMeasureSyncPlan.windows(earliest: earliest, mark: kept, today: CalendarDay(now(), in: calendar))
+            tally = try await weighedIn(across: windows, after: tally)
             for window in windows {
                 tally = try await synced(window, after: tally)
                 try Task.checkCancellation()
                 marks.write(HealthMeasureMark(syncedThrough: window.to, lastSynced: kept.lastSynced))
                 state = .syncing(tally, through: window.to, lastSynced: kept.lastSynced)
             }
-            if let born = await health.dateOfBirth() {
-                _ = try await server.apply(dateOfBirth: born)
-            }
+            try await applyDateOfBirth()
             try Task.checkCancellation()
             let finishedAt = now()
             marks.write(HealthMeasureMark(syncedThrough: windows.last?.to ?? kept.syncedThroughDay, lastSynced: finishedAt))
@@ -153,22 +161,39 @@ final class HealthMeasureSyncStore {
         }
     }
 
-    /// One window read from Health and offered: its days in requests of `daysPerOffer`, then its weigh-ins.
-    private func synced(_ window: DayRange, after tally: HealthMeasureTally) async throws -> HealthMeasureTally {
-        let from = window.from.startDate(in: calendar)
-        let to = window.to.adding(days: 1, in: calendar).startDate(in: calendar)
+    /// Every weigh-in from the first window's start through the last's end, offered in one request.
+    private func weighedIn(across windows: [DayRange], after tally: HealthMeasureTally) async throws -> HealthMeasureTally {
+        guard let first = windows.first, let last = windows.last else { return tally }
+        let weighIns = try await health.weighIns(from: start(of: first), to: end(of: last)).map { WeighIn($0, in: calendar) }
+        guard !weighIns.isEmpty else { return tally }
+        let report = try await server.offer(weighIns)
+        try Task.checkCancellation()
+        return tally.adding(report)
+    }
 
-        let reduced = DailyMeasures.reduced(try await health.readings(from: from, to: to), in: calendar)
+    /// Keeps the profile's age from Health's date of birth. A date the server refuses as no one's
+    /// birth leaves the age as it is rather than failing the sync it rides on, every time.
+    private func applyDateOfBirth() async throws {
+        guard let born = await health.dateOfBirth() else { return }
+        do {
+            _ = try await server.apply(dateOfBirth: born)
+        } catch APIError.invalid, APIError.refused {
+            return
+        }
+    }
+
+    private func start(of window: DayRange) -> Date { window.from.startDate(in: calendar) }
+    private func end(of window: DayRange) -> Date { window.to.adding(days: 1, in: calendar).startDate(in: calendar) }
+
+    /// One window read from Health and its days offered, in requests of `daysPerOffer`.
+    private func synced(_ window: DayRange, after tally: HealthMeasureTally) async throws -> HealthMeasureTally {
+        let reduced = DailyMeasures.reduced(
+            try await health.readings(from: start(of: window), to: end(of: window)), in: calendar)
         var tally = tally.leavingOut(readingsFromOtherApps: reduced.fromOtherApps)
         for start in stride(from: 0, to: reduced.days.count, by: Self.daysPerOffer) {
             let batch = Array(reduced.days[start..<min(start + Self.daysPerOffer, reduced.days.count)])
             tally = tally.adding(try await server.offer(batch))
             try Task.checkCancellation()
-        }
-
-        let weighIns = try await health.weighIns(from: from, to: to).map { WeighIn($0, in: calendar) }
-        if !weighIns.isEmpty {
-            tally = tally.adding(try await server.offer(weighIns))
         }
         return tally
     }

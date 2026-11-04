@@ -73,7 +73,7 @@ first and then in the code.
 | **Health sync** | Offering the runs Apple Health gained since the kept anchor to the server, a page at a time; the anchor moves on once a page is answered. |
 | **Health measure** | A figure one of Apple's own devices measured and wrote to Health — the watch's VO2max, resting heart rate, HRV (SDNN), respiratory rate and walking heart rate; the phone's walking speed, step length, double support, asymmetry, steadiness and six-minute walk — kept as one day's mean, extremes and count per figure and device. Another app's copy in Health is not one. |
 | **Measuring device** | Which of Apple's devices took a health measure: the Apple Watch or the iPhone. A day measured by both keeps both. |
-| **Measurement sync** | Offering a quarter of Health's measures and weigh-ins at a time from a week before the last day synced; the server restates the days that grew. |
+| **Measurement sync** | Offering Health's weigh-ins in one request, then its measures a quarter at a time, from a week before the last day synced; the server restates the days that grew. |
 | **Weigh-in** | A bodyweight reading Health holds. A day's first fills that day's bodyweight measurement when the day has none. |
 | **Injury gait** | Walking asymmetry and double support in the eight weeks before an injury against the four from it — the two gait figures that rise when a leg is favoured. |
 | **Oura's score** | A 0–100 rating Oura gives a day or one of its contributors — readiness, recovery index, training frequency. A judgement Oura made, not a measurement; shown as Oura's and never mixed with Lionheart's figures. |

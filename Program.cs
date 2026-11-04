@@ -37,7 +37,6 @@ using lionheart.Services.Chat.Thread;
 using lionheart.Services.BodyComposition;
 using lionheart.Services.Health.Import;
 using lionheart.Services.Health.Measurements;
-using lionheart.Services.Health.Profile;
 using lionheart.Services.Health.Runs;
 
 // Load .env into the process environment before the host reads configuration, so the Llm__,

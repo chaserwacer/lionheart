@@ -156,7 +156,11 @@ private struct SignedInTabs: View {
             case .active:
                 Task { await container.ouraSync.syncIfBehind() }
                 Task { await container.healthSync.syncIfDue() }
-                Task { await container.healthMeasureSync.syncIfDue() }
+                Task {
+                    await container.healthMeasureSync.syncIfDue()
+                    // Today's recovery trends show the watch's history, and nothing on Today reads it.
+                    await container.healthMeasures.refreshIfNeeded()
+                }
             case .inactive, .background: break
             @unknown default: break
             }

@@ -209,7 +209,8 @@ calendar day — mean, lowest, highest, count — because a walking speed is rea
 years of them are hundreds of thousands of samples. A day measured by the watch and the phone keeps
 both rows. Every sync reads again from a week before the last day it finished: the watch hands over
 a night late and Health issues estimates after the fact, and the server restates a day that grew. A
-first sync reads from Health's oldest reading, a quarter at a time, the mark kept after each.
+first sync reads from Health's oldest reading, a quarter at a time, the mark kept after each. The weigh-ins of the whole span go first, in one request, so the count of re-read sets below is
+counted once rather than once per quarter.
 
 **Weigh-ins fill the gaps.** Each day's first weigh-in becomes that day's bodyweight measurement
 when the day has none; a day logged in Lionheart, or measured by a scan, is kept. Health holds mass

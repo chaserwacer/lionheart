@@ -257,6 +257,7 @@ struct HealthMeasureTests {
         await store.sync()
 
         #expect(health.windowsRead == 3)
+        #expect(server.weighInOffers == 1)
         #expect(server.daysOffered.map(\.metric) == [.vo2Max, .walkingSpeed])
         #expect(server.weighInsOffered == 1)
         #expect(server.born == CalendarDay(year: 1990, month: 5, day: 20))
@@ -292,6 +293,21 @@ struct HealthMeasureTests {
             return
         }
         #expect(done.daysRecorded == 1)
+    }
+
+    @Test("A date of birth the server refuses leaves the sync finished")
+    @MainActor
+    func aRefusedBirthDateDoesNotFailTheSync() async {
+        let health = AHealth(earliest: nil, readings: [], weighIns: [], born: CalendarDay(year: 2090, month: 1, day: 1))
+        let store = HealthMeasureSyncStore(
+            health: health, server: AServer(refusesBirthDate: true), marks: Marks(), calendar: Self.utc)
+
+        await store.sync()
+
+        guard case .synced = store.state else {
+            Issue.record("Expected a finished sync, got \(store.state)")
+            return
+        }
     }
 
     @Test("Without Health connected a sync reads nothing")
@@ -355,16 +371,19 @@ private final class AHealth: HealthMeasureSource {
 }
 
 private final class AServer: HealthMeasureImporting {
-    private let state: Mutex<(days: [MeasuredDayOffer], weighIns: Int, born: CalendarDay?, offers: Int)>
+    private let state: Mutex<(days: [MeasuredDayOffer], weighIns: Int, weighInOffers: Int, born: CalendarDay?, offers: Int)>
     private let failOnOffer: Int?
+    private let refusesBirthDate: Bool
 
-    init(failOnOffer: Int? = nil) {
-        state = Mutex(([], 0, nil, 0))
+    init(failOnOffer: Int? = nil, refusesBirthDate: Bool = false) {
+        state = Mutex(([], 0, 0, nil, 0))
         self.failOnOffer = failOnOffer
+        self.refusesBirthDate = refusesBirthDate
     }
 
     var daysOffered: [MeasuredDayOffer] { state.withLock { $0.days } }
     var weighInsOffered: Int { state.withLock { $0.weighIns } }
+    var weighInOffers: Int { state.withLock { $0.weighInOffers } }
     var born: CalendarDay? { state.withLock { $0.born } }
 
     func offer(_ days: [MeasuredDayOffer]) async throws -> HealthMeasuresImportReport {
@@ -377,11 +396,15 @@ private final class AServer: HealthMeasureImporting {
     }
 
     func offer(_ weighIns: [WeighIn]) async throws -> HealthBodyweightImportReport {
-        state.withLock { $0.weighIns += weighIns.count }
+        state.withLock { held in
+            held.weighIns += weighIns.count
+            held.weighInOffers += 1
+        }
         return HealthBodyweightImportReport(added: weighIns.count, daysAlreadyMeasured: 0, unreadable: 0, setsReweighed: 3)
     }
 
     func apply(dateOfBirth: CalendarDay) async throws -> ProfileAge {
+        if refusesBirthDate { throw APIError.invalid(fields: [:], detail: "Not the date of birth of a living person.") }
         state.withLock { $0.born = dateOfBirth }
         return ProfileAge(age: 36, changed: true)
     }

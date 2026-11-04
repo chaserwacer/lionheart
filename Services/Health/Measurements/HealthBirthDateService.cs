@@ -5,7 +5,7 @@ using lionheart.Services.Profile;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace lionheart.Services.Health.Profile;
+namespace lionheart.Services.Health.Measurements;
 
 public interface IHealthBirthDateService
 {

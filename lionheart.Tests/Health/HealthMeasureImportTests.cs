@@ -6,7 +6,6 @@ using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Model.Analysis;
 using lionheart.Services.Health.Measurements;
-using lionheart.Services.Health.Profile;
 using lionheart.Tests.Api;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
@@ -112,13 +111,14 @@ public class HealthMeasureImportTests : IDisposable
         await SeedBodyweightAsync(Day, new Bodyweight(181, WeightUnit.Pounds));
         var dip = await SeedMovementAsync(addsToBodyweight: true);
         var press = await SeedMovementAsync(addsToBodyweight: false);
-        await SeedSessionAsync(Day.AddDays(-20), Lift(dip), Lift(dip), Lift(press));
+        await SeedSessionAsync(Day.AddDays(-20), Lift(dip) with { Kind = SetKind.WarmUp }, Lift(dip), Lift(dip), Lift(press));
         await SeedSessionAsync(Day.AddDays(5), Lift(dip));
 
         var report = await WeighInsAsync(WeighIn(Day.AddDays(-40), 80));
 
-        // The two dips before the logged day read 176.4 instead of the 181 that stood in for them;
-        // the press adds no bodyweight, and the dip after the logged day reads it either way.
+        // The two working dips before the logged day read 176.4 instead of the 181 that stood in for
+        // them; the warm-up is no hard set, the press adds no bodyweight, and the dip after the
+        // logged day reads it either way.
         Assert.Equal(2, report.SetsReweighed);
     }
 
