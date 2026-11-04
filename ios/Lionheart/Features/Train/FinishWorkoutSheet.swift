@@ -90,9 +90,9 @@ struct FinishWorkoutSheet: View {
         let totals = WorkoutTotals.of(workout.sets)
         return Section {
             LabeledContent("Working sets") { Text("\(totals.setCount)").monospacedDigit() }
-            ForEach(totals.weights) { weight in
+            if let pounds = totals.poundsVolume {
                 LabeledContent("Volume") {
-                    Text(Formatting.volume(weight)).monospacedDigit()
+                    Text(Formatting.volume(pounds, .pounds)).monospacedDigit()
                 }
             }
             ForEach(totals.distances) { distance in

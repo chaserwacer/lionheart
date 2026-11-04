@@ -402,7 +402,7 @@ struct SetDefaultsTests {
     func trailRunsCarryForward() {
         let workout = AWorkout.live(sets: [AWorkout.trailRun(distance: 10, gain: 320)])
 
-        let next = SetDefaults.nextTrailRun(in: workout)
+        let next = CardioWork.outdoorRun.nextSet(in: workout)
 
         #expect(next.coveredPart?.distance == 10)
         #expect(next.modality == .trailRun)
@@ -410,7 +410,7 @@ struct SetDefaultsTests {
 
     @Test("The first trail run of a workout starts empty")
     func theFirstTrailRunIsEmpty() {
-        #expect(SetDefaults.nextTrailRun(in: AWorkout.live()).coveredPart?.distance == 0)
+        #expect(CardioWork.outdoorRun.nextSet(in: AWorkout.live()).coveredPart?.distance == 0)
     }
 }
 

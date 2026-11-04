@@ -29,6 +29,17 @@ extension Formatting {
         entry.command.flatMap(set)
     }
 
+    /// Where the fields stand against last time: "level", "+1 rep", "+5 lb", "e1RM −3 lb".
+    static func versus(_ versus: SetGuide.Versus, unit: WeightUnit) -> String? {
+        switch versus {
+        case .same: "level"
+        case .reps(let reps): "\(signedCount(reps)) \(abs(reps) == 1 ? "rep" : "reps")"
+        case .load(let load): signedWeight(load, unit)
+        case .estimate(let change): "e1RM \(signedWeight((change * 10).rounded() / 10, unit))"
+        case .incomparable: nil
+        }
+    }
+
     /// A weight change in pounds with its sign: "+2.5 lb", "−1 lb", "±0 lb".
     static func signedWeight(_ value: Double, _ unit: WeightUnit) -> String {
         let pounds = Imperial.pounds(value, from: unit)

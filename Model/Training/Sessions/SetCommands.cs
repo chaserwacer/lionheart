@@ -115,8 +115,8 @@ public sealed record TrailRunSetCommand(
 }
 
 /// <remarks>
-/// Logged only by an import, but stated back by a client correcting the session it is in, so the
-/// correction keeps the set as it is.
+/// Logged by the athlete as distance-and-time work, by the Health import, and stated back by a client
+/// correcting the session it is in, so the correction keeps the set as it is.
 /// </remarks>
 public sealed record EnduranceSetCommand(
     EnduranceActivity Activity,

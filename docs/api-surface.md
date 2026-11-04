@@ -347,6 +347,34 @@ measurement) under the tenth percentile of its last 90 days. A day trains a fami
 set of it, or when its accessory work is at least half the day's hard sets, so face pulls finishing a
 push day do not make it a pull day.
 
+### Going-in state — `GET /api/training/going-in`
+
+`GoingInState` for a session now, on the athlete's clock: `asOf`, `rating`, five parts, and what to
+note. Read from the chat briefing's facts (`ITodayFacts`), the week's volume and the active
+injuries, so the rating and what the chat says about today cannot disagree.
+
+- `rating` — `$type` `rated { score, band: high | normal | reduced | low }` (80, 65 and 50 the
+  floors) or `notRated`, when none of readiness, autonomic or sleep could be scored — no readiness
+  filed, and last night either not synced or with neither enough baseline nights nor a sleep score.
+- Each part carries `score` — `$type` `scored { score, share }` (0–100 with his usual day near 75,
+  and the share of the rating it carried) or `notScored` — and the figures it was read from:
+  `readiness { ouraScore?, usualLow?, usualHigh?, hrvBalance?, restingHeartRate?,
+  temperatureDeviation? }` (Oura's ratings; the score is Oura's readiness unchanged, weight .30);
+  `autonomic { hrv?, hrvBaseline?, lowestHeartRate?, lowestHeartRateBaseline?, baselineNights }`
+  (last night against the nights before the last two, at least 14; ±1.25 per per cent of HRV and ∓8
+  per beat of lowest heart rate from 75, halves averaged; .25); `sleep { lastNight?, nightBefore? }`,
+  each `{ day, totalSleepSeconds, efficiency, sleepScore? }` (Oura's sleep scores two to one; .20);
+  `load { hardSets, highIntensityMinutes?, zoneTwoMinutes?, hardSetsLast7, hardSetsWeeklyMean28 }`
+  (since the start of yesterday: 100 less 1.5 a hard set, 1 a minute at zone 4 or above, 0.15 a
+  minute of zone 2, 0.5 a minute of cardio with no heart rate to zone, and 50 per unit the week runs
+  above 1.3 times the month's weekly mean; not scored, and its minutes absent, when cardio could not
+  be read; .15); `wellness { today? }` with `{ overall, mood, energy,
+  stress, motivation }` when rated today (`overall` 1–5 onto 0–100; .10).
+- `injuries` — active ones, `{ injuryId, name, lastPain?, movementDataIds }`, the movements every
+  check-in has named. `plannedToday` — `{ movements }` per planned session dated today, by name.
+  `recentMuscles` — `{ muscle, lastTrained }` for each muscle group last trained as a primary mover
+  yesterday or today.
+
 ## Training score — `/api/training/score`
 
 | Verb | Route | Answers |

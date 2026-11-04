@@ -22,6 +22,10 @@ import Foundation
 /// Step 2 beats step 3 because a plan written for today already knew about last time. A warm-up is
 /// never a precedent: after a ramp the next set is the work, not one more warm-up.
 enum SetDefaults {
+    /// The unit a first run or ride of the workout opens in, where nothing logged says otherwise
+    /// (`CardioWork.nextSet`).
+    static let distanceUnit: DistanceUnit = .miles
+
     /// The set the entry row starts from for `movementDataId`.
     ///
     /// - Parameter modality: forced when the athlete has picked a shape, inferred otherwise.
@@ -116,19 +120,6 @@ enum SetDefaults {
         case .lift(let prescribed): prescribed.unit
         case .distanceTime, .freeform, .unrecognised: nil
         }
-    }
-
-    /// The trail run the entry row starts from: the last one logged, else an empty one.
-    ///
-    /// Separate from `nextSet(on:…)` because a trail run belongs to no movement — there is no id to
-    /// ask about, and the only history that bears on it is the previous trail run of this workout.
-    static func nextTrailRun(in workout: ActiveWorkout) -> SetCommand {
-        guard case .trailRun(let last)? = workout.sets.last(where: { $0.modality == .trailRun })?.command
-        else {
-            return .trailRun(SetCommand.TrailRun(
-                distance: 0, unit: .miles, duration: 0, elevationGainMeters: 0, rpe: .unrated))
-        }
-        return .trailRun(last)
     }
 
     private static func lift(

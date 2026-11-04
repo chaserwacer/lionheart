@@ -20,8 +20,8 @@ enum SetCommand: Equatable, Sendable {
     case lift(Lift)
     case distanceTime(DistanceTime)
     case trailRun(TrailRun)
-    /// A ride, a hike, a walk or an indoor run. Logged only by an import, but stated back whole when
-    /// the session it is in is corrected.
+    /// A ride, an indoor ride, a hike, a walk or an indoor run: logged from the Add sheet or by the
+    /// Health import, and stated back whole when the session it is in is corrected.
     case endurance(Endurance)
     /// A set the athlete described instead of measuring. The words are the record.
     case freeform(text: String)
@@ -138,7 +138,7 @@ enum SetModality: String, Equatable, Sendable, CaseIterable {
     case lift
     case distanceTime
     case trailRun
-    /// Never offered for a new set: an endurance set arrives from an import, and is only corrected.
+    /// An endurance activity, offered by the Add sheet as distance-and-time work (`CardioWork`).
     case endurance
     case freeform
 }

@@ -37,6 +37,10 @@ struct SetDraft: Equatable, Sendable {
     /// What the lift is for. Working unless the athlete marks it otherwise; only a lift has one.
     var kind: SetKind = .working
     var text: String = ""
+    /// The weight the field held before marking the set a drop took a fifth off it, so marking it
+    /// something else puts it back rather than leaving it lighter — and a second drop does not
+    /// compound on the first.
+    var weightBeforeDrop: String?
 
     /// Seeds the fields from a set — the previous one on this movement, or its target.
     ///
@@ -149,6 +153,75 @@ struct SetDraft: Equatable, Sendable {
 
     /// Whether these fields are ready to be logged. The Log button reads this.
     var isLoggable: Bool { command != nil }
+
+    /// The row filled from last time, where last time arrived after the row was opened on a movement
+    /// and nothing has been typed into it since; `nil` to leave the row as it is.
+    ///
+    /// The row opens before the library has read last time back — a relaunch mid-workout — so it
+    /// opened empty and in the default unit. Only a row still exactly as the rule seeded it without
+    /// last time is filled: one the athlete has typed into is his.
+    func filledFromLastTime(_ previous: PreviousPerformance?, in workout: ActiveWorkout) -> SetDraft? {
+        guard let movementDataId, let previous,
+              self == SetDraft(next: movementDataId, in: workout, previous: nil)
+        else { return nil }
+        let filled = SetDraft(next: movementDataId, in: workout, previous: previous)
+        return filled == self ? nil : filled
+    }
+
+    // MARK: - Stepping
+
+    /// What one tap of a weight step moves: the smallest plate pair a bar takes in the unit, which is
+    /// also the jump between dumbbells and between most stack pins.
+    var weightStep: Double {
+        switch weightUnit {
+        case .kilograms: 2.5
+        case .pounds, .unrecognised: 5
+        }
+    }
+
+    /// The fields with the weight moved by `steps` of `weightStep`, never below nothing. An empty
+    /// field steps from zero, so the first tap on a fresh movement is one step of load.
+    func steppingWeight(by steps: Int) -> SetDraft {
+        var next = self
+        let moved = max(0, (Self.number(weight) ?? 0) + Double(steps) * weightStep)
+        next.weight = Self.weightField(moved)
+        return next
+    }
+
+    /// The share of the load a drop set opens on: a fifth off, the usual strip of a plate a side.
+    static let dropShare = 0.8
+
+    /// The fields marked as `kind`. Marking a set as a drop takes a fifth off the weight, rounded
+    /// down to a step, because a drop set is by definition lighter than the set before it and the
+    /// field otherwise holds that set's load — six taps of −5 for every drop. A load too light to
+    /// drop a step from is left as it is rather than dropped to nothing, which would log as
+    /// bodyweight. Marking it anything else puts back the weight the drop took off.
+    func marked(_ kind: SetKind) -> SetDraft {
+        var next = self
+        next.modality = .lift
+        next.kind = kind
+        switch (self.kind == .drop, kind == .drop) {
+        case (false, true):
+            guard let weight = Self.number(weight) else { return next }
+            let dropped = (weight * Self.dropShare / weightStep).rounded(.down) * weightStep
+            guard dropped >= weightStep else { return next }
+            next.weightBeforeDrop = self.weight
+            next.weight = Self.weightField(dropped)
+        case (true, false):
+            if let weightBeforeDrop { next.weight = weightBeforeDrop }
+            next.weightBeforeDrop = nil
+        case (false, false), (true, true):
+            break
+        }
+        return next
+    }
+
+    /// The fields with the reps moved by `steps`, never below one: a set of none is not a set.
+    func steppingReps(by steps: Int) -> SetDraft {
+        var next = self
+        next.reps = "\(max(1, (Self.whole(reps) ?? 0) + steps))"
+        return next
+    }
 
     // MARK: - Text and numbers
 

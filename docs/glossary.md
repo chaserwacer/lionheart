@@ -64,6 +64,8 @@ first and then in the code.
 | **Weekly volume** | Hard sets over the seven days ending on a day, by family, pattern and muscle group, each against a weekly target, with the last day each was trained. |
 | **Training balance** | Where the week's training stands across the body: weekly volume and up next, the priorities, and the training score. The name of the folders, store and routes that read them. |
 | **Up next** | The family or families trained longest ago, named together when last trained the same day, with the day's readiness beside it where it is unusual. A recommendation, never an instruction. |
+| **Going-in rating** | Lionheart's own 0–100 rating of how ready the athlete is for a session now, his usual day near 75: the weighted mean of five parts — Oura's readiness, last night's HRV and lowest heart rate against his nights, the last two nights' sleep scores, the load since yesterday, and wellness rated today — over those that could be read. Not Oura's readiness, which is one of its parts. |
+| **Going-in state** | The going-in rating with its parts and their figures, and what is worth knowing before the first set: active injuries and the movements they touch, today's plans, the muscles trained since yesterday. |
 | **Ring entry** | How a ring workout came to be on the record: `entered` by the athlete, or `detected` — proposed by the ring from movement and approved. A detected workout's name is a guess. |
 | **Declined workout** | A ring workout that needed its heart rate to show training — a detected one, or one nobody named — and did not: listed in the cardio report with that heart rate, and counted nowhere. |
 | **Training evidence** | The rule that admits a ring's guess as a cardio session: half its time read, 20 minutes at zone 2 or above or 10 at zone 3 or above, and zone 2 or above for half the time read. A game or dance the ring guessed is never admitted. |
@@ -163,6 +165,9 @@ first and then in the code.
 | **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |
 | **Folded tab bar** | On the Chat tab (iOS 26), the tab bar shrunk to the Chat glyph at the start of the composer's row. Tapping it unfolds the tabs and puts the composer away. |
+| **Add sheet** | What the logging surface's one Add button opens: the priority lifts, recent movements, distance-and-time work, a set in words, and the catalogue, searchable. |
+| **Distance-and-time work** | Cardio as the Add sheet offers it: an outdoor run (a trail run set), an endurance activity, or a movement last logged as distance and time. |
+| **Standing against last time** | How the entry row's fields compare with last time's set at the same position: level, the reps or the load that moved, or the estimated single where both did. |
 | **Rest clock** | The countdown between sets. |
 | **Load state** | A screen's enum for what it has: not loaded, loaded, unavailable with a reason, or stale — a value that is not current. Never flags plus an optional error. |
 | **Staleness** | Why a value on screen is not current: a refresh the server answered with a fault, a server that could not be reached, marked with the time the value dates from ("As of 14:02"), or a recalled value the server has not answered for yet. |

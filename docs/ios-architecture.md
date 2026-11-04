@@ -483,8 +483,11 @@ that only warmed up on a movement is not last time for it. Each movement's
 section shows it as one line, and the entry row opens on it (`SetDefaults`): the first set on last
 time's first working set; later sets on today's weight with last time's reps at the same position,
 which is the number a set to failure is trying to beat. A plan's target still beats last time, and a
-warm-up is never a precedent, so the set after a ramp opens on the work. The row's guide line says
-"Last 160 × 6" only once the fields differ from it.
+warm-up is never a precedent, so the set after a ramp opens on the work. The row's guide line always
+says last time at this position and where the fields stand against it (`SetGuide.Versus`): "level",
+the one figure that moved ("+1 rep", "+5 lb"), or the estimated single where both did ("e1RM +3 lb"),
+green when it would beat last time. A row that opened before last time was read back — a relaunch
+mid-workout — is reseeded when it arrives, if nothing has been typed into it.
 
 ### Set kinds
 
@@ -531,6 +534,60 @@ session of the same routine as the same figures with their changes; and each mov
 against last time's, as a change in estimated one-rep max — on bodyweight plus plate for a weighted
 dip when both days have a reading in force, and on the plate alone otherwise, so a day with no
 bodyweight never reads as a leap.
+
+### One Add button
+
+The toolbar holds Close, Add and the More menu. Add is what the surface is used for between sets, so
+it has the primary place; Finish happens once a session and lives in More, opening the same finish
+sheet it always did, beside Sync now and Discard. Add opens `AddWorkSheet` at half height with
+search always showing, and grows to full height as soon as anything is typed: the families' priority
+lifts (from the priority report), recent movements, distance and time, a set in words, then the
+catalogue. Distance and time (`CardioWork`) is the domain's cardio with no movement — an outdoor run,
+which is a trail-run set and holds records, and the endurance activities (ride, indoor ride, hike,
+walk, indoor run) — then any movement last logged as distance and time (a rower, a treadmill). The
+server takes endurance sets from a client; they were previously only written by the Health import. A
+cardio pick opens the entry row in an "Other work" section titled with what is being logged, on the
+last of the same work in the workout, or empty in the unit the last run or ride was logged in.
+`AddWorkMenu` is the pure rule for what is listed. Distance and time and words never wait on the
+catalogue: while it loads, or with nothing remembered and no signal, they are listed and only the
+movement sections say where the catalogue stands.
+
+### The going-in header
+
+The surface opens on how ready the athlete came in: `GET /api/training/going-in` (the rating, its
+five parts and their figures, injuries with the movements their check-ins name, today's plans, the
+muscles trained since yesterday) and `GET /api/training/next/{day}` (what to lift and what cardio is
+next, and which comes first — the training-science stream's recommender, shown and never re-derived).
+`GoingInStore` reads both, each with its own load state and remembered, and reads again when the
+surface opens more than ten minutes after the last read or on another day. The rating is a capacity
+ring tinted by band — green over his usual day, blue on it, orange and red under; never the accent,
+which is red here — over a sentence naming the part clearly holding it down and the parts not read.
+The five parts sit under it as capacity bars, then injuries (orange where one touches a movement in
+this workout, and marked again on that movement's section), plans, recent muscles, and what is next
+with each due priority lift's aim and last time. `GoingInReading` decides what bears on this workout.
+At the first set of work the header folds to one line: by then he knows how he came in. The info
+sheet takes the rating apart, part by part, with each part's figures and the rule the server applied,
+so the arithmetic can be redone from the screen. A workout written down afterwards shows no header;
+today's state says nothing about another day.
+
+### Fewer taps per set
+
+Weight and reps each have a −/+ pair under the field: a plate pair in the unit (5 lb, 2.5 kg) and one
+rep, with a selection tick, and no keyboard. Marking a set a drop takes a fifth off the load, down to
+a step, since a drop set is by definition lighter than the set before it. After every set the list
+scrolls the entry row back above the rest bar that appears with it, and the keyboard bar's Log is
+never disabled — the system draws that bar once on first focus and keeps its state, so a row opened
+empty kept a dead button. A record lands as the heavy haptic and the record's name in words under
+the set — on the logging surface only; a session's history keeps the trophy mark alone, since a line
+under every record set of a long history is noise.
+
+### The rest bar
+
+The rest bar names the set it is a rest before ("Next 185 lb × 5") and its clock is a menu of rest
+lengths (1:00 to 5:00): choosing one makes it the standard and moves the running rest to it, keeping
+its start. The last ten seconds turn the clock and the track orange with a soft tap, so the athlete
+stands up before the alarm. The bar, the Lock Screen and the Dynamic Island count work sets, as the
+totals do; they used to count warm-ups too, so the three disagreed.
 
 ## History: the training log, a movement's page, and pinned movements
 

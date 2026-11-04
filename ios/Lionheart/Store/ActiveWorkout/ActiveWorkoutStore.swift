@@ -330,6 +330,14 @@ final class ActiveWorkoutStore {
         armRestTimer()
     }
 
+    /// Makes the rest in flight `duration` long in all, keeping its start — what choosing a rest
+    /// length from the clock does to the rest already running.
+    func resizeRest(to duration: TimeInterval) {
+        guard let workout, case .running = workout.rest else { return }
+        adopt(workout.resting(workout.rest.resized(to: duration)))
+        armRestTimer()
+    }
+
     func skipRest() {
         guard let workout, case .running = workout.rest else { return }
         restHandle?.cancel()

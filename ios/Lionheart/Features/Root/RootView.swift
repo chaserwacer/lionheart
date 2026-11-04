@@ -195,7 +195,9 @@ private struct SignedInTabs: View {
                 routines: container.routines,
                 finished: { finishedSummary = $0 },
                 history: container.history,
-                focus: container.focus)
+                focus: container.focus,
+                goingIn: container.goingIn,
+                balance: container.balance)
         }
         .sheet(item: $shownSummary) { summary in
             WorkoutSummaryView(summary: summary, library: container.movements, routines: container.routines)

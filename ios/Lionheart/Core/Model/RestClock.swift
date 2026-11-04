@@ -63,4 +63,13 @@ enum RestClock: Equatable, Sendable, Codable {
         case .running(let since, let duration): .running(since: since, duration: max(0, duration + extra))
         }
     }
+
+    /// The same rest as long as `duration` in all, from when it started: a rest made three minutes
+    /// forty seconds in has two minutes twenty left, and one made shorter than it has run is over.
+    func resized(to duration: TimeInterval) -> RestClock {
+        switch self {
+        case .idle: .idle
+        case .running(let since, _): .running(since: since, duration: max(0, duration))
+        }
+    }
 }
