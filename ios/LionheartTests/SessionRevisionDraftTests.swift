@@ -152,3 +152,13 @@ struct SessionRevisionDraftTests {
         .lift(.init(movementDataId: movement, reps: 5, weight: weight, unit: .pounds, rpe: .unrated))
     }
 }
+
+@Suite("Durations on the wire")
+struct WireDurationTests {
+    @Test("A fractional duration is sent as it was stored, so an untouched set is not a changed one")
+    func fractionsSurvive() {
+        #expect(WireDuration.wire(fromSeconds: 1470.25) == "00:24:30.250")
+        #expect(WireDuration.wire(fromSeconds: 1470) == "00:24:30")
+        #expect(WireDuration.seconds(from: WireDuration.wire(fromSeconds: 1470.25)) == 1470.25)
+    }
+}

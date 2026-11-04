@@ -48,7 +48,7 @@ struct BodyView: View {
                 NewInjurySheet(store: store)
             }
             .sheet(isPresented: $isWellnessPresented) {
-                WellnessEntrySheet(store: wellness, existing: store.state.value?.wellness ?? [])
+                WellnessEntrySheet(store: wellness, existing: store.state.value?.wellness ?? [], since: store.firstDay)
             }
             .refreshable { await store.refresh() }
             .navigationDestination(for: BodyRoute.self) { destination(for: $0) }

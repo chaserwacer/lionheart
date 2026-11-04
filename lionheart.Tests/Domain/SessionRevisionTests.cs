@@ -67,6 +67,33 @@ public class SessionRevisionTests
     }
 
     [Fact]
+    public void A_start_left_where_it_was_keeps_the_offset_the_session_was_logged_at()
+    {
+        // Logged in summer at −04:00, restated in winter at −05:00: the same instant, and the day
+        // must still be read at the offset it was lived at.
+        var current = Session([Lift(225)]);
+        var winter = Start.ToOffset(TimeSpan.FromHours(-5));
+
+        var revised = SessionRevision.Of(current, [Lift(225)], new Interval(winter, winter.AddHours(2)), "").Revised;
+
+        var period = Assert.IsType<Interval>(revised.Period);
+        Assert.Equal(TimeSpan.FromHours(-4), period.Start.Offset);
+        Assert.Equal(TimeSpan.FromHours(-4), period.End.Offset);
+        Assert.Equal(Start.AddHours(2), period.End);
+    }
+
+    [Fact]
+    public void A_moved_start_is_kept_at_the_offset_it_was_stated_in()
+    {
+        var current = Session([Lift(225)]);
+        var moved = Start.AddDays(-1).ToOffset(TimeSpan.FromHours(-5));
+
+        var revised = SessionRevision.Of(current, [Lift(225)], new Instant(moved), "").Revised;
+
+        Assert.Equal(TimeSpan.FromHours(-5), Assert.IsType<Instant>(revised.Period).At.Offset);
+    }
+
+    [Fact]
     public void A_texted_set_left_as_it_was_keeps_the_words_it_was_logged_in()
     {
         var texted = Lift(225) with { Source = Some.TextedSource, Facets = Some.Facets };

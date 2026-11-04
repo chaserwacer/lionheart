@@ -60,7 +60,9 @@ struct WellnessHistoryView: View {
             }
         }
         .sheet(isPresented: $isLogging) {
-            WellnessEntrySheet(store: store, existing: store.spans[span]?.value?.days.map(\.state) ?? [])
+            WellnessEntrySheet(
+                store: store, existing: store.spans[span]?.value?.days.map(\.state) ?? [],
+                since: store.today.adding(days: 1 - span.days))
         }
         .refreshable { await store.load(span) }
         .task(id: span) {
@@ -225,7 +227,7 @@ private struct WellnessRow: View {
                 Text(MeasurementText.plain(reading.overall))
                     .font(.headline.monospacedDigit())
                 if let readiness {
-                    Text("Readiness \(readiness.description)")
+                    Text("Oura readiness \(readiness.description)")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(Color(.secondaryLabel))
                 }

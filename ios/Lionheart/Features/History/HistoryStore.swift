@@ -53,6 +53,7 @@ final class HistoryStore {
     private let now: @Sendable () -> Date
 
     private var load: Task<Void, Never>?
+    private var whenRevised: [@MainActor () async -> Void] = []
 
     init(
         sessions: TrainingSessionsAPI,
@@ -136,6 +137,13 @@ final class HistoryStore {
         histories = [:]
         established = [:]
         await refresh()
+        for action in whenRevised { await action() }
+    }
+
+    /// Runs after every correction the server takes, for the tabs that hold a session of their own
+    /// — Today's day.
+    func onRevised(_ action: @escaping @MainActor () async -> Void) {
+        whenRevised.append(action)
     }
 
     /// Withdraws a standing record, then re-reads both the records and the chain it belonged to.

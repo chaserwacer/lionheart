@@ -38,13 +38,15 @@ can still be **corrected** in place.
 **Revising a completed session.** `POST /{id}/revise` restates the sets, the period and the notes
 whole and answers with the session; the effort, the program and the routine stay as they were. Any
 other lifecycle state is a 409. A set the revision leaves as it was keeps the source and facets it
-was stored with. When the sets change or the start moves, the athlete's records are re-detected over
+was stored with, and a start left where it was keeps the offset the session was logged at — the
+day is read at that offset, and a client restates the period at its own. When the sets change or the start moves, the athlete's records are re-detected over
 his whole history in the same transaction (the `rebuild-records` replay), because a record is judged
 against what stood before it; a notes-only revision or a moved end touches no record. Such a
 revision also drops the session's decoration and its analysis projection, which described the old
 sets. While any record is withdrawn the replay would award it again, so a revision that reaches the
-records is then a 409 naming the withdrawn records, and nothing is written. Record ids change when a
-rebuild changes anything, so a client re-reads the records it holds after a revision.
+records is then a 409 saying so, and nothing is written. The replay writes every record afresh, so
+any revision that reaches the records gives every record a new id; a client drops the record chains
+and marks it holds and reads them again.
 
 **Routine origin.** Every session view carries `routineId` beside `trainingProgramId`: the routine it
 was trained from, or `null` when it was ad hoc. `POST /active` and `POST /completed` take an optional

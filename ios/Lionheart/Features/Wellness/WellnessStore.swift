@@ -14,7 +14,7 @@ final class WellnessStore {
     private let wellness: WellnessAPI
     private let oura: OuraAPI
     private let now: @Sendable () -> Date
-    private var whenLogged: [@MainActor () async -> Void] = []
+    private var whenLogged: [@MainActor (WellnessEntry) async -> Void] = []
 
     init(wellness: WellnessAPI, oura: OuraAPI, now: @escaping @Sendable () -> Date = { Date() }) {
         self.wellness = wellness
@@ -26,7 +26,7 @@ final class WellnessStore {
 
     /// Runs after every entry the server takes, for the screens that show wellness beside other
     /// things — Body's count and the diary's days.
-    func onLogged(_ action: @escaping @MainActor () async -> Void) {
+    func onLogged(_ action: @escaping @MainActor (WellnessEntry) async -> Void) {
         whenLogged.append(action)
     }
 
@@ -66,7 +66,7 @@ final class WellnessStore {
             throw try LoadFailure.from(error)
         }
         for span in spans.keys { await load(span) }
-        for action in whenLogged { await action() }
+        for action in whenLogged { await action(entry) }
     }
 
     func reset() {

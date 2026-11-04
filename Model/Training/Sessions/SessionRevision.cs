@@ -28,19 +28,33 @@ public sealed record SessionRevision(CompletedTrainingSession Revised, bool Affe
         CompletedTrainingSession current, IReadOnlyList<SetEntry> sets, Period period, string notes)
     {
         var kept = KeepingUnchanged(current.Sets, sets);
-        var affectsRecords = !SameMeasurements(current.Sets, kept)
-            || current.Period.StartTimeUtc != period.StartTimeUtc;
+        var startMoved = current.Period.StartTimeUtc != period.StartTimeUtc;
+        var affectsRecords = !SameMeasurements(current.Sets, kept) || startMoved;
 
         return new SessionRevision(
             current with
             {
                 Sets = kept,
-                Period = period,
+                Period = startMoved ? period : AtOffset(period, current.Period.StartTime.Offset),
                 Notes = notes,
                 Decoration = affectsRecords ? new NotDecorated() : current.Decoration,
             },
             affectsRecords);
     }
+
+    /// <summary>The same moments, read at another offset.</summary>
+    /// <remarks>
+    /// A client restates the period at its own offset today, which after a change of season or a
+    /// trip is not the one the session was logged at. The offset is what the session's day is read
+    /// at, so a correction that leaves the start where it was keeps the logged offset; one that
+    /// moves the start is a new statement of when, at the offset it is stated in.
+    /// </remarks>
+    private static Period AtOffset(Period period, TimeSpan offset) => period switch
+    {
+        Instant instant => new Instant(instant.At.ToOffset(offset)),
+        Interval interval => new Interval(interval.Start.ToOffset(offset), interval.End.ToOffset(offset)),
+        _ => period,
+    };
 
     /// <summary>
     /// The revised sets, each one that matches a stored set's measurement replaced by that stored

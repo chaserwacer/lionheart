@@ -119,12 +119,15 @@ final class AppContainer {
             if body.state.value != nil { await body.refresh() }
             await cardio.refreshLoaded()
             await habits.refreshLoaded()
-            await diary.refreshLoaded()
+            // A sync re-pulls from the newest stored day, so only the last week's pages can change.
+            await diary.refreshLoaded(since: CalendarDay(Date()).adding(days: -7))
         }
+        // Today holds its own window of sessions, so a correction made from History shows there too.
+        history.onRevised { [today] in await today.refresh() }
         // A rating shows on Body's row for it and on the day it rates.
-        wellness.onLogged { [body, diary] in
+        wellness.onLogged { [body, diary] entry in
             await body.refresh()
-            await diary.refreshLoaded()
+            await diary.refresh(around: entry.day)
         }
 
         // Registered before the session is settled, so a sign-out during the first load still

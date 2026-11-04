@@ -18,8 +18,6 @@ struct SessionDetailView: View {
     let history: HistoryStore
     /// Names movements in the editor and offers the library to add one from.
     let library: MovementLibraryStore
-    /// Run after a correction is saved, for a screen that holds its own copy of the session.
-    var afterRevision: () async -> Void = {}
 
     @State private var isEditing = false
     @State private var refusal: SessionRevisionDraft.Refusal?
@@ -82,7 +80,7 @@ struct SessionDetailView: View {
         }
         .sheet(isPresented: $isEditing) {
             if case .success(let draft) = SessionRevisionDraft.of(session) {
-                SessionRevisionView(draft: draft, history: history, library: library, afterSaving: afterRevision)
+                SessionRevisionView(draft: draft, history: history, library: library)
             }
         }
         .alert(

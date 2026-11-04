@@ -14,15 +14,19 @@ struct WellnessEntrySheet: View {
     let store: WellnessStore
     /// Entries already logged, to open a rated day on its ratings.
     let existing: [WellnessState]
+    /// The first day `existing` covers. Days before it cannot be offered: one already rated there
+    /// would open blank and be replaced without the sheet saying so.
+    let earliest: CalendarDay
 
     @Environment(\.dismiss) private var dismiss
     @State private var draft: WellnessDraft
     @State private var isSaving = false
     @State private var refusal: LoadFailure?
 
-    init(store: WellnessStore, existing: [WellnessState], day: CalendarDay = CalendarDay(Date())) {
+    init(store: WellnessStore, existing: [WellnessState], since earliest: CalendarDay, day: CalendarDay = CalendarDay(Date())) {
         self.store = store
         self.existing = existing
+        self.earliest = earliest
         _draft = State(initialValue: WellnessDraft.opening(on: day, existing: existing))
     }
 
@@ -36,7 +40,7 @@ struct WellnessEntrySheet: View {
                         selection: Binding(
                             get: { draft.day.middayDate() },
                             set: { draft = draft.moved(to: CalendarDay($0), existing: existing) }),
-                        in: ...Date(),
+                        in: earliest.middayDate()...Date(),
                         displayedComponents: .date)
                 } footer: {
                     if existing.contains(where: { $0.date == draft.day }) {

@@ -86,11 +86,18 @@ final class DiaryStore {
         return nil
     }
 
-    /// Reads again every day and week already read — after a sync or a wellness entry, either of
-    /// which changes what they say.
-    func refreshLoaded() async {
-        for day in days.keys { await loadDay(day) }
-        for week in weeks.keys { await loadWeek(week) }
+    /// Reads again the days and weeks already read that reach `first` or later — what a sync can
+    /// have changed, since it pulls only the newest days. Older pages keep what they read, so a
+    /// session spent stepping back through months does not cost a request per page per sync.
+    func refreshLoaded(since first: CalendarDay) async {
+        for day in days.keys where day >= first { await loadDay(day) }
+        for week in weeks.keys where week.adding(days: 6) >= first { await loadWeek(week) }
+    }
+
+    /// Reads again the one day and the one week a wellness rating of `day` shows on, where read.
+    func refresh(around day: CalendarDay) async {
+        if days[day] != nil { await loadDay(day) }
+        if let week = TrainingTrends.weekStart(of: day), weeks[week] != nil { await loadWeek(week) }
     }
 
     func reset() {

@@ -1,9 +1,9 @@
 import Foundation
 
-/// One Monday-to-Sunday week as History's week page reads it, apart from the lifting: the cardio by
+/// One Monday-to-Sunday week as History's week page reads it, apart from the logged training: the cardio by
 /// zone, the ring's week in means, and the athlete's own ratings.
 ///
-/// Like `DiaryDay`, the lifting is read from the log beside it (`WeekLifting`).
+/// Like `DiaryDay`, the logged training is read from the log beside it (`WeekTraining`).
 struct DiaryWeek: Equatable, Sendable {
     /// Monday.
     let start: CalendarDay
@@ -80,11 +80,11 @@ struct DiaryWeek: Equatable, Sendable {
     }
 }
 
-/// A week's lifting, session by session, from the log.
+/// A week's logged training, session by session, from the log — lifting and distance work.
 ///
 /// Sets and volume per unit, warm-ups left out, by the same arithmetic as every session total in
 /// the app (`WorkoutTotals`), so the week's sum is the sum of the rows above it.
-struct WeekLifting: Equatable, Sendable {
+struct WeekTraining: Equatable, Sendable {
     struct Session: Equatable, Sendable, Identifiable {
         let sessionId: UUID
         let day: CalendarDay
@@ -104,12 +104,12 @@ struct WeekLifting: Equatable, Sendable {
     static func of(
         _ sessions: [TrainingSession], weekStarting start: CalendarDay, today: CalendarDay,
         calendar: Calendar = .current
-    ) -> WeekLifting {
+    ) -> WeekTraining {
         let end = start.adding(days: 6, in: calendar)
         let performed = sessions
             .filter { $0.date >= start && $0.date <= end && SessionLog.kind(of: $0, today: today).isPerformed }
             .sorted { ($0.date, $0.startedAt ?? .distantPast) < ($1.date, $1.startedAt ?? .distantPast) }
-        return WeekLifting(
+        return WeekTraining(
             sessions: performed.map { session in
                 Session(
                     sessionId: session.id,

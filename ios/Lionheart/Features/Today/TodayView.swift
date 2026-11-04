@@ -70,9 +70,7 @@ struct TodayView: View {
             }
             .navigationDestination(for: Route.self) { destination(for: $0) }
             .navigationDestination(for: HistoryRoute.self) { route in
-                HistoryDestination(
-                    route: route, history: history, focus: focus, library: library,
-                    afterRevision: { await store.refresh() })
+                HistoryDestination(route: route, history: history, focus: focus, library: library)
             }
             .sheet(isPresented: $isQuickLogPresented) {
                 QuickLogSheet(store: store)
@@ -129,9 +127,7 @@ struct TodayView: View {
         switch route {
         case .session(let id):
             if let session = store.state.value.flatMap({ session(id, in: $0) }) {
-                SessionDetailView(
-                    session: session, catalogue: catalogue, history: history, library: library,
-                    afterRevision: { await store.refresh() })
+                SessionDetailView(session: session, catalogue: catalogue, history: history, library: library)
             } else {
                 ContentUnavailableView {
                     Text("Session not available")

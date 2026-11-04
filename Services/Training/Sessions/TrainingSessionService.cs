@@ -440,12 +440,16 @@ public sealed class TrainingSessionService : ITrainingSessionService
         return await ReplaceAsync(previous, revised, ct);
     }
 
-    /// <summary>A refusal from the records, said as the reason the correction was not saved.</summary>
+    /// <summary>
+    /// The rebuild's refusal, said to the athlete: its own text names records by id, for the
+    /// operator running the command.
+    /// </summary>
     private static Problem RecordsRefusal(Problem problem) => problem switch
     {
-        Problem.Conflict conflict => new Problem.Conflict(
-            "This change reaches your personal records, which are re-detected over the whole history, "
-            + "so the session was not changed. " + conflict.What),
+        Problem.Conflict => new Problem.Conflict(
+            "Changing a session's sets or start re-detects every personal record from the whole history, "
+            + "which would award a record you withdrew all over again, so it is refused while any record is "
+            + "withdrawn. The session was not changed; its notes and finish can still be."),
         _ => problem,
     };
 

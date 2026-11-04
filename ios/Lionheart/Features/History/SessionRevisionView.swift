@@ -13,8 +13,6 @@ import SwiftUI
 struct SessionRevisionView: View {
     let history: HistoryStore
     let library: MovementLibraryStore
-    /// Run after a save the server took, for a screen holding its own copy of the session.
-    let afterSaving: () async -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var draft: SessionRevisionDraft
@@ -25,13 +23,9 @@ struct SessionRevisionView: View {
     @State private var failure: LoadFailure?
     @State private var isDiscardAsked = false
 
-    init(
-        draft: SessionRevisionDraft, history: HistoryStore, library: MovementLibraryStore,
-        afterSaving: @escaping () async -> Void = {}
-    ) {
+    init(draft: SessionRevisionDraft, history: HistoryStore, library: MovementLibraryStore) {
         self.history = history
         self.library = library
-        self.afterSaving = afterSaving
         _draft = State(initialValue: draft)
     }
 
@@ -39,6 +33,12 @@ struct SessionRevisionView: View {
         NavigationStack {
             List {
                 if let failure { failureSection(failure) }
+                if draft.hasChanges, let problem = draft.problem {
+                    Section {
+                        Text("Not saved until this is put right: \(problem.lowercasedFirst)")
+                            .foregroundStyle(Color(.secondaryLabel))
+                    }
+                }
                 whenSection
                 ForEach(draft.blocks) { block in
                     blockSection(block)
@@ -109,7 +109,6 @@ struct SessionRevisionView: View {
             defer { isSaving = false }
             do {
                 try await history.revise(draft)
-                await afterSaving()
                 dismiss()
             } catch let refusal as LoadFailure {
                 failure = refusal
@@ -242,4 +241,8 @@ private struct NewSetSheet: View {
             .presentationDetents([.medium, .large])
         }
     }
+}
+
+private extension String {
+    var lowercasedFirst: String { prefix(1).lowercased() + dropFirst() }
 }

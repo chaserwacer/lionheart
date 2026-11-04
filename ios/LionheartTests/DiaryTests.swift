@@ -73,11 +73,11 @@ struct DiaryTests {
              \(Session.planned(id: "11111111-1111-1111-1111-111111111113", date: "2026-03-05"))]
             """)
 
-        let lifting = WeekLifting.of(sessions, weekStarting: Self.monday, today: Self.monday.adding(days: 6))
+        let training = WeekTraining.of(sessions, weekStarting: Self.monday, today: Self.monday.adding(days: 6))
 
-        #expect(lifting.sessions.count == 1)
-        #expect(lifting.totals.setCount == 2)
-        #expect(lifting.totals.weights.first?.volume == 1_500)
+        #expect(training.sessions.count == 1)
+        #expect(training.totals.setCount == 2)
+        #expect(training.totals.weights.first?.volume == 1_500)
     }
 
     // MARK: - Fixtures

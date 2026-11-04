@@ -10,8 +10,6 @@ struct HistoryDestination: View {
     let history: HistoryStore
     let focus: FocusStore
     let library: MovementLibraryStore
-    /// Run after a session is corrected, for a tab holding its own copy of the log — Today's.
-    var afterRevision: () async -> Void = {}
 
     /// The ring and cardio reads behind the day and week pages, supplied from the root so every
     /// stack that registers this reaches the same ones.
@@ -28,9 +26,7 @@ struct HistoryDestination: View {
         switch route {
         case .session(let id):
             if let session = snapshot?.session(id) {
-                SessionDetailView(
-                    session: session, catalogue: catalogue, history: history, library: library,
-                    afterRevision: afterRevision)
+                SessionDetailView(session: session, catalogue: catalogue, history: history, library: library)
             } else {
                 // Reachable: a refresh can land while a pushed row's session is no longer in the
                 // window. Saying so beats an empty screen with a title.

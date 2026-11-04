@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One Monday-to-Sunday week: the lifting and the cardio it held, beside how the body was across
+/// One Monday-to-Sunday week: the training and the cardio it held, beside how the body was across
 /// it, and the seven days to open.
 ///
 /// The training comes first because the week is a unit of training — sessions a week is the
@@ -21,10 +21,10 @@ struct WeekView: View {
 
     var body: some View {
         let today = CalendarDay(Date())
-        let lifting = WeekLifting.of(history.state.value?.sessions ?? [], weekStarting: start, today: today)
+        let training = WeekTraining.of(history.state.value?.sessions ?? [], weekStarting: start, today: today)
 
         List {
-            liftingSection(lifting)
+            trainingSection(training)
             switch diary.weeks[start] ?? .loading {
             case .loading:
                 Section("Cardio") { SkeletonRows(count: 2) }
@@ -70,21 +70,21 @@ struct WeekView: View {
         bodySection(week, today: today)
     }
 
-    // MARK: - Lifting
+    // MARK: - Logged training
 
-    private func liftingSection(_ lifting: WeekLifting) -> some View {
+    private func trainingSection(_ training: WeekTraining) -> some View {
         Section {
-            if lifting.isEmpty {
+            if training.isEmpty {
                 Text("No sessions logged.").foregroundStyle(Color(.secondaryLabel))
             } else {
                 SummaryFigures(figures: [
-                    (label: "Sessions", value: "\(lifting.sessions.count)"),
-                    (label: "Working sets", value: "\(lifting.totals.setCount)"),
-                ] + lifting.totals.weights.filter { $0.volume > 0 }.map {
+                    (label: "Sessions", value: "\(training.sessions.count)"),
+                    (label: "Sets", value: "\(training.totals.setCount)"),
+                ] + training.totals.weights.filter { $0.volume > 0 }.map {
                     (label: "Volume, \($0.unit.abbreviation)", value: Int($0.volume.rounded()).formatted())
                 })
                 .padding(.vertical, 2)
-                ForEach(lifting.sessions) { session in
+                ForEach(training.sessions) { session in
                     NavigationLink(value: HistoryRoute.session(session.sessionId)) {
                         LabeledContent {
                             Text(Formatting.totals(session.totals)).monospacedDigit()
@@ -102,9 +102,9 @@ struct WeekView: View {
                 }
             }
         } header: {
-            Text("Lifting")
+            Text("Logged training")
         } footer: {
-            Text("Working sets leave warm-ups out. Volume is weight × reps, totalled in each unit lifted in.")
+            Text("Every session logged, lifting and distance work. Sets leave warm-ups out; volume is weight × reps, totalled in each unit lifted in.")
         }
     }
 
@@ -196,7 +196,7 @@ struct WeekView: View {
                                 .font(.subheadline.weight(onDay.isEmpty ? .regular : .semibold))
                             Spacer()
                             if let score = readiness?.first(where: { $0.date == day })?.readiness?.score {
-                                Text("Readiness \(score.description)")
+                                Text("Oura readiness \(score.description)")
                                     .font(.caption.monospacedDigit())
                                     .foregroundStyle(Color(.secondaryLabel))
                             }
@@ -224,8 +224,8 @@ extension WeekView {
 
     /// A day's line in the week: what was lifted, or that nothing was logged, and the ring's workouts.
     fileprivate static func line(sessions: [TrainingSession], ringWorkouts: Int, catalogue: MovementCatalogue) -> String {
-        let lifted = sessions.first.map { SessionLog.movementNames(in: $0, catalogue: catalogue).joined(separator: ", ") }
-            ?? "Nothing logged"
+        let names = sessions.flatMap { SessionLog.movementNames(in: $0, catalogue: catalogue) }
+        let lifted = names.isEmpty ? "Nothing logged" : names.joined(separator: ", ")
         return ringWorkouts == 0 ? lifted : "\(lifted) · \(Formatting.count(ringWorkouts, "ring workout"))"
     }
 }
