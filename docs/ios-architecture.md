@@ -798,6 +798,32 @@ them, the only sign of the cut.
   from and the versions it replaced, and the athlete can correct it (the old wording becomes its
   history) or forget it (every version goes). A correction has a new id, and the page follows it.
 
+## Outside the app: widgets, Shortcuts and the morning wake
+
+**Widgets.** `LionheartWidgets` is a widget extension of its own (the workout's Live Activity keeps
+its own target). Readiness comes as a small Home Screen widget and three Lock Screen families —
+a gauge out of 100, a rectangular line with the band and the baseline, and an inline line — and
+**Today** is a medium widget with the readiness beside the last session and the next one planned.
+None of them reaches the server. Each time Today reads today current, `TodayGlancePublisher` turns
+the snapshot into a `TodayGlance` — final strings plus the score — and writes it to one JSON file in
+the App Group `group.com.chasebalmer.lionheart` (`TodayGlanceFile`), reloading the timelines only
+when what they draw changed. The extension compiles just the glance, its file and
+`ReadinessGlanceView`, which every surface draws readiness with. Days are named when the widget
+draws ("Today" turns into "Yesterday" at midnight with no new data), which is the timeline's one
+later entry. Signing out deletes the file and reloads the widgets.
+
+**Shortcuts.** Two App Intents, in the app's process, acting through the container's own stores
+(`AppDependencyManager`): *Readiness* answers from the glance — reading today first, for up to four
+seconds, when the glance is from an earlier day — and *Log Training* sends plain words through the
+same request as Today's sheet. `LionheartShortcuts` gives both Siri phrases with no setup.
+
+**The morning wake.** There is no push on the free developer tier, so the Lock Screen's readiness
+can only change before the app is opened if iOS wakes it. The app asks for one background refresh
+a day, at the next 05:30 (`MorningRefresh`), on every trip to the background; the scene's
+`.backgroundTask(.appRefresh)` restores the session, syncs the ring if it is behind and reads today,
+which publishes the glance. iOS treats the time as the earliest it may run, and the simulator never
+runs it on its own.
+
 ## Design
 
 There is no design system. Apple's is the design system, which is the direct expression of the

@@ -51,6 +51,13 @@ final class TodayStore {
     private var trendPrefetch: Task<Void, Never>?
     /// When the day on screen was last read current from the server.
     private var lastRead: ReadStamp?
+    private var whenReadToday: (@MainActor (TodaySnapshot) -> Void)?
+
+    /// Runs with every current reading of today — what feeds the widgets, which show today however
+    /// the screen is being browsed.
+    func onReadToday(_ handler: @escaping @MainActor (TodaySnapshot) -> Void) {
+        whenReadToday = handler
+    }
 
     /// How long a current answer is taken as current when nothing on this device has written
     /// since. Short, because this is the screen opened first thing, and a morning sync on the web
@@ -143,7 +150,9 @@ final class TodayStore {
             state = state.applying(reading)
             guard reading.asOf == nil else { return }
             lastRead = ReadStamp(readAt: moment, acceptedWrites: writesBefore)
-            if day == today { prefetchTrends(endingOn: reading.value.recovery?.day ?? day) }
+            guard day == today else { return }
+            whenReadToday?(reading.value)
+            prefetchTrends(endingOn: reading.value.recovery?.day ?? day)
         } catch is CancellationError {
             // The screen went away or a newer refresh took over. Nothing to say, and in particular
             // nothing to put on screen: the value already there is still the best one.

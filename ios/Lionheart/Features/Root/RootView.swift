@@ -53,6 +53,9 @@ struct RootView: View {
                 Task { await container.enteredForeground() }
             case .background:
                 container.reachability.leftForeground()
+                // Asked for on every trip to the background, since a request the system has
+                // dropped is not reported back.
+                if case .signedIn = container.auth.session { BackgroundRefresh.schedule() }
             case .inactive:
                 break
             @unknown default:

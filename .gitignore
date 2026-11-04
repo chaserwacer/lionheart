@@ -259,6 +259,8 @@ ios/Lionheart.xcodeproj/
 ios/Lionheart/Info.plist
 ios/Lionheart/Lionheart.entitlements
 ios/LionheartWorkoutActivity/Info.plist
+ios/LionheartWidgets/Info.plist
+ios/LionheartWidgets/LionheartWidgets.entitlements
 ios/DerivedData/
 ios/DerivedData-*/
 

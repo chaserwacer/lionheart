@@ -65,7 +65,7 @@ struct QuickLogSheet: View {
         switch store.quickLog {
         case .committed(let sessions, let contexts, let warnings):
             Section {
-                Label(committedMessage(sessions: sessions, contexts: contexts), systemImage: "checkmark.circle.fill")
+                Label(Formatting.logged(sessions: sessions, contexts: contexts), systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                 ForEach(warnings, id: \.self) { warning in
                     Text(warning)
@@ -103,16 +103,6 @@ struct QuickLogSheet: View {
 
         case .idle, .interpreting:
             EmptyView()
-        }
-    }
-
-    private func committedMessage(sessions: Int, contexts: Int) -> String {
-        switch (sessions, contexts) {
-        case (0, 0): "Logged."
-        case (let sessions, 0): "Logged \(Formatting.count(sessions, "session"))."
-        case (0, let contexts): "Logged \(Formatting.count(contexts, "context"))."
-        case (let sessions, let contexts):
-            "Logged \(Formatting.count(sessions, "session")) and \(Formatting.count(contexts, "context"))."
         }
     }
 

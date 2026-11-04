@@ -43,6 +43,8 @@ final class AppContainer {
     private let tokens: TokenProvider
     private let memory: ReadMemory
     private let users: UserAPI
+    /// What the Home and Lock Screen widgets show, fed by Today.
+    private let glance = TodayGlancePublisher()
     private var hasStarted = false
 
     init(configuration: APIConfiguration = APIConfiguration()) {
@@ -152,6 +154,11 @@ final class AppContainer {
             // A corrected run's distance, time and climb are its page's figures.
             await runs.refreshLoaded()
         }
+        // Every current reading of today reaches the widgets, named by the catalogue Today names
+        // its training lines with.
+        today.onReadToday { [glance, movements] snapshot in
+            glance.publish(snapshot, catalogue: movements.catalogue, asOf: Date())
+        }
         // A rating shows on Body's row for it and on the day it rates.
         wellness.onLogged { [body, diary] entry in
             await body.refresh()
@@ -164,7 +171,8 @@ final class AppContainer {
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
             [profile, today, train, routines, bodyweight, bodyComposition, movements, history, focus, balance, chat,
-             thread, chatMemory, body, ouraSync, healthSync, runs, cardio, habits, diary, wellness, memory] in
+             thread, chatMemory, body, ouraSync, healthSync, runs, cardio, habits, diary, wellness, memory,
+             glance] in
             profile.reset()
             today.reset()
             train.reset()
@@ -188,8 +196,9 @@ final class AppContainer {
             diary.reset()
             wellness.reset()
             // Every answer the screens remembered. The next athlete on this phone must never open
-            // onto the last one's readiness, offline or not.
+            // onto the last one's readiness, offline or not — nor find it on the Lock Screen.
             memory.forget()
+            glance.clear()
         }
         // The workout goes too, document and all, and the finished ones waiting to be delivered:
         // they belong to the account, and ones the next sign-in could adopt would land one
@@ -234,6 +243,7 @@ final class AppContainer {
         // launch of a signed-out app.
         if case .signedIn = auth.session {
             await movements.refreshIfNeeded()
+            glance.rename(with: movements.catalogue)
             await outbox.deliver()
         }
     }
@@ -253,6 +263,27 @@ final class AppContainer {
         await day
     }
 
+    /// The morning wake iOS granted (`BackgroundRefresh`): sync the ring if it is behind and read
+    /// today, which brings the widgets up to date, then ask for the next one.
+    ///
+    /// `start()` first, because a background launch may never draw `RootView`, whose task is what
+    /// otherwise restores the session.
+    func refreshInBackground() async {
+        await start()
+        defer { BackgroundRefresh.schedule() }
+        guard case .signedIn = auth.session else { return }
+        await ouraSync.syncIfBehind()
+        await today.refreshIfDue()
+    }
+
+    /// Reads today for a Shortcut asked while the glance is from an earlier day — what feeds the
+    /// glance it then answers from.
+    func readTodayForShortcut() async {
+        await start()
+        guard case .signedIn = auth.session else { return }
+        await today.refreshIfDue()
+    }
+
     /// An athlete has just signed in.
     ///
     /// The movement catalogue is loaded first and unconditionally. Sign-out leaves it `.loading`, which
@@ -260,6 +291,7 @@ final class AppContainer {
     /// movement on Today reading "Unknown movement" until the Train tab happened to load it.
     private func signedIn() async {
         await movements.refresh()
+        glance.rename(with: movements.catalogue)
         await serverReturned()
     }
 

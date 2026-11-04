@@ -148,6 +148,8 @@ first and then in the code.
 | **Remembered read** | A screen's read whose last answer the device keeps for the signed-in account, and shows, marked with its time, when the server cannot be reached. Forgotten at sign-out. |
 | **Recalled first paint** | A screen seen before opening on the device's last answer at once, then replaced in place by the server's. The time it dates from floats over it only if the server is slow. |
 | **Read freshness** | Whether a screen coming back into view reads again: when it holds nothing current, when this device has written since, when the day has changed, or when its answer has outlived the span it stays fresh for. |
+| **Today glance** | What the Home and Lock Screen widgets and the readiness Shortcut show: today's readiness, the last session and the next planned, already in words. Written by the app to the shared App Group whenever Today reads today; the widgets never reach the server. |
+| **Morning wake** | The one background refresh a day the app asks iOS for, at the next 05:30, so the Lock Screen's readiness is current before the app is opened. |
 | **Write ledger** | The count of writes the server has accepted from this device since launch — what tells a screen its answer may be behind. |
 | **Server reachability** | Whether the server is answering, learned from the app's own requests rather than the phone's network. Its return is what sends waiting work and refreshes screens. |
 | **Set command** | A set as the athlete states it — the numbers, and nothing the server owns. Smaller than a set entry, which also carries its source and facets. |
