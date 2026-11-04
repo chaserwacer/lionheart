@@ -97,12 +97,12 @@ struct ScorePartView: View {
             }
             .accessibilityElement(children: .combine)
             if let weeks = balance.weeks.value, weeks.count > 1 {
-                WeeklyScoreChart(weeks: weeks, highlighted: weeks.last?.window.to, part: part, outOf: breakdown.outOf)
+                WeeklyScoreChart(weeks: weeks, part: part, outOf: breakdown.outOf, current: breakdown.points)
                     .frame(height: trendHeight)
                     .padding(.vertical, 4)
             }
         } footer: {
-            Text("Seven days to \(Formatting.dayInline(score.window.to)). The bars are the same part in each week to its Sunday, the last in colour.")
+            Text("Seven days to \(Formatting.dayInline(score.window.to)), the rule in colour. The bars are the same part in each week to its Sunday.")
         }
     }
 

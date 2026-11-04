@@ -16,6 +16,9 @@ struct WeeklyScoreChart: View {
     var part: ScorePart?
     /// The top of the scale: 100 for the whole score, the part's points otherwise.
     var outOf: Double = 100
+    /// The seven days to today, drawn as a rule in the accent: it rarely ends on a Sunday, so no
+    /// bar is it, and colouring the last bar would invite reading that week as this one.
+    var current: Double?
 
     /// The score that marks an excellent week, drawn as a rule.
     static let excellent = 90.0
@@ -25,6 +28,11 @@ struct WeeklyScoreChart: View {
             RuleMark(y: .value("Mark", part == nil ? Self.excellent : outOf))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                 .foregroundStyle(Color(.tertiaryLabel))
+            if let current {
+                RuleMark(y: .value("Seven days to today", current))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5))
+                    .foregroundStyle(Tokens.accent)
+            }
             ForEach(weeks) { week in
                 if let value = week.points(of: part) {
                     BarMark(
