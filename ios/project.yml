@@ -57,6 +57,10 @@ targets:
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # Resources/AppIcon.icon, an Icon Composer document drawn by Scripts/render-brand-assets.sh:
+        # Liquid Glass on iOS 26, and flat light, dark and tinted pictures the asset compiler renders
+        # from it for iOS 18.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         DEVELOPMENT_ASSET_PATHS: ""
         CODE_SIGN_STYLE: Automatic
         # Code signing stays on even for the simulator, which signs ad-hoc and needs no team.
@@ -66,7 +70,9 @@ targets:
     info:
       path: Lionheart/Info.plist
       properties:
-        CFBundleDisplayName: Lionheart
+        # The athlete sees Tempo; everything internal — targets, bundle identifiers, the Keychain and
+        # the App Group — keeps the Lionheart name, since changing those breaks an installed app.
+        CFBundleDisplayName: Tempo
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UIUserInterfaceStyle: Automatic
@@ -74,8 +80,11 @@ targets:
         # Declaring a launch screen is what tells iOS the app is built for the full display. Without
         # it the app runs letterboxed in compatibility mode on every modern device — and because
         # this project supplies its own Info.plist, the INFOPLIST_KEY_UILaunchScreen_Generation
-        # build setting never reaches it. An empty dictionary is the whole declaration.
-        UILaunchScreen: {}
+        # build setting never reaches it. The mark on Graphite, in both appearances: OpeningView's
+        # first frame draws exactly this, so the hand-over to the app shows no seam.
+        UILaunchScreen:
+          UIColorName: Graphite
+          UIImageName: LaunchMark
         # Without this the app cannot start a Live Activity at all: ActivityKit reads it from the
         # *app's* bundle, and `ActivityAuthorizationInfo().areActivitiesEnabled` answers false with
         # nothing in the log saying why. It belongs here for the same reason UILaunchScreen does —
@@ -88,7 +97,7 @@ targets:
         # The document camera reads a printed body-composition sheet; the photo stays on the phone.
         NSCameraUsageDescription: Photographs a printed body-composition sheet so its figures can be read on this phone.
         # Read only: the workouts other apps write to Health, and what Apple's own devices measure.
-        NSHealthShareUsageDescription: Reads the runs, rides, hikes and walks other apps write to Apple Health, with their routes, heart rate, power and running form, so they count as training in Lionheart, and what your Apple Watch and iPhone measure — VO2max, resting heart rate, HRV, gait — with your weigh-ins and date of birth.
+        NSHealthShareUsageDescription: Reads the runs, rides, hikes and walks other apps write to Apple Health, with their routes, heart rate, power and running form, so they count as training in Tempo, and what your Apple Watch and iPhone measure — VO2max, resting heart rate, HRV, gait — with your weigh-ins and date of birth.
         # Never asked for outside a Debug simulator build: only its sample-run seeding writes, and the
         # code that asks is compiled into nothing else. The text is a build setting so Release states that it does not write.
         NSHealthUpdateUsageDescription: $(LH_HEALTH_UPDATE_USAGE)
@@ -116,8 +125,8 @@ targets:
     sources:
       - path: LionheartWorkoutActivity
       - path: Lionheart/Core/Derived/ActiveWorkout/WorkoutActivityAttributes.swift
-      # The accent is the app's one brand token and the activity has to inherit it, so the catalog
-      # is compiled into the extension too rather than duplicated as a literal.
+      # The activity draws in the app's palette — the Brick accent above all — so the catalog is
+      # compiled into the extension too rather than duplicated as literals.
       - path: Lionheart/Resources/Assets.xcassets
     configFiles:
       Debug: Configs/Debug.xcconfig
@@ -135,7 +144,7 @@ targets:
     info:
       path: LionheartWorkoutActivity/Info.plist
       properties:
-        CFBundleDisplayName: Lionheart Workout
+        CFBundleDisplayName: Tempo Workout
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
@@ -154,6 +163,10 @@ targets:
       - path: Lionheart/Core/Derived/TodayGlance.swift
       - path: Lionheart/Store/Glance/TodayGlanceFile.swift
       - path: Lionheart/Design/ReadinessGlanceView.swift
+      # The mark in the widgets' corner, in the palette.
+      - path: Lionheart/Design/ProgressionMark.swift
+      - path: Lionheart/Design/BrandMark.swift
+      - path: Lionheart/Design/Tokens.swift
       - path: Lionheart/Resources/Assets.xcassets
     configFiles:
       Debug: Configs/Debug.xcconfig
@@ -173,7 +186,7 @@ targets:
     info:
       path: LionheartWidgets/Info.plist
       properties:
-        CFBundleDisplayName: Lionheart
+        CFBundleDisplayName: Tempo
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
