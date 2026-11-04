@@ -53,7 +53,7 @@ internal static class SheetLogs
             programs = new object[]
             {
                 new { sheet = "mk-2", title = "Strength block — MK.2", summary = "Coached block.", tags = new[] { "coached" } },
-                new { sheet = "your-program-rpe", title = "Jamal V5 — Your Program (RPE)", summary = "RPE template.", tags = new[] { "coached" } },
+                new { sheet = "your-program-rpe", title = "RPE template — Your Program (RPE)", summary = "RPE template.", tags = new[] { "coached" } },
             },
             templateText = new[] { "WEIGHT WILL BE AUTO GENERATED" },
             notPerformed,
@@ -70,7 +70,7 @@ internal static class SheetLogs
                     sheet = "mk-2", title = "Strength block — MK.2", summary = "Coached block.", tags = new[] { "coached" },
                     readAs = new Dictionary<string, string> { ["deadlift-barbell"] = "sumo-deadlift-barbell" },
                 },
-                new { sheet = "your-program-rpe", title = "Jamal V5 — Your Program (RPE)", summary = "RPE template.", tags = new[] { "coached" } },
+                new { sheet = "your-program-rpe", title = "RPE template — Your Program (RPE)", summary = "RPE template.", tags = new[] { "coached" } },
             },
         })));
 
