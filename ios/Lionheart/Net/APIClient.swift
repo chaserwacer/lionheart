@@ -152,6 +152,7 @@ final class APIClient: Sendable {
 
         var (bytes, status) = try await openEvents(path, body: encoded, bearer: accessToken)
         if status == 401 {
+            bytes.task.cancel()
             let renewed = try await unreachedIsReported { try await tokens.renewed(replacing: accessToken) }
             (bytes, status) = try await openEvents(path, body: encoded, bearer: renewed.accessToken)
         }

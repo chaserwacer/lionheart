@@ -18,6 +18,8 @@ struct ThreadView: View {
     @State private var isContextCardPresented = false
     /// Whether the athlete has unfolded the tab bar, which puts the composer away (`InlineComposer`).
     @State private var showsTabs = false
+    /// Whether the transcript is at its bottom, where a growing answer carries it down.
+    @State private var isFollowing = true
     @FocusState private var isComposerFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -26,9 +28,6 @@ struct ThreadView: View {
 
     /// How near the bottom the athlete has to be reading for a growing answer to carry him down.
     private static let followDistance: CGFloat = 80
-
-    /// Whether the transcript is at its bottom, where a growing answer carries it down.
-    @State private var isFollowing = true
 
     var body: some View {
         NavigationStack {

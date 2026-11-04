@@ -140,6 +140,7 @@ first and then in the code.
 | **Athlete context card** | The standing per-user summary handed to the model, so a conversation starts knowing the athlete instead of re-reading everything. |
 | **Briefing** | The TODAY note each chat message goes with: the date and time on the athlete's clock, his training today and yesterday, his last two nights, readiness, injuries, the week so far and the score. It is read fresh for every message, is never stored, and decides what "today" means. |
 | **Relay** | The development-only chat provider in which whoever is testing plays the model by answering request files (`docs/chat-relay.md`). |
+| **Streamed answer** | A thread reply sent to the app as it is written, as server-sent events: its text piece by piece, each round of tools as it runs, then the stored session. The exchange finishes and is stored even if the connection drops. |
 | **Thread** | The athlete's one continuing chat with Lionheart, read back as a single transcript. Beside it, a **conversation** is a standalone chat he starts and names; nothing said in one is remembered. |
 | **Thread session** | The run of thread messages the model actually reads: it ends after three hours idle or once its transcript passes about 60k tokens, and its system prompt is frozen when it opens. |
 | **Memory** | What the athlete told the thread, distilled when a session ends: a dated goal, injury, preference, commitment, decision or fact, traced to the messages it came from. The context card is what his data shows; memory is what he said. |
@@ -154,6 +155,7 @@ first and then in the code.
 | **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement, the movements the athlete added. The one piece of state the device owns. |
 | **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |
+| **Folded tab bar** | On the Chat tab (iOS 26), the tab bar shrunk to the Chat glyph at the start of the composer's row. Tapping it unfolds the tabs and puts the composer away. |
 | **Rest clock** | The countdown between sets. |
 | **Load state** | A screen's enum for what it has: not loaded, loaded, unavailable with a reason, or stale — a value that is not current. Never flags plus an optional error. |
 | **Staleness** | Why a value on screen is not current: a refresh the server answered with a fault, a server that could not be reached, marked with the time the value dates from ("As of 14:02"), or a recalled value the server has not answered for yet. |
