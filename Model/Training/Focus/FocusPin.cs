@@ -14,7 +14,8 @@ namespace lionheart.Model.Training.Focus;
 /// through the transitions below.
 /// <para>
 /// The movement is fixed for the pin's life. Pinning a different movement is a different focus,
-/// and the history of the old one is the point of keeping unpinned pins at all.
+/// and the history of the old one is the point of keeping unpinned pins at all. Only its id moves,
+/// when the library merges two rows that were one movement (<see cref="FollowMerge"/>).
 /// </para>
 /// </remarks>
 public sealed class FocusPin
@@ -36,7 +37,7 @@ public sealed class FocusPin
 
     public Guid UserId { get; private init; }
 
-    public Guid MovementDataId { get; private init; }
+    public Guid MovementDataId { get; private set; }
 
     public FocusRole Role { get; private init; }
 
@@ -78,6 +79,12 @@ public sealed class FocusPin
             pin.Terms = terms;
             return pin;
         });
+
+    /// <summary>
+    /// Follows the pin's movement into the one it was merged with: the same movement, kept under
+    /// the other's id, so the pin is still on what it was always on.
+    /// </summary>
+    public void FollowMerge(Guid survivingMovementDataId) => MovementDataId = survivingMovementDataId;
 
     /// <summary>Lets the pin go on the day the athlete names. Once only.</summary>
     public Result<FocusPin, Problem> Unpin(DateOnly on) =>

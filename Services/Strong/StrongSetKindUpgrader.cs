@@ -125,16 +125,10 @@ public sealed class StrongSetKindUpgrader
             .SelectMany(workout => workout.Workout.Sets)
             .Select(set => held.Export.Mappings[set.Exercise])
             .DistinctBy(mapping => mapping.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(mapping => (StrongName: mapping.Name, Match: movements.FirstOrDefault(movement => SameName(movement.Name, mapping.Movement))))
+            .Select(mapping => (StrongName: mapping.Name, Match: movements.FirstOrDefault(movement => movement.Name.SameAs(mapping.Movement))))
             .Where(found => found.Match.Name is not null)
             .ToDictionary(found => found.StrongName, found => found.Match.MovementDataID, StringComparer.OrdinalIgnoreCase);
     }
-
-    private static bool SameName(MovementName held, MovementName mapped) =>
-        Same(held.Base, mapped.Base) && Same(held.Equipment, mapped.Equipment) && Same(held.Modifier, mapped.Modifier);
-
-    private static bool Same(string left, string right) =>
-        left.Trim().Equals(right.Trim(), StringComparison.OrdinalIgnoreCase);
 
     // ---- Commit ----
 

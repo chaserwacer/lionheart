@@ -301,26 +301,53 @@ struct InjuryHistoryTests {
 struct MovementCatalogueTests {
     private static let bench = "22222222-2222-2222-2222-222222222222"
 
-    @Test("A movement reads as the modifier qualifying the base, with its equipment after")
+    @Test("A movement reads as variation, exercise, then the equipment in parentheses")
     func aMovementReadsAsALifterSaysIt() throws {
         let movement = try Decoding.decode(MovementData.self, Catalogue.movement(
-            id: Self.bench, base: "Bench Press", equipment: "Dumbbell", modifier: "Incline"))
+            id: Self.bench, base: "Bench Press", equipment: "Dumbbell", modifier: "incline"))
 
-        // The server lower-cases a modifier on the way in, so only its first letter is fixed —
-        // everything else keeps the capitalisation the server holds. `title` and `qualifier` are
-        // what a screen with room for two shows; `displayName` is for one.
+        // `title` and `qualifier` are what a screen with room for two shows; `displayName` is for
+        // one, and reads as Strong names its library.
         #expect(movement.title == "Incline Bench Press")
         #expect(movement.qualifier == "Dumbbell")
-        #expect(movement.displayName == "Incline Dumbbell Bench Press")
+        #expect(movement.displayName == "Incline Bench Press (Dumbbell)")
+    }
+
+    @Test("A modifier stored lower case is capitalised word by word", arguments: [
+        ("kneeling single arm", "Kneeling Single Arm Lat Pulldown"),
+        ("behind-the-back", "Behind-the-Back Lat Pulldown"),
+        ("v-bar", "V-Bar Lat Pulldown"),
+    ])
+    func aModifierIsCapitalised(stored: String, title: String) throws {
+        let movement = try Decoding.decode(MovementData.self, Catalogue.movement(
+            id: Self.bench, base: "Lat Pulldown", equipment: "Cable", modifier: stored))
+
+        #expect(movement.title == title)
     }
 
     @Test("Equipment already in the name is not said twice")
     func equipmentIsNotRepeated() throws {
-        // "Barbell row, barbell" is how a naive join reads.
         let movement = try Decoding.decode(MovementData.self, Catalogue.movement(
-            id: Self.bench, base: "Barbell Row", equipment: "Barbell"))
+            id: Self.bench, base: "T-Bar Row", equipment: "T-Bar"))
 
-        #expect(movement.displayName == "Barbell Row")
+        #expect(movement.displayName == "T-Bar Row")
+    }
+
+    @Test("A machine stored as the equipment does not read the exercise twice")
+    func aMachineNamedAfterTheExerciseIsNotRepeated() throws {
+        // The defect: base "Leg Curl" on equipment "Standing Leg Curl" read "Standing Leg Curl Leg Curl".
+        let movement = try Decoding.decode(MovementData.self, Catalogue.movement(
+            id: Self.bench, base: "Leg Curl", equipment: "Standing Leg Curl"))
+
+        #expect(movement.displayName == "Standing Leg Curl")
+    }
+
+    @Test("A modifier the base already says is not said twice")
+    func aModifierInTheBaseIsNotRepeated() throws {
+        let movement = try Decoding.decode(MovementData.self, Catalogue.movement(
+            id: Self.bench, base: "Incline Bench Press", equipment: "Dumbbell", modifier: "incline"))
+
+        #expect(movement.displayName == "Incline Bench Press (Dumbbell)")
     }
 
     @Test("A set with no movement identity is unspecified, not unknown")
@@ -332,7 +359,7 @@ struct MovementCatalogueTests {
 
         #expect(catalogue.name(for: nil) == "Unspecified")
         #expect(catalogue.name(for: UUID()) == "Unknown movement")
-        #expect(catalogue.name(for: UUID(uuidString: Self.bench)) == "Barbell Bench Press")
+        #expect(catalogue.name(for: UUID(uuidString: Self.bench)) == "Bench Press (Barbell)")
     }
 
     @Test("An empty catalogue still answers, so a failed catalogue read does not hide a set")

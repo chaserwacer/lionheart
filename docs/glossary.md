@@ -18,6 +18,8 @@ first and then in the code.
 | **Prescription** | A target set on a planned session — the intended reps, weight, distance or duration. |
 | **Movement data** | The identity of a thing you do: a movement base plus equipment plus a modifier. Records hang off it. |
 | **Movement base** | The bare exercise, before equipment: "bench press", "deadlift". |
+| **Movement name** | How a movement reads: "Variation Exercise (Equipment)", as Strong names its library — "Seated Leg Curl (Machine)". The base is the exercise, the equipment the implement, the modifier the variation. |
+| **Library tidy** | `tidy-movements`: brings an athlete's movements to the naming convention by the rules in `movement-library.json` — renaming, merging movements that are one, retiring unused ones, adding the common lifts — as one all-or-nothing change, with a dry run. |
 | **Strong movement map** | The athlete-editable file saying which movement each exercise name in a Strong export becomes. |
 | **Coached programme sheets** | The athlete's earlier powerlifting spreadsheets (a self-run RPE template and coached blocks), read through training-os's derived set log. Each sheet imports as a completed training program. |
 | **Not-performed row** | A row the set log holds that the athlete did not lift as written — a weight the spreadsheet computed, a placeholder, a row his own note contradicts. Left out of the session and named in its notes; the decisions file listing them stays with the spreadsheets, outside this repository. |

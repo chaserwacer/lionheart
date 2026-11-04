@@ -173,7 +173,7 @@ struct TrainingTrendTests {
 
         let series = TrainingTrends.strengthSeries(of: sessions, catalogue: try Self.catalogue())
 
-        #expect(series.map(\.movementName) == ["Barbell Bench Press", "Barbell Back Squat"])
+        #expect(series.map(\.movementName) == ["Bench Press (Barbell)", "Back Squat (Barbell)"])
     }
 
     @Test("A series' points run oldest first")

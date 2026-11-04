@@ -25,6 +25,7 @@ using lionheart.Services.Training.Score;
 using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.Routines;
 using lionheart.Services.Training.PersonalRecords;
+using lionheart.Services.Training.Movement.Library;
 using lionheart.Services.Training.Sessions;
 using lionheart.Endpoints.OpenApi;
 using lionheart.Services.Cardio;
@@ -66,6 +67,11 @@ if (args is [CoachedSheetImportCommand.Verb, ..])
 if (args is [RebuildRecordsCommand.Verb, ..])
 {
     return await RebuildRecordsCommand.RunAsync(args, CancellationToken.None);
+}
+
+if (args is [TidyMovementsCommand.Verb, ..])
+{
+    return await TidyMovementsCommand.RunAsync(args, CancellationToken.None);
 }
 
 if (args is [StrongUpgradeCommand.Verb, ..])

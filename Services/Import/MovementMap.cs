@@ -12,10 +12,29 @@ namespace lionheart.Services.Import;
 /// </remarks>
 public sealed record MovementName(string Base, string Equipment, string Modifier)
 {
+    /// <summary>Names compared the way the catalogue matches them: each part ignoring case and surrounding spaces.</summary>
+    public static IEqualityComparer<MovementName> Matching { get; } = new MatchingComparer();
+
     public bool HasModifier => Modifier.Length > 0;
+
+    /// <summary>Whether the two name the same movement, by <see cref="Matching"/>.</summary>
+    public bool SameAs(MovementName other) => Matching.Equals(this, other);
 
     public override string ToString() =>
         HasModifier ? $"{Base} / {Equipment} / {Modifier}" : $"{Base} / {Equipment}";
+
+    private sealed class MatchingComparer : IEqualityComparer<MovementName>
+    {
+        public bool Equals(MovementName? left, MovementName? right) =>
+            left is not null && right is not null && Key(left) == Key(right);
+
+        public int GetHashCode(MovementName name) => Key(name).GetHashCode();
+
+        private static (string, string, string) Key(MovementName name) =>
+            (Part(name.Base), Part(name.Equipment), Part(name.Modifier));
+
+        private static string Part(string part) => part.Trim().ToUpperInvariant();
+    }
 }
 
 /// <summary>
