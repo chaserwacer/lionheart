@@ -18,8 +18,8 @@ extension SleepStage {
 }
 
 extension ActivityLane {
-    /// Intensity as the accent's strength — the Move ring's red, deepening with effort — and stillness
-    /// in greys, with sleep in the night's indigo.
+    /// Intensity as the accent's strength — Brick, deepening with effort — and stillness in greys,
+    /// with sleep in the night's indigo.
     var colour: Color {
         switch self {
         case .high: Tokens.accent

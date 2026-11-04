@@ -1,8 +1,8 @@
 import Charts
 import SwiftUI
 
-/// The training score of each week ending on a Sunday, or one part's points, as quiet bars, with
-/// the seven days to today as a rule in the accent.
+/// The training score of each week ending on a Sunday, or one part's points, as quiet bars in Iron,
+/// with the seven days to today as a rule in the accent — the mark's past weeks and this one.
 ///
 /// The whole score is drawn against the 90 that marks an excellent week; a part against its own
 /// points. A week whose score was read with a part unknown is drawn pale, so a number that could
@@ -65,7 +65,7 @@ struct WeeklyScoreChart: View {
     }
 
     private func colour(of week: WeeklyScore) -> Color {
-        part == nil && week.isPartial ? Color(.quaternarySystemFill) : Color(.systemFill)
+        Tokens.iron.opacity(part == nil && week.isPartial ? 0.16 : 0.38)
     }
 
     private var spoken: String {

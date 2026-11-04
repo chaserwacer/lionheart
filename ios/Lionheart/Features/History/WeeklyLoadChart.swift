@@ -52,7 +52,7 @@ struct WeeklyLoadChart: View {
                 BarMark(
                     x: .value("Week", week.start.middayDate(), unit: .weekOfYear),
                     y: .value(counting.label, counting.of(week)))
-                .foregroundStyle(week.id == selected?.id ? Color(.secondaryLabel) : Color(.systemFill))
+                .foregroundStyle(Tokens.iron.opacity(week.id == selected?.id ? 1 : 0.38))
             }
             ForEach(average) { load in
                 LineMark(

@@ -50,7 +50,7 @@ enum GoingInWords {
     }
 
     /// Colour carries the band, never decoration: green over his usual day, blue on it — not the
-    /// accent, which is red in this app and would read as a warning — orange and red under.
+    /// accent, Brick, which would read as a warning — orange and red under.
     static func tint(score: Int?) -> Color {
         switch score {
         case .none: Color(.tertiaryLabel)
