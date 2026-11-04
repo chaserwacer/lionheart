@@ -14,7 +14,7 @@ struct DiaryTests {
         let report = try Self.report(sessions: [
             Self.cardio(source: #"{"$type":"loggedSession","trainingSessionId":"\#(logged.uuidString)","isTrailRun":true}"#,
                         start: "2026-03-02T17:00:00Z"),
-            Self.cardio(source: #"{"$type":"ringWorkout","ouraId":"99999999-9999-9999-9999-999999999999","activity":"cycling","category":"endurance"}"#,
+            Self.cardio(source: #"{"$type":"ringWorkout","ouraId":"99999999-9999-9999-9999-999999999999","activity":"cycling","category":"endurance","entry":"entered"}"#,
                         start: "2026-03-02T19:00:00Z"),
         ])
 

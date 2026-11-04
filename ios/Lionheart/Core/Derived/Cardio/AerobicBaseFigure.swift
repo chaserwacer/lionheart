@@ -109,7 +109,7 @@ extension CardioSession {
     /// The session in words: "Hiking", "Trail run", "Run".
     var activityName: String {
         switch source {
-        case .ringWorkout(_, let activity, _): OuraVocabulary.phrase(activity)
+        case .ringWorkout(_, let activity, _, _): OuraVocabulary.phrase(activity)
         case .loggedSession(_, let isTrailRun, _): isTrailRun ? "Trail run" : "Distance and time"
         case .unrecognised: "Session"
         }

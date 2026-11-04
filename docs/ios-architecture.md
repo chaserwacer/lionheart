@@ -586,9 +586,11 @@ once; an id a current catalogue still does not hold is remembered as unlisted an
 again, so a deleted movement costs one read rather than one per render. A read that could not reach
 the server proves nothing and leaves the id to be asked about again.
 
-## Train: what it is time for, the week's volume, priorities and the score
+## Train: the score, what it is time for, the week's volume and priorities
 
-Train leads with **Start workout** and **Log a past workout**, then answers what it is time for.
+Train leads with the **training score**, part by part, because it is the reading every session on
+the tab moves; **Start workout** and **Log a past workout** sit directly under it, and a Start
+button in the toolbar keeps starting one tap away whatever is on screen. Then what it is time for.
 Routines, bodyweight and the plan follow; they stay, below the reading of the week.
 
 **Everything on the week is the server's reading.** Weekly volume (`GET /api/training/volume/{day}`),
@@ -625,9 +627,19 @@ compound lift of eight weeks stands in, and says so. Setting a priority picks fr
 compound lifts (`PriorityCandidates`), and pinning one lets the last go on the server in the same
 write.
 
-**The score** is a number with its measurements: Today shows it beside push, pull and legs hard sets,
-zone 2 and the week's sessions; its screen shows half a year of weeks against 90 and every part as
-"x of y" rows. A part with no data says unknown, never zero, and a week read with one is drawn pale.
+**The score** is a number with everything that went into it. Every measurement arrives from the
+server with the points it earned of the points it could (`Scored<T>`), so the client draws the
+server's arithmetic and re-derives none of it. The card (`TrainingScoreCard`) is the number against
+the median and best of the last 26 weeks, then a **partition** (`ScoreBreakdownChart`): three rows
+on one 100-point axis — the score, its four parts, every measurement under its part — each cell as
+wide as the points it can earn and filled with the points it did, so a gap in the bottom row reads
+straight up to the part it cost. Tapping a part, or its row, opens it (`ScorePartView`): its points
+this week and in each of the 26 weeks before, every measurement against its target with its points,
+and what lies behind it — the patterns for lifting; for cardio, the window's sessions counted and
+the ring's detections declined with the heart rate that decided each; the lifts for progress. Each
+has an info sheet (`ScoreInfoSheet`) stating the method with the targets the server scored with.
+Today shows the score in one line. A part with no data says unknown, never zero, is drawn as an
+empty track, and a week read with one is drawn pale.
 
 **What a movement trains** is shown and edited on its page (`ClassificationSection`), stated for the
 base so every variation shares it. A judgement call from the shipped map is shown in orange with its
@@ -677,7 +689,10 @@ questions with screens of their own.
   aerobic-base table (four weeks against eight), weekly minutes stacked by zone, Oura's VO2max and
   cardiovascular-age estimates labelled as estimates, the nights' lowest heart rate, and every
   session with a zone bar, opening onto its heart-rate curve against the zone bands
-  (`GET /api/oura/heartrate`).
+  (`GET /api/oura/heartrate`). Zone 2 against zones 3–5 is read as a mean week against the score's
+  targets; runs with distance and heart rate over most of their time are read as heartbeats per
+  kilometre (`RunReading`), a trend drawn from three runs up; and the ring's detections the heart
+  rate did not show as training are folded under one line at the foot, each openable.
 - **Daily movement** is `GET /api/habits` drawn: weekday and weekend means against the span before,
   orange only where a change went the worse way; the mean day hour by hour from 04:00 with the
   hours training began beneath; each day's longest sitting; sleep timing as bedtime-to-wake bars;

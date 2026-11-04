@@ -21,6 +21,24 @@ struct CardioReport: Equatable, Sendable {
     let restingHeartRate: [DayFigure]
     let aerobicBase: AerobicBase
     let excluded: [ExcludedWorkouts]
+    /// The ring's guesses in the span whose heart rate did not show training, with that heart rate,
+    /// so the call can be checked. Oldest first.
+    let declined: [DeclinedWorkout]
+}
+
+/// A ring workout that needed its heart rate to show training and did not.
+struct DeclinedWorkout: Equatable, Sendable, Identifiable {
+    let session: CardioSession
+    let reason: ExcludedWorkouts.Reason
+
+    var id: String { session.id }
+}
+
+extension CardioReport {
+    /// A session counted or declined in this report, by its id.
+    func session(withId id: String) -> CardioSession? {
+        sessions.first { $0.id == id } ?? declined.first { $0.session.id == id }?.session
+    }
 }
 
 /// One figure on one day, as the server sent it.
@@ -61,14 +79,16 @@ struct CardioSession: Equatable, Sendable, Identifiable {
 
     var id: String {
         switch source {
-        case .ringWorkout(let id, _, _): id.uuidString
+        case .ringWorkout(let id, _, _, _): id.uuidString
         case .loggedSession(let id, _, _): id.uuidString
         case .unrecognised(let type): "\(type)-\(start.timeIntervalSince1970)"
         }
     }
 
     enum Source: Equatable, Sendable {
-        case ringWorkout(ouraId: UUID, activity: String, category: WorkoutCategory)
+        /// `entry`: the athlete's own entry, or the ring's guess admitted because its heart rate
+        /// showed training.
+        case ringWorkout(ouraId: UUID, activity: String, category: WorkoutCategory, entry: RingEntry)
         /// `isRecorded`: imported from Apple Health, so its run page has the route and the
         /// recording app's own figures.
         case loggedSession(trainingSessionId: UUID, isTrailRun: Bool, isRecorded: Bool)
@@ -76,9 +96,27 @@ struct CardioSession: Equatable, Sendable, Identifiable {
     }
 }
 
+/// How a ring workout came to be on the record.
+enum RingEntry: Equatable, Sendable {
+    /// The athlete entered it himself.
+    case entered
+    /// The ring proposed it from movement and the athlete approved it: its name is a guess.
+    case detected
+    case unrecognised(String)
+
+    init(wire: String) {
+        switch wire {
+        case "entered": self = .entered
+        case "detected": self = .detected
+        default: self = .unrecognised(wire)
+        }
+    }
+}
+
 /// What kind of effort a ring workout was, as the server classified it.
 enum WorkoutCategory: Equatable, Sendable {
-    case endurance, sport, walk, strength, incidental
+    /// `unspecified` is Oura's own "other": an activity nobody named.
+    case endurance, sport, walk, strength, incidental, unspecified
     case unrecognised(String)
 
     init(wire: String) {
@@ -88,6 +126,7 @@ enum WorkoutCategory: Equatable, Sendable {
         case "walk": self = .walk
         case "strength": self = .strength
         case "incidental": self = .incidental
+        case "unspecified": self = .unspecified
         default: self = .unrecognised(wire)
         }
     }
@@ -164,7 +203,11 @@ struct ExcludedWorkouts: Equatable, Sendable, Identifiable {
 
     /// Why the server left a ring workout out of the sessions.
     enum Reason: Equatable, Sendable {
-        case sameAsLoggedRun, insideLoggedLifting, shortWalk, strength, notTraining, unclassified, noDuration
+        case sameAsLoggedRun, insideLoggedLifting, shortWalk, strength, notTraining, noDuration
+        /// A ring's guess, or a workout nobody named, with too little heart rate behind it to show training.
+        case heartRateUnread
+        /// A ring's guess, or a workout nobody named, whose heart rate stayed below training.
+        case heartRateBelowTraining
         case unrecognised(String)
 
         init(wire: String) {
@@ -174,7 +217,8 @@ struct ExcludedWorkouts: Equatable, Sendable, Identifiable {
             case "shortWalk": self = .shortWalk
             case "strength": self = .strength
             case "notTraining": self = .notTraining
-            case "unclassified": self = .unclassified
+            case "heartRateUnread": self = .heartRateUnread
+            case "heartRateBelowTraining": self = .heartRateBelowTraining
             case "noDuration": self = .noDuration
             default: self = .unrecognised(wire)
             }
@@ -188,7 +232,8 @@ struct ExcludedWorkouts: Equatable, Sendable, Identifiable {
             case .shortWalk: "walks under 30 minutes"
             case .strength: "strength work"
             case .notTraining: "housework, yard work or stretching"
-            case .unclassified: "activities not yet classified"
+            case .heartRateUnread: "ring guesses with too little heart rate to show training"
+            case .heartRateBelowTraining: "ring guesses whose heart rate stayed below training"
             case .noDuration: "with no duration"
             case .unrecognised(let wire): wire
             }
@@ -239,7 +284,19 @@ extension CardioReport: Decodable {
             cardiovascularAge: container.lenientList(DayFigure.self, "cardiovascularAge"),
             restingHeartRate: container.lenientList(DayFigure.self, "restingHeartRate"),
             aerobicBase: container.lenient(AerobicBase.self, "aerobicBase") ?? .empty(range),
-            excluded: container.lenientList(ExcludedWorkouts.self, "excluded"))
+            excluded: container.lenientList(ExcludedWorkouts.self, "excluded"),
+            declined: container.lenientList(DeclinedWorkout.self, "declined"))
+    }
+}
+
+extension DeclinedWorkout: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        guard let session = container.lenient(CardioSession.self, "session") else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath, debugDescription: "A declined workout needs its session."))
+        }
+        self.init(session: session, reason: ExcludedWorkouts.Reason(wire: container.lenient("reason", or: "")))
     }
 }
 
@@ -306,7 +363,8 @@ extension CardioSession.Source: Decodable {
             self = .ringWorkout(
                 ouraId: id,
                 activity: container.lenient("activity", or: ""),
-                category: WorkoutCategory(wire: container.lenient("category", or: "")))
+                category: WorkoutCategory(wire: container.lenient("category", or: "")),
+                entry: RingEntry(wire: container.lenient("entry", or: "")))
         case "loggedSession":
             guard let id = container.lenient(UUID.self, "trainingSessionId") else { self = .unrecognised(type); return }
             self = .loggedSession(

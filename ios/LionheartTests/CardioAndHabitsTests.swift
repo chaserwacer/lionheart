@@ -29,6 +29,66 @@ struct CardioAndHabitsTests {
         #expect(report.weeks.map(\.sessions) == [0, 1])
         #expect(report.weeks.map(\.daysInRange) == [6, 7])
         #expect(report.excluded.map(\.reason) == [.notTraining, .unrecognised("somethingNew")])
+        #expect(session.source == .ringWorkout(
+            ouraId: try #require(UUID(uuidString: "25e651b9-6f28-4091-8341-a7f2332a2fc8")),
+            activity: "cardiovascularExercise", category: .endurance, entry: .entered))
+    }
+
+    @Test("A declined ring guess decodes with the heart rate that decided it, and opens like a session")
+    func declinedDecodes() throws {
+        let report = try Decoding.decode(CardioReport.self, Self.cardioJSON)
+
+        let declined = try #require(report.declined.first)
+        #expect(declined.reason == .heartRateBelowTraining)
+        guard case .ringWorkout(_, "handball", .sport, .detected) = declined.session.source else {
+            Issue.record("Expected a detected handball, got \(declined.session.source)")
+            return
+        }
+        #expect(report.session(withId: declined.session.id) == declined.session)
+        #expect(report.sessions.allSatisfy { $0.id != declined.session.id })
+        #expect(CardioWords.verdict(declined.reason) == "below training")
+    }
+
+    @Test("Runs read as heartbeats per kilometre only with distance and most of their time read")
+    func runReadings() throws {
+        func run(_ id: String, metres: Double?, coverage: Double) -> CardioSession {
+            let start = Date(timeIntervalSince1970: 1_790_000_000)
+            return CardioSession(
+                source: .loggedSession(trainingSessionId: try! #require(UUID(uuidString: id)), isTrailRun: true, isRecorded: true),
+                start: start, end: start.addingTimeInterval(30 * 60), distanceMeters: metres,
+                heartRate: .recorded(averageBpm: 150, peakBpm: 170, coverage: coverage, zones: nil, source: .appleHealth))
+        }
+        let base = try Decoding.decode(CardioReport.self, Self.cardioJSON)
+        let report = CardioReport(
+            range: base.range, maxHeartRate: base.maxHeartRate,
+            sessions: [
+                run("11111111-1111-1111-1111-111111111111", metres: 5000, coverage: 0.9),
+                run("22222222-2222-2222-2222-222222222222", metres: nil, coverage: 0.9),
+                run("33333333-3333-3333-3333-333333333333", metres: 5000, coverage: 0.3),
+            ] + base.sessions,
+            weeks: base.weeks, vo2Max: [], cardiovascularAge: [], restingHeartRate: [],
+            aerobicBase: base.aerobicBase, excluded: [], declined: [])
+
+        let readings = RunReading.of(report)
+
+        let reading = try #require(readings.first)
+        #expect(readings.count == 1)
+        #expect(reading.secondsPerKilometre == 360)
+        // 150 bpm for six minutes a kilometre.
+        #expect(reading.beats(per: .kilometres) == 900)
+        #expect(abs(reading.beats(per: .miles) - 900 * 1.609344) < 0.001)
+    }
+
+    @Test("The zone split is per week of days in the span, and zones 3–5 are zone 3 and up")
+    func zoneSplit() throws {
+        let report = try Decoding.decode(CardioReport.self, Self.cardioJSON)
+
+        let split = ZoneSplit.of(report.weeks)
+
+        // 13 days in the span: 33 minutes of zone 2 and 5 of zone 3 over 13/7 weeks.
+        #expect(abs(split.zone2PerWeek - 33 * 7 / 13) < 0.001)
+        #expect(abs(split.zones3To5PerWeek - 5 * 7 / 13) < 0.001)
+        #expect(abs((split.hardShare ?? 0) - 5.0 / 38) < 0.001)
     }
 
     @Test("A session source or maximum the client does not know still lets the report load")
@@ -141,7 +201,7 @@ struct CardioAndHabitsTests {
         {"range":{"from":"2026-10-20","to":"2026-11-02","days":14},
          "maxHeartRate":{"$type":"agePredicted","age":20,"observedPeak":152,"bpm":194},
          "sessions":[{"source":{"$type":"ringWorkout","ouraId":"25e651b9-6f28-4091-8341-a7f2332a2fc8",
-                                "activity":"cardiovascularExercise","category":"endurance"},
+                                "activity":"cardiovascularExercise","category":"endurance","entry":"entered"},
                       "start":"2026-10-31T20:51:00-04:00","end":"2026-10-31T21:36:00-04:00","distanceMeters":null,
                       "heartRate":{"$type":"recorded","averageBpm":127,"peakBpm":141,"coverage":0.91,
                                    "zones":{"belowZones":0,"zone1":3,"zone2":33,"zone3":5,"zone4":0,"zone5":0,
@@ -159,7 +219,14 @@ struct CardioAndHabitsTests {
                         "restingHeartRate":{"recent":42.3,"before":41},
                         "cardiovascularAge":{"recent":null,"before":null}},
          "excluded":[{"category":"incidental","reason":"notTraining","count":723},
-                     {"category":"walk","reason":"somethingNew","count":2}]}
+                     {"category":"walk","reason":"somethingNew","count":2}],
+         "declined":[{"reason":"heartRateBelowTraining",
+                      "session":{"source":{"$type":"ringWorkout","ouraId":"77777777-7777-7777-7777-777777777777",
+                                           "activity":"handball","category":"sport","entry":"detected"},
+                                 "start":"2026-10-29T17:00:00-04:00","end":"2026-10-29T17:21:00-04:00","distanceMeters":null,
+                                 "heartRate":{"$type":"recorded","averageBpm":104,"peakBpm":121,"coverage":0.96,
+                                              "zones":{"belowZones":2,"zone1":17,"zone2":1,"zone3":0,"zone4":0,"zone5":0,
+                                                       "inZones":18,"load":21}}}}]}
         """
 
     private static let dayJSON = """

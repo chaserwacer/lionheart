@@ -138,26 +138,17 @@ struct PrioritiesView: View {
             Section {
                 switch report.cardio {
                 case .measured:
-                    ForEach(ScoreBreakdown.cardio(report.cardio)) { ScoreMeasureRow(measure: $0) }
+                    ForEach(ScoreBreakdown.zoneRows(report.cardio)) { ScoreCellRow(cell: $0) }
                 case .unknown(let reason):
-                    Text(Self.unknown(reason)).foregroundStyle(Color(.secondaryLabel))
+                    Text(CardioWords.unknown(reason)).foregroundStyle(Color(.secondaryLabel))
                 case .unrecognised:
                     Text("Not readable by this version.").foregroundStyle(Color(.secondaryLabel))
                 }
             } header: {
                 Text("Cardio, last 7 days")
             } footer: {
-                Text("Enough zone 2 each week (60–70 % of maximum heart rate, 150 minutes), and some high-intensity work (80 % and above, 20 minutes). From cardio sessions only.")
+                Text("Enough zone 2 each week (60–70 % of maximum heart rate, 150 minutes), and some harder work in zones 3–5 (70 % and above, 30 minutes). From cardio sessions only; the ring's own detections only where their heart rate showed training.")
             }
-        }
-    }
-
-    private static func unknown(_ reason: CardioUnknownReason) -> String {
-        switch reason {
-        case .noHeartRate: "Unknown: no heart rate from the ring this week."
-        case .noMaximumHeartRate: "Unknown: the profile has no age to draw zones from."
-        case .sessionsUnrecorded: "Unknown: most cardio session time has no heart rate behind it."
-        case .unrecognised: "Unknown."
         }
     }
 
