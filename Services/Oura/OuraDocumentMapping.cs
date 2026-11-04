@@ -12,9 +12,9 @@ namespace lionheart.Services.Oura;
 /// </summary>
 /// <remarks>
 /// The one place either path — the live pull or the archive import — interprets an Oura payload.
-/// The archived <c>.jsonl</c> files are recorded Oura responses, so a test that maps a real
-/// archived record is also a test of what the live pull would do with it. That is what makes the
-/// pull path verifiable without the athlete's token.
+/// An archived <c>.jsonl</c> line is an Oura response, so a test that maps a record in Oura's shape
+/// is also a test of what the live pull would do with it. That is what makes the pull path
+/// verifiable without the athlete's token.
 /// <para>
 /// Each mapper is one expression. Required fields are read through <see cref="WireReader"/>, which
 /// names each one and accumulates every failure; fields Oura legitimately leaves empty pass

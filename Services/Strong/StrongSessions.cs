@@ -28,8 +28,8 @@ internal static partial class StrongSessions
     /// </summary>
     /// <remarks>
     /// The export states no unit; it writes numbers in whatever the app was set to show. This
-    /// athlete's is pounds, which the export itself bears out: a 315 × 5 squat, and kilogram plate
-    /// loads arriving as 463 and 374. A Strong account set to kilograms would need this changed.
+    /// athlete's is pounds, which the export itself bears out: loads land on pound plate totals, not
+    /// kilogram ones. A Strong account set to kilograms would need this changed.
     /// </remarks>
     public const WeightUnit ExportUnit = WeightUnit.Pounds;
 
@@ -88,7 +88,7 @@ internal static partial class StrongSessions
     /// </summary>
     /// <remarks>
     /// "Afternoon Workout" on two hundred sessions says nothing the start time does not; a name the
-    /// athlete typed — "RIT Legs", "apex gym" — is often the only record of where it happened.
+    /// athlete typed — "Campus Legs", "home gym" — is often the only record of where it happened.
     /// </remarks>
     private static IEnumerable<string> Named(string name) =>
         TimeOfDayName().IsMatch(name.Trim()) ? [] : Present(name);

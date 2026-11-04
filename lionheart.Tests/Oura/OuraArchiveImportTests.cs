@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace lionheart.Tests.Oura;
 
 /// <summary>
-/// The archive importer against a miniature of the athlete's real archive, and against records
+/// The archive importer against a miniature archive in the shape Oura exports, and against records
 /// broken on purpose.
 /// </summary>
 public class OuraArchiveImportTests : IDisposable
@@ -16,12 +16,12 @@ public class OuraArchiveImportTests : IDisposable
 
     public void Dispose() => _database.Dispose();
 
-    // ---- The happy path, over real recorded payloads ----
+    // ---- The happy path ----
 
     [Fact]
     public async Task Every_collection_in_the_archive_is_read_and_stored()
     {
-        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.ArchiveDirectory));
+        var report = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.ArchiveDirectory));
 
         Assert.Equal(24, report.Stored);
         Assert.Equal(0, report.Rejected);
@@ -44,7 +44,7 @@ public class OuraArchiveImportTests : IDisposable
         // The resilience collection was pulled by the live integration and never archived, so its
         // history begins whenever the sync first runs. A zero would read as "the ring recorded
         // none", which is a different and wrong thing.
-        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.ArchiveDirectory));
+        var report = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.ArchiveDirectory));
 
         var resilience = Assert.Single(report.Collections, c => c.Collection == "daily_resilience");
         var missing = Assert.IsType<OuraCollectionOutcome.NoArchiveFile>(resilience.Outcome);
@@ -57,7 +57,7 @@ public class OuraArchiveImportTests : IDisposable
         // Oura's bedtime advice is archived but deliberately not stored. Reporting the leftovers
         // generally, rather than hardcoding that one name, means a collection added later also
         // surfaces instead of being silently skipped.
-        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.ArchiveDirectory));
+        var report = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.ArchiveDirectory));
 
         Assert.Equal(["sleep_time.jsonl"], report.UncollectedFiles);
     }
@@ -65,18 +65,18 @@ public class OuraArchiveImportTests : IDisposable
     [Fact]
     public async Task The_stored_documents_carry_the_days_and_values_the_archive_held()
     {
-        await ImportAsync(RecordedPayloads.ArchiveDirectory);
+        await ImportAsync(ArchiveFixtures.ArchiveDirectory);
 
         await using var context = _database.CreateContext();
 
         var night = await context.OuraSleepPeriods
-            .SingleAsync(period => period.Day == new DateOnly(2023, 1, 6));
+            .SingleAsync(period => period.Day == new DateOnly(2024, 1, 26));
         Assert.Equal(96, night.Reading.HeartRate.Samples.Count);
-        Assert.Equal(8940, night.Reading.DeepSleepSeconds);
+        Assert.Equal(6630, night.Reading.DeepSleepSeconds);
 
         var activity = await context.OuraDailyActivity
-            .SingleAsync(day => day.Day == new DateOnly(2023, 1, 5));
-        Assert.Equal(50, activity.Reading.Score);
+            .SingleAsync(day => day.Day == new DateOnly(2024, 1, 25));
+        Assert.Equal(47, activity.Reading.Score);
     }
 
     [Theory]
@@ -84,7 +84,7 @@ public class OuraArchiveImportTests : IDisposable
     [InlineData("daily_cardiovascular_age")]
     public async Task The_cardio_collections_the_archive_never_held_say_so(string collection)
     {
-        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.ArchiveDirectory));
+        var report = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.ArchiveDirectory));
 
         var outcome = Assert.Single(report.Collections, c => c.Collection == collection).Outcome;
         Assert.Equal($"{collection}.jsonl", Assert.IsType<OuraCollectionOutcome.NoArchiveFile>(outcome).ExpectedName);
@@ -95,7 +95,7 @@ public class OuraArchiveImportTests : IDisposable
     {
         // The backfill path: days imported before the classification was kept hold no timeline,
         // and the same archive read again hands each its own, keyed by Oura's id as always.
-        await ImportAsync(RecordedPayloads.ArchiveDirectory);
+        await ImportAsync(ArchiveFixtures.ArchiveDirectory);
         await using (var context = _database.CreateContext())
         {
             foreach (var day in await context.OuraDailyActivity.ToListAsync())
@@ -105,7 +105,7 @@ public class OuraArchiveImportTests : IDisposable
             await context.SaveChangesAsync();
         }
 
-        await ImportAsync(RecordedPayloads.ArchiveDirectory);
+        await ImportAsync(ArchiveFixtures.ArchiveDirectory);
 
         await using var reread = _database.CreateContext();
         var days = await reread.OuraDailyActivity.ToListAsync();
@@ -120,10 +120,10 @@ public class OuraArchiveImportTests : IDisposable
         // Oura's own document id, so the second pass applies payloads the change tracker sees as
         // unchanged. Row counts and keys both have to hold, since an upsert that deleted and
         // re-inserted would keep the count while changing every key.
-        await ImportAsync(RecordedPayloads.ArchiveDirectory);
+        await ImportAsync(ArchiveFixtures.ArchiveDirectory);
         var firstPass = await StoredKeysAsync();
 
-        var second = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.ArchiveDirectory));
+        var second = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.ArchiveDirectory));
 
         Assert.Equal(24, second.Stored);
         Assert.Equal(firstPass, await StoredKeysAsync());
@@ -134,7 +134,7 @@ public class OuraArchiveImportTests : IDisposable
     [Fact]
     public async Task One_unreadable_record_does_not_stop_the_ones_around_it()
     {
-        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.DamagedDirectory));
+        var report = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.DamagedDirectory));
 
         var sleepDays = Assert.Single(report.Collections, c => c.Collection == "daily_sleep");
         var read = Assert.IsType<OuraCollectionOutcome.Read>(sleepDays.Outcome);
@@ -149,10 +149,10 @@ public class OuraArchiveImportTests : IDisposable
     {
         // Oura adds fields. An unknown member has to be ignored rather than rejected, or the first
         // thing Oura ships breaks every import until the wire records catch up.
-        await ImportAsync(RecordedPayloads.DamagedDirectory);
+        await ImportAsync(ArchiveFixtures.DamagedDirectory);
 
         await using var context = _database.CreateContext();
-        Assert.True(await context.OuraDailySleep.AnyAsync(day => day.Day == new DateOnly(2023, 1, 13)));
+        Assert.True(await context.OuraDailySleep.AnyAsync(day => day.Day == new DateOnly(2024, 2, 2)));
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class OuraArchiveImportTests : IDisposable
     {
         // The whole requirement on rejections: reportable, not silent. A line number is what makes
         // one actionable.
-        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.DamagedDirectory));
+        var report = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.DamagedDirectory));
 
         var byLine = report.Rejections
             .Where(rejection => rejection.File == "daily_sleep.jsonl")
@@ -178,7 +178,7 @@ public class OuraArchiveImportTests : IDisposable
     [Fact]
     public async Task A_blank_line_is_skipped_without_shifting_the_line_numbers_after_it()
     {
-        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.DamagedDirectory));
+        var report = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.DamagedDirectory));
 
         // Line 3 of the damaged file is blank; the record after it is still reported as line 4.
         Assert.DoesNotContain(
@@ -190,7 +190,7 @@ public class OuraArchiveImportTests : IDisposable
     [Fact]
     public async Task A_night_whose_bedtime_ends_before_it_starts_is_rejected_not_thrown_on()
     {
-        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.DamagedDirectory));
+        var report = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.DamagedDirectory));
 
         var reversed = Assert.Single(
             report.Rejections, rejection => rejection.File == "sleep.jsonl" && rejection.Line == 1);
@@ -200,7 +200,7 @@ public class OuraArchiveImportTests : IDisposable
     [Fact]
     public async Task A_night_missing_a_sample_run_is_rejected_rather_than_stored_without_it()
     {
-        var report = ResultAssert.Succeeded(await ImportAsync(RecordedPayloads.DamagedDirectory));
+        var report = ResultAssert.Succeeded(await ImportAsync(ArchiveFixtures.DamagedDirectory));
 
         var nights = Assert.Single(report.Collections, c => c.Collection == "sleep");
         var read = Assert.IsType<OuraCollectionOutcome.Read>(nights.Outcome);
@@ -217,7 +217,7 @@ public class OuraArchiveImportTests : IDisposable
     public async Task An_import_for_an_athlete_who_does_not_exist_is_refused()
     {
         var refused = await new OuraArchiveImporter(_database.CreateContext())
-            .ImportAsync(RecordedPayloads.ArchiveDirectory, Guid.NewGuid(), CancellationToken.None);
+            .ImportAsync(ArchiveFixtures.ArchiveDirectory, Guid.NewGuid(), CancellationToken.None);
 
         var problem = ResultAssert.Failed(refused);
         Assert.IsType<Problem.NotFound>(problem);

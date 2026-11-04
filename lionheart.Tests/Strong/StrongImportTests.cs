@@ -35,9 +35,9 @@ public class StrongImportTests : IDisposable
         Assert.Equal(4, report.SessionsCreated);
         Assert.Equal(new StrongSetTally(Working: 49, WarmUps: 1, Drops: 0, Failures: 3, RestTimers: 20), report.Sets);
 
-        var legs = await SessionOnAsync(new DateOnly(2024, 8, 20));
+        var legs = await SessionOnAsync(new DateOnly(2024, 9, 17));
         var period = Assert.IsType<Interval>(legs.Period);
-        Assert.Equal(new DateTimeOffset(2024, 8, 20, 15, 0, 1, TimeSpan.FromHours(-4)), period.Start);
+        Assert.Equal(new DateTimeOffset(2024, 9, 17, 16, 30, 12, TimeSpan.FromHours(-4)), period.Start);
         Assert.Equal(TimeSpan.FromHours(1), period.Duration);
         Assert.Equal(Provenance.User, legs.Provenance);
         Assert.All(legs.Sets, set => Assert.Equal(WeightUnit.Pounds, Assert.IsType<LiftSet>(set).Unit));
@@ -48,10 +48,10 @@ public class StrongImportTests : IDisposable
     {
         await ImportAsync(FourWorkouts);
 
-        var push = await SessionOnAsync(new DateOnly(2024, 8, 12));
+        var push = await SessionOnAsync(new DateOnly(2024, 9, 9));
 
         var warmUp = Assert.IsType<LiftSet>(push.Sets[0]);
-        Assert.Equal((SetKind.WarmUp, 155.0, 13), (warmUp.Kind, warmUp.Weight, warmUp.Reps));
+        Assert.Equal((SetKind.WarmUp, 135.0, 12), (warmUp.Kind, warmUp.Weight, warmUp.Reps));
         Assert.Equal(SetKind.Working, Assert.IsType<LiftSet>(push.Sets[1]).Kind);
     }
 
@@ -77,16 +77,16 @@ public class StrongImportTests : IDisposable
         await ImportAsync(FourWorkouts);
 
         // A failure set's kind is on the set, so the notes do not name it.
-        var legs = await SessionOnAsync(new DateOnly(2024, 8, 20));
-        Assert.Equal("RIT Legs", legs.Notes);
+        var legs = await SessionOnAsync(new DateOnly(2024, 9, 17));
+        Assert.Equal("Lower Body", legs.Notes);
 
-        var arms = await SessionOnAsync(new DateOnly(2026, 3, 20));
+        var arms = await SessionOnAsync(new DateOnly(2026, 4, 14));
         Assert.Equal(
-            "Bicep Curl (Dumbbell): standing against a beam to have arm behind chest, using a kettlebell",
+            "Bicep Curl (Dumbbell): seated, elbow on the bench, slow negatives",
             arms.Notes);
 
-        var evening = await SessionOnAsync(new DateOnly(2025, 12, 15));
-        Assert.StartsWith("horizontal pulling movement \nvertical pressing movement", evening.Notes);
+        var evening = await SessionOnAsync(new DateOnly(2025, 11, 17));
+        Assert.StartsWith("pull first \nthen press", evening.Notes);
     }
 
     // ---- The catalogue ----
@@ -101,7 +101,7 @@ public class StrongImportTests : IDisposable
         Assert.DoesNotContain(new MovementName("Bicep Curl", "Dumbell", ""), report.Catalogue.Movements);
         Assert.DoesNotContain("Dumbell", report.Catalogue.Equipment);
 
-        var arms = await SessionOnAsync(new DateOnly(2026, 3, 20));
+        var arms = await SessionOnAsync(new DateOnly(2026, 4, 14));
         Assert.Contains(arms.Sets.OfType<LiftSet>(), set => set.MovementDataId == curl);
     }
 
@@ -158,23 +158,23 @@ public class StrongImportTests : IDisposable
         // Pinned, because this id is the whole "already imported" check: a change to how it is
         // derived would make the next run import the athlete's history a second time.
         var key = new StrongWorkoutKey(new DateTime(2024, 7, 23, 12, 52, 19), "Tester workout");
-        var athlete = Guid.Parse("5f72c72f-21d9-49e9-9ee1-014e22d6b0d4");
+        var athlete = Guid.Parse("0b6e2d4a-8c31-4f7e-9a52-3d1c7e8f2b64");
 
         // The expected value is Python's uuid5 over the same namespace and name, an implementation
         // independent of this one.
-        Assert.Equal(Guid.Parse("30cd98cc-e812-5511-801f-d278ad06eed7"), key.SessionIdFor(athlete));
+        Assert.Equal(Guid.Parse("0231aad8-058f-5a66-a4a8-f4ee89d0c061"), key.SessionIdFor(athlete));
         Assert.NotEqual(key.SessionIdFor(athlete), key.SessionIdFor(Guid.NewGuid()));
     }
 
     [Fact]
     public void A_workout_renamed_in_Strong_keeps_its_id()
     {
-        var start = new DateTime(2024, 8, 20, 15, 0, 1);
+        var start = new DateTime(2024, 9, 17, 16, 30, 12);
         var athlete = Guid.NewGuid();
 
         Assert.Equal(
             new StrongWorkoutKey(start, "Afternoon Workout").SessionIdFor(athlete),
-            new StrongWorkoutKey(start, "RIT Legs").SessionIdFor(athlete));
+            new StrongWorkoutKey(start, "Lower Body").SessionIdFor(athlete));
     }
 
     [Fact]
@@ -182,13 +182,13 @@ public class StrongImportTests : IDisposable
     {
         // Finnish separates hours and minutes with a full stop, which a date format's ':' follows.
         var key = new StrongWorkoutKey(new DateTime(2024, 7, 23, 12, 52, 19), "Tester workout");
-        var athlete = Guid.Parse("5f72c72f-21d9-49e9-9ee1-014e22d6b0d4");
+        var athlete = Guid.Parse("0b6e2d4a-8c31-4f7e-9a52-3d1c7e8f2b64");
         var previous = CultureInfo.CurrentCulture;
 
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fi-FI");
-            Assert.Equal(Guid.Parse("30cd98cc-e812-5511-801f-d278ad06eed7"), key.SessionIdFor(athlete));
+            Assert.Equal(Guid.Parse("0231aad8-058f-5a66-a4a8-f4ee89d0c061"), key.SessionIdFor(athlete));
         }
         finally
         {
@@ -201,7 +201,7 @@ public class StrongImportTests : IDisposable
     [Fact]
     public async Task A_warm_up_sets_no_record_however_many_reps_it_had()
     {
-        // The bench warm-up was 155 x 13 and no working set went past eight reps. Counted as a
+        // The bench warm-up was 135 x 12 and no working set went past eight reps. Counted as a
         // lift it would hold the nine- to twelve-rep maxes and the best set volume.
         await ImportAsync(FourWorkouts);
 
@@ -209,7 +209,7 @@ public class StrongImportTests : IDisposable
         var benchRecords = (await StandingAsync()).Where(record => record.Subject == new RecordSubject.Movement(bench)).ToList();
 
         Assert.Equal(8, benchRecords.Select(record => record.Achievement).OfType<Achievement.RepMax>().Max(max => max.Reps));
-        Assert.Equal(new LiftPerformance(170, WeightUnit.Pounds, 8),
+        Assert.Equal(new LiftPerformance(160, WeightUnit.Pounds, 8),
             Assert.Single(benchRecords.Select(record => record.Achievement).OfType<Achievement.BestSetVolume>()).Lift);
     }
 

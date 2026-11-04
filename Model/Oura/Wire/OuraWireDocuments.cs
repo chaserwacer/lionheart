@@ -13,8 +13,8 @@ namespace lionheart.Model.Oura.Wire;
 // reportable as a malformed day rather than as an unreadable line.
 //
 // The same records serve the live pull and the archive import, because the archived .jsonl files
-// are recorded Oura responses. One mapping, exercised by both paths, is what lets tests over
-// recorded payloads cover a pull that cannot be run without the athlete's token.
+// are Oura responses. One mapping, exercised by both paths, is what lets tests over payloads in
+// Oura's shape cover a pull that cannot be run without the athlete's token.
 
 /// <summary>The envelope every Oura collection response arrives in.</summary>
 public sealed record OuraPage<T>

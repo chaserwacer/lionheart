@@ -1,2 +1,2 @@
-{"id":"b64ab45f-090b-4ede-a643-349ddee88fd9","day":"2023-01-05","optimal_bedtime":null,"recommendation":"improve_efficiency","status":"bad_sleep_quality"}
-{"id":"46fe8553-cd0f-4282-bd3c-6387ffba72de","day":"2023-01-06","optimal_bedtime":null,"recommendation":"improve_efficiency","status":"bad_sleep_quality"}
+{"id":"d8cd4256-3a15-4502-8065-db11bf795c9a","day":"2024-01-25","optimal_bedtime":null,"recommendation":"earlier_bedtime","status":"only_recommended_found"}
+{"id":"e46a6271-d99e-48c2-aee2-51add88f94c7","day":"2024-01-26","optimal_bedtime":null,"recommendation":"follow_optimal_bedtime","status":"not_enough_recent_nights"}

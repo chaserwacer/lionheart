@@ -1,0 +1,17 @@
+#!/bin/bash
+# The repository is public. Refuses a commit whose added lines carry a term from
+# .git/info/personal-terms: one identifier per line, matched case-insensitively, kept out of the
+# repository because the terms are themselves personal. Enabled with
+#   git config core.hooksPath scripts/git-hooks
+terms="$(git rev-parse --path-format=absolute --git-common-dir)/info/personal-terms"
+[ -f "$terms" ] || exit 0
+patterns=$(sed '/^[[:space:]]*$/d' "$terms")
+[ -n "$patterns" ] || exit 0
+hits=$(git diff --cached -U0 --no-color --diff-filter=ACMR \
+  | grep '^+' | grep -v '^+++' | grep -iF -- "$patterns")
+if [ -n "$hits" ]; then
+  echo "pre-commit: staged lines carry personal identifiers listed in $terms:" >&2
+  echo "$hits" | cut -c1-200 >&2
+  echo "The repository is public; take them out (see CLAUDE.local.md)." >&2
+  exit 1
+fi

@@ -23,7 +23,7 @@ public class OuraClientTests
         var documents = ResultAssert.Succeeded(await ReadAsync(api));
 
         Assert.Equal(2, documents.Count);
-        Assert.Equal("2023-01-06", documents[0].Day);
+        Assert.Equal("2024-01-26", documents[0].Day);
         Assert.Single(api.RequestedUris);
     }
 
@@ -150,11 +150,11 @@ public class OuraClientTests
             .ReadAsync<WireDailySleep>("daily_sleep", From, To, "token-abc", CancellationToken.None);
 
     private const string TwoSleepDays = """
-        {"id":"c94fd016-3383-4152-8c5c-068ff9415053","day":"2023-01-06","score":58,
-         "contributors":{"deep_sleep":100,"efficiency":62,"latency":70,"rem_sleep":26,
-                         "restfulness":70,"timing":18,"total_sleep":56}},
-        {"id":"874c1b5a-edf6-42ca-bd85-cdd988be1c78","day":"2023-01-07","score":55,
-         "contributors":{"deep_sleep":100,"efficiency":48,"latency":70,"rem_sleep":18,
-                         "restfulness":69,"timing":19,"total_sleep":55}}
+        {"id":"6748c745-2688-4430-948f-7edbe0e27531","day":"2024-01-26","score":62,
+         "contributors":{"deep_sleep":91,"efficiency":67,"latency":76,"rem_sleep":33,
+                         "restfulness":64,"timing":24,"total_sleep":61}},
+        {"id":"c178e022-f769-4df2-b5cf-8eece3a32c2d","day":"2024-01-27","score":60,
+         "contributors":{"deep_sleep":88,"efficiency":53,"latency":81,"rem_sleep":29,
+                         "restfulness":61,"timing":27,"total_sleep":59}}
         """;
 }

@@ -17,7 +17,7 @@ namespace lionheart.Tests.Oura;
 /// <remarks>
 /// The live pull is the one deliverable that cannot be checked against the real thing — it needs
 /// the athlete's credential — so everything short of the network is asserted here: that all ten
-/// collections are asked for, that the archived payloads they answer with are stored, that a
+/// collections are asked for, that the fixture payloads they answer with are stored, that a
 /// document Oura sends which cannot be read is reported rather than fatal, and that the failures
 /// come back as the problems the transport edge knows how to turn into a status.
 /// </remarks>
@@ -97,7 +97,7 @@ public class OuraSyncServiceTests : IAsyncLifetime
     [Fact]
     public async Task The_documents_Oura_answers_with_are_stored()
     {
-        _api.AnswersEverythingElseEmpty().RespondsTo("daily_sleep", FakeOuraApi.Page(string.Join(",", RecordedPayloads.Lines("daily_sleep"))));
+        _api.AnswersEverythingElseEmpty().RespondsTo("daily_sleep", FakeOuraApi.Page(string.Join(",", ArchiveFixtures.Lines("daily_sleep"))));
 
         var report = ResultAssert.Succeeded(await Sync());
 
@@ -115,10 +115,10 @@ public class OuraSyncServiceTests : IAsyncLifetime
     {
         // Idempotency on the pull path, for the same reason as on the import path: Oura's own
         // document id is the key, so a day re-synced after Oura finalized it updates in place.
-        _api.AnswersEverythingElseEmpty().RespondsTo("sleep", FakeOuraApi.Page(string.Join(",", RecordedPayloads.Lines("sleep"))));
+        _api.AnswersEverythingElseEmpty().RespondsTo("sleep", FakeOuraApi.Page(string.Join(",", ArchiveFixtures.Lines("sleep"))));
         await Sync();
 
-        _api.AnswersEverythingElseEmpty().RespondsTo("sleep", FakeOuraApi.Page(string.Join(",", RecordedPayloads.Lines("sleep"))));
+        _api.AnswersEverythingElseEmpty().RespondsTo("sleep", FakeOuraApi.Page(string.Join(",", ArchiveFixtures.Lines("sleep"))));
         await Sync();
 
         await using var context = _database.CreateContext();
@@ -233,11 +233,11 @@ public class OuraSyncServiceTests : IAsyncLifetime
     [InlineData("heartrate")]
     public async Task A_schema_only_collection_Oura_refuses_is_reported_and_the_run_still_succeeds(string collection)
     {
-        // These three are mapped from Oura's published schema with no recorded payload behind
+        // These three are mapped from Oura's published schema with no archive fixture behind
         // them. A credential without their scope, or a page that does not parse, must cost that
         // collection and nothing else.
         _api.AnswersEverythingElseEmpty()
-            .RespondsTo("sleep", FakeOuraApi.Page(string.Join(",", RecordedPayloads.Lines("sleep"))))
+            .RespondsTo("sleep", FakeOuraApi.Page(string.Join(",", ArchiveFixtures.Lines("sleep"))))
             .RespondsTo(collection, "{\"detail\":\"Missing scope\"}", HttpStatusCode.Forbidden);
 
         var report = ResultAssert.Succeeded(await Sync());
@@ -272,7 +272,7 @@ public class OuraSyncServiceTests : IAsyncLifetime
         // A malformed document from Oura must not cost the good days around it. The run succeeds,
         // and what was skipped travels back in the tally rather than into a log nobody reads.
         _api.AnswersEverythingElseEmpty().RespondsTo("daily_sleep", FakeOuraApi.Page(
-            $"{RecordedPayloads.Lines("daily_sleep")[0]},{{\"id\":\"not-a-uuid\",\"day\":\"2026-07-30\"}}"));
+            $"{ArchiveFixtures.Lines("daily_sleep")[0]},{{\"id\":\"not-a-uuid\",\"day\":\"2026-07-30\"}}"));
 
         var report = ResultAssert.Succeeded(await Sync());
 
@@ -305,7 +305,7 @@ public class OuraSyncServiceTests : IAsyncLifetime
         // is how it is recovered — which costs nothing, because the pull is idempotent.
         _api
             .RespondsTo("daily_activity", FakeOuraApi.Page(
-                string.Join(",", RecordedPayloads.Lines("daily_activity"))))
+                string.Join(",", ArchiveFixtures.Lines("daily_activity"))))
             .RespondsTo("daily_readiness", "{}", HttpStatusCode.ServiceUnavailable)
             .AnswersEverythingElseEmpty();
 

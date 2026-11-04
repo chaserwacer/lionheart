@@ -98,8 +98,8 @@ the 5-minute hypnogram are stored because an athlete reasoning about recovery wa
 1440-sample minute-by-minute MET series — 87% of the activity payload — is dropped, because the
 MET-minute totals beside it say the same thing at the resolution anything reads.
 
-Three and a half years of his real history, 9194 documents, were imported from an archive of
-recorded API responses rather than re-pulled.
+The athlete's history was imported from an archive of recorded API responses rather than
+re-pulled.
 → [`docs/oura-integration.md`](docs/oura-integration.md)
 
 ## Testing

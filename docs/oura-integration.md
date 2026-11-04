@@ -334,8 +334,9 @@ figure is read against his own previous span rather than a norm.
 
 ## Tests
 
-`lionheart.Tests/Oura/`. The fixtures under `Oura/Archive/` are **real recorded payloads** from the
-athlete's account, kept as files rather than string literals so the bytes stay exactly what Oura
-sent and so the importer can be pointed at a directory the way it is in production. `Oura/Damaged/`
+`lionheart.Tests/Oura/`. The fixtures under `Oura/Archive/` are **invented payloads in the exact
+shape Oura sends** — its field order, nulls, zeros, offsets and quirks, with made-up ids, days and
+readings — kept as files rather than string literals so the importer can be pointed at a directory
+the way it is in production. `Oura/Damaged/`
 holds records broken on purpose — a bad id, a day that is not a date, truncated JSON, a reversed
 sleep period, a missing sample run — for what the importer does with input it cannot read.

@@ -31,8 +31,8 @@ public class CoachedSheetImportTests : IDisposable
     public async Task A_programme_day_becomes_one_completed_session_at_noon_in_its_programme()
     {
         using var log = new LogFile(
-            Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 342, 3, rpe: "7"),
-            Set("2023-12-18", "mk-2", 1, "Monday", "bench-press-barbell", "Bench Press", 231, 3));
+            Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 335, 3, rpe: "7"),
+            Set("2023-12-18", "mk-2", 1, "Monday", "bench-press-barbell", "Bench Press", 225, 3));
 
         var report = ResultAssert.Succeeded(await ImportAsync(log.Path));
 
@@ -40,13 +40,13 @@ public class CoachedSheetImportTests : IDisposable
         var session = Assert.Single(await SessionsAsync());
         Assert.Equal(new DateTimeOffset(2023, 12, 18, 12, 0, 0, TimeSpan.FromHours(-5)), Assert.IsType<Instant>(session.Period).At);
         Assert.Equal(
-            [(342.0, 3, WeightUnit.Pounds, Rpe.Of(7)), (231.0, 3, WeightUnit.Pounds, Rpe.Unrated)],
+            [(335.0, 3, WeightUnit.Pounds, Rpe.Of(7)), (225.0, 3, WeightUnit.Pounds, Rpe.Unrated)],
             session.Sets.Cast<LiftSet>().Select(set => (set.Weight, set.Reps, set.Unit, set.Rpe)));
-        Assert.StartsWith("Perfect Powerlifting — MK.2, week 1, Monday.\n", session.Notes);
+        Assert.StartsWith("Strength block — MK.2, week 1, Monday.\n", session.Notes);
 
         var program = Assert.IsType<CompletedTrainingProgram>(Assert.Single(await ProgramsAsync()));
         Assert.Equal(program.TrainingProgramId, Assert.IsType<InProgram>(session.Membership).TrainingProgramId);
-        Assert.Equal(("Perfect Powerlifting — MK.2", new DateOnly(2023, 12, 18), new DateOnly(2023, 12, 18)),
+        Assert.Equal(("Strength block — MK.2", new DateOnly(2023, 12, 18), new DateOnly(2023, 12, 18)),
             (program.Title, program.StartDate, program.EndDate));
     }
 
@@ -54,7 +54,7 @@ public class CoachedSheetImportTests : IDisposable
     public async Task Strong_rows_in_the_log_are_set_aside_for_the_Strong_import()
     {
         using var log = new LogFile(
-            Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 342, 3),
+            Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 335, 3),
             StrongRow("2024-08-20"));
 
         var report = ResultAssert.Succeeded(await ImportAsync(log.Path));
@@ -66,18 +66,18 @@ public class CoachedSheetImportTests : IDisposable
     public async Task A_row_the_spreadsheet_computed_is_left_out_of_the_session_and_named_in_its_notes()
     {
         using var log = new LogFile(
-            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 374, 3),
-            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 303.6, 5),
-            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 303.6, 5));
-        var decisions = Decisions(NotPerformed("sheet:your-program-rpe#w1", "2023-01-23", "SQUAT", 303.6, 5, sets: 2));
+            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 365, 3),
+            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 296.4, 5),
+            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 296.4, 5));
+        var decisions = Decisions(NotPerformed("sheet:your-program-rpe#w1", "2023-01-23", "SQUAT", 296.4, 5, sets: 2));
 
         var report = ResultAssert.Succeeded(await ImportAsync(log.Path, decisions: decisions));
 
         Assert.Equal(new NotPerformedTally(NotPerformedKind.Computed, Rows: 1, Sets: 2), Assert.Single(report.NotPerformed));
         var session = Assert.Single(await SessionsAsync());
-        Assert.Equal(374, Assert.IsType<LiftSet>(Assert.Single(session.Sets)).Weight);
+        Assert.Equal(365, Assert.IsType<LiftSet>(Assert.Single(session.Sets)).Weight);
         Assert.Contains(
-            "Not counted as lifted: SQUAT 2 × 303.6 lb × 5, the spreadsheet computed the weight and it was never entered.",
+            "Not counted as lifted: SQUAT 2 × 296.4 lb × 5, the spreadsheet computed the weight and it was never entered.",
             session.Notes.Split('\n'));
     }
 
@@ -85,9 +85,9 @@ public class CoachedSheetImportTests : IDisposable
     public async Task A_day_with_nothing_performed_becomes_no_session()
     {
         using var log = new LogFile(
-            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 374, 3),
-            Set("2023-01-28", "your-program-rpe", 1, "DAY 4", "squat-barbell", "SQUAT", 283.5, 6));
-        var decisions = Decisions(NotPerformed("sheet:your-program-rpe#w1", "2023-01-28", "SQUAT", 283.5, 6, sets: 1));
+            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 365, 3),
+            Set("2023-01-28", "your-program-rpe", 1, "DAY 4", "squat-barbell", "SQUAT", 277.5, 6));
+        var decisions = Decisions(NotPerformed("sheet:your-program-rpe#w1", "2023-01-28", "SQUAT", 277.5, 6, sets: 1));
 
         var report = ResultAssert.Succeeded(await ImportAsync(log.Path, decisions: decisions));
 
@@ -100,25 +100,25 @@ public class CoachedSheetImportTests : IDisposable
         // A 1+1 cluster is two singles with the bar racked between; as one set of two it would
         // hold a two-rep max nobody lifted.
         using var log = new LogFile(
-            Set("2023-01-24", "your-program-rpe", 1, "DAY 2", "paused-deadlift", "PAUSED DEADLIFT", 396, 2,
+            Set("2023-01-24", "your-program-rpe", 1, "DAY 2", "paused-deadlift", "PAUSED DEADLIFT", 385, 2,
                 note: "prescribed RPE 6.0 | CLUSTER SET (1+1)."));
 
         var report = ResultAssert.Succeeded(await ImportAsync(log.Path));
 
         Assert.Equal(1, report.ClustersSplit);
         var session = Assert.Single(await SessionsAsync());
-        Assert.Equal([(396.0, 1), (396.0, 1)], session.Sets.Cast<LiftSet>().Select(set => (set.Weight, set.Reps)));
+        Assert.Equal([(385.0, 1), (385.0, 1)], session.Sets.Cast<LiftSet>().Select(set => (set.Weight, set.Reps)));
         Assert.DoesNotContain(await _database.RecordsAsync(), record => record.Kind == new RecordKind.RepMax(2));
     }
 
     [Fact]
     public async Task A_programme_reads_a_shared_slug_its_own_way()
     {
-        // training-os gives every deadlift one slug; the Jamal block pulled conventional and
-        // Blake's MK.2 pulled sumo, so the same slug lands on two movements and two record chains.
+        // training-os gives every deadlift one slug; the RPE block pulled conventional and MK.2
+        // pulled sumo, so the same slug lands on two movements and two record chains.
         using var log = new LogFile(
-            Set("2023-04-10", "your-program-rpe", 12, "DAY 1", "deadlift-barbell", "DEADLIFT", 430, 1),
-            Set("2023-12-18", "mk-2", 1, "Monday", "deadlift-barbell", "Deadlift", 463, 3));
+            Set("2023-04-10", "your-program-rpe", 12, "DAY 1", "deadlift-barbell", "DEADLIFT", 405, 1),
+            Set("2023-12-18", "mk-2", 1, "Monday", "deadlift-barbell", "Deadlift", 455, 3));
         var map = Map(
             ("deadlift-barbell", "Deadlift", "Barbell", ""),
             ("sumo-deadlift-barbell", "Sumo Deadlift", "Barbell", ""));
@@ -133,7 +133,7 @@ public class CoachedSheetImportTests : IDisposable
             .SelectMany(session => session.Sets.Cast<LiftSet>())
             .Select(set => (names[set.MovementDataId], set.Weight))
             .Order();
-        Assert.Equal([("Deadlift", 430.0), ("Sumo Deadlift", 463.0)], pulls);
+        Assert.Equal([("Deadlift", 405.0), ("Sumo Deadlift", 455.0)], pulls);
     }
 
     // ---- Re-running ----
@@ -142,8 +142,8 @@ public class CoachedSheetImportTests : IDisposable
     public async Task Importing_the_same_log_twice_adds_nothing_the_second_time()
     {
         using var log = new LogFile(
-            Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 342, 3),
-            Set("2023-12-21", "mk-2", 1, "Thursday", "bench-press-barbell", "Bench Press", 231, 3));
+            Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 335, 3),
+            Set("2023-12-21", "mk-2", 1, "Thursday", "bench-press-barbell", "Bench Press", 225, 3));
         await ImportAsync(log.Path);
         var first = await HeldAsync();
 
@@ -174,7 +174,7 @@ public class CoachedSheetImportTests : IDisposable
         // Held already, from the Strong era: a 300 lb triple, then a 400 lb single.
         var squat = await _database.PlantMovementAsync("Squat", "Barbell");
         await _database.CompleteInTurnAsync(Strong(squat, _database.UserId));
-        using var log = new LogFile(Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 350, 3));
+        using var log = new LogFile(Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 345, 3));
 
         var report = ResultAssert.Succeeded(await ImportAsync(log.Path));
 
@@ -211,7 +211,7 @@ public class CoachedSheetImportTests : IDisposable
         }
 
         var before = await HeldAsync();
-        using var log = new LogFile(Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 350, 3));
+        using var log = new LogFile(Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 345, 3));
 
         Assert.IsType<Problem.Conflict>(ResultAssert.Failed(await ImportAsync(log.Path)));
         Assert.Equal(before, await HeldAsync());
@@ -223,9 +223,9 @@ public class CoachedSheetImportTests : IDisposable
     public async Task A_not_performed_row_the_log_no_longer_matches_refuses_the_import_and_writes_nothing()
     {
         using var log = new LogFile(
-            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 374, 3),
-            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 303.6, 5));
-        var decisions = Decisions(NotPerformed("sheet:your-program-rpe#w1", "2023-01-23", "SQUAT", 303.6, 5, sets: 4));
+            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 365, 3),
+            Set("2023-01-23", "your-program-rpe", 1, "DAY 1", "squat-barbell", "SQUAT", 296.4, 5));
+        var decisions = Decisions(NotPerformed("sheet:your-program-rpe#w1", "2023-01-23", "SQUAT", 296.4, 5, sets: 4));
 
         var problem = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(await ImportAsync(log.Path, decisions: decisions)));
 
@@ -238,10 +238,10 @@ public class CoachedSheetImportTests : IDisposable
     {
         using var log = new LogFile(
             Set("2023-12-18", "mk-2", 1, "Monday", "zercher-squat", "Zercher Squat", 225, 5),
-            Set("2024-02-12", "chase-vs-his-opps", 1, "Day 1", "squat-barbell", "Squat", 374, 2));
+            Set("2024-02-12", "block-four", 1, "Day 1", "squat-barbell", "Squat", 365, 2));
 
         var noMovement = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(await ImportAsync(log.Path)));
-        Assert.Equal("chase-vs-his-opps", Assert.Single(noMovement.Fields).Field);
+        Assert.Equal("block-four", Assert.Single(noMovement.Fields).Field);
 
         using var programmed = new LogFile(Set("2023-12-18", "mk-2", 1, "Monday", "zercher-squat", "Zercher Squat", 225, 5));
         var unmapped = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(await ImportAsync(programmed.Path)));
@@ -253,7 +253,7 @@ public class CoachedSheetImportTests : IDisposable
     [Fact]
     public async Task An_import_for_an_athlete_who_does_not_exist_is_refused()
     {
-        using var log = new LogFile(Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 342, 3));
+        using var log = new LogFile(Set("2023-12-18", "mk-2", 1, "Monday", "squat-barbell", "Squat", 335, 3));
         await using var context = _database.CreateContext();
 
         var refused = await Importer(context, SquatAndBench, Decisions()).ImportAsync(log.Path, Guid.NewGuid(), CancellationToken.None);

@@ -10,8 +10,8 @@ using Microsoft.AspNetCore.Identity;
 namespace lionheart.Tests.Oura;
 
 /// <summary>
-/// The read side, over a database loaded from the recorded archive — so what these assert is what
-/// the iOS client would actually receive for the athlete's own data.
+/// The read side, over a database loaded from the fixture archive through the real importer — so
+/// what these assert is what the iOS client would receive for an archive of that shape.
 /// </summary>
 public class OuraReadServiceTests : IAsyncLifetime
 {
@@ -24,7 +24,7 @@ public class OuraReadServiceTests : IAsyncLifetime
         _user = new IdentityUser("tester@lionheart.local") { Id = _database.UserId.ToString() };
 
         await new OuraArchiveImporter(context)
-            .ImportAsync(RecordedPayloads.ArchiveDirectory, _database.UserId, CancellationToken.None);
+            .ImportAsync(ArchiveFixtures.ArchiveDirectory, _database.UserId, CancellationToken.None);
     }
 
     public Task DisposeAsync()
@@ -38,15 +38,15 @@ public class OuraReadServiceTests : IAsyncLifetime
     [Fact]
     public async Task A_day_answers_with_whichever_collections_the_ring_recorded_for_it()
     {
-        // 2023-01-06 is a day the archive has readiness, daily sleep and SpO2 for but no activity
-        // document: activity's first archived day is the 5th. The absences are what the shape is
+        // 2024-01-26 is a day the archive has readiness, daily sleep and SpO2 for but no activity
+        // document: activity's first archived day is the 25th. The absences are what the shape is
         // for — a readiness score with no activity beside it is a real day, not a broken one.
         var day = ResultAssert.Succeeded(
-            await Read().GetDayAsync(_user, new DateOnly(2023, 1, 6), CancellationToken.None));
+            await Read().GetDayAsync(_user, new DateOnly(2024, 1, 26), CancellationToken.None));
 
-        Assert.Equal(new DateOnly(2023, 1, 6), day.Day);
-        Assert.Equal(80, day.Readiness?.Score);
-        Assert.Equal(58, day.Sleep?.Score);
+        Assert.Equal(new DateOnly(2024, 1, 26), day.Day);
+        Assert.Equal(77, day.Readiness?.Score);
+        Assert.Equal(62, day.Sleep?.Score);
         Assert.NotNull(day.Spo2);
         Assert.Null(day.Activity);
         Assert.Null(day.Stress);
@@ -69,10 +69,10 @@ public class OuraReadServiceTests : IAsyncLifetime
     public async Task A_range_answers_one_entry_per_day_any_collection_covered_in_date_order()
     {
         var days = ResultAssert.Succeeded(await Read().GetDaysAsync(
-            _user, new DayRange(new DateOnly(2023, 1, 1), new DateOnly(2023, 1, 31)), CancellationToken.None));
+            _user, new DayRange(new DateOnly(2024, 1, 15), new DateOnly(2024, 2, 14)), CancellationToken.None));
 
         Assert.Equal(
-            [new DateOnly(2023, 1, 5), new DateOnly(2023, 1, 6), new DateOnly(2023, 1, 7)],
+            [new DateOnly(2024, 1, 25), new DateOnly(2024, 1, 26), new DateOnly(2024, 1, 27)],
             days.Select(day => day.Day));
         Assert.NotNull(days[0].Activity);
         Assert.Null(days[0].Readiness);
@@ -81,27 +81,27 @@ public class OuraReadServiceTests : IAsyncLifetime
     [Fact]
     public async Task A_day_Oura_issued_two_documents_for_answers_with_one_of_them_consistently()
     {
-        // Oura sent two SpO2 documents a day for 128 consecutive days. Both are stored, because a
-        // day is not that collection's key; a day read takes one, in document-id order, so the
+        // Oura has sent two SpO2 documents for one day, for weeks at a stretch. Both are stored,
+        // because a day is not that collection's key; a day read takes one, in document-id order, so the
         // same call does not answer differently each time.
         var first = ResultAssert.Succeeded(
-            await Read().GetDayAsync(_user, new DateOnly(2024, 11, 1), CancellationToken.None));
+            await Read().GetDayAsync(_user, new DateOnly(2025, 11, 21), CancellationToken.None));
         var again = ResultAssert.Succeeded(
-            await Read().GetDayAsync(_user, new DateOnly(2024, 11, 1), CancellationToken.None));
+            await Read().GetDayAsync(_user, new DateOnly(2025, 11, 21), CancellationToken.None));
 
-        Assert.Equal(98.374, first.Spo2?.AverageSpo2Percentage);
+        Assert.Equal(96.958, first.Spo2?.AverageSpo2Percentage);
         Assert.Equal(first.Spo2, again.Spo2);
     }
 
     [Fact]
     public async Task The_latest_day_is_the_newest_day_any_collection_covers()
     {
-        // The archive's newest day is 2024-11-01, and only SpO2 reaches it: activity stops at
-        // 2024-01-01 and readiness much earlier. Taking the newest of one collection would report
+        // The archive's newest day is 2025-11-21, and only SpO2 reaches it: activity stops at
+        // 2025-01-20 and readiness much earlier. Taking the newest of one collection would report
         // the store ten months further behind than it is.
         var latest = ResultAssert.Succeeded(await Read().GetLatestDayAsync(_user, CancellationToken.None));
 
-        Assert.Equal(new DateOnly(2024, 11, 1), latest.Day);
+        Assert.Equal(new DateOnly(2025, 11, 21), latest.Day);
         Assert.NotNull(latest.Spo2);
         Assert.Null(latest.Activity);
     }
@@ -143,16 +143,16 @@ public class OuraReadServiceTests : IAsyncLifetime
     public async Task Sleep_periods_come_back_windowed_on_the_clock_in_order()
     {
         var window = new TimeWindow(
-            new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2023, 2, 1, 0, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(2024, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2024, 2, 15, 0, 0, 0, TimeSpan.Zero));
 
         var nights = ResultAssert.Succeeded(await Read().GetSleepAsync(_user, window, CancellationToken.None));
 
-        // The archive's third sleep record is filed under 2023-01-08 but began on the 7th, so a
-        // window on the clock orders it before the night filed under the 6th would suggest.
+        // The archive's third sleep record is filed under 2024-01-28 but began on the 27th, so a
+        // window on the clock orders it before the night filed under the 26th would suggest.
         Assert.Equal(2, nights.Count);
-        Assert.Equal(new DateOnly(2023, 1, 6), nights[0].Day);
-        Assert.Equal(new DateOnly(2023, 1, 8), nights[1].Day);
+        Assert.Equal(new DateOnly(2024, 1, 26), nights[0].Day);
+        Assert.Equal(new DateOnly(2024, 1, 28), nights[1].Day);
         Assert.True(nights[0].Period.StartTimeUtc < nights[1].Period.StartTimeUtc);
     }
 
@@ -163,7 +163,7 @@ public class OuraReadServiceTests : IAsyncLifetime
         // tool, which omits them.
         var nights = ResultAssert.Succeeded(await Read().GetSleepAsync(_user, Everything, CancellationToken.None));
 
-        var night = Assert.Single(nights, n => n.Day == new DateOnly(2023, 1, 6));
+        var night = Assert.Single(nights, n => n.Day == new DateOnly(2024, 1, 26));
         Assert.Equal(96, night.Reading.HeartRate.Samples.Count);
         Assert.Equal(96, night.Reading.Hrv.Samples.Count);
     }
@@ -185,8 +185,8 @@ public class OuraReadServiceTests : IAsyncLifetime
     public async Task A_backwards_window_is_refused_on_an_event_read_too()
     {
         var backwards = new TimeWindow(
-            new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(2025, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero));
 
         var refused = await Read().GetWorkoutsAsync(_user, backwards, CancellationToken.None);
 
@@ -201,24 +201,24 @@ public class OuraReadServiceTests : IAsyncLifetime
         // A night carries ~96 heart-rate and ~96 HRV samples. Handing a week of those to a model
         // spends over a thousand numbers of its context on something it cannot read.
         var nights = await Read().GetOuraSleepNightsForChatAsync(
-            _user, new DayRange(new DateOnly(2023, 1, 1), new DateOnly(2023, 1, 31)));
+            _user, new DayRange(new DateOnly(2024, 1, 15), new DateOnly(2024, 2, 14)));
 
-        var night = Assert.Single(nights, n => n.Day == new DateOnly(2023, 1, 6));
-        Assert.Equal(8940, night.DeepSleepSeconds);
-        Assert.Equal(100, night.AverageHrv);
+        var night = Assert.Single(nights, n => n.Day == new DateOnly(2024, 1, 26));
+        Assert.Equal(6630, night.DeepSleepSeconds);
+        Assert.Equal(64, night.AverageHrv);
         Assert.True(night.IsMainSleep);
     }
 
     [Fact]
     public async Task The_sleep_tool_answers_only_for_the_days_asked_for()
     {
-        // The archive holds a night filed under the 6th and another filed under the 8th that began
-        // on the evening of the 7th. Asking for the 6th alone must not drag in the 8th's, even
+        // The archive holds a night filed under the 26th and another filed under the 28th that
+        // began on the evening of the 27th. Asking for the 26th alone must not drag in the 28th's, even
         // though the window the read runs on is widened past both ends to catch it.
         var nights = await Read().GetOuraSleepNightsForChatAsync(
-            _user, new DayRange(new DateOnly(2023, 1, 6), new DateOnly(2023, 1, 6)));
+            _user, new DayRange(new DateOnly(2024, 1, 26), new DateOnly(2024, 1, 26)));
 
-        Assert.Equal(new DateOnly(2023, 1, 6), Assert.Single(nights).Day);
+        Assert.Equal(new DateOnly(2024, 1, 26), Assert.Single(nights).Day);
     }
 
     [Fact]
@@ -239,7 +239,7 @@ public class OuraReadServiceTests : IAsyncLifetime
     {
         // The tool protocol carries data or nothing, so a refusal reads to the model as "no Oura
         // data for that range", which is what it means.
-        var backwards = new DayRange(new DateOnly(2024, 1, 1), new DateOnly(2023, 1, 1));
+        var backwards = new DayRange(new DateOnly(2025, 6, 1), new DateOnly(2024, 6, 1));
 
         Assert.Empty(await Read().GetOuraDaysForChatAsync(_user, backwards));
     }
