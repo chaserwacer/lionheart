@@ -51,10 +51,12 @@ public sealed class CardioReportService : ICardioReportService
             .MapAsync(CardioAnalysis.Build);
 
     [Tool(Name = "GetCardioReport",
-        Description = "The athlete's cardio for a range of days: every cardio session (ring-detected workouts and logged runs, with walks under 30 minutes, housework and lifting excluded and counted), each with average and peak heart rate and minutes in five heart-rate zones (percent of maximum heart rate: 50/60/70/80/90); weekly minutes, zone minutes and Edwards load; Oura's VO2max estimates, cardiovascular-age predictions and nightly lowest heart rate; and an aerobic-base comparison of the last four weeks against the eight before. States how maximum heart rate was set. At most 92 days per call — a longer range returns its most recent 92 days.")]
+        Description = "The athlete's cardio for a range of days: every cardio session (logged runs, workouts entered on the ring, and ring-detected workouts only where their heart rate showed training: at least 20 minutes at zone 2 or above, or 10 at zone 3 or above, for at least half the time read; walks under 30 minutes, housework, stretching and lifting excluded; everything left out counted by reason), each with average and peak heart rate and minutes in five heart-rate zones (percent of maximum heart rate: 50/60/70/80/90); weekly minutes, zone minutes and Edwards load; Oura's VO2max estimates, cardiovascular-age predictions and nightly lowest heart rate; and an aerobic-base comparison of the last four weeks against the eight before. States how maximum heart rate was set. At most 92 days per call — a longer range returns its most recent 92 days.")]
     public Task<CardioReport?> GetCardioReportForChatAsync(IdentityUser user, DayRange range) =>
         GetReportAsync(user, Recent(range), CancellationToken.None)
-            .MatchAsync(report => (CardioReport?)report, _ => null);
+            // The declined workouts stay counted in Excluded; each one's heart rate is there for the
+            // athlete to check the call, and would cost the model thousands of tokens a quarter.
+            .MatchAsync(report => (CardioReport?)(report with { Declined = [] }), _ => null);
 
     private const int ChatDayLimit = 92;
 
@@ -95,7 +97,7 @@ public sealed class CardioReportService : ICardioReportService
         var gathered = CardioAnalysis.Gather(ringWorkouts, logged);
         var heartRate = await _context.OuraHeartRateDays.SamplesOnAsync(
             userId,
-            gathered.Sessions.SelectMany(session => HeartRateStore.DaysTouching(new TimeWindow(session.Start, session.End))),
+            gathered.Candidates.SelectMany(session => HeartRateStore.DaysTouching(new TimeWindow(session.Start, session.End))),
             ct);
 
         return new CardioInputs(

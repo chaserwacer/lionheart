@@ -313,6 +313,23 @@ is also a chat tool (`GetCardioReport`, `GetHabitsReport`). Code in `Services/Ca
 distance sets, plus the ring's workouts once their noise is taken out: housework, yard work and
 stretching; walks under 30 minutes (the median auto-detected walk is 19); strength work; and any
 ring workout lying at least half inside a logged session, which is that session as the ring saw it.
+
+**The ring's guesses have to be shown by the heart rate.** Oura's `source` says whether the athlete
+entered a workout (`manual`) or the ring proposed it from movement and he approved it. He approves
+those without reading them — "handball" is often a game of catch — and Oura's `intensity` says
+"moderate" for nearly everything, so neither the name nor the intensity is evidence. An entered
+endurance, sport or walk workout is taken at its word, like the log. A detected one, and any
+workout nobody named (Oura's `other`, or an activity Lionheart does not place), is a session only
+when its heart rate shows training (`TrainingEvidence`): at least half its clock time read, at
+least 20 minutes at zone 2 or above or 10 at zone 3 or above, and zone 2 or above for at least half
+the time read, so a spike inside an hour of pottering does not carry the hour. Housework, yard work
+and stretching never count, whatever their heart rate. A declined guess is listed in the report's
+`declined` with the heart rate that decided it, so the call can be checked, and counted in
+`excluded` by reason (`heartRateUnread`, `heartRateBelowTraining`). The maximum heart rate is read
+from every candidate, the declined included, since a rate reached is evidence whatever the activity
+was called. The habits report places only the sessions on their own record on the clock: it reads
+no heart rate, so it cannot tell a real game from catch.
+
 What was excluded is counted by reason in the report. A run imported from Apple Health is a logged
 run here, so the ring's workout inside it is excluded the same way (`docs/apple-health.md`). Each
 session's heart rate is read from the all-day series over its own clock time — except an imported

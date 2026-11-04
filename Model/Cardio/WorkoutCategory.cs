@@ -21,10 +21,7 @@ public enum WorkoutCategory
     /// <summary>A game or a discipline with intermittent hard efforts: basketball, martial arts, dance.</summary>
     [JsonStringEnumMemberName("sport")] Sport,
 
-    /// <summary>
-    /// A walk. Whether it is a session or noise depends on its length — see
-    /// <see cref="WorkoutCategories.IsCardioSession"/>.
-    /// </summary>
+    /// <summary>A walk. Under <see cref="WorkoutCategories.SessionWalk"/> it is getting somewhere, not a session.</summary>
     [JsonStringEnumMemberName("walk")] Walk,
 
     [JsonStringEnumMemberName("strength")] Strength,
@@ -32,8 +29,40 @@ public enum WorkoutCategory
     /// <summary>Movement the ring caught that is not training: housework, yard work, stretching.</summary>
     [JsonStringEnumMemberName("incidental")] Incidental,
 
-    /// <summary>An activity this application does not yet place. Counted, never guessed at.</summary>
+    /// <summary>Oura's own "other": an activity nobody named.</summary>
+    [JsonStringEnumMemberName("unspecified")] Unspecified,
+
+    /// <summary>An activity this application does not yet place.</summary>
     [JsonStringEnumMemberName("unrecognised")] Unrecognised,
+}
+
+/// <summary>How a ring workout came to be on the record, as Oura's <c>source</c> says.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<RingEntry>))]
+public enum RingEntry
+{
+    /// <summary>The athlete entered it himself.</summary>
+    [JsonStringEnumMemberName("entered")] Entered,
+
+    /// <summary>
+    /// The ring proposed it, from movement, and the athlete approved it or left it standing. He
+    /// approves these without reading them, so the name is a guess: "handball" is often a game of
+    /// catch.
+    /// </summary>
+    [JsonStringEnumMemberName("detected")] Detected,
+}
+
+/// <summary>What a ring workout needs before it is a cardio session.</summary>
+public abstract record RingAdmission
+{
+    private RingAdmission() { }
+
+    /// <summary>A session on its name alone.</summary>
+    public sealed record Session : RingAdmission;
+
+    /// <summary>A session only if its heart rate shows training (<see cref="TrainingEvidence"/>).</summary>
+    public sealed record OnHeartRate : RingAdmission;
+
+    public sealed record Excluded(WorkoutExclusion Reason) : RingAdmission;
 }
 
 public static class WorkoutCategories
@@ -63,19 +92,35 @@ public static class WorkoutCategories
         "walking" => WorkoutCategory.Walk,
         "strengthTraining" or "weightlifting" or "kettlebell" or "crossTraining" or "pilates"
             or "yoga" or "functionalTraining" => WorkoutCategory.Strength,
-        "houseWork" or "yardwork" or "stretching" or "other" or "meditation" => WorkoutCategory.Incidental,
+        "houseWork" or "yardwork" or "stretching" or "meditation" => WorkoutCategory.Incidental,
+        "other" => WorkoutCategory.Unspecified,
         _ => WorkoutCategory.Unrecognised,
     };
 
+    /// <summary>How Oura's <c>source</c> reads: "manual" is the athlete's own entry, anything else the ring's proposal.</summary>
+    public static RingEntry EntryOf(string source) => source is "manual" ? RingEntry.Entered : RingEntry.Detected;
+
     /// <summary>
-    /// Whether a workout of this category and length is cardio training rather than strength,
-    /// incidental movement, or a walk too short to be one.
+    /// Whether a ring workout of this category, length and entry is a cardio session, needs its
+    /// heart rate to show it was one, or is out.
     /// </summary>
-    public static bool IsCardioSession(WorkoutCategory category, TimeSpan duration) => category switch
+    /// <remarks>
+    /// A name the athlete typed is taken at its word, as his own log is. A name the ring guessed,
+    /// or no name at all, has to be shown by the heart rate. Incidental movement is out whatever
+    /// its heart rate did: carrying boxes upstairs is not zone 2.
+    /// </remarks>
+    public static RingAdmission AdmissionOf(WorkoutCategory category, TimeSpan duration, RingEntry entry) => category switch
     {
-        WorkoutCategory.Endurance or WorkoutCategory.Sport => true,
-        WorkoutCategory.Walk => duration >= SessionWalk,
-        WorkoutCategory.Strength or WorkoutCategory.Incidental or WorkoutCategory.Unrecognised => false,
+        WorkoutCategory.Strength => new RingAdmission.Excluded(WorkoutExclusion.Strength),
+        WorkoutCategory.Incidental => new RingAdmission.Excluded(WorkoutExclusion.NotTraining),
+        WorkoutCategory.Walk when duration < SessionWalk => new RingAdmission.Excluded(WorkoutExclusion.ShortWalk),
+        WorkoutCategory.Endurance or WorkoutCategory.Sport or WorkoutCategory.Walk => entry switch
+        {
+            RingEntry.Entered => new RingAdmission.Session(),
+            RingEntry.Detected => new RingAdmission.OnHeartRate(),
+            _ => throw new System.Diagnostics.UnreachableException(),
+        },
+        WorkoutCategory.Unspecified or WorkoutCategory.Unrecognised => new RingAdmission.OnHeartRate(),
         _ => throw new System.Diagnostics.UnreachableException(),
     };
 }

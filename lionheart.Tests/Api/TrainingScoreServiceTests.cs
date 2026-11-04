@@ -44,10 +44,10 @@ public class TrainingScoreServiceTests : IDisposable
 
         var score = ResultAssert.Succeeded(await ScoreAsync(service => service.GetScoreAsync(_athletes.Owner, Sunday, default)));
 
-        Assert.Equal(4, score.Lifting.Families.Single(family => family.Family == PatternFamily.Push).HardSets);
+        Assert.Equal(4, score.Lifting.Families.Single(family => family.Of.Family == PatternFamily.Push).Of.HardSets);
         Assert.Equal(new CardioMeasure.Unknown(CardioUnknownReason.NoHeartRate), score.Cardio.Measure);
         Assert.Equal([ScorePart.Cardio], score.Unknown);
-        Assert.Equal([1, 0, 0, 0], score.Consistency.SessionsPerBlock);
+        Assert.Equal([1, 0, 0, 0], score.Consistency.Blocks.Select(block => block.Of.Sessions));
     }
 
     [Fact]
@@ -78,8 +78,24 @@ public class TrainingScoreServiceTests : IDisposable
         Assert.Contains("push 3/8", digest.Parts[0]);
         Assert.StartsWith("cardio unknown", digest.Parts[1]);
         Assert.Contains("of 75 that could be read", digest.Score);
+        // The families due and the day's own lifting are separate statements, so neither reads as the other.
+        Assert.StartsWith("next: pull and legs (never trained)", digest.UpNext);
+        Assert.Contains($"no hard sets logged on {Sunday.AddDays(2):yyyy-MM-dd}", digest.UpNext);
         Assert.Equal(12, digest.Weeks.Split(", ").Length);
         // About four characters a token: a whole briefing stays within a few hundred tokens.
         Assert.InRange(System.Text.Json.JsonSerializer.Serialize(digest).Length, 1, 2400);
+    }
+
+    [Fact]
+    public async Task A_day_already_lifted_on_is_stated_apart_from_the_families_due_next()
+    {
+        await PlantBenchSessionAsync(Sunday, sets: 3);
+
+        var digest = Assert.IsType<TrainingScoreDigest>(await ScoreAsync(service =>
+            service.GetTrainingScoreForChatAsync(_athletes.Owner, new DayRange(Sunday.AddDays(-6), Sunday))));
+
+        Assert.Equal(
+            $"next: pull and legs (never trained); {Sunday:yyyy-MM-dd} already has hard sets logged, so this is the session after it",
+            digest.UpNext);
     }
 }

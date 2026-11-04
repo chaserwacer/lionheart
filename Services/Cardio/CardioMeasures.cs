@@ -24,7 +24,7 @@ public static class CardioMeasures
 
         return new CardioMeasure.Measured(
             zones.Zone2, ScoreRules.Zone2Minutes,
-            zones.Zone4 + zones.Zone5, ScoreRules.HighIntensityMinutes,
+            zones.Zone3 + zones.Zone4 + zones.Zone5, ScoreRules.HighIntensityMinutes,
             sessions.Count, heartRateDays);
     }
 }
