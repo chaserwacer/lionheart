@@ -28,21 +28,22 @@ namespace lionheart.Services.Profile
         /// <summary>Rebuild the slow-changing Stable Profile tier (identity, baselines, long-horizon trends).</summary>
         Task<Result<AthleteContextCard, Problem>> RebuildStableProfileAsync(IdentityUser user);
 
-        /// <summary>Recompute the fast, event-driven Recent State tier (today/this-week snapshot).</summary>
+        /// <summary>Recompute the Recent State tier: the last four weeks of runs and body.</summary>
         Task<Result<AthleteContextCard, Problem>> RefreshRecentStateAsync(IdentityUser user);
 
         /// <summary>
-        /// Assemble the full system prompt: a byte-stable, cacheable prefix (the chat's voice +
-        /// Stable Profile + tool-routing policy) followed by the volatile coverage manifest and Recent State.
+        /// The system prompt a conversation is frozen with: the chat's voice, both tiers, the
+        /// tool-routing policy and the coverage manifest. Nothing in it is dated to the minute; what
+        /// is goes with each message as the briefing.
         /// </summary>
         string RenderSystemMessage(AthleteContextCard card);
     }
 
-    public class AthleteContextCardService(ModelContext context, NarrativeChatClient narrativeClient)
+    public class AthleteContextCardService(ModelContext context, NarrativeChatClient narrativeClient, TimeProvider clock)
         : IAthleteContextCardService
     {
         /// <summary>Bump when aggregation or rendering changes so existing cards are detected as stale.</summary>
-        private const int GENERATOR_VERSION = 3;
+        private const int GENERATOR_VERSION = 4;
 
         /// <summary>Recent State is considered stale after this long and is lazily recomputed on read.</summary>
         private static readonly TimeSpan RecentStateMaxAge = TimeSpan.FromHours(6);
@@ -59,6 +60,19 @@ namespace lionheart.Services.Profile
 
         private readonly ModelContext _context = context;
         private readonly NarrativeChatClient _narrativeClient = narrativeClient;
+        private readonly TimeProvider _clock = clock;
+
+        private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
+
+        /// <summary>The athlete's own day, never UTC's, which ends in his evening.</summary>
+        private DateOnly Today => DateOnly.FromDateTime(_clock.GetLocalNow().DateTime);
+
+        /// <summary>
+        /// The instant his day begins, in the UTC the stamped StartTime column is stored in, so a
+        /// window counted from a day starts at his midnight rather than five hours before or after it.
+        /// </summary>
+        private DateTime UtcStartOf(DateOnly day) =>
+            TimeZoneInfo.ConvertTimeToUtc(day.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified), _clock.LocalTimeZone);
 
         public async Task<Result<AthleteContextCard, Problem>> GetOrBuildCardAsync(IdentityUser user)
         {
@@ -67,7 +81,7 @@ namespace lionheart.Services.Profile
 
             if (card is null)
             {
-                var now = DateTime.UtcNow;
+                var now = UtcNow;
                 card = new AthleteContextCard
                 {
                     CardID = Guid.NewGuid(),
@@ -84,7 +98,7 @@ namespace lionheart.Services.Profile
             }
 
             var stableStale = card.GeneratorVersion != GENERATOR_VERSION;
-            var recentStale = stableStale || card.RecentStateAsOf < DateTime.UtcNow - RecentStateMaxAge;
+            var recentStale = stableStale || card.RecentStateAsOf < UtcNow - RecentStateMaxAge;
 
             if (stableStale)
             {
@@ -134,9 +148,9 @@ namespace lionheart.Services.Profile
         // ---------------------------------------------------------------------
         private async Task BuildStableProfileAsync(AthleteContextCard card, Guid userId)
         {
-            var now = DateTime.UtcNow;
+            var now = UtcNow;
             var lhUser = await _context.LionheartUsers.FirstOrDefaultAsync(u => u.UserID == userId);
-            var yearAgo = DateOnly.FromDateTime(now).AddDays(-365);
+            var yearAgo = Today.AddDays(-365);
 
             // Baseline biometrics over the trailing year (deterministic; numbers never come from the LLM).
             // Readings live in a JSON column, so the day range narrows in SQL and the members are
@@ -206,7 +220,7 @@ namespace lionheart.Services.Profile
             if (chronicInjuries.Count > 0)
             {
                 var injuryList = string.Join("; ", chronicInjuries.Select(i => $"{i.Name} ({i.InjuryDate:yyyy-MM})"));
-                facts.Add($"Injury history (whether any is active is under RECENT STATE): {injuryList}.");
+                facts.Add($"Injury history (which are active is in the TODAY note): {injuryList}.");
             }
 
             var deterministic = facts.Count > 0 ? string.Join("\n", facts) : "No profile data on record yet.";
@@ -225,145 +239,37 @@ namespace lionheart.Services.Profile
         }
 
         // ---------------------------------------------------------------------
-        // Recent State tier (fast): today/this-week snapshot + coverage manifest.
+        // Recent State tier: the last four weeks of what changes slowly — runs and body —
+        // with the coverage manifest. Anything that changes by the day is in the briefing
+        // (Services/Chat/Today), which is read fresh for every message instead.
         // ---------------------------------------------------------------------
         private async Task BuildRecentStateAsync(AthleteContextCard card, Guid userId)
         {
-            var now = DateTime.UtcNow;
-            var today = DateOnly.FromDateTime(now);
-            var weekAgo = today.AddDays(-7);
-            var monthAgo = today.AddDays(-28);
+            var now = UtcNow;
+            var monthAgo = Today.AddDays(-28);
 
-            var wellnessWeek = await _context.WellnessStates
-                .Where(w => w.UserID == userId && w.Date >= weekAgo)
-                .OrderByDescending(w => w.Date)
-                .ToListAsync();
-
-            var readinessWeek = await _context.OuraDailyReadiness
-                .AsNoTracking()
-                .Where(o => o.UserId == userId && o.Day >= weekAgo)
-                .Select(o => o.Reading)
-                .ToListAsync();
-
-            var sleepWeek = await _context.OuraDailySleep
-                .AsNoTracking()
-                .Where(o => o.UserId == userId && o.Day >= weekAgo)
-                .Select(o => o.Reading)
-                .ToListAsync();
-
-            // Stress now comes from Oura's own stress document rather than the resilience level's
-            // stress contributor: it is a measured share of the day in seconds, and unlike
-            // resilience it is a collection this athlete's history actually covers.
-            var stressWeek = await _context.OuraDailyStress
-                .AsNoTracking()
-                .Where(o => o.UserId == userId && o.Day >= weekAgo)
-                .Select(o => o.Reading)
-                .ToListAsync();
-
-            var activeInjuries = await _context.Injuries
-                .Where(i => i.UserID == userId && i.IsActive)
-                .Select(i => new
-                {
-                    i.Name,
-                    LastPain = i.InjuryEvents.OrderByDescending(e => e.CreationTime).Select(e => (int?)e.PainLevel).FirstOrDefault()
-                })
-                .ToListAsync();
-
-            var acuteSessions = await CountCompletedSessionsSinceAsync(userId, weekAgo);
-            var chronicSessions = await CountCompletedSessionsSinceAsync(userId, monthAgo);
-            var standingRecordCount = await StandingRecordCountAsync(userId);
-
-            // Acute:chronic workload ratio using a 1-week acute vs 4-week (weekly-averaged) chronic load proxy.
-            double chronicWeekly = chronicSessions / 4.0;
-            string acwr = chronicWeekly > 0 ? $"{acuteSessions / chronicWeekly:0.00}" : "n/a";
-
-            var lines = new List<string>();
-            if (wellnessWeek.Count > 0)
+            card.RecentStateText = string.Join("\n", new List<string>
             {
-                var latest = wellnessWeek[0];
-                lines.Add(
-                    $"Wellness: latest {latest.Date:yyyy-MM-dd} overall {latest.OverallScore:0.0} " +
-                    $"(mood {latest.MoodScore}, energy {latest.EnergyScore}, stress {latest.StressScore}, motivation {latest.MotivationScore}); " +
-                    $"7d avg overall {Avg(wellnessWeek.Select(w => w.OverallScore)):0.0}.");
-            }
-            else
-            {
-                lines.Add("Wellness: no entries in the last 7 days.");
-            }
+                RunFacts.Recent(await ImportedRunsSinceAsync(userId, monthAgo), days: 28),
+            }.Concat(await BodyFactsAsync(userId)));
 
-            if (readinessWeek.Count > 0 || sleepWeek.Count > 0 || stressWeek.Count > 0)
-            {
-                lines.Add(
-                    $"Oura (7d means): readiness {Mean(readinessWeek.Select(r => r.Score)):0}/100, " +
-                    $"sleep {Mean(sleepWeek.Select(s => s.Score)):0}/100, " +
-                    $"HRV balance {Mean(readinessWeek.Select(r => r.Contributors.HrvBalance)):0}/100, " +
-                    $"stressful minutes/day {Mean(stressWeek.Select(s => s.StressHighSeconds)) / 60:0} " +
-                    $"(n={Math.Max(readinessWeek.Count, sleepWeek.Count)}).");
-            }
-            else
-            {
-                lines.Add("Oura: no synced data in the last 7 days.");
-            }
-
-            lines.Add($"Training load: {acuteSessions} sessions in 7d, acute:chronic ratio {acwr} (vs trailing 28d).");
-
-            lines.Add(RunFacts.Recent(await ImportedRunsSinceAsync(userId, monthAgo), days: 28));
-            lines.AddRange(await BodyFactsAsync(userId));
-
-            if (activeInjuries.Count > 0)
-            {
-                var inj = string.Join("; ", activeInjuries.Select(i =>
-                    $"{i.Name}{(i.LastPain is int p ? $" (last pain {p}/10)" : "")}"));
-                lines.Add($"Active injuries: {inj}.");
-            }
-            else
-            {
-                lines.Add("Active injuries: none recorded.");
-            }
-
-            var deterministic = string.Join("\n", lines);
-            var narrative = await TryNarrateAsync(
-                "In one sentence, state where this athlete's readiness stands against their current training load. " +
-                "Use only the facts given, and introduce no number that is not among them.",
-                deterministic);
-
-            card.RecentStateText = string.IsNullOrWhiteSpace(narrative)
-                ? deterministic
-                : $"{narrative}\n{deterministic}";
-
-            // Coverage manifest — steers tool calls: what is loaded + over what window, and the tool to drill in.
-            card.CoverageManifest = string.Join("\n", new[]
-            {
-                $"wellness: 7d summary + latest entry present (as-of {today:yyyy-MM-dd}); per-day history NOT loaded -> GetWellnessStates(dateRange).",
-                $"oura: 7d readiness/sleep/HRV/stress means present (n={Math.Max(readinessWeek.Count, sleepWeek.Count)}); per-night detail (stages, hypnogram, HRV curve), workouts, sessions and tags NOT loaded -> the /api/oura routes.",
-                $"training: 7d count + acute:chronic present; no drill-in tool available yet — do not attempt to fetch per-session detail.",
-                "runs: Apple Health runs over 28d counted, with the latest; each run's splits, heart rate and climb NOT loaded -> GetRecordedRuns(dateRange). No route or location is available, by design.",
-                $"injuries: {activeInjuries.Count} active summarized; full event history NOT loaded -> GetUserInjuries(filters).",
-                "body: latest dated bodyweight and the latest body-composition scan (with its change since the one before) present; every scan's full sheet NOT loaded -> GetBodyCompositionScans().",
-                $"Personal records: {standingRecordCount} standing records counted; the numbers and their progression NOT loaded -> GetPersonalRecords(), or GetPersonalRecordsForMovement(movementDataId) for one movement."
-            });
-
+            card.CoverageManifest = CoverageManifest;
             card.RecentStateVersion += 1;
             card.RecentStateAsOf = now;
             card.LastUpdated = now;
         }
 
-        public string RenderSystemMessage(AthleteContextCard card)
-        {
-            // STABLE PREFIX (byte-stable across turns while the Stable Profile is unchanged -> prompt-cacheable).
-            // No timestamps or volatile content above this line.
-            var prefix =
-                $"{ChatInstructions.Voice}\n\n" +
-                $"=== ATHLETE PROFILE (stable) ===\n{card.StableProfileText.Trim()}\n\n" +
-                $"=== TOOL ROUTING POLICY ===\n{ToolRoutingPolicy}";
-
-            // VOLATILE SUFFIX (manifest + recent state). All freshness/timestamps live here, after the prefix.
-            var suffix =
-                $"\n\n--- COVERAGE MANIFEST (volatile) ---\n{card.CoverageManifest.Trim()}\n\n" +
-                $"--- RECENT STATE (volatile, as-of {card.RecentStateAsOf:yyyy-MM-dd HH:mm} UTC) ---\n{card.RecentStateText.Trim()}";
-
-            return prefix + suffix;
-        }
+        /// <remarks>
+        /// All of it is frozen for a conversation's life and so all of it is cacheable. What has to
+        /// be current — the date, today's training, last night, readiness — is never here: it goes
+        /// with each message as the briefing, after the cache breakpoint.
+        /// </remarks>
+        public string RenderSystemMessage(AthleteContextCard card) =>
+            $"{ChatInstructions.Voice}\n\n" +
+            $"=== ATHLETE PROFILE ===\n{card.StableProfileText.Trim()}\n\n" +
+            $"=== LAST FOUR WEEKS: RUNS AND BODY ===\n{card.RecentStateText.Trim()}\n\n" +
+            $"=== HOW TO USE YOUR CONTEXT AND TOOLS ===\n{ToolRoutingPolicy}\n\n" +
+            $"--- WHAT IS LOADED, AND THE TOOL FOR EVERYTHING ELSE ---\n{card.CoverageManifest.Trim()}";
 
         /// <summary>Best-effort narrative. Any failure (no key, network, etc.) falls back to deterministic text.</summary>
         private async Task<string> TryNarrateAsync(string instruction, string facts)
@@ -377,7 +283,7 @@ namespace lionheart.Services.Profile
             {
                 var turn = await _narrativeClient.Model.RespondAsync(ChatTurnRequest.Prose(
                     systemPrompt:
-                        "You write one precise sentence for an athlete context card that a sports-science analyst reads. " +
+                        "You write one precise sentence for an athlete context card that his coach reads. " +
                         "The facts are printed beside your sentence, so interpret them rather than restating the figures. " +
                         "Invent nothing, make no medical claims, and leave out encouragement and filler.",
                     userText: $"{instruction}\n\nFacts:\n{facts}",
@@ -422,19 +328,25 @@ namespace lionheart.Services.Profile
             Avg(readings.Where(reading => reading.HasValue).Select(reading => (double)reading!.Value));
 
         private const string ToolRoutingPolicy = """
-            You are given an ATHLETE PROFILE and RECENT STATE below, plus a COVERAGE MANIFEST listing what is
-            already loaded and over what window. Use them to decide when a tool call is worth making:
-            - When the card fully supports the answer, answer from it without calling tools.
-            - When you need detail the manifest marks "NOT loaded", call the tool it names, with the narrowest
-              date range that covers the question.
-            - Do not re-fetch a domain the manifest marks present and fresh for the same window. The card's
-              numbers are computed deterministically, not by a model, so rely on them.
-            - When the card's data is stale or missing (see its as-of) and the question is time-sensitive, fetch
-              it; otherwise prefer the card.
-            - You may refer to what the card holds when it is the reason for a point — an injury, a goal, a recent
-              trend — in passing, the way an analyst cites the record they are reading from. Do not announce the
-              card, describe it, or open an answer by summarising it.
-            Do not narrate tool calls.
+            Each message from the athlete arrives with a TODAY note from Lionheart: the current date and time on his clock, what he trained today and yesterday, his last two nights, today's readiness against his baseline, active injuries, this week so far and the training score. It is current as of that message, and it decides what "today", "yesterday" and "this week" mean; where it and anything earlier in the conversation disagree, it is right.
+            - Answer from the TODAY note and the context above whenever they hold the answer. Questions about today, recovery, this week or what to do next usually need no tool at all.
+            - Call a tool only for detail they do not hold, as listed below, with the narrowest date range that covers the question.
+            - Every figure here was computed from his records, not by a model, so rely on it; do not re-fetch what is already stated.
+            - Cite what the context holds when it is the reason for a point, in passing. Do not announce the note or the context, describe them, or open an answer by summarising them.
+            """;
+
+        /// <summary>
+        /// What the system prompt and the briefing already carry, and the tool for everything else.
+        /// Fixed text: it describes the shape of the context, which changes with the code rather than
+        /// with the athlete's data.
+        /// </summary>
+        private const string CoverageManifest = """
+            today and this week (TODAY note): sessions with their lifts, cardio with zone minutes, the last two nights, readiness, the 7-day load, wellness, active injuries and the training score -> GetTrainingScore for another window or for weekly scores, GetCardioReport for cardio beyond this week, GetOuraDays or GetOuraSleepNights for other days, GetWellnessStates for wellness history.
+            training history: no per-session tool exists; long-run patterns come from GetTrainingScore (weekly scores, at most 52 weeks) and GetHabitsReport; do not attempt to fetch individual sessions.
+            lifts: personal records and estimated maxes are not loaded -> GetPersonalRecords(), then GetPersonalRecordsForMovement(movementDataId) for one movement's records and their dates.
+            runs: counted over 28 days above; each run's splits, heart rate and climb -> GetRecordedRuns(dateRange). No route or location is available, by design.
+            injuries: active ones in the TODAY note; history and pain events -> GetUserInjuries(filters).
+            body: the latest bodyweight and body-composition scan above; every scan's full sheet -> GetBodyCompositionScans().
             """;
 
         /// <summary>
@@ -464,7 +376,7 @@ namespace lionheart.Services.Profile
         /// </summary>
         private Task<int> CountCompletedSessionsSinceAsync(Guid userId, DateOnly since)
         {
-            var cutoff = since.ToDateTime(TimeOnly.MinValue);
+            var cutoff = UtcStartOf(since);
             return _context.Sessions
                 .OfType<CompletedTrainingSession>()
                 .CountAsync(s => s.UserId == userId && EF.Property<DateTime>(s, "StartTime") >= cutoff);
@@ -473,7 +385,7 @@ namespace lionheart.Services.Profile
         /// <summary>The runs imported from Apple Health since a day, read off the stamped workout id.</summary>
         private async Task<IReadOnlyList<CompletedTrainingSession>> ImportedRunsSinceAsync(Guid userId, DateOnly since)
         {
-            var cutoff = since.ToDateTime(TimeOnly.MinValue);
+            var cutoff = UtcStartOf(since);
             return await _context.Sessions
                 .OfType<CompletedTrainingSession>()
                 .AsNoTracking()

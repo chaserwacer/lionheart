@@ -52,9 +52,13 @@ public sealed class ThreadHarness : IDisposable
             Consolidator(context),
             new MemoryRecallService(context, vectors),
             SystemPrompt,
+            Briefing,
             Gate,
             Clock);
     }
+
+    /// <summary>What every exchange is briefed with; a test may change it between messages.</summary>
+    public FixedBriefing Briefing { get; } = new("TODAY\nNow: the test's own clock.");
 
     /// <summary>The card failing to build, which is its documented fallback: the chat still opens, on the voice alone.</summary>
     public ChatSystemPrompt SystemPrompt { get; } = new(new UnbuildableCard());

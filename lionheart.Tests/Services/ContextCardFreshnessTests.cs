@@ -13,8 +13,7 @@ namespace lionheart.Tests.Services;
 
 /// <summary>
 /// The context card states only what the records still say: the body from dated measurements
-/// rather than the profile's undated weight, and an injury's status from the injury records rather
-/// than from whenever the stable tier was last built.
+/// rather than the profile's undated weight, and no injury status that would outlive the injury.
 /// </summary>
 public sealed class ContextCardFreshnessTests : IDisposable
 {
@@ -34,7 +33,7 @@ public sealed class ContextCardFreshnessTests : IDisposable
     private async Task<AthleteContextCard> CardAsync()
     {
         using var context = _db.CreateContext();
-        var service = new AthleteContextCardService(context, new NarrativeChatClient(_server.CreateChatModel()));
+        var service = new AthleteContextCardService(context, new NarrativeChatClient(_server.CreateChatModel()), TimeProvider.System);
         return ResultAssert.Succeeded(await service.GetOrBuildCardAsync(Athlete));
     }
 
@@ -55,23 +54,19 @@ public sealed class ContextCardFreshnessTests : IDisposable
         Assert.Contains("Bodyweight: 183.4 lb on 2026-09-14", card.RecentStateText);
     }
 
+    /// <summary>
+    /// Which injuries are active changes when one is resolved, so the card leaves it to the briefing
+    /// read with each message, and the stable tier names only the history.
+    /// </summary>
     [Fact]
-    public async Task An_injury_resolved_after_the_card_was_built_no_longer_reads_as_active()
+    public async Task The_card_keeps_injury_history_and_leaves_whether_one_is_active_to_the_briefing()
     {
-        var injury = await CreateInjuryAsync("Right knee tendinopathy");
-        Assert.Contains("Active injuries: Right knee tendinopathy", (await CardAsync()).RecentStateText);
-
-        using (var context = _db.CreateContext())
-        {
-            ResultAssert.Succeeded(await new InjuryService(context).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
-            {
-                InjuryID = injury, Name = "Right knee tendinopathy", Notes = string.Empty, IsActive = false,
-            }));
-        }
+        await CreateInjuryAsync("Right knee tendinopathy");
 
         var card = await CardAsync();
-        Assert.Contains("Active injuries: none recorded.", card.RecentStateText);
-        Assert.DoesNotContain("active)", card.StableProfileText);
+
+        Assert.Contains("Right knee tendinopathy (2026-03)", card.StableProfileText);
+        Assert.DoesNotContain("Active injuries", card.RecentStateText);
     }
 
     private async Task<Guid> CreateInjuryAsync(string name)
