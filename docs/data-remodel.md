@@ -638,7 +638,7 @@ domain has nowhere to hold a rest.
 - **Set kinds.** Strong's warm-up, drop and failure sets import as lifts of that kind. A warm-up
   sets no record; drop and failure sets count toward records like any set performed.
 - **Upgrading what the first import wrote.** Before sets carried a kind, a warm-up was written as a
-  `FreeformSet` holding its words ("Warm-up — Bench Press (Barbell): 155 lb × 13") and drop and
+  `FreeformSet` holding its words ("Warm-up — Bench Press (Barbell): 135 lb × 12") and drop and
   failure sets as plain lifts, named in two notes lines ("Drop sets: …", "Taken to failure: …").
   `dotnet run -- upgrade-strong-set-kinds <strong-export.csv> --user <athlete-guid>`, a command of
   its own beside the import, brings each held session up to the current shape when it is provably
@@ -670,24 +670,18 @@ domain has nowhere to hold a rest.
 **Running it.** From the checkout whose `Data/lionheart.db` is meant — the connection string is
 relative, so a run from a worktree writes that worktree's copy and reports success. The run prints
 the time zone it read times in; the zone is baked into the session ids, so a wrong one cannot be put
-right by running again. Against the athlete's database as of 2026-11-03 it refuses: ten records
-standing from the legacy app, all stamped 2026-03-23 16:30:32 (the moment that data was loaded, not
-when he lifted), duplicate the Strong workout of 2026-03-20 on five movements. Withdrawing one puts
-back a predecessor stamped the same instant, so clearing them is fifteen withdrawals. Whether to
-withdraw them, delete them, or have the import treat them otherwise is the owner's decision; nothing
-is decided here.
+right by running again. Records left standing from the legacy app are stamped with the moment
+that data was loaded, not when the lift happened, so a Strong workout that duplicates them makes
+the import refuse until they are withdrawn or deleted; which, is the owner's decision.
 
 **The set-kind upgrade against the athlete's data (2026-11-03, on a worktree copy of the database).**
-`~/Downloads/strong_workouts.csv` holds 208 workouts and the database 206 of them: the two it lacks
-are "Tester workout" (2024-07-23) and "Tester" (2024-08-15), which `upgrade-strong-set-kinds` counts
-as not imported. (`import-strong` over the whole export refuses, writing nothing: re-adding those two
-would replay records older than 19 that now stand.) The upgrade upgraded **44** sessions (5 warm-ups,
-36 drop sets, 16 failure sets gained their kind), counted **160** already current (no special sets),
-and left **2** alone: 2024-10-10 and 2026-10-28, whose stored sets omit a typo'd set the export still
-holds (a 315 × 315 deadlift; a 115 × 45 overhead press). The 2026-10-28 session keeps its one drop set
-as a plain lift with its notes line until it is corrected by hand. The 3,440 records, every session's
-id, period and creation time, and the catalogue were byte-identical before and after, and a second
-run upgraded nothing. The main checkout's database has not been migrated or upgraded.
+Workouts the export holds and the database does not (test workouts deleted before the import) are
+counted as not imported; `import-strong` over the whole export refuses rather than re-add them,
+since that would replay records older than ones that now stand. The upgrade gave 44 sessions their
+set kinds, counted 160 already current, and left 2 alone whose stored sets omit a typo'd set the
+export still holds; those keep their drop sets as plain lifts until corrected by hand. Every record,
+session id, period and creation time, and the catalogue were byte-identical before and after, and a
+second run upgraded nothing.
 
 ### ✅ Focus pins, and the records a movement or a session established
 
@@ -709,18 +703,19 @@ subject filter runs in SQL: `record.Subject == subject` translates to the conver
 
 ### ✅ Coached-programme history import and record rebuild
 
-`dotnet run -- import-coached-sheets <training-os/derived/sets.tsv> --user <athlete-guid>`
+`dotnet run -- import-coached-sheets <training-os/derived/sets.tsv> --decisions <coached-sheets.json> --user <athlete-guid>`
 (`Services/CoachedSheets/`), packaged like the Strong import and sharing its movement catalogue,
 map reader and name-based ids (`Services/Import/`). It reads training-os's set log and takes only
 the `sheet:<sheet>#w<week>` rows; the `strong:` rows are counted and left to `import-strong`.
 
-- **Performed sets only.** The Jamal V5 template asks for the top set's weight and computes every
+- **Performed sets only.** The RPE template asks for the top set's weight and computes every
   back-off from it — and some whole days from the one-rep maxes on its Start sheet — so a computed
-  weight (303.6, 288.486) is a prescription, never a bar load. `coached-sheets.json` lists every
-  such row with its formula, plus the few typed rows the evidence says were not lifted (a 100 lb
-  placeholder, a 2 lb typo, two rows the athlete's note contradicts). They are left out and named in
-  the session's notes; a day whose every weight was computed (seven of the Jamal days) becomes no
-  session, so only the decisions file records it. Each entry states how many sets it covers, and a run refuses if the log no
+  weight is a prescription, never a bar load. The decisions file, `coached-sheets.json`, lists every
+  such row with its formula, plus the few typed rows the evidence says were not lifted
+  (placeholders, typos, rows the athlete's own note contradicts). They are left out and named in the
+  session's notes; a day whose every weight was computed becomes no session, so only the decisions
+  file records it. The file is the athlete's training evidence, so it lives with the spreadsheets in
+  training-os and the command line names it; only its format and parser are in this repository. Each entry states how many sets it covers, and a run refuses if the log no
   longer holds exactly that many. A "CLUSTER SET (1+1)" row becomes its singles.
 - **Sessions.** One per training-os session id (date, sheet, day), at **noon** on its date in the
   machine's zone, as an `Instant` — the sheets carry dates only, and a duration would be invented.
@@ -730,10 +725,9 @@ the `sheet:<sheet>#w<week>` rows; the `strong:` rows are counted and left to `im
   "RPE Actual" column; a prescribed RPE stays in the notes.
 - **Movements** come from `coached-movements.json`, keyed by training-os slug, spelled as the Strong
   map spells them so shared lifts reuse one movement. Variations stay separate. The sheets never write
-  the deadlift's stance, so a programme's `readAs` in `coached-sheets.json` says what its slug means:
-  the owner pulled conventional while running the Jamal block and sumo through Blake's sheets (their
-  463 × 3 and 474 × 3 are past his 463 conventional single), so Blake's deadlifts land on the
-  `Sumo Deadlift` movements his Strong history uses.
+  the deadlift's stance, so a programme's `readAs` in `coached-sheets.json` says what its slug means,
+  as the athlete recalls it: a block he pulled sumo lands on the `Sumo Deadlift` movements his Strong
+  history uses, and one he pulled conventional stays on `Deadlift`.
 - **Records rebuilt.** Inside the import's transaction, `PersonalRecordRebuild.ReplayAsync` deletes
   the athlete's records and runs every completed session through `PersonalRecordDetector` in one
   batch, oldest first. A newer record that an older set already beats was never a record and is

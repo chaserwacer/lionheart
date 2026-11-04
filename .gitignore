@@ -237,8 +237,19 @@ Data/*.db
 Data/*.db-shm
 Data/*.db-wal
 Data/*.db.backup*
-# Local secrets
+# Local secrets, and any copy of them
 .env
+.env.*
+!.env.example
+
+# The athlete's own data, wherever it is dropped: exports, archives, scans, database copies
+*.db
+*.sqlite
+strong_workouts*.csv
+*.xlsx
+*.pdf
+
+.DS_Store
 
 # Local iOS development account (throwaway, local SQLite only — never committed)
 .lh-dev-account
@@ -248,6 +259,10 @@ ios/Lionheart.xcodeproj/
 ios/Lionheart/Info.plist
 ios/LionheartWorkoutActivity/Info.plist
 ios/DerivedData/
+ios/DerivedData-*/
 
 # Per-machine build overrides, like .env. Copy Local.xcconfig.example to create one.
 ios/Configs/Local.xcconfig
+
+# Tracked public assets
+!ClientApp/static/*.pdf

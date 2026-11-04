@@ -32,6 +32,27 @@ folders, design system and "green" sections are Lionheart's own.
 - The API is the contract between the two clients. A change to a wire shape touches
   `docs/api-surface.md`, the C# endpoint, and `ios/Lionheart/Core/Model/` in one change.
 
+## Personal data stays out of the repository
+
+The GitHub repository is **public**. The app holds the athlete's real training, recovery and body
+data, and none of it is committed: not as a test fixture, a code comment, a doc example, or a
+data file the build embeds.
+
+- **Test data is invented.** A fixture keeps the shape of what a source really sends (Oura's
+  nulls and zeros, Strong's quoting, a scan sheet's misreadings) with made-up ids, dates and
+  values. Never copy rows from the live database, an export, an archive or a scan.
+- **No identifying details.** No real user id, email, device id, signing team, Tailscale host,
+  gym, school or coach's name; no lift numbers, bodyweight, age, injuries or dates from his
+  history in comments or docs. Describe a case generically ("a block pulled sumo"), not
+  biographically.
+- **His data files live outside the repo** and are named on the command line: exports and
+  archives in `~/Downloads` or `~/code/training-os` (private), the coached-programme decisions in
+  `~/code/training-os/lionheart/coached-sheets.json`, secrets in `.env`, machine settings in
+  `ios/Configs/Local.xcconfig`.
+- `scripts/git-hooks/pre-commit` refuses staged lines carrying a known identifier, listed in
+  `.git/info/personal-terms` (not committed, since the list is itself personal). Enabled with
+  `git config core.hooksPath scripts/git-hooks`. Never bypass it with `--no-verify`.
+
 ## The iOS client
 
 The native app is where training actually gets logged, so it leads. It talks to the same

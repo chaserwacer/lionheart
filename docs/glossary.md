@@ -19,8 +19,8 @@ first and then in the code.
 | **Movement data** | The identity of a thing you do: a movement base plus equipment plus a modifier. Records hang off it. |
 | **Movement base** | The bare exercise, before equipment: "bench press", "deadlift". |
 | **Strong movement map** | The athlete-editable file saying which movement each exercise name in a Strong export becomes. |
-| **Coached programme sheets** | The athlete's 2023–24 powerlifting spreadsheets (Jamal V5; Blake Rossi's Perfect Powerlifting), read through training-os's derived set log. Each sheet imports as a completed training program. |
-| **Not-performed row** | A row the set log holds that the athlete did not lift as written — a weight the spreadsheet computed, a placeholder, a row his own note contradicts. Left out of the session and named in its notes. |
+| **Coached programme sheets** | The athlete's earlier powerlifting spreadsheets (a self-run RPE template and coached blocks), read through training-os's derived set log. Each sheet imports as a completed training program. |
+| **Not-performed row** | A row the set log holds that the athlete did not lift as written — a weight the spreadsheet computed, a placeholder, a row his own note contradicts. Left out of the session and named in its notes; the decisions file listing them stays with the spreadsheets, outside this repository. |
 | **Rpe** | Rate of perceived exertion for a set. Rated or unrated — never a nullable number. |
 | **Perceived effort ratings** | The athlete's own read on a session, as a cluster, not loose fields. |
 | **Training program** | A block of training with a title and dates. Planned, active or completed. |
