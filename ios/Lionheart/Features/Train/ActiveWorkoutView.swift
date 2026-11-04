@@ -23,14 +23,19 @@ struct ActiveWorkoutView: View {
     /// The log and the focus list, for a movement's page opened from its section.
     let history: HistoryStore
     let focus: FocusStore
+    /// The going-in state and what is next, for the header.
+    let goingIn: GoingInStore
+    /// The priority lifts, which lead the Add sheet.
+    let balance: TrainingBalanceStore
 
     @Environment(\.dismiss) private var dismiss
 
     /// The entry row's fields. One at a time: the athlete is working through one movement, and two
     /// open rows would make "which set does Log log?" a question.
     @State private var draft: SetDraft?
-    @State private var isPickerPresented = false
+    @State private var isAdding = false
     @State private var isFinishPresented = false
+    @State private var isGoingInShown = false
     @State private var isDiscardAsked = false
     @State private var editing: LoggedSet?
     /// The set whose deletion is waiting on a yes. Hung on the surface rather than on a row,
@@ -76,21 +81,24 @@ struct ActiveWorkoutView: View {
             }
             .task {
                 openFocusedMovement()
+                // The header's reads beside the library's rather than after it: the header is the
+                // first thing on screen, and the library is usually remembered already.
+                async let header: Void = refreshHeader()
                 await library.refreshIfNeeded()
                 await bodyweight.refreshIfNeeded()
                 if store.workout?.routine != nil { await routines.refreshIfNeeded() }
+                await header
             }
             .onChange(of: store.workout == nil) { _, gone in
                 if gone { dismiss() }
             }
         }
-        .sheet(isPresented: $isPickerPresented) {
-            MovementPicker(library: library) { movement in
-                // Added before the row opens: the row lives in the movement's section, and the
-                // section exists only once the workout holds the movement.
-                store.add(movement.movementDataId)
-                open(movement.movementDataId)
-                library.noteUsed(movement.movementDataId)
+        .sheet(isPresented: $isAdding) {
+            AddWorkSheet(library: library, priorityIds: priorityIds) { add($0) }
+        }
+        .sheet(isPresented: $isGoingInShown) {
+            if let state = goingIn.state.value {
+                GoingInSheet(state: state)
             }
         }
         .sheet(isPresented: $isFinishPresented) {
@@ -187,24 +195,31 @@ struct ActiveWorkoutView: View {
         ToolbarItem(placement: .topBarLeading) {
             Button("Close") { dismiss() }
         }
+        // Add is what the surface is for between sets, so it has the primary place; Finish happens
+        // once a session and lives in the menu, behind the same sheet it always opened. On iOS 26
+        // adjacent items share one glass capsule, so the spacer keeps Add reading as its own control.
         ToolbarItem(placement: .topBarTrailing) {
-            Button("Finish") { isFinishPresented = true }
-                .fontWeight(.semibold)
-                .disabled(store.workout == nil)
+            Button {
+                isAdding = true
+            } label: {
+                Label("Add", systemImage: "plus")
+            }
+            .fontWeight(.semibold)
+            .disabled(store.workout == nil)
         }
-        // Finish ends the workout; the menu behind it holds a sync and a discard. On iOS 26
-        // adjacent items share one glass capsule, and a committing action reading as part of the
-        // same control as an overflow menu is how a workout gets discarded by accident.
         if #available(iOS 26.0, *) {
             ToolbarSpacer(.fixed, placement: .topBarTrailing)
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu("More", systemImage: "ellipsis.circle") {
+                Button("Finish workout", systemImage: "flag.checkered") { isFinishPresented = true }
+                    .disabled(store.workout == nil)
                 if store.workout?.sync.isWorthPushing == true {
                     Button("Sync now", systemImage: "arrow.triangle.2.circlepath") {
                         Task { await store.syncNow() }
                     }
                 }
+                Divider()
                 Button(role: .destructive) {
                     isDiscardAsked = true
                 } label: {
@@ -217,30 +232,119 @@ struct ActiveWorkoutView: View {
     // MARK: - The surface
 
     private func surface(_ workout: ActiveWorkout, reading: WorkoutReading) -> some View {
+        let header = goingInReading(for: workout, reading: reading)
+        return ScrollViewReader { proxy in
+            list(workout, reading: reading, header: header)
+                // Every set logged adds a row above the entry row and pushes it down — under the
+                // rest bar that appears at the same moment. Found by logging: the next tap on Log
+                // landed on the bar. So the entry row is brought back above it, every set.
+                // A beat later, not in the same update: the rest bar's inset arrives with the set,
+                // and a scroll made before it is laid out lands the row under it all the same.
+                .onChange(of: workout.sets.count) {
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(200))
+                        withAnimation(.snappy) { proxy.scrollTo(Self.entryRow, anchor: .bottom) }
+                    }
+                }
+                // And to a row opened from the Add sheet, whose section is new at the bottom, and to
+                // the open row whenever the surface opens mid-rest.
+                .onAppear { proxy.scrollTo(Self.entryRow, anchor: .bottom) }
+                .onChange(of: openedOn) {
+                    withAnimation(.snappy) { proxy.scrollTo(Self.entryRow, anchor: .bottom) }
+                }
+        }
+    }
+
+    /// The entry row's identity in the list, wherever it is open, for scrolling to it.
+    private static let entryRow = "entry-row"
+
+    /// What the entry row is open on — a movement, or a shape with none — so opening it on
+    /// something else can be noticed. Logging another set on the same movement is not a change.
+    private var openedOn: String? {
+        draft.map { "\($0.movementDataId?.uuidString ?? "none") \($0.modality.rawValue)" }
+    }
+
+    private func list(_ workout: ActiveWorkout, reading: WorkoutReading, header: GoingInReading?) -> some View {
         List {
+            if let header { goingInSection(header) }
             if workout.sync.needsSaying { syncSection(workout.sync) }
             if !reading.totals.isEmpty { totalsSection(reading.totals) }
 
             ForEach(reading.movements) { movement in
-                movementSection(movement, in: workout)
+                movementSection(movement, in: workout, header: header)
             }
 
-            if !reading.unattached.isEmpty || !reading.looseTargets.isEmpty {
+            if !reading.unattached.isEmpty || !reading.looseTargets.isEmpty || isOpenOnUnattached {
                 otherSection(reading)
             }
 
-            addSection(workout)
+            if reading.movements.isEmpty, reading.unattached.isEmpty, !isOpenOnUnattached {
+                emptySection
+            }
+            noteSection(workout)
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)
         .environment(\.defaultMinListRowHeight, 34)
+        .animation(.snappy, value: workout.sets.count)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if workout.rest.isResting(at: Date()) {
                 RestTimerBar(
                     rest: workout.rest,
+                    next: nextUp,
+                    standard: restSeconds,
                     extend: { store.extendRest(by: $0) },
-                    skip: { store.skipRest() })
+                    skip: { store.skipRest() },
+                    choose: { chooseRest($0, in: workout) })
             }
+        }
+    }
+
+    // MARK: - Going in
+
+    /// The header's reading, for a workout being trained now. One written down afterwards was
+    /// trained on another day, which today's state says nothing about.
+    private func goingInReading(for workout: ActiveWorkout, reading: WorkoutReading) -> GoingInReading? {
+        guard workout.destination.isLive, let state = goingIn.state.value else { return nil }
+        return GoingInReading.of(
+            state, next: goingIn.next.value, movements: reading.movements.map(\.movementDataId),
+            hasWork: workout.workSetCount > 0)
+    }
+
+    private func goingInSection(_ header: GoingInReading) -> some View {
+        GoingInSection(
+            reading: header, library: library, isStale: goingIn.state.isStale,
+            openDetail: { isGoingInShown = true })
+    }
+
+    private func refreshHeader() async {
+        guard store.workout?.destination.isLive == true else { return }
+        await goingIn.refreshIfStale()
+        await balance.refreshIfNeeded()
+    }
+
+    /// Each family's priority lift, push, pull and legs, for the Add sheet to lead with.
+    private var priorityIds: [UUID] {
+        balance.priorities.value?.families.compactMap { family in
+            if case .chosen(let chosen) = family.lift { chosen.movementDataId } else { nil }
+        } ?? []
+    }
+
+    // MARK: - Resting
+
+    /// What the rest is before: the open row's numbers. Not the movement's name, which is the
+    /// section right above and would push the numbers off a bar a third of the row wide.
+    private var nextUp: String? {
+        guard let draft, let command = draft.command, let numbers = Formatting.set(command) else { return nil }
+        return "Next \(numbers)"
+    }
+
+    /// Makes `duration` the standard rest and moves the one running to it, keeping its start: a
+    /// rest stretched to three minutes forty seconds in has two minutes twenty left.
+    private func chooseRest(_ duration: TimeInterval, in workout: ActiveWorkout) {
+        restSeconds = duration
+        if case .running(_, let current) = workout.rest {
+            store.extendRest(by: duration - current)
         }
     }
 
@@ -291,9 +395,17 @@ struct ActiveWorkoutView: View {
 
     @ViewBuilder
     private func movementSection(
-        _ movement: WorkoutReading.MovementSets, in workout: ActiveWorkout
+        _ movement: WorkoutReading.MovementSets, in workout: ActiveWorkout, header: GoingInReading?
     ) -> some View {
         Section {
+            // Where an active injury names this movement, said on the movement itself: the header
+            // has scrolled away by the time the athlete reaches the third lift.
+            ForEach(header?.injuries(touching: movement.movementDataId) ?? []) { injury in
+                Text([injury.name, injury.lastPain.map { "pain \($0)/10" }].compactMap { $0 }.joined(separator: " · "))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .accessibilityLabel("Active injury touches this movement: \(injury.name)")
+            }
             if let setup = library.movement(movement.movementDataId)?.setup, setup.hasNotes {
                 Text(setup.notes)
                     .font(.footnote)
@@ -332,6 +444,7 @@ struct ActiveWorkoutView: View {
                 ) { command in
                     log(command, on: movement.movementDataId)
                 }
+                .id(Self.entryRow)
             } else {
                 Button {
                     open(movement.movementDataId)
@@ -447,11 +560,13 @@ struct ActiveWorkoutView: View {
         if draft?.movementDataId == movementDataId { open(movementDataId) }
     }
 
+    /// Cardio and sets in words — the work no movement owns — with the entry row when it is open on
+    /// one, under a header naming what is being logged.
     @ViewBuilder
     private func otherSection(_ reading: WorkoutReading) -> some View {
-        Section("Other work") {
+        Section {
             ForEach(Array(reading.unattached.enumerated()), id: \.element.id) { index, set in
-                loggedSetRow(set, number: index + 1, target: nil, earlier: [], records: nil)
+                loggedSetRow(set, number: index + 1, target: nil, earlier: [], records: library.records(for: set.command))
             }
             ForEach(Array(reading.looseTargets.enumerated()), id: \.offset) { _, target in
                 Label(Formatting.target(target), systemImage: "target")
@@ -459,47 +574,51 @@ struct ActiveWorkoutView: View {
                     .foregroundStyle(Color(.secondaryLabel))
                     .labelStyle(.titleOnly)
             }
-        }
-    }
-
-    @ViewBuilder
-    private func addSection(_ workout: ActiveWorkout) -> some View {
-        Section {
-            Button {
-                isPickerPresented = true
-            } label: {
-                Label("Add a movement", systemImage: "plus.circle")
-            }
-
-            // Both stay on screen while the entry row is open, so changing your mind about which
-            // one you wanted is a tap rather than a dead end — there is nothing else here that
-            // closes the row.
-            Button {
-                draft = SetDraft(from: SetDefaults.nextTrailRun(in: workout))
-                store.work(on: nil)
-            } label: {
-                Label("Add a trail run", systemImage: "figure.run")
-            }
-            Button {
-                draft = SetDraft(from: .freeform(text: ""))
-                store.work(on: nil)
-            } label: {
-                Label("Log something in words", systemImage: "text.bubble")
-            }
-
             if isOpenOnUnattached, let open = Binding($draft) {
                 SetEntryForm(draft: open) { command in
                     log(command, on: nil)
                 }
+                .id(Self.entryRow)
             }
-        } footer: {
-            if case .afterTheFact = workout.destination {
-                Text("Nothing is sent until you finish. Tap Finish to save the whole session.")
-            } else if workout.hasLeftItsPlan {
+        } header: {
+            HStack {
+                Text(unattachedTitle)
+                Spacer()
+                if isOpenOnUnattached {
+                    Button("Done") { draft = nil }
+                        .font(.footnote)
+                        .textCase(nil)
+                }
+            }
+        }
+    }
+
+    /// "Run", "Ride", "In words" while the row is open on one; "Other work" otherwise.
+    private var unattachedTitle: String {
+        guard isOpenOnUnattached, let draft else { return "Other work" }
+        if draft.modality == .freeform { return "In words" }
+        return draft.command.flatMap(CardioWork.init)?.title
+            ?? (draft.modality == .trailRun ? CardioWork.outdoorRun.title : draft.enduranceActivity.title)
+    }
+
+    /// An unplanned workout before anything is in it: where Add and Finish are, said once.
+    private var emptySection: some View {
+        Section {} footer: {
+            Text("Add a lift or cardio with + above. Finish is in the More menu.")
+        }
+    }
+
+    @ViewBuilder
+    private func noteSection(_ workout: ActiveWorkout) -> some View {
+        if case .afterTheFact = workout.destination {
+            Section {} footer: {
+                Text("Nothing is sent until you finish. Choose Finish workout from the More menu to save the whole session.")
+            }
+        } else if workout.hasLeftItsPlan {
+            Section {} footer: {
                 Text("The planned session was started or skipped elsewhere, so this workout is saved as a session of its own.")
             }
         }
-        .labelStyle(.titleOnly)
     }
 
     // MARK: - A set already logged
@@ -588,6 +707,24 @@ struct ActiveWorkoutView: View {
         let reading = WorkoutReading.of(workout)
         guard let focus = reading.focus(given: workout.currentMovementDataId) else { return }
         open(focus)
+    }
+
+    /// What a pick from the Add sheet does. A movement is added before its row opens: the row lives
+    /// in the movement's section, and the section exists only once the workout holds the movement.
+    private func add(_ work: AddedWork) {
+        switch work {
+        case .movement(let movement):
+            store.add(movement.movementDataId)
+            open(movement.movementDataId)
+            library.noteUsed(movement.movementDataId)
+        case .cardio(let cardio):
+            guard let workout = store.workout else { return }
+            draft = SetDraft(from: cardio.nextSet(in: workout))
+            store.work(on: nil)
+        case .words:
+            draft = SetDraft(from: .freeform(text: ""))
+            store.work(on: nil)
+        }
     }
 
     /// Opens the entry row on a movement, pre-filled by the carry-forward rule.

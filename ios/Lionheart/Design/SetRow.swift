@@ -24,6 +24,7 @@ struct SetRow: View {
     let record: SetRecordOutcome
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var hasAppeared = false
     @ScaledMetric(relativeTo: .subheadline) private var numberWidth: CGFloat = 20
     @ScaledMetric(relativeTo: .body) private var amountWidth: CGFloat = 78
     @ScaledMetric(relativeTo: .body) private var workWidth: CGFloat = 52
@@ -60,6 +61,15 @@ struct SetRow: View {
                     .font(.footnote.monospacedDigit())
                     .foregroundStyle(Color(.secondaryLabel))
                     .padding(.leading, numberWidth + Self.spacing)
+            }
+            // Said in words under the set, not only as the glyph: a record is the moment of the
+            // session, and the glyph alone does not say which record it was.
+            if let beaten = Formatting.recordsBeaten(record) {
+                Text(beaten)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .padding(.leading, numberWidth + Self.spacing)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .listRowInsets(EdgeInsets(top: 7, leading: 20, bottom: 7, trailing: 20))
@@ -176,6 +186,9 @@ struct SetRow: View {
             Image(systemName: "trophy.fill")
                 .font(.caption)
                 .foregroundStyle(.orange)
+                // Once, as the row first appears: the set that just broke a record lands with it.
+                .symbolEffect(.bounce, options: .nonRepeating, value: hasAppeared)
+                .onAppear { hasAppeared = true }
         }
     }
 

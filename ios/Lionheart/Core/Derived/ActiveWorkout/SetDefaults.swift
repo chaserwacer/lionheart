@@ -22,6 +22,9 @@ import Foundation
 /// Step 2 beats step 3 because a plan written for today already knew about last time. A warm-up is
 /// never a precedent: after a ramp the next set is the work, not one more warm-up.
 enum SetDefaults {
+    /// The unit a first distance of the workout opens in, where nothing logged says otherwise.
+    static let distanceUnit: DistanceUnit = .miles
+
     /// The set the entry row starts from for `movementDataId`.
     ///
     /// - Parameter modality: forced when the athlete has picked a shape, inferred otherwise.
@@ -126,7 +129,7 @@ enum SetDefaults {
         guard case .trailRun(let last)? = workout.sets.last(where: { $0.modality == .trailRun })?.command
         else {
             return .trailRun(SetCommand.TrailRun(
-                distance: 0, unit: .miles, duration: 0, elevationGainMeters: 0, rpe: .unrated))
+                distance: 0, unit: distanceUnit, duration: 0, elevationGainMeters: 0, rpe: .unrated))
         }
         return .trailRun(last)
     }

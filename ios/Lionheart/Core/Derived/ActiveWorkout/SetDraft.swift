@@ -150,6 +150,50 @@ struct SetDraft: Equatable, Sendable {
     /// Whether these fields are ready to be logged. The Log button reads this.
     var isLoggable: Bool { command != nil }
 
+    // MARK: - Stepping
+
+    /// What one tap of a weight step moves: the smallest plate pair a bar takes in the unit, which is
+    /// also the jump between dumbbells and between most stack pins.
+    var weightStep: Double {
+        switch weightUnit {
+        case .kilograms: 2.5
+        case .pounds, .unrecognised: 5
+        }
+    }
+
+    /// The fields with the weight moved by `steps` of `weightStep`, never below nothing. An empty
+    /// field steps from zero, so the first tap on a fresh movement is one step of load.
+    func steppingWeight(by steps: Int) -> SetDraft {
+        var next = self
+        let moved = max(0, (Self.number(weight) ?? 0) + Double(steps) * weightStep)
+        next.weight = Self.weightField(moved)
+        return next
+    }
+
+    /// The share of the load a drop set opens on: a fifth off, the usual strip of a plate a side.
+    static let dropShare = 0.8
+
+    /// The fields marked as `kind`. Marking a set as a drop takes a fifth off the weight, rounded
+    /// down to a step, because a drop set is by definition lighter than the set before it and the
+    /// field otherwise holds that set's load — six taps of −5 for every drop.
+    func marked(_ kind: SetKind) -> SetDraft {
+        var next = self
+        next.modality = .lift
+        if kind == .drop, self.kind != .drop, let weight = Self.number(weight), weight > 0 {
+            let dropped = (weight * Self.dropShare / weightStep).rounded(.down) * weightStep
+            next.weight = Self.weightField(dropped)
+        }
+        next.kind = kind
+        return next
+    }
+
+    /// The fields with the reps moved by `steps`, never below one: a set of none is not a set.
+    func steppingReps(by steps: Int) -> SetDraft {
+        var next = self
+        next.reps = "\(max(1, (Self.whole(reps) ?? 0) + steps))"
+        return next
+    }
+
     // MARK: - Text and numbers
 
     /// A number as typed, accepting either decimal separator.
