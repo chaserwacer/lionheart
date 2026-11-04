@@ -20,10 +20,10 @@ public enum TrainingVerdict
 /// </summary>
 /// <remarks>
 /// <para>
-/// Calibrated against the athlete's own record. A ring-detected "handball" that was a game of catch
-/// is short and sits in zone 1, a few minutes brushing zone 2; a real game, or a real night of
-/// dancing, runs longer with most of its time at zone 2 and above and stretches in zone 3. Oura's
-/// own intensity field cannot tell them apart: it says "moderate" for nearly everything.
+/// A detected game that was a few throws of a ball is short and sits in zone 1, a few minutes
+/// brushing zone 2; a real game runs longer, with most of its time at zone 2 and above and
+/// stretches in zone 3. Oura's own intensity field cannot tell them apart: it says "moderate" for
+/// nearly everything it detects.
 /// </para>
 /// <para>
 /// So a workout is training when its heart rate held zone 2 or above for long enough to be a zone-2

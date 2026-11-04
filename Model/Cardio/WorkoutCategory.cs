@@ -44,9 +44,9 @@ public enum RingEntry
     [JsonStringEnumMemberName("entered")] Entered,
 
     /// <summary>
-    /// The ring proposed it, from movement, and the athlete approved it or left it standing. He
-    /// approves these without reading them, so the name is a guess: "handball" is often a game of
-    /// catch.
+    /// The ring proposed it, from movement, and the athlete approved it or left it standing.
+    /// Approvals are given without reading, so the name is a guess: a detected "handball" can be a
+    /// game of catch.
     /// </summary>
     [JsonStringEnumMemberName("detected")] Detected,
 }
@@ -97,8 +97,13 @@ public static class WorkoutCategories
         _ => WorkoutCategory.Unrecognised,
     };
 
-    /// <summary>How Oura's <c>source</c> reads: "manual" is the athlete's own entry, anything else the ring's proposal.</summary>
-    public static RingEntry EntryOf(string source) => source is "manual" ? RingEntry.Entered : RingEntry.Detected;
+    /// <summary>
+    /// How Oura's <c>source</c> reads: "manual" (typed in afterwards) and "workout_heart_rate" (a
+    /// workout started on the ring) are the athlete's own; "autodetected" and "confirmed" are the
+    /// ring's proposal.
+    /// </summary>
+    public static RingEntry EntryOf(string source) =>
+        source is "manual" or "workout_heart_rate" ? RingEntry.Entered : RingEntry.Detected;
 
     /// <summary>
     /// Whether a ring workout of this category, length and entry is a cardio session, needs its

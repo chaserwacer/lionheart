@@ -97,6 +97,12 @@ public static class CardioAnalysis
             .Where(candidate => candidate.Verdict is TrainingVerdict.Training)
             .Select(candidate => candidate.Session)
             .ToList();
+        // Workouts whose heart rate could not be read are session time with nothing behind it:
+        // they keep a window's zone 2 unknown rather than reading as a window with no training.
+        var unread = judged
+            .Where(candidate => candidate.Verdict is TrainingVerdict.Unread)
+            .Select(candidate => candidate.Session)
+            .ToList();
         var declined = judged
             .Where(candidate => candidate.Verdict is not TrainingVerdict.Training
                                 && Within(inputs.Range, LocalDay(candidate.Session.Start)))
@@ -112,7 +118,7 @@ public static class CardioAnalysis
             Points(inputs.Range, inputs.Vo2Max.Select(estimate => (estimate.Day, (double?)estimate.Reading.Vo2Max))),
             Points(inputs.Range, inputs.CardiovascularAge.Select(age => (age.Day, (double?)age.Reading.VascularAge))),
             Points(inputs.Range, inputs.MainSleeps.Select(night => (night.Day, RestingRate(night.Reading)))),
-            AerobicBaseOf(inputs, sessions, maximum),
+            AerobicBaseOf(inputs, sessions, unread, maximum),
             [.. inputs.Sessions.Excluded
                 .Where(excluded => Within(inputs.Range, excluded.Day))
                 .Concat(declined.Select(workout => new Exclusion(
@@ -342,8 +348,9 @@ public static class CardioAnalysis
     public static DateOnly WeekStarting(DateOnly day) =>
         day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
 
+    /// <param name="unread">Workouts declined for too little heart rate: in no figure, but session time with nothing behind it.</param>
     private static AerobicBase AerobicBaseOf(
-        CardioInputs inputs, IReadOnlyList<CardioSession> sessions, MaxHeartRate? maximum)
+        CardioInputs inputs, IReadOnlyList<CardioSession> sessions, IReadOnlyList<CardioSession> unread, MaxHeartRate? maximum)
     {
         var recent = new DayRange(inputs.Range.To.AddDays(1 - 7 * AerobicBase.RecentWeeks), inputs.Range.To);
         var before = new DayRange(
@@ -365,7 +372,8 @@ public static class CardioAnalysis
             if (maximum is null) return null;
 
             var held = In(window);
-            var total = held.Sum(session => session.Minutes);
+            var total = held.Sum(session => session.Minutes)
+                        + unread.Where(session => Within(window, LocalDay(session.Start))).Sum(session => session.Minutes);
             var covered = held
                 .Where(session => session.HeartRate is SessionHeartRate.Recorded)
                 .Sum(session => session.Minutes);

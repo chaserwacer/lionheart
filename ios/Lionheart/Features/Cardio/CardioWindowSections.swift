@@ -20,19 +20,21 @@ struct CardioWindowSections: View {
         if !report.declined.isEmpty {
             Section {
                 ForEach(report.declined.reversed()) { declined in
-                    link(to: declined.session) { DeclinedWorkoutRow(declined: declined) }
+                    link(to: declined.session, declinedBecause: declined.reason) { DeclinedWorkoutRow(declined: declined) }
                 }
             } header: {
                 Text("Left out by heart rate")
             } footer: {
-                Text("Workouts the ring detected on its own. Each needed 20 minutes at zone 2 or above, or 10 at zone 3 or above, for at least half the time read.")
+                Text(CardioWords.evidenceRule)
             }
         }
     }
 
-    private func link(to session: CardioSession, @ViewBuilder label: () -> some View) -> some View {
+    private func link(
+        to session: CardioSession, declinedBecause: ExcludedWorkouts.Reason? = nil, @ViewBuilder label: () -> some View
+    ) -> some View {
         NavigationLink {
-            CardioSessionView(session: session, maxHeartRate: report.maxHeartRate, store: cardio)
+            CardioSessionView(session: session, maxHeartRate: report.maxHeartRate, store: cardio, declinedBecause: declinedBecause)
         } label: {
             label()
         }

@@ -165,7 +165,7 @@ public class TrainingScoreAnalysisTests
     public void No_heart_rate_all_week_is_unknown_cardio() =>
         Assert.Equal(
             new CardioMeasure.Unknown(CardioUnknownReason.NoHeartRate),
-            CardioMeasures.Of([], MaxHeartRate.Estimate(22, null), heartRateDays: 0));
+            CardioMeasures.Of([], [], MaxHeartRate.Estimate(22, null), heartRateDays: 0));
 
     [Fact]
     public void Sessions_mostly_without_heart_rate_are_unknown_cardio_rather_than_low()
@@ -177,7 +177,7 @@ public class TrainingScoreAnalysisTests
 
         Assert.Equal(
             new CardioMeasure.Unknown(CardioUnknownReason.SessionsUnrecorded),
-            CardioMeasures.Of([unrecorded], MaxHeartRate.Estimate(22, null), heartRateDays: 6));
+            CardioMeasures.Of([unrecorded], [], MaxHeartRate.Estimate(22, null), heartRateDays: 6));
     }
 
     [Fact]
@@ -190,9 +190,23 @@ public class TrainingScoreAnalysisTests
 
         var measured = Assert.IsType<CardioMeasure.Measured>(CardioMeasures.Of(
             [Run(new ZoneMinutes(0, 5, 40, 10, 4, 1)), Run(new ZoneMinutes(0, 0, 20, 0, 0, 0))],
+            [],
             MaxHeartRate.Estimate(22, null),
             heartRateDays: 7));
 
         Assert.Equal((60d, 15d, 2), (measured.Zone2Minutes, measured.HighIntensityMinutes, measured.Sessions));
+    }
+
+    [Fact]
+    public void A_week_mostly_of_workouts_whose_heart_rate_could_not_be_read_is_unknown_rather_than_empty()
+    {
+        var start = new DateTimeOffset(2026, 11, 5, 18, 0, 0, TimeSpan.FromHours(-5));
+        var unread = new CardioSession(
+            new CardioSessionSource.RingWorkout(Guid.NewGuid(), "basketball", WorkoutCategory.Sport, RingEntry.Detected),
+            start, start.AddHours(1), null, new SessionHeartRate.NotRecorded());
+
+        Assert.Equal(
+            new CardioMeasure.Unknown(CardioUnknownReason.SessionsUnrecorded),
+            CardioMeasures.Of([], [unread], MaxHeartRate.Estimate(22, null), heartRateDays: 6));
     }
 }

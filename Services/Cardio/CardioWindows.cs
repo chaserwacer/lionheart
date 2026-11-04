@@ -35,6 +35,12 @@ public sealed class CardioWindows
     public CardioMeasure For(DayRange window) =>
         CardioMeasures.Of(
             [.. _report.Sessions.Where(session => Within(window, DateOnly.FromDateTime(session.Start.DateTime)))],
+            [
+                .. _report.Declined
+                    .Where(declined => declined.Reason is WorkoutExclusion.HeartRateUnread)
+                    .Select(declined => declined.Session)
+                    .Where(session => Within(window, DateOnly.FromDateTime(session.Start.DateTime)))
+            ],
             _report.MaxHeartRate,
             _heartRateDays.Count(day => Within(window, day)));
 

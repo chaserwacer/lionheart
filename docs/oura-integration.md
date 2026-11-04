@@ -315,7 +315,8 @@ stretching; walks under 30 minutes (the median auto-detected walk is 19); streng
 ring workout lying at least half inside a logged session, which is that session as the ring saw it.
 
 **The ring's guesses have to be shown by the heart rate.** Oura's `source` says whether the athlete
-entered a workout (`manual`) or the ring proposed it from movement and he approved it. He approves
+entered a workout (`manual`), started it on the ring (`workout_heart_rate`), or the ring proposed
+it from movement and he approved it. He approves
 those without reading them — "handball" is often a game of catch — and Oura's `intensity` says
 "moderate" for nearly everything, so neither the name nor the intensity is evidence. An entered
 endurance, sport or walk workout is taken at its word, like the log. A detected one, and any
@@ -327,7 +328,9 @@ and stretching never count, whatever their heart rate. A declined guess is liste
 `declined` with the heart rate that decided it, so the call can be checked, and counted in
 `excluded` by reason (`heartRateUnread`, `heartRateBelowTraining`). The maximum heart rate is read
 from every candidate, the declined included, since a rate reached is evidence whatever the activity
-was called. The habits report places only the sessions on their own record on the clock: it reads
+was called. A guess declined for too little heart rate is still session time with nothing behind
+it, so a window mostly made of them reads its zone 2 as unknown rather than as an empty window. The
+habits report places only the sessions on their own record on the clock: it reads
 no heart rate, so it cannot tell a real game from catch.
 
 What was excluded is counted by reason in the report. A run imported from Apple Health is a logged

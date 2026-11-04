@@ -14,7 +14,7 @@ struct CardioRunsSection: View {
 
     var body: some View {
         let readings = RunReading.of(report)
-        let runs = report.sessions.filter { if case .loggedSession = $0.source { true } else { false } }
+        let runs = report.sessions.filter { if case .loggedSession(_, isTrailRun: true, _) = $0.source { true } else { false } }
         if !runs.isEmpty {
             Section {
                 if readings.count >= Self.fewestForTrend {

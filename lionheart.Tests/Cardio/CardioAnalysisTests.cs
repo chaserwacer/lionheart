@@ -115,8 +115,30 @@ public class CardioAnalysisTests
 
         Assert.Empty(report.Sessions);
         Assert.Equal(WorkoutExclusion.HeartRateUnread, Assert.Single(report.Declined).Reason);
-        // Declined, it no longer makes the window's zone 2 unreadable.
-        Assert.Equal(0, report.AerobicBase.Zone2MinutesPerWeek.Recent);
+        // Declined, but still session time with nothing behind it: the window's zone 2 is unknown, not zero.
+        Assert.Null(report.AerobicBase.Zone2MinutesPerWeek.Recent);
+    }
+
+    [Fact]
+    public void A_declined_guess_still_tells_the_maximum_what_rate_was_reached()
+    {
+        // 199 bpm is above the 194 predicted for age 20; the spike inside an hour of pottering is
+        // declined, but a rate reached is evidence about the maximum whatever the activity was.
+        var start = At(10, 17);
+        var report = Build(
+            ring: [Detected("handball", start, 600)],
+            heartRate: [.. Minutes(start, (95, 480)), .. Minutes(start.AddMinutes(480), (199, 120))]);
+
+        Assert.Equal(WorkoutExclusion.HeartRateBelowTraining, Assert.Single(report.Declined).Reason);
+        Assert.Equal(199, report.MaxHeartRate?.Bpm);
+    }
+
+    [Fact]
+    public void A_workout_started_on_the_ring_is_the_athletes_own()
+    {
+        var report = Build(ring: [Ring("basketball", At(12, 17), 45, source: "workout_heart_rate")]);
+
+        Assert.Equal(RingEntry.Entered, Assert.IsType<CardioSessionSource.RingWorkout>(Assert.Single(report.Sessions).Source).Entry);
     }
 
     [Fact]

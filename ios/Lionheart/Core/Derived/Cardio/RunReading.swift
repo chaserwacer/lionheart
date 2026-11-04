@@ -27,10 +27,11 @@ struct RunReading: Equatable, Sendable, Identifiable {
     /// The shortest run read: under a kilometre, the warm-up is most of it.
     static let shortestMetres = 1000.0
 
-    /// The span's logged runs with distance and heart rate enough to read, oldest first.
+    /// The span's logged runs with distance and heart rate enough to read, oldest first. Runs
+    /// only: a distance-and-time set can be a row or a ride, which costs the heart differently.
     static func of(_ report: CardioReport) -> [RunReading] {
         report.sessions.compactMap { session in
-            guard case .loggedSession = session.source,
+            guard case .loggedSession(_, isTrailRun: true, _) = session.source,
                   let metres = session.distanceMeters, metres >= shortestMetres,
                   case .recorded(let average, _, let coverage, _, _) = session.heartRate,
                   coverage >= coverageFloor, session.minutes > 0

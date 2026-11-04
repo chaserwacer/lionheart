@@ -11,6 +11,8 @@ struct CardioSessionView: View {
     let session: CardioSession
     let maxHeartRate: MaxHeartRate?
     let store: CardioStore
+    /// Why the cardio report left this workout out, when it did; `nil` for a session it counted.
+    var declinedBecause: ExcludedWorkouts.Reason?
 
     var body: some View {
         List {
@@ -34,7 +36,10 @@ struct CardioSessionView: View {
     }
 
     private var sourceText: String {
-        switch session.source {
+        if let declinedBecause {
+            return "Left out of the cardio figures and the score: \(CardioWords.verdict(declinedBecause)). \(CardioWords.evidenceRule)"
+        }
+        return switch session.source {
         case .loggedSession(_, _, isRecorded: true): "Imported from Apple Health. The curve is the ring's series; the run's own page has the recording app's."
         case .loggedSession: "Logged in Lionheart; heart rate from the ring over the same time."
         case .ringWorkout(_, _, _, .detected): "Detected by the ring and counted because its heart rate showed training."

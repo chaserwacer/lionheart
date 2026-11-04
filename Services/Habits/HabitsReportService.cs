@@ -108,8 +108,9 @@ public sealed class HabitsReportService : IHabitsReportService
     }
 
     /// <summary>
-    /// Every training session as a span on the clock: each logged session, and each ring workout the
-    /// cardio report counts as a session of its own.
+    /// Every training session as a span on the clock: each logged session, and each ring workout
+    /// on the athlete's own record. The ring's guesses are left out: this report reads no heart rate,
+    /// so it cannot tell a real game from a game of catch.
     /// </summary>
     private static IReadOnlyList<TrainingSpan> Training(
         IReadOnlyList<OuraWorkout> ringWorkouts, IReadOnlyList<CompletedTrainingSession> logged) =>

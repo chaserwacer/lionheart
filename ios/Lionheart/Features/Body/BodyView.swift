@@ -113,7 +113,9 @@ struct BodyView: View {
             CardioView(store: cardio)
         case .cardioSession(let id, let span):
             if let report = cardio.reports[span]?.value, let session = report.session(withId: id) {
-                CardioSessionView(session: session, maxHeartRate: report.maxHeartRate, store: cardio)
+                CardioSessionView(
+                    session: session, maxHeartRate: report.maxHeartRate, store: cardio,
+                    declinedBecause: report.declined.first { $0.id == id }?.reason)
             } else {
                 notLoaded("That session is no longer loaded")
             }

@@ -3,7 +3,7 @@ import SwiftUI
 /// The training score in full: the card Train leads with, then half a year of weeks against 90.
 ///
 /// Lionheart's score, not Oura's: it is earned by doing the training rather than by moving, so a
-/// decent week reads in the 50s and 60s and 90 takes every part at once. Each part opens onto its
+/// decent week reads in the 60s and 70s and 90 takes every part at once. Each part opens onto its
 /// measurements, and a part with no data says it is unknown rather than showing zero.
 struct TrainingScoreView: View {
     @Environment(TrainingBalanceStore.self) private var balance

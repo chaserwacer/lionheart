@@ -232,8 +232,8 @@ struct ExcludedWorkouts: Equatable, Sendable, Identifiable {
             case .shortWalk: "walks under 30 minutes"
             case .strength: "strength work"
             case .notTraining: "housework, yard work or stretching"
-            case .heartRateUnread: "ring guesses with too little heart rate to show training"
-            case .heartRateBelowTraining: "ring guesses whose heart rate stayed below training"
+            case .heartRateUnread: "with too little heart rate to show training"
+            case .heartRateBelowTraining: "whose heart rate stayed below training"
             case .noDuration: "with no duration"
             case .unrecognised(let wire): wire
             }
