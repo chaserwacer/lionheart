@@ -2,6 +2,7 @@ using lionheart.Functional;
 using lionheart.Data;
 using lionheart.Model.Request;
 using lionheart.WellBeing;
+using lionheart.Services.Profile;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Tools;
@@ -87,7 +88,7 @@ namespace lionheart.Services
 
             var write = existingState is null ? Add(scored) : Overwrite(existingState, scored);
 
-            await InvalidateRecentStateAsync(userGuid);
+            await _context.StageRecentStateInvalidationAsync(userGuid);
             await _context.SaveChangesAsync();
 
             return Result<WellnessStateWrite, Problem>.Success(write);
@@ -113,21 +114,5 @@ namespace lionheart.Services
 
             return new WellnessStateWrite.Updated(existingState);
         }
-
-        /// <summary>
-        /// Event-driven invalidation of the Athlete Context Card's volatile Recent State tier.
-        /// Marking it stale (rather than recomputing here) keeps the write path cheap; the card is
-        /// rebuilt lazily on the next read via <c>IAthleteContextCardService.GetOrBuildCardAsync</c>.
-        /// Batched into the caller's <c>SaveChangesAsync</c> — no extra round trip.
-        /// </summary>
-        private async Task InvalidateRecentStateAsync(Guid userGuid)
-        {
-            var card = await _context.AthleteContextCards.FirstOrDefaultAsync(c => c.UserID == userGuid);
-            if (card is not null)
-            {
-                card.RecentStateAsOf = DateTime.MinValue;
-            }
-        }
-
     }
 }

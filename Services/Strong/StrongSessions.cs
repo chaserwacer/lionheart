@@ -104,10 +104,5 @@ internal static partial class StrongSessions
         $"{set.Weight.ToString(CultureInfo.InvariantCulture)} {UnitLabel} × {set.Reps}"
         + (set.Rpe.IsRated ? $" @ RPE {set.Rpe.Value.ToString(CultureInfo.InvariantCulture)}" : string.Empty);
 
-    private static string UnitLabel => ExportUnit switch
-    {
-        WeightUnit.Pounds => "lb",
-        WeightUnit.Kilograms => "kg",
-        _ => throw new UnreachableException(),
-    };
+    private static string UnitLabel => ExportUnit.Abbreviation();
 }

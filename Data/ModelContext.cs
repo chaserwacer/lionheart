@@ -16,6 +16,7 @@ using lionheart.Model.Training.Routines;
 using lionheart.Model.BodyMeasurements;
 using lionheart.Model.Chat.Memory;
 using lionheart.Model.Chat.Thread;
+using lionheart.Model.BodyMeasurements.Composition;
 using Programs = lionheart.Model.Training.Programs;
 using Sessions = lionheart.Model.Training.Sessions;
 
@@ -55,6 +56,7 @@ namespace lionheart.Data
         public DbSet<FocusPin> FocusPins { get; set; }
         public DbSet<Routine> Routines { get; set; }
         public DbSet<BodyweightMeasurement> BodyweightMeasurements { get; set; }
+        public DbSet<BodyCompositionScan> BodyCompositionScans { get; set; }
 
         // Oura — design in docs/oura-integration.md. One table per collection: eight documents that
         // describe a calendar day, four that describe events within one, and the all-day heart-rate

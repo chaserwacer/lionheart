@@ -98,7 +98,12 @@ first and then in the code.
 | **Readiness contributor** | One of the nine Oura scores readiness is built from. Today shows six of them, each beside the measurement it rests on: HRV, the night's lowest heart rate and when it came, the fortnight's sleep, the night's sleep, temperature. |
 | **Diary day** | One day as History's day page reads it: Oura's scores, the night's measurements, steps, every workout — lifting from the log, the ring's workouts from the cardio report — and the athlete's wellness rating. |
 | **Diary week** | One Monday-to-Sunday week: its lifting by session (working sets, volume per unit), its cardio minutes by zone, and the ring's week in means. |
-| **Bodyweight measurement** | The athlete's bodyweight on one calendar day. One per day; logging the day again replaces it. |
+| **Bodyweight measurement** | The athlete's bodyweight on one calendar day, logged or measured by a scan. One per day; logging the day again replaces it. |
+| **Body-composition scan** | One analyser result sheet (InBody): the day and minute it printed, and the sheet. Recording one also logs its weight as that day's bodyweight measurement unless the athlete keeps the day's own. |
+| **Sheet** | What one scan printed: the core figures every analyser prints (weight, skeletal muscle mass, body fat mass, lean body mass, percent body fat, BMI, height) and the panels this analyser carried. |
+| **Panel** | One block of a sheet that depends on the analyser — body water, dry lean mass, segmental lean, segmental fat, ECW/TBW, fitness score, fat and lean control, basal metabolic rate, visceral fat level, impedance. Absent when not printed or not legible. (A *section* in the code.) |
+| **Percent of reference** | A segment's mass as a percentage of the analyser's own reference for the athlete's height and weight. The device's band, not a clinical norm. |
+| **Segmental balance** | Left against right for the arms and legs, and the arm–trunk–leg pattern, from the segmental lean panel. |
 | **System load** | Bodyweight plus the plate, for a movement whose weight is added to bodyweight — what a weighted dip is judged by. |
 | **Injury** | A tracked problem with a body part, and the events logged against it over time. |
 

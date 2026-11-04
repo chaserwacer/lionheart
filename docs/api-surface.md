@@ -188,6 +188,36 @@ One measurement per calendar day: logging a day again replaces it.
 400 on `Weight`. Bodyweight on a day with no measurement of its own is the newest measurement on or
 before it; that rule is the reader's, so no route answers it.
 
+## Body-composition scans — `/api/body-composition/scans`
+
+A scan is one analyser result sheet (InBody), entered from a reviewed form.
+
+| Verb | Route | Body | Answers |
+|---|---|---|---|
+| POST | `/` | `ScanRequest` | 201 `ScanView`; 409 when a scan at that day and minute is recorded |
+| GET | `/` | — | `[ScanView]`, oldest first, unpaged |
+| PUT | `/{id}` | `ScanRequest` | 200 `ScanView`, replacing the sheet whole; 404, or 409 onto another scan's minute |
+| DELETE | `/{id}` | — | 204, or 404 |
+
+`ScanRequest` is `{ day, time, sheet, recordsBodyweight }`: `day` and `time` (`HH:mm:ss`) are the
+sheet's own printed clock. `ScanView` is `{ id, day, time, sheet }`. A sheet is the core every
+analyser prints — `device` (the model as printed, e.g. `InBody570`), `unit` (the `WeightUnit` its
+masses are in), `height: { value, unit }` (`LengthUnit`: 0 inches, 1 centimetres), `weight`,
+`skeletalMuscleMass`, `bodyFatMass`, `leanBodyMass`, `percentBodyFat`, `bodyMassIndex` — and
+`sections`, the panels this analyser printed, each at most once, discriminated by `$type`:
+`bodyWater { intracellular, extracellular, total }`, `dryLeanMass { mass }`,
+`segmentalLean { segments }` and `segmentalFat { segments }` (segments are `rightArm`, `leftArm`,
+`trunk`, `rightLeg`, `leftLeg`, each `{ mass, percentOfReference }` — the analyser's own reference),
+`extracellularWaterRatio { value }`, `fitnessScore { points }`, `massControl { bodyFat, leanBody }`
+(signed), `basalMetabolicRate { kilocalories }`, `visceralFatLevel { level }`, and
+`impedance { rows: [{ kilohertz, ohms: segments of numbers }] }`. A panel not printed, or not
+legible, is absent. Every implausible figure is a 400 naming its field (`Sheet.Weight`,
+`Sheet.SegmentalLean.LeftLeg.Mass`), all at once.
+
+`recordsBodyweight: true` makes the sheet's weight the bodyweight for `day`, replacing one already
+logged there, in the same save; `false` leaves the day as it is. Deleting a scan leaves that
+bodyweight logged.
+
 ## Movement setup — `PUT /api/movement-datas/{id}/setup`
 
 `{ notes, addsToBodyweight }` → 200 `MovementDataDTO`, 404 when the movement is not the athlete's.

@@ -2,6 +2,7 @@ using lionheart.Data;
 using lionheart.Model.Training;
 using lionheart.Model.User;
 using lionheart.Services;
+using lionheart.Services.BodyComposition;
 using lionheart.Services.Contexts;
 using lionheart.Services.Training.Balance;
 using lionheart.Services.Training.Focus;
@@ -133,6 +134,12 @@ public sealed class TwoAthletes : IDisposable
     {
         using var context = CreateContext();
         return await act(new TrainingVolumeService(context, MovementPatternMap.Shipped));
+    }
+
+    public async Task<T> BodyCompositionAsync<T>(Func<IBodyCompositionService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        return await act(new BodyCompositionService(context));
     }
 
     public async Task<T> MovementDataAsync<T>(Func<IMovementDataService, Task<T>> act)

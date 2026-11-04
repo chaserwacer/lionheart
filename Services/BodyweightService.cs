@@ -2,6 +2,7 @@ using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.BodyMeasurements;
+using lionheart.Services.Profile;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -76,23 +77,11 @@ public sealed class BodyweightService : IBodyweightService
 
     // ---- Stage and commit ----
 
-    /// <summary>Restates the day's measurement when it has one, and records one when it does not.</summary>
     private async Task<BodyweightView> LoggedAsync(
         Guid userId, DateOnly day, Bodyweight bodyweight, CancellationToken ct)
     {
-        var measurement = await _context.BodyweightMeasurements
-            .FirstOrDefaultAsync(m => m.UserId == userId && m.Day == day, ct);
-
-        if (measurement is null)
-        {
-            measurement = BodyweightMeasurement.Measured(userId, day, bodyweight);
-            _context.BodyweightMeasurements.Add(measurement);
-        }
-        else
-        {
-            measurement.Restate(bodyweight);
-        }
-
+        var measurement = await _context.StageBodyweightAsync(userId, day, bodyweight, ct);
+        await _context.StageRecentStateInvalidationAsync(userId, ct);
         await _context.SaveChangesAsync(ct);
         return BodyweightView.Of(measurement);
     }
@@ -100,6 +89,7 @@ public sealed class BodyweightService : IBodyweightService
     private async Task<Result<Unit, Problem>> RemoveAsync(BodyweightMeasurement measurement, CancellationToken ct)
     {
         _context.BodyweightMeasurements.Remove(measurement);
+        await _context.StageRecentStateInvalidationAsync(measurement.UserId, ct);
         await _context.SaveChangesAsync(ct);
 
         return Result<Unit, Problem>.Success(Unit.Value);

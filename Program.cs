@@ -34,6 +34,7 @@ using lionheart.Services.Strong;
 using lionheart.Services.CoachedSheets;
 using lionheart.Services.Chat.Memory;
 using lionheart.Services.Chat.Thread;
+using lionheart.Services.BodyComposition;
 
 // Load .env into the process environment before the host reads configuration, so the Llm__,
 // Anthropic__, LmStudio__ and Embedding__ keys flow through the default environment-variable
@@ -70,6 +71,11 @@ if (args is [StrongUpgradeCommand.Verb, ..])
 if (args is [ScoreCalibrationCommand.Verb, ..])
 {
     return await ScoreCalibrationCommand.RunAsync(args, CancellationToken.None);
+}
+
+if (args is [AddScanCommand.Verb, ..])
+{
+    return await AddScanCommand.RunAsync(args, CancellationToken.None);
 }
 
 var builder = WebApplication.CreateBuilder(args);
@@ -168,6 +174,7 @@ builder.Services.AddTransient<IContextService, ContextService>();
 builder.Services.AddTransient<IRoutineService, RoutineService>();
 builder.Services.AddTransient<IPreviousPerformanceService, PreviousPerformanceService>();
 builder.Services.AddTransient<IBodyweightService, BodyweightService>();
+builder.Services.AddTransient<IBodyCompositionService, BodyCompositionService>();
 
 
 builder.Services.AddSingleton<ToolRegistry>(sp =>

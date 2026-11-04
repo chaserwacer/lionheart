@@ -9,6 +9,20 @@ public enum WeightUnit
     Pounds
 }
 
+/// <summary>How a weight unit is written after a number.</summary>
+public static class WeightUnits
+{
+    extension(WeightUnit unit)
+    {
+        public string Abbreviation() => unit switch
+        {
+            WeightUnit.Pounds => "lb",
+            WeightUnit.Kilograms => "kg",
+            _ => throw new UnreachableException()
+        };
+    }
+}
+
 public enum DistanceUnit
 {
     Meters,

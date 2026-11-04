@@ -3,6 +3,7 @@ using lionheart.Model.InjuryManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Data;
+using lionheart.Services.Profile;
 using Model.Chat.Tools;
 
 
@@ -41,6 +42,7 @@ namespace lionheart.Services
                 InjuryEvents = new()
             };
             _context.Injuries.Add(injury);
+            await _context.StageRecentStateInvalidationAsync(injury.UserID);
             await _context.SaveChangesAsync();
             return Result<InjuryDTO, Problem>.Success(injury.ToDTO());
         }
@@ -54,6 +56,7 @@ namespace lionheart.Services
             injury.Name = request.Name;
             injury.Notes = request.Notes;
             injury.IsActive = request.IsActive;
+            await _context.StageRecentStateInvalidationAsync(userId);
             await _context.SaveChangesAsync();
             return Result<InjuryDTO, Problem>.Success(injury.ToDTO());
         }
@@ -92,6 +95,7 @@ namespace lionheart.Services
                 MovementIDs = request.MovementIDs
             };
             await _context.InjuryEvents.AddAsync(newEvent);
+            await _context.StageRecentStateInvalidationAsync(userId);
             await _context.SaveChangesAsync();
             var updatedInjury = await _context.Injuries.Include(i => i.InjuryEvents).FirstAsync(i => i.InjuryID == injury.InjuryID);
             return Result<InjuryDTO, Problem>.Success(updatedInjury.ToDTO());
@@ -154,6 +158,7 @@ namespace lionheart.Services
             if (injury is null) return Result<Unit, Problem>.Failure(new Problem.NotFound("Injury not found"));
             _context.InjuryEvents.RemoveRange(injury.InjuryEvents);
             _context.Injuries.Remove(injury);
+            await _context.StageRecentStateInvalidationAsync(userId);
             await _context.SaveChangesAsync();
             return Result<Unit, Problem>.Success(Unit.Value);
         }
@@ -167,6 +172,7 @@ namespace lionheart.Services
             if (injuryEvent is null) return Result<Unit, Problem>.Failure(new Problem.NotFound("Injury event not found"));
             if (injuryEvent.Injury.UserID != userId) return Result<Unit, Problem>.Failure(new Problem.NotFound("Injury event not found"));
             _context.InjuryEvents.Remove(injuryEvent);
+            await _context.StageRecentStateInvalidationAsync(userId);
             await _context.SaveChangesAsync();
             return Result<Unit, Problem>.Success(Unit.Value);
         }
@@ -198,6 +204,7 @@ namespace lionheart.Services
                 if (!ownsMovement) continue;
                 injuryEvent.MovementIDs.Add(movementId);
             }
+            await _context.StageRecentStateInvalidationAsync(userId);
             await _context.SaveChangesAsync();
             var parent = await _context.Injuries
                 .Include(i => i.InjuryEvents)

@@ -305,6 +305,33 @@ namespace lionheart.Migrations
                     b.ToTable("BodyweightMeasurements", (string)null);
                 });
 
+            modelBuilder.Entity("lionheart.Model.BodyMeasurements.Composition.BodyCompositionScan", b =>
+                {
+                    b.Property<Guid>("ScanId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sheet")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<TimeOnly>("Time")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ScanId");
+
+                    b.HasIndex("UserId", "Day", "Time")
+                        .IsUnique();
+
+                    b.ToTable("BodyCompositionScans", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>
                 {
                     b.Property<Guid>("ChatConversationID")
@@ -1490,6 +1517,15 @@ namespace lionheart.Migrations
                 });
 
             modelBuilder.Entity("lionheart.Model.BodyMeasurements.BodyweightMeasurement", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.BodyMeasurements.Composition.BodyCompositionScan", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany()

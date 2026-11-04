@@ -1,13 +1,16 @@
 using lionheart.Model.BodyMeasurements;
+using lionheart.Model.BodyMeasurements.Composition;
 using lionheart.Model.Training;
 using lionheart.Model.Training.Sets;
+using lionheart.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 
 namespace lionheart.Tests.Persistence;
 
 /// <summary>
-/// The two value objects this round adds to existing rows and tables — a day's bodyweight and a
-/// movement's setup — through real SQLite, each as columns of the row that holds it.
+/// The athlete's body measurements through real SQLite: a day's bodyweight and a movement's setup
+/// as columns of the row that holds them, and a body-composition scan with its sheet as one
+/// document.
 /// </summary>
 public sealed class BodyMeasurementPersistenceTests : IDisposable
 {
@@ -84,6 +87,61 @@ public sealed class BodyMeasurementPersistenceTests : IDisposable
         using var fresh = _db.CreateContext();
         Assert.Equal(new MovementSetup("seat 4, pin 7", true), fresh.MovementDatas.Single(m => m.MovementDataID == movementDataId).Setup);
         Assert.Equal(1L, _db.ExecuteScalar("SELECT AddsToBodyweight FROM MovementDatas"));
+    }
+
+    [Fact]
+    public void A_scan_round_trips_with_every_panel_of_its_sheet()
+    {
+        var scanId = Guid.CreateVersion7();
+        using (var context = _db.CreateContext())
+        {
+            context.BodyCompositionScans.Add(
+                BodyCompositionScan.Taken(scanId, _db.UserId, Day, new TimeOnly(7, 41), ASheet.InBody570()));
+            context.SaveChanges();
+        }
+
+        using var fresh = _db.CreateContext();
+        var loaded = fresh.BodyCompositionScans.Single();
+        Assert.Equal((scanId, _db.UserId, Day, new TimeOnly(7, 41)), (loaded.ScanId, loaded.UserId, loaded.Day, loaded.Time));
+        JsonAssert.Equal(ASheet.InBody570(), loaded.Sheet);
+    }
+
+    [Fact]
+    public void A_restated_scan_is_saved_in_place()
+    {
+        using (var context = _db.CreateContext())
+        {
+            context.BodyCompositionScans.Add(
+                BodyCompositionScan.Taken(Guid.CreateVersion7(), _db.UserId, Day, new TimeOnly(7, 41), ASheet.InBody570()));
+            context.SaveChanges();
+        }
+
+        using (var context = _db.CreateContext())
+        {
+            context.BodyCompositionScans.Single().Restate(Day, new TimeOnly(16, 24), ASheet.CoreOnly());
+            context.SaveChanges();
+        }
+
+        using var fresh = _db.CreateContext();
+        var loaded = fresh.BodyCompositionScans.Single();
+        Assert.Equal((new TimeOnly(16, 24), "InBody270"), (loaded.Time, loaded.Sheet.Device));
+    }
+
+    [Fact]
+    public void A_second_scan_at_the_same_minute_is_refused_by_the_index()
+    {
+        using (var context = _db.CreateContext())
+        {
+            context.BodyCompositionScans.Add(
+                BodyCompositionScan.Taken(Guid.CreateVersion7(), _db.UserId, Day, new TimeOnly(7, 41), ASheet.InBody570()));
+            context.SaveChanges();
+        }
+
+        using var second = _db.CreateContext();
+        second.BodyCompositionScans.Add(
+            BodyCompositionScan.Taken(Guid.CreateVersion7(), _db.UserId, Day, new TimeOnly(7, 41), ASheet.CoreOnly()));
+
+        Assert.Throws<DbUpdateException>(() => second.SaveChanges());
     }
 
     private Guid PlantMovement()
