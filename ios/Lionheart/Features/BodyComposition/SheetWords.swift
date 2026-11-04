@@ -110,15 +110,24 @@ enum SheetFigure {
         value.formatted(.number.precision(.fractionLength(1...2)).grouping(.never))
     }
 
+    /// A mass in pounds, whichever unit the sheet printed: "83.1 lb".
     static func mass(_ value: Double, _ unit: WeightUnit) -> String {
-        "\(number(value)) \(unit.abbreviation)"
+        labelled(number(Imperial.pounds(value, from: unit)), unit)
     }
 
     static func percent(_ value: Double) -> String { "\(number(value))%" }
 
     /// A suggested change: signed, with nought as nought rather than "±0".
     static func signedMass(_ value: Double, _ unit: WeightUnit) -> String {
-        let magnitude = number(abs(value))
-        return value == 0 ? "\(magnitude) \(unit.abbreviation)" : "\(value > 0 ? "+" : "−")\(magnitude) \(unit.abbreviation)"
+        let magnitude = labelled(number(Imperial.pounds(abs(value), from: unit)), unit)
+        return value == 0 ? magnitude : "\(value > 0 ? "+" : "−")\(magnitude)"
+    }
+
+    /// A unit this build cannot name keeps its number and says no unit, rather than calling it pounds.
+    private static func labelled(_ figure: String, _ unit: WeightUnit) -> String {
+        switch unit {
+        case .pounds, .kilograms: "\(figure) lb"
+        case .unrecognised: figure
+        }
     }
 }

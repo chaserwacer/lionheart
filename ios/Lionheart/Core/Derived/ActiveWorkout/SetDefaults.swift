@@ -126,7 +126,7 @@ enum SetDefaults {
         guard case .trailRun(let last)? = workout.sets.last(where: { $0.modality == .trailRun })?.command
         else {
             return .trailRun(SetCommand.TrailRun(
-                distance: 0, unit: .kilometers, duration: 0, elevationGainMeters: 0, rpe: .unrated))
+                distance: 0, unit: .miles, duration: 0, elevationGainMeters: 0, rpe: .unrated))
         }
         return .trailRun(last)
     }
@@ -169,7 +169,7 @@ enum SetDefaults {
             movementDataId: movementDataId,
             reps: 0,
             weight: 0,
-            unit: unit ?? .kilograms,
+            unit: unit ?? .pounds,
             rpe: .unrated)
     }
 
@@ -207,7 +207,7 @@ enum SetDefaults {
         return SetCommand.DistanceTime(
             movementDataId: movementDataId,
             distance: 0,
-            unit: unit ?? .kilometers,
+            unit: unit ?? .miles,
             duration: 0,
             rpe: .unrated)
     }

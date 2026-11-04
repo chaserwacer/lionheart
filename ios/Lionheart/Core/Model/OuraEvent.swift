@@ -182,21 +182,13 @@ struct OuraWorkout: Equatable, Sendable {
     var summary: String {
         var parts: [String] = []
         if let distanceMeters, distanceMeters >= 1 {
-            parts.append(Self.distance(meters: distanceMeters))
+            parts.append(Imperial.roughDistance(meters: distanceMeters))
         }
         if let calories, calories >= 1 {
             parts.append("\(Int(calories.rounded())) kcal")
         }
         parts.append(OuraVocabulary.phrase(intensity))
         return parts.joined(separator: " · ")
-    }
-
-    /// Metres under a kilometre, kilometres above it. Rounding a 40-metre walk to "0.0 km" reads
-    /// as no distance at all, which is the opposite of what Oura measured.
-    static func distance(meters: Double) -> String {
-        meters < 1000
-            ? "\(Int(meters.rounded())) m"
-            : "\(MeasurementText.plain(meters / 1000)) km"
     }
 }
 

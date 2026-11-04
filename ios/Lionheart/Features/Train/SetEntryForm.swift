@@ -195,7 +195,7 @@ struct SetEntryForm: View {
             }
             durationFields
             field(
-                "Elevation gain (m)", text: $draft.elevationGainMeters,
+                "Elevation gain (ft)", text: $draft.elevationGainFeet,
                 keyboard: .numbersAndPunctuation, focus: .elevation)
         }
     }

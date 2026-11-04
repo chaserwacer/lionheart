@@ -173,9 +173,9 @@ struct HealthSyncTests {
 
     @Test("A pace per kilometre reads per mile by the length of a mile")
     func paceConvertsByTheMile() {
-        #expect(RunUnit.kilometres.pace(perKilometre: 300) == "5:00 /km")
-        #expect(RunUnit.miles.pace(perKilometre: 300) == "8:03 /mi")
-        #expect(RunUnit.miles.distance(16_093.44) == "10.00 mi")
+        #expect(Imperial.pace(perKilometre: 300) == "8:03 /mi")
+        #expect(Imperial.distance(meters: 16_093.44) == "10.00 mi")
+        #expect(Imperial.climb(meters: 140) == "459 ft")
     }
 
     // MARK: - Fixtures

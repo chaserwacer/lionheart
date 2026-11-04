@@ -4,13 +4,12 @@ import SwiftUI
 /// figures, the splits, the heart rate against the zones, and whatever else the recording app
 /// measured — a ride's power and cadence, a run's form, the heart rate's recovery.
 ///
-/// Every figure is the server's (`RecordedWorkout`). The page converts only the unit — kilometres or
-/// miles, the athlete's choice, kept between workouts — and reads a ride as a speed.
+/// Every figure is the server's (`RecordedWorkout`). The page converts only the unit, to miles and
+/// feet (`Imperial`), and reads a ride as a speed.
 struct RecordedWorkoutView: View {
     let trainingSessionId: UUID
     let store: RecordedWorkoutStore
 
-    @AppStorage("lh.runUnit") private var unit: RunUnit = .kilometres
     @State private var isMapExpanded = false
 
     /// A picture, not text, so it does not grow with Dynamic Type: at the largest sizes a scaled map
@@ -99,7 +98,7 @@ struct RecordedWorkoutView: View {
 
     private func figures(_ run: RecordedWorkout) -> [OuraPanel.Figure] {
         var figures = [
-            OuraPanel.Figure(label: "Distance", value: unit.distance(run.distanceMeters)),
+            OuraPanel.Figure(label: "Distance", value: Imperial.distance(meters: run.distanceMeters)),
             OuraPanel.Figure(label: "Time", value: MeasurementText.clock(seconds: run.duration)),
         ]
         if let moving = run.movingTime {
@@ -112,9 +111,9 @@ struct RecordedWorkoutView: View {
         if let movingPace = run.movingPace {
             figures.append(OuraPanel.Figure(label: "Moving \(rate.lowercased())", value: self.rate(run, movingPace)))
         }
-        figures.append(OuraPanel.Figure(label: "Climb", value: "\(Int(run.climbMeters.rounded())) m"))
+        figures.append(OuraPanel.Figure(label: "Climb", value: Imperial.climb(meters: run.climbMeters)))
         if let descent = run.descentMeters {
-            figures.append(OuraPanel.Figure(label: "Descent", value: "\(Int(descent.rounded())) m"))
+            figures.append(OuraPanel.Figure(label: "Descent", value: Imperial.climb(meters: descent)))
         }
         if case .recorded(let average, let peak, _, _, _) = run.heartRate {
             figures.append(OuraPanel.Figure(label: "Avg HR", value: "\(average)"))
@@ -129,18 +128,18 @@ struct RecordedWorkoutView: View {
                 guard let readout = run.metric(metric) else { continue }
                 figures.append(OuraPanel.Figure(
                     label: "Avg \(WorkoutMetricText.name(metric, for: run.activity).lowercased())",
-                    value: WorkoutMetricText.figure(metric, readout.average, for: run.activity, in: unit)))
+                    value: WorkoutMetricText.figure(metric, readout.average, for: run.activity)))
             }
             if let power = run.metric(.power) {
                 figures.append(OuraPanel.Figure(
-                    label: "Peak power", value: WorkoutMetricText.figure(.power, power.peak, for: run.activity, in: unit)))
+                    label: "Peak power", value: WorkoutMetricText.figure(.power, power.peak, for: run.activity)))
             }
         }
         return figures
     }
 
     private func rate(_ run: RecordedWorkout, _ perKilometre: TimeInterval) -> String {
-        run.activity.readsAsSpeed ? unit.speed(perKilometre: perKilometre) : unit.pace(perKilometre: perKilometre)
+        run.activity.readsAsSpeed ? Imperial.speed(perKilometre: perKilometre) : Imperial.pace(perKilometre: perKilometre)
     }
 
     private func figuresFootnote(_ run: RecordedWorkout) -> String {
@@ -168,7 +167,7 @@ struct RecordedWorkoutView: View {
                 FigureGrid(figures: form.map { readout in
                     OuraPanel.Figure(
                         label: WorkoutMetricText.name(readout.metric, for: run.activity),
-                        value: WorkoutMetricText.figure(readout.metric, readout.average, for: run.activity, in: unit))
+                        value: WorkoutMetricText.figure(readout.metric, readout.average, for: run.activity))
                 })
             } header: {
                 Text("Running form")
@@ -183,13 +182,13 @@ struct RecordedWorkoutView: View {
     private func tracesSection(_ run: RecordedWorkout) -> some View {
         ForEach(WorkoutMetricText.traced(run), id: \.metric) { readout in
             Section {
-                MetricTraceChart(readout: readout, unit: unit, start: run.start, end: run.end)
+                MetricTraceChart(readout: readout, start: run.start, end: run.end)
                     .accessibilityLabel("\(WorkoutMetricText.name(readout.metric, for: run.activity)) across the \(noun(run))")
-                    .accessibilityValue("Mean \(WorkoutMetricText.figure(readout.metric, readout.average, for: run.activity, in: unit)), peak \(WorkoutMetricText.figure(readout.metric, readout.peak, for: run.activity, in: unit))")
+                    .accessibilityValue("Mean \(WorkoutMetricText.figure(readout.metric, readout.average, for: run.activity)), peak \(WorkoutMetricText.figure(readout.metric, readout.peak, for: run.activity))")
             } header: {
-                Text("\(WorkoutMetricText.name(readout.metric, for: run.activity)), \(WorkoutMetricText.unitLabel(readout.metric, in: unit))")
+                Text("\(WorkoutMetricText.name(readout.metric, for: run.activity)), \(WorkoutMetricText.unitLabel(readout.metric))")
             } footer: {
-                Text("Mean \(WorkoutMetricText.figure(readout.metric, readout.average, for: run.activity, in: unit)), dashed; peak \(WorkoutMetricText.figure(readout.metric, readout.peak, for: run.activity, in: unit)).")
+                Text("Mean \(WorkoutMetricText.figure(readout.metric, readout.average, for: run.activity)), dashed; peak \(WorkoutMetricText.figure(readout.metric, readout.peak, for: run.activity)).")
             }
         }
     }
@@ -205,43 +204,29 @@ struct RecordedWorkoutView: View {
         }
     }
 
-    /// The splits, under the unit the whole page reads in. Indoors there is no route to cut, so only
-    /// the unit stays.
+    /// The mile splits. Indoors there is no route to cut, so the section is left out.
     @ViewBuilder
     private func splitsSection(_ run: RecordedWorkout) -> some View {
-        let splits = unit.splits(of: run)
-        if splits.isEmpty && isIndoors(run) {
-            Section { unitPicker }
-        } else {
+        let splits = Imperial.splits(of: run)
+        if !(splits.isEmpty && isIndoors(run)) {
             routeSplitsSection(run, splits: splits)
         }
     }
 
-    private var unitPicker: some View {
-        Picker("Unit", selection: $unit) {
-            Text("Kilometres").tag(RunUnit.kilometres)
-            Text("Miles").tag(RunUnit.miles)
-        }
-        .pickerStyle(.segmented)
-        .listRowSeparator(.hidden)
-    }
-
     private func routeSplitsSection(_ run: RecordedWorkout, splits: [WorkoutSplit]) -> some View {
         Section {
-            unitPicker
-
             if splits.isEmpty {
                 Text(run.route.count >= 2
                      ? "\(run.recordedBy.nonEmpty ?? "The app") wrote the route without its times, so it cannot be cut into splits."
                      : "No route to cut into splits.")
                     .foregroundStyle(Color(.secondaryLabel))
             } else {
-                SplitsGrid(splits: splits, unit: unit, readsAsSpeed: run.activity.readsAsSpeed)
+                SplitsGrid(splits: splits, readsAsSpeed: run.activity.readsAsSpeed)
             }
         } header: {
             Text("Splits")
         } footer: {
-            Text("\(run.activity.readsAsSpeed ? "Speed is per moving time" : "Pace is moving time per \(unit == .kilometres ? "kilometre" : "mile")"); a short last split reads at the \(run.activity.readsAsSpeed ? "speed" : "pace") it was covered at. Climb and descent are read from the route's altitudes, counting a change once it passes 3 m.")
+            Text("\(run.activity.readsAsSpeed ? "Speed is per moving time" : "Pace is moving time per mile"); a short last split reads at the \(run.activity.readsAsSpeed ? "speed" : "pace") it was covered at. Climb and descent, in feet, are read from the route's altitudes, counting a change once it passes about 10 ft.")
         }
     }
 
@@ -294,7 +279,6 @@ struct RecordedWorkoutView: View {
 /// speed — its climb and descent, and its average heart rate.
 private struct SplitsGrid: View {
     let splits: [WorkoutSplit]
-    let unit: RunUnit
     let readsAsSpeed: Bool
 
     var body: some View {
@@ -303,9 +287,9 @@ private struct SplitsGrid: View {
 
         Grid(alignment: .trailing, horizontalSpacing: 14, verticalSpacing: 6) {
             GridRow {
-                Text(unit.abbreviation).gridColumnAlignment(.leading)
-                Text(readsAsSpeed ? unit.speedAbbreviation : "Pace")
-                if hasClimb { Text("+m"); Text("−m") }
+                Text("mi").gridColumnAlignment(.leading)
+                Text(readsAsSpeed ? "mph" : "Pace")
+                if hasClimb { Text("+ft"); Text("−ft") }
                 if hasHeartRate { Text("bpm") }
             }
             .font(.caption)
@@ -314,10 +298,10 @@ private struct SplitsGrid: View {
             ForEach(splits) { split in
                 GridRow {
                     Text(label(split)).gridColumnAlignment(.leading)
-                    Text(readsAsSpeed ? unit.splitSpeed(split) : RunUnit.splitPace(split))
+                    Text(readsAsSpeed ? Imperial.splitSpeed(split) : Imperial.splitPace(split))
                     if hasClimb {
-                        Text(split.climbMeters.map { "\(Int($0.rounded()))" } ?? "")
-                        Text(split.descentMeters.map { "\(Int($0.rounded()))" } ?? "")
+                        Text(split.climbMeters.map { "\(Int(Imperial.feet(meters: $0).rounded()))" } ?? "")
+                        Text(split.descentMeters.map { "\(Int(Imperial.feet(meters: $0).rounded()))" } ?? "")
                     }
                     if hasHeartRate {
                         Text(split.averageBpm.map(String.init) ?? "")
@@ -332,8 +316,8 @@ private struct SplitsGrid: View {
 
     /// The split's number, or for a short last one, the distance it covered: "0.42".
     private func label(_ split: WorkoutSplit) -> String {
-        split.distanceMeters < unit.meters - 0.5
-            ? String(format: "%.2f", split.distanceMeters / unit.meters)
+        split.distanceMeters < Imperial.metersPerMile - 0.5
+            ? String(format: "%.2f", Imperial.miles(meters: split.distanceMeters))
             : "\(split.number)"
     }
 }

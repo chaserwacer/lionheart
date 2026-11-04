@@ -82,9 +82,10 @@ struct FormattingTests {
         let cleanSix = Achievement.repMax(
             reps: 6, .init(weight: 185, unit: .kilograms, reps: 6, estimatedOneRepMax: 222))
 
-        #expect(Formatting.achievement(fromSeven) == "180 kg × 6")
-        #expect(Formatting.achievementDetail(fromSeven) == "From a set of 7 · estimated single ≈ 222 kg")
-        #expect(Formatting.achievementDetail(cleanSix) == "Estimated single ≈ 222 kg")
+        // Logged in kilograms, read in pounds: 180 kg is 396.8 lb, an estimated 222 kg is 489 lb.
+        #expect(Formatting.achievement(fromSeven) == "396.8 lb × 6")
+        #expect(Formatting.achievementDetail(fromSeven) == "From a set of 7 · estimated single ≈ 489 lb")
+        #expect(Formatting.achievementDetail(cleanSix) == "Estimated single ≈ 489 lb")
     }
 
     @Test("A set that beat several records says so in one sentence, not a list")

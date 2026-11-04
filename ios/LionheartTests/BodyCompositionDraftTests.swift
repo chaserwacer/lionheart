@@ -153,14 +153,19 @@ struct BodyCompositionDraftTests {
         #expect(abs(change - 1.3) < 0.0001)
     }
 
-    @Test("A mass from a scan in the other unit is left off the line rather than converted")
-    func unitsDoNotMix() {
+    @Test("A mass from a scan printed in kilograms reads in pounds on the same line")
+    func kilogramScansReadInPounds() throws {
         let kilograms = AScan.inBody570(day: CalendarDay(year: 2026, month: 8, day: 25), unit: .kilograms)
-        let history = CompositionHistory([kilograms, AScan.inBody570()])
+        let latest = AScan.inBody570()
+        let history = CompositionHistory([kilograms, latest])
 
-        #expect(history.points(.weight).map(\.day) == [AScan.day])
-        #expect(history.points(.percentBodyFat).count == 2)
-        #expect(history.change(.weight, at: AScan.inBody570()) == nil)
+        let weights = history.points(.weight)
+        #expect(weights.map(\.day) == [kilograms.day, AScan.day])
+        #expect(abs(weights[0].value - kilograms.sheet.weight / 0.453_592_37) < 0.0001)
+        // A share is not a mass, and is never converted.
+        #expect(history.points(.percentBodyFat).map(\.value) == [kilograms.sheet.percentBodyFat, latest.sheet.percentBodyFat])
+        let change = try #require(history.change(.weight, at: latest))
+        #expect(abs(change - (latest.sheet.weight - kilograms.sheet.weight / 0.453_592_37)) < 0.0001)
     }
 
     @Test("Segmental balance is left against right and the arm, trunk and leg pattern")

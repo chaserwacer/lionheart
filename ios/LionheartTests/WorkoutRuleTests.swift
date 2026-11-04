@@ -361,11 +361,11 @@ struct SetDefaultsTests {
 
     @Test("The weight unit follows the athlete across movements")
     func theUnitIsCarriedAcrossMovements() {
-        // The unit is a property of the athlete, not of the exercise: someone lifting in pounds
-        // does so for all of them.
-        let workout = AWorkout.live(sets: [AWorkout.lift(AWorkout.squat, unit: .pounds)])
+        // The unit is a property of the athlete, not of the exercise: someone lifting in kilograms
+        // does so for all of them, though a new workout starts in pounds.
+        let workout = AWorkout.live(sets: [AWorkout.lift(AWorkout.squat, unit: .kilograms)])
 
-        #expect(SetDefaults.nextSet(on: AWorkout.bench, in: workout).liftPart?.unit == .pounds)
+        #expect(SetDefaults.nextSet(on: AWorkout.bench, in: workout).liftPart?.unit == .kilograms)
     }
 
     @Test("A movement last logged as distance work opens as distance work")

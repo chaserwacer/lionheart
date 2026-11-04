@@ -42,7 +42,9 @@ struct ScanReadout: View {
             figure("Body fat mass", SheetFigure.mass(sheet.bodyFatMass, unit))
             figure("Lean body mass", SheetFigure.mass(sheet.leanBodyMass, unit))
             figure("BMI", SheetFigure.number(sheet.bodyMassIndex))
-            figure("Height", "\(SheetFigure.number(sheet.height.value)) \(sheet.height.unit.abbreviation)")
+            figure("Height", sheet.height.unit == .centimetres
+                ? "\(SheetFigure.number(Imperial.inches(meters: sheet.height.value / 100))) in"
+                : "\(SheetFigure.number(sheet.height.value)) \(sheet.height.unit.abbreviation)")
         }
     }
 
@@ -50,8 +52,8 @@ struct ScanReadout: View {
     private var changeLine: String? {
         guard let previous = history.previous(to: scan) else { return nil }
         let parts: [String] = [
-            history.change(.weight, at: scan).map { "weight \(Formatting.signedWeight($0, unit))" },
-            history.change(.skeletalMuscleMass, at: scan).map { "muscle \(Formatting.signedWeight($0, unit))" },
+            history.change(.weight, at: scan).map { "weight \(Formatting.signedWeight($0, .pounds))" },
+            history.change(.skeletalMuscleMass, at: scan).map { "muscle \(Formatting.signedWeight($0, .pounds))" },
             history.change(.percentBodyFat, at: scan).map { "body fat \(Formatting.change($0, fractionDigits: 1)) pt" },
         ].compactMap(\.self)
         return parts.isEmpty ? nil : "Since \(Formatting.date(previous.day)): \(parts.joined(separator: " · "))"
@@ -94,19 +96,22 @@ struct ScanReadout: View {
         }
     }
 
+    /// A segment's mass in pounds, whichever unit the sheet printed.
+    private func pounds(_ mass: Double) -> Double { Imperial.pounds(mass, from: unit) }
+
     private func balanceRow(_ title: String, _ right: Double, _ left: Double, _ difference: Double, _ percent: Double) -> some View {
         GridRow {
             Text(title).gridColumnAlignment(.leading)
-            Text(SheetFigure.number(right))
-            Text(SheetFigure.number(left))
-            Text("\(Formatting.change(difference, fractionDigits: 2)) (\(Formatting.change(percent, fractionDigits: 1))%)")
+            Text(SheetFigure.number(pounds(right)))
+            Text(SheetFigure.number(pounds(left)))
+            Text("\(Formatting.change(pounds(difference), fractionDigits: 2)) (\(Formatting.change(percent, fractionDigits: 1))%)")
         }
     }
 
     private func balanceLine(_ title: String, _ right: Double, _ left: Double, _ difference: Double, _ percent: Double) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-            Text("R \(SheetFigure.number(right)) · L \(SheetFigure.number(left)) · L − R \(Formatting.change(difference, fractionDigits: 2)) (\(Formatting.change(percent, fractionDigits: 1))%)")
+            Text("R \(SheetFigure.number(pounds(right))) · L \(SheetFigure.number(pounds(left))) · L − R \(Formatting.change(pounds(difference), fractionDigits: 2)) (\(Formatting.change(percent, fractionDigits: 1))%)")
                 .foregroundStyle(Color(.secondaryLabel))
         }
     }
@@ -117,7 +122,7 @@ struct ScanReadout: View {
         } header: {
             Text("Segmental fat")
         } footer: {
-            Text("Mass in \(unit.abbreviation), and percent of the analyser's own reference.")
+            Text("Mass in lb, and percent of the analyser's own reference.")
         }
     }
 

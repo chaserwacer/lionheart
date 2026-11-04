@@ -73,7 +73,7 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
                 Self.figure("Previous day's activity", contributors.previousDayActivity),
                 Self.figure("Body temperature", contributors.bodyTemperature),
                 readiness.temperatureDeviation.map {
-                    Figure(label: "Temperature deviation", value: String(format: "%+.2f °C", $0))
+                    Figure(label: "Temperature deviation", value: String(format: "%+.1f °F", Imperial.fahrenheitChange(celsius: $0)))
                 },
             ].compactMap(\.self)
 
@@ -96,8 +96,7 @@ enum OuraPanel: Equatable, Sendable, Identifiable {
                 Figure(label: "Total calories", value: "\(activity.totalCalories) kcal"),
                 Figure(
                     label: "Walking equivalent",
-                    value: MeasurementText.plain(
-                        Double(activity.equivalentWalkingDistanceMeters) / 1000) + " km"),
+                    value: Imperial.roughDistance(meters: Double(activity.equivalentWalkingDistanceMeters))),
                 Figure(label: "Average MET", value: MeasurementText.plain(activity.averageMet)),
                 Figure(
                     label: "High activity",

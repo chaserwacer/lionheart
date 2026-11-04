@@ -138,7 +138,7 @@ struct MovementPicker: View {
                     // The standing record, where there is one: it is the number the athlete is
                     // about to aim at. Shown with its unit, because a record's unit is the
                     // athlete's and a bare figure is the wrong number half the time.
-                    let stated = "\(Formatting.measure(heaviest.weight)) \(heaviest.unit.abbreviation)"
+                    let stated = Formatting.weight(heaviest.weight, heaviest.unit)
                     Text(stated)
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(Color(.tertiaryLabel))

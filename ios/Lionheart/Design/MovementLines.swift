@@ -58,7 +58,7 @@ struct MovementLines: View {
         case .counted(let setCount):
             return Formatting.count(setCount, "set")
         case .run(let distance, let unit, let duration, let climb):
-            return "\(Formatting.distance(distance, unit)) in \(Formatting.clock(seconds: duration)) · +\(Int(climb.rounded())) m"
+            return "\(Formatting.distance(distance, unit)) in \(Formatting.clock(seconds: duration)) · \(Formatting.climb(meters: climb))"
         }
     }
 }

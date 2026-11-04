@@ -10,18 +10,26 @@ import Testing
 struct RecordedWorkoutTests {
     private static let start = Date(timeIntervalSince1970: 1_790_000_000)
 
-    @Test("A pace per kilometre reads as a speed in either unit")
+    @Test("A pace per kilometre reads as a speed in mph")
     func speedFromPace() {
-        #expect(RunUnit.kilometres.speed(perKilometre: 120) == "30.0 km/h")
-        #expect(RunUnit.miles.speed(perKilometre: 120) == "18.6 mph")
-        #expect(RunUnit.kilometres.speed(metersPerSecond: 10) == "36.0 km/h")
+        #expect(Imperial.speed(perKilometre: 120) == "18.6 mph")
+        #expect(Imperial.speed(metersPerSecond: 10) == "22.4 mph")
     }
 
-    @Test("A run's speed reads as a pace, a ride's as a speed")
+    @Test("A run's speed reads as a pace per mile, a ride's in mph, the form in inches and feet")
     func speedByActivity() {
-        #expect(WorkoutMetricText.figure(.speed, 1000.0 / 300, for: .run, in: .kilometres) == "5:00 /km")
-        #expect(WorkoutMetricText.figure(.speed, 10, for: .endurance(.ride), in: .kilometres) == "36.0 km/h")
-        #expect(WorkoutMetricText.figure(.verticalOscillation, 8.64, for: .run, in: .miles) == "8.6 cm")
+        #expect(WorkoutMetricText.figure(.speed, 1000.0 / 300, for: .run) == "8:03 /mi")
+        #expect(WorkoutMetricText.figure(.speed, 10, for: .endurance(.ride)) == "22.4 mph")
+        #expect(WorkoutMetricText.figure(.verticalOscillation, 8.64, for: .run) == "3.4 in")
+        #expect(WorkoutMetricText.figure(.strideLength, 1.2, for: .run) == "3.9 ft")
+    }
+
+    @Test("A trace plots in the unit its axis is labelled in")
+    func tracesPlotInTheirLabel() {
+        #expect(WorkoutMetricText.unitLabel(.speed) == "mph")
+        #expect(abs(WorkoutMetricText.plotted(.speed, 10) - 22.369) < 0.001)
+        #expect(abs(WorkoutMetricText.plotted(.verticalOscillation, 2.54) - 1) < 0.000_1)
+        #expect(WorkoutMetricText.plotted(.power, 250) == 250)
     }
 
     @Test("A ride traces its power, cadence and speed; a run its power and form; neither a single reading")

@@ -19,7 +19,7 @@ struct RecoveryExplanationSheet: View {
                     explanation("Recovery index", "When in the night the heart rate bottomed out. Earlier is better: a low point near waking usually means late training, alcohol or a late meal.")
                     explanation("Sleep balance", "Your sleep over the last 14 nights, asleep and in bed. Oura rates it against a sleep need it does not publish, so no need is shown.")
                     explanation("Previous night", "Last night's time asleep.")
-                    explanation("Body temperature", "Oura's overnight temperature deviation from your baseline, in °C.")
+                    explanation("Body temperature", "Oura's overnight temperature deviation from your baseline, in °F.")
                 } header: {
                     Text("What each rests on")
                 }

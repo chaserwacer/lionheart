@@ -39,7 +39,8 @@ struct DiaryTests {
 
         let line = Dictionary(uniqueKeysWithValues: reading.recovery.map { ($0.metric, $0.value) })
         #expect(line[.hrv] == 61)
-        #expect(line[.temperatureDeviation] == 0.2)
+        // Oura's 0.2 °C deviation, read in °F.
+        #expect(abs((line[.temperatureDeviation] ?? 0) - 0.36) < 0.000_001)
         #expect(line[.sleepDuration] == 27_000)
     }
 

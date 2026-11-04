@@ -300,9 +300,9 @@ struct SessionDetailView: View {
     private func target(of prescription: SetPrescription) -> String {
         switch prescription {
         case .lift(let lift):
-            "\(MeasurementText.plain(lift.targetWeight)) \(lift.unit.abbreviation) × \(lift.targetReps)"
+            "\(Formatting.weight(lift.targetWeight, lift.unit)) × \(lift.targetReps)"
         case .distanceTime(let target):
-            "\(MeasurementText.plain(target.targetDistance)) \(target.unit.abbreviation) in \(Formatting.clock(seconds: target.targetDuration))"
+            "\(Formatting.distance(target.targetDistance, target.unit)) in \(Formatting.clock(seconds: target.targetDuration))"
         case .freeform(let text):
             text.nonEmpty ?? "As described"
         case .unrecognised:

@@ -77,7 +77,10 @@ enum RecoveryMetric: String, CaseIterable, Hashable, Sendable, Identifiable {
         }
     }
 
-    /// The figure on one day, or `nil` where the ring filed nothing for it.
+    /// The figure on one day, in the unit it reads in, or `nil` where the ring filed nothing for it.
+    ///
+    /// Temperature is converted here rather than at the label, because the trend, its baseline
+    /// band and the sparkline all plot this value: Oura's °C deviation reads as °F everywhere.
     ///
     /// A night's lowest heart rate of zero is a period the ring took no reading across, not a heart
     /// rate, so it reads as absent — the same rule the night's own screen applies.
@@ -85,7 +88,7 @@ enum RecoveryMetric: String, CaseIterable, Hashable, Sendable, Identifiable {
         switch self {
         case .readiness: day?.readiness?.score?.value
         case .sleepScore: day?.sleep?.score?.value
-        case .temperatureDeviation: day?.readiness?.temperatureDeviation
+        case .temperatureDeviation: day?.readiness?.temperatureDeviation.map { Imperial.fahrenheitChange(celsius: $0) }
         case .steps: day?.activity.map { Double($0.steps) }
         case .hrv: night?.averageHrv.map(Double.init)
         case .lowestHeartRate: night?.lowestHeartRate.flatMap { $0 > 0 ? Double($0) : nil }

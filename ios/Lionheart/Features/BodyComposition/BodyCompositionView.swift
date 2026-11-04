@@ -146,7 +146,7 @@ struct BodyCompositionView: View {
         case .percentBodyFat: SheetFigure.percent(value)
         case .extracellularWaterRatio: String(format: "%.3f", value)
         case .weight, .skeletalMuscleMass, .bodyFatMass, .leanBodyMass:
-            SheetFigure.mass(value, history.latest?.sheet.unit ?? .pounds)
+            SheetFigure.mass(value, .pounds)
         }
     }
 

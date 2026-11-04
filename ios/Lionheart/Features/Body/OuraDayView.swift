@@ -77,7 +77,7 @@ struct OuraDayView: View {
     /// Temperature is a measurement Oura reports beside readiness rather than a component of it.
     private var readinessMeasurements: [OuraPanel.Figure] {
         [
-            day.readiness?.temperatureDeviation.map {
+            RecoveryMetric.temperatureDeviation.value(day: day, night: nil).map {
                 OuraPanel.Figure(label: "Temperature", value: Formatting.figureText($0, of: .temperatureDeviation))
             },
         ].compactMap(\.self)
@@ -184,7 +184,7 @@ struct NightSummaryRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Night")
+        .accessibilityLabel(caption ?? "Night")
         .accessibilityValue("\(Formatting.hoursAndMinutes(seconds: Double(reading.totalSleepSeconds))) asleep, \(facts)")
     }
 

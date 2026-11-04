@@ -17,15 +17,19 @@ struct SetDraft: Equatable, Sendable {
 
     var weight: String = ""
     var reps: String = ""
-    var weightUnit: WeightUnit = .kilograms
+    var weightUnit: WeightUnit = .pounds
 
     var distance: String = ""
-    var distanceUnit: DistanceUnit = .kilometers
+    var distanceUnit: DistanceUnit = .miles
     /// Duration as two fields, which is how a time is read off a treadmill: `24` and `30`, not
     /// `1470` seconds.
     var minutes: String = ""
     var seconds: String = ""
-    var elevationGainMeters: String = ""
+    /// The climb in feet, the unit it is read in; the set carries metres.
+    var elevationGainFeet: String = ""
+    /// The climb the field was seeded with, so a correction that leaves the field alone sends back
+    /// the metres it came from rather than a value rounded through feet.
+    private var seededClimb: SeededClimb?
     /// What an endurance set was, carried through a correction unchanged: it is not typed.
     var enduranceActivity: EnduranceActivity = .ride
 
@@ -60,13 +64,13 @@ struct SetDraft: Equatable, Sendable {
             distance = Self.field(set.distance)
             distanceUnit = set.unit
             (minutes, seconds) = Self.fields(duration: set.duration)
-            elevationGainMeters = Self.field(set.elevationGainMeters)
+            seedClimb(set.elevationGainMeters)
         case .endurance(let set):
             enduranceActivity = set.activity
             distance = Self.field(set.distance)
             distanceUnit = set.unit
             (minutes, seconds) = Self.fields(duration: set.duration)
-            elevationGainMeters = Self.field(set.elevationGainMeters)
+            seedClimb(set.elevationGainMeters)
         case .freeform(let words):
             text = words
         }
@@ -119,7 +123,7 @@ struct SetDraft: Equatable, Sendable {
                 distance: distance,
                 unit: distanceUnit,
                 duration: duration,
-                elevationGainMeters: Self.number(elevationGainMeters) ?? 0,
+                elevationGainMeters: climbMeters,
                 rpe: rpe))
 
         case .endurance:
@@ -129,7 +133,7 @@ struct SetDraft: Equatable, Sendable {
                 distance: distance,
                 unit: distanceUnit,
                 duration: duration,
-                elevationGainMeters: Self.number(elevationGainMeters) ?? 0,
+                elevationGainMeters: climbMeters,
                 rpe: rpe))
 
         case .freeform:
@@ -178,6 +182,22 @@ struct SetDraft: Equatable, Sendable {
     /// A lift's weight, where nought is a value rather than an absence — see `init(from:)`.
     private static func weightField(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(0...2)).grouping(.never))
+    }
+
+    private struct SeededClimb: Equatable, Sendable {
+        let meters: Double
+        let field: String
+    }
+
+    private mutating func seedClimb(_ meters: Double) {
+        elevationGainFeet = meters == 0 ? "" : "\(Int(Imperial.feet(meters: meters).rounded()))"
+        seededClimb = SeededClimb(meters: meters, field: elevationGainFeet)
+    }
+
+    /// The climb typed in feet, as the metres the set carries.
+    private var climbMeters: Double {
+        if let seededClimb, seededClimb.field == elevationGainFeet { return seededClimb.meters }
+        return (Self.number(elevationGainFeet) ?? 0) * Imperial.metersPerFoot
     }
 
     private static func field(_ value: Int) -> String {

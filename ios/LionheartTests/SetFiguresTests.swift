@@ -13,15 +13,16 @@ struct SetFiguresTests {
         return measured
     }
 
-    @Test("A performed lift reads load first, then reps, with its RPE")
+    @Test("A performed lift reads load first, in pounds, then reps, with its RPE")
     func aLiftReadsLoadThenReps() throws {
         let set = try Decoding.decode(
             SetEntry.self, Session.liftSet(reps: 5, weight: 92.5, unit: 0, rpe: "8.5"))
 
         let figures = try #require(Self.measured(.of(set)))
 
-        #expect(figures.amount == "92.5")
-        #expect(figures.unit == "kg")
+        // Logged in kilograms: 92.5 kg is 203.9 lb, to the tenth.
+        #expect(figures.amount == "203.9")
+        #expect(figures.unit == "lb")
         #expect(figures.work == "× 5")
         #expect(figures.extra == nil)
         #expect(figures.rpe == 8.5)
@@ -36,14 +37,16 @@ struct SetFiguresTests {
         #expect(Self.measured(.of(set))?.rpe == nil)
     }
 
-    @Test("A quarter-kilo load keeps its precision, and a round one reads round")
+    @Test("A quarter-pound load keeps its precision, a round one reads round, and kilograms convert to the tenth")
     func loadsKeepPlatePrecision() throws {
         let quarter = SetCommand.lift(.init(
-            movementDataId: Self.squat, reps: 3, weight: 102.25, unit: .kilograms, rpe: .unrated))
-        let round = try Decoding.decode(SetEntry.self, Session.liftSet(weight: 100, unit: 0))
+            movementDataId: Self.squat, reps: 3, weight: 102.25, unit: .pounds, rpe: .unrated))
+        let round = try Decoding.decode(SetEntry.self, Session.liftSet(weight: 100, unit: 1))
+        let kilograms = try Decoding.decode(SetEntry.self, Session.liftSet(weight: 100, unit: 0))
 
         #expect(Self.measured(.of(quarter))?.amount == "102.25")
         #expect(Self.measured(.of(round))?.amount == "100")
+        #expect(Self.measured(.of(kilograms))?.amount == "220.5")
     }
 
     @Test("A distance-and-time set reads as the distance, then the clock time")
@@ -56,10 +59,11 @@ struct SetFiguresTests {
 
         let figures = try #require(Self.measured(.of(set)))
 
-        #expect(figures.amount == "5")
-        #expect(figures.unit == "km")
+        // Logged in kilometres, read in miles.
+        #expect(figures.amount == "3.11")
+        #expect(figures.unit == "mi")
         #expect(figures.work == "24:10")
-        #expect(figures.spoken == "5 km in 24:10")
+        #expect(figures.spoken == "3.11 mi in 24:10")
     }
 
     @Test("A trail run carries its climb as a third figure, signed")
@@ -72,8 +76,8 @@ struct SetFiguresTests {
             distance: 8, unit: .kilometers, duration: 2400, elevationGainMeters: -150, rpe: .unrated))
 
         #expect(Self.measured(.of(set))?.work == "1:18:00")
-        #expect(Self.measured(.of(set))?.extra == "+420 m")
-        #expect(Self.measured(.of(descent))?.extra == "−150 m")
+        #expect(Self.measured(.of(set))?.extra == "+1378 ft")
+        #expect(Self.measured(.of(descent))?.extra == "−492 ft")
     }
 
     @Test("A freeform set reads as the words it was logged with, on either side")

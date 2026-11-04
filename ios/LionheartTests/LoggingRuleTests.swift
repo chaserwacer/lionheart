@@ -250,13 +250,17 @@ struct BodyweightRuleTests {
         #expect(Self.series.change(over: 60) == nil)
     }
 
-    @Test("A reading in another unit is left out of a chart, not converted")
-    func anotherUnitIsLeftOut() {
+    @Test("A reading logged in kilograms is charted and compared in pounds")
+    func kilogramsReadInPounds() {
         let mixed = BodyweightSeries(Self.series.measurements + [
             BodyweightMeasurement(day: CalendarDay(year: 2026, month: 11, day: 3), weight: 79.5, unit: .kilograms),
         ])
 
-        #expect(mixed.points(in: .pounds).count == 3)
+        let points = mixed.pointsInPounds()
+        #expect(points.count == 4)
+        // 79.5 kg is 175.27 lb, so a scale switched to kilograms reads as the same man, not a drop.
+        #expect(abs((points.last?.value ?? 0) - 175.267) < 0.001)
+        #expect(mixed.change(over: 1).map { ($0 * 100).rounded() / 100 } == 0.07)
     }
 
     @Test("System load is bodyweight plus the plate, only where the setup says so and the units agree")
