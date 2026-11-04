@@ -53,6 +53,12 @@ public sealed record CardioSession(
     SessionHeartRate HeartRate)
 {
     public double Minutes => (End - Start).TotalMinutes;
+
+    /// <summary>What kind of movement it was, as far as where its effort came from.</summary>
+    public CardioModality Modality => QualityWork.ModalityOf(Source);
+
+    /// <summary>The minutes that earn intensity credit (<see cref="QualityWork"/>): its work bouts, or none.</summary>
+    public double QualityMinutes => QualityWork.MinutesOf(Source, HeartRate);
 }
 
 /// <summary>Where a cardio session's record comes from.</summary>
@@ -120,7 +126,11 @@ public abstract record SessionHeartRate
         int PeakBpm,
         double Coverage,
         ZoneMinutes? Zones,
-        HeartRateSource Source) : SessionHeartRate;
+        HeartRateSource Source) : SessionHeartRate
+    {
+        /// <summary>The stretches held at zone 4 or above (<see cref="WorkBouts"/>); empty without a maximum.</summary>
+        public IReadOnlyList<WorkBout> Bouts { get; init; } = [];
+    }
 }
 
 /// <summary>
@@ -174,6 +184,12 @@ public enum WorkoutExclusion
 
     /// <summary>A ring's guess, or an activity nobody named, whose heart rate stayed below training.</summary>
     [JsonStringEnumMemberName("heartRateBelowTraining")] HeartRateBelowTraining,
+
+    /// <summary>
+    /// A game or dance the ring guessed at: his approvals are given without reading, so a detected
+    /// "handball" is a game of catch and a detected "dance" a night out, whatever the heart rate did.
+    /// </summary>
+    [JsonStringEnumMemberName("detectedGame")] DetectedGame,
 
     /// <summary>Filed as a moment rather than a span, so it has no duration to count.</summary>
     [JsonStringEnumMemberName("noDuration")] NoDuration,

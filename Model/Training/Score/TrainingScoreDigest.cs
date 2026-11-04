@@ -37,15 +37,20 @@ public sealed record TrainingScoreDigest(
 
     private static string Lifting(LiftingPart part) =>
         $"lifting {Points(part.Points)}/{part.OutOf}: "
-        + string.Join(", ", part.Families.Select(family => $"{PatternWords.Of(family.Of.Family)} {family.Of.HardSets}/{family.Of.Target}"))
+        + string.Join(", ", part.Families.Select(family => $"{PatternWords.Of(family.Of.Family)} {family.Of.HardSets}/{Target(family.Of.Target)}"))
         + " hard sets";
+
+    /// <summary>"6 (committed 8, 4-week mean 5.5)": this week's target, the standard, and what it grew from.</summary>
+    private static string Target(WeeklyTarget target) =>
+        $"{Points(target.Target)} (committed {Points(target.Committed)}, "
+        + (target.Chronic is { } chronic ? $"4-week mean {Points(chronic)})" : "no 4-week history)");
 
     private static string Cardio(CardioPart part) => part.Measure switch
     {
         CardioMeasure.Measured measured =>
-            $"cardio {Points(part.Points ?? 0)}/{part.OutOf}: zone 2 {Points(measured.Zone2Minutes)}/{measured.Zone2Target} min, "
-            + $"zones 3-5 {Points(measured.HighIntensityMinutes)}/{measured.HighIntensityTarget} min, "
-            + $"{measured.Sessions} sessions, heart rate on {measured.HeartRateDays}/7 days",
+            $"cardio {Points(part.Points ?? 0)}/{part.OutOf}: "
+            + string.Join(", ", part.Zones.Select(zone => $"{BandWords(zone.Of.Band)} {Points(zone.Of.Minutes)}/{Target(zone.Of.Target)} min"))
+            + $", {measured.QualitySessions} quality of {measured.Sessions} sessions, ring heart rate on {measured.HeartRateDays}/7 days",
         CardioMeasure.Unknown unknown => $"cardio unknown ({unknown.Reason}), out of the score",
         _ => throw new UnreachableException(),
     };
@@ -125,6 +130,13 @@ public sealed record TrainingScoreDigest(
             .Select(muscle => $"{PatternWords.Of(muscle.Muscle)} {Points(muscle.Sets)}/{muscle.Target}");
         return $"patterns: {string.Join(", ", patterns)}; muscles (secondary counts half): {string.Join(", ", muscles)}";
     }
+
+    private static string BandWords(ZoneBand band) => band switch
+    {
+        ZoneBand.Zone2 => "zone 2",
+        ZoneBand.Quality => "quality (zone 4-5 work bouts)",
+        _ => throw new UnreachableException(),
+    };
 
     private static string Word(ScorePart part) => part.ToString().ToLowerInvariant();
 

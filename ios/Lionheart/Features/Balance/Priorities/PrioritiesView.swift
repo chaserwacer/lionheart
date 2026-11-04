@@ -137,8 +137,13 @@ struct PrioritiesView: View {
         if let report = balance.priorities.value {
             Section {
                 switch report.cardio {
-                case .measured:
-                    ForEach(ScoreBreakdown.zoneRows(report.cardio)) { ScoreCellRow(cell: $0) }
+                case .measured(let zone2, let quality, _, _, _):
+                    if let part = balance.score.value?.cardio, !part.zones.isEmpty {
+                        ForEach(ScoreBreakdown.zoneRows(part)) { ScoreCellRow(cell: $0) }
+                    } else {
+                        LabeledContent(ZoneBand.zone2.name) { Text("\(Formatting.measure(zone2.rounded())) min").monospacedDigit() }
+                        LabeledContent(ZoneBand.quality.name) { Text("\(Formatting.measure(quality.rounded())) min").monospacedDigit() }
+                    }
                 case .unknown(let reason):
                     Text(CardioWords.unknown(reason)).foregroundStyle(Color(.secondaryLabel))
                 case .unrecognised:
@@ -147,7 +152,7 @@ struct PrioritiesView: View {
             } header: {
                 Text("Cardio, last 7 days")
             } footer: {
-                Text("Enough zone 2 each week (60–70 % of maximum heart rate, 150 minutes), and some harder work in zones 3–5 (70 % and above, 30 minutes). From cardio sessions only; the ring's own detections only where their heart rate showed training.")
+                Text("Zone 2 (60–70 % of maximum heart rate) and quality work — bouts of two minutes or more at 80 % and above in runs, rides and other endurance sessions — each against this week's target, grown from the four weeks before toward 150 and 40 minutes. From cardio sessions only; the ring's own detections only where their heart rate showed training, and never its games or dances.")
             }
         }
     }

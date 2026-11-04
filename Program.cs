@@ -20,6 +20,7 @@ using lionheart.Services.Contexts;
 using lionheart.Services.Training.Focus;
 using lionheart.Services.Training.Patterns;
 using lionheart.Services.Training.Balance;
+using lionheart.Services.Training.Next;
 using lionheart.Services.Training.Score;
 using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.Routines;
@@ -185,6 +186,7 @@ builder.Services.AddTransient<IMovementClassificationService, MovementClassifica
 builder.Services.AddTransient<ITrainingVolumeService, TrainingVolumeService>();
 builder.Services.AddTransient<IPriorityReportService, PriorityReportService>();
 builder.Services.AddTransient<ITrainingScoreService, TrainingScoreService>();
+builder.Services.AddTransient<INextSessionsService, NextSessionsService>();
 builder.Services.AddTransient<IContextService, ContextService>();
 builder.Services.AddTransient<IRoutineService, RoutineService>();
 builder.Services.AddTransient<IPreviousPerformanceService, PreviousPerformanceService>();

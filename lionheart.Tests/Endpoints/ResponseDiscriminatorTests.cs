@@ -139,7 +139,7 @@ public class ResponseDiscriminatorTests
             .WithSession(new DateOnly(2026, 11, 2), Balance.ALog.Set(Balance.ALog.Bench, 210, 5))
             .Build();
         var score = lionheart.Services.Training.Score.TrainingScoreAnalysis.Score(
-            log, [], new Model.Cardio.CardioMeasure.Unknown(Model.Cardio.CardioUnknownReason.NoHeartRate),
+            log, [], _ => new Model.Cardio.CardioMeasure.Unknown(Model.Cardio.CardioUnknownReason.NoHeartRate),
             new DateOnly(2026, 11, 3));
         var volume = lionheart.Services.Training.Balance.TrainingVolumeAnalysis.Build(
             log, new DateOnly(2026, 11, 3), new Model.Training.Balance.ReadinessNote.Low(58, 63, 87));
@@ -192,6 +192,35 @@ public class ResponseDiscriminatorTests
         Assert.Equal("ringWorkout", declined.GetProperty("session").GetProperty("source").GetProperty("$type").GetString());
         Assert.Equal("heartRateBelowTraining", body.GetProperty("excluded")[0].GetProperty("reason").GetString());
         Assert.Equal("unspecified", body.GetProperty("excluded")[0].GetProperty("category").GetString());
+    }
+
+    [Fact]
+    public async Task WhatIsNextNamesItsLiftCardioAndAimCases()
+    {
+        // The iOS decoders and the tracker's header switch on each of these.
+        var next = new Model.Training.Next.NextSessions(
+            new DateOnly(2026, 11, 4),
+            new Model.Training.Next.FirstChoice(Model.Training.Next.NextKind.Cardio, ["cardio is further behind"]),
+            new Model.Training.Next.NextLift.Train(
+                [Model.Training.Patterns.PatternFamily.Legs], new DateOnly(2026, 10, 30),
+                [new Model.Training.Next.PriorityAim(
+                    Model.Training.Patterns.PatternFamily.Legs, Guid.NewGuid(), "Squat",
+                    new Model.Training.Next.LiftAim.Beat(305, 5, Model.Training.Sets.WeightUnit.Pounds, 355.8, 350, false))],
+                ["legs trained longest ago"]),
+            new Model.Training.Next.NextCardio.Quality(4, 4, 3, ["quality unmet"]),
+            Model.Training.Next.RecoveryRead.NotRead);
+
+        var body = JsonDocument.Parse(await WriteAsync(Endpoint.ToActionResult(
+            Result<Model.Training.Next.NextSessions, Problem>.Success(next)))).RootElement;
+
+        Assert.Equal("cardio", body.GetProperty("first").GetProperty("session").GetString());
+        Assert.Equal("train", body.GetProperty("lift").GetProperty("$type").GetString());
+        Assert.Equal("legs", body.GetProperty("lift").GetProperty("families")[0].GetString());
+        var aim = body.GetProperty("lift").GetProperty("priorities")[0].GetProperty("aim");
+        Assert.Equal(("beat", 1), (aim.GetProperty("$type").GetString(), aim.GetProperty("unit").GetInt32()));
+        Assert.Equal("quality", body.GetProperty("cardio").GetProperty("$type").GetString());
+        Assert.Equal(16, body.GetProperty("cardio").GetProperty("workMinutes").GetInt32());
+        Assert.Equal("notRead", body.GetProperty("recovery").GetProperty("readiness").GetProperty("$type").GetString());
     }
 
     [Fact]

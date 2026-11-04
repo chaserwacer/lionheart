@@ -27,6 +27,7 @@ enum LeftOut {
         case .shortWalk: "walk under 30 minutes"
         case .heartRateUnread: "workout with too little heart rate to show training"
         case .heartRateBelowTraining: "workout whose heart rate stayed below training"
+        case .detectedGame: "game or dance the ring guessed"
         case .sameAsLoggedRun, .insideLoggedLifting, .strength, .notTraining, .noDuration, .unrecognised: reason.phrase
         }
     }

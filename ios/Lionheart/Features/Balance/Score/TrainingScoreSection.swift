@@ -52,15 +52,17 @@ struct TrainingScoreSummary: View {
 
     private var lifting: String {
         score.lifting.families
-            .map { "\($0.of.family.name) \($0.of.hardSets)/\($0.of.target)" }
+            .map { "\($0.of.family.name) \($0.of.hardSets)/\(Formatting.measure($0.of.target.target))" }
             .joined(separator: " · ") + " sets"
     }
 
     private var cardioAndSessions: String {
-        let cardio = switch score.cardio.measure {
-        case .measured(let zone2, let target, let hard, let hardTarget, _, _):
-            "Z2 \(Formatting.measure(zone2.rounded()))/\(target) · Z3–5 \(Formatting.measure(hard.rounded()))/\(hardTarget) min"
-        case .unknown, .unrecognised: "Cardio unknown"
+        let zone2 = score.cardio.zones.first { $0.of.band == .zone2 }?.of
+        let quality = score.cardio.zones.first { $0.of.band == .quality }?.of
+        let cardio = if let zone2, let quality {
+            "Z2 \(Formatting.measure(zone2.minutes.rounded()))/\(Formatting.measure(zone2.target.target)) · Quality \(Formatting.measure(quality.minutes.rounded()))/\(Formatting.measure(quality.target.target)) min"
+        } else {
+            "Cardio unknown"
         }
         let sessions = score.consistency.blocks.first?.of.sessions ?? 0
         return "\(cardio) · \(Formatting.count(sessions, "session")) in 7 days"

@@ -55,14 +55,38 @@ struct Scored<Value: Equatable & Sendable>: Equatable, Sendable {
     var share: Double { outOf > 0 ? min(1, max(0, points / outOf)) : 0 }
 }
 
-/// Hard sets of push, pull and legs against eight each.
+/// What a volume measurement is read against this week — the server's `WeeklyTarget`: the mean of
+/// the four weeks before plus ten per cent, between a floor and the committed standard. Half the
+/// measurement's points are paid against `target`, half against `committed`.
+struct WeeklyTarget: Equatable, Sendable {
+    let target: Double
+    let committed: Double
+    let floor: Double
+    /// The four weeks' mean; `nil` when none of them could be read, and `target` is `committed`.
+    let chronic: Double?
+
+    /// Whether this week's target sits under the committed standard, because recent weeks did.
+    var isRamped: Bool { target < committed }
+}
+
+/// Hard sets of push, pull and legs, each against its week's target.
 struct LiftingPart: Equatable, Sendable {
     let points: Double
     let outOf: Int
-    let families: [Scored<FamilyVolume>]
+    let families: [Scored<FamilyTarget>]
 }
 
-/// Zone-2 and zone 3–5 minutes; `points` is `nil` and `zones` empty when the measure is unknown.
+/// One family's hard sets over the window against its week's target.
+struct FamilyTarget: Equatable, Sendable, Identifiable {
+    let family: PatternFamily
+    let hardSets: Int
+    let target: WeeklyTarget
+    let lastTrained: CalendarDay?
+
+    var id: String { family.wire }
+}
+
+/// Zone-2 and quality minutes; `points` is `nil` and `zones` empty when the measure is unknown.
 struct CardioPart: Equatable, Sendable {
     let points: Double?
     let outOf: Int
@@ -70,24 +94,24 @@ struct CardioPart: Equatable, Sendable {
     let zones: [Scored<ZoneTarget>]
 }
 
-/// Minutes in a band of heart-rate zones against the week's target for it.
+/// Minutes in a band against the week's target for it.
 struct ZoneTarget: Equatable, Sendable {
     let band: ZoneBand
     let minutes: Double
-    let target: Int
+    let target: WeeklyTarget
 }
 
 enum ZoneBand: Equatable, Sendable {
     /// 60–70 % of maximum heart rate.
     case zone2
-    /// 70 % of maximum and above.
-    case zones3To5
+    /// Work bouts of two minutes or more at zone 4–5 in endurance sessions holding at least ten.
+    case quality
     case unrecognised(String)
 
     init(wire: String) {
         switch wire {
         case "zone2": self = .zone2
-        case "zones3To5": self = .zones3To5
+        case "quality": self = .quality
         default: self = .unrecognised(wire)
         }
     }
@@ -95,7 +119,7 @@ enum ZoneBand: Equatable, Sendable {
     var name: String {
         switch self {
         case .zone2: "Zone 2"
-        case .zones3To5: "Zones 3–5"
+        case .quality: "Quality"
         case .unrecognised(let wire): wire
         }
     }
@@ -181,7 +205,7 @@ extension LiftingPart: Decodable {
         self.init(
             points: container.lenient("points", or: 0),
             outOf: container.lenient("outOf", or: 0),
-            families: container.lenientList(Scored<FamilyVolume>.self, "families"))
+            families: container.lenientList(Scored<FamilyTarget>.self, "families"))
     }
 }
 
@@ -231,10 +255,44 @@ extension Scored: Decodable where Value: Decodable {
 extension ZoneTarget: Decodable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: WireKey.self)
+        guard let target = container.lenient(WeeklyTarget.self, "target") else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath, debugDescription: "A band needs its week's target."))
+        }
         self.init(
             band: ZoneBand(wire: container.lenient("band", or: "")),
             minutes: container.lenient("minutes", or: 0),
-            target: container.lenient("target", or: 0))
+            target: target)
+    }
+}
+
+extension FamilyTarget: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        guard let target = container.lenient(WeeklyTarget.self, "target") else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath, debugDescription: "A family needs its week's target."))
+        }
+        self.init(
+            family: PatternFamily(wire: container.lenient("family", or: "")),
+            hardSets: container.lenient("hardSets", or: 0),
+            target: target,
+            lastTrained: container.day("lastTrained"))
+    }
+}
+
+extension WeeklyTarget: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        guard let target = container.lenient(Double.self, "target") else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath, debugDescription: "A weekly target needs its target."))
+        }
+        self.init(
+            target: target,
+            committed: container.lenient("committed", or: target),
+            floor: container.lenient("floor", or: 0),
+            chronic: container.lenient(Double.self, "chronic"))
     }
 }
 

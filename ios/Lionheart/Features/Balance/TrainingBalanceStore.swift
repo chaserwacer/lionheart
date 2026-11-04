@@ -1,10 +1,10 @@
 import Foundation
 import Observation
 
-/// Where training stands this week: the volume and what is up next, the priorities, and the
-/// training score with its weeks before.
+/// Where training stands this week: the volume, the priorities, the training score with its weeks
+/// before, and what to train next.
 ///
-/// One store for the four reads because Train, Today and the priorities screen show them side by
+/// One store for the five reads because Train, Today and the priorities screen show them side by
 /// side and a session finished on one tab must move all of them. Each keeps its own load state, so
 /// a failed score read never blanks the volume already on screen. Supplied to its screens through
 /// the environment, so the one-line Today section and the History link reach it without either
@@ -16,6 +16,8 @@ final class TrainingBalanceStore {
     private(set) var priorities: LoadState<PriorityReport> = .loading
     private(set) var score: LoadState<TrainingScore> = .loading
     private(set) var weeks: LoadState<[WeeklyScore]> = .loading
+    /// What to train next as of today: the lift, the cardio and which first.
+    private(set) var nextSessions: LoadState<NextSessions> = .loading
     /// A past or current week's volume and score for History's week page, by the week's last day.
     private(set) var week: [CalendarDay: LoadState<WeekBalance>] = [:]
 
@@ -38,10 +40,10 @@ final class TrainingBalanceStore {
 
     var isWaitingOnServer: Bool {
         volume.isWaitingOnServer || priorities.isWaitingOnServer || score.isWaitingOnServer
-            || weeks.isWaitingOnServer
+            || weeks.isWaitingOnServer || nextSessions.isWaitingOnServer
     }
 
-    /// Reads all four again, replacing any read already running.
+    /// Reads all five again, replacing any read already running.
     func refresh() async {
         load?.cancel()
         let task = Task { await self.reload() }
@@ -61,6 +63,7 @@ final class TrainingBalanceStore {
         priorities = .loading
         score = .loading
         weeks = .loading
+        nextSessions = .loading
         week = [:]
     }
 
@@ -87,6 +90,7 @@ final class TrainingBalanceStore {
             group.addTask { await self.loadPriorities(endingOn: today) }
             group.addTask { await self.loadScore(endingOn: today) }
             group.addTask { await self.loadWeeks(endingOn: today) }
+            group.addTask { await self.loadNext(asOf: today) }
         }
     }
 
@@ -113,6 +117,12 @@ final class TrainingBalanceStore {
         let range = DayRange(from: today.adding(days: -7 * Self.trendWeeks), to: today)
         let read = await Self.fetched { try await balance.weeks(range, remembering: .trainingScoreWeeks) }
         weeks = Self.next(weeks, read)
+    }
+
+    private func loadNext(asOf today: CalendarDay) async {
+        let balance = balance
+        let read = await Self.fetched { try await balance.next(asOf: today, remembering: .nextSessions) }
+        nextSessions = Self.next(nextSessions, read)
     }
 
     /// The volume and the score of one week, read for History's week page.

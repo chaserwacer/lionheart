@@ -13,13 +13,14 @@ enum CardioWords {
     }
 
     /// The rule a ring's guess, or a workout nobody named, is admitted by — the server's `TrainingEvidence`.
-    static let evidenceRule = "A workout the ring detected, or one nobody named, counts only when at least half of it was read and it held zone 2 or above for 20 minutes, or zone 3 or above for 10, for at least half the time read."
+    static let evidenceRule = "A game or dance the ring detected never counts. Any other workout the ring detected, or one nobody named, counts only when at least half of it was read and it held zone 2 or above for 20 minutes, or zone 3 or above for 10, for at least half the time read."
 
     /// Why a ring workout was left out, as the end of its row.
     static func verdict(_ reason: ExcludedWorkouts.Reason) -> String {
         switch reason {
         case .heartRateUnread: "too little heart rate to tell"
         case .heartRateBelowTraining: "below training"
+        case .detectedGame: "a game the ring guessed"
         case .sameAsLoggedRun, .insideLoggedLifting, .shortWalk, .strength, .notTraining, .noDuration, .unrecognised:
             reason.phrase
         }
