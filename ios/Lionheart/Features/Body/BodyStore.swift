@@ -159,7 +159,9 @@ final class BodyStore {
         let moment = now()
         if state.value == nil,
            let recalled = await APIClient.onDevice({ try await self.read(at: moment) }),
-           let asOf = recalled.asOf {
+           let asOf = recalled.asOf,
+           // A sign-out while the device was read has reset the store.
+           !Task.isCancelled {
             state = state.recalling(recalled.value, asOf: asOf)
         }
 

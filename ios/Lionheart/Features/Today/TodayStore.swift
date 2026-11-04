@@ -51,8 +51,8 @@ final class TodayStore {
     private var trendPrefetch: Task<Void, Never>?
     /// When the day on screen was last read current from the server.
     private var lastRead: ReadStamp?
-    /// The reading of today the held trends were read ahead for.
-    private var trendsReadAheadFor: TodaySnapshot?
+    /// The recovery reading the held trends were read ahead for.
+    private var trendsReadAheadFor: RecoveryReading?
     private var whenReadToday: (@MainActor (TodaySnapshot) -> Void)?
 
     /// How long a current answer is taken as current when nothing on this device has written
@@ -93,12 +93,32 @@ final class TodayStore {
     }
 
     /// Loads when the screen may be behind, and otherwise does nothing — what the tab coming back
-    /// into view, or the app coming back to the foreground, asks for.
-    func refreshIfDue() async {
-        guard load == nil, ReadFreshness.needsRead(
+    /// into view, or the app coming back to the foreground, asks for. A load already out is waited
+    /// on rather than started again, so a caller that needs the answer — the morning wake — has it
+    /// when this returns.
+    ///
+    /// - Returns: whether the screen was read, for a view that reads something beside it.
+    @discardableResult
+    func refreshIfDue() async -> Bool {
+        if let load {
+            await load.value
+            return true
+        }
+        guard ReadFreshness.needsRead(
             state, lastRead: lastRead, now: now(), acceptedWrites: writes.accepted, freshFor: Self.freshFor)
-        else { return }
+        else { return false }
         await refresh()
+        return true
+    }
+
+    /// Reads today if it may be behind, moving the screen back to today first when it was left on
+    /// another day — what a read made for the widgets and Siri asks, since those always show today.
+    func refreshTodayIfDue() async {
+        guard selection.isToday else {
+            await show(.today)
+            return
+        }
+        await refreshIfDue()
     }
 
     /// Empties the screen. Registered with `AuthStore`, so signing out cannot leave one athlete's
@@ -141,15 +161,19 @@ final class TodayStore {
         if state.value == nil,
            let recalled = await APIClient.onDevice({ try await self.read(day, today: today, at: moment) }),
            let asOf = recalled.asOf,
-           asked == selection {
+           asked == selection,
+           // A sign-out while the device was read has reset the store; that athlete's day must not
+           // be painted into it.
+           !Task.isCancelled {
             state = state.recalling(recalled.value, asOf: asOf)
         }
 
         do {
             let reading = try await read(day, today: today, at: moment)
             // A day changed while this was out has already reset the state; this answer is for the
-            // old day and must not land under the new one.
-            guard asked == selection else { return }
+            // old day and must not land under the new one. A sign-out has reset it too, and its
+            // answer must reach neither the screen nor the widgets.
+            guard asked == selection, !Task.isCancelled else { return }
             state = state.applying(reading)
             guard reading.asOf == nil else { return }
             lastRead = ReadStamp(readAt: moment, acceptedWrites: writesBefore)
@@ -216,12 +240,12 @@ final class TodayStore {
     /// priority: the figures on Today are the screen's most-opened drill-downs, and the read behind
     /// all of them is one request each for the days and the nights.
     ///
-    /// Once per reading of today rather than once per day: a night's measurements that land after
-    /// the morning's first read change the trends as well as the figures, and a read that brings
-    /// nothing new reads nothing ahead.
+    /// Again whenever the recovery reading changes: a night's measurements that land after the
+    /// morning's first read change the trends as well as the figures. Training does not touch a
+    /// trend, so a set pushed mid-workout reads nothing ahead.
     private func prefetchTrends(for snapshot: TodaySnapshot) {
-        guard trendPrefetch == nil, snapshot != trendsReadAheadFor else { return }
-        trendsReadAheadFor = snapshot
+        guard trendPrefetch == nil, let recovery = snapshot.recovery, recovery != trendsReadAheadFor else { return }
+        trendsReadAheadFor = recovery
         let day = snapshot.recovery?.day ?? snapshot.day
         trendPrefetch = Task(priority: .utility) { [weak self] in
             await self?.loadTrends(over: .quarter, endingOn: day, withNights: true, failing: nil)

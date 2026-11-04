@@ -49,8 +49,9 @@ struct ReadinessGlanceView: View {
     }
 
     private var title: String {
-        let day = TodayGlance.dayName(readiness.day, at: now)
-        return day == "Today" ? "Readiness" : "Readiness · \(day)"
+        TodayGlance.isToday(readiness.day, at: now)
+            ? "Readiness"
+            : "Readiness · \(TodayGlance.dayName(readiness.day, at: now))"
     }
 }
 

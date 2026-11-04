@@ -247,7 +247,9 @@ final class MovementLibraryStore {
                async let summaries = personalRecords.summaries(remembering: .recordSummaries)
                return try await (catalogue, summaries)
            }),
-           let asOf = kept.0.asOf {
+           let asOf = kept.0.asOf,
+           // A sign-out while the device was read has reset the store.
+           !Task.isCancelled {
             state = state.recalling(kept.0.value, asOf: asOf)
             if records.isEmpty {
                 records = Dictionary(

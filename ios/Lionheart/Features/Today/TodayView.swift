@@ -94,10 +94,14 @@ struct TodayView: View {
                 }
             }
         }
-        // A tick as the day steps, the way a picker wheel clicks past each value.
-        .sensoryFeedback(.selection, trigger: day)
-        // Every return to the tab, but a read only when the day may have moved (`ReadFreshness`).
-        .task { await store.refreshIfDue() }
+        // A tick as the athlete steps the day, the way a picker wheel clicks past each value — on
+        // the selection, so the clock passing midnight does not tick by itself.
+        .sensoryFeedback(.selection, trigger: store.selection)
+        // Every return to the tab, but a read only when the day may have moved (`ReadFreshness`);
+        // the movement strip is read with it then, since a sync made elsewhere reaches both.
+        .task {
+            if await store.refreshIfDue() { await habits.loadDay(day) }
+        }
         .task(id: day) { await habits.loadDayIfNeeded(day) }
     }
 

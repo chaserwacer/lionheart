@@ -21,24 +21,53 @@ struct ReadinessIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let file = TodayGlanceFile()
         let now = Date()
-        if file.read()?.readiness.map({ !Calendar.current.isDate($0.day, inSameDayAs: now) }) ?? true {
+        if !(file.read()?.readiness.map { TodayGlance.isToday($0.day, at: now) } ?? false) {
             let container = container
-            _ = try? await Deadline.waiting(
-                atMost: Self.patience,
-                expiring: { CancellationError() },
-                for: { await container.readTodayForShortcut() })
+            await AnswerWait.atMost(Self.patience) { await container.readTodayForShortcut() }
         }
 
         guard let readiness = file.read()?.readiness else {
             return .result(dialog: "Lionheart has no readiness from Oura yet.")
         }
-        let day = TodayGlance.dayName(readiness.day, at: now)
-        let lead = day == "Today" ? "Readiness" : "\(day)'s readiness"
+        let lead = TodayGlance.isToday(readiness.day, at: now)
+            ? "Readiness"
+            : "\(TodayGlance.dayName(readiness.day, at: now))'s readiness"
         let comparison = readiness.comparison.map { ", \($0)" } ?? ""
         return .result(
             dialog: "\(lead) \(readiness.score), \(readiness.band.lowercased())\(comparison).",
             view: ReadinessGlanceView(readiness: readiness, now: now)
                 .frame(height: 120)
                 .padding())
+    }
+}
+
+/// Waits for a read for at most a spoken question's patience, and then answers either way.
+///
+/// Not `Deadline`, which cancels the late work and then waits for it to finish: a store's read runs
+/// in a task of its own that a cancelled caller does not stop, so a deadline over it waits as long
+/// as the read does. Here the read is left running — its answer still reaches the screen and the
+/// widgets — and only the waiting stops.
+@MainActor
+private enum AnswerWait {
+    static func atMost(_ limit: Duration, for read: @escaping @MainActor () async -> Void) async {
+        await withCheckedContinuation { (answered: CheckedContinuation<Void, Never>) in
+            let once = Once(answered)
+            Task { await read(); once.resume() }
+            Task { try? await Task.sleep(for: limit); once.resume() }
+        }
+    }
+
+    /// Resumes its continuation the first time it is asked, and never again.
+    private final class Once {
+        private var continuation: CheckedContinuation<Void, Never>?
+
+        init(_ continuation: CheckedContinuation<Void, Never>) {
+            self.continuation = continuation
+        }
+
+        func resume() {
+            continuation?.resume()
+            continuation = nil
+        }
     }
 }

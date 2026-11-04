@@ -24,8 +24,7 @@ struct HistoryView: View {
     /// The stack's path, held so a context menu can push a movement's page.
     @State private var path = NavigationPath()
     @ScaledMetric(relativeTo: .body) private var consistencyChartHeight: CGFloat = 64
-    /// Where a day, a week or the training calendar zooms out of: the row or header it was opened
-    /// from.
+    /// Where the training calendar zooms out of: the row it was opened from.
     @Namespace private var zoom
     /// Pulling to refresh brings in any new runs from Apple Health with the log.
     @Environment(HealthSyncStore.self) private var healthSync
@@ -121,13 +120,14 @@ struct HistoryView: View {
         }
     }
 
-    /// The destinations the log opens from a row or header of its own. The rest are reached from
-    /// pushed screens and context menus too, where there is no row here to zoom out of.
+    /// The destinations opened only from a row of the log itself. The rest are pushed from other
+    /// pages on this stack too — a week's page opens its days, a day's page its week — where the
+    /// row to zoom out of and back into is on the hidden root list.
     private static func zoomsFromRow(_ route: HistoryRoute) -> Bool {
         switch route {
-        case .day, .week, .consistency: true
-        case .session, .records, .recordSubject, .recordHistory, .trends, .movement, .movements, .focus,
-             .cardioSession, .night, .dayActivity, .run: false
+        case .consistency: true
+        case .day, .week, .session, .records, .recordSubject, .recordHistory, .trends, .movement, .movements,
+             .focus, .cardioSession, .night, .dayActivity, .run: false
         }
     }
 
@@ -308,13 +308,11 @@ struct HistoryView: View {
                 NavigationLink(value: HistoryRoute.day(day.day)) {
                     DayLogRow(day: day, today: today)
                 }
-                .matchedTransitionSource(id: HistoryRoute.day(day.day), in: zoom)
                 .contextMenu { menu(for: day) }
                 .swipeActions(edge: .trailing) { swipes(for: day) }
             }
         } header: {
             WeekHeader(week: week)
-                .matchedTransitionSource(id: HistoryRoute.week(week.start), in: zoom)
         }
     }
 

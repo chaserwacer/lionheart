@@ -7,12 +7,13 @@ struct GlanceEntry: TimelineEntry {
     let glance: TodayGlance?
 }
 
-/// The widgets' timeline: the glance the app left, now, and the same glance again at midnight.
+/// The widgets' timeline: the glance the app left, now, and the same glance again at each of the
+/// next week's midnights.
 ///
 /// Nothing here reaches the server. The app writes the glance and asks WidgetKit to reload when it
-/// changes (`TodayGlancePublisher`), so the timeline never expires on its own; its one later entry
-/// is midnight, where the glance's days have to be named again — "Today" becomes "Yesterday" with
-/// no new data.
+/// changes (`TodayGlancePublisher`), so the timeline never expires on its own; its later entries
+/// are where the glance's days have to be named again — "Today" becomes "Yesterday", then a
+/// weekday, with no new data.
 struct GlanceTimeline: TimelineProvider {
     func placeholder(in context: Context) -> GlanceEntry {
         GlanceEntry(date: Date(), glance: .placeholder)
@@ -26,10 +27,22 @@ struct GlanceTimeline: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<GlanceEntry>) -> Void) {
         let now = Date()
         let glance = TodayGlanceFile().read()
-        let midnight = Calendar.current.startOfDay(for: now).addingTimeInterval(86_400 + 60)
         completion(Timeline(
-            entries: [GlanceEntry(date: now, glance: glance), GlanceEntry(date: midnight, glance: glance)],
+            entries: [GlanceEntry(date: now, glance: glance)]
+                + Self.midnights(after: now).map { GlanceEntry(date: $0, glance: glance) },
             policy: .never))
+    }
+
+    /// The next week's midnights, a minute past each, by the calendar rather than by adding a
+    /// day's seconds — a night the clocks change on is not 86,400 seconds long. A week, so a glance
+    /// left unchanged for days still names its days rightly; the app reloads the timeline long
+    /// before the last one when it runs at all.
+    static func midnights(after now: Date, calendar: Calendar = .current) -> [Date] {
+        let today = calendar.startOfDay(for: now)
+        return (1...7).compactMap { offset in
+            calendar.date(byAdding: .day, value: offset, to: today)
+                .flatMap { calendar.date(byAdding: .minute, value: 1, to: $0) }
+        }
     }
 }
 

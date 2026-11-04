@@ -117,7 +117,8 @@ enum LoadState<Value: Equatable & Sendable>: Equatable, Sendable {
 /// is still being asked has failed at nothing yet: it is the screen as it stood, about to be
 /// brought up to date in place.
 enum Staleness: Equatable, Sendable {
-    /// The last refresh failed, for the reason given. The value is the last one loaded.
+    /// The last refresh failed, for the reason given. The value is the last one the screen held —
+    /// loaded, or recalled from the device on a first load.
     case refreshFailed(LoadFailure)
     /// The server could not be reached. The value is the last answer it gave, at `asOf`.
     case unreachable(asOf: Date)

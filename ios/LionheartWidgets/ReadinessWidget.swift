@@ -72,8 +72,9 @@ private struct ReadinessWidgetView: View {
     }
 
     private func title(_ readiness: TodayGlance.Readiness) -> String {
-        let day = TodayGlance.dayName(readiness.day, at: entry.date)
-        return day == "Today" ? "Readiness" : day
+        TodayGlance.isToday(readiness.day, at: entry.date)
+            ? "Readiness"
+            : TodayGlance.dayName(readiness.day, at: entry.date)
     }
 }
 

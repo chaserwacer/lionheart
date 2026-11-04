@@ -45,7 +45,8 @@ final class AppContainer {
     private let users: UserAPI
     /// What the Home and Lock Screen widgets show, fed by Today.
     private let glance = TodayGlancePublisher()
-    private var hasStarted = false
+    /// The one start, which every later caller waits on rather than repeats.
+    private var starting: Task<Void, Never>?
 
     init(configuration: APIConfiguration = APIConfiguration()) {
         let tokens = TokenProvider(configuration: configuration)
@@ -119,11 +120,21 @@ final class AppContainer {
 
     /// Settles the signed-in root and reads back anything that survived the last run.
     ///
-    /// Guarded because `RootView.task` runs again whenever that view is recreated, and registering
-    /// the sign-out teardown a second time would run it twice.
+    /// Run once: `RootView.task` runs again whenever that view is recreated, and registering the
+    /// sign-out teardown a second time would run it twice. A caller arriving while it is still
+    /// running — a Shortcut or the morning wake launching the app — waits for it, so it sees the
+    /// session settled rather than undetermined.
     func start() async {
-        guard !hasStarted else { return }
-        hasStarted = true
+        if let starting {
+            await starting.value
+            return
+        }
+        let task = Task { await self.startOnce() }
+        starting = task
+        await task.value
+    }
+
+    private func startOnce() async {
 
         // A sync stores new days, so the two tabs that show them read again — Body only when it has
         // been opened, since an unopened tab reads for itself when it is.
@@ -258,22 +269,24 @@ final class AppContainer {
         // A tab's `.task` does not run again when the app returns to it, so the screens that were
         // already open catch up here — each only if its answer may have moved since, which across a
         // night always includes the day changing under Today. History only once it has been opened.
-        async let day: Void = today.refreshIfDue()
+        async let day = today.refreshIfDue()
         if history.state.value != nil { await history.refreshIfDue() }
-        await day
+        _ = await day
     }
 
-    /// The morning wake iOS granted (`BackgroundRefresh`): sync the ring if it is behind and read
-    /// today, which brings the widgets up to date, then ask for the next one.
+    /// The morning wake iOS granted (`BackgroundRefresh`): ask for the next one, then sync the ring
+    /// if it is behind and read today, which brings the widgets up to date.
     ///
     /// `start()` first, because a background launch may never draw `RootView`, whose task is what
     /// otherwise restores the session.
     func refreshInBackground() async {
+        // Asked for first: iOS may end this task before the reads below finish, and a wake that
+        // never asked for the next one leaves the widgets waiting for the app to be opened.
+        BackgroundRefresh.schedule()
         await start()
-        defer { BackgroundRefresh.schedule() }
         guard case .signedIn = auth.session else { return }
         await ouraSync.syncIfBehind()
-        await today.refreshIfDue()
+        await today.refreshTodayIfDue()
     }
 
     /// Reads today for a Shortcut asked while the glance is from an earlier day — what feeds the
@@ -281,7 +294,7 @@ final class AppContainer {
     func readTodayForShortcut() async {
         await start()
         guard case .signedIn = auth.session else { return }
-        await today.refreshIfDue()
+        await today.refreshTodayIfDue()
     }
 
     /// An athlete has just signed in.

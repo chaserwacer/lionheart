@@ -99,9 +99,14 @@ final class HistoryStore {
         await refresh()
     }
 
-    /// Loads when the log may be behind — what the tab coming back into view asks for.
+    /// Loads when the log may be behind — what the tab coming back into view asks for. A load
+    /// already out is waited on rather than started again.
     func refreshIfDue() async {
-        guard load == nil, ReadFreshness.needsRead(
+        if let load {
+            await load.value
+            return
+        }
+        guard ReadFreshness.needsRead(
             state, lastRead: lastRead, now: now(), acceptedWrites: writes.accepted, freshFor: Self.freshFor)
         else { return }
         await refresh()
@@ -292,7 +297,10 @@ final class HistoryStore {
                async let bySubject = records.summaries(remembering: .recordSummaries)
                return try await (window, bySubject)
            }),
-           let asOf = [kept.0.asOf, kept.1.asOf].compactMap({ $0 }).min() {
+           let asOf = [kept.0.asOf, kept.1.asOf].compactMap({ $0 }).min(),
+           // A sign-out while the device was read has reset the store; that athlete's log must not
+           // be painted into it.
+           !Task.isCancelled {
             state = state.recalling(
                 HistorySnapshot.reading(
                     sessions: kept.0.value, catalogue: library.catalogue, records: kept.1.value, today: today),

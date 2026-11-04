@@ -44,6 +44,11 @@ struct TodayGlance: Codable, Equatable, Sendable {
     /// When the app had the server's answer this was made from.
     let asOf: Date
 
+    /// Whether a glance's day is the day it is drawn on — the one day a widget leaves unnamed.
+    static func isToday(_ day: Date, at now: Date, calendar: Calendar = .current) -> Bool {
+        calendar.isDate(day, inSameDayAs: now)
+    }
+
     /// A glance's day named against the moment it is drawn: "Today", "Yesterday", "Tomorrow", the
     /// weekday within the week either side, and the date beyond.
     ///
