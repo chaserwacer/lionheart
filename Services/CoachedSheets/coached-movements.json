@@ -18,7 +18,7 @@
   { "slug": "pause-squat", "base": "Squat", "equipment": "Barbell", "modifier": "paused", "unsure": "\"Pause Squat\" (sets of four) and \"Paused Squat\" (singles) sit on the same Day 5 of each block; read as one lift at two rep ranges." },
   { "slug": "paused-ssb-squat", "base": "Squat", "equipment": "Safety Squat Bar", "modifier": "paused" },
   { "slug": "ascending-highbar-squat", "base": "Squat", "equipment": "Barbell", "modifier": "high bar", "unsure": "Ascending means the load or effort rose set to set (\"RPE 6 +=.5\"); the sheet holds one weight, 317 lb, so all four sets are recorded at it." },
-  { "slug": "ffe-split-squat", "base": "Split Squat", "equipment": "Dumbell", "modifier": "front foot elevated", "unsure": "The sheet names no equipment; dumbbells assumed for 100 lb, as the Strong map does." },
+  { "slug": "ffe-split-squat", "base": "Split Squat", "equipment": "Dumbbell", "modifier": "front foot elevated", "unsure": "The sheet names no equipment; dumbbells assumed for 100 lb, as the Strong map does." },
 
   { "slug": "bench-press-barbell", "base": "Bench Press", "equipment": "Barbell" },
   { "slug": "tempo-bench-press", "base": "Bench Press", "equipment": "Barbell", "modifier": "tempo" },
@@ -27,7 +27,7 @@
   { "slug": "spoto-bench", "base": "Bench Press", "equipment": "Barbell", "modifier": "spoto" },
   { "slug": "alt-grip-larsen-bench", "base": "Bench Press", "equipment": "Barbell", "modifier": "larsen alternate grip", "unsure": "Coach's note \"Pinky on ring\": a Larsen press at a changed grip, kept as one variation." },
   { "slug": "bench-press-varied-grip", "base": "Bench Press", "equipment": "Barbell", "modifier": "varied grip", "unsure": "\"One finger space in or out from your main grip\": the grip moved week to week, kept as one variation." },
-  { "slug": "dumbell-bench", "base": "Bench Press", "equipment": "Dumbell" },
+  { "slug": "dumbell-bench", "base": "Bench Press", "equipment": "Dumbbell" },
 
   { "slug": "deadlift-barbell", "base": "Deadlift", "equipment": "Barbell" },
   { "slug": "paused-deadlift", "base": "Deadlift", "equipment": "Barbell", "modifier": "paused" },
@@ -43,10 +43,10 @@
   { "slug": "sldl", "base": "Stiff Leg Deadlift", "equipment": "Barbell" },
   { "slug": "lower-back-extensions", "base": "Back Extension", "equipment": "Machine", "unsure": "135 lb reads as a loaded machine, as the Strong map reads its own back extension." },
 
-  { "slug": "hamstring-curl", "base": "Leg Curl", "equipment": "Lying Leg Curl", "unsure": "The sheet names no machine; the same block's first week records it as \"LLC: 80x11\", a lying leg curl." },
+  { "slug": "hamstring-curl", "base": "Leg Curl", "equipment": "Machine", "modifier": "lying", "unsure": "The sheet names no machine; the same block's first week records it as \"LLC: 80x11\", a lying leg curl." },
   { "slug": "abductor-machine", "base": "Hip Abductor", "equipment": "Machine" },
   { "slug": "iso-lateral-row", "base": "Iso-Lateral Row", "equipment": "Machine" },
   { "slug": "lat-pulldown", "base": "Lat Pulldown", "equipment": "Cable" },
   { "slug": "chest-press-machine", "base": "Chest Press", "equipment": "Machine" },
-  { "slug": "strict-db-curl", "base": "Bicep Curl", "equipment": "Dumbell", "unsure": "\"Strict\" read as a form cue rather than a different exercise, so folded into the dumbbell curl." }
+  { "slug": "strict-db-curl", "base": "Bicep Curl", "equipment": "Dumbbell", "unsure": "\"Strict\" read as a form cue rather than a different exercise, so folded into the dumbbell curl." }
 ]
