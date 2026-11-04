@@ -40,7 +40,7 @@ targets:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
         # Shared with LionheartWidgets: the app leaves today's glance there for the Home and Lock
-        # Screen widgets (Store/TodayGlanceFile.swift). Available on the free developer tier.
+        # Screen widgets (Store/Glance/TodayGlanceFile.swift). Available on the free developer tier.
         com.apple.security.application-groups: [group.com.chasebalmer.lionheart]
     dependencies:
       # Embeds the widget extension in the app's PlugIns folder, which is the only way a Live
@@ -81,7 +81,7 @@ targets:
         # nothing in the log saying why. It belongs here for the same reason UILaunchScreen does —
         # this project supplies its own Info.plist, so no INFOPLIST_KEY_* build setting reaches it.
         NSSupportsLiveActivities: true
-        # One morning wake to read today for the widgets (Store/BackgroundRefresh.swift). Background
+        # One morning wake to read today for the widgets (Store/Glance/BackgroundRefresh.swift). Background
         # app refresh is the "fetch" mode; the free developer tier has it, and no push.
         UIBackgroundModes: [fetch]
         BGTaskSchedulerPermittedIdentifiers: [com.chasebalmer.lionheart.morning-refresh]
@@ -152,7 +152,7 @@ targets:
     sources:
       - path: LionheartWidgets
       - path: Lionheart/Core/Derived/TodayGlance.swift
-      - path: Lionheart/Store/TodayGlanceFile.swift
+      - path: Lionheart/Store/Glance/TodayGlanceFile.swift
       - path: Lionheart/Design/ReadinessGlanceView.swift
       - path: Lionheart/Resources/Assets.xcassets
     configFiles:
