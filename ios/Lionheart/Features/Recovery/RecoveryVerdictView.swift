@@ -14,6 +14,7 @@ struct RecoveryVerdictView: View {
     let today: CalendarDay
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .largeTitle) private var sparklineHeight: CGFloat = 52
 
     var body: some View {
@@ -29,6 +30,9 @@ struct RecoveryVerdictView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(readiness.score.description)
                         .font(.largeTitle.weight(.semibold).monospacedDigit())
+                        // Rolls to the next day's score as the day steps, rather than cutting.
+                        .contentTransition(.numericText(value: readiness.score.value))
+                        .animation(reduceMotion ? nil : .snappy, value: readiness.score.value)
                     Text(readiness.band.label)
                         .font(.headline)
                         .foregroundStyle(readiness.band.colour)

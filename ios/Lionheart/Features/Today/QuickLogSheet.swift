@@ -58,6 +58,10 @@ struct QuickLogSheet: View {
         // type, so the keyboard is what they asked for.
         .presentationDetents([.medium, .large])
         .task { isFieldFocused = true }
+        // The entry landing is the moment worth feeling; a refusal is read, not felt.
+        .sensoryFeedback(.success, trigger: store.quickLog) { _, new in
+            if case .committed = new { true } else { false }
+        }
     }
 
     @ViewBuilder

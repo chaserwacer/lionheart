@@ -24,6 +24,9 @@ struct HistoryView: View {
     /// The stack's path, held so a context menu can push a movement's page.
     @State private var path = NavigationPath()
     @ScaledMetric(relativeTo: .body) private var consistencyChartHeight: CGFloat = 64
+    /// Where a day, a week or the training calendar zooms out of: the row or header it was opened
+    /// from.
+    @Namespace private var zoom
     /// Pulling to refresh brings in any new runs from Apple Health with the log.
     @Environment(HealthSyncStore.self) private var healthSync
 
@@ -76,6 +79,7 @@ struct HistoryView: View {
             }
             .navigationDestination(for: HistoryRoute.self) { route in
                 HistoryDestination(route: route, history: store, focus: focus, library: library)
+                    .navigationZoom(from: Self.zoomsFromRow(route) ? route : nil, in: zoom)
             }
             .confirmationDialog(
                 asked?.transition.confirmation?.question ?? "",
@@ -114,6 +118,16 @@ struct HistoryView: View {
             async let log: Void = store.refreshIfDue()
             async let pins: Void = focus.refreshIfNeeded()
             _ = await (log, pins)
+        }
+    }
+
+    /// The destinations the log opens from a row or header of its own. The rest are reached from
+    /// pushed screens and context menus too, where there is no row here to zoom out of.
+    private static func zoomsFromRow(_ route: HistoryRoute) -> Bool {
+        switch route {
+        case .day, .week, .consistency: true
+        case .session, .records, .recordSubject, .recordHistory, .trends, .movement, .movements, .focus,
+             .cardioSession, .night, .dayActivity, .run: false
         }
     }
 
@@ -251,6 +265,7 @@ struct HistoryView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .matchedTransitionSource(id: HistoryRoute.consistency, in: zoom)
             } header: {
                 Text("Sessions per week")
             }
@@ -293,11 +308,13 @@ struct HistoryView: View {
                 NavigationLink(value: HistoryRoute.day(day.day)) {
                     DayLogRow(day: day, today: today)
                 }
+                .matchedTransitionSource(id: HistoryRoute.day(day.day), in: zoom)
                 .contextMenu { menu(for: day) }
                 .swipeActions(edge: .trailing) { swipes(for: day) }
             }
         } header: {
             WeekHeader(week: week)
+                .matchedTransitionSource(id: HistoryRoute.week(week.start), in: zoom)
         }
     }
 
