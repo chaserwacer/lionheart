@@ -4,7 +4,7 @@ using lionheart.Model.Health;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 
-namespace lionheart.Services.Health;
+namespace lionheart.Services.Health.Runs;
 
 /// <summary>
 /// A recorded run as the chat model reads it: one block of text per run, every figure with its unit.

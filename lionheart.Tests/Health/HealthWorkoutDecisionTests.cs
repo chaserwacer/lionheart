@@ -3,7 +3,7 @@ using lionheart.Model.Analysis;
 using lionheart.Model.Health;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
-using lionheart.Services.Health;
+using lionheart.Services.Health.Import;
 using lionheart.Tests.Support;
 
 namespace lionheart.Tests.Health;

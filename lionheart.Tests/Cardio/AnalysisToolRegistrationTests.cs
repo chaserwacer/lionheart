@@ -1,7 +1,7 @@
 using lionheart.Services.BodyComposition;
 using lionheart.Services.Cardio;
 using lionheart.Services.Habits;
-using lionheart.Services.Health;
+using lionheart.Services.Health.Runs;
 using lionheart.Services.Training.Score;
 using Microsoft.Extensions.DependencyInjection;
 using Model.Chat.Tools;

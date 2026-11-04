@@ -1,7 +1,7 @@
 using Ardalis.ApiEndpoints;
 using lionheart.Endpoints.Filters;
 using lionheart.Model.Health;
-using lionheart.Services.Health;
+using lionheart.Services.Health.Import;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 

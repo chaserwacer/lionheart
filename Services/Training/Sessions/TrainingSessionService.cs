@@ -5,7 +5,7 @@ using lionheart.Model.Analysis;
 using lionheart.Model.Training;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
-using lionheart.Services.Health;
+using lionheart.Services.Health.Import;
 using lionheart.Services.Training.PersonalRecords;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

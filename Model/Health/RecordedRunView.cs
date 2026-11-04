@@ -72,7 +72,3 @@ public sealed record Split(
     double? ClimbMeters,
     double? DescentMeters,
     int? AverageBpm);
-
-/// <summary>What a route says on its own: its length, its time in motion, and its climb and descent.</summary>
-/// <param name="ClimbMeters">Absent where no fix carried an altitude.</param>
-public sealed record RouteFigures(double Meters, TimeSpan Moving, double? ClimbMeters, double? DescentMeters);

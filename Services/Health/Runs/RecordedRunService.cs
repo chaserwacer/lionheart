@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Tools;
 
-namespace lionheart.Services.Health;
+namespace lionheart.Services.Health.Runs;
 
 public interface IRecordedRunService
 {

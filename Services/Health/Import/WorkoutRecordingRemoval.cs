@@ -1,7 +1,7 @@
 using lionheart.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace lionheart.Services.Health;
+namespace lionheart.Services.Health.Import;
 
 internal static class WorkoutRecordingRemoval
 {

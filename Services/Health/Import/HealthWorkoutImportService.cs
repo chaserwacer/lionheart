@@ -8,7 +8,7 @@ using lionheart.Services.Training.PersonalRecords;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace lionheart.Services.Health;
+namespace lionheart.Services.Health.Import;
 
 public interface IHealthWorkoutImportService
 {

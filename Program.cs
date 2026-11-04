@@ -35,7 +35,8 @@ using lionheart.Services.CoachedSheets;
 using lionheart.Services.Chat.Memory;
 using lionheart.Services.Chat.Thread;
 using lionheart.Services.BodyComposition;
-using lionheart.Services.Health;
+using lionheart.Services.Health.Import;
+using lionheart.Services.Health.Runs;
 
 // Load .env into the process environment before the host reads configuration, so the Llm__,
 // Anthropic__, LmStudio__ and Embedding__ keys flow through the default environment-variable

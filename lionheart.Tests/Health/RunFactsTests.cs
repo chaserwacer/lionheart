@@ -1,7 +1,7 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
-using lionheart.Services.Health;
+using lionheart.Services.Health.Runs;
 using lionheart.Tests.Support;
 
 namespace lionheart.Tests.Health;

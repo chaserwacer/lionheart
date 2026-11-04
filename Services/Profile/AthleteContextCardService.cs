@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using lionheart.Services.Chat;
 using lionheart.Services.Llm;
 using lionheart.Services.BodyComposition;
-using lionheart.Services.Health;
+using lionheart.Services.Health.Runs;
 
 namespace lionheart.Services.Profile
 {

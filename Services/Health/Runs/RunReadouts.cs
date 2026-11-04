@@ -5,7 +5,7 @@ using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Cardio;
 
-namespace lionheart.Services.Health;
+namespace lionheart.Services.Health.Runs;
 
 /// <summary>The heart-rate samples a run is read against, and whose they are.</summary>
 public sealed record RunHeartRate(IReadOnlyList<HeartRateSample> Samples, HeartRateSource Source);

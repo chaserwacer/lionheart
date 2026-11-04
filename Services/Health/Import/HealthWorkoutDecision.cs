@@ -4,8 +4,9 @@ using lionheart.Model.Training;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Cardio;
+using lionheart.Services.Health.Runs;
 
-namespace lionheart.Services.Health;
+namespace lionheart.Services.Health.Import;
 
 /// <summary>What one Apple Health workout becomes: a session with its recording, or nothing, for a reason.</summary>
 public abstract record HealthWorkoutDecision
