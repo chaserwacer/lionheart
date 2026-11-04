@@ -166,7 +166,7 @@ extension ReadKey {
 
     /// One record chain, by the identity the route is asked with.
     static func recordHistory(_ key: RecordKey) -> ReadKey {
-        let subject = key.subject.movementDataId?.uuidString ?? "trail-running"
+        let subject = key.subject.movementDataId?.uuidString ?? key.subject.wireKind
         let bracket = key.kind.bracket.map { ".\($0)" } ?? ""
         return ReadKey("records.history.\(subject).\(key.kind.wireName)\(bracket)")
     }

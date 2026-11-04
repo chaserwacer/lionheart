@@ -93,7 +93,8 @@ extension PersonalRecord: Decodable {
 
         self.init(
             personalRecordId: personalRecordId,
-            subject: RecordSubject(wire: container.lenient(UUID.self, "movementDataId")),
+            subject: RecordSubject(
+                wire: container.lenient(UUID.self, "movementDataId"), subject: container.lenient(String.self, "subject")),
             achievement: container.lenient(Achievement.self, "achievement") ?? .unrecognised(""),
             achievedAt: achievedAt,
             lineage: container.instant("previousAchievedAt")

@@ -131,6 +131,9 @@ struct RecordMarks: Equatable, Sendable {
         case .trailRun(let run):
             subject == .trailRunning
                 && same(effort, distance: run.distance, unit: run.unit, duration: run.duration)
+        case .endurance(let set):
+            subject == set.activity.recordSubject
+                && same(effort, distance: set.distance, unit: set.unit, duration: set.duration)
         case .lift, .freeform, .unrecognised:
             false
         }
