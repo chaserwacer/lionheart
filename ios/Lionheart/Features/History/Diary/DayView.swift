@@ -220,7 +220,7 @@ private struct CardioFacts: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             switch session.heartRate {
-            case .recorded(let average, let peak, _, let zones):
+            case .recorded(let average, let peak, _, let zones, _):
                 Text("Heart rate avg \(average) · peak \(peak) bpm\(zones.map { " · Z2 \(Formatting.minutes($0.zone2))" } ?? "")")
                     .font(.footnote.monospacedDigit())
                     .foregroundStyle(Color(.secondaryLabel))

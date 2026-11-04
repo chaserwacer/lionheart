@@ -46,7 +46,7 @@ struct DiaryDay: Equatable, Sendable {
     /// The server's cardio reading of a logged session, where it counted it as cardio.
     func cardio(of trainingSessionId: UUID) -> CardioSession? {
         cardio.first { session in
-            if case .loggedSession(let id, _) = session.source { return id == trainingSessionId }
+            if case .loggedSession(let id, _, _) = session.source { return id == trainingSessionId }
             return false
         }
     }

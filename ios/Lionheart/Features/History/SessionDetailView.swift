@@ -35,6 +35,7 @@ struct SessionDetailView: View {
 
         List {
             headerSection(marks)
+            recordingSection
 
             switch session {
             case .completed(let completed):
@@ -133,6 +134,24 @@ struct SessionDetailView: View {
                 // athlete typed out, and provenance is orthogonal to lifecycle on purpose.
                 LabeledContent("Logged") { Text("With help from the model") }
             }
+        }
+    }
+
+    /// A run imported from Apple Health opens onto its own page: the route, the splits and the
+    /// recording app's heart rate.
+    @ViewBuilder
+    private var recordingSection: some View {
+        switch session.envelope.source {
+        case .appleHealth(_, let recordedBy):
+            Section {
+                NavigationLink(value: HistoryRoute.run(session.id)) {
+                    Text("Route, splits and heart rate")
+                }
+            } footer: {
+                Text("Recorded by \(recordedBy.nonEmpty ?? "an app") and imported from Apple Health.")
+            }
+        case .athleteLog, .unrecognised:
+            EmptyView()
         }
     }
 

@@ -26,6 +26,8 @@ final class AppContainer {
     let chatMemory: MemoryStore
     let body: BodyStore
     let ouraSync: OuraSyncStore
+    let healthSync: HealthSyncStore
+    let runs: RunStore
     let cardio: CardioStore
     let habits: HabitsStore
     let diary: DiaryStore
@@ -101,6 +103,9 @@ final class AppContainer {
             wellness: WellnessAPI(client: client),
             injuries: InjuriesAPI(client: client))
         ouraSync = OuraSyncStore(oura: OuraAPI(client: client))
+        healthSync = HealthSyncStore(
+            health: HealthLibrary(), server: HealthAPI(client: client), marks: HealthSyncMarkFile())
+        runs = RunStore(health: HealthAPI(client: client))
         cardio = CardioStore(cardio: CardioAPI(client: client), oura: OuraAPI(client: client))
         habits = HabitsStore(habits: HabitsAPI(client: client))
         diary = DiaryStore(
@@ -128,11 +133,22 @@ final class AppContainer {
             // New heart rate is new cardio, and new readiness can change what is up next.
             if balance.score.value != nil { await balance.refresh() }
         }
+        // An imported run is a new session: in the log, on its day, in the cardio report and the
+        // score. A backfill can reach any day, so every diary page already read is read again.
+        healthSync.onImported { [today, history, cardio, diary, balance] in
+            await today.refresh()
+            await history.refresh()
+            await cardio.refreshLoaded()
+            await diary.refreshLoaded(since: CalendarDay(year: 1, month: 1, day: 1))
+            if balance.score.value != nil { await balance.refresh() }
+        }
         // Today holds its own window of sessions, so a correction made from History shows there too.
-        history.onRevised { [today, balance] in
+        history.onRevised { [today, balance, runs] in
             await today.refresh()
             // A corrected session changes the week's hard sets and its score.
             await balance.refresh()
+            // A corrected run's distance, time and climb are its page's figures.
+            await runs.refreshLoaded()
         }
         // A rating shows on Body's row for it and on the day it rates.
         wellness.onLogged { [body, diary] entry in
@@ -146,7 +162,7 @@ final class AppContainer {
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
             [profile, today, train, routines, bodyweight, bodyComposition, movements, history, focus, balance, chat,
-             thread, chatMemory, body, ouraSync, cardio, habits, diary, wellness, memory] in
+             thread, chatMemory, body, ouraSync, healthSync, runs, cardio, habits, diary, wellness, memory] in
             profile.reset()
             today.reset()
             train.reset()
@@ -162,6 +178,9 @@ final class AppContainer {
             chatMemory.reset()
             body.reset()
             ouraSync.reset()
+            // The anchor goes too: the next athlete's server holds none of these runs.
+            healthSync.reset()
+            runs.reset()
             cardio.reset()
             habits.reset()
             diary.reset()
@@ -261,6 +280,7 @@ final class AppContainer {
             if body.state.isWaitingOnServer { group.addTask { await self.body.refresh() } }
             if cardio.isWaitingOnServer { group.addTask { await self.cardio.refreshLoaded() } }
             if habits.isWaitingOnServer { group.addTask { await self.habits.refreshLoaded() } }
+            if runs.isWaitingOnServer { group.addTask { await self.runs.refreshLoaded() } }
             if movements.state.isWaitingOnServer { group.addTask { await self.movements.refresh() } }
             if case .unavailable = chat.state { group.addTask { await self.chat.refresh() } }
             if thread.transcript.isWaitingOnServer { group.addTask { await self.thread.refresh() } }

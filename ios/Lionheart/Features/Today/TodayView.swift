@@ -13,6 +13,7 @@ import SwiftUI
 struct TodayView: View {
     let store: TodayStore
     let ouraSync: OuraSyncStore
+    let healthSync: HealthSyncStore
     /// The shown day's movement timeline, read beside the day's other reads.
     let habits: HabitsStore
     /// Names the movements in each session's lines.
@@ -76,7 +77,7 @@ struct TodayView: View {
                 QuickLogSheet(store: store)
             }
             .sheet(isPresented: $isSettingsPresented) {
-                SettingsSheet(apiBaseURL: apiBaseURL, activeWorkout: activeWorkout)
+                SettingsSheet(apiBaseURL: apiBaseURL, activeWorkout: activeWorkout, healthSync: healthSync)
             }
             .sheet(isPresented: $isRecoveryExplained) {
                 RecoveryExplanationSheet()
@@ -181,7 +182,10 @@ struct TodayView: View {
         // Under the figures it qualifies, so the verdict leads, and in a section of its own so the
         // figures' footer stays with them: how current they are, and the control that updates them.
         if isToday {
-            Section { OuraSyncRow(store: ouraSync, today: today) }
+            Section {
+                OuraSyncRow(store: ouraSync, today: today)
+                HealthSyncRow(store: healthSync)
+            }
         }
         if let active = snapshot.inProgress { inProgressSection(active) }
         trainingSection(snapshot, today: today)
@@ -383,7 +387,10 @@ struct TodayView: View {
     private func loadingRows(isToday: Bool) -> some View {
         Section("Recovery") { SkeletonRows(count: 3) }
         if isToday {
-            Section { OuraSyncRow(store: ouraSync, today: store.today) }
+            Section {
+                OuraSyncRow(store: ouraSync, today: store.today)
+                HealthSyncRow(store: healthSync)
+            }
         }
         Section("Training") { SkeletonRows(count: 1) }
         if isToday { quickLogSection }

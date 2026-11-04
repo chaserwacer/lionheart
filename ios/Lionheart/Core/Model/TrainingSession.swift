@@ -44,6 +44,8 @@ enum TrainingSession: Equatable, Sendable, Identifiable {
         /// The routine the session was trained from, or `nil` for an ad hoc one. The server's
         /// fill-state is this nullable id on the wire, like program membership.
         let routineId: UUID?
+        /// Where the session came from — the athlete's log, or a run imported from Apple Health.
+        let source: SessionSource
         let createdAt: Date?
         /// The calendar day the session belongs to, derived server-side by each state from its own
         /// time-truth.
@@ -51,13 +53,14 @@ enum TrainingSession: Equatable, Sendable, Identifiable {
 
         init(
             trainingSessionId: UUID, notes: String, provenance: Provenance, trainingProgramId: UUID?,
-            routineId: UUID? = nil, createdAt: Date?, date: CalendarDay
+            routineId: UUID? = nil, source: SessionSource = .athleteLog, createdAt: Date?, date: CalendarDay
         ) {
             self.trainingSessionId = trainingSessionId
             self.notes = notes
             self.provenance = provenance
             self.trainingProgramId = trainingProgramId
             self.routineId = routineId
+            self.source = source
             self.createdAt = createdAt
             self.date = date
         }
@@ -133,6 +136,7 @@ extension TrainingSession: Decodable {
             provenance: Provenance(wire: container.lenient(Int.self, "provenance")),
             trainingProgramId: container.lenient(UUID.self, "trainingProgramId"),
             routineId: container.lenient(UUID.self, "routineId"),
+            source: container.lenient(SessionSource.self, "source") ?? .athleteLog,
             createdAt: container.instant("createdAt"),
             date: date)
 
