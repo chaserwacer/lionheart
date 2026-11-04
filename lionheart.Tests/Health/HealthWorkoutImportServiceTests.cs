@@ -16,7 +16,7 @@ using Microsoft.EntityFrameworkCore;
 namespace lionheart.Tests.Health;
 
 /// <summary>
-/// Importing Apple Health runs through the real schema: a session and its recording written
+/// Importing Apple Health workouts through the real schema: a session and its recording written
 /// together, an import that is idempotent on the workout's UUID, the records it sets, and a run's
 /// page read back with its heart rate from the right source.
 /// </summary>
@@ -121,6 +121,31 @@ public class HealthWorkoutImportServiceTests : IDisposable
         Assert.Contains(records, record => record.Achievement is Achievement.BestPace);
     }
 
+    [Theory]
+    [InlineData("cycling", typeof(RecordSubject.Riding))]
+    [InlineData("hiking", typeof(RecordSubject.Hiking))]
+    public async Task An_imported_ride_or_hike_sets_records_on_its_own_subject(string activity, Type subject)
+    {
+        await ImportAsync(AHealthRun.Outdoor(meters: 12_000) with { Activity = activity });
+
+        var records = await StandingAsync();
+
+        Assert.NotEmpty(records);
+        Assert.All(records, record => Assert.IsType(subject, record.Subject));
+    }
+
+    [Theory]
+    [InlineData("cycling", true)]
+    [InlineData("running", true)]
+    [InlineData("walking", false)]
+    public async Task An_indoor_ride_or_run_and_a_walk_are_sessions_with_no_records(string activity, bool indoor)
+    {
+        Assert.IsType<HealthImportOutcome.Imported>(
+            await ImportAsync(AHealthRun.Outdoor() with { Activity = activity, Indoor = indoor }));
+
+        Assert.Empty(await StandingAsync());
+    }
+
     [Fact]
     public async Task An_older_run_imported_after_a_newer_one_is_placed_in_the_order_they_happened()
     {
@@ -201,6 +226,52 @@ public class HealthWorkoutImportServiceTests : IDisposable
         Assert.Equal(0, await context.WorkoutRecordings.CountAsync());
     }
 
+    [Fact]
+    public async Task A_workout_whose_session_was_deleted_is_not_imported_again()
+    {
+        var workout = AHealthRun.Outdoor();
+        var imported = Assert.IsType<HealthImportOutcome.Imported>(await ImportAsync(workout));
+        await _athletes.SessionsAsync(service => service.DeleteAsync(_athletes.Owner, imported.Session.TrainingSessionId, default));
+
+        var again = await ImportAsync(workout);
+
+        Assert.Equal(new HealthImportOutcome.NotImported(HealthWorkoutExclusion.Deleted, null), again);
+        await using var context = _athletes.CreateContext();
+        Assert.Equal(0, await context.Sessions.CountAsync());
+    }
+
+    [Fact]
+    public async Task Deleting_a_session_from_the_athletes_own_log_remembers_no_Health_workout()
+    {
+        var logged = Some.CompletedSession(_athletes.OwnerId);
+        await _athletes.PlantAsync(context => context.Sessions.Add(logged));
+
+        await _athletes.SessionsAsync(service => service.DeleteAsync(_athletes.Owner, logged.TrainingSessionId, default));
+
+        await using var context = _athletes.CreateContext();
+        Assert.Equal(0, await context.DeletedHealthWorkouts.CountAsync());
+    }
+
+    // ---- Filling in what an earlier import lacked ----
+
+    [Fact]
+    public async Task A_run_offered_again_with_its_form_gains_it_once_and_nothing_else_moves()
+    {
+        var bare = AHealthRun.Outdoor();
+        var imported = Assert.IsType<HealthImportOutcome.Imported>(await ImportAsync(bare));
+        var withForm = bare with { Metrics = [new MetricSeriesCommand("groundContactTime", [new(AHealthRun.Start, 245)])] };
+        var different = bare with { Metrics = [new MetricSeriesCommand("groundContactTime", [new(AHealthRun.Start, 300)])] };
+
+        var answers = new[] { await ImportAsync(withForm), await ImportAsync(different) };
+
+        Assert.All(answers, answer => Assert.Equal(new HealthImportOutcome.AlreadyImported(imported.Session.TrainingSessionId), answer));
+        await using var context = _athletes.CreateContext();
+        var recording = await context.WorkoutRecordings.SingleAsync();
+        Assert.Equal([245.0], recording.Metrics.Of(WorkoutMetric.GroundContactTime).Select(sample => sample.Value));
+        Assert.Equal(ResultAssert.Succeeded(bare.Stated()).Route, recording.Route);
+        Assert.Equal(1, await context.Sessions.CountAsync());
+    }
+
     // ---- Reading a run back ----
 
     [Fact]
@@ -208,7 +279,7 @@ public class HealthWorkoutImportServiceTests : IDisposable
     {
         var imported = Assert.IsType<HealthImportOutcome.Imported>(await ImportAsync(AHealthRun.Outdoor(meters: 2500, bpm: 152)));
 
-        var run = ResultAssert.Succeeded(await _athletes.RecordedRunsAsync(service =>
+        var run = ResultAssert.Succeeded(await _athletes.RecordedWorkoutsAsync(service =>
             service.GetAsync(_athletes.Owner, imported.Session.TrainingSessionId, default)));
 
         Assert.Equal(2500, run.DistanceMeters, precision: 6);
@@ -218,6 +289,29 @@ public class HealthWorkoutImportServiceTests : IDisposable
         var heartRate = Assert.IsType<SessionHeartRate.Recorded>(run.HeartRate);
         Assert.Equal((152, HeartRateSource.AppleHealth), (heartRate.AverageBpm, heartRate.Source));
         Assert.Equal(AHealthRun.StravaName, run.RecordedBy.Name);
+    }
+
+    [Fact]
+    public async Task A_ride_reads_back_as_a_ride_with_the_apps_metrics_averaged()
+    {
+        var ride = AHealthRun.Outdoor(meters: 20_000, metersPerSecond: 8) with
+        {
+            Activity = "cycling",
+            Metrics =
+            [
+                new MetricSeriesCommand("power", [new(AHealthRun.Start, 200), new(AHealthRun.Start.AddSeconds(1), 0), new(AHealthRun.Start.AddSeconds(2), 250)]),
+                new MetricSeriesCommand("heartRateRecovery", [new(AHealthRun.Start.AddHours(1), 31)]),
+            ],
+        };
+        var imported = Assert.IsType<HealthImportOutcome.Imported>(await ImportAsync(ride));
+
+        var read = ResultAssert.Succeeded(await _athletes.RecordedWorkoutsAsync(service =>
+            service.GetAsync(_athletes.Owner, imported.Session.TrainingSessionId, default)));
+
+        Assert.Equal(RecordedActivity.Ride, read.Activity);
+        var power = Assert.Single(read.Metrics, metric => metric.Metric is WorkoutMetric.Power);
+        Assert.Equal((150.0, 250.0, 3), (power.Average, power.Peak, power.Samples.Count));
+        Assert.Equal(31, Assert.Single(read.Metrics, metric => metric.Metric is WorkoutMetric.HeartRateRecovery).Average);
     }
 
     [Fact]
@@ -231,7 +325,7 @@ public class HealthWorkoutImportServiceTests : IDisposable
             new HeartRateDayReading([.. Enumerable.Range(0, 3).Select(index =>
                 new HeartRateSample(workout.Start.AddMinutes(5 * index).ToUniversalTime(), 141, "workout"))]))));
 
-        var run = ResultAssert.Succeeded(await _athletes.RecordedRunsAsync(service =>
+        var run = ResultAssert.Succeeded(await _athletes.RecordedWorkoutsAsync(service =>
             service.GetAsync(_athletes.Owner, imported.Session.TrainingSessionId, default)));
 
         Assert.Equal(HeartRateSource.Ring, run.Trace.Source);
@@ -245,7 +339,7 @@ public class HealthWorkoutImportServiceTests : IDisposable
         var logged = Some.CompletedSession(_athletes.OwnerId);
         await _athletes.PlantAsync(context => context.Sessions.Add(logged));
 
-        var problem = ResultAssert.Failed(await _athletes.RecordedRunsAsync(service =>
+        var problem = ResultAssert.Failed(await _athletes.RecordedWorkoutsAsync(service =>
             service.GetAsync(_athletes.Owner, logged.TrainingSessionId, default)));
 
         Assert.IsType<Problem.NotFound>(problem);
@@ -256,7 +350,7 @@ public class HealthWorkoutImportServiceTests : IDisposable
     {
         var imported = Assert.IsType<HealthImportOutcome.Imported>(await ImportAsync(AHealthRun.Outdoor()));
 
-        var problem = ResultAssert.Failed(await _athletes.RecordedRunsAsync(service =>
+        var problem = ResultAssert.Failed(await _athletes.RecordedWorkoutsAsync(service =>
             service.GetAsync(_athletes.Stranger, imported.Session.TrainingSessionId, default)));
 
         Assert.IsType<Problem.NotFound>(problem);
@@ -267,7 +361,7 @@ public class HealthWorkoutImportServiceTests : IDisposable
     {
         await ImportAsync(AHealthRun.Outdoor(meters: 5000));
 
-        var runs = await _athletes.RecordedRunsAsync(service => ((RecordedWorkoutService)service).GetRecordedRunsForChatAsync(
+        var runs = await _athletes.RecordedWorkoutsAsync(service => ((RecordedWorkoutService)service).GetRecordedWorkoutsForChatAsync(
             _athletes.Owner, new Model.Analysis.DayRange(DateOnly.FromDateTime(AHealthRun.Start.DateTime), DateOnly.FromDateTime(AHealthRun.Start.DateTime))));
 
         var text = Assert.Single(runs);

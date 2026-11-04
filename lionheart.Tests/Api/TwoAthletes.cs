@@ -154,7 +154,7 @@ public sealed class TwoAthletes : IDisposable
             context, TimeProvider.System, detector, new PersonalRecordRebuild(context, detector)));
     }
 
-    public async Task<T> RecordedRunsAsync<T>(Func<IRecordedWorkoutService, Task<T>> act)
+    public async Task<T> RecordedWorkoutsAsync<T>(Func<IRecordedWorkoutService, Task<T>> act)
     {
         using var context = CreateContext();
         return await act(new RecordedWorkoutService(context, new CardioReportService(context)));

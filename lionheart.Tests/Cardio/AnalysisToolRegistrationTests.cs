@@ -23,7 +23,7 @@ public class AnalysisToolRegistrationTests
     [InlineData("GetHabitsReport", typeof(HabitsReportService), typeof(IHabitsReportService))]
     [InlineData("GetTrainingScore", typeof(TrainingScoreService), typeof(ITrainingScoreService))]
     [InlineData("GetBodyCompositionScans", typeof(BodyCompositionService), typeof(IBodyCompositionService))]
-    [InlineData("GetRecordedRuns", typeof(RecordedWorkoutService), typeof(IRecordedWorkoutService))]
+    [InlineData("GetRecordedWorkouts", typeof(RecordedWorkoutService), typeof(IRecordedWorkoutService))]
     public async Task Each_report_is_a_tool_scoped_to_the_signed_in_athlete(string name, Type service, Type contract)
     {
         var services = new ServiceCollection();

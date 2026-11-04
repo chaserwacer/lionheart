@@ -78,6 +78,19 @@ public class CardioAnalysisTests
         Assert.Equal(WorkoutExclusion.SameAsLoggedRun, Assert.Single(report.Excluded).Reason);
     }
 
+    [Fact]
+    public void An_imported_ride_is_a_cardio_session_naming_its_activity_and_takes_the_rings_cycling_inside_it()
+    {
+        var ride = Logged(At(14, 7), 95, Some.RideSet) with { Source = AHealthRun.Source() };
+        var report = Build(ring: [Ring("cycling", At(14, 7).AddMinutes(5), 80)], logged: [ride]);
+
+        var session = Assert.Single(report.Sessions);
+        var source = Assert.IsType<CardioSessionSource.LoggedSession>(session.Source);
+        Assert.Equal((false, EnduranceActivity.Ride), (source.IsTrailRun, source.Activity));
+        Assert.Equal(42_500, session.DistanceMeters!.Value, precision: 3);
+        Assert.Equal(WorkoutExclusion.SameAsLoggedRun, Assert.Single(report.Excluded).Reason);
+    }
+
     // ---- Heart rate across a session ----
 
     [Fact]

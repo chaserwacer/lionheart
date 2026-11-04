@@ -57,6 +57,13 @@ public static class Some
             Facets = [new(FacetAxis.Modality, "run")],
         };
 
+    public static EnduranceSet RideSet =>
+        new(EnduranceActivity.Ride, Distance: 42.5, DistanceUnit.Kilometers, TimeSpan.FromMinutes(95), ElevationGainMeters: 380, Rpe.Unrated)
+        {
+            Source = new Formed(),
+            Facets = [],
+        };
+
     public static FreeformSet FreeformSet => new()
     {
         Source = TextedSource,
@@ -64,7 +71,7 @@ public static class Some
     };
 
     public static IReadOnlyList<SetEntry> AllSetShapes =>
-        [LiftSet, DistanceTimeSet, TrailRunSet, FreeformSet];
+        [LiftSet, DistanceTimeSet, TrailRunSet, RideSet, FreeformSet];
 
     public static IReadOnlyList<SetPrescription> AllPrescriptionShapes =>
     [

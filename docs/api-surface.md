@@ -27,7 +27,7 @@ directly* in any of the three live states, because logging after the fact is the
 | POST | `/{id}/skip` | Planned → Skipped | — |
 | POST | `/{id}/revise` | Completed → Completed (corrected) | `Sets[]`, `Period`, `Notes` |
 | GET | `/{id}` | — | — |
-| GET | `/{id}/recording` | — | a run imported from Apple Health: route, splits, heart rate (see "Apple Health") |
+| GET | `/{id}/recording` | — | a workout imported from Apple Health: route, splits, heart rate, the app's metrics (see "Apple Health") |
 | GET | `?from=&to=` | — | window over the stamped `StartTime` column |
 | PATCH | `/{id}/notes` | any state | `Notes` |
 | DELETE | `/{id}` | — | — |
@@ -71,7 +71,7 @@ do.
 One entry per movement the athlete has a completed set on: `movementDataId`, the `trainingSessionId`,
 `date` and `startedAt` of the most recent completed session that worked it — a session that only
 warmed up on it is passed over (most recent by the stamped start time), and `sets` — that movement's sets from that session in performed order, warm-ups
-included with their kind. Sets with no movement (trail runs, freeform) never appear. The list's order
+included with their kind. Sets with no movement (trail runs, endurance sets, freeform) never appear. The list's order
 carries no meaning. It reads every completed session, since which sessions hold a movement lives in
 the sets' JSON column.
 
@@ -108,9 +108,12 @@ window `[start, start]`; a record does not name the session that set it, so that
 movement and the achievement's own figures are how a client finds the set. Beaten and retracted
 records come back too: a set that took a record still took it after a later session beat it.
 
-A record's **subject** is one movement or trail running, and it crosses the wire as an optional
-`movementDataId` — absent meaning trail running — for the same reason program membership does: a
-flat shape generates a far better TypeScript client. The domain's two cases are restored at the
+A record's **subject** is one movement, trail running, riding or hiking. It crosses the wire flat,
+for the same reason program membership does — a flat shape generates a far better TypeScript
+client: an optional `movementDataId`, and `subject` (`movement` | `trailRunning` | `riding` |
+`hiking`) on every record and every subject's list. `/history` takes the same pair: a
+`movementDataId`, or `subject=riding` / `hiking` / `trailRunning` with none; neither is trail
+running, as it was before riding and hiking had records. The domain's cases are restored at the
 service boundary.
 
 An **achievement** is polymorphic on `$type`, one case per kind, each carrying only what its own
@@ -434,7 +437,9 @@ when there is no maximum heart rate, or when less than half the window's session
 rate synced), and `excluded` (ring workouts left out, counted by category and `reason`:
 `sameAsLoggedRun`, `insideLoggedLifting`, `shortWalk`, `strength`, `notTraining`, `unclassified`,
 `noDuration`). A `loggedSession` source carries `isRecorded` — imported from Apple Health, so
-`GET /api/training/sessions/{id}/recording` has its route — and a `recorded` heart rate carries
+`GET /api/training/sessions/{id}/recording` has its route — and `activity` for an endurance session
+(`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`; null for a trail run or a distance-and-time
+session, which `isTrailRun` tells apart); a `recorded` heart rate carries
 `source`: `ring` (the all-day series over the session's clock time) or `appleHealth` (the recording
 app's own samples, read ahead of the ring's for an imported run).
 
@@ -445,26 +450,35 @@ app's own samples, read ahead of the ring's for an imported run).
 | POST | `/workouts` | `HealthWorkoutImport` | `HealthImportOutcome`: 201 `imported` (with `session`), 200 `alreadyImported` (`trainingSessionId`) or `notImported` (`reason`, and `trainingSessionId` when it matched a logged session) |
 
 The phone offers one Health workout at a time, as Health holds it: `workoutId` (its Health UUID),
-`activity` (Health's spelling: `running`), `indoor`, `appName` and `appBundleId` (the app that wrote
-it), `start` and `end` at the offset the workout was recorded in, `duration` (the app's, a
-`TimeSpan`), `distanceMeters` and `elevationAscendedMeters` (null when not stated), `route` (every
-fix: `at`, `latitude`, `longitude`, `altitude` or null) and `heartRate` (`at`, `bpm` — the same app's
-samples). Which workouts become sessions is the server's rule (`docs/apple-health.md`), so every
-answer but a refusal is a 2xx; `reason` is `readDirectly`, `notARun`, `indoor`, `noDistance`,
-`sameAsLoggedRun` or `insideLoggedLifting`. Idempotent on (athlete, `workoutId`). A workout that
-cannot be read is a 400 (a heart-rate reading that is not one is dropped, not refused); a 409 is a
-run older than a standing trail-running record while a record is withdrawn, since placing it would
-replay the records. The same workout imported by two requests at once answers `alreadyImported` to
-the second.
+`activity` (Health's spelling: `running`, `cycling`, `hiking`, `walking`), `indoor`, `appName` and
+`appBundleId` (the app that wrote it), `start` and `end` at the offset the workout was recorded in,
+`duration` (the app's, a `TimeSpan`), `distanceMeters` and `elevationAscendedMeters` (null when not
+stated), `route` (every fix: `at`, `latitude`, `longitude`, `altitude` or null), `heartRate` (`at`,
+`bpm` — the same app's samples) and `metrics` (optional: one entry per metric, `metric` and
+`samples` of `at`/`value`; `metric` is `power` W, `cadence` rpm, `speed` m/s, `groundContactTime`
+ms, `verticalOscillation` cm, `strideLength` m or `heartRateRecovery` bpm; an unknown metric or an
+impossible reading is dropped, not refused). Which workouts become sessions is the server's rule
+(`docs/apple-health.md`), so every answer but a refusal is a 2xx; `reason` is `readDirectly`,
+`otherActivity`, `noDistance`, `sameAsLoggedRun` (inside any logged cardio session),
+`insideLoggedLifting` or `deleted` (its session was imported and then deleted). Idempotent on
+(athlete, `workoutId`): `alreadyImported` writes nothing, except `metrics` its recording lacked,
+filled in once. A workout that cannot be read is a 400 (a heart-rate reading that is not one is
+dropped, not refused); a 409 is a workout older than a standing record it contests while a record
+is withdrawn, since placing it would replay the records. The same workout imported by two requests
+at once answers `alreadyImported` to the second.
 
-`GET /api/training/sessions/{id}/recording` answers `RecordedRunView` for a session imported from
-Health, and 404 for any other: `recordedBy`, `start`, `end`, the session's `distanceMeters`,
+`GET /api/training/sessions/{id}/recording` answers `RecordedWorkoutView` for a session imported
+from Health, and 404 for any other: `activity` (`run`, `ride`, `indoorRide`, `hike`, `walk`,
+`indoorRun`), `recordedBy`, `start`, `end`, the session's `distanceMeters`,
 `duration` and `climbMeters`; `movingTime`, `descentMeters` from the route (null without one);
 `pace` and `movingPace` per kilometre; `heartRate` (the cardio report's `SessionHeartRate`, its
 `source` included), `maxHeartRate`, and `trace` (`source`, `samples` of `at`/`bpm`) for drawing;
 `kilometres` and `miles` (each split: `number`, `distanceMeters`, `elapsed`, `moving`, `pace` per
-its own unit, `climbMeters`, `descentMeters`, `averageBpm`); and `route` (`latitude`, `longitude`).
-The route goes only to the athlete's own client — the chat model's `GetRecordedRuns` has none.
+its own unit, `climbMeters`, `descentMeters`, `averageBpm`); `route` (`latitude`, `longitude`); and
+`metrics` (each: `metric`, `average` over its samples, `peak`, `samples` of `at`/`value`; empty when
+the app wrote none — heart-rate recovery is one sample). A ride's speed is the client's conversion
+of `pace`. The route goes only to the athlete's own client — the chat model's `GetRecordedWorkouts`
+has none.
 
 ## Habits — `/api/habits`
 

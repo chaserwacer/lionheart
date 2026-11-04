@@ -14,18 +14,18 @@ namespace lionheart.Services.Health.Recordings;
 
 public interface IRecordedWorkoutService
 {
-    /// <summary>One imported run read whole, or not found for a session that is not one of the athlete's imported runs.</summary>
+    /// <summary>One imported workout read whole, or not found for a session that is not one of the athlete's imported workouts.</summary>
     Task<Result<RecordedWorkoutView, Problem>> GetAsync(IdentityUser user, Guid trainingSessionId, CancellationToken ct);
 }
 
 /// <summary>
-/// Reads the runs imported from Apple Health back: for the run's own page, and as summaries for the
-/// chat model.
+/// Reads the workouts imported from Apple Health back — runs, rides, hikes, walks: for each one's
+/// own page, and as summaries for the chat model.
 /// </summary>
 /// <remarks>
 /// The heart rate is the recording app's where it wrote any, and otherwise the ring's all-day
 /// series over the same clock time, which the page labels; the maximum the zones are drawn from is
-/// the cardio report's, so a run reads the same here as there.
+/// the cardio report's, so a workout reads the same here as there.
 /// </remarks>
 [ToolProvider]
 public sealed class RecordedWorkoutService : IRecordedWorkoutService
@@ -43,21 +43,21 @@ public sealed class RecordedWorkoutService : IRecordedWorkoutService
     }
 
     public Task<Result<RecordedWorkoutView, Problem>> GetAsync(IdentityUser user, Guid trainingSessionId, CancellationToken ct) =>
-        OwnedRunAsync(Guid.Parse(user.Id), trainingSessionId, ct)
-            .BindAsync(run => _cardio.GetReportAsync(user, new DayRange(run.Session.Date, run.Session.Date), ct)
-                .MapAsync(report => ReadoutAsync(run, report.MaxHeartRate, ct)));
+        OwnedWorkoutAsync(Guid.Parse(user.Id), trainingSessionId, ct)
+            .BindAsync(workout => _cardio.GetReportAsync(user, new DayRange(workout.Session.Date, workout.Session.Date), ct)
+                .MapAsync(report => ReadoutAsync(workout, report.MaxHeartRate, ct)));
 
-    [Tool(Name = "GetRecordedRuns",
-        Description = "The athlete's runs imported from Apple Health (recorded by an app such as Strava) in a range of days, oldest first, one block of text per run: start, recording app, distance, time, moving time, pace and moving pace per km, climb and descent; heart rate (average, peak, how much of the run it covers, minutes in the five zones and Edwards load) and whose it is — the recording app's, or the Oura ring's all-day series where the app wrote none; and splits per km with pace, climb, descent and average heart rate. No route or location is ever given. At most 92 days per call — a longer range returns its most recent 92 days.")]
-    public async Task<IReadOnlyList<string>> GetRecordedRunsForChatAsync(IdentityUser user, DayRange range) =>
-        await RunsInAsync(user, Recent(range), CancellationToken.None)
-            .MatchAsync(runs => runs.Select(WorkoutFacts.Summary).ToList(), _ => []);
+    [Tool(Name = "GetRecordedWorkouts",
+        Description = "The athlete's workouts imported from Apple Health (recorded by an app such as Strava or a watch) in a range of days, oldest first, one block of text per workout: what it was (run, ride, indoor ride, hike, walk, indoor run), start, recording app, distance, time, moving time, pace per km (speed in km/h for a ride), climb and descent; heart rate (average, peak, how much of it the trace covers, minutes in the five zones and Edwards load) and whose it is — the recording app's, or the Oura ring's all-day series where the app wrote none; the app's own averages where it wrote them (power, cadence, speed, ground contact time, vertical oscillation, stride length) and the one-minute heart-rate recovery; and splits per km. No route or location is ever given. At most 92 days per call — a longer range returns its most recent 92 days.")]
+    public async Task<IReadOnlyList<string>> GetRecordedWorkoutsForChatAsync(IdentityUser user, DayRange range) =>
+        await WorkoutsInAsync(user, Recent(range), CancellationToken.None)
+            .MatchAsync(workouts => workouts.Select(WorkoutFacts.Summary).ToList(), _ => []);
 
     // ---- Reads ----
 
-    private sealed record ImportedRun(CompletedTrainingSession Session, SessionSource.AppleHealth Source, WorkoutRecording Recording);
+    private sealed record ImportedWorkout(CompletedTrainingSession Session, SessionSource.AppleHealth Source, WorkoutRecording Recording);
 
-    private async Task<Result<ImportedRun, Problem>> OwnedRunAsync(Guid userId, Guid trainingSessionId, CancellationToken ct)
+    private async Task<Result<ImportedWorkout, Problem>> OwnedWorkoutAsync(Guid userId, Guid trainingSessionId, CancellationToken ct)
     {
         var session = await _context.Sessions.OfType<CompletedTrainingSession>()
             .AsNoTracking()
@@ -68,11 +68,11 @@ public sealed class RecordedWorkoutService : IRecordedWorkoutService
                 .FirstOrDefaultAsync(held => held.TrainingSessionId == trainingSessionId, ct);
 
         return session is { Source: SessionSource.AppleHealth source } && recording is not null
-            ? Result<ImportedRun, Problem>.Success(new ImportedRun(session, source, recording))
-            : Result<ImportedRun, Problem>.Failure(new Problem.NotFound("No run imported from Apple Health with that id."));
+            ? Result<ImportedWorkout, Problem>.Success(new ImportedWorkout(session, source, recording))
+            : Result<ImportedWorkout, Problem>.Failure(new Problem.NotFound("No workout imported from Apple Health with that id."));
     }
 
-    private Task<Result<IReadOnlyList<RecordedWorkoutView>, Problem>> RunsInAsync(
+    private Task<Result<IReadOnlyList<RecordedWorkoutView>, Problem>> WorkoutsInAsync(
         IdentityUser user, DayRange range, CancellationToken ct) =>
         _cardio.GetReportAsync(user, range, ct)
             .MapAsync(async report => await ReadoutsAsync(
@@ -80,14 +80,14 @@ public sealed class RecordedWorkoutService : IRecordedWorkoutService
 
     /// <remarks>One after another: they share this context, which is not safe to use from two reads at once.</remarks>
     private async Task<IReadOnlyList<RecordedWorkoutView>> ReadoutsAsync(
-        IReadOnlyList<ImportedRun> runs, MaxHeartRate? maximum, CancellationToken ct)
+        IReadOnlyList<ImportedWorkout> workouts, MaxHeartRate? maximum, CancellationToken ct)
     {
-        var readouts = new List<RecordedWorkoutView>(runs.Count);
-        foreach (var run in runs) readouts.Add(await ReadoutAsync(run, maximum, ct));
+        var readouts = new List<RecordedWorkoutView>(workouts.Count);
+        foreach (var workout in workouts) readouts.Add(await ReadoutAsync(workout, maximum, ct));
         return readouts;
     }
 
-    private async Task<IReadOnlyList<ImportedRun>> ImportedInAsync(Guid userId, DayRange range, CancellationToken ct)
+    private async Task<IReadOnlyList<ImportedWorkout>> ImportedInAsync(Guid userId, DayRange range, CancellationToken ct)
     {
         var (from, to) = (
             new DateTimeOffset(range.From.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).AddDays(-1).UtcDateTime,
@@ -113,23 +113,23 @@ public sealed class RecordedWorkoutService : IRecordedWorkoutService
         [
             .. sessions
                 .Where(session => session is { Source: SessionSource.AppleHealth } && recordings.ContainsKey(session.TrainingSessionId))
-                .Select(session => new ImportedRun(
+                .Select(session => new ImportedWorkout(
                     session, (SessionSource.AppleHealth)session.Source, recordings[session.TrainingSessionId]))
         ];
     }
 
-    private async Task<RecordedWorkoutView> ReadoutAsync(ImportedRun run, MaxHeartRate? maximum, CancellationToken ct) =>
-        WorkoutReadouts.Of(run.Session, run.Source, run.Recording, await HeartRateAsync(run, ct), maximum);
+    private async Task<RecordedWorkoutView> ReadoutAsync(ImportedWorkout workout, MaxHeartRate? maximum, CancellationToken ct) =>
+        WorkoutReadouts.Of(workout.Session, workout.Source, workout.Recording, await HeartRateAsync(workout, ct), maximum);
 
-    /// <summary>The recording app's heart rate, or the ring's series over the run's clock time where it wrote none.</summary>
-    private async Task<WorkoutHeartRate> HeartRateAsync(ImportedRun run, CancellationToken ct)
+    /// <summary>The recording app's heart rate, or the ring's series over the workout's clock time where it wrote none.</summary>
+    private async Task<WorkoutHeartRate> HeartRateAsync(ImportedWorkout workout, CancellationToken ct)
     {
-        if (run.Recording.HeartRate.IsRecorded)
-            return new WorkoutHeartRate(run.Recording.HeartRate.Samples, HeartRateSource.AppleHealth);
+        if (workout.Recording.HeartRate.IsRecorded)
+            return new WorkoutHeartRate(workout.Recording.HeartRate.Samples, HeartRateSource.AppleHealth);
 
-        var (start, end) = SessionMatching.Span(run.Session.Period) ?? (run.Session.Period.StartTime, run.Session.Period.StartTime);
+        var (start, end) = SessionMatching.Span(workout.Session.Period) ?? (workout.Session.Period.StartTime, workout.Session.Period.StartTime);
         return new WorkoutHeartRate(
-            await _context.OuraHeartRateDays.SamplesAsync(run.Session.UserId, new TimeWindow(start, end), ct),
+            await _context.OuraHeartRateDays.SamplesAsync(workout.Session.UserId, new TimeWindow(start, end), ct),
             HeartRateSource.Ring);
     }
 

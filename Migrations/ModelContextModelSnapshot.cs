@@ -577,6 +577,19 @@ namespace lionheart.Migrations
                     b.UseTphMappingStrategy();
                 });
 
+            modelBuilder.Entity("lionheart.Model.Health.DeletedHealthWorkout", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WorkoutId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId", "WorkoutId");
+
+                    b.ToTable("DeletedHealthWorkouts", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Health.WorkoutRecording", b =>
                 {
                     b.Property<Guid>("TrainingSessionId")
@@ -586,6 +599,12 @@ namespace lionheart.Migrations
                     b.Property<string>("HeartRate")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Metrics")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("'[]'");
 
                     b.Property<string>("Route")
                         .IsRequired()
@@ -1648,6 +1667,15 @@ namespace lionheart.Migrations
                 });
 
             modelBuilder.Entity("lionheart.Model.Contexts.Context", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Health.DeletedHealthWorkout", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany()
