@@ -186,6 +186,32 @@ public sealed class ChatCompletionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_tool_that_fails_once_awaited_tells_the_model_rather_than_ending_the_exchange()
+    {
+        _server.Responds(CannedChat.ToolCall("fault", """{"phrase":"x"}"""));
+        _server.Responds(CannedChat.Content("ok"));
+
+        var result = await Complete();
+
+        ResultAssert.Succeeded(result);
+        Assert.Equal(["fault:x"], _toolbox.Tools.Calls);
+        Assert.Contains("Tool call failed", _server.ReceivedRequests[1]);
+    }
+
+    [Fact]
+    public async Task A_range_the_model_left_out_is_refused_by_name_before_the_tool_runs()
+    {
+        _server.Responds(CannedChat.ToolCall("days_in", "{}"));
+        _server.Responds(CannedChat.Content("ok"));
+
+        var result = await Complete();
+
+        ResultAssert.Succeeded(result);
+        Assert.Empty(_toolbox.Tools.Calls);
+        Assert.Contains("yyyy-MM-dd", _server.ReceivedRequests[1]);
+    }
+
+    [Fact]
     public async Task Empty_model_output_still_succeeds_with_an_empty_message()
     {
         _server.Responds(CannedChat.Content(string.Empty));
