@@ -63,6 +63,19 @@ public static class ResultToHttp
         // caller why would describe resources they are not allowed to know exist.
         Problem.Unauthorized => new UnauthorizedResult(),
         Problem.Forbidden => new StatusCodeResult(StatusCodes.Status403Forbidden),
+        _ => Answered(Described(problem)),
+    };
+
+    private static ObjectResult Answered(ProblemDetails described) => new(described) { StatusCode = described.Status };
+
+    /// <summary>
+    /// The status and problem document a refusal is answered with. Public for a route that has
+    /// already begun its answer before it knows the outcome — a stream, which says it in an event.
+    /// </summary>
+    public static ProblemDetails Described(Problem problem) => problem switch
+    {
+        Problem.Unauthorized => new ProblemDetails { Status = StatusCodes.Status401Unauthorized },
+        Problem.Forbidden => new ProblemDetails { Status = StatusCodes.Status403Forbidden },
         Problem.Invalid invalid => Invalid(invalid),
         Problem.NotFound => Detailed(StatusCodes.Status404NotFound, "Resource not found.", problem),
         Problem.Conflict => Detailed(StatusCodes.Status409Conflict, "There was a conflict.", problem),
@@ -74,27 +87,19 @@ public static class ResultToHttp
         _ => throw new UnreachableException()
     };
 
-    private static ActionResult Invalid(Problem.Invalid invalid)
-    {
-        var byField = invalid.Fields
+    private static ValidationProblemDetails Invalid(Problem.Invalid invalid) =>
+        new(invalid.Fields
             .GroupBy(field => field.Field)
-            .ToDictionary(group => group.Key, group => group.Select(field => field.Message).ToArray());
-
-        return new ObjectResult(
-            new ValidationProblemDetails(byField) { Status = StatusCodes.Status400BadRequest })
+            .ToDictionary(group => group.Key, group => group.Select(field => field.Message).ToArray()))
         {
-            StatusCode = StatusCodes.Status400BadRequest
+            Status = StatusCodes.Status400BadRequest
         };
-    }
 
-    private static ActionResult Detailed(int statusCode, string title, Problem problem) =>
-        new ObjectResult(new ProblemDetails
+    private static ProblemDetails Detailed(int statusCode, string title, Problem problem) =>
+        new()
         {
             Status = statusCode,
             Title = title,
             Detail = problem.Description
-        })
-        {
-            StatusCode = statusCode
         };
 }

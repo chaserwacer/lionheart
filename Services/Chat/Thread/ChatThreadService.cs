@@ -19,10 +19,12 @@ public interface IChatThreadService
     Task<Result<ChatThreadPage, Problem>> ReadAsync(IdentityUser user, ThreadPage page, CancellationToken ct);
 
     /// <summary>
-    /// Sends one message and waits for the whole exchange. Answers with the session it went into,
-    /// which is a new one when the thread had sat idle or grown full.
+    /// Sends one message and runs the whole exchange, telling <paramref name="observer"/> what it
+    /// does as it goes. Answers with the session it went into, which is a new one when the thread
+    /// had sat idle or grown full.
     /// </summary>
-    Task<Result<ThreadSessionView, Problem>> SendAsync(IdentityUser user, SendThreadMessageRequest request, CancellationToken ct);
+    Task<Result<ThreadSessionView, Problem>> SendAsync(
+        IdentityUser user, SendThreadMessageRequest request, IExchangeObserver observer, CancellationToken ct);
 }
 
 /// <summary>
@@ -84,14 +86,15 @@ public sealed class ChatThreadService(
     }
 
     public Task<Result<ThreadSessionView, Problem>> SendAsync(
-        IdentityUser user, SendThreadMessageRequest request, CancellationToken ct) =>
+        IdentityUser user, SendThreadMessageRequest request, IExchangeObserver observer, CancellationToken ct) =>
         Words(request.Content)
             .BindAsync(words => _context.AthleteIdAsync(user, ct).MapAsync(userId => new Asked(user, userId, words)))
-            .BindAsync(asked => _gate.RunAsync(token => ExchangeAsync(asked, token), ct));
+            .BindAsync(asked => _gate.RunAsync(token => ExchangeAsync(asked, observer, token), ct));
 
     /// <summary>Find or open the session, answer in it, save.</summary>
-    private async Task<Result<ThreadSessionView, Problem>> ExchangeAsync(Asked asked, CancellationToken ct) =>
-        await AnswerAsync(asked, await SessionForAsync(asked, ct), ct)
+    private async Task<Result<ThreadSessionView, Problem>> ExchangeAsync(
+        Asked asked, IExchangeObserver observer, CancellationToken ct) =>
+        await AnswerAsync(asked, await SessionForAsync(asked, ct), observer, ct)
             .MapAsync(session => CommitAsync(session, ct));
 
     // ---- Guard ----
@@ -198,7 +201,8 @@ public sealed class ChatThreadService(
     /// The briefing is read once per exchange, before the athlete's words are staged, and goes with
     /// every round of it: the session's prompt stays frozen while the briefing is always now.
     /// </remarks>
-    private async Task<Result<LHChatConversation, Problem>> AnswerAsync(Asked asked, LHChatConversation session, CancellationToken ct)
+    private async Task<Result<LHChatConversation, Problem>> AnswerAsync(
+        Asked asked, LHChatConversation session, IExchangeObserver observer, CancellationToken ct)
     {
         var briefing = await _briefing.ForAsync(asked.User, ct);
         var now = _clock.GetUtcNow().UtcDateTime;
@@ -221,6 +225,7 @@ public sealed class ChatThreadService(
                     Conversation = session,
                     MaxOutputTokens = ChatCompletionRequest.ExchangeOutputTokens,
                     Briefing = briefing,
+                    Observer = observer,
                 },
                 ct)
             .MapAsync(response =>

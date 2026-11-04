@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Pipelines;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -22,21 +23,23 @@ namespace lionheart.Services.Llm.Relay;
 /// abandoned, or the host stopping) ends the wait. See docs/chat-relay.md.
 /// </para>
 /// </remarks>
-public sealed class RelayTransport(string folder, ILogger logger) : HttpMessageHandler
+public sealed class RelayTransport(string folder, int wordsPerSecond, ILogger logger) : HttpMessageHandler
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
 
     private readonly string _folder = Path.GetFullPath(folder);
+    private readonly TimeSpan _wordInterval = TimeSpan.FromSeconds(1.0 / wordsPerSecond);
     private readonly ILogger _logger = logger;
 
     /// <summary>An Anthropic client whose every request is answered from <paramref name="folder"/>.</summary>
-    public static global::Anthropic.AnthropicClient Client(string folder, ILogger logger) => new()
+    /// <param name="wordsPerSecond">How fast a streamed answer is played back.</param>
+    public static global::Anthropic.AnthropicClient Client(string folder, int wordsPerSecond, ILogger logger) => new()
     {
         ApiKey = "relay-no-key",
         BaseUrl = "http://relay.invalid",
         MaxRetries = 0,
         Timeout = TimeSpan.FromHours(6),
-        HttpClient = new HttpClient(new RelayTransport(folder, logger)) { Timeout = Timeout.InfiniteTimeSpan },
+        HttpClient = new HttpClient(new RelayTransport(folder, wordsPerSecond, logger)) { Timeout = Timeout.InfiniteTimeSpan },
     };
 
     protected override async Task<HttpResponseMessage> SendAsync(
@@ -62,8 +65,43 @@ public sealed class RelayTransport(string folder, ILogger logger) : HttpMessageH
         var completed = RelayFiles.Completed(answer, parsed, sequence);
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent(completed.ToJsonString(), Encoding.UTF8, "application/json"),
+            Content = parsed["stream"]?.GetValue<bool>() is true
+                ? Streamed(RelayStream.Events(completed), cancellationToken)
+                : new StringContent(completed.ToJsonString(), Encoding.UTF8, "application/json"),
         };
+    }
+
+    /// <summary>
+    /// The answer as an event stream, played back a word at a time at the configured pace, so the
+    /// SDK reads it as it arrives the way it reads Anthropic's.
+    /// </summary>
+    /// <remarks>
+    /// Written into a pipe by a task of its own rather than as one body, because the SDK starts
+    /// reading as soon as it has the response, and a body built in full first would arrive at once.
+    /// </remarks>
+    private StreamContent Streamed(IReadOnlyList<RelayStream.Event> events, CancellationToken ct)
+    {
+        var pipe = new Pipe();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                foreach (var streamed in events)
+                {
+                    if (streamed.Paced) await Task.Delay(_wordInterval, ct);
+                    await pipe.Writer.WriteAsync(Encoding.UTF8.GetBytes(streamed.Frame()), ct);
+                }
+                await pipe.Writer.CompleteAsync();
+            }
+            catch (Exception exception)
+            {
+                await pipe.Writer.CompleteAsync(exception);
+            }
+        }, ct);
+
+        var content = new StreamContent(pipe.Reader.AsStream());
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(RelayStream.ContentType);
+        return content;
     }
 
     /// <summary>

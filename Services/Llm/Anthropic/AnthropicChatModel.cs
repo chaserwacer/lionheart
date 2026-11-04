@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Exceptions;
+using Anthropic.Helpers;
 using lionheart.Functional;
 using Messages = Anthropic.Models.Messages;
 
@@ -44,6 +45,18 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
         ChatTurnRequest request, CancellationToken cancellationToken = default) =>
         Transcribe(request)
             .BindAsync(messages => SendAsync(Parameters(request, messages), cancellationToken))
+            .BindAsync(ReadTurn);
+
+    /// <remarks>
+    /// The stream is read through the SDK's own aggregator, so the turn it ends with is the
+    /// <see cref="Messages.Message"/> a request read whole would have been, and is read by the same
+    /// <see cref="ReadTurn"/>: the stop reason first, a tool call's blocks kept whole with their
+    /// signatures. Only text deltas are handed on; thinking is never shown to the athlete.
+    /// </remarks>
+    public Task<Result<ModelTurn, Problem>> StreamAsync(
+        ChatTurnRequest request, Action<string> written, CancellationToken cancellationToken = default) =>
+        Transcribe(request)
+            .BindAsync(messages => StreamAsync(Parameters(request, messages), written, cancellationToken))
             .BindAsync(ReadTurn);
 
     private Messages.MessageCreateParams Parameters(
@@ -352,16 +365,41 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
             : new Messages.MessageParam(new Messages.UserMessageParam(content), null);
     }
 
+    private Task<Result<Messages.Message, Problem>> SendAsync(
+        Messages.MessageCreateParams parameters, CancellationToken cancellationToken) =>
+        GuardedAsync(() => _client.Messages.Create(parameters, cancellationToken), cancellationToken);
+
+    private Task<Result<Messages.Message, Problem>> StreamAsync(
+        Messages.MessageCreateParams parameters, Action<string> written, CancellationToken cancellationToken) =>
+        GuardedAsync(async () =>
+        {
+            var aggregator = new MessageContentAggregator();
+            await foreach (var streamed in _client.Messages.CreateStreaming(parameters, cancellationToken)
+                               .CollectAsync(aggregator))
+            {
+                if (streamed.TryPickContentBlockDelta(out var block) && block.Delta.TryPickText(out var text))
+                {
+                    written(text.Text);
+                }
+            }
+            return aggregator.Message();
+        }, cancellationToken);
+
     /// <summary>
     /// The one place this application knows the Anthropic SDK throws. Caught most-specific-first
     /// and restated as <see cref="Problem.Upstream"/>, which is what every layer above speaks.
     /// </summary>
-    private async Task<Result<Messages.Message, Problem>> SendAsync(
-        Messages.MessageCreateParams parameters, CancellationToken cancellationToken)
+    /// <remarks>
+    /// A stream can fail after it has begun: the API sends an <c>error</c> event mid-stream (an
+    /// overload, usually), which the SDK raises as <see cref="AnthropicSseException"/>. Whatever
+    /// text was handed on before it is the caller's to withdraw.
+    /// </remarks>
+    private async Task<Result<Messages.Message, Problem>> GuardedAsync(
+        Func<Task<Messages.Message>> call, CancellationToken cancellationToken)
     {
         try
         {
-            var message = await _client.Messages.Create(parameters, cancellationToken);
+            var message = await call();
             Account(message);
             return Result<Messages.Message, Problem>.Success(message);
         }
@@ -384,6 +422,10 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
         catch (Anthropic5xxException ex)
         {
             return Upstream($"Anthropic is unavailable: {ex.Message}");
+        }
+        catch (AnthropicSseException ex)
+        {
+            return Upstream($"Anthropic failed partway through its answer: {ex.Message}");
         }
         catch (AnthropicIOException ex)
         {

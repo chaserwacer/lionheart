@@ -22,6 +22,19 @@ public sealed class LmStudioChatModel(ChatClient client) : IChatModel
                 .CompleteAsResultAsync(messages, Options(request), cancellationToken)
                 .BindAsync(ReadTurn));
 
+    /// <remarks>
+    /// The answer is handed over whole, once the round has ended: LM Studio is the free stand-in
+    /// for development and tests, and a local server streaming its reasoning channel separately
+    /// from its content is a parsing problem this provider has no reason to take on.
+    /// </remarks>
+    public Task<Result<ModelTurn, Problem>> StreamAsync(
+        ChatTurnRequest request, Action<string> written, CancellationToken cancellationToken = default) =>
+        RespondAsync(request, cancellationToken)
+            .TapAsync(turn =>
+            {
+                if (turn is ModelTurn.Answered { Text.Length: > 0 } answered) written(answered.Text);
+            });
+
     /// <summary>
     /// The conversation as the SDK wants it: the system prompt first, then each message in order.
     /// </summary>

@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text;
+using System.Text.Json.Nodes;
 using lionheart.Services.Llm;
 using lionheart.Services.Llm.Anthropic;
+using lionheart.Services.Llm.Relay;
 
 namespace lionheart.Tests.Support;
 
@@ -76,16 +78,24 @@ public sealed class FakeAnthropicServer : IDisposable
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            server.ReceivedRequests.Add(
-                request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken));
+            var body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
+            server.ReceivedRequests.Add(body);
 
             var canned = server.Next();
             if (canned.Body is null)
                 throw new HttpRequestException("Connection refused (fake Anthropic is unreachable).");
 
+            // A request that asks to stream gets the canned message told as the API's event stream,
+            // so one canned body serves both routes. A refusal of the request itself is answered
+            // before any stream begins, as the API answers it.
+            var streams = JsonNode.Parse(body)?["stream"]?.GetValue<bool>() is true;
             return new HttpResponseMessage(canned.Status)
             {
-                Content = new StringContent(canned.Body, Encoding.UTF8, "application/json"),
+                Content = streams && canned.Status == HttpStatusCode.OK
+                    ? new StringContent(
+                        string.Concat(RelayStream.Events(JsonNode.Parse(canned.Body)!.AsObject()).Select(e => e.Frame())),
+                        Encoding.UTF8, RelayStream.ContentType)
+                    : new StringContent(canned.Body, Encoding.UTF8, "application/json"),
             };
         }
     }

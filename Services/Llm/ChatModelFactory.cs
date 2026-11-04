@@ -34,7 +34,7 @@ public static class ChatModelFactory
             loggers.CreateLogger<AnthropicChatModel>()),
 
         RelaySettings relay => new AnthropicChatModel(
-            RelayTransport.Client(relay.Folder, loggers.CreateLogger<RelayTransport>()), model,
+            RelayTransport.Client(relay.Folder, relay.WordsPerSecond, loggers.CreateLogger<RelayTransport>()), model,
             loggers.CreateLogger<AnthropicChatModel>()),
 
         _ => throw new ArgumentOutOfRangeException(

@@ -46,6 +46,14 @@ public static class CannedAnthropic
             + ",\"input\":" + inputJson + "}]",
             "tool_use");
 
+    /// <summary>A tool-use turn that says something first: a preamble, which is not the answer.</summary>
+    public static string TextThenToolUse(string text, string toolName, string inputJson, string callId = "toolu_1") =>
+        Envelope(
+            "[" + TextBlock(text) + ","
+            + "{\"type\":\"tool_use\",\"id\":" + Quote(callId) + ",\"name\":" + Quote(toolName)
+            + ",\"input\":" + inputJson + "}]",
+            "tool_use");
+
     public static string ToolUses(params (string Name, string InputJson, string CallId)[] calls)
     {
         var rendered = string.Join(",", calls.Select(call =>
