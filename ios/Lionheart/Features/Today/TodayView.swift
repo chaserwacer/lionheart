@@ -62,6 +62,7 @@ struct TodayView: View {
             .listSectionSpacing(.compact)
             // Lets a figure row be as short as its one line, so the whole table fits above the fold.
             .environment(\.defaultMinListRowHeight, 36)
+            .recalledNote(store.state.recalledAsOf)
             .navigationTitle(title(of: day, today: today))
             .toolbar { toolbar(day: day, today: today) }
             .refreshable {
@@ -88,8 +89,9 @@ struct TodayView: View {
                 }
             }
         }
-        .task { await store.refresh() }
-        .task(id: day) { await habits.loadDay(day) }
+        // Every return to the tab, but a read only when the day may have moved (`ReadFreshness`).
+        .task { await store.refreshIfDue() }
+        .task(id: day) { await habits.loadDayIfNeeded(day) }
     }
 
     // MARK: - Toolbar

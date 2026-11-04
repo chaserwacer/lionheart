@@ -108,6 +108,29 @@ nothing. A chat answer is the model reading the server, so sending needs a conne
 composer says so; the thread's newest page and the memory list are remembered like any other read,
 so what Lionheart last said can be read back with no signal.
 
+### First paint, and coming back to a tab
+
+A screen seen before never opens on placeholders. Today, History, Body and the movement catalogue
+read their parts from the device first — the same endpoints, windows and keys, run inside
+`APIClient.onDevice`, which answers every remembered read in it from `ReadMemory` without a
+request — and paint that answer as `.stale(value, .recalled(asOf:))` while the server is asked. The
+server's answer replaces it in place; no answer turns it into `.unreachable` as before. A recalled
+screen gets no row of its own (one that came and went would move every row twice); if the server
+has not answered within a second, `recalledNote(_:)` floats the time it dates from over the top.
+The skeleton rows remain for a screen the device has never read.
+
+A tab's `.task` runs on every return to it, and History's read is the whole log and every record
+(about 1.2 MB against a real archive). So Today and History read on return only when
+`ReadFreshness` says the answer may have moved: nothing current on screen, a write accepted from
+this device since the read (`WriteLedger`, counted in `APIClient`, so a set pushed from the workout
+or a skip on Train counts without either knowing who shows it), a new calendar day, or an answer
+older than the screen's span (5 minutes for Today, 15 for History). Returning to the foreground asks
+the same question of both. Pull to refresh always reads.
+
+Today reads ahead once a current day lands: the 90-day trend behind every figure's page, one
+request for the days and one for the nights, so the drill-down most often opened is on screen
+without a spinner. A trend read for one figure fills every figure the same read answers.
+
 ### Knowing the server is there
 
 `ServerReachability` learns from the requests the app actually makes, not from the phone's network

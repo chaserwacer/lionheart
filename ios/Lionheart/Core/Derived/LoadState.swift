@@ -44,6 +44,15 @@ enum LoadState<Value: Equatable & Sendable>: Equatable, Sendable {
         }
     }
 
+    /// When the value on screen dates from, while it is the device's last answer and the server is
+    /// still being asked; `nil` otherwise.
+    var recalledAsOf: Date? {
+        switch self {
+        case .stale(_, .recalled(let asOf)): asOf
+        case .loading, .loaded, .unavailable, .stale: nil
+        }
+    }
+
     /// Whether the screen is short of the server's current answer, with a value or without one —
     /// what a read when the server returns could put right.
     var isWaitingOnServer: Bool {
@@ -85,24 +94,42 @@ enum LoadState<Value: Equatable & Sendable>: Equatable, Sendable {
         case .stale(let value, let staleness): .stale(edit(value), staleness)
         }
     }
+
+    /// Where a first load goes when the device already holds the screen's last answer: that
+    /// answer, at once, marked as recalled while the server is asked.
+    ///
+    /// Only a screen with no value takes it. One already showing a value is showing something at
+    /// least as recent, and the device's copy would step it backwards.
+    func recalling(_ value: Value, asOf: Date) -> LoadState {
+        switch self {
+        case .loading, .unavailable: .stale(value, .recalled(asOf: asOf))
+        case .loaded, .stale: self
+        }
+    }
 }
 
 /// Why a value on screen is not current.
 ///
-/// Two cases because they are two different sentences. A server that answered with a fault says
-/// nothing about how old the screen is, only that it could not be refreshed; a server that could
-/// not be reached at all leaves the device showing what it last knew, and the one useful thing to
-/// say is when that was.
+/// Three cases because they are three different sentences. A server that answered with a fault
+/// says nothing about how old the screen is, only that it could not be refreshed; a server that
+/// could not be reached at all leaves the device showing what it last knew, and the one useful
+/// thing to say is when that was. A screen opened onto the device's last answer while the server
+/// is still being asked has failed at nothing yet: it is the screen as it stood, about to be
+/// brought up to date in place.
 enum Staleness: Equatable, Sendable {
     /// The last refresh failed, for the reason given. The value is the last one loaded.
     case refreshFailed(LoadFailure)
     /// The server could not be reached. The value is the last answer it gave, at `asOf`.
     case unreachable(asOf: Date)
+    /// The device's last answer, from `asOf`, shown while the server is asked.
+    case recalled(asOf: Date)
 
-    var failure: LoadFailure {
+    /// What went wrong, or `nil` while nothing has: a recalled value is waiting, not failing.
+    var failure: LoadFailure? {
         switch self {
         case .refreshFailed(let failure): failure
         case .unreachable: .offline("The server could not be reached.")
+        case .recalled: nil
         }
     }
 }

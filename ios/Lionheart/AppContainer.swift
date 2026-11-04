@@ -63,7 +63,8 @@ final class AppContainer {
         today = TodayStore(
             sessions: sessions,
             oura: OuraAPI(client: client),
-            interpretation: InterpretationAPI(client: client))
+            interpretation: InterpretationAPI(client: client),
+            writes: client.writes)
         // Built before the workout store, which names the current movement on the Lock Screen and
         // so needs to be able to ask this for a title. Nothing here reaches back the other way.
         let movements = MovementLibraryStore(
@@ -90,7 +91,8 @@ final class AppContainer {
         history = HistoryStore(
             sessions: TrainingSessionsAPI(client: client),
             library: movements,
-            records: PersonalRecordsAPI(client: client))
+            records: PersonalRecordsAPI(client: client),
+            writes: client.writes)
         focus = FocusStore(api: FocusAPI(client: client))
         balance = TrainingBalanceStore(balance: TrainingBalanceAPI(client: client), focus: FocusAPI(client: client))
         chat = ChatStore(
@@ -243,6 +245,12 @@ final class AppContainer {
         guard case .signedIn = auth.session, reachability.isReachable else { return }
         await activeWorkout.serverReturned()
         if outbox.hasDeliverableWork { await outbox.deliver() }
+        // A tab's `.task` does not run again when the app returns to it, so the screens that were
+        // already open catch up here — each only if its answer may have moved since, which across a
+        // night always includes the day changing under Today. History only once it has been opened.
+        async let day: Void = today.refreshIfDue()
+        if history.state.value != nil { await history.refreshIfDue() }
+        await day
     }
 
     /// An athlete has just signed in.

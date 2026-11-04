@@ -55,6 +55,7 @@ struct HistoryView: View {
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
+            .recalledNote(store.state.recalledAsOf)
             .navigationTitle("History")
             .searchable(text: $query, tokens: $tokens, prompt: "Movement or note") { token in
                 Text(token.name)
@@ -107,7 +108,13 @@ struct HistoryView: View {
         } message: {
             if let refusal = store.action.refusal { Text(refusal.message) }
         }
-        .task { await refresh() }
+        // Every return to the tab, but the log is read only when it may have moved
+        // (`ReadFreshness`): it is the heaviest read in the app.
+        .task {
+            async let log: Void = store.refreshIfDue()
+            async let pins: Void = focus.refreshIfNeeded()
+            _ = await (log, pins)
+        }
     }
 
     private func refresh() async {

@@ -38,6 +38,7 @@ struct BodyView: View {
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
+            .recalledNote(store.state.recalledAsOf)
             .navigationTitle("Body")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

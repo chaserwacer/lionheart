@@ -10,30 +10,57 @@ import Foundation
 /// Two things about the server's availability live here too, because this is the one place every
 /// exchange passes through: each is reported to `ServerReachability`, and a remembered read keeps
 /// its answer in `ReadMemory` and gives the kept one back when the server cannot be reached.
+/// Every write the server accepts is counted in the `WriteLedger`, which is how a screen knows its
+/// answer may be out of date.
 ///
 /// `Sendable` on purpose, and it is what the Today screen's parallel loads depend on: several
 /// `async let` requests through one client are only expressible if the client can cross actors.
 /// Nothing stored here is mutable — the mutable parts are the `TokenProvider` actor, the
-/// main-actor reachability and the memory's own lock.
+/// main-actor reachability, and the memory's and the ledger's own locks.
 final class APIClient: Sendable {
     let configuration: APIConfiguration
+    let writes: WriteLedger
     private let session: URLSession
     private let tokens: TokenProvider
     private let memory: ReadMemory
     private let reachability: ServerReachability
+
+    /// Whether remembered reads in the current task answer from the device alone.
+    ///
+    /// Set for the length of one read with `onDevice(_:)`, which is how a store paints a screen it
+    /// has shown before from the device's last answers before the server has said anything. A task
+    /// value rather than a parameter because the read it scopes is a store's whole reading of its
+    /// screen — the same endpoints, windows and keys, through `async let`s whose child tasks
+    /// inherit it — and threading a flag through every endpoint method would give each of them a
+    /// second way to be called that only one caller uses.
+    @TaskLocal private static var answersFromDevice = false
 
     init(
         configuration: APIConfiguration,
         tokens: TokenProvider,
         memory: ReadMemory,
         reachability: ServerReachability,
+        writes: WriteLedger = WriteLedger(),
         session: URLSession = .shared
     ) {
         self.configuration = configuration
         self.tokens = tokens
         self.memory = memory
         self.reachability = reachability
+        self.writes = writes
         self.session = session
+    }
+
+    /// Runs `read` with every remembered read in it answered from the device, without a request.
+    ///
+    /// A read with nothing kept throws, so `read` as a whole answers only when the device holds
+    /// every part of it; the answer is `nil` otherwise. Nothing here reaches the server or tells
+    /// `ServerReachability` anything.
+    static func onDevice<Value: Sendable>(
+        isolation: isolated (any Actor)? = #isolation,
+        _ read: () async throws -> Value
+    ) async -> Value? {
+        try? await $answersFromDevice.withValue(true) { try await read() }
     }
 
     // MARK: - Authenticated
@@ -62,6 +89,12 @@ final class APIClient: Sendable {
         remembering key: ReadKey
     ) async throws -> Remembered<Response> {
         let account = memory.currentAccount()
+        if Self.answersFromDevice {
+            guard let kept = memory.recall(key, for: account) else {
+                throw APIError.transport("Nothing is kept on this device for \(key.name).")
+            }
+            return .recalled(try HTTP.decode(Response.self, from: kept.body), asOf: kept.asOf)
+        }
         do {
             let body = try await authenticatedBody(
                 .get, path, query: query, body: nil, timeout: HTTP.readPatience)
@@ -145,7 +178,9 @@ final class APIClient: Sendable {
     private func authenticated<Response: Decodable>(
         _ method: HTTP.Method, _ path: String, query: [URLQueryItem], body: Data?
     ) async throws -> Response {
-        try HTTP.decode(Response.self, from: await authenticatedBody(method, path, query: query, body: body))
+        let answer = try await authenticatedBody(method, path, query: query, body: body)
+        if method != .get { writes.recordAccepted() }
+        return try HTTP.decode(Response.self, from: answer)
     }
 
     /// Sends the request with a bearer token, and on a 401 renews once and sends it again. Answers
