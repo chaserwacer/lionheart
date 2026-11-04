@@ -69,9 +69,10 @@ the file was written. Set the pace low (`Relay__WordsPerSecond=3`) to have time 
 arrive, or to drop the connection partway through one: the server finishes and stores it anyway,
 and the app finds it in the thread when it returns. Extractions and narratives do not stream.
 
-A request waits as long as its caller does. The iOS app waits five minutes for a chat reply
-(`HTTP.modelPatience`), so answer within that when driving the app; `curl --max-time 3600` gives an
-hour. Card narratives and session consolidation go through the relay too. A consolidation runs
+A request waits as long as its caller does. The iOS app follows a thread reply for as long as it
+takes, since the server's heartbeat keeps the stream open, but a standalone conversation waits five
+minutes (`HTTP.modelPatience`), so answer within that when driving one; `curl --max-time 3600` gives
+an hour. Card narratives and session consolidation go through the relay too. A consolidation runs
 under the thread's lock, so a chat message waits behind an unanswered `extract`.
 
 ## Driving it from Claude Code

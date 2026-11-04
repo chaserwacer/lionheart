@@ -77,11 +77,19 @@ public static class ThreadEventStream
         {
             frames.TryWrite(Outcome(await exchange(new Queued(frames, json), stopping), json));
         }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // What the plain route answers when an exchange throws: a 500, nothing stored. Said
+            // here because the response has begun and the exception handler can no longer say it;
+            // without it the phone would read a dropped connection and wait for an answer that is
+            // never coming. Rethrown after, so the host still logs it.
+            frames.TryWrite(Outcome(
+                Result<ThreadSessionView, Problem>.Failure(new Problem.Unexpected("The exchange failed on the server.")),
+                json));
+            throw;
+        }
         finally
         {
-            // Also when the exchange throws, so the telling ends; the exception then surfaces from
-            // RunAsync and the connection is dropped, which the phone treats as a lost answer and
-            // looks for in the thread.
             frames.Complete();
         }
     }

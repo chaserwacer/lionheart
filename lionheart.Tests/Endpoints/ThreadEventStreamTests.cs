@@ -66,6 +66,27 @@ public sealed class ThreadEventStreamTests
     }
 
     [Fact]
+    public async Task An_exchange_that_throws_is_told_as_a_server_failure_and_still_surfaces()
+    {
+        var context = new DefaultHttpContext();
+        var body = new MemoryStream();
+        context.Response.Body = body;
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => ThreadEventStream.RunAsync(
+            (observer, _) =>
+            {
+                observer.Observe(new ExchangeProgress.Wrote("Rest "));
+                throw new ArgumentOutOfRangeException("value");
+            },
+            Json, context.Response, CancellationToken.None, CancellationToken.None));
+
+        var (name, data) = Events(body)[^1];
+        Assert.Equal("failed", name);
+        using var problem = JsonDocument.Parse(data);
+        Assert.Equal(500, problem.RootElement.GetProperty("status").GetInt32());
+    }
+
+    [Fact]
     public async Task The_exchange_runs_to_its_end_after_the_phone_has_gone()
     {
         var context = new DefaultHttpContext();
