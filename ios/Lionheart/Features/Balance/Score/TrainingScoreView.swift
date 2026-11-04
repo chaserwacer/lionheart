@@ -49,7 +49,7 @@ struct TrainingScoreView: View {
         TrainingScoreCard(score: score, weeks: weeks, onSelect: open)
         if !weeks.isEmpty {
             Section {
-                WeeklyScoreChart(weeks: weeks, highlighted: weeks.last?.window.to)
+                WeeklyScoreChart(weeks: weeks, current: Double(score.value))
                     .frame(height: trendHeight)
                     .padding(.vertical, 6)
             } header: {
@@ -64,6 +64,6 @@ struct TrainingScoreView: View {
         let excellent = weeks.filter { Double($0.value) >= WeeklyScoreChart.excellent }.count
         let partial = weeks.contains(where: \.isPartial) ? " Pale bars had a part unknown." : ""
         let reached = excellent == 0 ? "none has reached it" : "\(Formatting.count(excellent, "week")) reached it"
-        return "Each week to its Sunday, the last in colour. The dashed line is 90; \(reached).\(partial)"
+        return "Each week to its Sunday; the rule in colour is the seven days to today. The dashed line is 90; \(reached).\(partial)"
     }
 }

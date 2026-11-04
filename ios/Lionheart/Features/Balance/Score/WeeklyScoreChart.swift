@@ -2,7 +2,7 @@ import Charts
 import SwiftUI
 
 /// The training score of each week ending on a Sunday, or one part's points, as quiet bars, with
-/// the week on screen in the accent.
+/// the seven days to today as a rule in the accent.
 ///
 /// The whole score is drawn against the 90 that marks an excellent week; a part against its own
 /// points. A week whose score was read with a part unknown is drawn pale, so a number that could
@@ -11,7 +11,6 @@ import SwiftUI
 struct WeeklyScoreChart: View {
     /// Oldest first.
     let weeks: [WeeklyScore]
-    var highlighted: CalendarDay?
     /// The part drawn, or the whole score when `nil`.
     var part: ScorePart?
     /// The top of the scale: 100 for the whole score, the part's points otherwise.
@@ -66,14 +65,14 @@ struct WeeklyScoreChart: View {
     }
 
     private func colour(of week: WeeklyScore) -> Color {
-        if week.window.to == highlighted { return Tokens.accent }
-        return part == nil && week.isPartial ? Color(.quaternarySystemFill) : Color(.systemFill)
+        part == nil && week.isPartial ? Color(.quaternarySystemFill) : Color(.systemFill)
     }
 
     private var spoken: String {
         let values = weeks.compactMap { $0.points(of: part) }
         guard let best = values.max(), let last = weeks.last?.points(of: part) else { return "" }
         let median = values.sorted()[values.count / 2]
-        return "Last week \(ScorePoints.text(last)). Median \(ScorePoints.text(median)), best \(ScorePoints.text(best)), over \(Formatting.count(values.count, "week"))."
+        let now = current.map { "Seven days to today \(ScorePoints.text($0)). " } ?? ""
+        return "\(now)Last week \(ScorePoints.text(last)). Median \(ScorePoints.text(median)), best \(ScorePoints.text(best)), over \(Formatting.count(values.count, "week"))."
     }
 }
