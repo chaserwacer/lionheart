@@ -20,7 +20,8 @@ public sealed class ChatSystemPrompt(IAthleteContextCardService cardService)
     /// question needs.
     /// </summary>
     public const string Fallback = ChatInstructions.Voice + "\n\n" +
-        "Use the tools to retrieve what the question needs, and only that. Do not narrate tool calls to the athlete.";
+        "Each message arrives with a TODAY note from Lionheart giving the current date and time and, where it could be read, his day so far; it decides what \"today\" means. " +
+        "Use the tools to retrieve anything else the question needs, and only that.";
 
     private readonly IAthleteContextCardService _cardService = cardService;
 

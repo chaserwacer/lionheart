@@ -114,18 +114,20 @@ extension ChatConversation: Decodable {
     }
 }
 
-/// The standing summary of the athlete that the chat model is given.
+/// What the chat model is given about the athlete: the two standing tiers a conversation opens
+/// with, and the briefing his next message will carry.
 ///
-/// Two tiers with different lifecycles, and each carries its own as-of instant because that is what
-/// makes an answer checkable: advice drawn from a Recent State computed six hours ago reads
-/// differently once you can see when it was computed.
+/// Each tier carries its own as-of instant, because that is what makes an answer checkable. The
+/// briefing (`today`) has none: the server reads it fresh for every message, and it states its own
+/// time in its first line.
 struct AthleteContextCard: Equatable, Sendable {
     let stableProfile: String
     let stableProfileAsOf: Date?
     let recentState: String
     let recentStateAsOf: Date?
+    let today: String
 
-    var isEmpty: Bool { stableProfile.nonEmpty == nil && recentState.nonEmpty == nil }
+    var isEmpty: Bool { stableProfile.nonEmpty == nil && recentState.nonEmpty == nil && today.nonEmpty == nil }
 }
 
 extension AthleteContextCard: Decodable {
@@ -135,6 +137,7 @@ extension AthleteContextCard: Decodable {
             stableProfile: container.lenient("stableProfileText", or: ""),
             stableProfileAsOf: container.instant("stableProfileAsOf"),
             recentState: container.lenient("recentStateText", or: ""),
-            recentStateAsOf: container.instant("recentStateAsOf"))
+            recentStateAsOf: container.instant("recentStateAsOf"),
+            today: container.lenient("todayText", or: ""))
     }
 }

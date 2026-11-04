@@ -17,16 +17,22 @@ namespace lionheart.Model.Profile
     /// instants already answer the only question a reader has about freshness.
     /// </para>
     /// </remarks>
+    /// <param name="TodayText">
+    /// The briefing exactly as the next message would be sent with it: read now, never stored, so it
+    /// has no as-of of its own beyond the time it states.
+    /// </param>
     public sealed record AthleteContextCardView(
         string StableProfileText,
         DateTime StableProfileAsOf,
         string RecentStateText,
-        DateTime RecentStateAsOf)
+        DateTime RecentStateAsOf,
+        string TodayText)
     {
-        public static AthleteContextCardView Of(AthleteContextCard card) => new(
+        public static AthleteContextCardView Of(AthleteContextCard card, string today) => new(
             StableProfileText: card.StableProfileText,
             StableProfileAsOf: card.StableProfileAsOf,
             RecentStateText: card.RecentStateText,
-            RecentStateAsOf: card.RecentStateAsOf);
+            RecentStateAsOf: card.RecentStateAsOf,
+            TodayText: today);
     }
 }

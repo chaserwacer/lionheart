@@ -816,6 +816,18 @@ them, the only sign of the cut.
 - `MemorySheet` lists memory by kind, standing kinds first; a memory's page shows the words it came
   from and the versions it replaced, and the athlete can correct it (the old wording becomes its
   history) or forget it (every version goes). A correction has a new id, and the page follows it.
+- **Quick questions.** The questions asked most days ("Should I train today?", "Am I recovered?",
+  and so on) sit as a row of capsule buttons above the composer. The row shows only while the field
+  is empty and the keyboard is down, and a tap sends the question as written. A one-line question
+  is enough because the server sends the TODAY briefing with every message.
+- **The answer is set down, not dropped in.** The server answers in one piece, so the answer that
+  has just arrived (`ThreadStore.arrivedReply`) is revealed word by word over at most 1.2 s
+  (`ChatReveal`). The full answer is laid out invisibly from the first frame, so the bubble has its
+  final size and the transcript never shifts. Reduce Motion shows the answer whole. A message waits
+  five minutes for its answer (`HTTP.modelPatience`), not the system's one minute. A long tool loop
+  would otherwise show the question as unsent while the server went on to answer and store it.
+- **The context sheet leads with the briefing**, exactly as the next message will carry it, then
+  the two standing tiers with their as-of instants.
 
 ## Outside the app: widgets, Shortcuts and the morning wake
 

@@ -50,7 +50,7 @@ public class LmStudioEngineTests : IDisposable
 
     private static InterpretationEngine BuildEngine(ModelContext context)
     {
-        DotNetEnv.Env.TraversePath().Load();
+        lionheart.Services.Llm.EnvironmentFile.Load();
         LmStudioFactAttribute.SkipUnlessAvailable();
         var embeddings = new OpenAiCompatibleEmbeddingGenerator(LmStudio.CreateEmbeddingClient());
 

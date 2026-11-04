@@ -25,6 +25,12 @@ namespace Model.Chat.Completion
 
         [Required]
         public required int MaxOutputTokens { get; set; }
+
+        /// <summary>
+        /// The athlete's day as this exchange begins (see <c>Services/Chat/Today</c>), sent with
+        /// every round of the exchange and stored with none of them. Empty sends no briefing.
+        /// </summary>
+        public string Briefing { get; init; } = string.Empty;
     }
 
     /// <summary>

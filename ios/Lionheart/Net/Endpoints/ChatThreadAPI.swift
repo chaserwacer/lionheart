@@ -22,7 +22,8 @@ struct ChatThreadAPI: Sendable {
     }
 
     func send(_ text: String) async throws -> ThreadSession {
-        try await client.post("\(Self.root)/messages", body: SendThreadMessageBody(content: text))
+        try await client.post(
+            "\(Self.root)/messages", body: SendThreadMessageBody(content: text), timeout: HTTP.modelPatience)
     }
 
     /// An instant as the server binds it: ISO-8601 in UTC, with its fraction.

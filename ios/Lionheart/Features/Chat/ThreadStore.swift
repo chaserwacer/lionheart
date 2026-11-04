@@ -19,6 +19,10 @@ final class ThreadStore {
     /// Where a read of earlier sessions stands.
     private(set) var earlier: ActionState = .idle
 
+    /// The answer this screen has just received, which is set down word by word as it lands. Any
+    /// answer read back from the server rather than arriving here is shown whole.
+    private(set) var arrivedReply: UUID?
+
     private let api: ChatThreadAPI
 
     private var load: Task<Void, Never>?
@@ -44,6 +48,13 @@ final class ThreadStore {
         transcript = .loading
         exchange = .idle
         earlier = .idle
+        arrivedReply = nil
+    }
+
+    /// The arrived answer has been set down, so it is shown whole from now on, even when its bubble
+    /// is rebuilt by scrolling it away and back.
+    func settle(reply id: UUID) {
+        if arrivedReply == id { arrivedReply = nil }
     }
 
     /// Reads the stretch before the oldest session on screen and puts it in front.
@@ -98,6 +109,7 @@ final class ThreadStore {
 
         do {
             let session = try await api.send(words)
+            arrivedReply = session.transcript.last { !ChatTurn.said($0).isFromAthlete }?.chatMessageId
             transcript = transcript.editing { $0.with(session) }
             exchange = .idle
         } catch is CancellationError {

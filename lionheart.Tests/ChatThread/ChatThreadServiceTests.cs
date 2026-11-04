@@ -30,6 +30,29 @@ public sealed class ChatThreadServiceTests : IDisposable
         Assert.Contains("Nothing is remembered yet.", _thread.SystemPromptOf(session.SessionId));
     }
 
+    /// <summary>
+    /// The session's prompt is frozen at its opening, so only the briefing can tell the model what
+    /// today is on a later message: it has to be the current one, and never become history.
+    /// </summary>
+    [Fact]
+    public async Task Every_message_goes_with_the_current_briefing_and_none_is_stored()
+    {
+        _thread.Model.Responds(CannedChat.Content("Rest."));
+        _thread.Model.Responds(CannedChat.Content("Train."));
+
+        _thread.Briefing.Text = "TODAY\nNow: Tuesday.";
+        await _thread.SendAsync("Should I train?");
+        _thread.Clock.Advance(TimeSpan.FromMinutes(40));
+        _thread.Briefing.Text = "TODAY\nNow: Wednesday.";
+        var session = await _thread.SendAsync("And now?");
+
+        Assert.Contains("Now: Tuesday.", _thread.Model.ReceivedRequests[0]);
+        Assert.Contains("Now: Wednesday.", _thread.Model.ReceivedRequests[1]);
+        Assert.DoesNotContain("Now: Tuesday.", _thread.Model.ReceivedRequests[1]);
+        Assert.DoesNotContain("Now:", _thread.SystemPromptOf(session.SessionId));
+        Assert.All(session.Messages, message => Assert.DoesNotContain("TODAY", message.Content));
+    }
+
     [Fact]
     public async Task Coming_back_within_the_gap_continues_the_same_session_with_its_history()
     {
