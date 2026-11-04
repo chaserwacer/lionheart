@@ -7,7 +7,9 @@ import SwiftUI
 /// measurements, and a part with no data says it is unknown rather than showing zero.
 struct TrainingScoreView: View {
     @Environment(TrainingBalanceStore.self) private var balance
-    @State private var opened: ScorePart?
+    /// Opens a part from a tap on the partition; the rows open their part themselves.
+    let open: (ScorePart) -> Void
+
     @ScaledMetric(relativeTo: .body) private var trendHeight: CGFloat = 140
 
     var body: some View {
@@ -37,7 +39,6 @@ struct TrainingScoreView: View {
         .listSectionSpacing(.compact)
         .navigationTitle("Training score")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $opened) { ScorePartView(part: $0) }
         .refreshable { await balance.refresh() }
         .task { await balance.refreshIfNeeded() }
     }
@@ -45,7 +46,7 @@ struct TrainingScoreView: View {
     @ViewBuilder
     private func content(_ score: TrainingScore) -> some View {
         let weeks = balance.weeks.value ?? []
-        TrainingScoreCard(score: score, weeks: weeks) { opened = $0 }
+        TrainingScoreCard(score: score, weeks: weeks, onSelect: open)
         if !weeks.isEmpty {
             Section {
                 WeeklyScoreChart(weeks: weeks, highlighted: weeks.last?.window.to)

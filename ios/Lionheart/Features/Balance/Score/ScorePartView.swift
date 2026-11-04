@@ -127,9 +127,7 @@ struct ScorePartView: View {
     private var liftingDetail: some View {
         if let volume = balance.volume.value {
             Section {
-                NavigationLink {
-                    VolumeView(volume: volume)
-                } label: {
+                NavigationLink(value: ScoreRoute.volume) {
                     LabeledContent("Patterns and muscle groups") {
                         if !volume.unplaced.isEmpty {
                             Text("\(volume.unplaced.count) not counted").monospacedDigit()

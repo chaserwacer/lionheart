@@ -31,8 +31,6 @@ struct TrainView: View {
     @State private var editingRoutine: RoutineEditing?
     @State private var isSaveFromSessionAsked = false
     @State private var deletingRoutine: Routine?
-    /// A score part opened from a tap on the score's partition.
-    @State private var openedPart: ScorePart?
     @Environment(TrainingBalanceStore.self) private var balance
 
     /// A transition waiting on the athlete's confirmation. Hung on the `List` rather than on a row,
@@ -49,8 +47,6 @@ struct TrainView: View {
     enum Route: Hashable {
         case plannedSession(UUID)
         case bodyweight
-        case volume
-        case score
     }
 
     var body: some View {
@@ -110,20 +106,14 @@ struct TrainView: View {
                         openWorkout: openWorkout)
                 case .bodyweight:
                     BodyweightView(store: bodyweight)
-                case .volume:
-                    if let volume = balance.volume.value {
-                        VolumeView(volume: volume)
-                    } else {
-                        ContentUnavailableView("Volume not available", systemImage: "exclamationmark.triangle")
-                    }
-                case .score:
-                    TrainingScoreView()
                 }
             }
             .navigationDestination(for: HistoryRoute.self) { route in
                 HistoryDestination(route: route, history: history, focus: focus, library: library)
             }
-            .navigationDestination(item: $openedPart) { ScorePartView(part: $0) }
+            .navigationDestination(for: ScoreRoute.self) { route in
+                ScoreDestination(route: route) { self.route.append(ScoreRoute.part($0)) }
+            }
         }
         .task {
             async let plan: Void = store.refresh()
@@ -237,7 +227,7 @@ struct TrainView: View {
                         label: family.family.name, sets: Double(family.hardSets), target: family.target,
                         lastTrained: family.lastTrained)
                 }
-                NavigationLink(value: Route.volume) {
+                NavigationLink(value: ScoreRoute.volume) {
                     LabeledContent("Patterns and muscle groups") {
                         if !volume.unplaced.isEmpty {
                             Text("\(volume.unplaced.count) not counted").monospacedDigit()
@@ -264,9 +254,9 @@ struct TrainView: View {
                 Text(failure.message).font(.footnote).foregroundStyle(Color(.secondaryLabel))
             }
         case .loaded(let score), .stale(let score, _):
-            TrainingScoreCard(score: score, weeks: balance.weeks.value ?? []) { openedPart = $0 }
+            TrainingScoreCard(score: score, weeks: balance.weeks.value ?? []) { route.append(ScoreRoute.part($0)) }
             Section {
-                NavigationLink(value: Route.score) {
+                NavigationLink(value: ScoreRoute.score) {
                     Text("Weeks")
                 }
             }

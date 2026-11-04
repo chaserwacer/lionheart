@@ -11,7 +11,7 @@ struct TrainingScoreCard: View {
     /// The weeks before, oldest first, for the context beside the number; empty before they load.
     let weeks: [WeeklyScore]
     /// Opens a part from a tap on the partition. The rows open their part themselves.
-    var onSelect: (ScorePart) -> Void = { _ in }
+    let onSelect: (ScorePart) -> Void
 
     @State private var isInfoShown = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -25,9 +25,7 @@ struct TrainingScoreCard: View {
             }
             .padding(.vertical, 4)
             ForEach(parts) { part in
-                NavigationLink {
-                    ScorePartView(part: part.part)
-                } label: {
+                NavigationLink(value: ScoreRoute.part(part.part)) {
                     PartRow(part: part)
                 }
             }

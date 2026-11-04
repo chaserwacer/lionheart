@@ -31,6 +31,8 @@ struct TodayView: View {
     @State private var isSettingsPresented = false
     @State private var isDayPickerPresented = false
     @State private var isRecoveryExplained = false
+    /// Bound so a tap on the training score's partition can push the part it lands on.
+    @State private var path = NavigationPath()
     /// Where a pushed figure, night or session zooms out of: the row it was opened from.
     @Namespace private var zoom
 
@@ -47,7 +49,7 @@ struct TodayView: View {
         let today = store.today
         let day = store.selection.day(today: today)
 
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 switch store.state {
                 case .loading:
@@ -78,6 +80,9 @@ struct TodayView: View {
             }
             .navigationDestination(for: HistoryRoute.self) { route in
                 HistoryDestination(route: route, history: history, focus: focus, library: library)
+            }
+            .navigationDestination(for: ScoreRoute.self) { route in
+                ScoreDestination(route: route) { path.append(ScoreRoute.part($0)) }
             }
             .sheet(isPresented: $isQuickLogPresented) {
                 QuickLogSheet(store: store)

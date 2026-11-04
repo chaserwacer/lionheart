@@ -18,9 +18,7 @@ struct TrainingScoreSection: View {
                     .font(.footnote)
                     .foregroundStyle(Color(.secondaryLabel))
             case .loaded(let score), .stale(let score, _):
-                NavigationLink {
-                    TrainingScoreView()
-                } label: {
+                NavigationLink(value: ScoreRoute.score) {
                     TrainingScoreSummary(score: score)
                 }
             }
