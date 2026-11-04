@@ -81,6 +81,12 @@ committed. `.env.example` is the full list. In development the required keys are
 `LmStudio__BaseUrl`, `LmStudio__ApiKey`, `LmStudio__Model` and the `Embedding__*` block — the
 app throws at startup naming the key if any is missing.
 
+**Keep a worktree off Anthropic.** The main `.env` names Anthropic and carries the real key, so a
+linked worktree bills it. Start the server with `Llm__ChatProvider=Relay` (or `LmStudio`) on the
+process — a variable set there wins over `.env` — or give the worktree its own `.env` holding only
+the `LmStudio__*` and `Embedding__*` keys; the search stops at the first `.env` it finds. Chat
+testing uses the relay (`docs/chat-relay.md`), never the API key.
+
 ## UX/UI testing
 
 If a change touches UI/UX, use the **/cl-ux** skill. Prompt me before you start testing

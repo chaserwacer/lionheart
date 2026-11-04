@@ -76,7 +76,7 @@ namespace Services.Chat
                             exchange.SystemPrompt,
                             exchange.Messages,
                             _toolRegistry.GetAllToolDefinitions(),
-                            request.MaxOutputTokens),
+                            request.MaxOutputTokens) with { Briefing = request.Briefing },
                         cancellationToken)
                     .BindAsync(turn => ActOnAsync(user, exchange, turn, cancellationToken));
 

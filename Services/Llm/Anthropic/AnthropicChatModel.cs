@@ -195,9 +195,8 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
             .SkipWhile(message => !OpensATranscript(message))
             .ToList();
 
-        var latestWords = request.Caching is PromptCaching.Conversation
-            ? transcript.FindLastIndex(message => message is ModelMessage.UserSaid)
-            : -1;
+        var latestWords = transcript.FindLastIndex(message => message is ModelMessage.UserSaid);
+        var cached = request.Caching is PromptCaching.Conversation;
 
         return transcript.Count == 0
             ? Result<IReadOnlyList<Messages.MessageParam>, Problem>.Failure(new Problem.Invalid(
@@ -205,10 +204,30 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
                 "There is nothing to send: the message is empty, or too large for the input budget."))
             : transcript
                 .Select((message, index) => (Message: message, IsLatestWords: index == latestWords))
-                .Traverse(turn => turn is { IsLatestWords: true, Message: ModelMessage.UserSaid said }
+                .Traverse(turn => turn is { IsLatestWords: true, Message: ModelMessage.UserSaid said } && cached
                     ? Text(Messages.MessageParamRole.User, said.Text, HistoryCache)
-                    : Transcribe(turn.Message));
+                    : Transcribe(turn.Message))
+                .Map(messages => Briefed(messages, latestWords, request.Briefing));
     }
+
+    /// <summary>
+    /// The round's briefing as a system message straight after the athlete's latest words.
+    /// </summary>
+    /// <remarks>
+    /// After the hour-long breakpoint on those words, so it is the one part of the conversation
+    /// that is never cached and never needs to be: the next message brings a fresh one, and the
+    /// history it is replayed into ends at the words, which match the cache byte for byte. A
+    /// mid-conversation system message carries operator authority, which is what the briefing is.
+    /// It is followed only by the model's own turns of this exchange, as the API requires.
+    /// </remarks>
+    private static IReadOnlyList<Messages.MessageParam> Briefed(
+        IReadOnlyList<Messages.MessageParam> messages, int latestWords, string briefing) =>
+        string.IsNullOrWhiteSpace(briefing) || latestWords < 0
+            ? messages
+            : [.. messages.Take(latestWords + 1), SystemNote(briefing), .. messages.Skip(latestWords + 1)];
+
+    private static Messages.MessageParam SystemNote(string text) =>
+        new(new Messages.SystemMessageParam { Content = text }, null);
 
     /// <summary>Whether a message says anything the model could read.</summary>
     private static bool Speaks(ModelMessage message) =>

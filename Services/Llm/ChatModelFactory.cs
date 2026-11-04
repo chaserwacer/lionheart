@@ -1,11 +1,13 @@
 using System.ClientModel;
 using lionheart.Services.Llm.Anthropic;
 using lionheart.Services.Llm.LmStudio;
+using lionheart.Services.Llm.Relay;
 using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Embeddings;
 using AnthropicSettings = lionheart.Services.Llm.ChatProviderSettings.Anthropic;
 using LmStudioSettings = lionheart.Services.Llm.ChatProviderSettings.LmStudio;
+using RelaySettings = lionheart.Services.Llm.ChatProviderSettings.Relay;
 
 namespace lionheart.Services.Llm;
 
@@ -29,6 +31,10 @@ public static class ChatModelFactory
 
         AnthropicSettings anthropic => new AnthropicChatModel(
             new global::Anthropic.AnthropicClient { ApiKey = anthropic.ApiKey }, model,
+            loggers.CreateLogger<AnthropicChatModel>()),
+
+        RelaySettings relay => new AnthropicChatModel(
+            RelayTransport.Client(relay.Folder, loggers.CreateLogger<RelayTransport>()), model,
             loggers.CreateLogger<AnthropicChatModel>()),
 
         _ => throw new ArgumentOutOfRangeException(

@@ -40,8 +40,8 @@ using lionheart.Services.Health.Runs;
 
 // Load .env into the process environment before the host reads configuration, so the Llm__,
 // Anthropic__, LmStudio__ and Embedding__ keys flow through the default environment-variable
-// provider (which maps "__" to ":").
-DotNetEnv.Env.TraversePath().Load();
+// provider (which maps "__" to ":"). A variable already set on the process wins over the file.
+EnvironmentFile.Load();
 
 // A one-off command runs instead of the server, and before it is built: the web host refuses to
 // start without LM Studio configured, which an import has no use for.
@@ -100,7 +100,7 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
 // request that needs a model. The two are independent: Anthropic has no embeddings endpoint, so
 // "chat on Anthropic, embeddings on a local OpenAI-compatible server" is the expected production
 // shape, not a fallback.
-var llm = LlmConfiguration.Read(configuration).Match(
+var llm = LlmConfiguration.Read(configuration, builder.Environment.EnvironmentName).Match(
     valid => valid,
     problem => throw new InvalidOperationException(
         $"Language-model configuration is incomplete. {problem.Description}"));

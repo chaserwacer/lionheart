@@ -25,12 +25,20 @@ public sealed class LmStudioChatModel(ChatClient client) : IChatModel
     /// <summary>
     /// The conversation as the SDK wants it: the system prompt first, then each message in order.
     /// </summary>
+    /// <remarks>
+    /// The briefing joins the system prompt rather than following the athlete's words: many local
+    /// models' chat templates refuse a system message anywhere but first. The local server's prefix
+    /// cache costs nothing to miss, so the reason Anthropic places it later does not apply here.
+    /// </remarks>
     private static Result<List<ChatMessage>, Problem> Transcribe(ChatTurnRequest request) =>
         request.Messages
             .Traverse(Transcribe)
             .Map(transcribed =>
             {
-                var messages = new List<ChatMessage> { new SystemChatMessage(request.SystemPrompt) };
+                var system = string.IsNullOrWhiteSpace(request.Briefing)
+                    ? request.SystemPrompt
+                    : $"{request.SystemPrompt}\n\n{request.Briefing}";
+                var messages = new List<ChatMessage> { new SystemChatMessage(system) };
                 messages.AddRange(transcribed.SelectMany(group => group));
                 return messages;
             });
