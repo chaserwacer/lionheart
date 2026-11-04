@@ -100,7 +100,9 @@ struct TodayView: View {
         // Every return to the tab, but a read only when the day may have moved (`ReadFreshness`);
         // the movement strip is read with it then, since a sync made elsewhere reaches both.
         .task {
-            if await store.refreshIfDue() { await habits.loadDay(day) }
+            // A first load leaves the strip to the `.task(id:)` below, which reads it already.
+            let isReturn = store.state.value != nil
+            if await store.refreshIfDue(), isReturn { await habits.loadDay(day) }
         }
         .task(id: day) { await habits.loadDayIfNeeded(day) }
     }
