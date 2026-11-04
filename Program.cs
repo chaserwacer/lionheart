@@ -75,6 +75,11 @@ if (args is [ScoreCalibrationCommand.Verb, ..])
     return await ScoreCalibrationCommand.RunAsync(args, CancellationToken.None);
 }
 
+if (args is [OuraSyncCommand.Verb, ..])
+{
+    return await OuraSyncCommand.RunAsync(args, CancellationToken.None);
+}
+
 if (args is [AddScanCommand.Verb, ..])
 {
     return await AddScanCommand.RunAsync(args, CancellationToken.None);

@@ -73,8 +73,13 @@ public sealed class OuraSyncService : IOuraSyncService
     public Task<Result<OuraSyncReport, Problem>> SyncAsync(
         IdentityUser user, DayRange range, CancellationToken ct) =>
         _context.AthleteIdAsync(user, ct)
-            .BindAsync(userId => range.Ordered().Map(ordered => (userId, ordered)))
-            .BindAsync(asked => CredentialAsync(asked.userId, asked.ordered, ct))
+            .BindAsync(userId => SyncAthleteAsync(userId, range, ct));
+
+    /// <summary>The same sync for an athlete named by id, for the command line.</summary>
+    public Task<Result<OuraSyncReport, Problem>> SyncAthleteAsync(
+        Guid userId, DayRange range, CancellationToken ct) =>
+        range.Ordered()
+            .BindAsync(ordered => CredentialAsync(userId, ordered, ct))
             .BindAsync(run => Steps(run).TraverseAsync(step => step(ct)))
             .MapAsync(tallies => new OuraSyncReport(range, tallies));
 
