@@ -13,7 +13,7 @@ public abstract record CardioMeasure
     private protected CardioMeasure() { }
 
     /// <param name="Zone2Minutes">Minutes at 60–70 % of maximum heart rate inside cardio sessions.</param>
-    /// <param name="HighIntensityMinutes">Minutes at 80 % of maximum and above (zones 4 and 5) inside cardio sessions.</param>
+    /// <param name="HighIntensityMinutes">Minutes at 70 % of maximum and above (zones 3 to 5) inside cardio sessions.</param>
     /// <param name="HeartRateDays">Days of the window with any heart rate from the ring, out of seven.</param>
     public sealed record Measured(
         double Zone2Minutes, int Zone2Target, double HighIntensityMinutes, int HighIntensityTarget,

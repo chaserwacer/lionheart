@@ -358,27 +358,33 @@ push day do not make it a pull day.
 carries `points` and `outOf` and the measurements it was read from:
 
 Each measurement pays `sqrt(min(1, measured / target))` of its points: concave, because the first
-half of a target buys most of what the whole would, and only the whole target pays in full.
+half of a target buys most of what the whole would, and only the whole target pays in full. Every
+measurement arrives as `Scored { of, points, outOf }` — the measurement and what it earned of what
+it could — so the client draws the server's arithmetic rather than re-deriving it.
 
-- `lifting` (35): `families` as in weekly volume; each family pays its share of a third.
+- `lifting` (35): `families` — `Scored<FamilyVolume>`, `of` as in weekly volume, each `outOf` a
+  third.
 - `cardio` (25): `points` null when unknown; `measure` `$type` `measured { zone2Minutes, zone2Target:
-  150, highIntensityMinutes, highIntensityTarget: 20, sessions, heartRateDays }` or `unknown { reason:
-  noHeartRate | noMaximumHeartRate | sessionsUnrecorded }`. Zone 2 pays 15, zones 4–5 pay 10, each
-  capped at its target, from the cardio report's sessions.
-- `progress` (20): `families` as in the priority report; each family pays a third — a new or
-  lifetime best whole, `held` or `firstBack` a quarter, `below` or `noEstimate` a tenth, `notTrained`
-  or `none` nothing. With every other part full, holding all three priorities reads 85: 90 takes a
-  new best.
-- `consistency` (20): `sessionsPerBlock`, completed sessions in the window and the three seven-day
-  blocks before it, each paying its share of a quarter against `target` 3.
+  150, highIntensityMinutes, highIntensityTarget: 30, sessions, heartRateDays }` or `unknown { reason:
+  noHeartRate | noMaximumHeartRate | sessionsUnrecorded }`; `zones` — `Scored<ZoneTarget { band:
+  zone2 | zones3To5, minutes, target }>`, zone 2 out of 15 and zones 3–5 (70 % of maximum and
+  above) out of 10, empty when unknown. From the cardio report's sessions, so a ring-detected
+  workout counts only where its heart rate showed training.
+- `progress` (20): `families` — `Scored<FamilyPriority>`, `of` as in the priority report, each a
+  third — a new or lifetime best whole, `held` or `firstBack` a quarter, `below` or `noEstimate` a
+  tenth, `notTrained` or `none` nothing. With every other part full, holding all three priorities
+  reads 85: 90 takes a new best.
+- `consistency` (20): `blocks` — `Scored<SessionBlock { window, sessions }>`, the window and the
+  three seven-day blocks before it, newest first, each out of a quarter against `target` 3.
 
 `value` is the points the known parts earned; `outOf` is 100 less the weight of any part in
 `unknown`. A part with no data is named rather than measured as zero, and its points are out of
 reach, so a week with the ring off never outscores the same week with it worn and no cardio.
 `WeeklyScore { window, value, outOf, unknown, liftingPoints, cardioPoints?, progressPoints,
 consistencyPoints }`. Chat reads the score through the `GetTrainingScore` tool as a
-`TrainingScoreDigest`: a few lines of the same measurements, what is up next, what is under target,
-and up to twelve weeks — a few hundred tokens.
+`TrainingScoreDigest`: a few lines of the same measurements, what is up next ("next: legs (last
+trained …)", then separately whether the window's last day already has hard sets), what is under
+target, and up to twelve weeks — a few hundred tokens.
 
 ## Oura — `/api/oura`
 
@@ -435,9 +441,14 @@ as short, the `vo2Max` (Oura's), `appleWatchVo2Max` (the Apple Watch's, from App
 own series, never merged with Oura's), `cardiovascularAge` and `restingHeartRate` series, `aerobicBase` (the last
 four weeks against the eight before, `appleWatchVo2Max` beside `vo2Max`, each figure null where its window has no data — zone 2 also
 when there is no maximum heart rate, or when less than half the window's session time has heart
-rate synced), and `excluded` (ring workouts left out, counted by category and `reason`:
-`sameAsLoggedRun`, `insideLoggedLifting`, `shortWalk`, `strength`, `notTraining`, `unclassified`,
-`noDuration`). A `loggedSession` source carries `isRecorded` — imported from Apple Health, so
+rate synced), `excluded` (ring workouts left out, counted by `category` — `endurance`, `sport`,
+`walk`, `strength`, `incidental`, `unspecified` (Oura's "other"), `unrecognised` — and `reason`:
+`sameAsLoggedRun`, `insideLoggedLifting`, `shortWalk`, `strength`, `notTraining`, `heartRateUnread`,
+`heartRateBelowTraining`, `noDuration`), and `declined` (`{ session, reason }`, each ring workout
+in the range that needed its heart rate to show training and did not, with that heart rate; the
+chat tool gets the counts only). A `ringWorkout` source carries `entry`: `entered` (the athlete's
+own, taken at its name) or `detected` (the ring's guess, here because its heart rate showed
+training). A `loggedSession` source carries `isRecorded` — imported from Apple Health, so
 `GET /api/training/sessions/{id}/recording` has its route — and `activity` for an endurance session
 (`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`; null for a trail run or a distance-and-time
 session, which `isTrailRun` tells apart); a `recorded` heart rate carries

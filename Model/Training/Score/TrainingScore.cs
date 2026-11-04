@@ -41,17 +41,42 @@ public enum ScorePart
     [JsonStringEnumMemberName("consistency")] Consistency,
 }
 
-/// <summary>Hard sets of push, pull and legs against eight each. Over-doing one family does not pay for another.</summary>
-public sealed record LiftingPart(double Points, int OutOf, IReadOnlyList<FamilyVolume> Families);
+/// <summary>One measurement of a part, with the points it earned out of the points it could.</summary>
+/// <remarks>
+/// Every figure the score is read from carries its own contribution, so the breakdown is the
+/// server's arithmetic drawn rather than a client's second reading of the rules.
+/// </remarks>
+public sealed record Scored<T>(T Of, double Points, double OutOf);
 
-/// <summary>Zone-2 and high-intensity minutes from cardio sessions, or why they cannot be read.</summary>
-public sealed record CardioPart(double? Points, int OutOf, CardioMeasure Measure);
+/// <summary>Hard sets of push, pull and legs against eight each. Over-doing one family does not pay for another.</summary>
+public sealed record LiftingPart(double Points, int OutOf, IReadOnlyList<Scored<FamilyVolume>> Families);
+
+/// <summary>Zone-2 and zone 3–5 minutes from cardio sessions, or why they cannot be read.</summary>
+/// <param name="Zones">Each band against its target; empty when the measure is unknown.</param>
+public sealed record CardioPart(double? Points, int OutOf, CardioMeasure Measure, IReadOnlyList<Scored<ZoneTarget>> Zones);
+
+/// <summary>Minutes in a band of heart-rate zones against the week's target for it.</summary>
+public sealed record ZoneTarget(ZoneBand Band, double Minutes, int Target);
+
+/// <summary>The two bands of heart-rate zones the score reads.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ZoneBand>))]
+public enum ZoneBand
+{
+    /// <summary>60–70 % of maximum: the aerobic base.</summary>
+    [JsonStringEnumMemberName("zone2")] Zone2,
+
+    /// <summary>70 % of maximum and above: tempo, threshold and intervals.</summary>
+    [JsonStringEnumMemberName("zones3To5")] Zones3To5,
+}
 
 /// <summary>Each family's priority lift over the window, against its own recent best.</summary>
-public sealed record ProgressPart(double Points, int OutOf, IReadOnlyList<FamilyPriority> Families);
+public sealed record ProgressPart(double Points, int OutOf, IReadOnlyList<Scored<FamilyPriority>> Families);
 
 /// <summary>Sessions in each of the last four seven-day blocks, the window's own first.</summary>
-public sealed record ConsistencyPart(double Points, int OutOf, IReadOnlyList<int> SessionsPerBlock, int Target);
+public sealed record ConsistencyPart(double Points, int OutOf, IReadOnlyList<Scored<SessionBlock>> Blocks, int Target);
+
+/// <summary>Completed sessions in one seven-day block.</summary>
+public sealed record SessionBlock(DayRange Window, int Sessions);
 
 /// <summary>One week's score, for the trend: its value and each part's points.</summary>
 public sealed record WeeklyScore(
@@ -81,8 +106,12 @@ public static class ScoreRules
     /// <summary>The physical-activity guidelines' 150 moderate minutes a week, read as zone 2.</summary>
     public const int Zone2Minutes = 150;
 
-    /// <summary>Twenty minutes at 80 % of maximum or above: one short hard session.</summary>
-    public const int HighIntensityMinutes = 20;
+    /// <summary>
+    /// Thirty minutes at 70 % of maximum or above: two short hard sessions, or one tempo run. Zone
+    /// 3 counts, because the athlete's own line between easy and hard work is zone 2 against
+    /// zones 3 to 5.
+    /// </summary>
+    public const int HighIntensityMinutes = 30;
 
     /// <summary>
     /// Three sessions a week: his median in every block he has trained, so a block that simply

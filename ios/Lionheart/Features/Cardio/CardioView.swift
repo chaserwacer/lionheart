@@ -90,9 +90,14 @@ struct CardioView: View {
     private func content(_ report: CardioReport, staleBecause staleness: Staleness?) -> some View {
         if let staleness { StaleBanner(staleness) }
 
+        ZoneSplitSection(report: report, span: span)
         weeksSection(report)
+        CardioRunsSection(report: report)
         estimatesSection(report)
         sessionsSection(report)
+        if !report.declined.isEmpty {
+            DeclinedWorkoutsSection(declined: report.declined, span: span)
+        }
         Section {
             Button("How zones are set, and what is left out") { isMethodShown = true }
         }
@@ -261,6 +266,7 @@ struct CardioView: View {
             ("Sessions", Self.number(Double(shown.reduce(0) { $0 + $1.sessions }) / weeks, digits: week == nil ? 1 : 0)),
             ("Minutes", Self.number(shown.reduce(0) { $0 + $1.minutes } / weeks)),
             ("Zone 2 min", Self.number(shown.reduce(0) { $0 + $1.zones.zone2 } / weeks)),
+            ("Z3–5 min", Self.number(shown.reduce(0) { $0 + $1.zones.zone3 + $1.zones.zone4 + $1.zones.zone5 } / weeks)),
         ]
         return VStack(alignment: .leading, spacing: 6) {
             Text(caption).font(.subheadline).foregroundStyle(Color(.secondaryLabel))
@@ -420,7 +426,8 @@ private struct CardioMethodSheet: View {
                     Text(Self.zones(report?.maxHeartRate))
                 }
                 Section("What counts as a session") {
-                    Text("Your logged runs and distance work, and the workouts the ring recorded. A ring workout is left out when it is housework, yard work or stretching, a walk under 30 minutes, strength work, or at least half inside a logged session — which is that session as the ring saw it.")
+                    Text("Your logged runs and distance work, runs imported from Apple Health, and the workouts you entered on the ring. A ring workout is left out when it is housework, yard work or stretching, a walk under 30 minutes, strength work, or at least half inside a logged session — which is that session as the ring saw it.")
+                    Text("A workout the ring detected on its own — and any nobody named — counts only when its heart rate shows training: at least half of it read, 20 minutes at zone 2 or above or 10 at zone 3 or above, and zone 2 or above for at least half the time read. Its name is a guess you approved; its heart rate is the evidence. Each one left out is listed with its heart rate at the foot of the screen.")
                     if let excluded = report?.excluded, !excluded.isEmpty {
                         Text("Left out in this span: " + excluded.map { "\($0.count) \($0.reason.phrase)" }.joined(separator: ", ") + ".")
                             .foregroundStyle(Color(.secondaryLabel))

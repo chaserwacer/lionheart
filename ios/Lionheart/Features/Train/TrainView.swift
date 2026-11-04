@@ -2,10 +2,11 @@ import SwiftUI
 
 /// Let me do it.
 ///
-/// The tab answers one question — what am I training, and how do I start — so the first section is
-/// always the answer to it: start a workout or log one already done. Then what it is time for, from
-/// what was trained and when; the week's volume across push, pull and legs; the priorities and the
-/// score. Routines, bodyweight and the plan follow, there when wanted.
+/// The tab leads with the training score — where the week stands, part by part — because it is the
+/// reading every session on this tab moves, and the start section sits directly under it: start a
+/// workout or log one already done. Then what it is time for, from what was trained and when; the
+/// week's volume across push, pull and legs; the priorities. Routines, bodyweight and the plan
+/// follow, there when wanted.
 struct TrainView: View {
     let store: TrainStore
     let activeWorkout: ActiveWorkoutStore
@@ -30,6 +31,8 @@ struct TrainView: View {
     @State private var editingRoutine: RoutineEditing?
     @State private var isSaveFromSessionAsked = false
     @State private var deletingRoutine: Routine?
+    /// A score part opened from a tap on the score's partition.
+    @State private var openedPart: ScorePart?
     @Environment(TrainingBalanceStore.self) private var balance
 
     /// A transition waiting on the athlete's confirmation. Hung on the `List` rather than on a row,
@@ -53,11 +56,12 @@ struct TrainView: View {
     var body: some View {
         NavigationStack(path: $route) {
             List {
+                scoreSection
                 startSection
                 if !outbox.finished.isEmpty { finishedSection }
                 upNextSection
                 volumeSection
-                standingSection
+                prioritiesSection
                 routinesSection
                 bodyweightSection
                 switch store.state {
@@ -74,6 +78,21 @@ struct TrainView: View {
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
             .navigationTitle("Train")
+            // The score leads the tab, so starting stays one tap away above it rather than a scroll
+            // below it.
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if activeWorkout.workout != nil {
+                        Button("Continue", action: openWorkout)
+                    } else {
+                        Button("Start") {
+                            Task { if await store.startUnplanned() { openWorkout() } }
+                        }
+                        .disabled(store.action.isRunning)
+                        .accessibilityLabel("Start workout")
+                    }
+                }
+            }
             .refreshable {
                 async let plan: Void = store.refresh()
                 async let saved: Void = routines.refresh()
@@ -104,6 +123,7 @@ struct TrainView: View {
             .navigationDestination(for: HistoryRoute.self) { route in
                 HistoryDestination(route: route, history: history, focus: focus, library: library)
             }
+            .navigationDestination(item: $openedPart) { ScorePartView(part: $0) }
         }
         .task {
             async let plan: Void = store.refresh()
@@ -232,22 +252,33 @@ struct TrainView: View {
         }
     }
 
-    /// The priorities and the score, each a line opening its own screen.
-    private var standingSection: some View {
+    /// The score, part by part, with its weeks behind a link. Its shape while the first read is
+    /// out, so the start section below does not jump when it lands.
+    @ViewBuilder
+    private var scoreSection: some View {
+        switch balance.score {
+        case .loading:
+            Section("Training score") { SkeletonRows(count: 3) }
+        case .unavailable(let failure):
+            Section("Training score") {
+                Text(failure.message).font(.footnote).foregroundStyle(Color(.secondaryLabel))
+            }
+        case .loaded(let score), .stale(let score, _):
+            TrainingScoreCard(score: score, weeks: balance.weeks.value ?? []) { openedPart = $0 }
+            Section {
+                NavigationLink(value: Route.score) {
+                    Text("Weeks")
+                }
+            }
+        }
+    }
+
+    /// The priorities, a line opening their screen.
+    private var prioritiesSection: some View {
         Section {
             NavigationLink(value: HistoryRoute.focus) {
                 LabeledContent("Priorities") {
                     Text(prioritySummary).lineLimit(1)
-                }
-            }
-            NavigationLink(value: Route.score) {
-                if let score = balance.score.value {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Training score")
-                        TrainingScoreSummary(score: score)
-                    }
-                } else {
-                    Text("Training score")
                 }
             }
         }

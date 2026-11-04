@@ -62,6 +62,11 @@ first and then in the code.
 | **Weekly volume** | Hard sets over the seven days ending on a day, by family, pattern and muscle group, each against a weekly target, with the last day each was trained. |
 | **Training balance** | Where the week's training stands across the body: weekly volume and up next, the priorities, and the training score. The name of the folders, store and routes that read them. |
 | **Up next** | The family or families trained longest ago, named together when last trained the same day, with the day's readiness beside it where it is unusual. A recommendation, never an instruction. |
+| **Ring entry** | How a ring workout came to be on the record: `entered` by the athlete, or `detected` — proposed by the ring from movement and approved. A detected workout's name is a guess. |
+| **Declined workout** | A ring workout that needed its heart rate to show training — a detected one, or one nobody named — and did not: listed in the cardio report with that heart rate, and counted nowhere. |
+| **Training evidence** | The rule that admits a ring's guess as a cardio session: half its time read, 20 minutes at zone 2 or above or 10 at zone 3 or above, and zone 2 or above for half the time read. |
+| **Score partition** | The training score drawn as three rows on one 100-point axis — the score, its parts, every measurement — each cell as wide as the points it can earn and filled with what it earned. |
+| **Heartbeats per kilometre** | A run's average heart rate times its minutes per kilometre: what a kilometre cost the heart. Roughly level across easy and steady paces, so it falls as the aerobic base grows. |
 | **Training score** | Lionheart's own 0–100 for the seven days ending on a day: lifting volume, cardio, priority progress and consistency, each read as measurements against targets. Not Oura's activity score. A part with no data is unknown: named, and its points out of reach rather than counted as zero. |
 | **Session source** | Where a session came from: the athlete's log — entered in Lionheart, or imported from his own logs — or Apple Health, with the workout's Health id and the app that recorded it. Orthogonal to provenance. |
 | **Health workout** | A workout another app wrote to Apple Health, read by the phone and offered to the server, which decides whether it becomes training. |

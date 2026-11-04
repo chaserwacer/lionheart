@@ -103,6 +103,123 @@ public class CardioAnalysisTests
         Assert.Equal(counted ? [] : [WorkoutExclusion.ShortWalk], report.Excluded.Select(excluded => excluded.Reason));
     }
 
+    // ---- Which of the ring's guesses were training ----
+    // Age 20 predicts a maximum of 194: zone 2 from 117 bpm, zone 3 from 136.
+
+    [Fact]
+    public void A_detected_game_of_catch_in_zone_one_is_declined_and_shown_with_its_heart_rate()
+    {
+        var start = At(10, 17);
+        var report = Build(ring: [Detected("handball", start, 25)], heartRate: Minutes(start, (105, 25)));
+
+        Assert.Empty(report.Sessions);
+        Assert.Equal(0, report.Weeks.Sum(week => week.Zones.Zone2));
+        var declined = Assert.Single(report.Declined);
+        Assert.Equal(WorkoutExclusion.HeartRateBelowTraining, declined.Reason);
+        Assert.Equal(105, Assert.IsType<SessionHeartRate.Recorded>(declined.Session.HeartRate).AverageBpm);
+        var excluded = Assert.Single(report.Excluded);
+        Assert.Equal((WorkoutCategory.Sport, WorkoutExclusion.HeartRateBelowTraining, 1), (excluded.Category, excluded.Reason, excluded.Count));
+    }
+
+    [Fact]
+    public void A_detected_game_held_in_zone_two_counts_and_its_minutes_with_it()
+    {
+        var start = At(10, 17);
+        var report = Build(ring: [Detected("handball", start, 40)], heartRate: Minutes(start, (125, 30), (100, 10)));
+
+        var source = Assert.IsType<CardioSessionSource.RingWorkout>(Assert.Single(report.Sessions).Source);
+        Assert.Equal(RingEntry.Detected, source.Entry);
+        Assert.Equal(30, report.Weeks.Sum(week => week.Zones.Zone2), precision: 3);
+        Assert.Empty(report.Declined);
+    }
+
+    [Fact]
+    public void A_detected_workout_with_no_heart_rate_is_declined_as_unread_rather_than_counted()
+    {
+        var report = Build(ring: [Detected("basketball", At(12, 17), 45)]);
+
+        Assert.Empty(report.Sessions);
+        Assert.Equal(WorkoutExclusion.HeartRateUnread, Assert.Single(report.Declined).Reason);
+        // Declined, but still session time with nothing behind it: the window's zone 2 is unknown, not zero.
+        Assert.Null(report.AerobicBase.Zone2MinutesPerWeek.Recent);
+    }
+
+    [Fact]
+    public void A_declined_guess_still_tells_the_maximum_what_rate_was_reached()
+    {
+        // 199 bpm is above the 194 predicted for age 20; the spike inside an hour of pottering is
+        // declined, but a rate reached is evidence about the maximum whatever the activity was.
+        var start = At(10, 17);
+        var report = Build(
+            ring: [Detected("handball", start, 600)],
+            heartRate: [.. Minutes(start, (95, 480)), .. Minutes(start.AddMinutes(480), (199, 120))]);
+
+        Assert.Equal(WorkoutExclusion.HeartRateBelowTraining, Assert.Single(report.Declined).Reason);
+        Assert.Equal(199, report.MaxHeartRate?.Bpm);
+    }
+
+    [Fact]
+    public void A_workout_started_on_the_ring_is_the_athletes_own()
+    {
+        var report = Build(ring: [Ring("basketball", At(12, 17), 45, source: "workout_heart_rate")]);
+
+        Assert.Equal(RingEntry.Entered, Assert.IsType<CardioSessionSource.RingWorkout>(Assert.Single(report.Sessions).Source).Entry);
+    }
+
+    [Fact]
+    public void A_workout_the_athlete_entered_is_taken_at_its_name_without_heart_rate()
+    {
+        var report = Build(ring: [Ring("basketball", At(12, 17), 45)]);
+
+        Assert.Equal(RingEntry.Entered, Assert.IsType<CardioSessionSource.RingWorkout>(Assert.Single(report.Sessions).Source).Entry);
+        Assert.Empty(report.Declined);
+    }
+
+    [Fact]
+    public void Housework_never_counts_whatever_its_heart_rate()
+    {
+        var start = At(10, 9);
+        var report = Build(ring: [Detected("houseWork", start, 40)], heartRate: Minutes(start, (130, 40)));
+
+        Assert.Empty(report.Sessions);
+        Assert.Empty(report.Declined);
+        Assert.Equal(WorkoutExclusion.NotTraining, Assert.Single(report.Excluded).Reason);
+    }
+
+    [Fact]
+    public void An_entered_workout_nobody_named_is_still_judged_by_its_heart_rate()
+    {
+        var start = At(10, 9);
+        var report = Build(ring: [Ring("other", start, 30)], heartRate: Minutes(start, (100, 30)));
+
+        Assert.Empty(report.Sessions);
+        Assert.Equal(WorkoutCategory.Unspecified, Assert.Single(report.Excluded).Category);
+    }
+
+    [Theory]
+    [InlineData(0, 25, 0, 0, TrainingVerdict.BelowTraining)] // catch: all zone 1
+    [InlineData(10, 10, 20, 0, TrainingVerdict.Training)] // twenty minutes at zone 2
+    [InlineData(0, 3, 0, 12, TrainingVerdict.Training)] // a short hard effort
+    [InlineData(0, 0, 0, 9, TrainingVerdict.BelowTraining)] // too short to be a hard session
+    [InlineData(10, 30, 20, 0, TrainingVerdict.BelowTraining)] // a spike inside an hour of pottering
+    [InlineData(0, 20, 20, 0, TrainingVerdict.Training)] // exactly half the time at zone 2 and above
+    public void The_heart_rate_shows_training_by_time_at_zone_two_or_above_and_its_share(
+        double belowZones, double zone1, double zone2, double zone3, TrainingVerdict verdict)
+    {
+        var zones = new ZoneMinutes(belowZones, zone1, zone2, zone3, 0, 0);
+
+        Assert.Equal(verdict, TrainingEvidence.Judge(new SessionHeartRate.Recorded(120, 150, 1, zones, HeartRateSource.Ring)));
+    }
+
+    [Fact]
+    public void Heart_rate_over_too_little_of_a_workout_cannot_show_training()
+    {
+        var zones = new ZoneMinutes(0, 0, 30, 0, 0, 0);
+
+        Assert.Equal(TrainingVerdict.Unread, TrainingEvidence.Judge(new SessionHeartRate.Recorded(125, 130, 0.4, zones, HeartRateSource.Ring)));
+        Assert.Equal(TrainingVerdict.Unread, TrainingEvidence.Judge(new SessionHeartRate.Recorded(125, 130, 1, null, HeartRateSource.Ring)));
+    }
+
     // ---- Heart rate across a session ----
 
     [Fact]
@@ -301,9 +418,21 @@ public class CardioAnalysisTests
 
     private static DateTimeOffset At(int day, int hour) => new(2026, 10, day, hour, 0, 0, Eastern);
 
-    private static OuraWorkout Ring(string activity, DateTimeOffset start, double minutes) =>
+    /// <summary>A workout on the ring: entered by the athlete unless <paramref name="source"/> says the ring detected it.</summary>
+    private static OuraWorkout Ring(string activity, DateTimeOffset start, double minutes, string source = "manual") =>
         new(Guid.NewGuid(), Athlete, DateOnly.FromDateTime(start.DateTime), new WorkoutReading(
-            new Interval(start, start.AddMinutes(minutes)), activity, "moderate", "confirmed", null, null, null));
+            new Interval(start, start.AddMinutes(minutes)), activity, "moderate", source, null, null, null));
+
+    private static OuraWorkout Detected(string activity, DateTimeOffset start, double minutes) =>
+        Ring(activity, start, minutes, "confirmed");
+
+    /// <summary>One sample a minute from <paramref name="start"/>, at each rate in turn for its minutes.</summary>
+    private static IReadOnlyList<HeartRateSample> Minutes(DateTimeOffset start, params (int Bpm, int Minutes)[] stretches) =>
+    [
+        .. stretches
+            .SelectMany(stretch => Enumerable.Repeat(stretch.Bpm, stretch.Minutes))
+            .Select((bpm, minute) => Beat(start.AddMinutes(minute), bpm))
+    ];
 
     private static CompletedTrainingSession Logged(DateTimeOffset start, double minutes, SetEntry set) =>
         Some.CompletedSession(Athlete) with

@@ -1,36 +1,46 @@
 import Charts
 import SwiftUI
 
-/// The training score of each week ending on a Sunday, as quiet bars against the 90 that marks an
-/// excellent week, with the week on screen in the accent.
+/// The training score of each week ending on a Sunday, or one part's points, as quiet bars, with
+/// the week on screen in the accent.
 ///
-/// A week whose score was read with a part unknown is drawn hollow-toned, so a number that could
-/// only reach 89 never sits beside a whole one as if the two said the same.
+/// The whole score is drawn against the 90 that marks an excellent week; a part against its own
+/// points. A week whose score was read with a part unknown is drawn pale, so a number that could
+/// only reach 89 never sits beside a whole one as if the two said the same; a part unknown that
+/// week has no bar at all.
 struct WeeklyScoreChart: View {
     /// Oldest first.
     let weeks: [WeeklyScore]
     var highlighted: CalendarDay?
+    /// The part drawn, or the whole score when `nil`.
+    var part: ScorePart?
+    /// The top of the scale: 100 for the whole score, the part's points otherwise.
+    var outOf: Double = 100
 
     /// The score that marks an excellent week, drawn as a rule.
-    static let excellent = 90
+    static let excellent = 90.0
 
     var body: some View {
         Chart {
-            RuleMark(y: .value("Excellent", Self.excellent))
+            RuleMark(y: .value("Mark", part == nil ? Self.excellent : outOf))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                 .foregroundStyle(Color(.tertiaryLabel))
             ForEach(weeks) { week in
-                BarMark(
-                    x: .value("Week", week.window.to.middayDate(), unit: .weekOfYear),
-                    y: .value("Score", week.value))
-                .foregroundStyle(colour(of: week))
+                if let value = week.points(of: part) {
+                    BarMark(
+                        x: .value("Week", week.window.to.middayDate(), unit: .weekOfYear),
+                        y: .value("Points", value))
+                    .foregroundStyle(colour(of: week))
+                }
             }
         }
-        .chartYScale(domain: 0...100)
+        .chartYScale(domain: 0...outOf)
         .chartYAxis {
-            AxisMarks(values: [0, 50, 90]) { _ in
+            AxisMarks(values: part == nil ? [0, 50, Self.excellent] : [0, outOf / 2, outOf]) { value in
                 AxisGridLine()
-                AxisValueLabel()
+                AxisValueLabel {
+                    if let number = value.as(Double.self) { Text(ScorePoints.text(number)) }
+                }
             }
         }
         .chartXAxis {
@@ -43,19 +53,19 @@ struct WeeklyScoreChart: View {
                 }
             }
         }
-        .accessibilityLabel("Training score by week")
+        .accessibilityLabel(part.map { "\($0.name) points by week" } ?? "Training score by week")
         .accessibilityValue(spoken)
     }
 
     private func colour(of week: WeeklyScore) -> Color {
         if week.window.to == highlighted { return Tokens.accent }
-        return week.isPartial ? Color(.quaternarySystemFill) : Color(.systemFill)
+        return part == nil && week.isPartial ? Color(.quaternarySystemFill) : Color(.systemFill)
     }
 
     private var spoken: String {
-        let values = weeks.map(\.value)
-        guard let best = values.max(), let last = weeks.last else { return "" }
+        let values = weeks.compactMap { $0.points(of: part) }
+        guard let best = values.max(), let last = weeks.last?.points(of: part) else { return "" }
         let median = values.sorted()[values.count / 2]
-        return "Last week \(last.value). Median \(median), best \(best), over \(Formatting.count(weeks.count, "week"))."
+        return "Last week \(ScorePoints.text(last)). Median \(ScorePoints.text(median)), best \(ScorePoints.text(best)), over \(Formatting.count(values.count, "week"))."
     }
 }
