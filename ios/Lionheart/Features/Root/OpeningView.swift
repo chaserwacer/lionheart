@@ -5,7 +5,11 @@ import SwiftUI
 ///
 /// It plays once per launch, over the app rather than before it: the root underneath is already
 /// reading the device's last answers and asking the server, so the opening never holds anything up
-/// — it is under a second, and lets every touch through to nothing until it has gone.
+/// — it is under a second, and lets every touch through to nothing until it has gone. Every step is
+/// scheduled on the animation clock at the first frame, never after a sleep on the main actor: that
+/// actor is busiest exactly now, and a step waiting its turn there would keep the app covered for as
+/// long as launch work runs. On the clock, a launch that keeps the main thread busy past the
+/// opening's second simply shows the app when it frees, with the opening already over.
 ///
 /// The first frame is the launch screen's: Graphite, and the mark at the size and place
 /// `UILaunchScreen` draws `LaunchMark`, so the hand-over has no seam. The last frame puts the lockup
@@ -61,34 +65,31 @@ struct OpeningView: View {
         .opacity(isLeaving ? 0 : 1)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-        .task { await play() }
+        .onAppear(perform: play)
     }
 
-    /// The choreography, in seconds from the first frame. Every step is an animation the system
-    /// interpolates; the sleeps only place them.
-    private func play() async {
-        // A beat on the launch screen's own frame, which is also when sign-in lays out underneath.
-        guard await pause(0.1) else { return }
+    /// The choreography, in seconds from the first frame, all of it scheduled at once. A beat on the
+    /// launch screen's own frame first, which is also when sign-in lays out underneath.
+    private func play() {
+        let beat = 0.1
+        let leaving: Double
         if reduceMotion {
-            withAnimation(.easeInOut(duration: 0.3)) { showsLockup = true }
-            guard await pause(0.55) else { return }
+            withAnimation(.easeInOut(duration: 0.3).delay(beat)) { showsLockup = true }
+            leaving = beat + 0.55
         } else {
             for bar in 0..<3 {
-                withAnimation(.spring(duration: 0.42, bounce: 0.14).delay(Double(bar) * 0.05)) {
+                withAnimation(.spring(duration: 0.42, bounce: 0.14).delay(beat + Double(bar) * 0.05)) {
                     barsRisen[bar] = true
                 }
             }
-            withAnimation(.easeOut(duration: 0.28).delay(0.3)) { showsWordmark = true }
-            withAnimation(.easeOut(duration: 0.24).delay(0.42)) { showsTagline = true }
-            guard await pause(0.64) else { return }
+            withAnimation(.easeOut(duration: 0.28).delay(beat + 0.3)) { showsWordmark = true }
+            withAnimation(.easeOut(duration: 0.24).delay(beat + 0.42)) { showsTagline = true }
+            leaving = beat + 0.64
         }
-        withAnimation(.easeIn(duration: 0.22)) { isLeaving = true }
-        guard await pause(0.22) else { return }
-        finished()
-    }
-
-    /// Sleeps, answering whether the opening is still on screen to carry on.
-    private func pause(_ seconds: Double) async -> Bool {
-        (try? await Task.sleep(for: .seconds(seconds))) != nil
+        withAnimation(.easeIn(duration: 0.22).delay(leaving), completionCriteria: .logicallyComplete) {
+            isLeaving = true
+        } completion: {
+            finished()
+        }
     }
 }

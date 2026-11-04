@@ -6,6 +6,6 @@
 LH_API_BASE_URL = https:$(LH_SLASH)$(LH_SLASH)lionheart.invalid
 
 // Release never asks to write to Health; the plist key is present only because Debug needs it.
-LH_HEALTH_UPDATE_USAGE = Lionheart does not write to Apple Health.
+LH_HEALTH_UPDATE_USAGE = Tempo does not write to Apple Health.
 
 #include? "Local.xcconfig"
