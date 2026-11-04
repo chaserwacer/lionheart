@@ -43,11 +43,11 @@ struct PersonalRecordsView: View {
     }
 
     /// A movement opens its page, whose Records hold everything the records screen would; trail
-    /// running names no movement and keeps the records screen.
+    /// running, riding and hiking name no movement and keep the records screen.
     private static func route(to subject: RecordSubject) -> HistoryRoute {
         switch subject {
         case .movement(let id): .movement(id)
-        case .trailRunning: .recordSubject(subject)
+        case .trailRunning, .riding, .hiking: .recordSubject(subject)
         }
     }
 

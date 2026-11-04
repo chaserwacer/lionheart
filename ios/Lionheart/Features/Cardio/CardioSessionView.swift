@@ -5,7 +5,7 @@ import SwiftUI
 ///
 /// The curve is the all-day series, read a little either side of the session so the climb into it
 /// and the recovery out of it are visible; dashed rules mark where the session begins and ends. A
-/// run imported from Apple Health opens onto its own page instead (`RunView`), which draws the
+/// run imported from Apple Health opens onto its own page instead (`RecordedWorkoutView`), which draws the
 /// recording app's heart rate where it wrote one.
 struct CardioSessionView: View {
     let session: CardioSession
@@ -35,7 +35,7 @@ struct CardioSessionView: View {
 
     private var sourceText: String {
         switch session.source {
-        case .loggedSession(_, _, isRecorded: true): "Imported from Apple Health. The curve is the ring's series; the run's own page has the recording app's."
+        case .loggedSession(_, _, isRecorded: true, _): "Imported from Apple Health. The curve is the ring's series; the workout's own page has the recording app's."
         case .loggedSession: "Logged in Lionheart; heart rate from the ring over the same time."
         case .ringWorkout(_, _, .walk): "A walk the ring detected, long enough to count as a session."
         case .ringWorkout: "Detected or entered on the ring."

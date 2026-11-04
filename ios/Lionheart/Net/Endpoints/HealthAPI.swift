@@ -18,10 +18,10 @@ struct HealthAPI: Sendable {
         }
     }
 
-    func run(_ trainingSessionId: UUID, remembering key: ReadKey) async throws -> Remembered<RecordedRun> {
+    func run(_ trainingSessionId: UUID, remembering key: ReadKey) async throws -> Remembered<RecordedWorkout> {
         try await client.get(
             "/api/training/sessions/\(trainingSessionId.uuidString)/recording",
-            as: RecordedRun.self,
+            as: RecordedWorkout.self,
             remembering: key)
     }
 }

@@ -60,6 +60,7 @@ namespace lionheart.Data
         public DbSet<BodyCompositionScan> BodyCompositionScans { get; set; }
         public DbSet<WorkoutRecording> WorkoutRecordings { get; set; }
         public DbSet<Model.Health.Measurements.HealthDailyMeasure> HealthDailyMeasures { get; set; }
+        public DbSet<DeletedHealthWorkout> DeletedHealthWorkouts { get; set; }
 
         // Oura — design in docs/oura-integration.md. One table per collection: eight documents that
         // describe a calendar day, four that describe events within one, and the all-day heart-rate

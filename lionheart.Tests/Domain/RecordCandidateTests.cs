@@ -253,6 +253,41 @@ public class RecordCandidateTests
     }
 
     [Fact]
+    public void A_ride_and_a_hike_each_claim_on_their_own_subject_apart_from_the_runs()
+    {
+        var candidates = From(
+            TrailRun(8, DistanceUnit.Kilometers, TimeSpan.FromMinutes(70)),
+            Endurance(EnduranceActivity.Ride, 40, TimeSpan.FromMinutes(80)),
+            Endurance(EnduranceActivity.Hike, 14, TimeSpan.FromMinutes(240)));
+
+        var longest = candidates
+            .Where(candidate => candidate.Achievement is Achievement.LongestDistance)
+            .ToDictionary(candidate => candidate.Subject, candidate => ((Achievement.LongestDistance)candidate.Achievement).Effort.Distance);
+
+        Assert.Equal(
+            new Dictionary<RecordSubject, double>
+            {
+                [new RecordSubject.TrailRunning()] = 8,
+                [new RecordSubject.Riding()] = 40,
+                [new RecordSubject.Hiking()] = 14,
+            },
+            longest);
+    }
+
+    [Theory]
+    [InlineData(EnduranceActivity.IndoorRide)]
+    [InlineData(EnduranceActivity.IndoorRun)]
+    [InlineData(EnduranceActivity.Walk)]
+    public void An_indoor_ride_or_run_and_a_walk_claim_nothing(EnduranceActivity activity) =>
+        Assert.Empty(From(Endurance(activity, 10, TimeSpan.FromMinutes(40))));
+
+    [Fact]
+    public void A_lift_carrying_a_subjects_sentinel_id_claims_nothing()
+    {
+        Assert.Empty(From(Lift(RecordSubject.Movement.RidingSentinel, 225, 5)));
+    }
+
+    [Fact]
     public void Every_trail_run_in_a_session_competes_as_one_subject()
     {
         var candidates = From(
@@ -326,6 +361,13 @@ public class RecordCandidateTests
 
     private static TrailRunSet TrailRun(double distance, DistanceUnit unit, TimeSpan duration) =>
         new(distance, unit, duration, ElevationGainMeters: 400, Rpe.Unrated)
+        {
+            Source = new Formed(),
+            Facets = [],
+        };
+
+    private static EnduranceSet Endurance(EnduranceActivity activity, double kilometres, TimeSpan duration) =>
+        new(activity, kilometres, DistanceUnit.Kilometers, duration, ElevationGainMeters: 200, Rpe.Unrated)
         {
             Source = new Formed(),
             Facets = [],

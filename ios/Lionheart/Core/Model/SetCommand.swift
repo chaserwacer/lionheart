@@ -20,6 +20,9 @@ enum SetCommand: Equatable, Sendable {
     case lift(Lift)
     case distanceTime(DistanceTime)
     case trailRun(TrailRun)
+    /// A ride, a hike, a walk or an indoor run. Logged only by an import, but stated back whole when
+    /// the session it is in is corrected.
+    case endurance(Endurance)
     /// A set the athlete described instead of measuring. The words are the record.
     case freeform(text: String)
 
@@ -69,13 +72,23 @@ enum SetCommand: Equatable, Sendable {
         let rpe: Rpe
     }
 
-    /// The movement this set was performed on, where the shape names one. A trail run and a
-    /// freeform set genuinely have no movement identity.
+    struct Endurance: Equatable, Sendable {
+        let activity: EnduranceActivity
+        let distance: Double
+        let unit: DistanceUnit
+        /// Seconds.
+        let duration: TimeInterval
+        let elevationGainMeters: Double
+        let rpe: Rpe
+    }
+
+    /// The movement this set was performed on, where the shape names one. A trail run, an
+    /// endurance set and a freeform set genuinely have no movement identity.
     var movementDataId: UUID? {
         switch self {
         case .lift(let set): set.movementDataId
         case .distanceTime(let set): set.movementDataId
-        case .trailRun, .freeform: nil
+        case .trailRun, .endurance, .freeform: nil
         }
     }
 
@@ -84,6 +97,7 @@ enum SetCommand: Equatable, Sendable {
         case .lift(let set): set.rpe
         case .distanceTime(let set): set.rpe
         case .trailRun(let set): set.rpe
+        case .endurance(let set): set.rpe
         case .freeform: .unrated
         }
     }
@@ -92,7 +106,7 @@ enum SetCommand: Equatable, Sendable {
     var kind: SetKind {
         switch self {
         case .lift(let set): set.kind
-        case .distanceTime, .trailRun, .freeform: .working
+        case .distanceTime, .trailRun, .endurance, .freeform: .working
         }
     }
 
@@ -109,12 +123,13 @@ enum SetCommand: Equatable, Sendable {
         case .lift: .lift
         case .distanceTime: .distanceTime
         case .trailRun: .trailRun
+        case .endurance: .endurance
         case .freeform: .freeform
         }
     }
 }
 
-/// Which of the four shapes a set is being logged in.
+/// Which shape a set is being logged in.
 ///
 /// Its own type because the choice outlives any one set: the entry surface offers the shape the
 /// athlete last used on a movement, and a movement's identity (`MovementData`) does not say whether
@@ -123,6 +138,8 @@ enum SetModality: String, Equatable, Sendable, CaseIterable {
     case lift
     case distanceTime
     case trailRun
+    /// Never offered for a new set: an endurance set arrives from an import, and is only corrected.
+    case endurance
     case freeform
 }
 
@@ -154,6 +171,15 @@ extension SetCommand: Codable {
 
         case "trailRun":
             self = .trailRun(TrailRun(
+                distance: container.lenient("distance", or: 0),
+                unit: DistanceUnit(wire: container.lenient(Int.self, "unit")),
+                duration: container.duration("duration") ?? 0,
+                elevationGainMeters: container.lenient("elevationGainMeters", or: 0),
+                rpe: Rpe(wire: container.lenient(Double.self, "rpe"))))
+
+        case "endurance":
+            self = .endurance(Endurance(
+                activity: EnduranceActivity(wire: try container.required(String.self, "activity", type)),
                 distance: container.lenient("distance", or: 0),
                 unit: DistanceUnit(wire: container.lenient(Int.self, "unit")),
                 duration: container.duration("duration") ?? 0,
@@ -194,6 +220,17 @@ extension SetCommand: Codable {
 
         case .trailRun(let set):
             try container.encode("trailRun", forKey: .type)
+            try container.encode(set.distance, forKey: WireKey(stringValue: "distance"))
+            try container.encode(set.unit.wire, forKey: WireKey(stringValue: "unit"))
+            try container.encode(
+                WireDuration.wire(fromSeconds: set.duration), forKey: WireKey(stringValue: "duration"))
+            try container.encode(
+                set.elevationGainMeters, forKey: WireKey(stringValue: "elevationGainMeters"))
+            try container.encode(set.rpe.value, forKey: WireKey(stringValue: "rpe"))
+
+        case .endurance(let set):
+            try container.encode("endurance", forKey: .type)
+            try container.encode(set.activity.wire, forKey: WireKey(stringValue: "activity"))
             try container.encode(set.distance, forKey: WireKey(stringValue: "distance"))
             try container.encode(set.unit.wire, forKey: WireKey(stringValue: "unit"))
             try container.encode(
@@ -243,6 +280,15 @@ extension SetEntry {
             .trailRun(SetCommand.TrailRun(
                 distance: set.distance, unit: set.unit, duration: set.duration,
                 elevationGainMeters: set.elevationGainMeters, rpe: set.rpe))
+        case .endurance(let set):
+            // An activity this build does not know cannot be stated back as it was.
+            if case .unrecognised = set.activity {
+                nil
+            } else {
+                .endurance(SetCommand.Endurance(
+                    activity: set.activity, distance: set.distance, unit: set.unit, duration: set.duration,
+                    elevationGainMeters: set.elevationGainMeters, rpe: set.rpe))
+            }
         case .freeform(let common):
             .freeform(text: common.source.rawText ?? "")
         case .unrecognised:

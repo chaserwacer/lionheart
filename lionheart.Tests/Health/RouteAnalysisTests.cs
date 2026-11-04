@@ -1,6 +1,6 @@
 using lionheart.Model.Health;
 using lionheart.Model.Oura.Readings;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 using lionheart.Tests.Support;
 
 namespace lionheart.Tests.Health;

@@ -21,7 +21,8 @@ extension SubjectRecords: Decodable {
         let container = try decoder.container(keyedBy: WireKey.self)
 
         self.init(
-            subject: RecordSubject(wire: container.lenient(UUID.self, "movementDataId")),
+            subject: RecordSubject(
+                wire: container.lenient(UUID.self, "movementDataId"), subject: container.lenient(String.self, "subject")),
             records: container.lenientList(PersonalRecord.self, "records"),
             lastAchievedAt: container.instant("lastAchievedAt"))
     }

@@ -13,7 +13,7 @@ first and then in the code.
 | **Active session** | A session in progress: it has a start instant and the sets logged so far. |
 | **Completed session** | A session that happened: its sets, the period it occupied, the effort reported, and its decoration. |
 | **Skipped session** | A planned session the athlete did not do. Terminal, and kept — the skip is data. |
-| **Set entry** | One performed set. Per-modality shapes: lift, distance-time, trail run, freeform. |
+| **Set entry** | One performed set. Per-modality shapes: lift, distance-time, trail run, endurance (a ride, hike, walk or indoor run, by its activity), freeform. |
 | **Freeform set** | A set the parser could not break down. Keeps its raw words and its facets, and can be upgraded later. The words are never lost. |
 | **Prescription** | A target set on a planned session — the intended reps, weight, distance or duration. |
 | **Movement data** | The identity of a thing you do: a movement base plus equipment plus a modifier. Records hang off it. |

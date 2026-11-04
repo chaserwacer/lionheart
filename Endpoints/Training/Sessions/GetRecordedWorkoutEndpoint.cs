@@ -1,33 +1,33 @@
 using Ardalis.ApiEndpoints;
 using lionheart.Endpoints.Filters;
 using lionheart.Model.Health;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace lionheart.Endpoints.Training.Sessions;
 
-/// <summary>A session imported from Apple Health, read as a run: route, splits and heart rate.</summary>
+/// <summary>A session imported from Apple Health, read whole: route, splits, heart rate and the app's metrics.</summary>
 [ValidateModel]
-public class GetRecordedRunEndpoint : EndpointBaseAsync
+public class GetRecordedWorkoutEndpoint : EndpointBaseAsync
     .WithRequest<Guid>
-    .WithActionResult<RecordedRunView>
+    .WithActionResult<RecordedWorkoutView>
 {
-    private readonly IRecordedRunService _service;
+    private readonly IRecordedWorkoutService _service;
     private readonly UserManager<IdentityUser> _userManager;
 
-    public GetRecordedRunEndpoint(IRecordedRunService service, UserManager<IdentityUser> userManager)
+    public GetRecordedWorkoutEndpoint(IRecordedWorkoutService service, UserManager<IdentityUser> userManager)
     {
         _service = service;
         _userManager = userManager;
     }
 
     [HttpGet("api/training/sessions/{id:guid}/recording")]
-    [EndpointDescription("Get a run imported from Apple Health: its route, its splits per kilometre and per mile, and its heart rate.")]
-    [ProducesResponseType<RecordedRunView>(StatusCodes.Status200OK)]
+    [EndpointDescription("Get a workout imported from Apple Health — a run, ride, hike or walk: its route, its splits per kilometre and per mile, its heart rate, and the recording app's other metrics.")]
+    [ProducesResponseType<RecordedWorkoutView>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public override async Task<ActionResult<RecordedRunView>> HandleAsync([FromRoute] Guid id, CancellationToken cancellationToken = default)
+    public override async Task<ActionResult<RecordedWorkoutView>> HandleAsync([FromRoute] Guid id, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user is null) return Unauthorized("User is not recognized or no longer exists.");

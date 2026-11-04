@@ -39,6 +39,8 @@ enum SetFigures: Equatable, Sendable {
             .measured(timed(set.distance, set.unit, set.duration, gain: nil, rpe: set.rpe))
         case .trailRun(let set):
             .measured(timed(set.distance, set.unit, set.duration, gain: set.elevationGainMeters, rpe: set.rpe))
+        case .endurance(let set):
+            .measured(timed(set.distance, set.unit, set.duration, gain: set.elevationGainMeters, rpe: set.rpe))
         case .freeform(let text):
             text.nonEmpty.map(SetFigures.described) ?? .undescribed
         }
@@ -51,6 +53,8 @@ enum SetFigures: Equatable, Sendable {
         case .distanceTime(let set):
             .measured(timed(set.distance, set.unit, set.duration, gain: nil, rpe: set.rpe))
         case .trailRun(let set):
+            .measured(timed(set.distance, set.unit, set.duration, gain: set.elevationGainMeters, rpe: set.rpe))
+        case .endurance(let set):
             .measured(timed(set.distance, set.unit, set.duration, gain: set.elevationGainMeters, rpe: set.rpe))
         case .freeform(let common):
             common.source.rawText?.nonEmpty.map(SetFigures.described) ?? .undescribed

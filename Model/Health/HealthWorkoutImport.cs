@@ -10,7 +10,7 @@ namespace lionheart.Model.Health;
 /// The phone sends what Health holds and decides nothing: which workouts become training, and
 /// which are already in the log under another name, is the server's rule
 /// (<c>HealthWorkoutDecision</c>), so it is decided once and tested once. The phone does narrow
-/// what it reads to running workouts, since a route is the expensive part to send.
+/// what it reads to the activities the rule takes, since a route is the expensive part to send.
 /// <para>
 /// Flat scalars rather than domain records, for the reason <see cref="Analysis.PeriodCommand"/>
 /// gives: a domain constructor that throws while the body is being deserialized escapes as a 500,
@@ -27,6 +27,10 @@ namespace lionheart.Model.Health;
 /// <param name="ElevationAscendedMeters">The climb the app stated, if it stated one.</param>
 /// <param name="Route">Every fix of the route, oldest first; empty for a workout with none.</param>
 /// <param name="HeartRate">The heart rate the same app wrote across the workout; empty for none.</param>
+/// <param name="Metrics">
+/// Everything else the same app measured, a series per metric: power, cadence, speed, running form,
+/// and the heart rate's recovery after the workout. Absent from a phone that predates reading them.
+/// </param>
 public sealed record HealthWorkoutImport(
     Guid WorkoutId,
     string Activity,
@@ -39,7 +43,8 @@ public sealed record HealthWorkoutImport(
     double? DistanceMeters,
     double? ElevationAscendedMeters,
     IReadOnlyList<RoutePointCommand> Route,
-    IReadOnlyList<HeartRateCommand> HeartRate)
+    IReadOnlyList<HeartRateCommand> HeartRate,
+    IReadOnlyList<MetricSeriesCommand>? Metrics = null)
 {
     /// <summary>The workout as the domain holds it, or the first thing about it that cannot be read.</summary>
     public Result<StatedHealthWorkout, Problem> Stated() =>
@@ -55,7 +60,8 @@ public sealed record HealthWorkoutImport(
                 DistanceMeters,
                 ElevationAscendedMeters,
                 route,
-                Pulse())));
+                Pulse(),
+                Measured())));
 
     private Result<Unit, Problem> Identity() =>
         WorkoutId == Guid.Empty ? Refused(nameof(WorkoutId), "A workout carries its Health UUID.")
@@ -90,6 +96,18 @@ public sealed record HealthWorkoutImport(
     /// </summary>
     private RecordedHeartRate Pulse() =>
         RecordedHeartRate.Of((HeartRate ?? []).Where(sample => sample.IsHeartRate).Select(sample => (sample.At, sample.Bpm)));
+
+    /// <summary>
+    /// The metrics this server knows, without a reading that cannot be one. A metric a newer phone
+    /// names is passed over rather than refusing the workout, as an impossible reading is.
+    /// </summary>
+    private RecordedMetrics Measured() =>
+        RecordedMetrics.Of(
+            from series in Metrics ?? []
+            let metric = WorkoutMetrics.Named(series.Metric)
+            where metric is not null
+            from sample in series.Samples ?? []
+            select (metric.Value, sample.At, sample.Value));
 
     private static Result<Unit, Problem> Refused(string field, string message) =>
         Result<Unit, Problem>.Failure(new Problem.Invalid(field, message));
@@ -127,6 +145,11 @@ public sealed record HeartRateCommand(DateTimeOffset At, int Bpm)
     public bool IsHeartRate => Bpm is > 0 and <= Highest;
 }
 
+/// <param name="Metric">The metric's wire name: <c>power</c>, <c>cadence</c>, <c>speed</c>, <c>groundContactTime</c>…</param>
+public sealed record MetricSeriesCommand(string Metric, IReadOnlyList<MetricSampleCommand> Samples);
+
+public sealed record MetricSampleCommand(DateTimeOffset At, double Value);
+
 /// <summary>A Health workout that has passed the wire: every field read, nothing yet decided.</summary>
 public sealed record StatedHealthWorkout(
     SessionSource.AppleHealth Source,
@@ -137,4 +160,5 @@ public sealed record StatedHealthWorkout(
     double? DistanceMeters,
     double? ElevationAscendedMeters,
     WorkoutRoute Route,
-    RecordedHeartRate HeartRate);
+    RecordedHeartRate HeartRate,
+    RecordedMetrics Metrics);

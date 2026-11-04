@@ -1,7 +1,7 @@
 #if DEBUG && targetEnvironment(simulator)
 import SwiftUI
 
-/// Debug simulator builds only: writes the invented sample runs to this device's Health store, then syncs, so
+/// Debug simulator builds only: writes the invented sample workouts to this device's Health store, then syncs, so
 /// the import and the run page can be seen in a simulator.
 struct SampleRunsButton: View {
     let healthSync: HealthSyncStore
@@ -9,7 +9,7 @@ struct SampleRunsButton: View {
     @State private var outcome: String?
 
     var body: some View {
-        Button("Write sample runs to Health") {
+        Button("Write sample workouts to Health") {
             Task {
                 do {
                     try await SampleRuns.write(to: HealthLibrary().store)

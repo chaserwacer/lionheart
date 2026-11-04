@@ -16,7 +16,7 @@ struct BodyView: View {
     let bodyweight: BodyweightStore
 
     /// The runs imported from Apple Health, which the cardio screen opens onto.
-    @Environment(RunStore.self) private var runs
+    @Environment(RecordedWorkoutStore.self) private var runs
 
     @State private var isNewInjuryPresented = false
     @State private var isWellnessPresented = false
@@ -118,7 +118,7 @@ struct BodyView: View {
                 notLoaded("That session is no longer loaded")
             }
         case .run(let id):
-            RunView(trainingSessionId: id, store: runs)
+            RecordedWorkoutView(trainingSessionId: id, store: runs)
         case .habits:
             HabitsView(store: habits)
         case .dayActivity(let day):

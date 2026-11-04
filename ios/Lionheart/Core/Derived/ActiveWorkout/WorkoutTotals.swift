@@ -76,6 +76,8 @@ struct WorkoutTotals: Equatable, Sendable {
                 GroundCovered(distance: set.distance, unit: set.unit, duration: set.duration)
             case .trailRun(let set):
                 GroundCovered(distance: set.distance, unit: set.unit, duration: set.duration)
+            case .endurance(let set):
+                GroundCovered(distance: set.distance, unit: set.unit, duration: set.duration)
             case .lift, .freeform, .unrecognised:
                 nil
             }
@@ -134,7 +136,7 @@ extension SetCommand {
     var liftPart: Lift? {
         switch self {
         case .lift(let set): set
-        case .distanceTime, .trailRun, .freeform: nil
+        case .distanceTime, .trailRun, .endurance, .freeform: nil
         }
     }
 
@@ -144,6 +146,8 @@ extension SetCommand {
         case .distanceTime(let set):
             GroundCovered(distance: set.distance, unit: set.unit, duration: set.duration)
         case .trailRun(let set):
+            GroundCovered(distance: set.distance, unit: set.unit, duration: set.duration)
+        case .endurance(let set):
             GroundCovered(distance: set.distance, unit: set.unit, duration: set.duration)
         case .lift, .freeform:
             nil

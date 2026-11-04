@@ -28,7 +28,7 @@ struct PersonalRecordsAPI: Sendable {
     func history(of key: RecordKey) async throws -> Remembered<[PersonalRecord]> {
         let subject = key.subject.movementDataId.map {
             [URLQueryItem(name: "movementDataId", value: $0.uuidString)]
-        } ?? []
+        } ?? [URLQueryItem(name: "subject", value: key.subject.wireKind)]
         let bracket = key.kind.bracket.map { [URLQueryItem(name: "bracket", value: String($0))] } ?? []
 
         return try await client.get(

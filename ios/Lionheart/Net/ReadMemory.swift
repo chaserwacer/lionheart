@@ -166,13 +166,13 @@ extension ReadKey {
 
     /// One record chain, by the identity the route is asked with.
     static func recordHistory(_ key: RecordKey) -> ReadKey {
-        let subject = key.subject.movementDataId?.uuidString ?? "trail-running"
+        let subject = key.subject.movementDataId?.uuidString ?? key.subject.wireKind
         let bracket = key.kind.bracket.map { ".\($0)" } ?? ""
         return ReadKey("records.history.\(subject).\(key.kind.wireName)\(bracket)")
     }
 
     /// One run imported from Apple Health, for its page.
-    static func recordedRun(_ trainingSessionId: UUID) -> ReadKey {
+    static func recordedWorkout(_ trainingSessionId: UUID) -> ReadKey {
         ReadKey("run.\(trainingSessionId.uuidString)")
     }
 }

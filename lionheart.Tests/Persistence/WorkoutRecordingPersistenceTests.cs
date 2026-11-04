@@ -1,6 +1,8 @@
 using lionheart.Model.Health;
 using lionheart.Model.Oura.Readings;
+using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sessions;
+using lionheart.Model.Training.Sets;
 using lionheart.Tests.Support;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -80,7 +82,7 @@ public sealed class WorkoutRecordingPersistenceTests : IDisposable
     }
 
     [Fact]
-    public void A_recording_round_trips_its_route_and_heart_rate()
+    public void A_recording_round_trips_its_route_heart_rate_and_metrics()
     {
         var recording = Recording();
         using (var context = _db.CreateContext())
@@ -93,6 +95,39 @@ public sealed class WorkoutRecordingPersistenceTests : IDisposable
         var loaded = fresh.WorkoutRecordings.Single();
         Assert.Equal(recording.Route, loaded.Route);
         Assert.Equal(recording.HeartRate, loaded.HeartRate);
+        Assert.Equal(recording.Metrics, loaded.Metrics);
+    }
+
+    [Fact]
+    public void A_recording_written_before_metrics_existed_reads_with_none()
+    {
+        using (var context = _db.CreateContext())
+        {
+            context.WorkoutRecordings.Add(Recording());
+            context.SaveChanges();
+        }
+        _db.ExecuteScalar("UPDATE WorkoutRecordings SET Metrics = '[]'");
+
+        using var fresh = _db.CreateContext();
+        Assert.False(fresh.WorkoutRecordings.Single().Metrics.IsRecorded);
+    }
+
+    [Fact]
+    public void A_subject_that_names_no_movement_round_trips_through_its_sentinel()
+    {
+        RecordSubject[] subjects = [new RecordSubject.TrailRunning(), new RecordSubject.Riding(), new RecordSubject.Hiking()];
+        using (var context = _db.CreateContext())
+        {
+            foreach (var subject in subjects)
+                context.PersonalRecords.Add(PersonalRecord.FirstOf(
+                    Guid.NewGuid(), _db.UserId, subject,
+                    new Achievement.LongestDistance(new DistanceEffort(10, DistanceUnit.Kilometers, TimeSpan.FromMinutes(40))),
+                    DateTime.UnixEpoch));
+            context.SaveChanges();
+        }
+
+        using var fresh = _db.CreateContext();
+        Assert.Equal(subjects.ToHashSet(), fresh.PersonalRecords.Select(record => record.Subject).ToHashSet());
     }
 
     [Fact]
@@ -106,7 +141,7 @@ public sealed class WorkoutRecordingPersistenceTests : IDisposable
         ]);
         using (var context = _db.CreateContext())
         {
-            context.WorkoutRecordings.Add(WorkoutRecording.Of(Guid.NewGuid(), _db.UserId, route, RecordedHeartRate.None));
+            context.WorkoutRecordings.Add(WorkoutRecording.Of(Guid.NewGuid(), _db.UserId, route, RecordedHeartRate.None, RecordedMetrics.None));
             context.SaveChanges();
         }
 
@@ -123,6 +158,11 @@ public sealed class WorkoutRecordingPersistenceTests : IDisposable
             _db.UserId,
             AHealthRun.Route(AHealthRun.North(start, 1000, 3, altitude: index => index % 3 == 0 ? null : 400 + index)),
             new RecordedHeartRate([.. Enumerable.Range(0, 20).Select(index =>
-                new HeartRateSample(start.AddSeconds(index * 1.25), 140 + index, RecordedHeartRate.SampleSource))]));
+                new HeartRateSample(start.AddSeconds(index * 1.25), 140 + index, RecordedHeartRate.SampleSource))]),
+            RecordedMetrics.Of(
+            [
+                .. Enumerable.Range(0, 10).Select(index => (WorkoutMetric.Power, start.AddSeconds(index), 200.0 + index)),
+                (WorkoutMetric.HeartRateRecovery, start.AddMinutes(31), 28.0),
+            ]));
     }
 }

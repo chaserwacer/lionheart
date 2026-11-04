@@ -118,19 +118,23 @@ public static class CardioAnalysis
     /// <remarks>
     /// A ring workout inside a logged lifting session is that lifting session as the ring saw it, so
     /// it is excluded rather than counted as cardio. Inside a logged run, it is the run, already
-    /// counted (<see cref="SessionMatching"/>).
+    /// counted (<see cref="SessionMatching"/>). A logged walk shorter than a session walk is left
+    /// out as the ring's would be.
     /// </remarks>
     public static CardioGathering Gather(
         IReadOnlyList<OuraWorkout> ringWorkouts, IReadOnlyList<CompletedTrainingSession> logged)
     {
-        var fromLog = logged
-            .Where(SessionMatching.IsCardio)
+        var cardio = logged.Where(SessionMatching.IsCardio).ToList();
+        var shortWalks = cardio.Where(IsShortWalk).ToList();
+        var fromLog = cardio
+            .Except(shortWalks)
             .Select(session => SessionMatching.Span(session.Period) is { } span
                 ? new GatheredSession(
                     new CardioSessionSource.LoggedSession(
                         session.TrainingSessionId,
                         session.Sets.OfType<TrailRunSet>().Any(),
-                        session.Source is SessionSource.AppleHealth),
+                        session.Source is SessionSource.AppleHealth,
+                        session.Sets.EnduranceActivity),
                     span.Start,
                     span.End,
                     DistanceMeters(session))
@@ -143,8 +147,21 @@ public static class CardioAnalysis
 
         return new CardioGathering(
             [.. fromLog, .. decided.OfType<RingDecision.Session>().Select(decision => decision.Gathered)],
-            [.. decided.OfType<RingDecision.Excluded>().Select(decision => decision.Exclusion)]);
+            [
+                .. shortWalks.Select(walk => new Exclusion(walk.Date, WorkoutCategory.Walk, WorkoutExclusion.ShortWalk)),
+                .. decided.OfType<RingDecision.Excluded>().Select(decision => decision.Exclusion),
+            ]);
     }
+
+    /// <summary>
+    /// A logged session that is only walking, shorter than a walk has to be to count as a session —
+    /// a watch's walk held to the rule the ring's walks are (<see cref="WorkoutCategories.IsCardioSession"/>).
+    /// </summary>
+    private static bool IsShortWalk(CompletedTrainingSession session) =>
+        session.Sets.Where(set => set is TrailRunSet or EnduranceSet or DistanceTimeSet)
+            .All(set => set is EnduranceSet { Activity: EnduranceActivity.Walk })
+        && SessionMatching.Span(session.Period) is { } span
+        && !WorkoutCategories.IsCardioSession(WorkoutCategory.Walk, span.End - span.Start);
 
     /// <summary>What becomes of one ring workout: a session of its own, or excluded for a reason.</summary>
     private abstract record RingDecision
@@ -199,6 +216,7 @@ public static class CardioAnalysis
             .Select(set => set switch
             {
                 TrailRunSet run => run.Distance * run.Unit.MetersEach(),
+                EnduranceSet endurance => endurance.Distance * endurance.Unit.MetersEach(),
                 DistanceTimeSet timed => timed.Distance * timed.Unit.MetersEach(),
                 _ => (double?)null,
             })

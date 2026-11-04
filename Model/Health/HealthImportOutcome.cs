@@ -38,22 +38,24 @@ public enum HealthWorkoutExclusion
     /// </summary>
     [JsonStringEnumMemberName("readDirectly")] ReadDirectly,
 
-    /// <summary>Not a run. Only runs are taken from Health so far.</summary>
-    [JsonStringEnumMemberName("notARun")] NotARun,
-
     /// <summary>
-    /// A treadmill run: no route, and a distance the app estimated, which would stand beside the
-    /// trail-running records as if measured. The ring's own workout still carries it into the
-    /// cardio report.
+    /// Not a run, ride, hike or walk — elliptical, stairs and the rest, which Lionheart does not take
+    /// from Health.
     /// </summary>
-    [JsonStringEnumMemberName("indoor")] Indoor,
+    [JsonStringEnumMemberName("otherActivity")] OtherActivity,
 
     /// <summary>Neither a stated distance nor a route to measure one from.</summary>
     [JsonStringEnumMemberName("noDistance")] NoDistance,
 
-    /// <summary>Lies at least half inside a logged run, which is the same run already counted.</summary>
+    /// <summary>
+    /// Lies at least half inside a logged cardio session — a run, a ride, a hike, a walk, one another
+    /// app wrote to Health first — which is the same session already counted.
+    /// </summary>
     [JsonStringEnumMemberName("sameAsLoggedRun")] SameAsLoggedRun,
 
     /// <summary>Lies at least half inside a logged lifting session: the gym as another device saw it.</summary>
     [JsonStringEnumMemberName("insideLoggedLifting")] InsideLoggedLifting,
+
+    /// <summary>Its session was imported once and the athlete deleted it.</summary>
+    [JsonStringEnumMemberName("deleted")] Deleted,
 }

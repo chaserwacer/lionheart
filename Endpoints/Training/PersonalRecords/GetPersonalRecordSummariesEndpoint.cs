@@ -22,7 +22,7 @@ public class GetPersonalRecordSummariesEndpoint : EndpointBaseAsync
     }
 
     [HttpGet("api/personal-records/summaries")]
-    [EndpointDescription("The athlete's standing records, grouped by the movement they are held on — or by trail running, which holds no movement.")]
+    [EndpointDescription("The athlete's standing records, grouped by the movement they are held on — or by trail running, riding or hiking, which hold no movement.")]
     [ProducesResponseType<IReadOnlyList<SubjectRecordsView>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public override async Task<ActionResult<IReadOnlyList<SubjectRecordsView>>> HandleAsync(

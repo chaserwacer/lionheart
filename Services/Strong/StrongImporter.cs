@@ -165,11 +165,7 @@ public sealed class StrongImporter
 
     private static string Describe(PersonalRecord record, MovementCatalogue catalogue)
     {
-        var subject = record.Subject switch
-        {
-            RecordSubject.Movement movement => catalogue.NameOf(movement.MovementDataId),
-            _ => "trail running",
-        };
+        var subject = record.Subject.Name(catalogue.NameOf);
         var bracket = record.Kind.Bracket > 0 ? $" {record.Kind.Bracket}" : string.Empty;
         var unit = record.Achievement.HeldIn is { } held ? $" in {held}" : string.Empty;
 

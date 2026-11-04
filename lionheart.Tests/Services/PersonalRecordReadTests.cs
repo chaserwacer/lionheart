@@ -151,6 +151,33 @@ public class PersonalRecordReadTests : IAsyncLifetime
         Assert.Null(Assert.Single(trail).MovementDataId);
     }
 
+    [Fact]
+    public async Task A_history_read_naming_riding_reads_the_rides_and_not_the_runs()
+    {
+        await LogAsync(
+            First,
+            new TrailRunSetCommand(8, DistanceUnit.Kilometers, TimeSpan.FromMinutes(70), 600, null),
+            new EnduranceSetCommand(EnduranceActivity.Ride, 45, DistanceUnit.Kilometers, TimeSpan.FromMinutes(95), 400, null));
+
+        var riding = ResultAssert.Succeeded(await _athletes.RecordsAsync(service =>
+            service.GetHistoryAsync(
+                _athletes.Owner, new RecordHistoryQuery(null, "longestDistance", null, RecordSubjectKind.Riding), default)));
+
+        var record = Assert.Single(riding);
+        Assert.Equal((null, RecordSubjectKind.Riding), (record.MovementDataId, record.Subject));
+        Assert.Equal(45, Assert.IsType<LongestDistanceView>(record.Achievement).Distance);
+    }
+
+    [Fact]
+    public async Task A_history_read_naming_a_movement_kind_with_no_id_is_refused()
+    {
+        var problem = ResultAssert.Failed(await _athletes.RecordsAsync(service =>
+            service.GetHistoryAsync(
+                _athletes.Owner, new RecordHistoryQuery(null, "longestDistance", null, RecordSubjectKind.Movement), default)));
+
+        Assert.IsType<Problem.Invalid>(problem);
+    }
+
     /// <summary>
     /// Two links of one chain at one instant read successor first.
     /// </summary>

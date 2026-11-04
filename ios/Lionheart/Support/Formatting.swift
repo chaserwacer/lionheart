@@ -160,6 +160,9 @@ enum Formatting {
         case .trailRun(let set):
             return "\(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
                 + " · \(measure(set.elevationGainMeters)) m gain"
+        case .endurance(let set):
+            return "\(set.activity.title) \(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
+                + " · \(measure(set.elevationGainMeters)) m gain"
         case .freeform:
             return nil
         }

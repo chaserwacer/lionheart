@@ -26,6 +26,8 @@ struct SetDraft: Equatable, Sendable {
     var minutes: String = ""
     var seconds: String = ""
     var elevationGainMeters: String = ""
+    /// What an endurance set was, carried through a correction unchanged: it is not typed.
+    var enduranceActivity: EnduranceActivity = .ride
 
     var rpe: Rpe = .unrated
     /// What the lift is for. Working unless the athlete marks it otherwise; only a lift has one.
@@ -55,6 +57,12 @@ struct SetDraft: Equatable, Sendable {
             distanceUnit = set.unit
             (minutes, seconds) = Self.fields(duration: set.duration)
         case .trailRun(let set):
+            distance = Self.field(set.distance)
+            distanceUnit = set.unit
+            (minutes, seconds) = Self.fields(duration: set.duration)
+            elevationGainMeters = Self.field(set.elevationGainMeters)
+        case .endurance(let set):
+            enduranceActivity = set.activity
             distance = Self.field(set.distance)
             distanceUnit = set.unit
             (minutes, seconds) = Self.fields(duration: set.duration)
@@ -108,6 +116,16 @@ struct SetDraft: Equatable, Sendable {
         case .trailRun:
             guard let distance = Self.number(distance), distance > 0 else { return nil }
             return .trailRun(SetCommand.TrailRun(
+                distance: distance,
+                unit: distanceUnit,
+                duration: duration,
+                elevationGainMeters: Self.number(elevationGainMeters) ?? 0,
+                rpe: rpe))
+
+        case .endurance:
+            guard let distance = Self.number(distance), distance > 0 else { return nil }
+            return .endurance(SetCommand.Endurance(
+                activity: enduranceActivity,
                 distance: distance,
                 unit: distanceUnit,
                 duration: duration,

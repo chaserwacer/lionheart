@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using lionheart.Services.Chat;
 using lionheart.Services.Llm;
 using lionheart.Services.BodyComposition;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 
 namespace lionheart.Services.Profile
 {
@@ -307,7 +307,7 @@ namespace lionheart.Services.Profile
 
             lines.Add($"Training load: {acuteSessions} sessions in 7d, acute:chronic ratio {acwr} (vs trailing 28d).");
 
-            lines.Add(RunFacts.Recent(await ImportedRunsSinceAsync(userId, monthAgo), days: 28));
+            lines.Add(WorkoutFacts.Recent(await ImportedRunsSinceAsync(userId, monthAgo), days: 28));
             lines.AddRange(await BodyFactsAsync(userId));
 
             if (activeInjuries.Count > 0)
@@ -337,7 +337,7 @@ namespace lionheart.Services.Profile
                 $"wellness: 7d summary + latest entry present (as-of {today:yyyy-MM-dd}); per-day history NOT loaded -> GetWellnessStates(dateRange).",
                 $"oura: 7d readiness/sleep/HRV/stress means present (n={Math.Max(readinessWeek.Count, sleepWeek.Count)}); per-night detail (stages, hypnogram, HRV curve), workouts, sessions and tags NOT loaded -> the /api/oura routes.",
                 $"training: 7d count + acute:chronic present; no drill-in tool available yet — do not attempt to fetch per-session detail.",
-                "runs: Apple Health runs over 28d counted, with the latest; each run's splits, heart rate and climb NOT loaded -> GetRecordedRuns(dateRange). No route or location is available, by design.",
+                "recorded workouts: Apple Health runs, rides, hikes and walks over 28d counted, with the latest of each; each one's splits, heart rate, power and running form NOT loaded -> GetRecordedWorkouts(dateRange). No route or location is available, by design.",
                 $"injuries: {activeInjuries.Count} active summarized; full event history NOT loaded -> GetUserInjuries(filters).",
                 "body: latest dated bodyweight and the latest body-composition scan (with its change since the one before) present; every scan's full sheet NOT loaded -> GetBodyCompositionScans().",
                 $"Personal records: {standingRecordCount} standing records counted; the numbers and their progression NOT loaded -> GetPersonalRecords(), or GetPersonalRecordsForMovement(movementDataId) for one movement."

@@ -9,8 +9,8 @@ using lionheart.Tests.Support;
 namespace lionheart.Tests.Health;
 
 /// <summary>
-/// Which Apple Health workouts become training, and as what: the sources left out, the kinds left
-/// out, and a run already in the log under another name.
+/// Which Apple Health workouts become training, and as what: the sources left out, the kinds taken
+/// and left out, and a workout already in the log under another name.
 /// </summary>
 public class HealthWorkoutDecisionTests
 {
@@ -60,6 +60,53 @@ public class HealthWorkoutDecisionTests
         Assert.Equal(3.0, Assert.IsType<TrailRunSet>(Assert.Single(import.Session.Sets)).Distance, precision: 2);
     }
 
+    [Theory]
+    [InlineData("cycling", false, EnduranceActivity.Ride)]
+    [InlineData("cycling", true, EnduranceActivity.IndoorRide)]
+    [InlineData("hiking", false, EnduranceActivity.Hike)]
+    [InlineData("walking", false, EnduranceActivity.Walk)]
+    [InlineData("walking", true, EnduranceActivity.Walk)]
+    [InlineData("running", true, EnduranceActivity.IndoorRun)]
+    public void Every_other_activity_taken_becomes_an_endurance_set_of_its_kind(string activity, bool indoor, EnduranceActivity expected)
+    {
+        var workout = AHealthRun.Outdoor(meters: 8000) with { Activity = activity, Indoor = indoor, ElevationAscendedMeters = 120 };
+
+        var import = Assert.IsType<HealthWorkoutDecision.Import>(Decide(workout));
+
+        var set = Assert.IsType<EnduranceSet>(Assert.Single(import.Session.Sets));
+        Assert.Equal((expected, 8.0, DistanceUnit.Kilometers, workout.Duration, 120.0), (set.Activity, set.Distance, set.Unit, set.Duration, set.ElevationGainMeters));
+    }
+
+    [Fact]
+    public void An_indoor_ride_with_no_route_takes_the_distance_the_app_stated()
+    {
+        var workout = AHealthRun.Outdoor(meters: 20_000) with { Activity = "cycling", Indoor = true, Route = [] };
+
+        var import = Assert.IsType<HealthWorkoutDecision.Import>(Decide(workout));
+
+        Assert.Equal(20.0, Assert.IsType<EnduranceSet>(Assert.Single(import.Session.Sets)).Distance, precision: 6);
+        Assert.False(import.Recording.Route.HasPath);
+    }
+
+    [Fact]
+    public void What_else_the_app_measured_goes_onto_the_recording()
+    {
+        var workout = AHealthRun.Outdoor() with
+        {
+            Activity = "cycling",
+            Metrics =
+            [
+                new MetricSeriesCommand("power", [new(AHealthRun.Start, 212.4), new(AHealthRun.Start.AddSeconds(1), 230.6)]),
+                new MetricSeriesCommand("cadence", [new(AHealthRun.Start, 88)]),
+            ],
+        };
+
+        var import = Assert.IsType<HealthWorkoutDecision.Import>(Decide(workout));
+
+        Assert.Equal([212.0, 231.0], import.Recording.Metrics.Samples(WorkoutMetric.Power).Select(sample => sample.Value));
+        Assert.Equal([88.0], import.Recording.Metrics.Samples(WorkoutMetric.Cadence).Select(sample => sample.Value));
+    }
+
     // ---- What is left out ----
 
     [Theory]
@@ -73,17 +120,9 @@ public class HealthWorkoutDecisionTests
     }
 
     [Fact]
-    public void A_walk_is_not_a_run()
+    public void An_activity_Lionheart_does_not_take_is_left_out()
     {
-        Assert.Equal(Excluded(HealthWorkoutExclusion.NotARun), Decide(AHealthRun.Outdoor() with { Activity = "walking" }));
-    }
-
-    [Fact]
-    public void A_treadmill_run_is_left_out()
-    {
-        var workout = AHealthRun.Outdoor() with { Indoor = true, Route = [] };
-
-        Assert.Equal(Excluded(HealthWorkoutExclusion.Indoor), Decide(workout));
+        Assert.Equal(Excluded(HealthWorkoutExclusion.OtherActivity), Decide(AHealthRun.Outdoor() with { Activity = "activity-16" }));
     }
 
     [Fact]
@@ -122,6 +161,53 @@ public class HealthWorkoutDecisionTests
         var second = AHealthRun.Outdoor(meters: 5400, start: first.Start.AddSeconds(20)) with { AppName = "Runna", AppBundleId = "com.runna.app" };
 
         Assert.Equal(Excluded(HealthWorkoutExclusion.SameAsLoggedRun, taken.TrainingSessionId), Decide(second, taken));
+    }
+
+    [Fact]
+    public void The_same_ride_written_by_Strava_and_a_watch_is_taken_once()
+    {
+        var strava = AHealthRun.Outdoor(meters: 30_000, metersPerSecond: 8) with { Activity = "cycling" };
+        var taken = Assert.IsType<HealthWorkoutDecision.Import>(Decide(strava)).Session;
+        var watch = AHealthRun.Outdoor(meters: 30_000, metersPerSecond: 8, start: strava.Start.AddSeconds(-40)) with
+        {
+            Activity = "cycling",
+            AppName = "Apple Watch",
+            AppBundleId = "com.apple.health.00000000-0000-0000-0000-00000000000A",
+        };
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.SameAsLoggedRun, taken.TrainingSessionId), Decide(watch, taken));
+    }
+
+    [Fact]
+    public void A_hike_arriving_after_a_watchs_walk_of_the_same_time_replaces_the_walk()
+    {
+        var walk = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3) with { Activity = "walking", AppBundleId = "com.apple.health.watch" };
+        var imported = Assert.IsType<HealthWorkoutDecision.Import>(Decide(walk)).Session;
+        var hike = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3, start: walk.Start.AddMinutes(2)) with { Activity = "hiking" };
+
+        var replacing = Assert.IsType<HealthWorkoutDecision.Import>(Decide(hike, imported));
+
+        Assert.Equal([imported.TrainingSessionId], replacing.Superseding);
+        Assert.Equal(EnduranceActivity.Hike, Assert.IsType<EnduranceSet>(Assert.Single(replacing.Session.Sets)).Activity);
+    }
+
+    [Fact]
+    public void A_walk_arriving_after_a_hike_of_the_same_time_is_the_hike()
+    {
+        var hike = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3) with { Activity = "hiking" };
+        var imported = Assert.IsType<HealthWorkoutDecision.Import>(Decide(hike)).Session;
+        var walk = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3, start: hike.Start.AddMinutes(2)) with { Activity = "walking" };
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.SameAsLoggedRun, imported.TrainingSessionId), Decide(walk, imported));
+    }
+
+    [Fact]
+    public void A_walk_the_athlete_logged_himself_is_never_replaced()
+    {
+        var hike = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3) with { Activity = "hiking" };
+        var logged = Logged(hike.Start, minutes: 120, Some.RideSet with { Activity = EnduranceActivity.Walk });
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.SameAsLoggedRun, logged.TrainingSessionId), Decide(hike, logged));
     }
 
     [Fact]
@@ -169,6 +255,25 @@ public class HealthWorkoutDecisionTests
         var heartRate = ResultAssert.Succeeded(workout.Stated()).HeartRate;
 
         Assert.Equal([151], heartRate.Samples.Select(sample => sample.Bpm));
+    }
+
+    [Fact]
+    public void A_metric_this_server_does_not_know_and_a_reading_that_cannot_be_one_are_left_out_and_the_workout_kept()
+    {
+        var workout = AHealthRun.Outdoor() with
+        {
+            Metrics =
+            [
+                new MetricSeriesCommand("groundContactTime", [new(AHealthRun.Start, 240), new(AHealthRun.Start.AddSeconds(5), 24_000)]),
+                new MetricSeriesCommand("breathingRate", [new(AHealthRun.Start, 30)]),
+                new MetricSeriesCommand("3", [new(AHealthRun.Start, 30)]),
+            ],
+        };
+
+        var metrics = ResultAssert.Succeeded(workout.Stated()).Metrics;
+
+        var series = Assert.Single(metrics.Series);
+        Assert.Equal((WorkoutMetric.GroundContactTime, 240.0), (series.Metric, Assert.Single(series.Samples).Value));
     }
 
     [Fact]

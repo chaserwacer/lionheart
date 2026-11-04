@@ -18,9 +18,13 @@ namespace lionheart.Endpoints.Training.PersonalRecords;
 /// </remarks>
 public class PersonalRecordHistoryRequest
 {
-    /// <summary>Absent means trail running, which is held against no movement.</summary>
+    /// <summary>The movement, for a movement's records; absent for a subject that names none.</summary>
     [FromQuery]
     public Guid? MovementDataId { get; set; }
+
+    /// <summary>Riding, hiking or trail running, with no movement id. Absent with no id is trail running.</summary>
+    [FromQuery]
+    public RecordSubjectKind? Subject { get; set; }
 
     [FromQuery]
     [Required]
@@ -30,7 +34,7 @@ public class PersonalRecordHistoryRequest
     [FromQuery]
     public int? Bracket { get; set; }
 
-    public RecordHistoryQuery ToQuery() => new(MovementDataId, Kind, Bracket);
+    public RecordHistoryQuery ToQuery() => new(MovementDataId, Kind, Bracket, Subject);
 }
 
 /// <summary>A subject's whole progression on one kind of record.</summary>

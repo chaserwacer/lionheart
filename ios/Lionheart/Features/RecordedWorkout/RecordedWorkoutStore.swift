@@ -8,8 +8,8 @@ import Observation
 /// is remembered, so a run read once can be opened again with no signal.
 @Observable
 @MainActor
-final class RunStore {
-    private(set) var runs: [UUID: LoadState<RecordedRun>] = [:]
+final class RecordedWorkoutStore {
+    private(set) var runs: [UUID: LoadState<RecordedWorkout>] = [:]
 
     private let health: HealthAPI
 
@@ -20,7 +20,7 @@ final class RunStore {
     /// The run behind a session. A failed re-read keeps the run already shown.
     func load(_ trainingSessionId: UUID) async {
         do {
-            let read = try await health.run(trainingSessionId, remembering: .recordedRun(trainingSessionId))
+            let read = try await health.run(trainingSessionId, remembering: .recordedWorkout(trainingSessionId))
             runs[trainingSessionId] = (runs[trainingSessionId] ?? .loading).applying(read)
         } catch is CancellationError {
             return

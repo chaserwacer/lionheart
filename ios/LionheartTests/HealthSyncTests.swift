@@ -21,11 +21,11 @@ struct HealthSyncTests {
             .alreadyImported(trainingSessionId: id),
             .notImported(.readDirectly),
             .notImported(.readDirectly),
-            .notImported(.indoor),
+            .notImported(.otherActivity),
         ].reduce(HealthSyncTally.empty) { $0.adding($1) }.refusing("Not a place on Earth.")
 
         #expect((tally.imported, tally.alreadyImported) == (2, 1))
-        #expect(tally.leftOut == [.readDirectly: 2, .indoor: 1])
+        #expect(tally.leftOut == [.readDirectly: 2, .otherActivity: 1])
         #expect(tally.refused == ["Not a place on Earth."])
         #expect(tally.offered == 7)
     }
@@ -64,7 +64,7 @@ struct HealthSyncTests {
             .init(workouts: [Self.run(), Self.run()], anchor: Data("one".utf8), isLast: false),
             .init(workouts: [Self.run()], anchor: Data("two".utf8), isLast: true),
         ])
-        let server = AServer(answers: [.imported(trainingSessionId: UUID()), .alreadyImported(trainingSessionId: UUID()), .notImported(.indoor)])
+        let server = AServer(answers: [.imported(trainingSessionId: UUID()), .alreadyImported(trainingSessionId: UUID()), .notImported(.otherActivity)])
         let marks = Marks()
         let store = HealthSyncStore(health: health, server: server, marks: marks, now: { Self.now })
         var reread = 0
@@ -79,7 +79,7 @@ struct HealthSyncTests {
             Issue.record("Expected a finished sync, got \(store.state)")
             return
         }
-        #expect((tally.imported, tally.alreadyImported, tally.leftOut) == (1, 1, [.indoor: 1]))
+        #expect((tally.imported, tally.alreadyImported, tally.leftOut) == (1, 1, [.otherActivity: 1]))
         #expect(at == Self.now)
         #expect(reread == 1)
     }
@@ -184,7 +184,7 @@ struct HealthSyncTests {
         HealthWorkoutImport(
             workoutId: UUID(), activity: "running", indoor: false, appName: "Strava", appBundleId: "com.strava.stravaride",
             start: now, end: now.addingTimeInterval(1800), timeZone: .gmt, duration: 1800,
-            distanceMeters: 5000, elevationAscendedMeters: nil, route: [], heartRate: [])
+            distanceMeters: 5000, elevationAscendedMeters: nil, route: [], heartRate: [], metrics: [])
     }
 }
 

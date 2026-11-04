@@ -29,7 +29,7 @@ final class AppContainer {
     let healthSync: HealthSyncStore
     let healthMeasureSync: HealthMeasureSyncStore
     let healthMeasures: HealthMeasuresStore
-    let runs: RunStore
+    let runs: RecordedWorkoutStore
     let cardio: CardioStore
     let habits: HabitsStore
     let diary: DiaryStore
@@ -107,10 +107,10 @@ final class AppContainer {
         ouraSync = OuraSyncStore(oura: OuraAPI(client: client))
         healthSync = HealthSyncStore(
             health: HealthLibrary(), server: HealthAPI(client: client), marks: HealthSyncMarkFile())
-        runs = RunStore(health: HealthAPI(client: client))
         healthMeasureSync = HealthMeasureSyncStore(
             health: HealthLibrary(), server: HealthMeasuresAPI(client: client), marks: HealthMeasureMarkFile())
         healthMeasures = HealthMeasuresStore(api: HealthMeasuresAPI(client: client))
+        runs = RecordedWorkoutStore(health: HealthAPI(client: client))
         cardio = CardioStore(cardio: CardioAPI(client: client), oura: OuraAPI(client: client))
         habits = HabitsStore(habits: HabitsAPI(client: client))
         diary = DiaryStore(

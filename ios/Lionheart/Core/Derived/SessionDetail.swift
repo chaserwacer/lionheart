@@ -37,6 +37,21 @@ struct SessionDetail: Equatable, Sendable {
 }
 
 extension SessionDetail {
+    /// What the sets that name no movement are called together: "Trail run" or "Ride" where they
+    /// are all one such activity — a workout imported from Health is one set — and "Other work"
+    /// for anything else.
+    static func unattachedTitle(_ entries: [SetEntry]) -> String {
+        let titles = Set(entries.map { entry -> String? in
+            switch entry {
+            case .trailRun: "Trail run"
+            case .endurance(let set): set.activity.title
+            case .lift, .distanceTime, .freeform, .unrecognised: nil
+            }
+        })
+        guard titles.count == 1, let only = titles.first, let title = only else { return "Other work" }
+        return title
+    }
+
     static func of(_ sets: [SetEntry], catalogue: MovementCatalogue) -> SessionDetail {
         let indexed = sets.enumerated().map { IndexedSet(order: $0.offset, entry: $0.element) }
 
