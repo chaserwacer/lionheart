@@ -4,14 +4,14 @@ using lionheart.Model.Oura.Wire;
 namespace lionheart.Tests.Oura;
 
 /// <summary>
-/// The recorded Oura payloads under <c>Oura/Archive</c>, read a line at a time.
+/// The Oura payloads under <c>Oura/Archive</c>, read a line at a time.
 /// </summary>
 /// <remarks>
-/// These are real responses from the athlete's own account, kept as files so the bytes are exactly
-/// what Oura sent. They matter more than a hand-written fixture would for one reason: the live pull
-/// cannot be run without his credential, and the archive import and the pull share one mapping, so
-/// a test that maps a recorded payload is the only evidence available about what the pull would do
-/// with it.
+/// Invented values in exactly the shape Oura sends: its field names and nesting, the nulls and
+/// zeros it writes where a measure is missing, its timestamp formats and sample runs. The shape is
+/// what matters, for one reason: the live pull cannot be run without the athlete's credential, and
+/// the archive import and the pull share one mapping, so a test that maps one of these payloads is
+/// the only evidence available about what the pull would do with Oura's.
 /// </remarks>
 internal static class RecordedPayloads
 {
@@ -25,7 +25,7 @@ internal static class RecordedPayloads
         [.. File.ReadAllLines(Path.Combine(ArchiveDirectory, $"{collection}.jsonl"))
             .Where(line => !string.IsNullOrWhiteSpace(line))];
 
-    /// <summary>One recorded record, deserialized to its wire type.</summary>
+    /// <summary>One record, deserialized to its wire type.</summary>
     public static T Record<T>(string collection, int index) =>
         JsonSerializer.Deserialize<T>(Lines(collection)[index])
         ?? throw new InvalidOperationException($"{collection}.jsonl line {index + 1} deserialized to null.");

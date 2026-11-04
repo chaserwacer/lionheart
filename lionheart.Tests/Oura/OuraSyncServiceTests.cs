@@ -17,7 +17,7 @@ namespace lionheart.Tests.Oura;
 /// <remarks>
 /// The live pull is the one deliverable that cannot be checked against the real thing — it needs
 /// the athlete's credential — so everything short of the network is asserted here: that all ten
-/// collections are asked for, that the archived payloads they answer with are stored, that a
+/// collections are asked for, that the fixture payloads they answer with are stored, that a
 /// document Oura sends which cannot be read is reported rather than fatal, and that the failures
 /// come back as the problems the transport edge knows how to turn into a status.
 /// </remarks>
@@ -233,7 +233,7 @@ public class OuraSyncServiceTests : IAsyncLifetime
     [InlineData("heartrate")]
     public async Task A_schema_only_collection_Oura_refuses_is_reported_and_the_run_still_succeeds(string collection)
     {
-        // These three are mapped from Oura's published schema with no recorded payload behind
+        // These three are mapped from Oura's published schema with no archive fixture behind
         // them. A credential without their scope, or a page that does not parse, must cost that
         // collection and nothing else.
         _api.AnswersEverythingElseEmpty()

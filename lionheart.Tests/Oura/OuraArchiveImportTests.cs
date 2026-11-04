@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace lionheart.Tests.Oura;
 
 /// <summary>
-/// The archive importer against a miniature of the athlete's real archive, and against records
+/// The archive importer against a miniature archive in the shape Oura exports, and against records
 /// broken on purpose.
 /// </summary>
 public class OuraArchiveImportTests : IDisposable
@@ -16,7 +16,7 @@ public class OuraArchiveImportTests : IDisposable
 
     public void Dispose() => _database.Dispose();
 
-    // ---- The happy path, over real recorded payloads ----
+    // ---- The happy path ----
 
     [Fact]
     public async Task Every_collection_in_the_archive_is_read_and_stored()
@@ -70,13 +70,13 @@ public class OuraArchiveImportTests : IDisposable
         await using var context = _database.CreateContext();
 
         var night = await context.OuraSleepPeriods
-            .SingleAsync(period => period.Day == new DateOnly(2023, 1, 6));
+            .SingleAsync(period => period.Day == new DateOnly(2024, 1, 26));
         Assert.Equal(96, night.Reading.HeartRate.Samples.Count);
-        Assert.Equal(8940, night.Reading.DeepSleepSeconds);
+        Assert.Equal(6630, night.Reading.DeepSleepSeconds);
 
         var activity = await context.OuraDailyActivity
-            .SingleAsync(day => day.Day == new DateOnly(2023, 1, 5));
-        Assert.Equal(50, activity.Reading.Score);
+            .SingleAsync(day => day.Day == new DateOnly(2024, 1, 25));
+        Assert.Equal(47, activity.Reading.Score);
     }
 
     [Theory]
@@ -152,7 +152,7 @@ public class OuraArchiveImportTests : IDisposable
         await ImportAsync(RecordedPayloads.DamagedDirectory);
 
         await using var context = _database.CreateContext();
-        Assert.True(await context.OuraDailySleep.AnyAsync(day => day.Day == new DateOnly(2023, 1, 13)));
+        Assert.True(await context.OuraDailySleep.AnyAsync(day => day.Day == new DateOnly(2024, 2, 2)));
     }
 
     [Fact]

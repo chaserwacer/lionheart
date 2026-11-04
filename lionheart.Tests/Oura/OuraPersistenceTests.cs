@@ -290,7 +290,7 @@ public class OuraPersistenceTests : IDisposable
         Assert.Empty(await reread.OuraSleepPeriods.ToListAsync());
     }
 
-    private static readonly Guid OuraId = Guid.Parse("74a6336b-ba4f-4c24-be80-d51a32eb5629");
+    private static readonly Guid OuraId = Guid.Parse("d1c3a7e2-5b84-4f19-9a6e-3c0b8f27e514");
     private static readonly DateOnly Day = new(2026, 3, 14);
 
     private static readonly DateTimeOffset Bedtime =
@@ -304,26 +304,26 @@ public class OuraPersistenceTests : IDisposable
     {
         public static DailyActivityReading ActivityReading => new(
             Score: 83,
-            Contributors: new ActivityContributors(1, 100, 100, 100, 1, 2),
+            Contributors: new ActivityContributors(2, 94, 97, 91, 4, 6),
             Steps: 9512,
-            ActiveCalories: 401,
+            ActiveCalories: 512,
             TotalCalories: 2850,
             TargetCalories: 450,
-            EquivalentWalkingDistanceMeters: 6902,
-            MetersToTarget: -3400,
+            EquivalentWalkingDistanceMeters: 8120,
+            MetersToTarget: -2150,
             TargetMeters: 9000,
             InactivityAlerts: 0,
-            AverageMet: 1.40625,
-            LowActivityMetMinutes: 149,
-            MediumActivityMetMinutes: 137,
-            HighActivityMetMinutes: 8,
+            AverageMet: 1.46875,
+            LowActivityMetMinutes: 171,
+            MediumActivityMetMinutes: 129,
+            HighActivityMetMinutes: 14,
             SedentaryMetMinutes: 11,
             RestingTimeSeconds: 34980,
             SedentaryTimeSeconds: 32040,
-            LowActivityTimeSeconds: 12000,
-            MediumActivityTimeSeconds: 2160,
-            HighActivityTimeSeconds: 60,
-            NonWearTimeSeconds: 4140,
+            LowActivityTimeSeconds: 13800,
+            MediumActivityTimeSeconds: 2040,
+            HighActivityTimeSeconds: 300,
+            NonWearTimeSeconds: 2580,
             Timeline: new ActivityTimeline(
                 new DateTimeOffset(2026, 3, 14, 4, 0, 0, TimeSpan.FromHours(-4)), "1111222333445532"));
 
