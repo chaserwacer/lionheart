@@ -400,10 +400,8 @@ struct CardioView: View {
         } header: {
             Text("Sessions")
         } footer: {
-            if !report.excluded.isEmpty {
-                Text("Left out: " + report.excluded
-                    .map { "\($0.count) \($0.reason.phrase)" }
-                    .joined(separator: ", ") + ".")
+            if let leftOut = LeftOut.sentence(report.excluded) {
+                Text("Left out: \(leftOut).")
             }
         }
     }
@@ -428,8 +426,8 @@ private struct CardioMethodSheet: View {
                 Section("What counts as a session") {
                     Text("Your logged runs and distance work, runs imported from Apple Health, and the workouts you entered on the ring. A ring workout is left out when it is housework, yard work or stretching, a walk under 30 minutes, strength work, or at least half inside a logged session — which is that session as the ring saw it.")
                     Text("A workout the ring detected on its own — and any nobody named — counts only when its heart rate shows training: at least half of it read, 20 minutes at zone 2 or above or 10 at zone 3 or above, and zone 2 or above for at least half the time read. Its name is a guess you approved; its heart rate is the evidence. Each one left out is listed with its heart rate at the foot of the screen.")
-                    if let excluded = report?.excluded, !excluded.isEmpty {
-                        Text("Left out in this span: " + excluded.map { "\($0.count) \($0.reason.phrase)" }.joined(separator: ", ") + ".")
+                    if let leftOut = report.flatMap({ LeftOut.sentence($0.excluded) }) {
+                        Text("Left out in this span: \(leftOut).")
                             .foregroundStyle(Color(.secondaryLabel))
                     }
                     Text("Each session's heart rate is the ring's all-day heart rate across its clock time. A session with no samples synced has no zones.")

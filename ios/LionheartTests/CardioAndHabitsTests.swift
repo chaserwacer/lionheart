@@ -136,6 +136,23 @@ struct CardioAndHabitsTests {
         #expect(SocialJetLag.minutes(summary) == 45)
     }
 
+    // MARK: - What a span left out
+
+    @Test("Left-out rows sharing a reason read as one count, largest first, singular for one")
+    func leftOutMergesReasons() {
+        let excluded = [
+            ExcludedWorkouts(category: .walk, reason: .heartRateBelowTraining, count: 3),
+            ExcludedWorkouts(category: .incidental, reason: .notTraining, count: 9),
+            ExcludedWorkouts(category: .sport, reason: .heartRateBelowTraining, count: 2),
+            ExcludedWorkouts(category: .unspecified, reason: .heartRateUnread, count: 1),
+        ]
+
+        #expect(LeftOut.sentence(excluded) == "9 housework, yard work or stretching, "
+            + "5 workouts whose heart rate stayed below training, "
+            + "1 workout with too little heart rate to show training")
+        #expect(LeftOut.sentence([]) == nil)
+    }
+
     // MARK: - The day's shape
 
     @Test("A bedtime keeps the time it was on the athlete's own clock, whatever the phone's zone")
