@@ -35,7 +35,7 @@ struct ScoreCell: Equatable, Sendable, Identifiable {
             case .minutes: "min"
             case .sessions: "sessions"
             }
-            return "\(Formatting.measure(measured.rounded())) of \(Formatting.measure(target)) \(unit)"
+            return "\(MeasurementText.plain(measured.rounded())) of \(MeasurementText.plain(target)) \(unit)"
         case .standing(let words):
             return words
         }
@@ -64,7 +64,7 @@ struct ScorePartBreakdown: Equatable, Sendable, Identifiable {
         return cells.map { cell in
             switch cell.reading {
             case .quantity(let measured, let target, _):
-                "\(cell.label) \(Formatting.measure(measured.rounded()))/\(Formatting.measure(target))"
+                "\(cell.label) \(MeasurementText.plain(measured.rounded()))/\(MeasurementText.plain(target))"
             case .standing(let words):
                 "\(cell.label) \(words.lowercased())"
             }
@@ -79,8 +79,8 @@ struct ScorePartBreakdown: Equatable, Sendable, Identifiable {
             return (measured, target)
         }
         guard let target = counts.first?.1 else { return "" }
-        let run = counts.map { Formatting.measure($0.0) }.joined(separator: " · ")
-        return "\(run) of \(Formatting.measure(target)) a week, newest first"
+        let run = counts.map { MeasurementText.plain($0.0) }.joined(separator: " · ")
+        return "\(run) of \(MeasurementText.plain(target)) a week, newest first"
     }
 }
 

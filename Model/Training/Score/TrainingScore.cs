@@ -13,7 +13,7 @@ namespace lionheart.Model.Training.Score;
 /// </summary>
 /// <remarks>
 /// Built to be earned rather than handed out: every part is a measurement against a target that a
-/// good week of this athlete's reaches only in part, so a decent week reads in the 60s and 70s and
+/// good week of this athlete's reaches only in part, so a decent week reads in the 50s and 60s and
 /// 90 takes everything at once, a new best included. A part with no data is unknown, never
 /// zero: it is named, its points are out of reach rather than lost, and the value is what the known
 /// parts earned. So a week with the ring off can never outscore the same week with it on.

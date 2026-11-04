@@ -2,9 +2,7 @@ import Foundation
 
 /// Points as the score's screens print them: one decimal, since a third of 35 is not a whole number.
 enum ScorePoints {
-    static func text(_ points: Double) -> String {
-        points.formatted(.number.precision(.fractionLength(points.rounded() == points ? 0 : 1)))
-    }
+    static func text(_ points: Double) -> String { MeasurementText.plain(points) }
 
     /// "7.5/11.7", or "?/25" when unknown.
     static func earned(_ points: Double?, of outOf: Double) -> String {
