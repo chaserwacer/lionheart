@@ -1,0 +1,115 @@
+// How the movement library is named, and the corrections that bring a catalogue to it. The
+// `tidy-movements` command applies this file; `--dry-run` prints everything it would change. Edit
+// this file to change a decision; the build embeds it, so `dotnet run` picks it up.
+//
+// THE CONVENTION. A movement reads "Variation Exercise (Equipment)" — "Seated Leg Curl (Machine)",
+// "Paused Squat (Barbell)", "Incline Bench Press (Dumbbell)" — which is how Strong names its
+// library and how a lifter says it. Its three parts:
+//
+// - base: the exercise, in Title Case, singular, naming neither the equipment nor the variation:
+//   "Bench Press", "Leg Curl", "Lat Pulldown". A variation is part of the base only where that is
+//   the lift's own name: "Sumo Deadlift", "Romanian Deadlift", "Hack Squat", "Front Squat".
+// - equipment: the implement, from a short list — Barbell, Dumbbell, Kettlebell, EZ Bar, Trap Bar,
+//   Safety Squat Bar, Smith Machine, Cable, Machine, Plate Loaded, Bodyweight, Band, TRX, Sled,
+//   T-Bar, Ab Wheel. Never a machine named after the exercise ("Seated Leg Curl" is a Machine with
+//   the variation "seated"). Pull-up bars and dip bars are Bodyweight; added weight is the
+//   movement's setup ("adds to bodyweight"), not another movement.
+// - modifier: the variation, stored lower case and shown capitalised: position (seated, standing,
+//   lying, incline, decline, kneeling), limb (single arm, single leg), grip or attachment (close
+//   grip, v-bar, straight bar, rope), bar position (high bar, low bar), tempo and pauses (paused,
+//   tempo, 1.5 rep), or a named variation (spoto, larsen). Written as it is said before the
+//   exercise: "kneeling single arm", not "single arm kneeling".
+//
+// A variation stays its own movement — paused, tempo and high bar are never folded into the
+// competition lift — because records and previous performance are kept per movement.
+//
+// THE CORRECTIONS. Names in "from" are the catalogue's as it stands; names in "to" and "seed" are
+// already in the convention, which the command checks: a result another rule would rewrite again
+// is refused, so a second run has nothing to do.
+//
+// - "equipment", "bases", "modifiers": a rename of that part wherever it is used. Renaming onto a
+//   name the athlete already has folds the two together.
+// - "movements": one movement restated whole, matched by its base, equipment and modifier.
+//   Restating onto a movement the athlete already has merges them: every set, record, pin,
+//   routine and injury note moves to the one kept, and the records are replayed.
+// - "retire": movements to remove. Only a movement nothing refers to can go; the command refuses
+//   one that has a set, a record or anything else.
+// - "seed": the common movements a lifter expects to find, added where missing.
+// - "unsure" marks a judgement call and says why. The command prints every unsure rule it applies.
+{
+  "equipment": [
+    { "from": "Dumbell", "to": "Dumbbell" },
+    { "from": "Pull-Up Bar", "to": "Bodyweight" },
+    { "from": "Dip Bars", "to": "Bodyweight" },
+    { "from": "Leg Extension", "to": "Machine" }
+  ],
+  "bases": [
+    { "from": "Pike Pushup", "to": "Pike Push Up" },
+    { "from": "Pseudo Planche Pushup", "to": "Pseudo Planche Push Up" },
+    { "from": "Tricep Pushup", "to": "Tricep Push Up" }
+  ],
+  "modifiers": [
+    { "from": "single arm kneeling", "to": "kneeling single arm" },
+    { "from": "single arm full range", "to": "full range single arm" },
+    { "from": "behind back", "to": "behind-the-back" },
+    { "from": "on seated leg press", "to": "seated" }
+  ],
+  "movements": [
+    { "from": { "base": "Leg Curl", "equipment": "Lying Leg Curl" }, "to": { "base": "Leg Curl", "equipment": "Machine", "modifier": "lying" } },
+    { "from": { "base": "Leg Curl", "equipment": "Seated Leg Curl" }, "to": { "base": "Leg Curl", "equipment": "Machine", "modifier": "seated" } },
+    { "from": { "base": "Leg Curl", "equipment": "Standing Leg Curl" }, "to": { "base": "Leg Curl", "equipment": "Machine", "modifier": "standing" } },
+    { "from": { "base": "Bench Press", "equipment": "Incline Machine Press", "modifier": "incline" }, "to": { "base": "Chest Press", "equipment": "Machine", "modifier": "incline" } },
+    {
+      "from": { "base": "Bicep Curl", "equipment": "Dumbell", "modifier": "over incline bench" },
+      "to": { "base": "Preacher Curl", "equipment": "Dumbbell", "modifier": "incline bench" },
+      "unsure": "Strong's \"bicep curl on top incline bench\": arms over the top of an incline bench, a preacher curl without the pad."
+    }
+  ],
+  "retire": [
+    { "base": "Squat", "equipment": "Pull-Up Bar", "unsure": "Never logged; a pull-up bar is not squat equipment." },
+    { "base": "Squat", "equipment": "Dumbell", "modifier": "tempo", "unsure": "Never logged; made while the catalogue form was being tried out." },
+    { "base": "Bicep Curl", "equipment": "Dumbell", "modifier": "tempo", "unsure": "Never logged; made while the catalogue form was being tried out." },
+    { "base": "Bench Press", "equipment": "Dumbell", "modifier": "tempo", "unsure": "Never logged; made while the catalogue form was being tried out." }
+  ],
+  "seed": [
+    { "base": "Deadlift", "equipment": "Barbell" },
+    { "base": "Deadlift", "equipment": "Trap Bar" },
+    { "base": "Front Squat", "equipment": "Barbell" },
+    { "base": "Goblet Squat", "equipment": "Kettlebell" },
+    { "base": "Split Squat", "equipment": "Dumbbell", "modifier": "bulgarian" },
+    { "base": "Lunge", "equipment": "Dumbbell", "modifier": "walking" },
+    { "base": "Step Up", "equipment": "Dumbbell" },
+    { "base": "Hip Thrust", "equipment": "Barbell" },
+    { "base": "Good Morning", "equipment": "Barbell" },
+    { "base": "Nordic Curl", "equipment": "Bodyweight" },
+    { "base": "Back Extension", "equipment": "Bodyweight" },
+    { "base": "Bench Press", "equipment": "Barbell", "modifier": "close grip" },
+    { "base": "Bench Press", "equipment": "Barbell", "modifier": "decline" },
+    { "base": "Push Up", "equipment": "Bodyweight" },
+    { "base": "Chest Fly", "equipment": "Dumbbell" },
+    { "base": "Chest Fly", "equipment": "Cable" },
+    { "base": "Arnold Press", "equipment": "Dumbbell" },
+    { "base": "Push Press", "equipment": "Barbell" },
+    { "base": "Row", "equipment": "Dumbbell", "modifier": "single arm" },
+    { "base": "Row", "equipment": "Dumbbell", "modifier": "chest supported" },
+    { "base": "Pendlay Row", "equipment": "Barbell" },
+    { "base": "T-Bar Row", "equipment": "T-Bar" },
+    { "base": "Seated Row", "equipment": "Machine" },
+    { "base": "Lat Pulldown", "equipment": "Cable", "modifier": "close grip" },
+    { "base": "Shrug", "equipment": "Barbell" },
+    { "base": "Shrug", "equipment": "Dumbbell" },
+    { "base": "Rear Delt Fly", "equipment": "Dumbbell" },
+    { "base": "Bicep Curl", "equipment": "EZ Bar" },
+    { "base": "Preacher Curl", "equipment": "EZ Bar" },
+    { "base": "Concentration Curl", "equipment": "Dumbbell" },
+    { "base": "Skullcrusher", "equipment": "EZ Bar" },
+    { "base": "Tricep Pushdown", "equipment": "Cable", "modifier": "rope" },
+    { "base": "Overhead Tricep Extension", "equipment": "Dumbbell" },
+    { "base": "Hanging Leg Raise", "equipment": "Bodyweight" },
+    { "base": "Crunch", "equipment": "Cable" },
+    { "base": "Pallof Press", "equipment": "Cable" },
+    { "base": "Kettlebell Swing", "equipment": "Kettlebell" },
+    { "base": "Farmer's Walk", "equipment": "Dumbbell" },
+    { "base": "Power Clean", "equipment": "Barbell" }
+  ]
+}
