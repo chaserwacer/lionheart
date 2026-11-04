@@ -33,15 +33,16 @@ public sealed record NewSessionIdentity(Guid TrainingSessionId, Guid UserId, Dat
 /// <list type="number">
 /// <item>An app whose workouts Lionheart reads by its own route is left out, so Oura's workouts
 /// (which Oura also writes to Health) and Strong's are never counted twice.</item>
-/// <item>Only an outdoor run with a distance becomes a session — see
-/// <see cref="HealthWorkoutExclusion"/> for why each other kind is left out.</item>
-/// <item>A run lying at least half inside a session already in the log is that session, by the same
+/// <item>Runs, rides, hikes and walks are taken, as <see cref="Taken"/> says; anything else is
+/// left out.</item>
+/// <item>One with no distance is left out: nothing measures it.</item>
+/// <item>One lying at least half inside a session already in the log is that session, by the same
 /// rule the cardio report holds the ring's workouts to (<see cref="SessionMatching"/>). The log
-/// includes runs imported earlier, so a run two apps both wrote to Health is taken once — whichever
-/// the phone offered first.</item>
+/// includes workouts imported earlier, so a ride two apps both wrote to Health is taken once —
+/// whichever the phone offered first.</item>
 /// </list>
-/// What is left is a completed session holding one trail-run set — trail running being the record
-/// subject for a run along a route whatever its surface — with the route and heart rate beside it.
+/// What is left is a completed session holding one set — a trail run for an outdoor run, an
+/// endurance set for everything else — with the route, heart rate and metrics beside it.
 /// </remarks>
 public static class HealthWorkoutDecisions
 {
@@ -51,18 +52,13 @@ public static class HealthWorkoutDecisions
     /// </summary>
     public static readonly IReadOnlyList<string> ReadDirectly = ["com.ouraring.", "io.strongapp."];
 
-    /// <summary>Health's spelling of a run.</summary>
-    public const string Running = "running";
-
     public static HealthWorkoutDecision Decide(
         StatedHealthWorkout workout, IReadOnlyList<CompletedTrainingSession> logged, NewSessionIdentity identity)
     {
         if (ReadDirectly.Any(prefix => workout.Source.RecordedBy.BundleId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
             return Excluded(HealthWorkoutExclusion.ReadDirectly);
-        if (!string.Equals(workout.Activity, Running, StringComparison.OrdinalIgnoreCase))
-            return Excluded(HealthWorkoutExclusion.NotARun);
-        if (workout.Indoor)
-            return Excluded(HealthWorkoutExclusion.Indoor);
+        if (Taken(workout.Activity, workout.Indoor) is not { } taken)
+            return Excluded(HealthWorkoutExclusion.OtherActivity);
         if (DistanceMeters(workout) is not { } distance)
             return Excluded(HealthWorkoutExclusion.NoDistance);
 
@@ -71,16 +67,39 @@ public static class HealthWorkoutDecisions
             SessionMatch.LoggedRun run => Excluded(HealthWorkoutExclusion.SameAsLoggedRun, run.TrainingSessionId),
             SessionMatch.LoggedLifting lifting => Excluded(HealthWorkoutExclusion.InsideLoggedLifting, lifting.TrainingSessionId),
             SessionMatch.None => new HealthWorkoutDecision.Import(
-                Session(workout, distance, identity),
-                WorkoutRecording.Of(identity.TrainingSessionId, identity.UserId, workout.Route, workout.HeartRate),
+                Session(workout, Set(taken, workout, distance), identity),
+                WorkoutRecording.Of(identity.TrainingSessionId, identity.UserId, workout.Route, workout.HeartRate, workout.Metrics),
                 workout.Source),
             _ => throw new System.Diagnostics.UnreachableException(),
         };
     }
 
     /// <summary>
-    /// The climb a run is recorded with: the recording app's own figure where it stated one, since
-    /// it may have read a barometer or a terrain model, and otherwise what the route's altitudes show.
+    /// What a workout of Health's activity becomes, or nothing for an activity Lionheart does not take.
+    /// </summary>
+    /// <remarks>
+    /// An outdoor run is a trail run, competing on trail running. A ride outdoors and a hike are
+    /// endurance sets that compete on riding and hiking. Indoors — a trainer, a treadmill — a ride or
+    /// a run is training without a record, since its distance is the machine's estimate rather than
+    /// ground covered. A walk is training and never a record, wherever it was. Elliptical, stairs and
+    /// the rest are left out: a handful each, with no distance that means anything, and the ring's
+    /// own workout still carries any of them into the cardio report.
+    /// </remarks>
+    public static TakenAs? Taken(string activity, bool indoor) => (activity.ToLowerInvariant(), indoor) switch
+    {
+        ("running", false) => new TakenAs.TrailRun(),
+        ("running", true) => new TakenAs.Endurance(EnduranceActivity.IndoorRun),
+        ("cycling", false) => new TakenAs.Endurance(EnduranceActivity.Ride),
+        ("cycling", true) => new TakenAs.Endurance(EnduranceActivity.IndoorRide),
+        ("hiking", _) => new TakenAs.Endurance(EnduranceActivity.Hike),
+        ("walking", _) => new TakenAs.Endurance(EnduranceActivity.Walk),
+        _ => null,
+    };
+
+    /// <summary>
+    /// The climb a workout is recorded with: the recording app's own figure where it stated one,
+    /// since it may have read a barometer or a terrain model, and otherwise what the route's
+    /// altitudes show.
     /// </summary>
     /// <remarks>To a tenth of a metre, the precision a climb is stated to anywhere.</remarks>
     public static double Climb(StatedHealthWorkout workout) =>
@@ -92,24 +111,29 @@ public static class HealthWorkoutDecisions
         : RouteAnalysis.Figures(workout.Route).Meters is > 0 and var measured ? measured
         : null;
 
-    private static CompletedTrainingSession Session(
-        StatedHealthWorkout workout, double distanceMeters, NewSessionIdentity identity) =>
-        new(
-            [
-                new TrailRunSet(
-                    distanceMeters / DistanceUnit.Kilometers.MetersEach(),
-                    DistanceUnit.Kilometers,
-                    workout.Duration > TimeSpan.Zero ? workout.Duration : workout.Period.Duration,
-                    Climb(workout),
-                    Rpe.Unrated)
-                {
-                    Source = new Formed(),
-                    Facets = [],
-                },
-            ],
-            workout.Period,
-            new EffortNotReported(),
-            new NotDecorated())
+    private static SetEntry Set(TakenAs taken, StatedHealthWorkout workout, double distanceMeters)
+    {
+        var kilometres = distanceMeters / DistanceUnit.Kilometers.MetersEach();
+        var duration = workout.Duration > TimeSpan.Zero ? workout.Duration : workout.Period.Duration;
+        return taken switch
+        {
+            TakenAs.TrailRun => new TrailRunSet(kilometres, DistanceUnit.Kilometers, duration, Climb(workout), Rpe.Unrated)
+            {
+                Source = new Formed(),
+                Facets = [],
+            },
+            TakenAs.Endurance endurance => new EnduranceSet(
+                endurance.Activity, kilometres, DistanceUnit.Kilometers, duration, Climb(workout), Rpe.Unrated)
+            {
+                Source = new Formed(),
+                Facets = [],
+            },
+            _ => throw new System.Diagnostics.UnreachableException(),
+        };
+    }
+
+    private static CompletedTrainingSession Session(StatedHealthWorkout workout, SetEntry set, NewSessionIdentity identity) =>
+        new([set], workout.Period, new EffortNotReported(), new NotDecorated())
         {
             TrainingSessionId = identity.TrainingSessionId,
             UserId = identity.UserId,
@@ -123,4 +147,16 @@ public static class HealthWorkoutDecisions
 
     private static HealthWorkoutDecision Excluded(HealthWorkoutExclusion reason, Guid? matched = null) =>
         new HealthWorkoutDecision.Excluded(reason, matched);
+}
+
+/// <summary>The set a Health workout Lionheart takes becomes.</summary>
+public abstract record TakenAs
+{
+    private TakenAs() { }
+
+    /// <summary>An outdoor run: a <see cref="TrailRunSet"/>.</summary>
+    public sealed record TrailRun : TakenAs;
+
+    /// <summary>Anything else taken: an <see cref="EnduranceSet"/> of this activity.</summary>
+    public sealed record Endurance(EnduranceActivity Activity) : TakenAs;
 }

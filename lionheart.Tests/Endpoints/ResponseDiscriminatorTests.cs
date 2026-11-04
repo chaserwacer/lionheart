@@ -57,7 +57,8 @@ public class ResponseDiscriminatorTests
                 new HeaviestSetView(225, WeightUnit.Pounds, 5, 262.5),
                 DateTime.UnixEpoch,
                 null,
-                RecordStandingView.Standing))
+                RecordStandingView.Standing,
+                RecordSubjectKind.Movement))
             : new RetractionOutcome.NothingStands();
 
         var body = await WriteAsync(Endpoint.ToActionResult(

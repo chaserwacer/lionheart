@@ -352,7 +352,7 @@ public sealed class PersonalRecordService : IPersonalRecordService
         [
             .. recent.Select(subject => subject.Key is RecordSubject.Movement movement
                 ? RecordDigest.Of(movement.MovementDataId, names.GetValueOrDefault(movement.MovementDataId, "an unlisted movement"), [.. subject])
-                : RecordDigest.Of(null, "trail running", [.. subject]))
+                : RecordDigest.Of(null, subject.Key.Name(_ => string.Empty), [.. subject]))
         ];
     }
 

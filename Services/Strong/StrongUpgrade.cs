@@ -124,7 +124,7 @@ internal static class StrongUpgrade
     {
         LiftSet lift => new SetShape.Lift(lift.MovementDataId, lift.Reps, lift.Weight, lift.Unit, lift.Rpe, lift.Kind),
         FreeformSet { Source: Texted texted } => new SetShape.Words(texted.RawText),
-        FreeformSet or DistanceTimeSet or TrailRunSet => new SetShape.Foreign(),
+        FreeformSet or DistanceTimeSet or TrailRunSet or EnduranceSet => new SetShape.Foreign(),
         _ => throw new UnreachableException(),
     };
 }

@@ -106,8 +106,9 @@ public static class RemodelConfiguration
             record.HasOne<LionheartUser>().WithMany(u => u.PersonalRecords).HasForeignKey(r => r.UserId);
 
             // Fill-state ↔ scalar column, the same shape a session's program membership takes:
-            // trail running persists as Guid.Empty so the domain never sees a nullable movement
-            // id. No relational FK on purpose — the sentinel would violate it.
+            // trail running persists as Guid.Empty, riding and hiking as the next two ids up, so the
+            // domain never sees a nullable movement id. No relational FK on purpose — a sentinel
+            // would violate it.
             record.Property(r => r.Subject)
                 .HasConversion(s => SubjectToGuid(s), g => GuidToSubject(g))
                 .HasColumnName("MovementDataId");
@@ -141,13 +142,20 @@ public static class RemodelConfiguration
         });
     }
 
-    private static Guid SubjectToGuid(RecordSubject subject) =>
-        subject is RecordSubject.Movement movement ? movement.MovementDataId : Guid.Empty;
+    private static Guid SubjectToGuid(RecordSubject subject) => subject switch
+    {
+        RecordSubject.Movement movement => movement.MovementDataId,
+        RecordSubject.TrailRunning => Guid.Empty,
+        RecordSubject.Riding => RecordSubject.Movement.RidingSentinel,
+        RecordSubject.Hiking => RecordSubject.Movement.HikingSentinel,
+        _ => throw new System.Diagnostics.UnreachableException(),
+    };
 
     private static RecordSubject GuidToSubject(Guid movementDataId) =>
-        movementDataId == Guid.Empty
-            ? new RecordSubject.TrailRunning()
-            : new RecordSubject.Movement(movementDataId);
+        movementDataId == Guid.Empty ? new RecordSubject.TrailRunning()
+        : movementDataId == RecordSubject.Movement.RidingSentinel ? new RecordSubject.Riding()
+        : movementDataId == RecordSubject.Movement.HikingSentinel ? new RecordSubject.Hiking()
+        : new RecordSubject.Movement(movementDataId);
 
     private static void ConfigureSessions(ModelBuilder modelBuilder)
     {

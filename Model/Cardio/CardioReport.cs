@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using lionheart.Model.Analysis;
+using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Cardio;
 
@@ -52,7 +53,7 @@ public abstract record CardioSessionSource
     public sealed record RingWorkout(Guid OuraId, string Activity, WorkoutCategory Category) : CardioSessionSource;
 
     /// <summary>
-    /// A completed Lionheart session carrying trail-run or distance-and-time sets. Where the ring
+    /// A completed Lionheart session carrying trail-run, endurance or distance-and-time sets. Where the ring
     /// saw the same session, this is the record kept: the athlete's own log names it and measures
     /// it. Its heart rate is the recording app's where it was imported from Apple Health with one,
     /// and the ring's over the same clock time otherwise.
@@ -61,7 +62,12 @@ public abstract record CardioSessionSource
     /// Imported from Apple Health, so a route and the recording app's own figures stand behind it
     /// (<c>GET /api/training/sessions/{id}/recording</c>).
     /// </param>
-    public sealed record LoggedSession(Guid TrainingSessionId, bool IsTrailRun, bool IsRecorded) : CardioSessionSource;
+    /// <param name="Activity">
+    /// What an endurance session was — a ride, a hike, a walk, an indoor run — or absent for a trail
+    /// run or a distance-and-time session, which <paramref name="IsTrailRun"/> tells apart.
+    /// </param>
+    public sealed record LoggedSession(Guid TrainingSessionId, bool IsTrailRun, bool IsRecorded, EnduranceActivity? Activity = null)
+        : CardioSessionSource;
 }
 
 /// <summary>Whose samples a session's heart rate was read from.</summary>

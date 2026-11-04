@@ -1,8 +1,8 @@
 namespace lionheart.Model.Health;
 
 /// <summary>
-/// What the app that recorded a workout captured beyond the session it became: its route and its
-/// own heart rate.
+/// What the app that recorded a workout captured beyond the session it became: its route, its own
+/// heart rate, and whatever else it measured — power, cadence, speed, running form.
 /// </summary>
 /// <remarks>
 /// Attached to the completed session by the session's id rather than folded into it, for two
@@ -12,8 +12,9 @@ namespace lionheart.Model.Health;
 /// accident. Everything else about the run (distance, time, climb) is the session's own set,
 /// which is what records, the cardio report and the score already read.
 /// <para>
-/// Written once, at import, and never changed: a correction to the session restates its set, and
-/// the route stays what the device recorded.
+/// Written at import and never corrected: a correction to the session restates its set, and the
+/// route stays what the device recorded. The one later write fills in <see cref="Metrics"/> for a
+/// workout imported before Lionheart read them (<see cref="FillMetrics"/>).
 /// </para>
 /// </remarks>
 public sealed class WorkoutRecording
@@ -24,13 +25,29 @@ public sealed class WorkoutRecording
     public Guid UserId { get; private init; }
     public WorkoutRoute Route { get; private init; } = WorkoutRoute.None;
     public RecordedHeartRate HeartRate { get; private init; } = RecordedHeartRate.None;
+    public RecordedMetrics Metrics { get; private set; } = RecordedMetrics.None;
 
-    public static WorkoutRecording Of(Guid trainingSessionId, Guid userId, WorkoutRoute route, RecordedHeartRate heartRate) =>
+    public static WorkoutRecording Of(
+        Guid trainingSessionId, Guid userId, WorkoutRoute route, RecordedHeartRate heartRate, RecordedMetrics metrics) =>
         new()
         {
             TrainingSessionId = trainingSessionId,
             UserId = userId,
             Route = route,
             HeartRate = heartRate,
+            Metrics = metrics,
         };
+
+    /// <summary>
+    /// Takes the metrics a workout offered again carries, where this recording holds none — a run
+    /// imported before its form was read. Whether anything changed; held metrics are never replaced,
+    /// so offering a workout any number of times leaves what the first offer that carried them wrote.
+    /// </summary>
+    public bool FillMetrics(RecordedMetrics offered)
+    {
+        if (Metrics.IsRecorded || !offered.IsRecorded) return false;
+
+        Metrics = offered;
+        return true;
+    }
 }

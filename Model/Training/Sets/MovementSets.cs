@@ -12,7 +12,7 @@ public static class MovementSets
         /// each one's sets in the order they were performed.
         /// </summary>
         /// <remarks>
-        /// A trail run and a freeform set name no movement, and neither does a measured set carrying
+        /// A trail run, an endurance set and a freeform set name no movement, and neither does a measured set carrying
         /// <see cref="Guid.Empty"/>, which the session write does not refuse.
         /// </remarks>
         public IEnumerable<IGrouping<Guid, SetEntry>> ByMovement() =>
@@ -31,7 +31,7 @@ public static class MovementSets
     {
         LiftSet lift => lift.MovementDataId,
         DistanceTimeSet distanceTime => distanceTime.MovementDataId,
-        TrailRunSet or FreeformSet => Guid.Empty,
+        TrailRunSet or EnduranceSet or FreeformSet => Guid.Empty,
         _ => throw new UnreachableException(),
     };
 }

@@ -25,9 +25,9 @@ public sealed record RecordCandidate(RecordSubject Subject, Achievement Achievem
 /// two claims on one. A movement logged in both therefore sets and beats a record in each.
 /// </para>
 /// <para>
-/// A set that names no movement at all — <see cref="Guid.Empty"/>, which is the storage sentinel
-/// for trail running — raises no candidate. The session write does not check a set's movement id,
-/// so the sentinel can arrive on a lift, and a subject cannot be built from it.
+/// A set that names no movement at all — <see cref="Guid.Empty"/>, or another id a movement-less
+/// subject is stored as — raises no candidate. The session write does not check a set's movement
+/// id, so a sentinel can arrive on a lift, and a subject cannot be built from it.
 /// </para>
 /// <para>
 /// A warm-up raises no candidate for any lift record, the session's volume included: it is load
@@ -44,12 +44,17 @@ public sealed record RecordCandidate(RecordSubject Subject, Achievement Achievem
 public static class RecordCandidates
 {
     public static IReadOnlyList<RecordCandidate> From(CompletedTrainingSession session) =>
-        [.. FromLifts(session.Sets), .. FromMeasuredEfforts(session.Sets), .. FromTrailRuns(session.Sets)];
+        [
+            .. FromLifts(session.Sets),
+            .. FromMeasuredEfforts(session.Sets),
+            .. FromTrailRuns(session.Sets),
+            .. FromEndurance(session.Sets),
+        ];
 
     private static IEnumerable<RecordCandidate> FromLifts(IEnumerable<SetEntry> sets) =>
         from set in sets.OfType<LiftSet>()
         where set.IsWorking
-        where set.MovementDataId != Guid.Empty && set.Weight > 0 && set.Reps > 0
+        where !RecordSubject.Movement.IsSentinel(set.MovementDataId) && set.Weight > 0 && set.Reps > 0
         group set by (set.MovementDataId, set.Unit) into loaded
         let subject = new RecordSubject.Movement(loaded.Key.MovementDataId)
         let lifts = loaded.Select(set => new LiftPerformance(set.Weight, set.Unit, set.Reps)).ToList()
@@ -88,7 +93,7 @@ public static class RecordCandidates
 
     private static IEnumerable<RecordCandidate> FromMeasuredEfforts(IEnumerable<SetEntry> sets) =>
         from set in sets.OfType<DistanceTimeSet>()
-        where set.MovementDataId != Guid.Empty
+        where !RecordSubject.Movement.IsSentinel(set.MovementDataId)
         let effort = new DistanceEffort(set.Distance, set.Unit, set.Duration)
         where double.IsFinite(effort.SecondsPerMeter)
         group effort by set.MovementDataId into covered
@@ -109,6 +114,29 @@ public static class RecordCandidates
 
         return efforts.Count == 0 ? [] : DistanceRecords(new RecordSubject.TrailRunning(), efforts);
     }
+
+    /// <summary>
+    /// A ride or a hike competes on its own subject, as a trail run does on trail running. An indoor
+    /// ride or run has the machine's distance rather than ground covered, and a walk is movement
+    /// rather than an effort to rank, so neither raises a candidate.
+    /// </summary>
+    private static IEnumerable<RecordCandidate> FromEndurance(IEnumerable<SetEntry> sets) =>
+        from set in sets.OfType<EnduranceSet>()
+        let subject = ContestedSubject(set.Activity)
+        where subject is not null
+        let effort = new DistanceEffort(set.Distance, set.Unit, set.Duration)
+        where double.IsFinite(effort.SecondsPerMeter)
+        group effort by subject into covered
+        from candidate in DistanceRecords(covered.Key, [.. covered])
+        select candidate;
+
+    private static RecordSubject? ContestedSubject(EnduranceActivity activity) => activity switch
+    {
+        EnduranceActivity.Ride => new RecordSubject.Riding(),
+        EnduranceActivity.Hike => new RecordSubject.Hiking(),
+        EnduranceActivity.IndoorRide or EnduranceActivity.IndoorRun or EnduranceActivity.Walk => null,
+        _ => throw new System.Diagnostics.UnreachableException(),
+    };
 
     private static IReadOnlyList<RecordCandidate> DistanceRecords(
         RecordSubject subject, IReadOnlyList<DistanceEffort> efforts) =>

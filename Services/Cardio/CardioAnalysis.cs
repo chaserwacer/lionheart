@@ -123,7 +123,8 @@ public static class CardioAnalysis
                     new CardioSessionSource.LoggedSession(
                         session.TrainingSessionId,
                         session.Sets.OfType<TrailRunSet>().Any(),
-                        session.Source is SessionSource.AppleHealth),
+                        session.Source is SessionSource.AppleHealth,
+                        session.Sets.OfType<EnduranceSet>().Select(set => (EnduranceActivity?)set.Activity).FirstOrDefault()),
                     span.Start,
                     span.End,
                     DistanceMeters(session))
@@ -192,6 +193,7 @@ public static class CardioAnalysis
             .Select(set => set switch
             {
                 TrailRunSet run => run.Distance * run.Unit.MetersEach(),
+                EnduranceSet endurance => endurance.Distance * endurance.Unit.MetersEach(),
                 DistanceTimeSet timed => timed.Distance * timed.Unit.MetersEach(),
                 _ => (double?)null,
             })

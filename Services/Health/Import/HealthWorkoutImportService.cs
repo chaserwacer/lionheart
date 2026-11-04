@@ -22,11 +22,13 @@ public interface IHealthWorkoutImportService
 /// <remarks>
 /// Idempotent on the workout's Health UUID, which the session's source carries and a unique index
 /// holds: a workout offered again answers <see cref="HealthImportOutcome.AlreadyImported"/> and
-/// writes nothing, so the phone can resend whatever it is unsure of.
+/// writes nothing — except metrics its recording lacks, filled in once — so the phone can resend
+/// whatever it is unsure of, or read Health again from the start. One whose session the athlete
+/// deleted answers <see cref="HealthWorkoutExclusion.Deleted"/>.
 /// <para>
-/// Records follow the rule an import of history has to. A run newer than every record it contests
+/// Records follow the rule an import of history has to. A workout newer than every record it contests
 /// is judged against what stands, as a run logged live would be. One that predates a standing
-/// record it contests — the first sync backfilling a year while a later trail run is already in the
+/// record it contests — the first sync backfilling a year while a later ride is already in the
 /// log — is placed by replaying the athlete's records over his whole history in the same
 /// transaction, since judging it against a later record would claim it beat something that came
 /// after it.
@@ -62,14 +64,37 @@ public sealed class HealthWorkoutImportService : IHealthWorkoutImportService
     private async Task<Result<HealthImportOutcome, Problem>> OutcomeAsync(
         Guid userId, StatedHealthWorkout workout, CancellationToken ct) =>
         await ImportedAsAsync(userId, workout.Source.WorkoutId, ct) is { } existing
-            ? Answer(new HealthImportOutcome.AlreadyImported(existing))
-            : HealthWorkoutDecisions.Decide(workout, await LoggedAroundAsync(userId, workout.Period, ct), NewIdentity(userId)) switch
-            {
-                HealthWorkoutDecision.Import import => await CommitAsync(import, ct),
-                HealthWorkoutDecision.Excluded excluded => Answer(
-                    new HealthImportOutcome.NotImported(excluded.Reason, excluded.MatchedSessionId)),
-                _ => throw new System.Diagnostics.UnreachableException(),
-            };
+            ? await AlreadyImportedAsync(existing, workout.Metrics, ct)
+            : await WasDeletedAsync(userId, workout.Source.WorkoutId, ct)
+                ? Answer(new HealthImportOutcome.NotImported(HealthWorkoutExclusion.Deleted, null))
+                : HealthWorkoutDecisions.Decide(workout, await LoggedAroundAsync(userId, workout.Period, ct), NewIdentity(userId)) switch
+                {
+                    HealthWorkoutDecision.Import import => await CommitAsync(import, ct),
+                    HealthWorkoutDecision.Excluded excluded => Answer(
+                        new HealthImportOutcome.NotImported(excluded.Reason, excluded.MatchedSessionId)),
+                    _ => throw new System.Diagnostics.UnreachableException(),
+                };
+
+    /// <summary>
+    /// A workout already imported, answered as one — with the metrics it now carries filled into its
+    /// recording where the first import had none, which is how the runs imported before Lionheart
+    /// read running form get it. Nothing else about the session or its recording moves.
+    /// </summary>
+    private async Task<Result<HealthImportOutcome, Problem>> AlreadyImportedAsync(
+        Guid trainingSessionId, RecordedMetrics offered, CancellationToken ct)
+    {
+        if (offered.IsRecorded
+            && await _context.WorkoutRecordings.FirstOrDefaultAsync(held => held.TrainingSessionId == trainingSessionId, ct) is { } recording
+            && recording.FillMetrics(offered))
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+
+        return Answer(new HealthImportOutcome.AlreadyImported(trainingSessionId));
+    }
+
+    private Task<bool> WasDeletedAsync(Guid userId, Guid workoutId, CancellationToken ct) =>
+        _context.DeletedHealthWorkouts.AnyAsync(deleted => deleted.UserId == userId && deleted.WorkoutId == workoutId, ct);
 
     private Task<Guid?> ImportedAsAsync(Guid userId, Guid workoutId, CancellationToken ct) =>
         _context.Sessions
@@ -162,7 +187,7 @@ public sealed class HealthWorkoutImportService : IHealthWorkoutImportService
     private static Problem ReplayRefusal(Problem problem) => problem switch
     {
         Problem.Conflict => new Problem.Conflict(
-            "This run is older than a standing trail-running record, so placing it means re-detecting every "
+            "This workout is older than a standing record it contests, so placing it means re-detecting every "
             + "record from the whole history — which would award a record you withdrew all over again. It was "
             + "not imported."),
         _ => problem,

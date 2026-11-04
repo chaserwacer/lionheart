@@ -98,11 +98,7 @@ public sealed class PersonalRecordRebuild
 
     private static string Described(PersonalRecord record)
     {
-        var subject = record.Subject switch
-        {
-            RecordSubject.Movement movement => $"movement {movement.MovementDataId}",
-            _ => "trail running",
-        };
+        var subject = record.Subject.Name(id => $"movement {id}");
         var bracket = record.Kind.Bracket > 0 ? $" {record.Kind.Bracket}" : string.Empty;
 
         return $"{subject}: {record.Kind.Name}{bracket}, set {record.AchievedAt:yyyy-MM-dd}";

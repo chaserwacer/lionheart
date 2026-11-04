@@ -12,6 +12,7 @@ namespace lionheart.Model.Training.Sets;
 [JsonDerivedType(typeof(LiftSet), "lift")]
 [JsonDerivedType(typeof(DistanceTimeSet), "distanceTime")]
 [JsonDerivedType(typeof(TrailRunSet), "trailRun")]
+[JsonDerivedType(typeof(EnduranceSet), "endurance")]
 [JsonDerivedType(typeof(FreeformSet), "freeform")]
 public abstract record SetEntry
 {
@@ -76,6 +77,34 @@ public sealed record TrailRunSet(
     /// total ascent. Its sign is not policed, because a figure an athlete states may
     /// be a net gain, which a descent-dominant route makes negative.
     /// </summary>
+    public double ElevationGainMeters { get; init; } = Require.Finite(ElevationGainMeters, nameof(ElevationGainMeters));
+
+    public Rpe Rpe { get; init; } = Rpe;
+}
+
+/// <summary>
+/// A ride, a hike, a walk or an indoor run: an endurance session that names no movement, measured
+/// the way a trail run is.
+/// </summary>
+/// <remarks>
+/// Its own shape rather than a trail run carrying an activity, because a ride is not a run: what
+/// it competes for records on, if anything, follows from <see cref="Activity"/>
+/// (<c>RecordCandidates</c>), and an outdoor run stays a <see cref="TrailRunSet"/>.
+/// </remarks>
+public sealed record EnduranceSet(
+    EnduranceActivity Activity,
+    double Distance,
+    DistanceUnit Unit,
+    TimeSpan Duration,
+    double ElevationGainMeters,
+    Rpe Rpe) : SetEntry
+{
+    public EnduranceActivity Activity { get; init; } = Require.ClosedEnum(Activity, nameof(Activity));
+    public double Distance { get; init; } = Require.Finite(Distance, nameof(Distance));
+    public DistanceUnit Unit { get; init; } = Require.ClosedEnum(Unit, nameof(Unit));
+    public TimeSpan Duration { get; init; } = Duration;
+
+    /// <summary>The climb as stated, its sign unpoliced for the reason a trail run's is.</summary>
     public double ElevationGainMeters { get; init; } = Require.Finite(ElevationGainMeters, nameof(ElevationGainMeters));
 
     public Rpe Rpe { get; init; } = Rpe;
