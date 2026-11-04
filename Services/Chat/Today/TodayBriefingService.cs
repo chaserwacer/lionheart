@@ -29,6 +29,13 @@ public interface ITodayBriefing
     Task<string> ForAsync(IdentityUser user, CancellationToken ct);
 }
 
+/// <summary>The facts the briefing renders, for a reader that judges them rather than states them.</summary>
+public interface ITodayFacts
+{
+    /// <summary>The athlete's day as of now. Throws only where the database cannot be read.</summary>
+    Task<TodayFacts> ReadAsync(IdentityUser user, CancellationToken ct);
+}
+
 /// <summary>Reads the facts <see cref="TodayBriefing"/> renders, fresh for every message.</summary>
 /// <remarks>
 /// Not cached, unlike the context card, because the questions it answers ("did I train today", "how
@@ -43,7 +50,7 @@ public sealed class TodayBriefingService(
     ChatToolCallExecutor tools,
     MovementPatternMap map,
     TimeProvider clock,
-    ILogger<TodayBriefingService> logger) : ITodayBriefing
+    ILogger<TodayBriefingService> logger) : ITodayBriefing, ITodayFacts
 {
     /// <summary>The nights the sleep baseline is drawn from.</summary>
     private const int BaselineNights = 60;
@@ -76,6 +83,9 @@ public sealed class TodayBriefingService(
             return TodayBriefing.ClockOnly(now);
         }
     }
+
+    public Task<TodayFacts> ReadAsync(IdentityUser user, CancellationToken ct) =>
+        ReadAsync(user, Guid.Parse(user.Id), AthleteNow.Of(_clock), ct);
 
     private async Task<TodayFacts> ReadAsync(IdentityUser user, Guid userId, AthleteNow now, CancellationToken ct)
     {
