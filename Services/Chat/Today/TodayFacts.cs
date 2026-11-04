@@ -3,38 +3,15 @@ using lionheart.Model.Training.Patterns;
 
 namespace lionheart.Services.Chat.Today;
 
-/// <summary>
-/// The athlete's clock: the instant a message arrives, on the wall clock he lives by, and the days
-/// it puts him in.
-/// </summary>
-/// <remarks>
-/// Every "today" the chat states is read from this, never from UTC. The server runs on his own
-/// machine, so its zone is his; a UTC day ends at seven in the evening in his winter, which is when
-/// he trains and when he asks about it.
-/// </remarks>
-public sealed record AthleteNow(DateTimeOffset Local)
-{
-    public static AthleteNow Of(TimeProvider clock) => new(clock.GetLocalNow());
-
-    public DateOnly Today => DateOnly.FromDateTime(Local.DateTime);
-
-    public DateOnly Yesterday => Today.AddDays(-1);
-
-    /// <summary>The Monday the week runs from, matching the score's Monday-to-Sunday weeks.</summary>
-    public DateOnly WeekStart => Today.AddDays(-(((int)Today.DayOfWeek + 6) % 7));
-}
-
 /// <summary>Everything the briefing states, read once and rendered by <see cref="TodayBriefing"/>.</summary>
 /// <param name="Sessions">Completed sessions from the earlier of the week's Monday and yesterday, oldest first.</param>
-/// <param name="Cardio">Cardio sessions over the same days, as the cardio report counts them.</param>
-/// <param name="MaxHeartRate">The maximum the cardio report draws its zones from; absent without a usable age.</param>
+/// <param name="Cardio">The cardio report over the same days, or that it could not be read.</param>
 /// <param name="Nights">Main sleeps filed under today and yesterday, the newest first; absent when not synced.</param>
 /// <param name="Score">What the score tool answers for the seven days ending today, verbatim; empty when it had nothing.</param>
 public sealed record TodayFacts(
     AthleteNow Now,
     IReadOnlyList<SessionFact> Sessions,
-    IReadOnlyList<CardioFact> Cardio,
-    MaxHeartRate? MaxHeartRate,
+    CardioDays Cardio,
     LoadFact Load,
     IReadOnlyList<NightFact> Nights,
     NightBaseline Baseline,
@@ -63,6 +40,26 @@ public sealed record SessionFact(
 
 /// <param name="TopSet">The heaviest hard set as performed, e.g. "185 lb × 5".</param>
 public sealed record LiftFact(string Movement, PatternFamily? Family, int HardSets, string TopSet);
+
+/// <summary>
+/// The briefing's days of cardio: what the cardio report counted, or that it could not be read.
+/// </summary>
+/// <remarks>
+/// Two states because the briefing must never state an absence it does not know: a report that
+/// failed is not a day without cardio, and the model is told which it is.
+/// </remarks>
+public abstract record CardioDays
+{
+    private protected CardioDays() { }
+
+    /// <param name="MaxHeartRate">The maximum the report draws its zones from; absent without a usable age.</param>
+    public sealed record Read(IReadOnlyList<CardioFact> Sessions, MaxHeartRate? MaxHeartRate) : CardioDays;
+
+    public sealed record Unread : CardioDays;
+
+    /// <summary>The sessions known to have happened: none when the report could not be read.</summary>
+    public IReadOnlyList<CardioFact> Known => this is Read read ? read.Sessions : [];
+}
 
 /// <summary>One cardio session as the cardio report counted it, with the zone minutes that carry the score.</summary>
 /// <param name="ZoneTwo">Minutes in zone 2; absent when the heart rate was not recorded.</param>

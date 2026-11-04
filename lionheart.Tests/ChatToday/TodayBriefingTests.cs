@@ -27,8 +27,7 @@ public sealed class TodayBriefingTests
         string score = "") =>
         new(now ?? Evening,
             sessions ?? [],
-            cardio ?? [],
-            max,
+            new CardioDays.Read(cardio ?? [], max),
             new LoadFact(20, 16, 3, 2.5),
             nights ?? [],
             new NightBaseline(70, 45, 40),

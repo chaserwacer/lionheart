@@ -102,7 +102,10 @@ struct ThreadView: View {
                         case .opened(_, let at):
                             SessionOpening(at: at)
                         case .turn(let turn):
-                            TurnBubble(turn: turn, revealsOnArrival: turn.id == thread.arrivedReply)
+                            TurnBubble(
+                                turn: turn,
+                                revealsOnArrival: turn.id == thread.arrivedReply,
+                                onRevealed: { thread.settle(reply: turn.id) })
                         }
                     }
                     if thread.exchange.isAwaitingReply {

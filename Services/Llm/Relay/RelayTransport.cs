@@ -95,13 +95,16 @@ public sealed class RelayTransport(string folder, ILogger logger) : HttpMessageH
     }
 
     /// <summary>
-    /// The answer, once its file appears and parses. A file caught half-written fails to parse and
-    /// is simply read again on the next poll.
+    /// The answer, once its file appears and has stopped changing. A JSON answer caught half-written
+    /// fails to parse and is read again; a text answer is taken only when two polls in a row read
+    /// the same words, since a half-written text file would parse as a shorter answer.
     /// </summary>
     private async Task<JsonObject> AwaitAnswerAsync(int sequence, CancellationToken ct)
     {
         var wire = Path.Combine(_folder, RelayFiles.ResponseName(sequence));
         var text = Path.Combine(_folder, RelayFiles.TextResponseName(sequence));
+        string? lastText = null;
+        var reportedMalformed = false;
 
         while (true)
         {
@@ -113,14 +116,21 @@ public sealed class RelayTransport(string folder, ILogger logger) : HttpMessageH
                 {
                     if (JsonNode.Parse(await File.ReadAllTextAsync(wire, ct)) is JsonObject answer) return answer;
                 }
+                catch (JsonException exception) when (!reportedMalformed)
+                {
+                    // Usually still being written; said once in case it is simply wrong.
+                    reportedMalformed = true;
+                    _logger.LogWarning("Relay answer {File} does not parse yet: {Reason}", wire, exception.Message);
+                }
                 catch (JsonException)
                 {
-                    // Still being written.
                 }
             }
             else if (File.Exists(text))
             {
-                return RelayFiles.FromText(await File.ReadAllTextAsync(text, ct));
+                var words = await File.ReadAllTextAsync(text, ct);
+                if (words.Length > 0 && words == lastText) return RelayFiles.FromText(words);
+                lastText = words;
             }
 
             await Task.Delay(PollInterval, ct);

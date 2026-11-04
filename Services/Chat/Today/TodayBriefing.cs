@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using lionheart.Model.Cardio;
@@ -37,7 +38,7 @@ public static class TodayBriefing
             .AppendLine(Invariant, $"Trained today: {Day(facts, now.Today, detailed: true, nothing: "nothing logged yet")}")
             .AppendLine(Invariant, $"Yesterday ({now.Yesterday:dddd d MMMM}): {Day(facts, now.Yesterday, detailed: true, nothing: "no training logged")}")
             .AppendLine(Load(facts.Load))
-            .AppendLine(Zones(facts.MaxHeartRate))
+            .AppendLine(Zones(facts.Cardio))
             .AppendLine(Nights(facts))
             .AppendLine(Readiness(facts.Readiness, facts.Means))
             .AppendLine(Wellness(facts.Wellness, now.Today))
@@ -63,13 +64,22 @@ public static class TodayBriefing
 
     // ---- Training ----
 
-    /// <summary>A day's training: each session with its lifting and the cardio the report counted that day.</summary>
+    /// <summary>
+    /// A day's training: each session with its lifting and the cardio the report counted that day.
+    /// When the report could not be read, the day says so rather than reading as a day without cardio.
+    /// </summary>
     private static string Day(TodayFacts facts, DateOnly day, bool detailed, string nothing)
     {
         var parts = facts.Sessions.Where(session => session.Day == day).Select(session => Session(session, detailed))
-            .Concat(facts.Cardio.Where(cardio => cardio.Day == day).Select(Cardio))
+            .Concat(facts.Cardio.Known.Where(cardio => cardio.Day == day).Select(Cardio))
             .ToList();
-        return parts.Count == 0 ? $"{nothing}." : $"{string.Join("; ", parts)}.";
+        var listed = parts.Count == 0 ? nothing : string.Join("; ", parts);
+        return facts.Cardio switch
+        {
+            CardioDays.Read => $"{listed}.",
+            CardioDays.Unread => $"{listed} (cardio could not be read).",
+            _ => throw new UnreachableException(),
+        };
     }
 
     private static string Session(SessionFact session, bool detailed)
@@ -140,10 +150,16 @@ public static class TodayBriefing
             : "";
 
     /// <summary>The zones in beats per minute, as the cardio report and the score draw them, so a target can be given in bpm.</summary>
-    private static string Zones(MaxHeartRate? max)
+    private static string Zones(CardioDays cardio) => cardio switch
     {
-        if (max is null) return "Heart-rate zones: no maximum heart rate on record (no usable age), so no zones.";
+        CardioDays.Read { MaxHeartRate: { } max } => Zones(max),
+        CardioDays.Read => "Heart-rate zones: no maximum heart rate on record (no usable age), so no zones.",
+        CardioDays.Unread => "Heart-rate zones: the cardio report could not be read; GetCardioReport states them.",
+        _ => throw new UnreachableException(),
+    };
 
+    private static string Zones(MaxHeartRate max)
+    {
         var bpm = ZoneMinutes.LowerEdges.Select(edge => (int)Math.Round(edge * max.Bpm)).ToList();
         var basis = max switch
         {

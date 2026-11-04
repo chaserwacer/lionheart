@@ -51,6 +51,12 @@ final class ThreadStore {
         arrivedReply = nil
     }
 
+    /// The arrived answer has been set down, so it is shown whole from now on, even when its bubble
+    /// is rebuilt by scrolling it away and back.
+    func settle(reply id: UUID) {
+        if arrivedReply == id { arrivedReply = nil }
+    }
+
     /// Reads the stretch before the oldest session on screen and puts it in front.
     func loadEarlier() async {
         guard !earlier.isRunning, let thread = transcript.value, thread.hasEarlier,

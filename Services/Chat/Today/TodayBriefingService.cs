@@ -30,9 +30,11 @@ public interface ITodayBriefing
 
 /// <summary>Reads the facts <see cref="TodayBriefing"/> renders, fresh for every message.</summary>
 /// <remarks>
-/// Not cached, unlike the context card: a briefing is a handful of indexed reads, and the questions
-/// it answers ("did I train today", "how did I sleep") are exactly the ones a cached copy gets wrong
-/// an hour after the athlete logs a session or the ring syncs a night.
+/// Not cached, unlike the context card, because the questions it answers ("did I train today", "how
+/// did I sleep") are exactly the ones a cached copy gets wrong an hour after the athlete logs a
+/// session or the ring syncs a night. It is not cheap — the training log, a week of cardio, and the
+/// score, which reads both again — but for one athlete it is a few hundred milliseconds against a
+/// model call of tens of seconds.
 /// </remarks>
 public sealed class TodayBriefingService(
     ModelContext context,
@@ -86,8 +88,7 @@ public sealed class TodayBriefingService(
         return new TodayFacts(
             now,
             await SessionsAsync(log, from, today, cardio.LoggedSessionIds, ct),
-            cardio.Sessions,
-            cardio.MaxHeartRate,
+            cardio.Days,
             Load(log, today),
             [.. nights.Where(night => night.Day >= today.AddDays(-1)).OrderByDescending(night => night.Day)],
             Baseline(nights, today),
@@ -153,25 +154,27 @@ public sealed class TodayBriefingService(
             month.Count / 4.0);
     }
 
-    /// <summary>The window's cardio, or none when the report refuses: the rest of the briefing still stands.</summary>
+    /// <summary>
+    /// The window's cardio, or that it could not be read: the rest of the briefing still stands, and
+    /// says which.
+    /// </summary>
     private Task<CardioRead> CardioAsync(IdentityUser user, DayRange range, CancellationToken ct) =>
         _cardio.GetReportAsync(user, range, ct).MatchAsync(
             report => new CardioRead(
-                [.. report.Sessions.Select(Cardio)],
+                new CardioDays.Read([.. report.Sessions.Select(Cardio)], report.MaxHeartRate),
                 report.Sessions
                     .Select(session => session.Source)
                     .OfType<CardioSessionSource.LoggedSession>()
                     .Select(logged => logged.TrainingSessionId)
-                    .ToHashSet(),
-                report.MaxHeartRate),
-            _ => CardioRead.Nothing);
+                    .ToHashSet()),
+            problem =>
+            {
+                _logger.LogWarning("The briefing could not read cardio: {Problem}", problem.Description);
+                return new CardioRead(new CardioDays.Unread(), new HashSet<Guid>());
+            });
 
     /// <param name="LoggedSessionIds">Logged sessions the report counted as cardio, so they are listed once.</param>
-    private sealed record CardioRead(
-        IReadOnlyList<CardioFact> Sessions, IReadOnlySet<Guid> LoggedSessionIds, MaxHeartRate? MaxHeartRate)
-    {
-        public static readonly CardioRead Nothing = new([], new HashSet<Guid>(), null);
-    }
+    private sealed record CardioRead(CardioDays Days, IReadOnlySet<Guid> LoggedSessionIds);
 
     private static CardioFact Cardio(CardioSession session) =>
         new(DateOnly.FromDateTime(session.Start.DateTime),
@@ -206,7 +209,13 @@ public sealed class TodayBriefingService(
         _tools.ExecuteToolCallAsync(
                 new ToolInvocation("briefing", "GetTrainingScore", JsonSerializer.Serialize(new { from = Iso(today), to = Iso(today) })),
                 user, allowedToolNames: null, ct)
-            .MatchAsync(outcome => outcome.Content is "null" ? string.Empty : outcome.Content, _ => string.Empty);
+            .MatchAsync(
+                outcome => outcome.Content is "null" ? string.Empty : outcome.Content,
+                problem =>
+                {
+                    _logger.LogWarning("The briefing could not read the training score: {Problem}", problem.Description);
+                    return string.Empty;
+                });
 
     private static string Iso(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 

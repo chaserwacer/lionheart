@@ -59,9 +59,9 @@ reason (`tool_use` when there is a call, otherwise `end_turn`), and estimated `u
 do write is kept, so `"stop_reason":"max_tokens"` exercises that failure. A tool call comes back as
 the next numbered request, with the tool's result in it.
 
-A request waits as long as its caller does. Two client timeouts still apply. The iOS app waits about
-a minute for a chat reply, so answer quickly when driving the app; `curl --max-time 3600` has no
-such limit. Card narratives and session consolidation go through the relay too. A consolidation runs
+A request waits as long as its caller does. The iOS app waits five minutes for a chat reply
+(`HTTP.modelPatience`), so answer within that when driving the app; `curl --max-time 3600` gives an
+hour. Card narratives and session consolidation go through the relay too. A consolidation runs
 under the thread's lock, so a chat message waits behind an unanswered `extract`.
 
 ## Driving it from Claude Code

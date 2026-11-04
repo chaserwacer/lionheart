@@ -85,6 +85,9 @@ struct TurnBubble: View {
     /// once (`ChatReveal`). Only ever the newest answer, and never with Reduce Motion on.
     var revealsOnArrival = false
 
+    /// Told once the answer is fully set down, so the screen stops treating it as arriving.
+    var onRevealed: () -> Void = {}
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var arrivedAt = Date()
     @State private var isRevealed = false
@@ -131,8 +134,10 @@ struct TurnBubble: View {
         .accessibilityValue(turn.text)
         .task(id: turn.id) {
             guard isRevealing else { return }
-            try? await Task.sleep(for: .seconds(ChatReveal.duration(of: String(prose.characters))))
+            guard (try? await Task.sleep(for: .seconds(ChatReveal.duration(of: String(prose.characters))))) != nil
+            else { return }
             isRevealed = true
+            onRevealed()
         }
     }
 

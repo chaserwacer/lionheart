@@ -218,7 +218,11 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
     /// that is never cached and never needs to be: the next message brings a fresh one, and the
     /// history it is replayed into ends at the words, which match the cache byte for byte. A
     /// mid-conversation system message carries operator authority, which is what the briefing is.
-    /// It is followed only by the model's own turns of this exchange, as the API requires.
+    /// The API takes one only straight after a user turn, and only as the last message or directly
+    /// before an assistant turn: on the first round it is last, and on every tool round it sits
+    /// before the model's own request for tools. Not every model accepts one — Claude Sonnet 5 and
+    /// models before Opus 4.8 refuse it — so moving the chat onto one of those means moving the
+    /// briefing into the athlete's turn too.
     /// </remarks>
     private static IReadOnlyList<Messages.MessageParam> Briefed(
         IReadOnlyList<Messages.MessageParam> messages, int latestWords, string briefing) =>

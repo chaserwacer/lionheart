@@ -1,15 +1,20 @@
+using System.Text.Json;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
 using lionheart.Model.InjuryManagement;
 using lionheart.Services;
 using lionheart.Services.Cardio;
+using lionheart.Services.Llm;
 using lionheart.Services.Chat.Today;
 using lionheart.Services.Training.Patterns;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Model.Chat.Tools;
+using Model.Tools;
 
 namespace lionheart.Tests.ChatToday;
 
@@ -67,7 +72,7 @@ public sealed class TodayBriefingServiceTests : IDisposable
 
         var briefing = await BriefingAsync();
 
-        Assert.Contains("Trained today: nothing logged yet.", briefing);
+        Assert.Contains("Trained today: nothing logged yet", briefing);
         Assert.Contains("Yesterday (Monday 9 March): lifting at 18:00", briefing);
     }
 
@@ -104,6 +109,61 @@ public sealed class TodayBriefingServiceTests : IDisposable
         Assert.Contains("Training score, seven days ending today", briefing);
         Assert.EndsWith("not available.", briefing);
         Assert.Contains("Sleep: last night not synced yet", briefing);
+    }
+
+    /// <summary>
+    /// The score is read by running the score tool itself, so the briefing states the week exactly
+    /// as the tool would: the day's window reaches the tool as its own argument type, and its answer
+    /// lands in the briefing verbatim.
+    /// </summary>
+    [Fact]
+    public async Task The_score_is_the_score_tools_own_answer_for_the_seven_days_ending_today()
+    {
+        var score = new ScoreTool();
+        var services = new ServiceCollection().AddSingleton<IScoreTool>(score).BuildServiceProvider();
+        var tool = new ToolDescriptor(
+            "GetTrainingScore", typeof(ScoreTool), typeof(ScoreTool).GetMethod(nameof(ScoreTool.ScoreAsync))!,
+            new ToolDefinition("GetTrainingScore", "score", """{"type":"object"}"""), RequireAuthorization: true);
+        var executor = new ChatToolCallExecutor(
+            new ToolRegistry(new Dictionary<string, ToolDescriptor> { ["GetTrainingScore"] = tool }),
+            services.GetRequiredService<IServiceScopeFactory>(),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        await using var context = _db.CreateContext();
+        var briefing = await new TodayBriefingService(
+                context, new NoCardio(), executor, MovementPatternMap.Shipped, new ZonedClock(Evening, Zone),
+                NullLogger<TodayBriefingService>.Instance)
+            .ForAsync(Athlete, CancellationToken.None);
+
+        Assert.Equal(new DayRange(new DateOnly(2026, 3, 10), new DateOnly(2026, 3, 10)), score.Asked);
+        Assert.EndsWith("""{"score":"64 of 100"}""", briefing);
+    }
+
+    [Fact]
+    public async Task Cardio_that_could_not_be_read_is_said_to_be_unread_and_not_reported_as_none()
+    {
+        var briefing = await BriefingAsync();
+
+        Assert.Contains("Trained today: nothing logged yet (cardio could not be read).", briefing);
+        Assert.Contains("Heart-rate zones: the cardio report could not be read", briefing);
+    }
+
+    public interface IScoreTool
+    {
+        Task<ScoreAnswer> ScoreAsync(IdentityUser user, DayRange range);
+    }
+
+    public sealed record ScoreAnswer(string Score);
+
+    public sealed class ScoreTool : IScoreTool
+    {
+        public DayRange? Asked { get; private set; }
+
+        public Task<ScoreAnswer> ScoreAsync(IdentityUser user, DayRange range)
+        {
+            Asked = range;
+            return Task.FromResult(new ScoreAnswer("64 of 100"));
+        }
     }
 
     private sealed class NoCardio : ICardioReportService

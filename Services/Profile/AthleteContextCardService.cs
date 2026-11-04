@@ -5,6 +5,7 @@ using lionheart.Model.Training.Sessions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Services.Chat;
+using lionheart.Services.Chat.Today;
 using lionheart.Services.Llm;
 using lionheart.Services.BodyComposition;
 using lionheart.Services.Health.Runs;
@@ -65,7 +66,7 @@ namespace lionheart.Services.Profile
         private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
 
         /// <summary>The athlete's own day, never UTC's, which ends in his evening.</summary>
-        private DateOnly Today => DateOnly.FromDateTime(_clock.GetLocalNow().DateTime);
+        private DateOnly Today => AthleteNow.Of(_clock).Today;
 
         /// <summary>
         /// The instant his day begins, in the UTC the stamped StartTime column is stored in, so a

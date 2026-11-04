@@ -375,7 +375,10 @@ desired.
   `system` message straight after the athlete's latest words, which carry the hour-long breakpoint.
   It is never stored, so the next request's history matches the cached prefix byte for byte. On LM
   Studio it is appended to the system prompt.
-- **Measured through the relay** (`docs/chat-relay.md`), on a snapshot of real data:
+- **Measured through the relay** (`docs/chat-relay.md`), on a snapshot of real data. The token
+  figures are the requests themselves. The tool calls are what the session playing the model chose
+  to make from that context, so they show what the context makes unnecessary, not how Claude
+  behaves.
 
   | Question | Before | After |
   |---|---|---|
