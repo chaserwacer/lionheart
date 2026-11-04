@@ -9,9 +9,10 @@ namespace lionheart.Services.Training.Movement;
 /// </summary>
 /// <remarks>
 /// The iOS client composes the same phrase (<c>MovementData.displayName</c>); the two are kept in
-/// step by their tests. A part another part already says is not said again, so names that overlap
-/// cannot read twice: the modifier is dropped when the base already says it ("Incline Bench Press"
-/// with "incline"), and the equipment when the title already says it ("T-Bar Row", on a T-Bar).
+/// step by their tests. Where one part already says another, as whole words, the shorter is not
+/// said again, so names that overlap cannot read twice: "Incline Bench Press" with "incline",
+/// "T-Bar Row" on a T-Bar, and "Standing Leg Curl" where the machine was stored as the equipment
+/// under the base "Leg Curl".
 /// <para>
 /// A modifier is stored lower case, whoever created it, so its words are capitalised here, short
 /// joining words apart ("Behind-the-Back"). The base and the equipment keep the capitalisation
@@ -30,7 +31,9 @@ public static partial class MovementNames
     {
         var title = TitleOf(baseName, modifier);
         var kit = equipment.Trim();
-        return kit.Length == 0 || Says(title, kit) ? title : $"{title} ({kit})";
+        return kit.Length == 0 || Says(title, kit) ? title
+            : Says(kit, title) ? kit
+            : $"{title} ({kit})";
     }
 
     public static string Of(MovementName name) => Of(name.Base, name.Equipment, name.Modifier);
@@ -40,7 +43,9 @@ public static partial class MovementNames
     {
         var exercise = baseName.Trim();
         var variation = modifier?.Trim() ?? string.Empty;
-        return variation.Length == 0 || Says(exercise, variation) ? exercise : $"{Capitalised(variation)} {exercise}";
+        return variation.Length == 0 || Says(exercise, variation) ? exercise
+            : Says(variation, exercise) ? Capitalised(variation)
+            : $"{Capitalised(variation)} {exercise}";
     }
 
     /// <summary>Every word capitalised but a joining word inside the phrase: "behind-the-back" reads "Behind-the-Back".</summary>

@@ -158,7 +158,7 @@ struct SessionLogTests {
             for: session, catalogue: try Self.catalogue(), today: Self.today)
 
         // Squat first because that is what was done first, not alphabetically.
-        #expect(row.headline == "Barbell Back Squat, Barbell Bench Press")
+        #expect(row.headline == "Back Squat (Barbell), Bench Press (Barbell)")
     }
 
     @Test("A movement returned to later is named once, not twice")
@@ -173,7 +173,7 @@ struct SessionLogTests {
         let row = SessionLog.row(
             for: session, catalogue: try Self.catalogue(), today: Self.today)
 
-        #expect(row.headline == "Barbell Bench Press, Barbell Back Squat")
+        #expect(row.headline == "Bench Press (Barbell), Back Squat (Barbell)")
     }
 
     @Test("A session with no movements is headlined by its lifecycle word")
@@ -198,7 +198,7 @@ struct SessionLogTests {
         let row = SessionLog.row(
             for: session, catalogue: try Self.catalogue(), today: Self.today)
 
-        #expect(row.headline == "Barbell Bench Press")
+        #expect(row.headline == "Bench Press (Barbell)")
         #expect(row.facts == .prescribed(count: 1))
     }
 
@@ -211,7 +211,7 @@ struct SessionLogTests {
         let found = log.filtered(by: "squat")
 
         #expect(found.sessionCount == 1)
-        #expect(found.weeks.first?.sessions.first?.headline == "Barbell Back Squat")
+        #expect(found.weeks.first?.sessions.first?.headline == "Back Squat (Barbell)")
     }
 
     @Test("Search matches a note, which is where the words a lifter remembers live")
@@ -283,7 +283,7 @@ struct SessionDetailTests {
         let detail = SessionDetail.of(sets, catalogue: try Self.catalogue())
 
         #expect(detail.blocks.count == 1)
-        #expect(detail.blocks[0].movementName == "Barbell Bench Press")
+        #expect(detail.blocks[0].movementName == "Bench Press (Barbell)")
         #expect(detail.blocks[0].sets.count == 2)
     }
 
@@ -300,7 +300,7 @@ struct SessionDetailTests {
         let detail = SessionDetail.of(sets, catalogue: try Self.catalogue())
 
         #expect(detail.blocks.map(\.movementName)
-            == ["Barbell Bench Press", "Barbell Back Squat", "Barbell Bench Press"])
+            == ["Bench Press (Barbell)", "Back Squat (Barbell)", "Bench Press (Barbell)"])
         #expect(detail.blocks.map(\.order) == [0, 1, 2])
     }
 

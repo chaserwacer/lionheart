@@ -19,9 +19,10 @@ public class MovementNamesTests
     [Fact]
     public void Equipment_named_after_the_exercise_is_not_said_twice()
     {
-        // The defect this guards: a machine stored as the equipment read "Seated Leg Curl Leg Curl".
-        Assert.Equal("Seated Leg Curl", MovementNames.Of("Seated Leg Curl", "Seated Leg Curl", null));
+        // The defect this guards: a machine stored as the equipment read "Standing Leg Curl Leg Curl".
+        Assert.Equal("Standing Leg Curl", MovementNames.Of("Leg Curl", "Standing Leg Curl", null));
         Assert.Equal("Kettlebell Swing", MovementNames.Of("Kettlebell Swing", "Kettlebell", null));
+        Assert.Equal("Single Arm Lat Pulldown (Cable)", MovementNames.Of("Pulldown", "Cable", "single arm lat pulldown"));
     }
 
     [Fact]

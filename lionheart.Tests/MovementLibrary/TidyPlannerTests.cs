@@ -84,7 +84,7 @@ public class TidyPlannerTests
 
         var problem = Refused(library, """{ "equipment": [ { "from": "Dip Bars", "to": "Bodyweight" } ] }""");
 
-        Assert.Contains("'Dip (Bodyweight)' and 'Dip (Dip Bars)' merge, and their setups differ", problem.What);
+        Assert.Contains("'Dip (Bodyweight)' and 'Dip Bars' merge, and their setups differ", problem.What);
     }
 
     [Fact]
