@@ -22,7 +22,15 @@ public sealed record CardioReport(
     IReadOnlyList<DayValue> CardiovascularAge,
     IReadOnlyList<DayValue> RestingHeartRate,
     AerobicBase AerobicBase,
-    IReadOnlyList<ExcludedWorkouts> Excluded);
+    IReadOnlyList<ExcludedWorkouts> Excluded)
+{
+    /// <summary>
+    /// The Apple Watch's VO2max estimates over the range, read from Apple Health; <see cref="Vo2Max"/>
+    /// is Oura's. Two series because they are two devices' models of the same figure, and a line
+    /// drawn through both would read a change of device as a change of fitness.
+    /// </summary>
+    public IReadOnlyList<DayValue> AppleWatchVo2Max { get; init; } = [];
+}
 
 /// <summary>One figure on one day.</summary>
 public sealed record DayValue(DateOnly Day, double Value);
@@ -180,6 +188,9 @@ public sealed record AerobicBase(
     Comparison RestingHeartRate,
     Comparison CardiovascularAge)
 {
+    /// <summary>The Apple Watch's VO2max over the two windows; <see cref="Vo2Max"/> is Oura's.</summary>
+    public Comparison AppleWatchVo2Max { get; init; } = new(null, null);
+
     public const int RecentWeeks = 4;
     public const int BeforeWeeks = 8;
 }

@@ -2,6 +2,7 @@ using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
+using lionheart.Model.Health.Measurements;
 using lionheart.Model.Health;
 using lionheart.Model.Oura;
 using lionheart.Model.Oura.Readings;
@@ -51,7 +52,7 @@ public sealed class CardioReportService : ICardioReportService
             .MapAsync(CardioAnalysis.Build);
 
     [Tool(Name = "GetCardioReport",
-        Description = "The athlete's cardio for a range of days: every cardio session (ring-detected workouts and logged runs, with walks under 30 minutes, housework and lifting excluded and counted), each with average and peak heart rate and minutes in five heart-rate zones (percent of maximum heart rate: 50/60/70/80/90); weekly minutes, zone minutes and Edwards load; Oura's VO2max estimates, cardiovascular-age predictions and nightly lowest heart rate; and an aerobic-base comparison of the last four weeks against the eight before. States how maximum heart rate was set. At most 92 days per call — a longer range returns its most recent 92 days.")]
+        Description = "The athlete's cardio for a range of days: every cardio session (ring-detected workouts and logged runs, with walks under 30 minutes, housework and lifting excluded and counted), each with average and peak heart rate and minutes in five heart-rate zones (percent of maximum heart rate: 50/60/70/80/90); weekly minutes, zone minutes and Edwards load; Oura's VO2max estimates and, as a separate series, the Apple Watch's from Apple Health; cardiovascular-age predictions and nightly lowest heart rate; and an aerobic-base comparison of the last four weeks against the eight before. States how maximum heart rate was set. At most 92 days per call — a longer range returns its most recent 92 days.")]
     public Task<CardioReport?> GetCardioReportForChatAsync(IdentityUser user, DayRange range) =>
         GetReportAsync(user, Recent(range), CancellationToken.None)
             .MatchAsync(report => (CardioReport?)report, _ => null);
@@ -106,7 +107,16 @@ public sealed class CardioReportService : ICardioReportService
             await RecordedHeartRateAsync(logged, ct),
             await Daily(_context.OuraVo2Max, userId, read).ToListAsync(ct),
             await Daily(_context.OuraDailyCardiovascularAge, userId, read).ToListAsync(ct),
-            mainSleeps);
+            mainSleeps)
+        {
+            AppleWatchVo2Max = await _context.HealthDailyMeasures
+                .AsNoTracking()
+                .Where(measure => measure.UserId == userId
+                                  && measure.Metric == HealthMetric.Vo2Max && measure.Device == MeasuringDevice.AppleWatch
+                                  && measure.Day >= read.From && measure.Day <= read.To)
+                .Select(measure => new DayValue(measure.Day, measure.Aggregate.Mean))
+                .ToListAsync(ct),
+        };
     }
 
     /// <summary>

@@ -25,7 +25,11 @@ public sealed record CardioInputs(
     IReadOnlyDictionary<Guid, RecordedHeartRate> RecordedHeartRate,
     IReadOnlyList<OuraVo2Max> Vo2Max,
     IReadOnlyList<OuraDailyCardiovascularAge> CardiovascularAge,
-    IReadOnlyList<OuraSleepPeriod> MainSleeps);
+    IReadOnlyList<OuraSleepPeriod> MainSleeps)
+{
+    /// <summary>The Apple Watch's VO2max estimates from Health, one per day — kept apart from Oura's.</summary>
+    public IReadOnlyList<DayValue> AppleWatchVo2Max { get; init; } = [];
+}
 
 /// <summary>A ring workout left out of the sessions, the day Oura filed it under, and why.</summary>
 public sealed record Exclusion(DateOnly Day, WorkoutCategory Category, WorkoutExclusion Reason);
@@ -100,7 +104,10 @@ public static class CardioAnalysis
                 .Where(excluded => Within(inputs.Range, excluded.Day))
                 .GroupBy(excluded => (excluded.Category, excluded.Reason))
                 .OrderByDescending(group => group.Count())
-                .Select(group => new ExcludedWorkouts(group.Key.Category, group.Key.Reason, group.Count()))]);
+                .Select(group => new ExcludedWorkouts(group.Key.Category, group.Key.Reason, group.Count()))])
+        {
+            AppleWatchVo2Max = Points(inputs.Range, inputs.AppleWatchVo2Max.Select(estimate => (estimate.Day, (double?)estimate.Value))),
+        };
     }
 
     // ---- Gathering the sessions ----
@@ -348,7 +355,10 @@ public static class CardioAnalysis
             Compare(window => PerWeek(window, session => session.Minutes)),
             Compare(window => Mean(window, inputs.Vo2Max.Select(estimate => (estimate.Day, (double?)estimate.Reading.Vo2Max)))),
             Compare(window => Mean(window, inputs.MainSleeps.Select(night => (night.Day, RestingRate(night.Reading))))),
-            Compare(window => Mean(window, inputs.CardiovascularAge.Select(age => (age.Day, (double?)age.Reading.VascularAge)))));
+            Compare(window => Mean(window, inputs.CardiovascularAge.Select(age => (age.Day, (double?)age.Reading.VascularAge)))))
+        {
+            AppleWatchVo2Max = Compare(window => Mean(window, inputs.AppleWatchVo2Max.Select(estimate => (estimate.Day, (double?)estimate.Value)))),
+        };
     }
 
     /// <summary>

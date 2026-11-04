@@ -46,10 +46,19 @@ public sealed record TrainingLog(
     {
         if (!Movements.TryGetValue(set.MovementDataId, out var movement) || !movement.AddsToBodyweight) return set.Weight;
 
-        var inUnit = Bodyweights.Where(measured => measured.Bodyweight.Unit == set.Unit).ToList();
-        var bodyweight = inUnit.Where(measured => measured.Day <= day).MaxBy(measured => measured.Day)
-                         ?? inUnit.MinBy(measured => measured.Day);
-        return bodyweight is null ? set.Weight : bodyweight.Bodyweight.Value + set.Weight;
+        return BodyweightOn(Bodyweights, day, set.Unit) is { } bodyweight ? bodyweight.Value + set.Weight : set.Weight;
+    }
+
+    /// <summary>
+    /// The bodyweight a set on this day adds its plate to: the newest measurement in the unit on or
+    /// before the day, else the first one in the unit; none where nothing is measured in it.
+    /// </summary>
+    /// <remarks>Shared with the Health import, which counts the sets a backfill of weigh-ins re-reads.</remarks>
+    public static Bodyweight? BodyweightOn(IReadOnlyList<BodyweightOnDay> bodyweights, DateOnly day, WeightUnit unit)
+    {
+        var inUnit = bodyweights.Where(measured => measured.Bodyweight.Unit == unit).ToList();
+        return (inUnit.Where(measured => measured.Day <= day).MaxBy(measured => measured.Day)
+                ?? inUnit.MinBy(measured => measured.Day))?.Bodyweight;
     }
 }
 

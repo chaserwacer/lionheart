@@ -1,5 +1,6 @@
 using System.Text.Json;
 using lionheart.Model.Health;
+using lionheart.Model.Health.Measurements;
 using lionheart.Model.Oura.Readings;
 using lionheart.Model.User;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +10,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace lionheart.Data;
 
 /// <summary>
-/// EF mapping for what Apple Health workouts bring beyond the sessions they become: the recording
-/// app's route and heart rate.
+/// EF mapping for what Apple Health brings: the recording app's route and heart rate beside the
+/// sessions its workouts become, and the days of figures Apple's devices measured.
 /// </summary>
 /// <remarks>
 /// <b>Stored column by column, not fix by fix.</b> A route is read and written whole and an hour of
@@ -39,6 +40,26 @@ public static class HealthConfiguration
 
             recording.Property(r => r.Route).HasStoredForm(StoredRoute.Of, stored => stored.ToRoute());
             recording.Property(r => r.HeartRate).HasStoredForm(StoredHeartRate.Of, stored => stored.ToHeartRate());
+        });
+
+        // The figure, device and day are the identity: a day offered again restates its row, and
+        // the key makes a second one for the same day unrepresentable. Names rather than ordinals,
+        // so the table reads in a SQL shell and a reordered enum cannot change what a row means.
+        modelBuilder.Entity<HealthDailyMeasure>(measure =>
+        {
+            measure.ToTable("HealthDailyMeasures");
+            measure.HasKey(m => new { m.UserId, m.Metric, m.Device, m.Day });
+            measure.HasOne<LionheartUser>().WithMany().HasForeignKey(m => m.UserId);
+            measure.Property(m => m.Metric).HasConversion<string>().HasMaxLength(32);
+            measure.Property(m => m.Device).HasConversion<string>().HasMaxLength(16);
+
+            measure.ComplexProperty(m => m.Aggregate, aggregate =>
+            {
+                aggregate.Property(a => a.Mean).HasColumnName("Mean");
+                aggregate.Property(a => a.Minimum).HasColumnName("Minimum");
+                aggregate.Property(a => a.Maximum).HasColumnName("Maximum");
+                aggregate.Property(a => a.Count).HasColumnName("Count");
+            });
         });
     }
 
