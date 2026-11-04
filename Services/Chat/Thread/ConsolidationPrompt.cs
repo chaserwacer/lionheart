@@ -58,10 +58,10 @@ public sealed record ConsolidationPrompt(
     private const int AnswerExcerptLength = 1200;
 
     private const string Instructions = """
-        You keep the long-term memory of Lionheart, a training-analysis chat with one athlete. A chat session has ended. Decide what the athlete told the chat that is worth remembering in later sessions, and how it changes what is already remembered.
+        You keep the long-term memory of Lionheart, a coaching chat with one athlete. A chat session has ended. Decide what the athlete told the chat that is worth remembering in later sessions, and how it changes what is already remembered.
 
         Remember only what the athlete stated, decided or agreed to: goals; injuries and niggles; standing preferences about how he trains or how he wants answers; commitments he made; decisions about his training, with the reason where he gave one; and durable facts about him such as schedule, equipment, circumstances and history. Do not remember:
-        - the analyst's own findings, figures or advice, unless the athlete adopted them as a decision or a commitment;
+        - the coach's own findings, figures or advice, unless the athlete adopted them as a decision or a commitment;
         - training data the app records anyway: sessions, sets, records, ring scores, logged injuries;
         - one-off questions, small talk, or anything true only for the moment;
         - a length or format he asks for in one message, unless he says he wants it from now on.

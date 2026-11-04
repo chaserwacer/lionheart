@@ -32,7 +32,7 @@ public sealed record LmStudioSettings(
     /// </summary>
     public static (LmStudioSettings? Settings, string? MissingKey) Read()
     {
-        DotNetEnv.Env.TraversePath().Load();
+        lionheart.Services.Llm.EnvironmentFile.Load();
         var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
 
         var baseUrl = configuration["LmStudio:BaseUrl"];

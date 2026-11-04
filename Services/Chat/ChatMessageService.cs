@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Completion;
 using Services.Chat;
+using lionheart.Services.Chat.Today;
 
 namespace lionheart.Services.Chat;
 
@@ -28,11 +29,13 @@ public class ChatMessageService : IChatMessageService
 {
     private readonly ModelContext _context;
     private readonly IChatCompletionService _chatCompletionService;
+    private readonly ITodayBriefing _briefing;
 
-    public ChatMessageService(ModelContext context, IChatCompletionService chatCompletionService)
+    public ChatMessageService(ModelContext context, IChatCompletionService chatCompletionService, ITodayBriefing briefing)
     {
         _context = context;
         _chatCompletionService = chatCompletionService;
+        _briefing = briefing;
     }
 
     public async Task<Result<LHChatMessageDTO, Problem>> ProcessUserChatMessageAsync(IdentityUser user, AddChatMessageRequest request)
@@ -65,7 +68,8 @@ public class ChatMessageService : IChatMessageService
         var chatCompletionRequest = new ChatCompletionRequest
         {
             Conversation = storedConversation,
-            MaxOutputTokens = ChatCompletionRequest.ExchangeOutputTokens
+            MaxOutputTokens = ChatCompletionRequest.ExchangeOutputTokens,
+            Briefing = await _briefing.ForAsync(user, CancellationToken.None),
         };
         return await _chatCompletionService.GenerateChatCompletionAsync(user, chatCompletionRequest)
             .BindAsync(response => StoreLHChatMessagesAsync(user, new StoreLHChatMessagesRequest

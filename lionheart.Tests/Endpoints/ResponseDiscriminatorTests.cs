@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using lionheart.Endpoints;
 using lionheart.Functional;
+using lionheart.Model.Cardio;
 using lionheart.Model.Interpretation;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.Patterns;
@@ -57,7 +58,8 @@ public class ResponseDiscriminatorTests
                 new HeaviestSetView(225, WeightUnit.Pounds, 5, 262.5),
                 DateTime.UnixEpoch,
                 null,
-                RecordStandingView.Standing))
+                RecordStandingView.Standing,
+                RecordSubjectKind.Movement))
             : new RetractionOutcome.NothingStands();
 
         var body = await WriteAsync(Endpoint.ToActionResult(
@@ -149,7 +151,11 @@ public class ResponseDiscriminatorTests
 
         Assert.Equal("unknown", scoreBody.GetProperty("cardio").GetProperty("measure").GetProperty("$type").GetString());
         Assert.Equal("noHeartRate", scoreBody.GetProperty("cardio").GetProperty("measure").GetProperty("reason").GetString());
-        var push = scoreBody.GetProperty("progress").GetProperty("families")[0].GetProperty("lift");
+        var push = scoreBody.GetProperty("progress").GetProperty("families")[0].GetProperty("of").GetProperty("lift");
+        Assert.Equal("push", scoreBody.GetProperty("lifting").GetProperty("families")[0].GetProperty("of").GetProperty("family").GetString());
+        Assert.True(scoreBody.GetProperty("lifting").GetProperty("families")[0].GetProperty("outOf").GetDouble() > 0);
+        Assert.Equal(1, scoreBody.GetProperty("consistency").GetProperty("blocks")[0].GetProperty("of").GetProperty("sessions").GetInt32());
+        Assert.Equal(0, scoreBody.GetProperty("cardio").GetProperty("zones").GetArrayLength());
         Assert.Equal("chosen", push.GetProperty("$type").GetString());
         Assert.Equal("mostTrained", push.GetProperty("choice").GetProperty("$type").GetString());
         Assert.Equal("compared", push.GetProperty("progress").GetProperty("$type").GetString());
@@ -157,6 +163,35 @@ public class ResponseDiscriminatorTests
         Assert.Equal("train", volumeBody.GetProperty("upNext").GetProperty("$type").GetString());
         Assert.Equal(58, volumeBody.GetProperty("upNext").GetProperty("readiness").GetProperty("ouraScore").GetInt32());
         Assert.Equal("horizontalPush", volumeBody.GetProperty("patterns")[0].GetProperty("pattern").GetString());
+    }
+
+    [Fact]
+    public async Task TheCardioReportNamesHowARingWorkoutCameAboutAndWhyOneWasDeclined()
+    {
+        // The iOS decoders switch on the entry, the exclusion reasons and the category.
+        var start = new DateTimeOffset(2026, 10, 14, 17, 0, 0, TimeSpan.FromHours(-4));
+        CardioSession Handball(RingEntry entry) => new(
+            new CardioSessionSource.RingWorkout(Guid.NewGuid(), "handball", WorkoutCategory.Sport, entry),
+            start, start.AddMinutes(25), null,
+            new SessionHeartRate.Recorded(105, 120, 1, new ZoneMinutes(0, 25, 0, 0, 0, 0), HeartRateSource.Ring));
+        var none = new Comparison(null, null);
+        var range = new Model.Analysis.DayRange(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31));
+        var report = new CardioReport(
+            range, null, [Handball(RingEntry.Entered)], [], [], [], [],
+            new AerobicBase(range, range, none, none, none, none, none),
+            [new ExcludedWorkouts(WorkoutCategory.Unspecified, WorkoutExclusion.HeartRateBelowTraining, 1)],
+            [new DeclinedWorkout(Handball(RingEntry.Detected), WorkoutExclusion.HeartRateUnread)]);
+
+        var body = JsonDocument.Parse(await WriteAsync(Endpoint.ToActionResult(
+            Result<CardioReport, Problem>.Success(report)))).RootElement;
+
+        Assert.Equal("entered", body.GetProperty("sessions")[0].GetProperty("source").GetProperty("entry").GetString());
+        var declined = body.GetProperty("declined")[0];
+        Assert.Equal("heartRateUnread", declined.GetProperty("reason").GetString());
+        Assert.Equal("detected", declined.GetProperty("session").GetProperty("source").GetProperty("entry").GetString());
+        Assert.Equal("ringWorkout", declined.GetProperty("session").GetProperty("source").GetProperty("$type").GetString());
+        Assert.Equal("heartRateBelowTraining", body.GetProperty("excluded")[0].GetProperty("reason").GetString());
+        Assert.Equal("unspecified", body.GetProperty("excluded")[0].GetProperty("category").GetString());
     }
 
     [Fact]

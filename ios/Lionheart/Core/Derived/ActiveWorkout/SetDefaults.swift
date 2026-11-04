@@ -38,9 +38,10 @@ enum SetDefaults {
 
         switch modality ?? last?.modality ?? target.flatMap(Self.modality(of:))
             ?? prior.flatMap(Self.modality(of:)) ?? .lift {
-        case .lift, .trailRun:
-            // A trail run has no movement identity in the domain, so a movement's entry row cannot
-            // produce one. Asking for it is a caller's mistake, and a lift is the harmless answer.
+        case .lift, .trailRun, .endurance:
+            // A trail run or an endurance set has no movement identity in the domain, so a
+            // movement's entry row cannot produce one. Asking for it is a caller's mistake, and a
+            // lift is the harmless answer.
             return .lift(lift(
                 on: movementDataId, from: last, orTarget: target, orPrior: prior,
                 orLastUnitUsed: lastWeightUnit(in: workout)))
@@ -92,7 +93,7 @@ enum SetDefaults {
         switch entry {
         case .lift: .lift
         case .distanceTime: .distanceTime
-        case .trailRun, .freeform, .unrecognised: nil
+        case .trailRun, .endurance, .freeform, .unrecognised: nil
         }
     }
 

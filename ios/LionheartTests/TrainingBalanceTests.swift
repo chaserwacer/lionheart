@@ -43,11 +43,15 @@ struct TrainingBalanceTests {
 
         #expect(score.value == 49)
         #expect(!score.isPartial)
-        #expect(score.lifting.families.map(\.hardSets) == [4, 3, 7])
+        #expect(score.lifting.families.map(\.of.hardSets) == [4, 3, 7])
+        #expect(score.lifting.families.map(\.points) == [8.25, 7.14, 10.91])
         #expect(score.cardio.measure == .measured(
-            zone2Minutes: 67.1, zone2Target: 150, highIntensityMinutes: 0, highIntensityTarget: 20,
+            zone2Minutes: 67.1, zone2Target: 150, highIntensityMinutes: 0, highIntensityTarget: 30,
             sessions: 5, heartRateDays: 7))
-        #expect(score.consistency.sessionsPerBlock == [2, 2, 1, 0])
+        #expect(score.cardio.zones.map(\.of.band) == [.zone2, .zones3To5])
+        #expect(score.cardio.zones.map(\.outOf) == [15, 10])
+        #expect(score.consistency.blocks.map(\.of.sessions) == [2, 2, 1, 0])
+        #expect(score.consistency.blocks.first?.of.window.to == CalendarDay(year: 2026, month: 11, day: 3))
 
         let partial = try Decoding.decode(
             TrainingScore.self,
@@ -57,7 +61,86 @@ struct TrainingBalanceTests {
         #expect(partial.cardio.measure == .unknown(.noHeartRate))
         #expect(partial.unknown == [.cardio])
         #expect((score.outOf, partial.outOf) == (100, 75))
-        #expect(ScoreBreakdown.cardio(partial.cardio.measure).isEmpty)
+        #expect(partial.cardio.zones.isEmpty)
+    }
+
+    @Test("The breakdown lays the parts end to end on 100 points, each measurement under its part")
+    func breakdownLaysParts() throws {
+        let parts = ScoreBreakdown.of(try Decoding.decode(TrainingScore.self, Self.scoreJSON(cardio: Self.measuredCardio)))
+
+        #expect(parts.map(\.part) == [.lifting, .cardio, .progress, .consistency])
+        #expect(parts.map(\.start) == [0, 35, 60, 80])
+        let lifting = parts[0]
+        #expect(zip(lifting.cells.map(\.start), [0, 11.67, 23.34]).allSatisfy { abs($0 - $1) < 0.0001 })
+        #expect(lifting.cells.map(\.label) == ["Push", "Pull", "Legs"])
+        #expect(lifting.summary == "Push 4/8 · Pull 3/8 · Legs 7/8")
+        #expect(parts[1].cells.map(\.start) == [35, 50])
+        #expect(parts[1].cells.map(\.figure) == ["67 of 150 min", "0 of 30 min"])
+        #expect(parts[3].cells.map(\.label) == ["Last 7 days", "7–13 days ago", "14–20 days ago", "21–27 days ago"])
+        #expect(parts[3].summary == "2 · 2 · 1 · 0 of 3 a week, newest first")
+    }
+
+    @Test("Progress names each family's lift, so an untrained lift does not read as an untrained family")
+    func breakdownProgressNamesTheLift() throws {
+        let progress = #"""
+        {"points":0,"outOf":20,"families":[
+          {"of":{"family":"push","lift":{"$type":"chosen","movementDataId":"77777777-7777-7777-7777-777777777777",
+            "name":"Barbell Overhead Press","choice":{"$type":"mostTrained","sessions":1},"progress":{"$type":"notTrained"},
+            "sessionsLastFourWeeks":1,"series":[]}},"points":0,"outOf":6.67}]}
+        """#
+        let json = Self.scoreJSON(cardio: Self.measuredCardio)
+            .replacingOccurrences(of: #""progress":{"points":13.3,"outOf":20,"families":[]}"#, with: #""progress":\#(progress)"#)
+        let parts = ScoreBreakdown.of(try Decoding.decode(TrainingScore.self, json))
+
+        #expect(parts[2].summary == "Push lift not trained this week")
+    }
+
+    @Test("Unknown cardio is one unknown cell across its part, never a zero")
+    func breakdownUnknownCardio() throws {
+        let partial = try Decoding.decode(
+            TrainingScore.self,
+            Self.scoreJSON(cardio: #"{"points":null,"outOf":25,"measure":{"$type":"unknown","reason":"noHeartRate"},"zones":[]}"#,
+                           unknown: #"["cardio"]"#))
+
+        let cardio = try #require(ScoreBreakdown.of(partial).first { $0.part == .cardio })
+
+        #expect(cardio.points == nil)
+        #expect(cardio.summary == "Unknown this week")
+        let cell = try #require(cardio.cells.first)
+        #expect((cardio.cells.count, cell.points, cell.outOf, cell.share) == (1, nil, 25, 0))
+    }
+
+    @Test("A week's points by part, its whole score by default, and nothing for a part it could not read")
+    func weeklyPointsByPart() {
+        let week = WeeklyScore(
+            window: DayRange(from: CalendarDay(year: 2026, month: 10, day: 27), to: CalendarDay(year: 2026, month: 11, day: 2)),
+            value: 51, outOf: 75, unknown: [.cardio],
+            liftingPoints: 30, cardioPoints: nil, progressPoints: 6.7, consistencyPoints: 14)
+
+        #expect(week.points(of: nil) == 51)
+        #expect(week.points(of: .lifting) == 30)
+        #expect(week.points(of: .cardio) == nil)
+    }
+
+    @Test("The trend context needs four weeks, and its best is the tallest week")
+    func scoreTrend() {
+        func week(_ value: Int, _ day: Int) -> WeeklyScore {
+            WeeklyScore(
+                window: DayRange(from: CalendarDay(year: 2026, month: 10, day: day - 6), to: CalendarDay(year: 2026, month: 10, day: day)),
+                value: value, outOf: 100, unknown: [],
+                liftingPoints: 0, cardioPoints: 0, progressPoints: 0, consistencyPoints: 0)
+        }
+
+        #expect(ScoreTrend.of([week(40, 7), week(60, 14), week(50, 21)]) == nil)
+        #expect(ScoreTrend.of([week(40, 7), week(60, 14), week(50, 21), week(72, 28)])
+                == ScoreTrend(median: 60, best: 72, weeks: 4))
+    }
+
+    @Test("Points read to one place where a third of a part is not whole")
+    func scorePoints() {
+        #expect(ScorePoints.text(35) == "35")
+        #expect(ScorePoints.text(35.0 / 3) == "11.7")
+        #expect(ScorePoints.earned(nil, of: 25) == "?/25")
     }
 
     @Test("A priority report decodes a pinned priority, a most-trained stand-in and a family with none")
@@ -119,11 +202,14 @@ struct TrainingBalanceTests {
 
     @Test("Consistency reads the window first, then each seven-day block before it")
     func consistencyBlocks() {
-        let measures = ScoreBreakdown.consistency(ConsistencyPart(points: 0, outOf: 20, sessionsPerBlock: [2, 3, 0, 1], target: 3))
+        let window = DayRange(from: CalendarDay(year: 2026, month: 10, day: 28), to: CalendarDay(year: 2026, month: 11, day: 3))
+        let blocks = [2, 3, 0, 1].map { Scored(of: SessionBlock(window: window, sessions: $0), points: 0, outOf: 5) }
 
-        #expect(measures.map(\.label) == ["Last 7 days", "7–13 days ago", "14–20 days ago", "21–27 days ago"])
-        #expect(measures.map(\.measured) == [2, 3, 0, 1])
-        #expect(measures.allSatisfy { $0.target == 3 })
+        let cells = ScoreBreakdown.consistency(ConsistencyPart(points: 0, outOf: 20, blocks: blocks, target: 3), from: 80)
+
+        #expect(cells.map(\.label) == ["Last 7 days", "7–13 days ago", "14–20 days ago", "21–27 days ago"])
+        #expect(cells.map(\.reading) == [2, 3, 0, 1].map { .quantity(measured: $0, target: 3, unit: .sessions) })
+        #expect(cells.map(\.start) == [80, 85, 90, 95])
     }
 
     @Test("Marking a muscle in one role takes it out of the other, and marking it again clears it")
@@ -181,20 +267,26 @@ struct TrainingBalanceTests {
     """
 
     private static let measuredCardio = """
-    {"points":6.7,"outOf":25,"measure":{"$type":"measured","zone2Minutes":67.1,"zone2Target":150,
-     "highIntensityMinutes":0,"highIntensityTarget":20,"sessions":5,"heartRateDays":7}}
+    {"points":10,"outOf":25,"measure":{"$type":"measured","zone2Minutes":67.1,"zone2Target":150,
+     "highIntensityMinutes":0,"highIntensityTarget":30,"sessions":5,"heartRateDays":7},
+     "zones":[{"of":{"band":"zone2","minutes":67.1,"target":150},"points":10,"outOf":15},
+              {"of":{"band":"zones3To5","minutes":0,"target":30},"points":0,"outOf":10}]}
     """
 
     private static func scoreJSON(cardio: String, unknown: String = "[]") -> String {
         """
         {"window":{"from":"2026-10-28","to":"2026-11-03"},"value":49,"outOf":\(unknown == "[]" ? 100 : 75),"unknown":\(unknown),
-         "lifting":{"points":20.4,"outOf":35,"families":[
-            {"family":"push","hardSets":4,"target":8,"lastTrained":"2026-10-28"},
-            {"family":"pull","hardSets":3,"target":8,"lastTrained":"2026-10-28"},
-            {"family":"legs","hardSets":7,"target":8,"lastTrained":"2026-11-02"}]},
+         "lifting":{"points":26.3,"outOf":35,"families":[
+            {"of":{"family":"push","hardSets":4,"target":8,"lastTrained":"2026-10-28"},"points":8.25,"outOf":11.67},
+            {"of":{"family":"pull","hardSets":3,"target":8,"lastTrained":"2026-10-28"},"points":7.14,"outOf":11.67},
+            {"of":{"family":"legs","hardSets":7,"target":8,"lastTrained":"2026-11-02"},"points":10.91,"outOf":11.67}]},
          "cardio":\(cardio),
          "progress":{"points":13.3,"outOf":20,"families":[]},
-         "consistency":{"points":8.3,"outOf":20,"sessionsPerBlock":[2,2,1,0],"target":3}}
+         "consistency":{"points":8.3,"outOf":20,"target":3,"blocks":[
+            {"of":{"window":{"from":"2026-10-28","to":"2026-11-03"},"sessions":2},"points":4.1,"outOf":5},
+            {"of":{"window":{"from":"2026-10-21","to":"2026-10-27"},"sessions":2},"points":4.1,"outOf":5},
+            {"of":{"window":{"from":"2026-10-14","to":"2026-10-20"},"sessions":1},"points":2.9,"outOf":5},
+            {"of":{"window":{"from":"2026-10-07","to":"2026-10-13"},"sessions":0},"points":0,"outOf":5}]}}
         """
     }
 

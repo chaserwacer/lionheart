@@ -13,10 +13,13 @@ namespace lionheart.Tests.Llm;
 public class LlmConfigurationTests
 {
     private static Result<LlmConfiguration, Problem> Read(params (string Key, string Value)[] settings) =>
+        ReadIn("Production", settings);
+
+    private static Result<LlmConfiguration, Problem> ReadIn(string environment, params (string Key, string Value)[] settings) =>
         LlmConfiguration.Read(new ConfigurationBuilder()
             .AddInMemoryCollection(settings.Select(s =>
                 new KeyValuePair<string, string?>(s.Key, s.Value)))
-            .Build());
+            .Build(), environment);
 
     private static (string, string)[] LmStudioKeys =>
     [
@@ -67,6 +70,42 @@ public class LlmConfigurationTests
         Assert.Contains(LlmConfiguration.ChatProviderKey, problem.Description);
         Assert.Contains("LmStudio", problem.Description);
         Assert.Contains("Anthropic", problem.Description);
+    }
+
+    // ---- The relay, a development harness ----
+
+    [Fact]
+    public void Naming_the_relay_in_development_answers_from_its_folder_under_the_production_model()
+    {
+        var configuration = ResultAssert.Succeeded(ReadIn("Development", [
+            ("Llm:ChatProvider", "Relay"),
+            ("Relay:Folder", "/tmp/relay"),
+            .. EmbeddingKeys,
+        ]));
+
+        var relay = Assert.IsType<ChatProviderSettings.Relay>(configuration.Chat);
+        Assert.Equal("/tmp/relay", relay.Folder);
+        Assert.Equal(ChatProviderSettings.Anthropic.DefaultModel, relay.Model);
+    }
+
+    [Fact]
+    public void The_relay_needs_no_api_key_and_has_a_default_folder()
+    {
+        var configuration = ResultAssert.Succeeded(ReadIn("Development", [("Llm:ChatProvider", "Relay"), .. EmbeddingKeys]));
+
+        Assert.Equal(ChatProviderSettings.Relay.DefaultFolder, Assert.IsType<ChatProviderSettings.Relay>(configuration.Chat).Folder);
+    }
+
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    [InlineData("Testing")]
+    public void The_relay_refuses_to_run_outside_development(string environment)
+    {
+        var problem = ResultAssert.Failed(ReadIn(environment, [("Llm:ChatProvider", "Relay"), .. EmbeddingKeys]));
+
+        Assert.Contains(LlmConfiguration.ChatProviderKey, problem.Description);
+        Assert.Contains(environment, problem.Description);
     }
 
     // ---- Each provider's own keys ----

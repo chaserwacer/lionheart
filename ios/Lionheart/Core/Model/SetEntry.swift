@@ -2,7 +2,7 @@ import Foundation
 
 /// One performed set, in the richest shape the log supported.
 ///
-/// The four cases are the server's sealed hierarchy, and looseness is a *smaller* shape rather than
+/// The cases are the server's sealed hierarchy, and looseness is a *smaller* shape rather than
 /// a row of nulls: a `.freeform` set keeps the words it was logged with and nothing it does not
 /// have. Grouping sets into movements is derivable from consecutive `movementDataId`s, which is why
 /// there is no movement wrapper here.
@@ -10,6 +10,8 @@ enum SetEntry: Equatable, Sendable {
     case lift(Lift)
     case distanceTime(DistanceTime)
     case trailRun(TrailRun)
+    /// A ride, a hike, a walk or an indoor run — measured as a trail run is, by its activity.
+    case endurance(Endurance)
     case freeform(Common)
     /// A `$type` this client does not know. It keeps whatever it could read, so an unfamiliar set
     /// shape costs its own detail and not the session.
@@ -65,24 +67,35 @@ enum SetEntry: Equatable, Sendable {
         let rpe: Rpe
     }
 
+    struct Endurance: Equatable, Sendable {
+        let common: Common
+        let activity: EnduranceActivity
+        let distance: Double
+        let unit: DistanceUnit
+        let duration: TimeInterval
+        let elevationGainMeters: Double
+        let rpe: Rpe
+    }
+
     var common: Common {
         switch self {
         case .lift(let set): set.common
         case .distanceTime(let set): set.common
         case .trailRun(let set): set.common
+        case .endurance(let set): set.common
         case .freeform(let common): common
         case .unrecognised(_, let common): common
         }
     }
 
-    /// The movement this set was performed on, where the shape names one. A trail run and a
-    /// freeform set genuinely have no movement identity, which is why this is optional rather
-    /// than a sentinel id.
+    /// The movement this set was performed on, where the shape names one. A trail run, an
+    /// endurance set and a freeform set genuinely have no movement identity, which is why this is
+    /// optional rather than a sentinel id.
     var movementDataId: UUID? {
         switch self {
         case .lift(let set): set.movementDataId
         case .distanceTime(let set): set.movementDataId
-        case .trailRun, .freeform, .unrecognised: nil
+        case .trailRun, .endurance, .freeform, .unrecognised: nil
         }
     }
 
@@ -91,6 +104,7 @@ enum SetEntry: Equatable, Sendable {
         case .lift(let set): set.rpe
         case .distanceTime(let set): set.rpe
         case .trailRun(let set): set.rpe
+        case .endurance(let set): set.rpe
         case .freeform, .unrecognised: .unrated
         }
     }
@@ -99,7 +113,7 @@ enum SetEntry: Equatable, Sendable {
     var kind: SetKind {
         switch self {
         case .lift(let set): set.kind
-        case .distanceTime, .trailRun, .freeform, .unrecognised: .working
+        case .distanceTime, .trailRun, .endurance, .freeform, .unrecognised: .working
         }
     }
 }
@@ -149,6 +163,16 @@ extension SetEntry: Decodable {
         case "trailRun":
             self = .trailRun(TrailRun(
                 common: common,
+                distance: container.lenient("distance", or: 0),
+                unit: DistanceUnit(wire: container.lenient(Int.self, "unit")),
+                duration: container.duration("duration") ?? 0,
+                elevationGainMeters: container.lenient("elevationGainMeters", or: 0),
+                rpe: Rpe(wire: container.lenient(Double.self, "rpe"))))
+
+        case "endurance":
+            self = .endurance(Endurance(
+                common: common,
+                activity: EnduranceActivity(wire: container.lenient("activity", or: "")),
                 distance: container.lenient("distance", or: 0),
                 unit: DistanceUnit(wire: container.lenient(Int.self, "unit")),
                 duration: container.duration("duration") ?? 0,

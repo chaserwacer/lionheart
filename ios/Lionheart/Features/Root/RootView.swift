@@ -44,6 +44,9 @@ struct RootView: View {
         // cardio screen syncs Apple Health.
         .environment(container.runs)
         .environment(container.healthSync)
+        // Body's gait, the watch's history, and an injury's gait read what Apple's devices measured.
+        .environment(container.healthMeasures)
+        .environment(container.healthMeasureSync)
         .task { await container.start() }
         // Coming back to the app is when the athlete expects it to have caught up, so whatever was
         // waiting on the server is tried again then.
@@ -53,6 +56,9 @@ struct RootView: View {
                 Task { await container.enteredForeground() }
             case .background:
                 container.reachability.leftForeground()
+                // Asked for on every trip to the background, since a request the system has
+                // dropped is not reported back.
+                if case .signedIn = container.auth.session { BackgroundRefresh.schedule() }
             case .inactive:
                 break
             @unknown default:
@@ -153,6 +159,11 @@ private struct SignedInTabs: View {
             case .active:
                 Task { await container.ouraSync.syncIfBehind() }
                 Task { await container.healthSync.syncIfDue() }
+                Task {
+                    await container.healthMeasureSync.syncIfDue()
+                    // Today's recovery trends show the watch's history, and nothing on Today reads it.
+                    await container.healthMeasures.refreshIfNeeded()
+                }
             case .inactive, .background: break
             @unknown default: break
             }

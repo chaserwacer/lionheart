@@ -38,7 +38,7 @@ struct SetEntryForm: View {
             switch draft.modality {
             case .lift: liftFields
             case .distanceTime: distanceFields
-            case .trailRun: trailRunFields
+            case .trailRun, .endurance: trailRunFields
             case .freeform: freeformField
             }
 

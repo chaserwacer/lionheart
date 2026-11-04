@@ -16,7 +16,7 @@ struct BodyView: View {
     let bodyweight: BodyweightStore
 
     /// The runs imported from Apple Health, which the cardio screen opens onto.
-    @Environment(RunStore.self) private var runs
+    @Environment(RecordedWorkoutStore.self) private var runs
 
     @State private var isNewInjuryPresented = false
     @State private var isWellnessPresented = false
@@ -38,6 +38,7 @@ struct BodyView: View {
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
+            .recalledNote(store.state.recalledAsOf)
             .navigationTitle("Body")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -112,13 +113,15 @@ struct BodyView: View {
         case .cardio:
             CardioView(store: cardio)
         case .cardioSession(let id, let span):
-            if let report = cardio.reports[span]?.value, let session = report.sessions.first(where: { $0.id == id }) {
-                CardioSessionView(session: session, maxHeartRate: report.maxHeartRate, store: cardio)
+            if let report = cardio.reports[span]?.value, let session = report.session(withId: id) {
+                CardioSessionView(
+                    session: session, maxHeartRate: report.maxHeartRate, store: cardio,
+                    declinedBecause: report.declined.first { $0.id == id }?.reason)
             } else {
                 notLoaded("That session is no longer loaded")
             }
         case .run(let id):
-            RunView(trainingSessionId: id, store: runs)
+            RecordedWorkoutView(trainingSessionId: id, store: runs)
         case .habits:
             HabitsView(store: habits)
         case .dayActivity(let day):
@@ -166,6 +169,7 @@ struct BodyView: View {
         latestSection(snapshot)
         questionsSection
         activeInjuriesSection(snapshot)
+        HealthMeasuresSections()
         recordsSection(snapshot)
 
         if snapshot.isEmpty {
@@ -212,11 +216,12 @@ struct BodyView: View {
         }
     }
 
+    /// Readiness and sleep only: Oura's activity score pays for moving rather than training, so it
+    /// stays on the day's own screen and out of the line he reads at a glance.
     private static func scores(of day: OuraDay) -> String {
         [
             day.readiness?.score.map { "Readiness \($0)" },
             day.sleep?.score.map { "Sleep \($0)" },
-            day.activity?.score.map { "Activity \($0)" },
         ].compactMap(\.self).joined(separator: " · ")
     }
 
@@ -251,7 +256,7 @@ struct BodyView: View {
             base.cardioMinutesPerWeek.recent.map { "\(Int($0.rounded())) min of cardio" },
             base.zone2MinutesPerWeek.recent.map { "\(Int($0.rounded())) in zone 2" },
         ].compactMap(\.self)
-        return figures.isEmpty ? nil : "A week, last 4 weeks: " + figures.joined(separator: ", ")
+        return figures.isEmpty ? nil : figures.joined(separator: ", ") + " a week, last 4 weeks"
     }
 
     private var movementLine: String? {

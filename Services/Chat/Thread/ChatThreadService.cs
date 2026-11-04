@@ -5,6 +5,7 @@ using lionheart.Functional;
 using lionheart.Model.Chat;
 using lionheart.Model.Chat.Thread;
 using lionheart.Services.Chat.Memory;
+using lionheart.Services.Chat.Today;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Model.Chat.Completion;
@@ -42,6 +43,7 @@ public sealed class ChatThreadService(
     ISessionConsolidator consolidator,
     IMemoryRecallService recall,
     ChatSystemPrompt systemPrompt,
+    ITodayBriefing briefing,
     ChatThreadGate gate,
     TimeProvider clock) : IChatThreadService
 {
@@ -53,6 +55,7 @@ public sealed class ChatThreadService(
     private readonly ISessionConsolidator _consolidator = consolidator;
     private readonly IMemoryRecallService _recall = recall;
     private readonly ChatSystemPrompt _systemPrompt = systemPrompt;
+    private readonly ITodayBriefing _briefing = briefing;
     private readonly ChatThreadGate _gate = gate;
     private readonly TimeProvider _clock = clock;
 
@@ -191,8 +194,13 @@ public sealed class ChatThreadService(
 
     // ---- The exchange ----
 
-    private Task<Result<LHChatConversation, Problem>> AnswerAsync(Asked asked, LHChatConversation session, CancellationToken ct)
+    /// <remarks>
+    /// The briefing is read once per exchange, before the athlete's words are staged, and goes with
+    /// every round of it: the session's prompt stays frozen while the briefing is always now.
+    /// </remarks>
+    private async Task<Result<LHChatConversation, Problem>> AnswerAsync(Asked asked, LHChatConversation session, CancellationToken ct)
     {
+        var briefing = await _briefing.ForAsync(asked.User, ct);
         var now = _clock.GetUtcNow().UtcDateTime;
         var message = new LHUserChatMessage
         {
@@ -205,10 +213,15 @@ public sealed class ChatThreadService(
         session.UserMessages.Add(message);
         _context.StageChatMessages([message]);
 
-        return _completion
+        return await _completion
             .GenerateChatCompletionAsync(
                 asked.User,
-                new ChatCompletionRequest { Conversation = session, MaxOutputTokens = ChatCompletionRequest.ExchangeOutputTokens },
+                new ChatCompletionRequest
+                {
+                    Conversation = session,
+                    MaxOutputTokens = ChatCompletionRequest.ExchangeOutputTokens,
+                    Briefing = briefing,
+                },
                 ct)
             .MapAsync(response =>
             {

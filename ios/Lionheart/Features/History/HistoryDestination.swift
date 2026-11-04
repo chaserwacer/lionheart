@@ -19,7 +19,7 @@ struct HistoryDestination: View {
     /// A day's movement timeline.
     @Environment(HabitsStore.self) private var habits
     /// The runs imported from Apple Health.
-    @Environment(RunStore.self) private var runs
+    @Environment(RecordedWorkoutStore.self) private var runs
 
     var body: some View {
         let snapshot = history.state.value
@@ -86,7 +86,7 @@ struct HistoryDestination: View {
         case .dayActivity(let day):
             DayActivityView(day: day, store: habits)
         case .run(let id):
-            RunView(trainingSessionId: id, store: runs)
+            RecordedWorkoutView(trainingSessionId: id, store: runs)
         }
     }
 }

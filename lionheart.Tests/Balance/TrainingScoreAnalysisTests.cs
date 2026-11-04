@@ -1,3 +1,4 @@
+using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
 using lionheart.Services.Cardio;
 using lionheart.Model.Training.Score;
@@ -15,7 +16,8 @@ public class TrainingScoreAnalysisTests
     private static readonly DateOnly Sunday = new(2026, 11, 8);
 
     private static readonly CardioMeasure FullCardio =
-        new CardioMeasure.Measured(150, ScoreRules.Zone2Minutes, 20, ScoreRules.HighIntensityMinutes, 3, 7);
+        new CardioMeasure.Measured(
+            ScoreRules.Zone2Minutes, ScoreRules.Zone2Minutes, ScoreRules.HighIntensityMinutes, ScoreRules.HighIntensityMinutes, 3, 7);
 
     private static readonly CardioMeasure NoHeartRate = new CardioMeasure.Unknown(CardioUnknownReason.NoHeartRate);
 
@@ -47,7 +49,42 @@ public class TrainingScoreAnalysisTests
 
         Assert.Equal(100, score.Value);
         Assert.Empty(score.Unknown);
-        Assert.Equal([3, 3, 3, 3], score.Consistency.SessionsPerBlock);
+        Assert.Equal([3, 3, 3, 3], score.Consistency.Blocks.Select(block => block.Of.Sessions));
+    }
+
+    [Fact]
+    public void Every_measurement_carries_its_own_points_and_together_they_are_the_parts()
+    {
+        var log = Catalogue.WithSession(Sunday, Sets(8, Bench)).WithSession(Sunday.AddDays(-2), Sets(2, Squat));
+        var halfCardio = new CardioMeasure.Measured(
+            ScoreRules.Zone2Minutes / 4.0, ScoreRules.Zone2Minutes, 0, ScoreRules.HighIntensityMinutes, 1, 7);
+
+        var score = TrainingScoreAnalysis.Score(log.Build(), [], halfCardio, Sunday);
+
+        var third = ScoreRules.LiftingPoints / 3.0;
+        Assert.Equal(
+            [Math.Round(third, 6), 0, Math.Round(third * 0.5, 6)],
+            score.Lifting.Families.Select(family => Math.Round(family.Points, 6)));
+        Assert.All(score.Lifting.Families, family => Assert.Equal(third, family.OutOf, precision: 6));
+        Assert.Equal(score.Lifting.Points, score.Lifting.Families.Sum(family => family.Points), precision: 6);
+
+        var bands = score.Cardio.Zones.Select(band => (band.Of.Band, band.Points, band.OutOf)).ToList();
+        Assert.Equal(
+            [(ZoneBand.Zone2, ScoreRules.Zone2Points * 0.5, (double)ScoreRules.Zone2Points),
+             (ZoneBand.Zones3To5, 0d, ScoreRules.HighIntensityPoints)],
+            bands);
+        Assert.Equal(score.Cardio.Points, bands.Sum(band => band.Points));
+
+        Assert.All(score.Consistency.Blocks, block => Assert.Equal(ScoreRules.ConsistencyPoints / 4.0, block.OutOf));
+        Assert.Equal(new DayRange(Sunday.AddDays(-6), Sunday), score.Consistency.Blocks[0].Of.Window);
+    }
+
+    [Fact]
+    public void Unknown_cardio_has_no_bands_to_score()
+    {
+        var score = TrainingScoreAnalysis.Score(Catalogue.WithSession(Sunday, Sets(4, Bench)).Build(), [], NoHeartRate, Sunday);
+
+        Assert.Empty(score.Cardio.Zones);
     }
 
     [Fact]
@@ -128,34 +165,48 @@ public class TrainingScoreAnalysisTests
     public void No_heart_rate_all_week_is_unknown_cardio() =>
         Assert.Equal(
             new CardioMeasure.Unknown(CardioUnknownReason.NoHeartRate),
-            CardioMeasures.Of([], MaxHeartRate.Estimate(22, null), heartRateDays: 0));
+            CardioMeasures.Of([], [], MaxHeartRate.Estimate(22, null), heartRateDays: 0));
 
     [Fact]
     public void Sessions_mostly_without_heart_rate_are_unknown_cardio_rather_than_low()
     {
         var start = new DateTimeOffset(2026, 11, 5, 18, 0, 0, TimeSpan.FromHours(-5));
         var unrecorded = new CardioSession(
-            new CardioSessionSource.RingWorkout(Guid.NewGuid(), "running", WorkoutCategory.Endurance),
+            new CardioSessionSource.RingWorkout(Guid.NewGuid(), "running", WorkoutCategory.Endurance, RingEntry.Entered),
             start, start.AddHours(1), 8000, new SessionHeartRate.NotRecorded());
 
         Assert.Equal(
             new CardioMeasure.Unknown(CardioUnknownReason.SessionsUnrecorded),
-            CardioMeasures.Of([unrecorded], MaxHeartRate.Estimate(22, null), heartRateDays: 6));
+            CardioMeasures.Of([unrecorded], [], MaxHeartRate.Estimate(22, null), heartRateDays: 6));
     }
 
     [Fact]
-    public void Zone_two_and_zones_four_and_five_are_summed_across_the_sessions()
+    public void Zone_two_and_zones_three_to_five_are_summed_across_the_sessions()
     {
         var start = new DateTimeOffset(2026, 11, 5, 18, 0, 0, TimeSpan.FromHours(-5));
         CardioSession Run(ZoneMinutes zones) => new(
-            new CardioSessionSource.RingWorkout(Guid.NewGuid(), "running", WorkoutCategory.Endurance),
+            new CardioSessionSource.RingWorkout(Guid.NewGuid(), "running", WorkoutCategory.Endurance, RingEntry.Entered),
             start, start.AddHours(1), null, new SessionHeartRate.Recorded(140, 180, 1, zones, HeartRateSource.Ring));
 
         var measured = Assert.IsType<CardioMeasure.Measured>(CardioMeasures.Of(
             [Run(new ZoneMinutes(0, 5, 40, 10, 4, 1)), Run(new ZoneMinutes(0, 0, 20, 0, 0, 0))],
+            [],
             MaxHeartRate.Estimate(22, null),
             heartRateDays: 7));
 
-        Assert.Equal((60d, 5d, 2), (measured.Zone2Minutes, measured.HighIntensityMinutes, measured.Sessions));
+        Assert.Equal((60d, 15d, 2), (measured.Zone2Minutes, measured.HighIntensityMinutes, measured.Sessions));
+    }
+
+    [Fact]
+    public void A_week_mostly_of_workouts_whose_heart_rate_could_not_be_read_is_unknown_rather_than_empty()
+    {
+        var start = new DateTimeOffset(2026, 11, 5, 18, 0, 0, TimeSpan.FromHours(-5));
+        var unread = new CardioSession(
+            new CardioSessionSource.RingWorkout(Guid.NewGuid(), "basketball", WorkoutCategory.Sport, RingEntry.Detected),
+            start, start.AddHours(1), null, new SessionHeartRate.NotRecorded());
+
+        Assert.Equal(
+            new CardioMeasure.Unknown(CardioUnknownReason.SessionsUnrecorded),
+            CardioMeasures.Of([], [unread], MaxHeartRate.Estimate(22, null), heartRateDays: 6));
     }
 }

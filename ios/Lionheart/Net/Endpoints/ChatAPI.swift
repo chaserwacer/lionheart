@@ -41,7 +41,8 @@ struct ChatAPI: Sendable {
     func send(_ text: String, to conversationId: UUID) async throws -> ChatMessage {
         try await client.post(
             "/api/chat/message/process",
-            body: SendMessageBody(chatConversationID: conversationId, content: text))
+            body: SendMessageBody(chatConversationID: conversationId, content: text),
+            timeout: HTTP.modelPatience)
     }
 
     func deleteConversation(id: UUID) async throws {

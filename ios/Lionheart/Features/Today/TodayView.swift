@@ -31,6 +31,10 @@ struct TodayView: View {
     @State private var isSettingsPresented = false
     @State private var isDayPickerPresented = false
     @State private var isRecoveryExplained = false
+    /// Bound so a tap on the training score's partition can push the part it lands on.
+    @State private var path = NavigationPath()
+    /// Where a pushed figure, night or session zooms out of: the row it was opened from.
+    @Namespace private var zoom
 
     /// Where the Today tab can navigate, registered once on the stack.
     enum Route: Hashable {
@@ -45,7 +49,7 @@ struct TodayView: View {
         let today = store.today
         let day = store.selection.day(today: today)
 
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 switch store.state {
                 case .loading:
@@ -62,6 +66,7 @@ struct TodayView: View {
             .listSectionSpacing(.compact)
             // Lets a figure row be as short as its one line, so the whole table fits above the fold.
             .environment(\.defaultMinListRowHeight, 36)
+            .recalledNote(store.state.recalledAsOf)
             .navigationTitle(title(of: day, today: today))
             .toolbar { toolbar(day: day, today: today) }
             .refreshable {
@@ -69,9 +74,15 @@ struct TodayView: View {
                 async let movement: Void = habits.loadDay(day)
                 _ = await (today, movement)
             }
-            .navigationDestination(for: Route.self) { destination(for: $0) }
+            .navigationDestination(for: Route.self) { route in
+                destination(for: route)
+                    .navigationTransition(.zoom(sourceID: route, in: zoom))
+            }
             .navigationDestination(for: HistoryRoute.self) { route in
                 HistoryDestination(route: route, history: history, focus: focus, library: library)
+            }
+            .navigationDestination(for: ScoreRoute.self) { route in
+                ScoreDestination(route: route) { path.append(ScoreRoute.part($0)) }
             }
             .sheet(isPresented: $isQuickLogPresented) {
                 QuickLogSheet(store: store)
@@ -88,8 +99,17 @@ struct TodayView: View {
                 }
             }
         }
-        .task { await store.refresh() }
-        .task(id: day) { await habits.loadDay(day) }
+        // A tick as the athlete steps the day, the way a picker wheel clicks past each value — on
+        // the selection, so the clock passing midnight does not tick by itself.
+        .sensoryFeedback(.selection, trigger: store.selection)
+        // Every return to the tab, but a read only when the day may have moved (`ReadFreshness`);
+        // the movement strip is read with it then, since a sync made elsewhere reaches both.
+        .task {
+            // A first load leaves the strip to the `.task(id:)` below, which reads it already.
+            let isReturn = store.state.value != nil
+            if await store.refreshIfDue(), isReturn { await habits.loadDay(day) }
+        }
+        .task(id: day) { await habits.loadDayIfNeeded(day) }
     }
 
     // MARK: - Toolbar
@@ -208,10 +228,12 @@ struct TodayView: View {
                         RecoveryVerdictView(
                             readiness: readiness, figure: recovery.readinessFigure, shownDay: day, today: today)
                     }
+                    .matchedTransitionSource(id: Route.trend(.readiness, endingOn: recovery.day), in: zoom)
                 }
                 ForEach(snapshot.contributors) { reading in
                     if let route = route(for: reading, on: recovery.day) {
                         NavigationLink(value: route) { ReadinessContributorRow(reading: reading) }
+                            .matchedTransitionSource(id: route, in: zoom)
                     } else {
                         ReadinessContributorRow(reading: reading)
                     }
@@ -220,6 +242,7 @@ struct TodayView: View {
                     NavigationLink(value: Route.trend(figure.metric, endingOn: recovery.day)) {
                         RecoveryFigureRow(reading: figure)
                     }
+                    .matchedTransitionSource(id: Route.trend(figure.metric, endingOn: recovery.day), in: zoom)
                 }
             } else {
                 Text(day == today ? "No Oura data in the last two weeks." : "No Oura data for this day.")
@@ -271,11 +294,13 @@ struct TodayView: View {
                                 ? nil
                                 : "Night of \(Formatting.date(night.day.adding(days: -1)))")
                     }
+                    .matchedTransitionSource(id: Route.night(night.day), in: zoom)
                 }
                 if let movement {
                     NavigationLink(value: Route.dayActivity(snapshot.day)) {
                         DayActivityRow(detail: movement)
                     }
+                    .matchedTransitionSource(id: Route.dayActivity(snapshot.day), in: zoom)
                 }
             } header: {
                 Text("Night and day")
@@ -321,6 +346,7 @@ struct TodayView: View {
                 NavigationLink(value: Route.session(session.id)) {
                     TrainingDayRow(session: session, dayLabel: dayLabel)
                 }
+                .matchedTransitionSource(id: Route.session(session.id), in: zoom)
                 ForEach(MovementDigest.of(session.sets, catalogue: catalogue)) { digest in
                     if let movementDataId = digest.movementDataId {
                         NavigationLink(value: HistoryRoute.movement(movementDataId)) {

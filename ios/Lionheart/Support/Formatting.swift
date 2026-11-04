@@ -131,6 +131,17 @@ enum Formatting {
         value == 1 ? "1 \(singular)" : "\(value) \(plural ?? singular + "s")"
     }
 
+    /// What a plain-words entry the server committed came to — the sheet's line, and Siri's.
+    static func logged(sessions: Int, contexts: Int) -> String {
+        switch (sessions, contexts) {
+        case (0, 0): "Logged."
+        case (let sessions, 0): "Logged \(count(sessions, "session"))."
+        case (0, let contexts): "Logged \(count(contexts, "context"))."
+        case (let sessions, let contexts):
+            "Logged \(count(sessions, "session")) and \(count(contexts, "context"))."
+        }
+    }
+
     // MARK: - Sets
 
     /// A measurement with no trailing zeros: `100`, `102.5`, `2.25`.
@@ -159,6 +170,9 @@ enum Formatting {
             return "\(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
         case .trailRun(let set):
             return "\(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
+                + " · \(measure(set.elevationGainMeters)) m gain"
+        case .endurance(let set):
+            return "\(set.activity.title) \(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
                 + " · \(measure(set.elevationGainMeters)) m gain"
         case .freeform:
             return nil

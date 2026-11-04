@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the Apple Health sync needs from Health: whether this device has it, whether the athlete
-/// has been asked, and the runs added after an anchor, a page at a time.
+/// has been asked, and the workouts added after an anchor, a page at a time.
 ///
 /// A seam for the reason `OuraSyncing` is one: the thing stood in for is outside the app — here
 /// HealthKit, which a unit test cannot fill — and the sync's interesting behaviour is all about what

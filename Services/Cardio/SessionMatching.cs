@@ -12,7 +12,10 @@ public abstract record SessionMatch
     /// <summary>It lies outside every logged session: a session of its own.</summary>
     public sealed record None : SessionMatch;
 
-    /// <summary>It lies inside a logged run, which is the same run already counted.</summary>
+    /// <summary>
+    /// It lies inside a logged cardio session — a run, a ride, a hike, a walk — which is the same
+    /// session already counted.
+    /// </summary>
     public sealed record LoggedRun(Guid TrainingSessionId) : SessionMatch;
 
     /// <summary>It lies inside a logged lifting session: the gym as the other device saw it.</summary>
@@ -54,9 +57,9 @@ public static class SessionMatching
             : new SessionMatch.None();
     }
 
-    /// <summary>A logged session that carries a trail run or a distance-and-time set.</summary>
+    /// <summary>A logged session that carries a trail run, an endurance set or a distance-and-time set.</summary>
     public static bool IsCardio(CompletedTrainingSession session) =>
-        session.Sets.Any(set => set is TrailRunSet or DistanceTimeSet);
+        session.Sets.Any(set => set is TrailRunSet or EnduranceSet or DistanceTimeSet);
 
     /// <summary>A period as a span of clock time, or nothing for a moment, which has no length to overlap.</summary>
     public static (DateTimeOffset Start, DateTimeOffset End)? Span(Period period) => period switch

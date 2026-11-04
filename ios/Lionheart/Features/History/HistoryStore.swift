@@ -50,20 +50,30 @@ final class HistoryStore {
     private let sessions: TrainingSessionsAPI
     private let library: MovementLibraryStore
     private let records: PersonalRecordsAPI
+    private let writes: WriteLedger
     private let now: @Sendable () -> Date
 
     private var load: Task<Void, Never>?
     private var whenRevised: [@MainActor () async -> Void] = []
+    /// When the log on screen was last read current from the server.
+    private var lastRead: ReadStamp?
+
+    /// How long a current log is taken as current when nothing on this device has written since.
+    /// Long, because the log changes by writes — and every write made here is counted — and
+    /// because reading it is the heaviest request in the app: the whole history and every record.
+    private static let freshFor: TimeInterval = 15 * 60
 
     init(
         sessions: TrainingSessionsAPI,
         library: MovementLibraryStore,
         records: PersonalRecordsAPI,
+        writes: WriteLedger = WriteLedger(),
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.sessions = sessions
         self.library = library
         self.records = records
+        self.writes = writes
         self.now = now
     }
 
@@ -74,18 +84,38 @@ final class HistoryStore {
         let task = Task { await self.reload() }
         load = task
         await task.value
+        if load == task { load = nil }
     }
 
     /// Loads only if nothing is loaded yet — for a screen reached from another tab, such as a
-    /// movement's page opened from Today before History has been visited.
+    /// movement's page opened from Today before History has been visited. A load already out is
+    /// waited on rather than started again.
     func refreshIfNeeded() async {
+        if let load {
+            await load.value
+            return
+        }
         guard state.value == nil else { return }
+        await refresh()
+    }
+
+    /// Loads when the log may be behind — what the tab coming back into view asks for. A load
+    /// already out is waited on rather than started again.
+    func refreshIfDue() async {
+        if let load {
+            await load.value
+            return
+        }
+        guard ReadFreshness.needsRead(
+            state, lastRead: lastRead, now: now(), acceptedWrites: writes.accepted, freshFor: Self.freshFor)
+        else { return }
         await refresh()
     }
 
     func reset() {
         load?.cancel()
         load = nil
+        lastRead = nil
         state = .loading
         action = .idle
         histories = [:]
@@ -256,12 +286,29 @@ final class HistoryStore {
     private func reload() async {
         let moment = now()
         let today = CalendarDay(moment)
+        let writesBefore = writes.accepted
+        let span = (from: Self.logBegins, to: moment.addingTimeInterval(Double(Self.lookAheadDays) * 86_400))
+
+        // The log the device last held, painted before the server answers. Only with a catalogue to
+        // name it by, since a log of "Unknown movement" is worse than its placeholder rows.
+        if state.value == nil, !library.all.isEmpty,
+           let kept = await APIClient.onDevice({ [sessions, records] in
+               async let window = sessions.sessions(from: span.from, to: span.to, remembering: .historySessions)
+               async let bySubject = records.summaries(remembering: .recordSummaries)
+               return try await (window, bySubject)
+           }),
+           let asOf = [kept.0.asOf, kept.1.asOf].compactMap({ $0 }).min(),
+           // A sign-out while the device was read has reset the store; that athlete's log must not
+           // be painted into it.
+           !Task.isCancelled {
+            state = state.recalling(
+                HistorySnapshot.reading(
+                    sessions: kept.0.value, catalogue: library.catalogue, records: kept.1.value, today: today),
+                asOf: asOf)
+        }
 
         do {
-            async let window = sessions.sessions(
-                from: Self.logBegins,
-                to: moment.addingTimeInterval(Double(Self.lookAheadDays) * 86_400),
-                remembering: .historySessions)
+            async let window = sessions.sessions(from: span.from, to: span.to, remembering: .historySessions)
             async let bySubject = records.summaries(remembering: .recordSummaries)
             async let catalogue: Void = library.refreshIfNeeded()
 
@@ -278,6 +325,7 @@ final class HistoryStore {
 
             let first = derived()
             state = state.applying(first)
+            if first.asOf == nil { lastRead = ReadStamp(readAt: moment, acceptedWrites: writesBefore) }
             let unnamed = library.catalogue.missing(first.value.referencedMovements)
             guard !unnamed.isEmpty else { return }
             await library.cover(unnamed)

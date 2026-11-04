@@ -27,7 +27,9 @@ final class AppContainer {
     let body: BodyStore
     let ouraSync: OuraSyncStore
     let healthSync: HealthSyncStore
-    let runs: RunStore
+    let healthMeasureSync: HealthMeasureSyncStore
+    let healthMeasures: HealthMeasuresStore
+    let runs: RecordedWorkoutStore
     let cardio: CardioStore
     let habits: HabitsStore
     let diary: DiaryStore
@@ -43,7 +45,10 @@ final class AppContainer {
     private let tokens: TokenProvider
     private let memory: ReadMemory
     private let users: UserAPI
-    private var hasStarted = false
+    /// What the Home and Lock Screen widgets show, fed by Today.
+    private let glance = TodayGlancePublisher()
+    /// The one start, which every later caller waits on rather than repeats.
+    private var starting: Task<Void, Never>?
 
     init(configuration: APIConfiguration = APIConfiguration()) {
         let tokens = TokenProvider(configuration: configuration)
@@ -63,7 +68,8 @@ final class AppContainer {
         today = TodayStore(
             sessions: sessions,
             oura: OuraAPI(client: client),
-            interpretation: InterpretationAPI(client: client))
+            interpretation: InterpretationAPI(client: client),
+            writes: client.writes)
         // Built before the workout store, which names the current movement on the Lock Screen and
         // so needs to be able to ask this for a title. Nothing here reaches back the other way.
         let movements = MovementLibraryStore(
@@ -90,7 +96,8 @@ final class AppContainer {
         history = HistoryStore(
             sessions: TrainingSessionsAPI(client: client),
             library: movements,
-            records: PersonalRecordsAPI(client: client))
+            records: PersonalRecordsAPI(client: client),
+            writes: client.writes)
         focus = FocusStore(api: FocusAPI(client: client))
         balance = TrainingBalanceStore(balance: TrainingBalanceAPI(client: client), focus: FocusAPI(client: client))
         chat = ChatStore(
@@ -105,7 +112,10 @@ final class AppContainer {
         ouraSync = OuraSyncStore(oura: OuraAPI(client: client))
         healthSync = HealthSyncStore(
             health: HealthLibrary(), server: HealthAPI(client: client), marks: HealthSyncMarkFile())
-        runs = RunStore(health: HealthAPI(client: client))
+        healthMeasureSync = HealthMeasureSyncStore(
+            health: HealthLibrary(), server: HealthMeasuresAPI(client: client), marks: HealthMeasureMarkFile())
+        healthMeasures = HealthMeasuresStore(api: HealthMeasuresAPI(client: client))
+        runs = RecordedWorkoutStore(health: HealthAPI(client: client))
         cardio = CardioStore(cardio: CardioAPI(client: client), oura: OuraAPI(client: client))
         habits = HabitsStore(habits: HabitsAPI(client: client))
         diary = DiaryStore(
@@ -115,11 +125,21 @@ final class AppContainer {
 
     /// Settles the signed-in root and reads back anything that survived the last run.
     ///
-    /// Guarded because `RootView.task` runs again whenever that view is recreated, and registering
-    /// the sign-out teardown a second time would run it twice.
+    /// Run once: `RootView.task` runs again whenever that view is recreated, and registering the
+    /// sign-out teardown a second time would run it twice. A caller arriving while it is still
+    /// running — a Shortcut or the morning wake launching the app — waits for it, so it sees the
+    /// session settled rather than undetermined.
     func start() async {
-        guard !hasStarted else { return }
-        hasStarted = true
+        if let starting {
+            await starting.value
+            return
+        }
+        let task = Task { await self.startOnce() }
+        starting = task
+        await task.value
+    }
+
+    private func startOnce() async {
 
         // A sync stores new days, so the two tabs that show them read again — Body only when it has
         // been opened, since an unopened tab reads for itself when it is.
@@ -142,6 +162,17 @@ final class AppContainer {
             await diary.refreshLoaded(since: CalendarDay(year: 1, month: 1, day: 1))
             if balance.score.value != nil { await balance.refresh() }
         }
+        // New days of what Apple's devices measured: the gait and the watch's history, the watch's
+        // VO2max in the cardio report, and the bodyweights a backfill filled in.
+        healthMeasureSync.onSynced { [healthMeasures, cardio, bodyweight, balance] tally in
+            await healthMeasures.refreshLoaded()
+            await cardio.refreshLoaded()
+            if tally.bodyweightsAdded > 0 {
+                if bodyweight.state.value != nil { await bodyweight.refresh() }
+                // A weighted dip's system load reads the bodyweight on its day.
+                if balance.score.value != nil { await balance.refresh() }
+            }
+        }
         // Today holds its own window of sessions, so a correction made from History shows there too.
         history.onRevised { [today, balance, runs] in
             await today.refresh()
@@ -149,6 +180,11 @@ final class AppContainer {
             await balance.refresh()
             // A corrected run's distance, time and climb are its page's figures.
             await runs.refreshLoaded()
+        }
+        // Every current reading of today reaches the widgets, named by the catalogue Today names
+        // its training lines with.
+        today.onReadToday { [glance, movements] snapshot in
+            glance.publish(snapshot, catalogue: movements.catalogue, asOf: Date())
         }
         // A rating shows on Body's row for it and on the day it rates.
         wellness.onLogged { [body, diary] entry in
@@ -162,7 +198,8 @@ final class AppContainer {
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
             [profile, today, train, routines, bodyweight, bodyComposition, movements, history, focus, balance, chat,
-             thread, chatMemory, body, ouraSync, healthSync, runs, cardio, habits, diary, wellness, memory] in
+             thread, chatMemory, body, ouraSync, healthSync, healthMeasureSync, healthMeasures, runs, cardio, habits,
+             diary, wellness, memory, glance] in
             profile.reset()
             today.reset()
             train.reset()
@@ -180,14 +217,17 @@ final class AppContainer {
             ouraSync.reset()
             // The anchor goes too: the next athlete's server holds none of these runs.
             healthSync.reset()
+            healthMeasureSync.reset()
+            healthMeasures.reset()
             runs.reset()
             cardio.reset()
             habits.reset()
             diary.reset()
             wellness.reset()
             // Every answer the screens remembered. The next athlete on this phone must never open
-            // onto the last one's readiness, offline or not.
+            // onto the last one's readiness, offline or not — nor find it on the Lock Screen.
             memory.forget()
+            glance.clear()
         }
         // The workout goes too, document and all, and the finished ones waiting to be delivered:
         // they belong to the account, and ones the next sign-in could adopt would land one
@@ -232,6 +272,7 @@ final class AppContainer {
         // launch of a signed-out app.
         if case .signedIn = auth.session {
             await movements.refreshIfNeeded()
+            glance.rename(with: movements.catalogue)
             await outbox.deliver()
         }
     }
@@ -243,6 +284,35 @@ final class AppContainer {
         guard case .signedIn = auth.session, reachability.isReachable else { return }
         await activeWorkout.serverReturned()
         if outbox.hasDeliverableWork { await outbox.deliver() }
+        // A tab's `.task` does not run again when the app returns to it, so the screens that were
+        // already open catch up here — each only if its answer may have moved since, which across a
+        // night always includes the day changing under Today. History only once it has been opened.
+        async let day = today.refreshIfDue()
+        if history.state.value != nil { await history.refreshIfDue() }
+        _ = await day
+    }
+
+    /// The morning wake iOS granted (`BackgroundRefresh`): ask for the next one, then sync the ring
+    /// if it is behind and read today, which brings the widgets up to date.
+    ///
+    /// `start()` first, because a background launch may never draw `RootView`, whose task is what
+    /// otherwise restores the session.
+    func refreshInBackground() async {
+        // Asked for first: iOS may end this task before the reads below finish, and a wake that
+        // never asked for the next one leaves the widgets waiting for the app to be opened.
+        BackgroundRefresh.schedule()
+        await start()
+        guard case .signedIn = auth.session else { return }
+        await ouraSync.syncIfBehind()
+        await today.refreshTodayIfDue()
+    }
+
+    /// Reads today for a Shortcut asked while the glance is from an earlier day — what feeds the
+    /// glance it then answers from.
+    func readTodayForShortcut() async {
+        await start()
+        guard case .signedIn = auth.session else { return }
+        await today.refreshTodayIfDue()
     }
 
     /// An athlete has just signed in.
@@ -252,6 +322,7 @@ final class AppContainer {
     /// movement on Today reading "Unknown movement" until the Train tab happened to load it.
     private func signedIn() async {
         await movements.refresh()
+        glance.rename(with: movements.catalogue)
         await serverReturned()
     }
 
@@ -281,6 +352,7 @@ final class AppContainer {
             if cardio.isWaitingOnServer { group.addTask { await self.cardio.refreshLoaded() } }
             if habits.isWaitingOnServer { group.addTask { await self.habits.refreshLoaded() } }
             if runs.isWaitingOnServer { group.addTask { await self.runs.refreshLoaded() } }
+            if healthMeasures.state.isWaitingOnServer { group.addTask { await self.healthMeasures.refresh() } }
             if movements.state.isWaitingOnServer { group.addTask { await self.movements.refresh() } }
             if case .unavailable = chat.state { group.addTask { await self.chat.refresh() } }
             if thread.transcript.isWaitingOnServer { group.addTask { await self.thread.refresh() } }

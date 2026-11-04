@@ -20,8 +20,9 @@ extension SetPrescription {
             run.unit == target.unit
                 && run.distance >= target.targetDistance
                 && run.duration <= target.targetDuration
-        case (.lift, .distanceTime), (.lift, .trailRun), (.lift, .freeform),
-             (.distanceTime, .lift), (.distanceTime, .trailRun), (.distanceTime, .freeform),
+        case (.lift, .distanceTime), (.lift, .trailRun), (.lift, .endurance), (.lift, .freeform),
+             (.distanceTime, .lift), (.distanceTime, .trailRun), (.distanceTime, .endurance),
+             (.distanceTime, .freeform),
              (.freeform, _), (.unrecognised, _):
             false
         }

@@ -108,8 +108,9 @@ public sealed class HabitsReportService : IHabitsReportService
     }
 
     /// <summary>
-    /// Every training session as a span on the clock: each logged session, and each ring workout the
-    /// cardio report counts as a session of its own.
+    /// Every training session as a span on the clock: each logged session, and each ring workout
+    /// on the athlete's own record. The ring's guesses are left out: this report reads no heart rate,
+    /// so it cannot tell a real game from a game of catch.
     /// </summary>
     private static IReadOnlyList<TrainingSpan> Training(
         IReadOnlyList<OuraWorkout> ringWorkouts, IReadOnlyList<CompletedTrainingSession> logged) =>
@@ -133,6 +134,16 @@ public sealed class HabitsReportService : IHabitsReportService
     /// <summary>What a logged session was, in the same camel-cased style as Oura's activity names.</summary>
     private static string LoggedActivity(CompletedTrainingSession session) =>
         session.Sets.OfType<TrailRunSet>().Any() ? "trailRun"
+        : session.Sets.EnduranceActivity is { } endurance
+            ? endurance switch
+            {
+                EnduranceActivity.Ride => "ride",
+                EnduranceActivity.IndoorRide => "indoorRide",
+                EnduranceActivity.Hike => "hike",
+                EnduranceActivity.Walk => "walk",
+                EnduranceActivity.IndoorRun => "indoorRun",
+                _ => throw new System.Diagnostics.UnreachableException(),
+            }
         : session.Sets.OfType<DistanceTimeSet>().Any() ? "distanceAndTime"
         : "strengthTraining";
 }

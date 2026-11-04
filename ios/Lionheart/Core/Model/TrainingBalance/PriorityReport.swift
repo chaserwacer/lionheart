@@ -94,7 +94,7 @@ struct SessionBest: Equatable, Sendable, Identifiable {
 
 /// The window's cardio as the heart-rate zones read it, or why it cannot be read.
 enum CardioMeasure: Equatable, Sendable {
-    /// Zone 2 is 60–70 % of maximum heart rate; high intensity is 80 % and above (zones 4 and 5).
+    /// Zone 2 is 60–70 % of maximum heart rate; high intensity is 70 % and above (zones 3 to 5).
     case measured(
         zone2Minutes: Double, zone2Target: Int, highIntensityMinutes: Double, highIntensityTarget: Int,
         sessions: Int, heartRateDays: Int)

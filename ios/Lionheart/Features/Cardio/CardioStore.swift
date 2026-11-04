@@ -10,6 +10,9 @@ import Observation
 final class CardioStore {
     private(set) var reports: [TrendSpan: LoadState<CardioReport>] = [:]
     private(set) var heartRate: [String: LoadState<[HeartRateSample]>] = [:]
+    /// The cardio of one score window, by its last day: the sessions the score counted and the
+    /// ring's guesses it declined.
+    private(set) var windows: [CalendarDay: LoadState<CardioReport>] = [:]
 
     private let cardio: CardioAPI
     private let oura: OuraAPI
@@ -34,6 +37,19 @@ final class CardioStore {
             return
         } catch {
             reports[span] = (reports[span] ?? .loading).applying(.failure(
+                (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))))
+        }
+    }
+
+    /// The cardio report for one seven-day score window. A failed re-read keeps the report already shown.
+    func load(window: DayRange) async {
+        do {
+            let read = try await cardio.report(window, remembering: ReadKey("cardio.window.\(window.to.wire)"))
+            windows[window.to] = (windows[window.to] ?? .loading).applying(read)
+        } catch is CancellationError {
+            return
+        } catch {
+            windows[window.to] = (windows[window.to] ?? .loading).applying(.failure(
                 (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))))
         }
     }
@@ -66,5 +82,6 @@ final class CardioStore {
     func reset() {
         reports = [:]
         heartRate = [:]
+        windows = [:]
     }
 }

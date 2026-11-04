@@ -14,19 +14,19 @@ struct TrainingDayRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        let headingLayout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
-            : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
-
         VStack(alignment: .leading, spacing: 4) {
-            headingLayout {
-                Text(heading)
-                    .font(.subheadline.weight(.semibold))
-                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
-                if let facts {
-                    Text(facts)
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(Color(.secondaryLabel))
+            // Side by side when both fit on a line; otherwise stacked, so "Last session · Yesterday"
+            // never breaks mid-phrase to make room for the facts.
+            if dynamicTypeSize.isAccessibilitySize {
+                stacked
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline) {
+                        headingText.fixedSize()
+                        Spacer(minLength: 8)
+                        factsText?.fixedSize()
+                    }
+                    stacked
                 }
             }
 
@@ -39,6 +39,25 @@ struct TrainingDayRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
+    }
+
+    private var stacked: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            headingText
+            factsText
+        }
+    }
+
+    private var headingText: some View {
+        Text(heading).font(.subheadline.weight(.semibold))
+    }
+
+    private var factsText: Text? {
+        facts.map {
+            Text($0)
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(Color(.secondaryLabel))
+        }
     }
 
     /// What leads the row: the day when the row is not about the day on screen, the time a

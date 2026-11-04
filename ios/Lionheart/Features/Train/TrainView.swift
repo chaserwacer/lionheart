@@ -2,10 +2,11 @@ import SwiftUI
 
 /// Let me do it.
 ///
-/// The tab answers one question — what am I training, and how do I start — so the first section is
-/// always the answer to it: start a workout or log one already done. Then what it is time for, from
-/// what was trained and when; the week's volume across push, pull and legs; the priorities and the
-/// score. Routines, bodyweight and the plan follow, there when wanted.
+/// The tab leads with the training score — where the week stands, part by part — because it is the
+/// reading every session on this tab moves, and the start section sits directly under it: start a
+/// workout or log one already done. Then what it is time for, from what was trained and when; the
+/// week's volume across push, pull and legs; the priorities. Routines, bodyweight and the plan
+/// follow, there when wanted.
 struct TrainView: View {
     let store: TrainStore
     let activeWorkout: ActiveWorkoutStore
@@ -46,18 +47,17 @@ struct TrainView: View {
     enum Route: Hashable {
         case plannedSession(UUID)
         case bodyweight
-        case volume
-        case score
     }
 
     var body: some View {
         NavigationStack(path: $route) {
             List {
+                scoreSection
                 startSection
                 if !outbox.finished.isEmpty { finishedSection }
                 upNextSection
                 volumeSection
-                standingSection
+                prioritiesSection
                 routinesSection
                 bodyweightSection
                 switch store.state {
@@ -74,6 +74,21 @@ struct TrainView: View {
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
             .navigationTitle("Train")
+            // The score leads the tab, so starting stays one tap away above it rather than a scroll
+            // below it.
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if activeWorkout.workout != nil {
+                        Button("Continue", action: openWorkout)
+                    } else {
+                        Button("Start") {
+                            Task { if await store.startUnplanned() { openWorkout() } }
+                        }
+                        .disabled(store.action.isRunning)
+                        .accessibilityLabel("Start workout")
+                    }
+                }
+            }
             .refreshable {
                 async let plan: Void = store.refresh()
                 async let saved: Void = routines.refresh()
@@ -91,18 +106,13 @@ struct TrainView: View {
                         openWorkout: openWorkout)
                 case .bodyweight:
                     BodyweightView(store: bodyweight)
-                case .volume:
-                    if let volume = balance.volume.value {
-                        VolumeView(volume: volume)
-                    } else {
-                        ContentUnavailableView("Volume not available", systemImage: "exclamationmark.triangle")
-                    }
-                case .score:
-                    TrainingScoreView()
                 }
             }
             .navigationDestination(for: HistoryRoute.self) { route in
                 HistoryDestination(route: route, history: history, focus: focus, library: library)
+            }
+            .navigationDestination(for: ScoreRoute.self) { route in
+                ScoreDestination(route: route) { self.route.append(ScoreRoute.part($0)) }
             }
         }
         .task {
@@ -217,7 +227,7 @@ struct TrainView: View {
                         label: family.family.name, sets: Double(family.hardSets), target: family.target,
                         lastTrained: family.lastTrained)
                 }
-                NavigationLink(value: Route.volume) {
+                NavigationLink(value: ScoreRoute.volume) {
                     LabeledContent("Patterns and muscle groups") {
                         if !volume.unplaced.isEmpty {
                             Text("\(volume.unplaced.count) not counted").monospacedDigit()
@@ -232,22 +242,33 @@ struct TrainView: View {
         }
     }
 
-    /// The priorities and the score, each a line opening its own screen.
-    private var standingSection: some View {
+    /// The score, part by part, with its weeks behind a link. Its shape while the first read is
+    /// out, so the start section below does not jump when it lands.
+    @ViewBuilder
+    private var scoreSection: some View {
+        switch balance.score {
+        case .loading:
+            Section("Training score") { SkeletonRows(count: 3) }
+        case .unavailable(let failure):
+            Section("Training score") {
+                Text(failure.message).font(.footnote).foregroundStyle(Color(.secondaryLabel))
+            }
+        case .loaded(let score), .stale(let score, _):
+            TrainingScoreCard(score: score, weeks: balance.weeks.value ?? []) { route.append(ScoreRoute.part($0)) }
+            Section {
+                NavigationLink(value: ScoreRoute.score) {
+                    Text("Weeks")
+                }
+            }
+        }
+    }
+
+    /// The priorities, a line opening their screen.
+    private var prioritiesSection: some View {
         Section {
             NavigationLink(value: HistoryRoute.focus) {
                 LabeledContent("Priorities") {
                     Text(prioritySummary).lineLimit(1)
-                }
-            }
-            NavigationLink(value: Route.score) {
-                if let score = balance.score.value {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Training score")
-                        TrainingScoreSummary(score: score)
-                    }
-                } else {
-                    Text("Training score")
                 }
             }
         }

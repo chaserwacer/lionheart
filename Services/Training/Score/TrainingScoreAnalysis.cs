@@ -43,29 +43,43 @@ public static class TrainingScoreAnalysis
     private static LiftingPart Lifting(TrainingLog log, DayRange window)
     {
         var history = TrainingVolumeAnalysis.Placed(log, DateOnly.MinValue, window.To).ToList();
-        var families = TrainingVolumeAnalysis.Families([.. history.Where(placed => placed.Day >= window.From)], history);
-        return new LiftingPart(
-            ScoreRules.LiftingPoints * families.Average(family => Share(family.HardSets, family.Target)),
+        var families = Shared(
+            TrainingVolumeAnalysis.Families([.. history.Where(placed => placed.Day >= window.From)], history),
             ScoreRules.LiftingPoints,
-            families);
+            family => Share(family.HardSets, family.Target));
+        return new LiftingPart(families.Sum(family => family.Points), ScoreRules.LiftingPoints, families);
     }
 
     private static CardioPart Cardio(CardioMeasure measure) => measure switch
     {
-        CardioMeasure.Measured measured => new CardioPart(
-            ScoreRules.Zone2Points * Share(measured.Zone2Minutes, measured.Zone2Target)
-            + ScoreRules.HighIntensityPoints * Share(measured.HighIntensityMinutes, measured.HighIntensityTarget),
-            ScoreRules.CardioPoints,
-            measure),
-        CardioMeasure.Unknown => new CardioPart(null, ScoreRules.CardioPoints, measure),
+        CardioMeasure.Measured measured => Zones(
+            measure,
+            [
+                Band(new ZoneTarget(ZoneBand.Zone2, measured.Zone2Minutes, measured.Zone2Target), ScoreRules.Zone2Points),
+                Band(new ZoneTarget(ZoneBand.Zones3To5, measured.HighIntensityMinutes, measured.HighIntensityTarget), ScoreRules.HighIntensityPoints),
+            ]),
+        CardioMeasure.Unknown => new CardioPart(null, ScoreRules.CardioPoints, measure, []),
         _ => throw new System.Diagnostics.UnreachableException(),
     };
 
-    private static ProgressPart Progress(IReadOnlyList<FamilyPriority> families) =>
-        new(
-            ScoreRules.ProgressPoints * families.Average(family => ShareOf(family.Lift)),
-            ScoreRules.ProgressPoints,
-            families);
+    private static CardioPart Zones(CardioMeasure measure, IReadOnlyList<Scored<ZoneTarget>> bands) =>
+        new(bands.Sum(band => band.Points), ScoreRules.CardioPoints, measure, bands);
+
+    private static Scored<ZoneTarget> Band(ZoneTarget band, int points) =>
+        new(band, points * Share(band.Minutes, band.Target), points);
+
+    private static ProgressPart Progress(IReadOnlyList<FamilyPriority> families)
+    {
+        var scored = Shared(families, ScoreRules.ProgressPoints, family => ShareOf(family.Lift));
+        return new ProgressPart(scored.Sum(family => family.Points), ScoreRules.ProgressPoints, scored);
+    }
+
+    /// <summary>A part's points split evenly across its measurements, each paying its share of its slice.</summary>
+    private static IReadOnlyList<Scored<T>> Shared<T>(IReadOnlyList<T> measurements, int points, Func<T, double> share)
+    {
+        var each = (double)points / measurements.Count;
+        return [.. measurements.Select(measurement => new Scored<T>(measurement, each * share(measurement), each))];
+    }
 
     /// <summary>A priority lift's share of its points: a new best pays whole, anything else a fraction.</summary>
     public static double ShareOf(PriorityLift lift) => lift switch
@@ -90,16 +104,18 @@ public static class TrainingScoreAnalysis
 
     private static ConsistencyPart Consistency(TrainingLog log, DateOnly endingOn)
     {
-        var blocks = Enumerable.Range(0, ScoreRules.ConsistencyBlocks)
-            .Select(block => endingOn.AddDays(-7 * block))
-            .Select(blockEnd => log.Between(blockEnd.AddDays(-6), blockEnd).Count())
-            .ToList();
+        var blocks = Shared(
+            [
+                .. Enumerable.Range(0, ScoreRules.ConsistencyBlocks)
+                    .Select(block => endingOn.AddDays(-7 * block))
+                    .Select(blockEnd => new DayRange(blockEnd.AddDays(-6), blockEnd))
+                    .Select(window => new SessionBlock(window, log.Between(window.From, window.To).Count()))
+            ],
+            ScoreRules.ConsistencyPoints,
+            block => Share(block.Sessions, ScoreRules.SessionsPerWeek));
 
         return new ConsistencyPart(
-            ScoreRules.ConsistencyPoints * blocks.Average(sessions => Share(sessions, ScoreRules.SessionsPerWeek)),
-            ScoreRules.ConsistencyPoints,
-            blocks,
-            ScoreRules.SessionsPerWeek);
+            blocks.Sum(block => block.Points), ScoreRules.ConsistencyPoints, blocks, ScoreRules.SessionsPerWeek);
     }
 
     /// <summary>

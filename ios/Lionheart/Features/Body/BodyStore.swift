@@ -56,6 +56,7 @@ final class BodyStore {
         let task = Task { await self.reload() }
         load = task
         await task.value
+        if load == task { load = nil }
     }
 
     /// Loads only when nothing is loaded yet, which is what coming back to the tab wants.
@@ -66,8 +67,10 @@ final class BodyStore {
     /// an injury, a wellness entry — reload it for themselves, so a tab switch has nothing to learn. Pull to
     /// refresh stays the athlete's own way of asking, and a new ring sync is what it is for. A
     /// screen that is not current is asked again, since it has something to learn.
+    /// A load already out — the device's answer on screen while the server is asked — is left to
+    /// finish rather than started again.
     func refreshIfNeeded() async {
-        guard state.value == nil || state.isStale else { return }
+        guard load == nil, state.value == nil || state.isStale else { return }
         await refresh()
     }
 
@@ -151,43 +154,58 @@ final class BodyStore {
         action = .idle
     }
 
+    /// Paints the tab from the device when there is nothing on it, then asks the server.
     private func reload() async {
         let moment = now()
-        let today = CalendarDay(moment)
-        let start = moment.addingTimeInterval(-Double(Self.lookBackDays) * 86_400)
-        let earliest = CalendarDay(start)
+        if state.value == nil,
+           let recalled = await APIClient.onDevice({ try await self.read(at: moment) }),
+           let asOf = recalled.asOf,
+           // A sign-out while the device was read has reset the store.
+           !Task.isCancelled {
+            state = state.recalling(recalled.value, asOf: asOf)
+        }
 
         do {
-            async let days = oura.days(from: earliest, to: today, remembering: .bodyOuraDays)
-            // A night beginning before midnight is filed under the waking day, so the event window
-            // reaches a day further back than the day range to avoid clipping its first night.
-            async let nights = oura.sleepPeriods(
-                from: start.addingTimeInterval(-86_400), to: moment, remembering: .bodySleepPeriods)
-            async let ringWorkouts = oura.workouts(from: start, to: moment, remembering: .bodyOuraWorkouts)
-            async let tags = oura.tags(from: start, to: moment, remembering: .bodyOuraTags)
-            async let readings = wellness.states(from: earliest, to: today, remembering: .bodyWellness)
-            // Every injury on record, active or not: there is no server-side filter, and a
-            // resolved injury is still history worth reading. The snapshot narrows.
-            async let tracked = injuries.injuries(remembering: .bodyInjuries)
-
-            let (daysRead, readingsRead, trackedRead) = try await (days, readings, tracked)
-            let (nightsRead, ringWorkoutsRead, tagsRead) = try await (nights, ringWorkouts, tags)
-            let snapshot = BodySnapshot.reading(
-                ouraDays: daysRead.value,
-                wellness: readingsRead.value,
-                injuries: trackedRead.value,
-                nights: nightsRead.value,
-                ringWorkouts: ringWorkoutsRead.value,
-                tags: tagsRead.value)
-            state = state.applying(.derived(snapshot, from: [
-                daysRead.asOf, readingsRead.asOf, trackedRead.asOf,
-                nightsRead.asOf, ringWorkoutsRead.asOf, tagsRead.asOf,
-            ]))
+            state = state.applying(try await read(at: moment))
         } catch is CancellationError {
             return
         } catch {
             state = state.applying(.failure(
                 (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))))
         }
+    }
+
+    /// The tab's six parts, read together. Answered from the device instead when run inside
+    /// `APIClient.onDevice`.
+    private func read(at moment: Date) async throws -> Remembered<BodySnapshot> {
+        let today = CalendarDay(moment)
+        let start = moment.addingTimeInterval(-Double(Self.lookBackDays) * 86_400)
+        let earliest = CalendarDay(start)
+
+        async let days = oura.days(from: earliest, to: today, remembering: .bodyOuraDays)
+        // A night beginning before midnight is filed under the waking day, so the event window
+        // reaches a day further back than the day range to avoid clipping its first night.
+        async let nights = oura.sleepPeriods(
+            from: start.addingTimeInterval(-86_400), to: moment, remembering: .bodySleepPeriods)
+        async let ringWorkouts = oura.workouts(from: start, to: moment, remembering: .bodyOuraWorkouts)
+        async let tags = oura.tags(from: start, to: moment, remembering: .bodyOuraTags)
+        async let readings = wellness.states(from: earliest, to: today, remembering: .bodyWellness)
+        // Every injury on record, active or not: there is no server-side filter, and a resolved
+        // injury is still history worth reading. The snapshot narrows.
+        async let tracked = injuries.injuries(remembering: .bodyInjuries)
+
+        let (daysRead, readingsRead, trackedRead) = try await (days, readings, tracked)
+        let (nightsRead, ringWorkoutsRead, tagsRead) = try await (nights, ringWorkouts, tags)
+        let snapshot = BodySnapshot.reading(
+            ouraDays: daysRead.value,
+            wellness: readingsRead.value,
+            injuries: trackedRead.value,
+            nights: nightsRead.value,
+            ringWorkouts: ringWorkoutsRead.value,
+            tags: tagsRead.value)
+        return .derived(snapshot, from: [
+            daysRead.asOf, readingsRead.asOf, trackedRead.asOf,
+            nightsRead.asOf, ringWorkoutsRead.asOf, tagsRead.asOf,
+        ])
     }
 }

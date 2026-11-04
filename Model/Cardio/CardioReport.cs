@@ -1,12 +1,18 @@
 using System.Text.Json.Serialization;
 using lionheart.Model.Analysis;
+using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Cardio;
 
 /// <summary>
 /// The athlete's cardio over a range of days: every session, the weeks they add up to, Oura's
-/// fitness estimates, and the comparison that says whether the aerobic base is moving.
+/// fitness estimates, the comparison that says whether the aerobic base is moving, and what was
+/// left out.
 /// </summary>
+/// <param name="Declined">
+/// The ring's guesses whose heart rate did not show training, each with the heart rate that decided
+/// it, so the call can be checked rather than taken on trust.
+/// </param>
 /// <remarks>
 /// A derived read model rather than stored documents, built on the server because the input is the
 /// all-day heart-rate series — tens of thousands of samples a month — and the answer is a few
@@ -22,7 +28,16 @@ public sealed record CardioReport(
     IReadOnlyList<DayValue> CardiovascularAge,
     IReadOnlyList<DayValue> RestingHeartRate,
     AerobicBase AerobicBase,
-    IReadOnlyList<ExcludedWorkouts> Excluded);
+    IReadOnlyList<ExcludedWorkouts> Excluded,
+    IReadOnlyList<DeclinedWorkout> Declined)
+{
+    /// <summary>
+    /// The Apple Watch's VO2max estimates over the range, read from Apple Health; <see cref="Vo2Max"/>
+    /// is Oura's. Two series because they are two devices' models of the same figure, and a line
+    /// drawn through both would read a change of device as a change of fitness.
+    /// </summary>
+    public IReadOnlyList<DayValue> AppleWatchVo2Max { get; init; } = [];
+}
 
 /// <summary>One figure on one day.</summary>
 public sealed record DayValue(DateOnly Day, double Value);
@@ -48,11 +63,14 @@ public abstract record CardioSessionSource
 {
     private protected CardioSessionSource() { }
 
-    /// <summary>A workout Oura detected or the athlete entered on the ring.</summary>
-    public sealed record RingWorkout(Guid OuraId, string Activity, WorkoutCategory Category) : CardioSessionSource;
+    /// <summary>
+    /// A workout the athlete entered on the ring, or one the ring detected whose heart rate showed
+    /// training (<see cref="TrainingEvidence"/>).
+    /// </summary>
+    public sealed record RingWorkout(Guid OuraId, string Activity, WorkoutCategory Category, RingEntry Entry) : CardioSessionSource;
 
     /// <summary>
-    /// A completed Lionheart session carrying trail-run or distance-and-time sets. Where the ring
+    /// A completed Lionheart session carrying trail-run, endurance or distance-and-time sets. Where the ring
     /// saw the same session, this is the record kept: the athlete's own log names it and measures
     /// it. Its heart rate is the recording app's where it was imported from Apple Health with one,
     /// and the ring's over the same clock time otherwise.
@@ -61,7 +79,12 @@ public abstract record CardioSessionSource
     /// Imported from Apple Health, so a route and the recording app's own figures stand behind it
     /// (<c>GET /api/training/sessions/{id}/recording</c>).
     /// </param>
-    public sealed record LoggedSession(Guid TrainingSessionId, bool IsTrailRun, bool IsRecorded) : CardioSessionSource;
+    /// <param name="Activity">
+    /// What an endurance session was — a ride, a hike, a walk, an indoor run — or absent for a trail
+    /// run or a distance-and-time session, which <paramref name="IsTrailRun"/> tells apart.
+    /// </param>
+    public sealed record LoggedSession(Guid TrainingSessionId, bool IsTrailRun, bool IsRecorded, EnduranceActivity? Activity = null)
+        : CardioSessionSource;
 }
 
 /// <summary>Whose samples a session's heart rate was read from.</summary>
@@ -143,12 +166,21 @@ public enum WorkoutExclusion
     /// <summary>Housework, yard work, stretching: movement that is not training.</summary>
     [JsonStringEnumMemberName("notTraining")] NotTraining,
 
-    /// <summary>An activity this application does not yet place.</summary>
-    [JsonStringEnumMemberName("unclassified")] Unclassified,
+    /// <summary>
+    /// A ring's guess, or an activity nobody named, with too little heart rate behind it to show it
+    /// was training.
+    /// </summary>
+    [JsonStringEnumMemberName("heartRateUnread")] HeartRateUnread,
+
+    /// <summary>A ring's guess, or an activity nobody named, whose heart rate stayed below training.</summary>
+    [JsonStringEnumMemberName("heartRateBelowTraining")] HeartRateBelowTraining,
 
     /// <summary>Filed as a moment rather than a span, so it has no duration to count.</summary>
     [JsonStringEnumMemberName("noDuration")] NoDuration,
 }
+
+/// <summary>A ring workout the heart rate did not show as training, and which way it fell short.</summary>
+public sealed record DeclinedWorkout(CardioSession Session, WorkoutExclusion Reason);
 
 /// <summary>
 /// A cardio session placed on the clock, before any heart rate is read for it.
@@ -180,6 +212,9 @@ public sealed record AerobicBase(
     Comparison RestingHeartRate,
     Comparison CardiovascularAge)
 {
+    /// <summary>The Apple Watch's VO2max over the two windows; <see cref="Vo2Max"/> is Oura's.</summary>
+    public Comparison AppleWatchVo2Max { get; init; } = new(null, null);
+
     public const int RecentWeeks = 4;
     public const int BeforeWeeks = 8;
 }

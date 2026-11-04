@@ -95,13 +95,45 @@ public enum RecordStandingView
     Retracted
 }
 
+/// <summary>Which kind of subject a record is held against, as the wire names it.</summary>
+/// <remarks>
+/// Beside the movement id rather than instead of it, so a client that reads only the id still files
+/// a lift's records correctly; an absent id with no kind is trail running, as it always was.
+/// </remarks>
+[JsonConverter(typeof(JsonStringEnumConverter<RecordSubjectKind>))]
+public enum RecordSubjectKind
+{
+    [JsonStringEnumMemberName("movement")] Movement,
+    [JsonStringEnumMemberName("trailRunning")] TrailRunning,
+    [JsonStringEnumMemberName("riding")] Riding,
+    [JsonStringEnumMemberName("hiking")] Hiking,
+}
+
+public static class RecordSubjectKinds
+{
+    extension(RecordSubject subject)
+    {
+        public RecordSubjectKind Kind => subject switch
+        {
+            RecordSubject.Movement => RecordSubjectKind.Movement,
+            RecordSubject.TrailRunning => RecordSubjectKind.TrailRunning,
+            RecordSubject.Riding => RecordSubjectKind.Riding,
+            RecordSubject.Hiking => RecordSubjectKind.Hiking,
+            _ => throw new UnreachableException(),
+        };
+
+        /// <summary>The movement's id, or absent for a subject that names no movement.</summary>
+        public Guid? MovementDataId => subject is RecordSubject.Movement movement ? movement.MovementDataId : null;
+    }
+}
+
 /// <summary>
 /// One record on the wire.
 /// </summary>
 /// <remarks>
-/// <see cref="MovementDataId"/> is absent on a trail-running record, which is the subject's two
-/// cases flattened to the one field a client needs — it already holds the movement catalogue, so
-/// the movement itself is deliberately not embedded. The movement is a different aggregate, and
+/// <see cref="MovementDataId"/> is absent on a record that names no movement, and
+/// <see cref="Subject"/> says which one it is — the client already holds the movement catalogue,
+/// so the movement itself is deliberately not embedded. The movement is a different aggregate, and
 /// loading it per record is three joins a records screen does not need.
 /// </remarks>
 public sealed record PersonalRecordView(
@@ -110,11 +142,12 @@ public sealed record PersonalRecordView(
     AchievementView Achievement,
     DateTime AchievedAt,
     DateTime? PreviousAchievedAt,
-    RecordStandingView Standing)
+    RecordStandingView Standing,
+    RecordSubjectKind Subject)
 {
     public static PersonalRecordView Of(PersonalRecord record) => new(
         record.PersonalRecordId,
-        record.Subject is RecordSubject.Movement movement ? movement.MovementDataId : null,
+        record.Subject.MovementDataId,
         AchievementView.Of(record.Achievement),
         record.AchievedAt,
         record.Lineage is RecordLineage.Replaced replaced ? replaced.AchievedAt : null,
@@ -124,7 +157,8 @@ public sealed record PersonalRecordView(
             RecordStanding.Beaten => RecordStandingView.Beaten,
             RecordStanding.Retracted => RecordStandingView.Retracted,
             _ => throw new UnreachableException()
-        });
+        },
+        record.Subject.Kind);
 }
 
 /// <summary>
@@ -138,7 +172,8 @@ public sealed record PersonalRecordView(
 public sealed record SubjectRecordsView(
     Guid? MovementDataId,
     IReadOnlyList<PersonalRecordView> Records,
-    DateTime? LastAchievedAt)
+    DateTime? LastAchievedAt,
+    RecordSubjectKind Subject)
 {
     /// <remarks>
     /// Newest first, then by kind and bracket. Every record one session set carries that session's
@@ -146,7 +181,7 @@ public sealed record SubjectRecordsView(
     /// rep-max grid reads as a grid only if its rows arrive in rep order.
     /// </remarks>
     public static SubjectRecordsView Of(RecordSubject subject, IReadOnlyList<PersonalRecord> standing) => new(
-        subject is RecordSubject.Movement movement ? movement.MovementDataId : null,
+        subject.MovementDataId,
         [
             .. standing
                 .OrderByDescending(record => record.AchievedAt)
@@ -154,7 +189,8 @@ public sealed record SubjectRecordsView(
                 .ThenBy(record => record.Kind.Bracket)
                 .Select(PersonalRecordView.Of)
         ],
-        standing.Count == 0 ? null : standing.Max(record => record.AchievedAt));
+        standing.Count == 0 ? null : standing.Max(record => record.AchievedAt),
+        subject.Kind);
 }
 
 /// <summary>

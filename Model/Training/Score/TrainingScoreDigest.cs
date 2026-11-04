@@ -31,27 +31,27 @@ public sealed record TrainingScoreDigest(
             ? $"{score.Value} of 100"
             : $"{score.Value} of {score.OutOf} that could be read; unknown: {string.Join(", ", score.Unknown.Select(Word))}",
         [Lifting(score.Lifting), Cardio(score.Cardio), Progress(score.Progress), Consistency(score.Consistency)],
-        UpNextLine(volume.UpNext),
+        UpNextLine(volume.UpNext, score.Window.To),
         UnderTargetLine(volume),
         string.Join(", ", weeks.Select(week => $"{week.Window.To:yyyy-MM-dd} {week.Value}/{week.OutOf}")));
 
     private static string Lifting(LiftingPart part) =>
         $"lifting {Points(part.Points)}/{part.OutOf}: "
-        + string.Join(", ", part.Families.Select(family => $"{PatternWords.Of(family.Family)} {family.HardSets}/{family.Target}"))
+        + string.Join(", ", part.Families.Select(family => $"{PatternWords.Of(family.Of.Family)} {family.Of.HardSets}/{family.Of.Target}"))
         + " hard sets";
 
     private static string Cardio(CardioPart part) => part.Measure switch
     {
         CardioMeasure.Measured measured =>
             $"cardio {Points(part.Points ?? 0)}/{part.OutOf}: zone 2 {Points(measured.Zone2Minutes)}/{measured.Zone2Target} min, "
-            + $"zones 4-5 {Points(measured.HighIntensityMinutes)}/{measured.HighIntensityTarget} min, "
+            + $"zones 3-5 {Points(measured.HighIntensityMinutes)}/{measured.HighIntensityTarget} min, "
             + $"{measured.Sessions} sessions, heart rate on {measured.HeartRateDays}/7 days",
         CardioMeasure.Unknown unknown => $"cardio unknown ({unknown.Reason}), out of the score",
         _ => throw new UnreachableException(),
     };
 
     private static string Progress(ProgressPart part) =>
-        $"progress {Points(part.Points)}/{part.OutOf}: " + string.Join("; ", part.Families.Select(Priority));
+        $"progress {Points(part.Points)}/{part.OutOf}: " + string.Join("; ", part.Families.Select(family => Priority(family.Of)));
 
     private static string Priority(FamilyPriority family) => family.Lift switch
     {
@@ -89,14 +89,20 @@ public sealed record TrainingScoreDigest(
     };
 
     private static string Consistency(ConsistencyPart part) =>
-        $"consistency {Points(part.Points)}/{part.OutOf}: sessions per 7-day block {string.Join(",", part.SessionsPerBlock)} (newest first) vs {part.Target}";
+        $"consistency {Points(part.Points)}/{part.OutOf}: sessions per 7-day block {string.Join(",", part.Blocks.Select(block => block.Of.Sessions))} (newest first) vs {part.Target}";
 
-    private static string UpNextLine(Balance.UpNext upNext) => upNext switch
+    /// <remarks>
+    /// The due families and the day's own lifting are two separate statements, so the model cannot
+    /// read "already lifted today" as "these families were trained today".
+    /// </remarks>
+    private static string UpNextLine(Balance.UpNext upNext, DateOnly day) => upNext switch
     {
         Balance.UpNext.Train train =>
-            string.Join(" and ", train.Families.Select(PatternWords.Of))
-            + (train.LastTrained is { } last ? $", last trained {last:yyyy-MM-dd}" : ", never trained")
-            + (train.TrainedToday ? " (trained today; for the next session)" : "")
+            $"next: {string.Join(" and ", train.Families.Select(PatternWords.Of))} "
+            + (train.LastTrained is { } last ? $"(last trained {last:yyyy-MM-dd})" : "(never trained)")
+            + (train.TrainedToday
+                ? $"; {day:yyyy-MM-dd} already has hard sets logged, so this is the session after it"
+                : $"; no hard sets logged on {day:yyyy-MM-dd}")
             + Readiness(train.Readiness),
         Balance.UpNext.NothingLogged => "nothing classified logged",
         _ => throw new UnreachableException(),

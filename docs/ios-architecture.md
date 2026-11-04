@@ -108,6 +108,29 @@ nothing. A chat answer is the model reading the server, so sending needs a conne
 composer says so; the thread's newest page and the memory list are remembered like any other read,
 so what Lionheart last said can be read back with no signal.
 
+### First paint, and coming back to a tab
+
+A screen seen before never opens on placeholders. Today, History, Body and the movement catalogue
+read their parts from the device first — the same endpoints, windows and keys, run inside
+`APIClient.onDevice`, which answers every remembered read in it from `ReadMemory` without a
+request — and paint that answer as `.stale(value, .recalled(asOf:))` while the server is asked. The
+server's answer replaces it in place; no answer turns it into `.unreachable` as before. A recalled
+screen gets no row of its own (one that came and went would move every row twice); if the server
+has not answered within a second, `recalledNote(_:)` floats the time it dates from over the top.
+The skeleton rows remain for a screen the device has never read.
+
+A tab's `.task` runs on every return to it, and History's read is the whole log and every record
+(about 1.2 MB against a real archive). So Today and History read on return only when
+`ReadFreshness` says the answer may have moved: nothing current on screen, a write accepted from
+this device since the read (`WriteLedger`, counted in `APIClient`, so a set pushed from the workout
+or a skip on Train counts without either knowing who shows it), a new calendar day, or an answer
+older than the screen's span (5 minutes for Today, 15 for History). Returning to the foreground asks
+the same question of both. Pull to refresh always reads.
+
+Today reads ahead whenever a current reading of today brings something new: the 90-day trend behind
+every figure's page, one request for the days and one for the nights, so the drill-down most often opened is on screen
+without a spinner. A trend read for one figure fills every figure the same read answers.
+
 ### Knowing the server is there
 
 `ServerReachability` learns from the requests the app actually makes, not from the phone's network
@@ -586,9 +609,11 @@ once; an id a current catalogue still does not hold is remembered as unlisted an
 again, so a deleted movement costs one read rather than one per render. A read that could not reach
 the server proves nothing and leaves the id to be asked about again.
 
-## Train: what it is time for, the week's volume, priorities and the score
+## Train: the score, what it is time for, the week's volume and priorities
 
-Train leads with **Start workout** and **Log a past workout**, then answers what it is time for.
+Train leads with the **training score**, part by part, because it is the reading every session on
+the tab moves; **Start workout** and **Log a past workout** sit directly under it, and a Start
+button in the toolbar keeps starting one tap away whatever is on screen. Then what it is time for.
 Routines, bodyweight and the plan follow; they stay, below the reading of the week.
 
 **Everything on the week is the server's reading.** Weekly volume (`GET /api/training/volume/{day}`),
@@ -625,9 +650,19 @@ compound lift of eight weeks stands in, and says so. Setting a priority picks fr
 compound lifts (`PriorityCandidates`), and pinning one lets the last go on the server in the same
 write.
 
-**The score** is a number with its measurements: Today shows it beside push, pull and legs hard sets,
-zone 2 and the week's sessions; its screen shows half a year of weeks against 90 and every part as
-"x of y" rows. A part with no data says unknown, never zero, and a week read with one is drawn pale.
+**The score** is a number with everything that went into it. Every measurement arrives from the
+server with the points it earned of the points it could (`Scored<T>`), so the client draws the
+server's arithmetic and re-derives none of it. The card (`TrainingScoreCard`) is the number against
+the median and best of the last 26 weeks, then a **partition** (`ScoreBreakdownChart`): three rows
+on one 100-point axis — the score, its four parts, every measurement under its part — each cell as
+wide as the points it can earn and filled with the points it did, so a gap in the bottom row reads
+straight up to the part it cost. Tapping a part, or its row, opens it (`ScorePartView`): its points
+this week and in each of the 26 weeks before, every measurement against its target with its points,
+and what lies behind it — the patterns for lifting; for cardio, the window's sessions counted and
+the ring's detections declined with the heart rate that decided each; the lifts for progress. Each
+has an info sheet (`ScoreInfoSheet`) stating the method with the targets the server scored with.
+Today shows the score in one line. A part with no data says unknown, never zero, is drawn as an
+empty track, and a week read with one is drawn pale.
 
 **What a movement trains** is shown and edited on its page (`ClassificationSection`), stated for the
 base so every variation shares it. A judgement call from the shipped map is shown in orange with its
@@ -677,7 +712,10 @@ questions with screens of their own.
   aerobic-base table (four weeks against eight), weekly minutes stacked by zone, Oura's VO2max and
   cardiovascular-age estimates labelled as estimates, the nights' lowest heart rate, and every
   session with a zone bar, opening onto its heart-rate curve against the zone bands
-  (`GET /api/oura/heartrate`).
+  (`GET /api/oura/heartrate`). Zone 2 against zones 3–5 is read as a mean week against the score's
+  targets; runs with distance and heart rate over most of their time are read as heartbeats per
+  kilometre (`RunReading`), a trend drawn from three runs up; and the ring's detections the heart
+  rate did not show as training are folded under one line at the foot, each openable.
 - **Daily movement** is `GET /api/habits` drawn: weekday and weekend means against the span before,
   orange only where a change went the worse way; the mean day hour by hour from 04:00 with the
   hours training began beneath; each day's longest sitting; sleep timing as bedtime-to-wake bars;
@@ -738,20 +776,24 @@ side:
 - **Read only.** `SampleRuns`, the seeding behind a Settings button, is the one writer, and it is
   compiled only into a Debug build for the simulator — never Release, and never a Debug build on the
   phone, whose Health store is the athlete's own.
-- **`HealthSyncStore`** keeps HealthKit's anchor in a file, reads ten runs a page after it, offers
-  each, and moves the anchor on only once the page is answered — so a sync that loses the server
-  resumes at that page, and the server's idempotence absorbs the overlap. A run the server refuses is
+- **`HealthSyncStore`** keeps HealthKit's anchor in a file, reads ten workouts — runs, rides, hikes,
+  walks — a page after it, offers each, and moves the anchor on only once the page is answered — so a
+  sync that loses the server resumes at that page, and the server's idempotence absorbs the overlap.
+  The anchor carries the reading it belongs to, so reading more activities starts once from the
+  beginning (`docs/apple-health.md` → "Reading more"). A workout the server refuses is
   counted, its id held back and offered again first on the next sync, and the sync goes on; anything
   else stops it. It runs on returning to the app (once per
   15 minutes, and only once connected) and on pull to refresh in History and on Cardio. Connecting is
   a tap on the row, never a sheet sprung at launch. Its row sits beside Oura's on Today and in
   Settings.
-- **The run's page** (`RunView`, reached from a session's detail and from Cardio) draws the server's
-  `RecordedRun`: the route with MapKit's `MapPolyline` — a still picture at a fixed height, since a
+- **A recorded workout's page** (`RecordedWorkoutView`, reached from a session's detail and from
+  Cardio) draws the server's `RecordedWorkout`: the route with MapKit's `MapPolyline` — a still picture at a fixed height, since a
   map that pans inside a list takes the list's scroll and one that grows with Dynamic Type outgrows
   the screen; a tap opens it full screen to move and zoom — the figures, splits in kilometres or miles —
-  the one conversion the page makes, a change of unit — and the heart rate against the zones, footed
-  with whose it is. It shares the cardio session's chart and zone grid, which moved to `Design/` for
+  the conversions the page makes, a change of unit and a ride's pace read as a speed — the heart
+  rate against the zones, footed with whose it is, a run's form, and each metric the app wrote —
+  power, cadence, speed, running form — drawn against its mean (`MetricTraceChart`, thinned to a few
+  hundred points by `MetricTrace`). It shares the cardio session's chart and zone grid, which moved to `Design/` for
   the second caller.
 
 ## Chat: one thread, with memory
@@ -774,6 +816,44 @@ them, the only sign of the cut.
 - `MemorySheet` lists memory by kind, standing kinds first; a memory's page shows the words it came
   from and the versions it replaced, and the athlete can correct it (the old wording becomes its
   history) or forget it (every version goes). A correction has a new id, and the page follows it.
+- **Quick questions.** The questions asked most days ("Should I train today?", "Am I recovered?",
+  and so on) sit as a row of capsule buttons above the composer. The row shows only while the field
+  is empty and the keyboard is down, and a tap sends the question as written. A one-line question
+  is enough because the server sends the TODAY briefing with every message.
+- **The answer is set down, not dropped in.** The server answers in one piece, so the answer that
+  has just arrived (`ThreadStore.arrivedReply`) is revealed word by word over at most 1.2 s
+  (`ChatReveal`). The full answer is laid out invisibly from the first frame, so the bubble has its
+  final size and the transcript never shifts. Reduce Motion shows the answer whole. A message waits
+  five minutes for its answer (`HTTP.modelPatience`), not the system's one minute. A long tool loop
+  would otherwise show the question as unsent while the server went on to answer and store it.
+- **The context sheet leads with the briefing**, exactly as the next message will carry it, then
+  the two standing tiers with their as-of instants.
+
+## Outside the app: widgets, Shortcuts and the morning wake
+
+**Widgets.** `LionheartWidgets` is a widget extension of its own (the workout's Live Activity keeps
+its own target). Readiness comes as a small Home Screen widget and three Lock Screen families —
+a gauge out of 100, a rectangular line with the band and the baseline, and an inline line — and
+**Today** is a medium widget with the readiness beside the last session and the next one planned.
+None of them reaches the server. Each time Today reads today current, `TodayGlancePublisher` turns
+the snapshot into a `TodayGlance` — final strings plus the score — and writes it to one JSON file in
+the App Group `group.com.chasebalmer.lionheart` (`TodayGlanceFile`), reloading the timelines only
+when what they draw changed. The extension compiles just the glance, its file and
+`ReadinessGlanceView`, which every surface draws readiness with. Days are named when the widget
+draws ("Today" turns into "Yesterday" at midnight with no new data), which is the timeline's one
+later entry. Signing out deletes the file and reloads the widgets.
+
+**Shortcuts.** Two App Intents, in the app's process, acting through the container's own stores
+(`AppDependencyManager`): *Readiness* answers from the glance — reading today first, for up to four
+seconds, when the glance is from an earlier day — and *Log Training* sends plain words through the
+same request as Today's sheet. `LionheartShortcuts` gives both Siri phrases with no setup.
+
+**The morning wake.** There is no push on the free developer tier, so the Lock Screen's readiness
+can only change before the app is opened if iOS wakes it. The app asks for one background refresh
+a day, at the next 05:30 (`MorningRefresh`), on every trip to the background; the scene's
+`.backgroundTask(.appRefresh)` restores the session, syncs the ring if it is behind and reads today,
+which publishes the glance. iOS treats the time as the earliest it may run, and the simulator never
+runs it on its own.
 
 ## Design
 

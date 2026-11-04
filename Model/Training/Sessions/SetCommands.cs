@@ -48,6 +48,7 @@ internal static class Stated
 [JsonDerivedType(typeof(LiftSetCommand), "lift")]
 [JsonDerivedType(typeof(DistanceTimeSetCommand), "distanceTime")]
 [JsonDerivedType(typeof(TrailRunSetCommand), "trailRun")]
+[JsonDerivedType(typeof(EnduranceSetCommand), "endurance")]
 [JsonDerivedType(typeof(FreeformSetCommand), "freeform")]
 public abstract record SetCommand
 {
@@ -111,6 +112,29 @@ public sealed record TrailRunSetCommand(
                     Source = new Formed(),
                     Facets = [],
                 }));
+}
+
+/// <remarks>
+/// Logged only by an import, but stated back by a client correcting the session it is in, so the
+/// correction keeps the set as it is.
+/// </remarks>
+public sealed record EnduranceSetCommand(
+    EnduranceActivity Activity,
+    double Distance,
+    DistanceUnit Unit,
+    TimeSpan Duration,
+    double ElevationGainMeters,
+    double? Rpe) : SetCommand
+{
+    public override Result<SetEntry, Problem> ToEntry() =>
+        Stated.ClosedEnum(Activity, nameof(Activity))
+            .Bind(activity => Stated.ClosedEnum(Unit, nameof(Unit))
+                .Bind(unit => Stated.Rating(Rpe, nameof(Rpe))
+                    .Map(rpe => (SetEntry)new EnduranceSet(activity, Distance, unit, Duration, ElevationGainMeters, rpe)
+                    {
+                        Source = new Formed(),
+                        Facets = [],
+                    })));
 }
 
 /// <summary>A set the athlete described instead of measuring. The words are the record.</summary>

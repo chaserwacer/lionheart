@@ -1,5 +1,6 @@
 using lionheart.Functional;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace lionheart.Services.Llm;
 
@@ -20,15 +21,20 @@ public sealed record LlmConfiguration(ChatProviderSettings Chat, EmbeddingSettin
     /// The configuration, or the first thing wrong with it. Absence is an ordinary outcome of a
     /// fresh checkout, so it is a value naming the environment key rather than an exception.
     /// </summary>
-    public static Result<LlmConfiguration, Problem> Read(IConfiguration configuration) =>
-        ChatProviderSettings.Read(configuration)
+    /// <param name="environmentName">
+    /// The host's environment. The relay is refused outside Development, so a stray setting can
+    /// never leave a deployed server waiting on a folder for a model that is not there.
+    /// </param>
+    public static Result<LlmConfiguration, Problem> Read(IConfiguration configuration, string environmentName) =>
+        ChatProviderSettings.Read(configuration, environmentName)
             .Bind(chat => EmbeddingSettings.Read(configuration)
                 .Map(embedding => new LlmConfiguration(chat, embedding)));
 }
 
 /// <summary>
 /// The chat provider and what it needs. A closed set: production runs on Anthropic against the
-/// owner's API key, development and test run on a local LM Studio server, and there is no third.
+/// owner's API key, development runs on a local LM Studio server, and the relay is a development
+/// harness in which whoever is testing the chat plays the model by hand (docs/chat-relay.md).
 /// </summary>
 public abstract record ChatProviderSettings
 {
@@ -82,18 +88,59 @@ public abstract record ChatProviderSettings
             string.IsNullOrWhiteSpace(NarrativeOverride) ? ChatModel : NarrativeOverride;
     }
 
-    public static Result<ChatProviderSettings, Problem> Read(IConfiguration configuration) =>
+    /// <summary>
+    /// Anthropic's Messages API with the network replaced by a folder: each request is written there
+    /// and answered by a response file written by hand. The real Anthropic provider builds the
+    /// request and reads the answer, so prompt assembly, cache breakpoints, tools and the tool loop
+    /// run exactly as in production, and nothing is billed. See docs/chat-relay.md.
+    /// </summary>
+    /// <param name="Folder">Where requests are written and responses are read from.</param>
+    /// <param name="ChatModel">
+    /// The model the request names, so a request file reads as the one production would send.
+    /// Nothing serves it.
+    /// </param>
+    public sealed record Relay(string Folder, string ChatModel) : ChatProviderSettings
+    {
+        public const string Name = "Relay";
+        public const string FolderKey = "Relay__Folder";
+
+        /// <summary>
+        /// Outside the repository: every request carries the athlete's own data, and a folder in
+        /// the project tree would be one <c>git add</c> or one publish away from leaving the machine.
+        /// </summary>
+        public static readonly string DefaultFolder = Path.Combine(Path.GetTempPath(), "lionheart-chat-relay");
+
+        public override string Model => ChatModel;
+
+        /// <summary>One model for both roles: a request file is labelled by its shape, not its model.</summary>
+        public override string NarrativeModel => ChatModel;
+    }
+
+    public static Result<ChatProviderSettings, Problem> Read(IConfiguration configuration, string environmentName) =>
         (configuration["Llm:ChatProvider"] ?? LmStudio.Name).Trim() switch
         {
             var name when name.Equals(LmStudio.Name, StringComparison.OrdinalIgnoreCase) =>
                 ReadLmStudio(configuration),
             var name when name.Equals(Anthropic.Name, StringComparison.OrdinalIgnoreCase) =>
                 ReadAnthropic(configuration),
+            var name when name.Equals(Relay.Name, StringComparison.OrdinalIgnoreCase) =>
+                ReadRelay(configuration, environmentName),
             var unknown => Result<ChatProviderSettings, Problem>.Failure(new Problem.Invalid(
                 LlmConfiguration.ChatProviderKey,
                 $"'{unknown}' is not a chat provider. Set {LlmConfiguration.ChatProviderKey} to "
-                + $"'{LmStudio.Name}' or '{Anthropic.Name}'."))
+                + $"'{LmStudio.Name}', '{Anthropic.Name}' or '{Relay.Name}'."))
         };
+
+    private static Result<ChatProviderSettings, Problem> ReadRelay(IConfiguration configuration, string environmentName) =>
+        environmentName.Equals(Environments.Development, StringComparison.OrdinalIgnoreCase)
+            ? Result<ChatProviderSettings, Problem>.Success(new Relay(
+                Optional(configuration, "Relay:Folder") ?? Relay.DefaultFolder,
+                Optional(configuration, "Anthropic:Model") ?? Anthropic.DefaultModel))
+            : Result<ChatProviderSettings, Problem>.Failure(new Problem.Invalid(
+                LlmConfiguration.ChatProviderKey,
+                $"The '{Relay.Name}' chat provider is a development harness and does not run in the "
+                + $"'{environmentName}' environment. Set {LlmConfiguration.ChatProviderKey} to "
+                + $"'{LmStudio.Name}' or '{Anthropic.Name}'."));
 
     private static Result<ChatProviderSettings, Problem> ReadLmStudio(IConfiguration configuration) =>
         Required(configuration, "LmStudio:BaseUrl", LmStudio.BaseUrlKey)

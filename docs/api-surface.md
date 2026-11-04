@@ -27,7 +27,7 @@ directly* in any of the three live states, because logging after the fact is the
 | POST | `/{id}/skip` | Planned → Skipped | — |
 | POST | `/{id}/revise` | Completed → Completed (corrected) | `Sets[]`, `Period`, `Notes` |
 | GET | `/{id}` | — | — |
-| GET | `/{id}/recording` | — | a run imported from Apple Health: route, splits, heart rate (see "Apple Health") |
+| GET | `/{id}/recording` | — | a workout imported from Apple Health: route, splits, heart rate, the app's metrics (see "Apple Health") |
 | GET | `?from=&to=` | — | window over the stamped `StartTime` column |
 | PATCH | `/{id}/notes` | any state | `Notes` |
 | DELETE | `/{id}` | — | — |
@@ -71,7 +71,7 @@ do.
 One entry per movement the athlete has a completed set on: `movementDataId`, the `trainingSessionId`,
 `date` and `startedAt` of the most recent completed session that worked it — a session that only
 warmed up on it is passed over (most recent by the stamped start time), and `sets` — that movement's sets from that session in performed order, warm-ups
-included with their kind. Sets with no movement (trail runs, freeform) never appear. The list's order
+included with their kind. Sets with no movement (trail runs, endurance sets, freeform) never appear. The list's order
 carries no meaning. It reads every completed session, since which sessions hold a movement lives in
 the sets' JSON column.
 
@@ -108,9 +108,12 @@ window `[start, start]`; a record does not name the session that set it, so that
 movement and the achievement's own figures are how a client finds the set. Beaten and retracted
 records come back too: a set that took a record still took it after a later session beat it.
 
-A record's **subject** is one movement or trail running, and it crosses the wire as an optional
-`movementDataId` — absent meaning trail running — for the same reason program membership does: a
-flat shape generates a far better TypeScript client. The domain's two cases are restored at the
+A record's **subject** is one movement, trail running, riding or hiking. It crosses the wire flat,
+for the same reason program membership does — a flat shape generates a far better TypeScript
+client: an optional `movementDataId`, and `subject` (`movement` | `trailRunning` | `riding` |
+`hiking`) on every record and every subject's list. `/history` takes the same pair: a
+`movementDataId`, or `subject=riding` / `hiking` / `trailRunning` with none; neither is trail
+running, as it was before riding and hiking had records. The domain's cases are restored at the
 service boundary.
 
 An **achievement** is polymorphic on `$type`, one case per kind, each carrying only what its own
@@ -355,27 +358,33 @@ push day do not make it a pull day.
 carries `points` and `outOf` and the measurements it was read from:
 
 Each measurement pays `sqrt(min(1, measured / target))` of its points: concave, because the first
-half of a target buys most of what the whole would, and only the whole target pays in full.
+half of a target buys most of what the whole would, and only the whole target pays in full. Every
+measurement arrives as `Scored { of, points, outOf }` — the measurement and what it earned of what
+it could — so the client draws the server's arithmetic rather than re-deriving it.
 
-- `lifting` (35): `families` as in weekly volume; each family pays its share of a third.
+- `lifting` (35): `families` — `Scored<FamilyVolume>`, `of` as in weekly volume, each `outOf` a
+  third.
 - `cardio` (25): `points` null when unknown; `measure` `$type` `measured { zone2Minutes, zone2Target:
-  150, highIntensityMinutes, highIntensityTarget: 20, sessions, heartRateDays }` or `unknown { reason:
-  noHeartRate | noMaximumHeartRate | sessionsUnrecorded }`. Zone 2 pays 15, zones 4–5 pay 10, each
-  capped at its target, from the cardio report's sessions.
-- `progress` (20): `families` as in the priority report; each family pays a third — a new or
-  lifetime best whole, `held` or `firstBack` a quarter, `below` or `noEstimate` a tenth, `notTrained`
-  or `none` nothing. With every other part full, holding all three priorities reads 85: 90 takes a
-  new best.
-- `consistency` (20): `sessionsPerBlock`, completed sessions in the window and the three seven-day
-  blocks before it, each paying its share of a quarter against `target` 3.
+  150, highIntensityMinutes, highIntensityTarget: 30, sessions, heartRateDays }` or `unknown { reason:
+  noHeartRate | noMaximumHeartRate | sessionsUnrecorded }`; `zones` — `Scored<ZoneTarget { band:
+  zone2 | zones3To5, minutes, target }>`, zone 2 out of 15 and zones 3–5 (70 % of maximum and
+  above) out of 10, empty when unknown. From the cardio report's sessions, so a ring-detected
+  workout counts only where its heart rate showed training.
+- `progress` (20): `families` — `Scored<FamilyPriority>`, `of` as in the priority report, each a
+  third — a new or lifetime best whole, `held` or `firstBack` a quarter, `below` or `noEstimate` a
+  tenth, `notTrained` or `none` nothing. With every other part full, holding all three priorities
+  reads 85: 90 takes a new best.
+- `consistency` (20): `blocks` — `Scored<SessionBlock { window, sessions }>`, the window and the
+  three seven-day blocks before it, newest first, each out of a quarter against `target` 3.
 
 `value` is the points the known parts earned; `outOf` is 100 less the weight of any part in
 `unknown`. A part with no data is named rather than measured as zero, and its points are out of
 reach, so a week with the ring off never outscores the same week with it worn and no cardio.
 `WeeklyScore { window, value, outOf, unknown, liftingPoints, cardioPoints?, progressPoints,
 consistencyPoints }`. Chat reads the score through the `GetTrainingScore` tool as a
-`TrainingScoreDigest`: a few lines of the same measurements, what is up next, what is under target,
-and up to twelve weeks — a few hundred tokens.
+`TrainingScoreDigest`: a few lines of the same measurements, what is up next ("next: legs (last
+trained …)", then separately whether the window's last day already has hard sets), what is under
+target, and up to twelve weeks — a few hundred tokens.
 
 ## Oura — `/api/oura`
 
@@ -428,13 +437,21 @@ reports". The report carries `maxHeartRate` (`$type` `agePredicted` | `observed`
 usable age), `sessions` (each with a `source` — `$type` `ringWorkout` | `loggedSession` — and a
 `heartRate` — `$type` `recorded` | `notRecorded`), one `weeks` entry per Monday-to-Sunday week the
 range touches, empty weeks included and each with `daysInRange` so a part-week at either end reads
-as short, the `vo2Max`, `cardiovascularAge` and `restingHeartRate` series, `aerobicBase` (the last
-four weeks against the eight before, each figure null where its window has no data — zone 2 also
+as short, the `vo2Max` (Oura's), `appleWatchVo2Max` (the Apple Watch's, from Apple Health — its
+own series, never merged with Oura's), `cardiovascularAge` and `restingHeartRate` series, `aerobicBase` (the last
+four weeks against the eight before, `appleWatchVo2Max` beside `vo2Max`, each figure null where its window has no data — zone 2 also
 when there is no maximum heart rate, or when less than half the window's session time has heart
-rate synced), and `excluded` (ring workouts left out, counted by category and `reason`:
-`sameAsLoggedRun`, `insideLoggedLifting`, `shortWalk`, `strength`, `notTraining`, `unclassified`,
-`noDuration`). A `loggedSession` source carries `isRecorded` — imported from Apple Health, so
-`GET /api/training/sessions/{id}/recording` has its route — and a `recorded` heart rate carries
+rate synced), `excluded` (ring workouts left out, counted by `category` — `endurance`, `sport`,
+`walk`, `strength`, `incidental`, `unspecified` (Oura's "other"), `unrecognised` — and `reason`:
+`sameAsLoggedRun`, `insideLoggedLifting`, `shortWalk`, `strength`, `notTraining`, `heartRateUnread`,
+`heartRateBelowTraining`, `noDuration`), and `declined` (`{ session, reason }`, each ring workout
+in the range that needed its heart rate to show training and did not, with that heart rate; the
+chat tool gets the counts only). A `ringWorkout` source carries `entry`: `entered` (the athlete's
+own, taken at its name) or `detected` (the ring's guess, here because its heart rate showed
+training). A `loggedSession` source carries `isRecorded` — imported from Apple Health, so
+`GET /api/training/sessions/{id}/recording` has its route — and `activity` for an endurance session
+(`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`; null for a trail run or a distance-and-time
+session, which `isTrailRun` tells apart); a `recorded` heart rate carries
 `source`: `ring` (the all-day series over the session's clock time) or `appleHealth` (the recording
 app's own samples, read ahead of the ring's for an imported run).
 
@@ -443,28 +460,65 @@ app's own samples, read ahead of the ring's for an imported run).
 | Verb | Route | Body | Answers |
 |---|---|---|---|
 | POST | `/workouts` | `HealthWorkoutImport` | `HealthImportOutcome`: 201 `imported` (with `session`), 200 `alreadyImported` (`trainingSessionId`) or `notImported` (`reason`, and `trainingSessionId` when it matched a logged session) |
+| POST | `/measurements` | `HealthMeasuresImport` | `HealthMeasuresImportReport` |
+| GET | `/measurements?from=&to=` | `DayRange` | `HealthMeasureSeries[]` |
+| POST | `/bodyweights` | `HealthBodyweightsImport` | `HealthBodyweightImportReport` |
+| PUT | `/birth-date` | `HealthBirthDate` | `ProfileAgeView` |
 
 The phone offers one Health workout at a time, as Health holds it: `workoutId` (its Health UUID),
-`activity` (Health's spelling: `running`), `indoor`, `appName` and `appBundleId` (the app that wrote
-it), `start` and `end` at the offset the workout was recorded in, `duration` (the app's, a
-`TimeSpan`), `distanceMeters` and `elevationAscendedMeters` (null when not stated), `route` (every
-fix: `at`, `latitude`, `longitude`, `altitude` or null) and `heartRate` (`at`, `bpm` — the same app's
-samples). Which workouts become sessions is the server's rule (`docs/apple-health.md`), so every
-answer but a refusal is a 2xx; `reason` is `readDirectly`, `notARun`, `indoor`, `noDistance`,
-`sameAsLoggedRun` or `insideLoggedLifting`. Idempotent on (athlete, `workoutId`). A workout that
-cannot be read is a 400 (a heart-rate reading that is not one is dropped, not refused); a 409 is a
-run older than a standing trail-running record while a record is withdrawn, since placing it would
-replay the records. The same workout imported by two requests at once answers `alreadyImported` to
-the second.
+`activity` (Health's spelling: `running`, `cycling`, `hiking`, `walking`), `indoor`, `appName` and
+`appBundleId` (the app that wrote it), `start` and `end` at the offset the workout was recorded in,
+`duration` (the app's, a `TimeSpan`), `distanceMeters` and `elevationAscendedMeters` (null when not
+stated), `route` (every fix: `at`, `latitude`, `longitude`, `altitude` or null), `heartRate` (`at`,
+`bpm` — the same app's samples) and `metrics` (optional: one entry per metric, `metric` and
+`samples` of `at`/`value`; `metric` is `power` W, `cadence` rpm, `speed` m/s, `groundContactTime`
+ms, `verticalOscillation` cm, `strideLength` m or `heartRateRecovery` bpm; an unknown metric or an
+impossible reading is dropped, not refused). Which workouts become sessions is the server's rule
+(`docs/apple-health.md`), so every answer but a refusal is a 2xx; `reason` is `readDirectly`,
+`otherActivity`, `noDistance`, `sameAsLoggedRun` (inside any logged cardio session),
+`insideLoggedLifting` or `deleted` (its session was imported and then deleted). Idempotent on
+(athlete, `workoutId`): `alreadyImported` writes nothing, except `metrics` its recording lacked,
+filled in once. A workout that cannot be read is a 400 (a heart-rate reading that is not one is
+dropped, not refused); a 409 is a workout older than a standing record it contests while a record
+is withdrawn, since placing it would replay the records. The same workout imported by two requests
+at once answers `alreadyImported` to the second.
 
-`GET /api/training/sessions/{id}/recording` answers `RecordedRunView` for a session imported from
-Health, and 404 for any other: `recordedBy`, `start`, `end`, the session's `distanceMeters`,
-`duration` and `climbMeters`; `movingTime`, `descentMeters` from the route (null without one);
-`pace` and `movingPace` per kilometre; `heartRate` (the cardio report's `SessionHeartRate`, its
-`source` included), `maxHeartRate`, and `trace` (`source`, `samples` of `at`/`bpm`) for drawing;
-`kilometres` and `miles` (each split: `number`, `distanceMeters`, `elapsed`, `moving`, `pace` per
-its own unit, `climbMeters`, `descentMeters`, `averageBpm`); and `route` (`latitude`, `longitude`).
-The route goes only to the athlete's own client — the chat model's `GetRecordedRuns` has none.
+`GET /api/training/sessions/{id}/recording` answers `RecordedWorkoutView` for a session imported
+from Health, and 404 for any other: `activity` (`run`, `ride`, `indoorRide`, `hike`, `walk`,
+`indoorRun`), `recordedBy`, `start`, `end`, the session's `distanceMeters`,
+`duration` and `climbMeters`; `movingTime`, `descentMeters` from the route (null without one, and
+`movingTime` null where the route's fixes do not span half the workout); `pace` and `movingPace` per
+kilometre; `heartRate` (the cardio report's `SessionHeartRate`, its `source` included),
+`maxHeartRate`, and `trace` (`source`, `samples` of `at`/`bpm`) for drawing; `kilometres` and
+`miles` (empty where `movingTime` is null; each split: `number`, `distanceMeters`, `elapsed`,
+`moving`, `pace` per its own unit, `climbMeters`, `descentMeters`, `averageBpm`); `route` (`latitude`, `longitude`); and
+`metrics` (each: `metric`, `average` over its samples, `peak`, `samples` of `at`/`value`; empty when
+the app wrote none — heart-rate recovery is one sample). A ride's speed is the client's conversion
+of `pace`. The route goes only to the athlete's own client — the chat model's `GetRecordedWorkouts`
+has none.
+
+**Measurements.** The phone offers days of what Apple's own devices measured: `days`, each
+`metric`, `device` (`appleWatch` | `iPhone`), `day`, and that day's `mean`, `minimum`, `maximum`
+and `count` of readings, in the metric's fixed unit — `vo2Max` (ml/kg/min), `restingHeartRate` and
+`walkingHeartRateAverage` (bpm), `heartRateVariabilitySdnn` (ms; SDNN, never compared with Oura's
+RMSSD), `respiratoryRate` (breaths/min), `walkingSpeed` (m/s), `walkingStepLength` (m),
+`walkingDoubleSupport`, `walkingAsymmetry` and `walkingSteadiness` (fractions, 0 to 1), and
+`sixMinuteWalkDistance` (m). A day already held for that metric and device is restated. The answer
+counts `recorded`, `restated`, `unchanged` and `unreadable` (a day whose numbers are outside the
+metric's bounds or out of order, left out while the rest of the batch is kept). The read answers one
+series per metric and device: `metric`, `device`, `days` (each `day`, `mean`, `minimum`, `maximum`,
+`count`), oldest first.
+
+**Weigh-ins.** `weighIns`, each `day` (on the phone's clock), `at` and `kilograms`. Each day's first
+weigh-in becomes that day's bodyweight measurement, in the unit of the athlete's newest measurement
+(else the unit most of his lifts are logged in, else kilograms), to a tenth; a day already measured
+is kept as it was. The answer counts `added`, `daysAlreadyMeasured`, `unreadable`, and
+`setsReweighed`: sets on a movement whose weight adds to bodyweight whose system load now reads a
+different bodyweight. Records are not replayed — they are on the logged weight, and system load is
+read fresh on every read.
+
+**Date of birth.** `dateOfBirth`; the profile's age becomes the age on the server's today and the
+answer is `age` and `changed`. A date in the future or more than 120 years back is a 400.
 
 ## Habits — `/api/habits`
 
@@ -508,6 +562,16 @@ said in the old one rather than its transcript.
   neither list them nor accept their ids.
 - The chat model reaches memory through the `SearchMemory` tool, offered to standalone
   conversations too.
+
+### What the model is given — `GET /api/profile/context-card`
+
+`AthleteContextCardView`: `stableProfileText` and `stableProfileAsOf` (identity, baselines, injury
+history), `recentStateText` and `recentStateAsOf` (the last four weeks of runs and body), and
+`todayText` — the **briefing** exactly as the next chat message would carry it: the date and time on
+the athlete's clock, today's and yesterday's training, load, heart-rate zones, the last two nights,
+readiness, wellness, active injuries, the week so far and the training score. The briefing is read
+fresh on every call and every message and is never stored, so it carries no as-of beyond the time it
+states. Instants are UTC; the briefing's own text is in the athlete's local time.
 
 ## Interpretation engine — `/api/interpretation`
 

@@ -577,6 +577,61 @@ namespace lionheart.Migrations
                     b.UseTphMappingStrategy();
                 });
 
+            modelBuilder.Entity("lionheart.Model.Health.DeletedHealthWorkout", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WorkoutId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId", "WorkoutId");
+
+                    b.ToTable("DeletedHealthWorkouts", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Health.Measurements.HealthDailyMeasure", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Metric")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Device")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("TEXT");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Aggregate", "lionheart.Model.Health.Measurements.HealthDailyMeasure.Aggregate#DayAggregate", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int>("Count")
+                                .HasColumnType("INTEGER")
+                                .HasColumnName("Count");
+
+                            b1.Property<double>("Maximum")
+                                .HasColumnType("REAL")
+                                .HasColumnName("Maximum");
+
+                            b1.Property<double>("Mean")
+                                .HasColumnType("REAL")
+                                .HasColumnName("Mean");
+
+                            b1.Property<double>("Minimum")
+                                .HasColumnType("REAL")
+                                .HasColumnName("Minimum");
+                        });
+
+                    b.HasKey("UserId", "Metric", "Device", "Day");
+
+                    b.ToTable("HealthDailyMeasures", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Health.WorkoutRecording", b =>
                 {
                     b.Property<Guid>("TrainingSessionId")
@@ -586,6 +641,12 @@ namespace lionheart.Migrations
                     b.Property<string>("HeartRate")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Metrics")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("'[]'");
 
                     b.Property<string>("Route")
                         .IsRequired()
@@ -1648,6 +1709,24 @@ namespace lionheart.Migrations
                 });
 
             modelBuilder.Entity("lionheart.Model.Contexts.Context", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Health.DeletedHealthWorkout", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Health.Measurements.HealthDailyMeasure", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany()

@@ -1,6 +1,6 @@
 using lionheart.Model.Health;
 using lionheart.Model.Oura.Readings;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Recordings;
 using lionheart.Tests.Support;
 
 namespace lionheart.Tests.Health;
@@ -170,6 +170,36 @@ public class RouteAnalysisTests
 
         Assert.Null(RouteAnalysis.Figures(route).ClimbMeters);
         Assert.All(RouteAnalysis.Splits(route, 2000, Kilometre, []), split => Assert.Null(split.ClimbMeters));
+    }
+
+    // ---- Whether the route keeps time ----
+
+    [Fact]
+    public void A_route_recorded_across_the_run_keeps_its_time()
+    {
+        var fixes = AHealthRun.North(Start, 3000, 3);
+        var route = Route(fixes);
+
+        Assert.True(RouteAnalysis.KeepsTime(route, elapsed: fixes[^1].At - fixes[0].At));
+    }
+
+    [Fact]
+    public void A_route_stamped_when_it_was_written_keeps_no_time()
+    {
+        // Strava's shape: the run's fixes, every one stamped days later within a few milliseconds.
+        var written = Start.AddDays(5);
+        var fixes = AHealthRun.North(Start, 3000, 3);
+        var route = Route([.. fixes.Select((fix, index) => fix with { At = written.AddTicks(index * 10) })]);
+
+        Assert.False(RouteAnalysis.KeepsTime(route, elapsed: fixes[^1].At - fixes[0].At));
+    }
+
+    [Fact]
+    public void A_route_spanning_minutes_of_an_hour_out_keeps_no_time()
+    {
+        var route = Route(AHealthRun.North(Start, 1000, 3));
+
+        Assert.False(RouteAnalysis.KeepsTime(route, elapsed: TimeSpan.FromHours(1)));
     }
 
     // ---- Helpers ----

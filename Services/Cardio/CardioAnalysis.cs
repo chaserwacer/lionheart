@@ -25,13 +25,24 @@ public sealed record CardioInputs(
     IReadOnlyDictionary<Guid, RecordedHeartRate> RecordedHeartRate,
     IReadOnlyList<OuraVo2Max> Vo2Max,
     IReadOnlyList<OuraDailyCardiovascularAge> CardiovascularAge,
-    IReadOnlyList<OuraSleepPeriod> MainSleeps);
+    IReadOnlyList<OuraSleepPeriod> MainSleeps)
+{
+    /// <summary>The Apple Watch's VO2max estimates from Health, one per day — kept apart from Oura's.</summary>
+    public IReadOnlyList<DayValue> AppleWatchVo2Max { get; init; } = [];
+}
 
 /// <summary>A ring workout left out of the sessions, the day Oura filed it under, and why.</summary>
 public sealed record Exclusion(DateOnly Day, WorkoutCategory Category, WorkoutExclusion Reason);
 
 /// <summary>The cardio sessions among the logged sessions and the ring's workouts, and what was left out.</summary>
-public sealed record CardioGathering(IReadOnlyList<GatheredSession> Sessions, IReadOnlyList<Exclusion> Excluded);
+/// <param name="Sessions">Sessions on their own record: the log's, and what the athlete entered on the ring.</param>
+/// <param name="Unproven">The ring's guesses, and workouts nobody named: sessions only if their heart rate shows training.</param>
+public sealed record CardioGathering(
+    IReadOnlyList<GatheredSession> Sessions, IReadOnlyList<GatheredSession> Unproven, IReadOnlyList<Exclusion> Excluded)
+{
+    /// <summary>Every session whose heart rate has to be read: those already sessions and those waiting on it.</summary>
+    public IEnumerable<GatheredSession> Candidates => Sessions.Concat(Unproven);
+}
 
 /// <summary>
 /// The cardio report as a function of what was read.
@@ -39,8 +50,8 @@ public sealed record CardioGathering(IReadOnlyList<GatheredSession> Sessions, IR
 /// <remarks>
 /// Pure, so every rule in it — which workouts are sessions, how a gap in the series is counted,
 /// which maximum the zones are drawn from — is tested without a database. The steps, in order:
-/// gather the sessions, read each one's heart rate, settle the maximum, draw the zones, then sum
-/// the weeks and compare the windows.
+/// gather the sessions, read each one's heart rate, settle the maximum, draw the zones, judge the
+/// ring's guesses by them, then sum the weeks and compare the windows.
 /// </remarks>
 public static class CardioAnalysis
 {
@@ -69,22 +80,38 @@ public static class CardioAnalysis
 
     public static CardioReport Build(CardioInputs inputs)
     {
-        var withSamples = inputs.Sessions.Sessions
-            .Select(session => (Session: session, Read: HeartRateRead(inputs, session)))
+        var read = inputs.Sessions.Sessions.Select(session => (Session: session, OnRecord: true))
+            .Concat(inputs.Sessions.Unproven.Select(session => (Session: session, OnRecord: false)))
+            .Select(candidate => (candidate.Session, candidate.OnRecord, Read: HeartRateRead(inputs, candidate.Session)))
             .ToList();
 
+        // Read from every candidate, the ring's guesses included: a rate the athlete reached is
+        // evidence about his maximum whatever the activity was called.
         var maximum = MaxHeartRate.Estimate(
-            inputs.Age, Peak(withSamples.Select(pair => (pair.Session, pair.Read.Samples)), inputs.Range.To));
-        var sessions = withSamples
-            .Select(pair => new CardioSession(
-                pair.Session.Source,
-                pair.Session.Start,
-                pair.Session.End,
-                pair.Session.DistanceMeters,
-                HeartRateOf(pair.Session, pair.Read.Samples, pair.Read.Source, maximum)))
-            .OrderBy(session => session.Start)
+            inputs.Age, Peak(read.Select(candidate => (candidate.Session, candidate.Read.Samples)), inputs.Range.To));
+        var judged = read
+            .Select(candidate => Judged(
+                candidate.Session,
+                candidate.OnRecord,
+                HeartRateOf(candidate.Session, candidate.Read.Samples, candidate.Read.Source, maximum)))
+            .OrderBy(candidate => candidate.Session.Start)
             .ToList();
 
+        var sessions = judged
+            .Where(candidate => candidate.Verdict is TrainingVerdict.Training)
+            .Select(candidate => candidate.Session)
+            .ToList();
+        // Workouts whose heart rate could not be read are session time with nothing behind it:
+        // they keep a window's zone 2 unknown rather than reading as a window with no training.
+        var unread = judged
+            .Where(candidate => candidate.Verdict is TrainingVerdict.Unread)
+            .Select(candidate => candidate.Session)
+            .ToList();
+        var declined = judged
+            .Where(candidate => candidate.Verdict is not TrainingVerdict.Training
+                                && Within(inputs.Range, LocalDay(candidate.Session.Start)))
+            .Select(candidate => new DeclinedWorkout(candidate.Session, ExclusionOf(candidate.Verdict)))
+            .ToList();
         var inRange = sessions.Where(session => Within(inputs.Range, LocalDay(session.Start))).ToList();
 
         return new CardioReport(
@@ -95,35 +122,67 @@ public static class CardioAnalysis
             Points(inputs.Range, inputs.Vo2Max.Select(estimate => (estimate.Day, (double?)estimate.Reading.Vo2Max))),
             Points(inputs.Range, inputs.CardiovascularAge.Select(age => (age.Day, (double?)age.Reading.VascularAge))),
             Points(inputs.Range, inputs.MainSleeps.Select(night => (night.Day, RestingRate(night.Reading)))),
-            AerobicBaseOf(inputs, sessions, maximum),
+            AerobicBaseOf(inputs, sessions, unread, maximum),
             [.. inputs.Sessions.Excluded
                 .Where(excluded => Within(inputs.Range, excluded.Day))
+                .Concat(declined.Select(workout => new Exclusion(
+                    LocalDay(workout.Session.Start), CategoryOf(workout.Session.Source), workout.Reason)))
                 .GroupBy(excluded => (excluded.Category, excluded.Reason))
                 .OrderByDescending(group => group.Count())
-                .Select(group => new ExcludedWorkouts(group.Key.Category, group.Key.Reason, group.Count()))]);
+                .Select(group => new ExcludedWorkouts(group.Key.Category, group.Key.Reason, group.Count()))],
+            declined)
+        {
+            AppleWatchVo2Max = Points(inputs.Range, inputs.AppleWatchVo2Max.Select(estimate => (estimate.Day, (double?)estimate.Value))),
+        };
     }
+
+    /// <summary>A gathered session with its heart rate, and whether it counts: on its own record, or by its heart rate.</summary>
+    private static (CardioSession Session, TrainingVerdict Verdict) Judged(
+        GatheredSession gathered, bool onRecord, SessionHeartRate heartRate) =>
+        (new CardioSession(gathered.Source, gathered.Start, gathered.End, gathered.DistanceMeters, heartRate),
+         onRecord ? TrainingVerdict.Training : TrainingEvidence.Judge(heartRate));
+
+    private static WorkoutExclusion ExclusionOf(TrainingVerdict verdict) => verdict switch
+    {
+        TrainingVerdict.Unread => WorkoutExclusion.HeartRateUnread,
+        TrainingVerdict.BelowTraining => WorkoutExclusion.HeartRateBelowTraining,
+        TrainingVerdict.Training => throw new System.Diagnostics.UnreachableException("Training is admitted, not declined."),
+        _ => throw new System.Diagnostics.UnreachableException(),
+    };
+
+    /// <summary>The category of an unproven session, which only the ring's workouts can be.</summary>
+    private static WorkoutCategory CategoryOf(CardioSessionSource source) => source switch
+    {
+        CardioSessionSource.RingWorkout ring => ring.Category,
+        _ => throw new System.Diagnostics.UnreachableException("Only a ring workout needs its heart rate to show training."),
+    };
 
     // ---- Gathering the sessions ----
 
     /// <summary>
-    /// The logged cardio sessions, then every ring workout that is cardio and is not one of them.
+    /// The logged cardio sessions, then every ring workout that is cardio and is not one of them —
+    /// taken at its name, or waiting on its heart rate.
     /// </summary>
     /// <remarks>
     /// A ring workout inside a logged lifting session is that lifting session as the ring saw it, so
     /// it is excluded rather than counted as cardio. Inside a logged run, it is the run, already
-    /// counted (<see cref="SessionMatching"/>).
+    /// counted (<see cref="SessionMatching"/>). A logged walk shorter than a session walk is left
+    /// out as the ring's would be.
     /// </remarks>
     public static CardioGathering Gather(
         IReadOnlyList<OuraWorkout> ringWorkouts, IReadOnlyList<CompletedTrainingSession> logged)
     {
-        var fromLog = logged
-            .Where(SessionMatching.IsCardio)
+        var cardio = logged.Where(SessionMatching.IsCardio).ToList();
+        var shortWalks = cardio.Where(IsShortWalk).ToList();
+        var fromLog = cardio
+            .Except(shortWalks)
             .Select(session => SessionMatching.Span(session.Period) is { } span
                 ? new GatheredSession(
                     new CardioSessionSource.LoggedSession(
                         session.TrainingSessionId,
                         session.Sets.OfType<TrailRunSet>().Any(),
-                        session.Source is SessionSource.AppleHealth),
+                        session.Source is SessionSource.AppleHealth,
+                        session.Sets.EnduranceActivity),
                     span.Start,
                     span.End,
                     DistanceMeters(session))
@@ -136,15 +195,31 @@ public static class CardioAnalysis
 
         return new CardioGathering(
             [.. fromLog, .. decided.OfType<RingDecision.Session>().Select(decision => decision.Gathered)],
-            [.. decided.OfType<RingDecision.Excluded>().Select(decision => decision.Exclusion)]);
+            [.. decided.OfType<RingDecision.Unproven>().Select(decision => decision.Gathered)],
+            [
+                .. shortWalks.Select(walk => new Exclusion(walk.Date, WorkoutCategory.Walk, WorkoutExclusion.ShortWalk)),
+                .. decided.OfType<RingDecision.Excluded>().Select(decision => decision.Exclusion),
+            ]);
     }
 
-    /// <summary>What becomes of one ring workout: a session of its own, or excluded for a reason.</summary>
+    /// <summary>
+    /// A logged session that is only walking, shorter than a walk has to be to count as a session —
+    /// a watch's walk held to the rule the ring's walks are (<see cref="WorkoutCategories.SessionWalk"/>).
+    /// </summary>
+    private static bool IsShortWalk(CompletedTrainingSession session) =>
+        session.Sets.Where(set => set is TrailRunSet or EnduranceSet or DistanceTimeSet)
+            .All(set => set is EnduranceSet { Activity: EnduranceActivity.Walk })
+        && SessionMatching.Span(session.Period) is { } span
+        && span.End - span.Start < WorkoutCategories.SessionWalk;
+
+    /// <summary>What becomes of one ring workout: a session, a session if its heart rate shows one, or excluded.</summary>
     private abstract record RingDecision
     {
         private RingDecision() { }
 
         public sealed record Session(GatheredSession Gathered) : RingDecision;
+
+        public sealed record Unproven(GatheredSession Gathered) : RingDecision;
 
         public sealed record Excluded(Exclusion Exclusion) : RingDecision;
     }
@@ -152,6 +227,7 @@ public static class CardioAnalysis
     private static RingDecision Decide(OuraWorkout workout, IReadOnlyList<CompletedTrainingSession> logged)
     {
         var category = WorkoutCategories.Of(workout.Reading.Activity);
+        var entry = WorkoutCategories.EntryOf(workout.Reading.Source);
         RingDecision Excluded(WorkoutExclusion reason) =>
             new RingDecision.Excluded(new Exclusion(workout.Day, category, reason));
 
@@ -165,25 +241,19 @@ public static class CardioAnalysis
             default: throw new System.Diagnostics.UnreachableException();
         }
 
-        if (WorkoutCategories.IsCardioSession(category, span.End - span.Start))
-        {
-            return new RingDecision.Session(new GatheredSession(
-                new CardioSessionSource.RingWorkout(workout.OuraId, workout.Reading.Activity, category),
-                span.Start,
-                span.End,
-                workout.Reading.DistanceMeters));
-        }
+        var gathered = new GatheredSession(
+            new CardioSessionSource.RingWorkout(workout.OuraId, workout.Reading.Activity, category, entry),
+            span.Start,
+            span.End,
+            workout.Reading.DistanceMeters);
 
-        return Excluded(category switch
+        return WorkoutCategories.AdmissionOf(category, span.End - span.Start, entry) switch
         {
-            WorkoutCategory.Walk => WorkoutExclusion.ShortWalk,
-            WorkoutCategory.Strength => WorkoutExclusion.Strength,
-            WorkoutCategory.Incidental => WorkoutExclusion.NotTraining,
-            WorkoutCategory.Unrecognised => WorkoutExclusion.Unclassified,
-            // Always sessions; IsCardioSession answered above.
-            WorkoutCategory.Endurance or WorkoutCategory.Sport => throw new System.Diagnostics.UnreachableException(),
+            RingAdmission.Session => new RingDecision.Session(gathered),
+            RingAdmission.OnHeartRate => new RingDecision.Unproven(gathered),
+            RingAdmission.Excluded excluded => Excluded(excluded.Reason),
             _ => throw new System.Diagnostics.UnreachableException(),
-        });
+        };
     }
 
     private static double? DistanceMeters(CompletedTrainingSession session)
@@ -192,6 +262,7 @@ public static class CardioAnalysis
             .Select(set => set switch
             {
                 TrailRunSet run => run.Distance * run.Unit.MetersEach(),
+                EnduranceSet endurance => endurance.Distance * endurance.Unit.MetersEach(),
                 DistanceTimeSet timed => timed.Distance * timed.Unit.MetersEach(),
                 _ => (double?)null,
             })
@@ -302,8 +373,9 @@ public static class CardioAnalysis
     public static DateOnly WeekStarting(DateOnly day) =>
         day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
 
+    /// <param name="unread">Workouts declined for too little heart rate: in no figure, but session time with nothing behind it.</param>
     private static AerobicBase AerobicBaseOf(
-        CardioInputs inputs, IReadOnlyList<CardioSession> sessions, MaxHeartRate? maximum)
+        CardioInputs inputs, IReadOnlyList<CardioSession> sessions, IReadOnlyList<CardioSession> unread, MaxHeartRate? maximum)
     {
         var recent = new DayRange(inputs.Range.To.AddDays(1 - 7 * AerobicBase.RecentWeeks), inputs.Range.To);
         var before = new DayRange(
@@ -325,7 +397,8 @@ public static class CardioAnalysis
             if (maximum is null) return null;
 
             var held = In(window);
-            var total = held.Sum(session => session.Minutes);
+            var total = held.Sum(session => session.Minutes)
+                        + unread.Where(session => Within(window, LocalDay(session.Start))).Sum(session => session.Minutes);
             var covered = held
                 .Where(session => session.HeartRate is SessionHeartRate.Recorded)
                 .Sum(session => session.Minutes);
@@ -348,7 +421,10 @@ public static class CardioAnalysis
             Compare(window => PerWeek(window, session => session.Minutes)),
             Compare(window => Mean(window, inputs.Vo2Max.Select(estimate => (estimate.Day, (double?)estimate.Reading.Vo2Max)))),
             Compare(window => Mean(window, inputs.MainSleeps.Select(night => (night.Day, RestingRate(night.Reading))))),
-            Compare(window => Mean(window, inputs.CardiovascularAge.Select(age => (age.Day, (double?)age.Reading.VascularAge)))));
+            Compare(window => Mean(window, inputs.CardiovascularAge.Select(age => (age.Day, (double?)age.Reading.VascularAge)))))
+        {
+            AppleWatchVo2Max = Compare(window => Mean(window, inputs.AppleWatchVo2Max.Select(estimate => (estimate.Day, (double?)estimate.Value)))),
+        };
     }
 
     /// <summary>

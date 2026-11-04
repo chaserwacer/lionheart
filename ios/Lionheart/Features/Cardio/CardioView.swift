@@ -90,9 +90,14 @@ struct CardioView: View {
     private func content(_ report: CardioReport, staleBecause staleness: Staleness?) -> some View {
         if let staleness { StaleBanner(staleness) }
 
+        ZoneSplitSection(report: report, span: span)
         weeksSection(report)
+        CardioRunsSection(report: report)
         estimatesSection(report)
         sessionsSection(report)
+        if !report.declined.isEmpty {
+            DeclinedWorkoutsSection(declined: report.declined, span: span)
+        }
         Section {
             Button("How zones are set, and what is left out") { isMethodShown = true }
         }
@@ -261,6 +266,7 @@ struct CardioView: View {
             ("Sessions", Self.number(Double(shown.reduce(0) { $0 + $1.sessions }) / weeks, digits: week == nil ? 1 : 0)),
             ("Minutes", Self.number(shown.reduce(0) { $0 + $1.minutes } / weeks)),
             ("Zone 2 min", Self.number(shown.reduce(0) { $0 + $1.zones.zone2 } / weeks)),
+            ("Z3–5 min", Self.number(shown.reduce(0) { $0 + $1.zones.zone3 + $1.zones.zone4 + $1.zones.zone5 } / weeks)),
         ]
         return VStack(alignment: .leading, spacing: 6) {
             Text(caption).font(.subheadline).foregroundStyle(Color(.secondaryLabel))
@@ -307,6 +313,11 @@ struct CardioView: View {
             trendSection(
                 "VO₂max, ml/kg/min", points: report.vo2Max, smooths: false,
                 footer: "Oura's estimate from heart rate and walking, not a test, issued on the days it has walking to work from. Read the trend, not the number.")
+        }
+        if !report.appleWatchVo2Max.isEmpty {
+            trendSection(
+                "VO₂max, Apple Watch, ml/kg/min", points: report.appleWatchVo2Max, smooths: false,
+                footer: "The watch's estimate from heart rate against pace on outdoor walks, runs and hikes. Its own line, apart from Oura's: two devices' models of one figure.")
         }
         trendSection(
             "Lowest night heart rate, bpm", points: report.restingHeartRate, smooths: true,
@@ -366,11 +377,11 @@ struct CardioView: View {
 
     // MARK: - Sessions
 
-    /// A run imported from Apple Health opens onto its own page, which has the route and the
+    /// A workout imported from Apple Health opens onto its own page, which has the route and the
     /// recording app's heart rate; every other session onto its heart-rate curve.
     private func route(to session: CardioSession) -> BodyRoute {
         switch session.source {
-        case .loggedSession(let id, _, isRecorded: true): .run(id)
+        case .loggedSession(let id, _, isRecorded: true, _): .run(id)
         case .loggedSession, .ringWorkout, .unrecognised: .cardioSession(session.id, span)
         }
     }
@@ -389,10 +400,8 @@ struct CardioView: View {
         } header: {
             Text("Sessions")
         } footer: {
-            if !report.excluded.isEmpty {
-                Text("Left out: " + report.excluded
-                    .map { "\($0.count) \($0.reason.phrase)" }
-                    .joined(separator: ", ") + ".")
+            if let leftOut = LeftOut.sentence(report.excluded) {
+                Text("Left out: \(leftOut).")
             }
         }
     }
@@ -415,9 +424,10 @@ private struct CardioMethodSheet: View {
                     Text(Self.zones(report?.maxHeartRate))
                 }
                 Section("What counts as a session") {
-                    Text("Your logged runs and distance work, and the workouts the ring recorded. A ring workout is left out when it is housework, yard work or stretching, a walk under 30 minutes, strength work, or at least half inside a logged session — which is that session as the ring saw it.")
-                    if let excluded = report?.excluded, !excluded.isEmpty {
-                        Text("Left out in this span: " + excluded.map { "\($0.count) \($0.reason.phrase)" }.joined(separator: ", ") + ".")
+                    Text("Your logged runs and distance work, runs imported from Apple Health, and the workouts you entered on the ring. A ring workout is left out when it is housework, yard work or stretching, a walk under 30 minutes, strength work, or at least half inside a logged session — which is that session as the ring saw it.")
+                    Text("A workout the ring detected on its own — and any nobody named — counts only when its heart rate shows training: at least half of it read, 20 minutes at zone 2 or above or 10 at zone 3 or above, and zone 2 or above for at least half the time read. Its name is a guess you approved; its heart rate is the evidence. Each one left out is listed with its heart rate at the foot of the screen.")
+                    if let leftOut = report.flatMap({ LeftOut.sentence($0.excluded) }) {
+                        Text("Left out in this span: \(leftOut).")
                             .foregroundStyle(Color(.secondaryLabel))
                     }
                     Text("Each session's heart rate is the ring's all-day heart rate across its clock time. A session with no samples synced has no zones.")

@@ -53,6 +53,7 @@ struct MetricTrendView: View {
             case .stale(let trend, let staleness):
                 content(trend, staleBecause: staleness)
             }
+            AppleWatchHistoryLink(metric: metric)
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)
@@ -142,6 +143,19 @@ struct MetricTrendView: View {
             }
         }
         .chartYScale(domain: .automatic(includesZero: false))
+        .chartYAxis {
+            // Time asleep is stored in seconds; its axis reads in hours, as the figure does.
+            if metric == .sleepDuration {
+                AxisMarks(values: .stride(by: 3600)) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let seconds = value.as(Double.self) { Text("\(Int((seconds / 3600).rounded())) h") }
+                    }
+                }
+            } else {
+                AxisMarks()
+            }
+        }
         .chartXSelection(value: $selectedDate)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { value in

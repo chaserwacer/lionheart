@@ -1,5 +1,6 @@
 using System.Text.Json;
 using lionheart.Model.Health;
+using lionheart.Model.Health.Measurements;
 using lionheart.Model.Oura.Readings;
 using lionheart.Model.User;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +10,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace lionheart.Data;
 
 /// <summary>
-/// EF mapping for what Apple Health workouts bring beyond the sessions they become: the recording
-/// app's route and heart rate.
+/// EF mapping for what Apple Health brings: the recording app's route, heart rate and other metrics
+/// beside the sessions its workouts become, the workouts whose sessions were deleted, and the days of
+/// figures Apple's devices measured.
 /// </summary>
 /// <remarks>
 /// <b>Stored column by column, not fix by fix.</b> A route is read and written whole and an hour of
@@ -18,7 +20,7 @@ namespace lionheart.Data;
 /// start instant (<c>{"start":…,"ticks":[…],"latitude":[…],"longitude":[…],"altitude":[…]}</c>)
 /// rather than an object per fix, which repeats four property names and a full timestamp three
 /// thousand times. That is under half the size: roughly 150 KB for an hour's run at one fix a
-/// second instead of 350. The heart rate is stored the same way. The domain never sees the storage
+/// second instead of 350. The heart rate and each metric are stored the same way. The domain never sees the storage
 /// form; the converters here are the only code that does.
 /// <para>
 /// No foreign key to the session. A session is rewritten by delete-then-insert whenever it is
@@ -39,6 +41,34 @@ public static class HealthConfiguration
 
             recording.Property(r => r.Route).HasStoredForm(StoredRoute.Of, stored => stored.ToRoute());
             recording.Property(r => r.HeartRate).HasStoredForm(StoredHeartRate.Of, stored => stored.ToHeartRate());
+            recording.Property(r => r.Metrics).HasStoredForm(StoredMetric.Of, StoredMetric.ToMetrics).HasDefaultValueSql("'[]'");
+        });
+
+        modelBuilder.Entity<DeletedHealthWorkout>(deleted =>
+        {
+            deleted.ToTable("DeletedHealthWorkouts");
+            deleted.HasKey(d => new { d.UserId, d.WorkoutId });
+            deleted.HasOne<LionheartUser>().WithMany().HasForeignKey(d => d.UserId);
+        });
+
+        // The figure, device and day are the identity: a day offered again restates its row, and
+        // the key makes a second one for the same day unrepresentable. Names rather than ordinals,
+        // so the table reads in a SQL shell and a reordered enum cannot change what a row means.
+        modelBuilder.Entity<HealthDailyMeasure>(measure =>
+        {
+            measure.ToTable("HealthDailyMeasures");
+            measure.HasKey(m => new { m.UserId, m.Metric, m.Device, m.Day });
+            measure.HasOne<LionheartUser>().WithMany().HasForeignKey(m => m.UserId);
+            measure.Property(m => m.Metric).HasConversion<string>().HasMaxLength(32);
+            measure.Property(m => m.Device).HasConversion<string>().HasMaxLength(16);
+
+            measure.ComplexProperty(m => m.Aggregate, aggregate =>
+            {
+                aggregate.Property(a => a.Mean).HasColumnName("Mean");
+                aggregate.Property(a => a.Minimum).HasColumnName("Minimum");
+                aggregate.Property(a => a.Maximum).HasColumnName("Maximum");
+                aggregate.Property(a => a.Count).HasColumnName("Count");
+            });
         });
     }
 
@@ -78,6 +108,25 @@ public static class HealthConfiguration
         public WorkoutRoute ToRoute() =>
             new([.. Ticks.Select((ticks, index) =>
                 new RoutePoint(Start.AddTicks(ticks), Latitude[index], Longitude[index], Altitude[index]))]);
+    }
+
+    /// <summary>Each metric's series as parallel arrays from its first sample.</summary>
+    private sealed record StoredMetric(WorkoutMetric Metric, DateTimeOffset Start, long[] Ticks, double[] Values)
+    {
+        public static IReadOnlyList<StoredMetric> Of(RecordedMetrics metrics) =>
+        [
+            .. metrics.Series.Select(series => new StoredMetric(
+                series.Metric,
+                series.Samples[0].At,
+                [.. series.Samples.Select(sample => (sample.At - series.Samples[0].At).Ticks)],
+                [.. series.Samples.Select(sample => sample.Value)])),
+        ];
+
+        public static RecordedMetrics ToMetrics(IReadOnlyList<StoredMetric> stored) =>
+            RecordedMetrics.Of(
+                from series in stored
+                from index in Enumerable.Range(0, series.Ticks.Length)
+                select (series.Metric, series.Start.AddTicks(series.Ticks[index]), series.Values[index]));
     }
 
     /// <summary>A heart-rate trace as parallel arrays from its first sample.</summary>

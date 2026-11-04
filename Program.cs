@@ -34,14 +34,16 @@ using lionheart.Services.Strong;
 using lionheart.Services.CoachedSheets;
 using lionheart.Services.Chat.Memory;
 using lionheart.Services.Chat.Thread;
+using lionheart.Services.Chat.Today;
 using lionheart.Services.BodyComposition;
 using lionheart.Services.Health.Import;
-using lionheart.Services.Health.Runs;
+using lionheart.Services.Health.Measurements;
+using lionheart.Services.Health.Recordings;
 
 // Load .env into the process environment before the host reads configuration, so the Llm__,
 // Anthropic__, LmStudio__ and Embedding__ keys flow through the default environment-variable
-// provider (which maps "__" to ":").
-DotNetEnv.Env.TraversePath().Load();
+// provider (which maps "__" to ":"). A variable already set on the process wins over the file.
+EnvironmentFile.Load();
 
 // A one-off command runs instead of the server, and before it is built: the web host refuses to
 // start without LM Studio configured, which an import has no use for.
@@ -75,6 +77,11 @@ if (args is [ScoreCalibrationCommand.Verb, ..])
     return await ScoreCalibrationCommand.RunAsync(args, CancellationToken.None);
 }
 
+if (args is [OuraSyncCommand.Verb, ..])
+{
+    return await OuraSyncCommand.RunAsync(args, CancellationToken.None);
+}
+
 if (args is [AddScanCommand.Verb, ..])
 {
     return await AddScanCommand.RunAsync(args, CancellationToken.None);
@@ -100,7 +107,7 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
 // request that needs a model. The two are independent: Anthropic has no embeddings endpoint, so
 // "chat on Anthropic, embeddings on a local OpenAI-compatible server" is the expected production
 // shape, not a fallback.
-var llm = LlmConfiguration.Read(configuration).Match(
+var llm = LlmConfiguration.Read(configuration, builder.Environment.EnvironmentName).Match(
     valid => valid,
     problem => throw new InvalidOperationException(
         $"Language-model configuration is incomplete. {problem.Description}"));
@@ -149,6 +156,7 @@ builder.Services.AddTransient<IChatMessageService, ChatMessageService>();
 builder.Services.AddTransient<IChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
 builder.Services.AddTransient<ChatSystemPrompt>();
+builder.Services.AddTransient<ITodayBriefing, TodayBriefingService>();
 builder.Services.AddTransient<IChatThreadService, ChatThreadService>();
 builder.Services.AddTransient<ISessionConsolidator, SessionConsolidator>();
 builder.Services.AddTransient<IChatMemoryService, ChatMemoryService>();
@@ -166,7 +174,10 @@ builder.Services.AddTransient<IInterpretationEngine, InterpretationEngine>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
 builder.Services.AddTransient<IHealthWorkoutImportService, HealthWorkoutImportService>();
-builder.Services.AddTransient<IRecordedRunService, RecordedRunService>();
+builder.Services.AddTransient<IRecordedWorkoutService, RecordedWorkoutService>();
+builder.Services.AddTransient<IHealthMeasureService, HealthMeasureService>();
+builder.Services.AddTransient<IHealthBodyweightImportService, HealthBodyweightImportService>();
+builder.Services.AddTransient<IHealthBirthDateService, HealthBirthDateService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
 builder.Services.AddTransient<IFocusPinService, FocusPinService>();
 builder.Services.AddSingleton(_ => MovementPatternMap.Shipped);

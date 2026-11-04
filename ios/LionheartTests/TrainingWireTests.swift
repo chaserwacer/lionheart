@@ -75,6 +75,33 @@ struct SetCommandWireTests {
         #expect(json["movementDataId"] == nil)
     }
 
+    @Test("An imported ride decodes as an endurance set and states itself back whole")
+    func anEnduranceSetRoundTripsThroughACorrection() throws {
+        let entry = try Decoding.decode(SetEntry.self, """
+            {"$type":"endurance","activity":"ride","distance":42.5,"unit":3,"duration":"01:35:00",
+             "elevationGainMeters":380,"rpe":null,"source":{"$type":"formed"},"facets":[]}
+            """)
+
+        let command = try #require(entry.command)
+        let json = try Self.encoded(command)
+
+        #expect(command == .endurance(SetCommand.Endurance(
+            activity: .ride, distance: 42.5, unit: .kilometers, duration: 5700, elevationGainMeters: 380, rpe: .unrated)))
+        #expect(json["$type"] as? String == "endurance")
+        #expect(json["activity"] as? String == "ride")
+        #expect(json["duration"] as? String == "01:35:00")
+    }
+
+    @Test("An endurance set of an activity this build does not know cannot be stated back")
+    func anUnknownActivityHasNoCommand() throws {
+        let entry = try Decoding.decode(SetEntry.self, """
+            {"$type":"endurance","activity":"paddle","distance":5,"unit":3,"duration":"00:40:00",
+             "elevationGainMeters":0,"rpe":null,"source":{"$type":"formed"},"facets":[]}
+            """)
+
+        #expect(entry.command == nil)
+    }
+
     @Test("A freeform set sends its words, which are the whole record")
     func freeformEncodesItsText() throws {
         let json = try Self.encoded(.freeform(text: "ten minutes of hip mobility"))
@@ -105,6 +132,9 @@ struct SetCommandWireTests {
             .trailRun(SetCommand.TrailRun(
                 distance: 10, unit: .kilometers, duration: 3900,
                 elevationGainMeters: -40, rpe: .rated(7))),
+            .endurance(SetCommand.Endurance(
+                activity: .indoorRide, distance: 24.5, unit: .kilometers, duration: 2700,
+                elevationGainMeters: 0, rpe: .unrated)),
             .freeform(text: "some words"),
         ]
 

@@ -22,25 +22,26 @@ enum HealthOfferReply: Equatable, Sendable {
 enum HealthWorkoutExclusion: Hashable, Sendable {
     /// Written by an app Lionheart reads by its own route — Oura or Strong.
     case readDirectly
-    case notARun
-    /// A treadmill run.
-    case indoor
+    /// Not a run, ride, hike or walk: elliptical, stairs and the rest.
+    case otherActivity
     case noDistance
-    /// The same run as one already in the log.
+    /// The same session as one already in the log — another app's copy of it, or a logged one.
     case sameAsLoggedRun
     /// Inside a logged lifting session.
     case insideLoggedLifting
+    /// Imported once, then deleted from the log.
+    case deleted
     case unrecognised(String)
 
     /// The reason as a phrase after a count: "2 recorded by Oura or Strong".
     var phrase: String {
         switch self {
         case .readDirectly: "recorded by Oura or Strong, which Lionheart reads directly"
-        case .notARun: "not runs"
-        case .indoor: "on a treadmill"
+        case .otherActivity: "of a kind Lionheart does not take"
         case .noDistance: "with no distance"
-        case .sameAsLoggedRun: "already logged as a run"
+        case .sameAsLoggedRun: "already in the log"
         case .insideLoggedLifting: "inside a logged lifting session"
+        case .deleted: "deleted from the log"
         case .unrecognised(let wire): wire
         }
     }
@@ -48,11 +49,11 @@ enum HealthWorkoutExclusion: Hashable, Sendable {
     init(wire: String) {
         switch wire {
         case "readDirectly": self = .readDirectly
-        case "notARun": self = .notARun
-        case "indoor": self = .indoor
+        case "otherActivity": self = .otherActivity
         case "noDistance": self = .noDistance
         case "sameAsLoggedRun": self = .sameAsLoggedRun
         case "insideLoggedLifting": self = .insideLoggedLifting
+        case "deleted": self = .deleted
         default: self = .unrecognised(wire)
         }
     }

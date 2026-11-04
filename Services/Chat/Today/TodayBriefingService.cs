@@ -1,0 +1,328 @@
+using System.Globalization;
+using System.Text.Json;
+using lionheart.Data;
+using lionheart.Functional;
+using lionheart.Model.Analysis;
+using lionheart.Model.Cardio;
+using lionheart.Model.Training;
+using lionheart.Model.Training.Patterns;
+using lionheart.Model.Training.Sessions;
+using lionheart.Model.Training.Sets;
+using lionheart.Services.Cardio;
+using lionheart.Services.Llm;
+using lionheart.Services.Training.Balance;
+using lionheart.Services.Training.Patterns;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Model.Tools;
+
+namespace lionheart.Services.Chat.Today;
+
+/// <summary>The briefing a chat message is sent with.</summary>
+public interface ITodayBriefing
+{
+    /// <summary>
+    /// The athlete's day as of now. Total: when the facts cannot be read it still states the date
+    /// and time, which is the one thing a briefing must never leave the model to guess.
+    /// </summary>
+    Task<string> ForAsync(IdentityUser user, CancellationToken ct);
+}
+
+/// <summary>Reads the facts <see cref="TodayBriefing"/> renders, fresh for every message.</summary>
+/// <remarks>
+/// Not cached, unlike the context card, because the questions it answers ("did I train today", "how
+/// did I sleep") are exactly the ones a cached copy gets wrong an hour after the athlete logs a
+/// session or the ring syncs a night. It is not cheap — the training log, a week of cardio, and the
+/// score, which reads both again — but for one athlete it is a few hundred milliseconds against a
+/// model call of tens of seconds.
+/// </remarks>
+public sealed class TodayBriefingService(
+    ModelContext context,
+    ICardioReportService cardio,
+    ChatToolCallExecutor tools,
+    MovementPatternMap map,
+    TimeProvider clock,
+    ILogger<TodayBriefingService> logger) : ITodayBriefing
+{
+    /// <summary>The nights the sleep baseline is drawn from.</summary>
+    private const int BaselineNights = 60;
+
+    /// <summary>The days readiness's usual range is drawn from, and the fewest that make one.</summary>
+    private const int UsualRangeDays = 90;
+    private const int FewestUsualDays = 30;
+
+    private readonly ModelContext _context = context;
+    private readonly ICardioReportService _cardio = cardio;
+    private readonly ChatToolCallExecutor _tools = tools;
+    private readonly MovementPatternMap _map = map;
+    private readonly TimeProvider _clock = clock;
+    private readonly ILogger _logger = logger;
+
+    /// <remarks>
+    /// The catch-all is the briefing's contract, the same one the context card keeps: it is context,
+    /// and a message whose context cannot be read is still answered, with the tools.
+    /// </remarks>
+    public async Task<string> ForAsync(IdentityUser user, CancellationToken ct)
+    {
+        var now = AthleteNow.Of(_clock);
+        try
+        {
+            return TodayBriefing.Render(await ReadAsync(user, Guid.Parse(user.Id), now, ct));
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger.LogWarning(exception, "Today's briefing could not be read; the message goes with the clock alone.");
+            return TodayBriefing.ClockOnly(now);
+        }
+    }
+
+    private async Task<TodayFacts> ReadAsync(IdentityUser user, Guid userId, AthleteNow now, CancellationToken ct)
+    {
+        var today = now.Today;
+        var from = now.WeekStart < now.Yesterday ? now.WeekStart : now.Yesterday;
+
+        var log = await _context.ReadAsync(userId, today, _map, ct);
+        var cardio = await CardioAsync(user, new DayRange(from, today), ct);
+        var nights = await NightsAsync(userId, today, ct);
+
+        return new TodayFacts(
+            now,
+            await SessionsAsync(log, from, today, cardio.LoggedSessionIds, ct),
+            cardio.Days,
+            Load(log, today),
+            [.. nights.Where(night => night.Day >= today.AddDays(-1)).OrderByDescending(night => night.Day)],
+            Baseline(nights, today),
+            await ReadinessAsync(userId, today, ct),
+            await MeansAsync(userId, today, ct),
+            await WellnessAsync(userId, today, ct),
+            await InjuriesAsync(userId, ct),
+            await PlannedAsync(userId, log, today, ct),
+            await ScoreAsync(user, today, ct));
+    }
+
+    // ---- Training ----
+
+    /// <summary>
+    /// The completed sessions in the window, from the training log the score reads, with their
+    /// clock times. A session of only cardio sets that the cardio report already counts is left to
+    /// the report's line, which carries its heart rate.
+    /// </summary>
+    private async Task<IReadOnlyList<SessionFact>> SessionsAsync(
+        TrainingLog log, DateOnly from, DateOnly today, IReadOnlySet<Guid> countedAsCardio, CancellationToken ct)
+    {
+        var logged = log.Between(from, today).ToList();
+        var ids = logged.Select(session => session.TrainingSessionId).ToList();
+        var sessions = (await _context.Sessions.OfType<CompletedTrainingSession>()
+                .AsNoTracking()
+                .Where(session => ids.Contains(session.TrainingSessionId))
+                .ToListAsync(ct))
+            .ToDictionary(session => session.TrainingSessionId);
+
+        return [.. logged
+            .Where(entry => sessions.ContainsKey(entry.TrainingSessionId))
+            .Where(entry => entry.HardSets.Count > 0 || !countedAsCardio.Contains(entry.TrainingSessionId))
+            .Select(entry => Session(log, entry, sessions[entry.TrainingSessionId]))
+            .OrderBy(session => session.Start)];
+    }
+
+    private static SessionFact Session(TrainingLog log, SessionInLog entry, CompletedTrainingSession session) =>
+        new(entry.Day,
+            session.Period.StartTime,
+            session.Period is Interval interval ? interval.Duration : TimeSpan.Zero,
+            [.. entry.HardSets
+                .GroupBy(set => set.MovementDataId)
+                .Select(sets => new LiftFact(
+                    log.NameOf(sets.Key),
+                    log.ClassificationOf(sets.Key) is ClassificationStanding.Classified classified ? classified.Family : null,
+                    sets.Count(),
+                    TopSet(sets.MaxBy(set => (log.LoadOf(set, entry.Day), set.Reps))!)))],
+            session.Sets.Any(set => set is DistanceTimeSet or TrailRunSet),
+            session.Effort is EffortReported difficulty ? difficulty.Ratings.DifficultyRating : null,
+            session.Effort is EffortReported fatigue ? fatigue.Ratings.AccumulatedFatigue : null);
+
+    private static string TopSet(LiftSet set) =>
+        string.Create(CultureInfo.InvariantCulture, $"{set.Weight:0.#} {(set.Unit is WeightUnit.Kilograms ? "kg" : "lb")} × {set.Reps}");
+
+    private static LoadFact Load(TrainingLog log, DateOnly today)
+    {
+        var week = log.Between(today.AddDays(-6), today).ToList();
+        var month = log.Between(today.AddDays(-27), today).ToList();
+        return new LoadFact(
+            week.Sum(session => session.HardSets.Count),
+            month.Sum(session => session.HardSets.Count) / 4.0,
+            week.Count,
+            month.Count / 4.0);
+    }
+
+    /// <summary>
+    /// The window's cardio, or that it could not be read: the rest of the briefing still stands, and
+    /// says which.
+    /// </summary>
+    private Task<CardioRead> CardioAsync(IdentityUser user, DayRange range, CancellationToken ct) =>
+        _cardio.GetReportAsync(user, range, ct).MatchAsync(
+            report => new CardioRead(
+                new CardioDays.Read([.. report.Sessions.Select(Cardio)], report.MaxHeartRate),
+                report.Sessions
+                    .Select(session => session.Source)
+                    .OfType<CardioSessionSource.LoggedSession>()
+                    .Select(logged => logged.TrainingSessionId)
+                    .ToHashSet()),
+            problem =>
+            {
+                _logger.LogWarning("The briefing could not read cardio: {Problem}", problem.Description);
+                return new CardioRead(new CardioDays.Unread(), new HashSet<Guid>());
+            });
+
+    /// <param name="LoggedSessionIds">Logged sessions the report counted as cardio, so they are listed once.</param>
+    private sealed record CardioRead(CardioDays Days, IReadOnlySet<Guid> LoggedSessionIds);
+
+    private static CardioFact Cardio(CardioSession session) =>
+        new(DateOnly.FromDateTime(session.Start.DateTime),
+            session.Start,
+            session.Minutes,
+            session.Source switch
+            {
+                CardioSessionSource.RingWorkout ring => ring.Activity.Replace('_', ' '),
+                CardioSessionSource.LoggedSession { IsTrailRun: true } => "logged run",
+                _ => "logged cardio",
+            },
+            session.HeartRate is SessionHeartRate.Recorded recorded ? recorded.AverageBpm : null,
+            session.HeartRate is SessionHeartRate.Recorded { Zones: { } zones } ? zones.Zone2 : null,
+            session.HeartRate is SessionHeartRate.Recorded { Zones: { } fast } ? fast.Zone4 + fast.Zone5 : null);
+
+    private async Task<IReadOnlyList<PlannedFact>> PlannedAsync(Guid userId, TrainingLog log, DateOnly today, CancellationToken ct) =>
+        [.. (await _context.Sessions.OfType<PlannedTrainingSession>()
+                .AsNoTracking()
+                .Where(session => session.UserId == userId)
+                .ToListAsync(ct))
+            .Where(plan => plan.PlannedFor >= today && plan.PlannedFor <= today.AddDays(6))
+            .OrderBy(plan => plan.PlannedFor)
+            .Select(plan => new PlannedFact(
+                plan.PlannedFor,
+                [.. plan.Prescriptions.OfType<LiftPrescription>().Select(lift => log.NameOf(lift.MovementDataId)).Distinct()]))];
+
+    /// <summary>
+    /// The score as the score tool states it, run through the tool itself, so the briefing and the
+    /// tool can never describe one week two ways, whatever shape the score takes.
+    /// </summary>
+    private Task<string> ScoreAsync(IdentityUser user, DateOnly today, CancellationToken ct) =>
+        _tools.ExecuteToolCallAsync(
+                new ToolInvocation("briefing", "GetTrainingScore", JsonSerializer.Serialize(new { from = Iso(today), to = Iso(today) })),
+                user, allowedToolNames: null, ct)
+            .MatchAsync(
+                outcome => outcome.Content is "null" ? string.Empty : outcome.Content,
+                problem =>
+                {
+                    _logger.LogWarning("The briefing could not read the training score: {Problem}", problem.Description);
+                    return string.Empty;
+                });
+
+    private static string Iso(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    // ---- Recovery ----
+
+    /// <summary>Main sleeps from the baseline's first night through today, as Oura filed them.</summary>
+    private async Task<IReadOnlyList<NightFact>> NightsAsync(Guid userId, DateOnly today, CancellationToken ct)
+    {
+        var first = today.AddDays(-BaselineNights - 1);
+        var periods = await _context.OuraSleepPeriods
+            .AsNoTracking()
+            .Where(period => period.UserId == userId && period.Day >= first && period.Day <= today)
+            .ToListAsync(ct);
+        var scores = await _context.OuraDailySleep
+            .AsNoTracking()
+            .Where(sleep => sleep.UserId == userId && sleep.Day >= today.AddDays(-1) && sleep.Day <= today)
+            .ToDictionaryAsync(sleep => sleep.Day, sleep => sleep.Reading.Score, ct);
+
+        return [.. periods
+            .Where(period => period.Reading.IsMainSleep)
+            .GroupBy(period => period.Day)
+            .Select(day => day.MaxBy(period => period.Reading.TotalSleepSeconds)!)
+            .Select(period => new NightFact(
+                period.Day,
+                period.Reading.Period.StartTime,
+                period.Reading.Period is Interval interval ? interval.End : period.Reading.Period.StartTime,
+                period.Reading.TotalSleepSeconds,
+                period.Reading.Efficiency,
+                period.Reading.LowestHeartRate,
+                period.Reading.AverageHrv,
+                scores.GetValueOrDefault(period.Day)))];
+    }
+
+    /// <summary>The nights before the two the briefing states, so neither is measured against itself.</summary>
+    private static NightBaseline Baseline(IReadOnlyList<NightFact> nights, DateOnly today)
+    {
+        var before = nights.Where(night => night.Day < today.AddDays(-1)).ToList();
+        return new NightBaseline(
+            Mean(before.Select(night => night.AverageHrv)),
+            Mean(before.Select(night => night.LowestHeartRate)),
+            before.Count);
+    }
+
+    private async Task<ReadinessFact?> ReadinessAsync(Guid userId, DateOnly today, CancellationToken ct)
+    {
+        var days = await _context.OuraDailyReadiness
+            .AsNoTracking()
+            .Where(day => day.UserId == userId && day.Day >= today.AddDays(-UsualRangeDays) && day.Day <= today)
+            .Select(day => new { day.Day, day.Reading })
+            .ToListAsync(ct);
+
+        if (days.FirstOrDefault(day => day.Day == today)?.Reading is not { } reading) return null;
+
+        var usual = days.Where(day => day.Day < today && day.Reading.Score is not null)
+            .Select(day => day.Reading.Score!.Value)
+            .Order()
+            .ToList();
+        var ranged = usual.Count >= FewestUsualDays;
+
+        return new ReadinessFact(
+            reading.Score,
+            reading.Contributors.HrvBalance,
+            reading.Contributors.RestingHeartRate,
+            reading.TemperatureDeviation,
+            ranged ? Percentile(usual, 0.1) : null,
+            ranged ? Percentile(usual, 0.9) : null);
+    }
+
+    private async Task<WeekMeans> MeansAsync(Guid userId, DateOnly today, CancellationToken ct)
+    {
+        var first = today.AddDays(-6);
+        var readiness = await _context.OuraDailyReadiness.AsNoTracking()
+            .Where(day => day.UserId == userId && day.Day >= first && day.Day <= today)
+            .Select(day => day.Reading.Score)
+            .ToListAsync(ct);
+        var sleep = await _context.OuraDailySleep.AsNoTracking()
+            .Where(day => day.UserId == userId && day.Day >= first && day.Day <= today)
+            .Select(day => day.Reading.Score)
+            .ToListAsync(ct);
+        return new WeekMeans(Mean(readiness), Mean(sleep), Math.Max(readiness.Count, sleep.Count));
+    }
+
+    private async Task<WellnessFact?> WellnessAsync(Guid userId, DateOnly today, CancellationToken ct) =>
+        await _context.WellnessStates.AsNoTracking()
+            .Where(state => state.UserID == userId && state.Date >= today.AddDays(-6) && state.Date <= today)
+            .OrderByDescending(state => state.Date)
+            .Select(state => new WellnessFact(
+                state.Date, state.OverallScore, state.MoodScore, state.EnergyScore, state.StressScore, state.MotivationScore))
+            .FirstOrDefaultAsync(ct);
+
+    private async Task<IReadOnlyList<InjuryFact>> InjuriesAsync(Guid userId, CancellationToken ct) =>
+        await _context.Injuries.AsNoTracking()
+            .Where(injury => injury.UserID == userId && injury.IsActive)
+            .OrderBy(injury => injury.InjuryDate)
+            .Select(injury => new InjuryFact(
+                injury.Name,
+                injury.InjuryEvents.OrderByDescending(e => e.CreationTime).Select(e => (int?)e.PainLevel).FirstOrDefault()))
+            .ToListAsync(ct);
+
+    /// <summary>A reading Oura did not compute is skipped, not averaged in as a zero.</summary>
+    private static double? Mean(IEnumerable<int?> readings)
+    {
+        var present = readings.Where(reading => reading.HasValue).Select(reading => (double)reading!.Value).ToList();
+        return present.Count == 0 ? null : present.Average();
+    }
+
+    /// <summary>Nearest-rank percentile of a sorted list, the rule the readiness notes use.</summary>
+    private static int Percentile(IReadOnlyList<int> sorted, double fraction) =>
+        sorted[(int)Math.Floor(fraction * (sorted.Count - 1))];
+}

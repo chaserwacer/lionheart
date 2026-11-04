@@ -81,12 +81,23 @@ struct ChatComposer: View {
 struct TurnBubble: View {
     let turn: ChatTurn
 
+    /// Whether this is the answer that has just arrived, set down word by word rather than all at
+    /// once (`ChatReveal`). Only ever the newest answer, and never with Reduce Motion on.
+    var revealsOnArrival = false
+
+    /// Told once the answer is fully set down, so the screen stops treating it as arriving.
+    var onRevealed: () -> Void = {}
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var arrivedAt = Date()
+    @State private var isRevealed = false
+
     var body: some View {
         HStack {
             if turn.isFromAthlete { Spacer(minLength: 40) }
 
             VStack(alignment: turn.isFromAthlete ? .trailing : .leading, spacing: 4) {
-                Text(turn.isFromAthlete ? AttributedString(turn.text) : ChatProse.attributed(turn.text))
+                words
                     .font(.body)
                     .foregroundStyle(turn.isFromAthlete ? Color.white : Color(.label))
                     .padding(.horizontal, 14)
@@ -121,6 +132,46 @@ struct TurnBubble: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(turn.isFromAthlete ? "You said" : "Lionheart said")
         .accessibilityValue(turn.text)
+        .task(id: turn.id) {
+            guard isRevealing else { return }
+            guard (try? await Task.sleep(for: .seconds(ChatReveal.duration(of: String(prose.characters))))) != nil
+            else { return }
+            isRevealed = true
+            onRevealed()
+        }
+    }
+
+    private var prose: AttributedString {
+        turn.isFromAthlete ? AttributedString(turn.text) : ChatProse.attributed(turn.text)
+    }
+
+    private var isRevealing: Bool {
+        revealsOnArrival && !reduceMotion && !turn.isFromAthlete && !isRevealed
+    }
+
+    /// The words, or as many of them as have been set down. The whole answer is laid out from the
+    /// first frame, invisibly, so the bubble has its final size at once and the transcript does not
+    /// shift under the athlete as the words fill it.
+    @ViewBuilder
+    private var words: some View {
+        let full = prose
+        if isRevealing {
+            Text(full)
+                .hidden()
+                .overlay(alignment: .topLeading) {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                        Text(Self.prefix(of: full, after: context.date.timeIntervalSince(arrivedAt)))
+                    }
+                }
+        } else {
+            Text(full)
+        }
+    }
+
+    private static func prefix(of full: AttributedString, after elapsed: TimeInterval) -> AttributedString {
+        let shown = ChatReveal.visibleCount(of: String(full.characters), after: elapsed)
+        let end = full.characters.index(full.startIndex, offsetBy: shown)
+        return AttributedString(full[full.startIndex..<end])
     }
 
     private var background: Color {
@@ -129,6 +180,53 @@ struct TurnBubble: View {
         case .unsent: Color(.systemFill)
         case .said: turn.isFromAthlete ? Tokens.accent : Color(.secondarySystemGroupedBackground)
         }
+    }
+}
+
+/// The questions asked most days, one tap from being asked.
+///
+/// Capsules on the same glass as the composer, in a row that scrolls sideways, so the row stays
+/// one line at any text size and a question never wraps into two. Glass rather than a bordered
+/// button's tint because the transcript scrolls under the composer, and a tint alone lets the words
+/// beneath it read through the question. Each is sent as written, exactly as if typed: the briefing
+/// that goes with every message is what makes a one-line question enough.
+struct QuickPrompts: View {
+    let onAsk: (String) -> Void
+
+    @Environment(ServerReachability.self) private var reachability
+
+    static let questions = [
+        "Should I train today?",
+        "Am I recovered?",
+        "How was my week?",
+        "What should I do for cardio?",
+        "Plan my next 7 days",
+    ]
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            GlassChromeGroup(spacing: 8) {
+                HStack(spacing: 8) {
+                    ForEach(Self.questions, id: \.self) { question in
+                        Button { onAsk(question) } label: {
+                            Text(question)
+                                .font(.subheadline)
+                                .foregroundStyle(reachability.isReachable ? Tokens.accent : Color(.tertiaryLabel))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .glassChrome(in: .capsule, interactive: true)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!reachability.isReachable)
+                    }
+                }
+                .padding(.horizontal, Tokens.cardPadding)
+                .padding(.vertical, 4)
+            }
+        }
+        .scrollIndicators(.hidden)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Suggested questions")
     }
 }
 

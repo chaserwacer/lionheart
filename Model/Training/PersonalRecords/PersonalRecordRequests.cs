@@ -7,19 +7,26 @@ namespace lionheart.Model.Training.PersonalRecords;
 /// Which chain of records a history read is asking for.
 /// </summary>
 /// <remarks>
-/// An absent <see cref="MovementDataId"/> means trail running — the same flattening of the
-/// subject's two cases that <see cref="PersonalRecordView"/> sends out, so a client asking about a
-/// record it was given states it exactly as it received it.
+/// The subject as <see cref="PersonalRecordView"/> sends it out — a movement id, or a
+/// <see cref="RecordSubjectKind"/> for a subject that names none — so a client asking about a
+/// record it was given states it exactly as it received it. Neither is trail running, as it was
+/// before riding and hiking had records.
 /// </remarks>
-public sealed record RecordHistoryQuery(Guid? MovementDataId, string Kind, int? Bracket)
+public sealed record RecordHistoryQuery(Guid? MovementDataId, string Kind, int? Bracket, RecordSubjectKind? Subject = null)
 {
     public Result<SubjectAndKind, Problem> Asked() =>
-        RecordKind.Of(Kind, Bracket).Map(kind => new SubjectAndKind(Subject(), kind));
+        Named().Bind(subject => RecordKind.Of(Kind, Bracket).Map(kind => new SubjectAndKind(subject, kind)));
 
-    private RecordSubject Subject() =>
-        MovementDataId is { } movementDataId && movementDataId != Guid.Empty
-            ? new RecordSubject.Movement(movementDataId)
-            : new RecordSubject.TrailRunning();
+    private Result<RecordSubject, Problem> Named() => (MovementDataId, Subject) switch
+    {
+        ({ } id, null or RecordSubjectKind.Movement) when !RecordSubject.Movement.IsSentinel(id) =>
+            Result<RecordSubject, Problem>.Success(new RecordSubject.Movement(id)),
+        (null, null or RecordSubjectKind.TrailRunning) => Result<RecordSubject, Problem>.Success(new RecordSubject.TrailRunning()),
+        (null, RecordSubjectKind.Riding) => Result<RecordSubject, Problem>.Success(new RecordSubject.Riding()),
+        (null, RecordSubjectKind.Hiking) => Result<RecordSubject, Problem>.Success(new RecordSubject.Hiking()),
+        _ => Result<RecordSubject, Problem>.Failure(new Problem.Invalid(
+            nameof(Subject), "A record's subject is a movement id, or riding, hiking or trail running with no id.")),
+    };
 }
 
 /// <summary>One record's identity — what a chain of records shares.</summary>
