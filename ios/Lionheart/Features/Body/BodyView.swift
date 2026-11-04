@@ -244,7 +244,7 @@ struct BodyView: View {
         }
         let sheet = scan.sheet
         return "\(Formatting.date(scan.day)) · \(SheetFigure.mass(sheet.weight, sheet.unit)) · "
-            + "muscle \(SheetFigure.number(sheet.skeletalMuscleMass)) · fat \(SheetFigure.percent(sheet.percentBodyFat))"
+            + "muscle \(SheetFigure.number(Imperial.pounds(sheet.skeletalMuscleMass, from: sheet.unit))) · fat \(SheetFigure.percent(sheet.percentBodyFat))"
     }
 
     /// The aerobic base's two minute figures, in words: a week's means over the last four weeks.
