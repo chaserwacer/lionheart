@@ -62,22 +62,17 @@ enum ThreadTranscript {
     }
 
     /// The stored answer to `words`, once the thread holds one: the model's turn straight after the
-    /// newest session's last words from the athlete, when those are `words` and were said no
-    /// earlier than `askedAt` allows.
-    ///
-    /// `askedAt` is the phone's clock and the turn's time is the server's, so the two are allowed to
-    /// disagree by `clockSlack`; past it, the same words are an earlier question asked again.
-    static func answer(to words: String, askedAt: Date, in thread: ChatThread) -> ChatMessage? {
+    /// newest session's last words from the athlete, when those are `words` and are not among the
+    /// turns `known` before they were sent — the same words asked earlier are another question.
+    static func answer(to words: String, after known: Set<UUID>, in thread: ChatThread) -> ChatMessage? {
         guard let transcript = thread.sessions.last?.transcript,
               let asked = transcript.lastIndex(where: { ChatTurn.said($0).isFromAthlete }),
               transcript[asked].text == words,
-              (transcript[asked].createdAt ?? .distantPast) >= askedAt.addingTimeInterval(-clockSlack),
+              !known.contains(transcript[asked].chatMessageId),
               transcript.indices.contains(asked + 1)
         else { return nil }
         return transcript[asked + 1]
     }
-
-    static let clockSlack: TimeInterval = 300
 
     /// How a session's opening reads: "Today" or "Yesterday" and the time, then the weekday and
     /// date with the time, with the year only once it is not this one.

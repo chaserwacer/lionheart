@@ -28,8 +28,9 @@ public class StreamThreadMessageEndpoint(
 
     [HttpPost("api/chat/thread/messages/stream")]
     [EndpointDescription("Send one message to the continuing thread and follow the answer as it is written, as server-sent events: delta { text } for each piece of the answer, tools { tools } when a round of tools is run (withdrawing any text sent so far), then done with the ThreadSessionView the exchange was stored in, or failed with the problem document. The exchange finishes and is stored even if the connection drops.")]
-    [Produces(ThreadEventStream.ContentType)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    // Documented rather than [Produces]: that attribute would also force the plain 400 a bad body
+    // is answered with into the event stream's content type, which no formatter writes.
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK, ThreadEventStream.ContentType)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public override async Task HandleAsync(

@@ -47,8 +47,16 @@ public static class ThreadEventStream
     {
         var frames = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true });
         var exchanged = ExchangeAsync(exchange, json, frames.Writer, stopping);
-        await TellAsync(frames.Reader, response, connection);
-        await exchanged;
+        try
+        {
+            await TellAsync(frames.Reader, response, connection);
+        }
+        finally
+        {
+            // Whatever the telling ended in, the request — and the database context the exchange
+            // writes through — is held open until the exchange is done with it.
+            await exchanged;
+        }
     }
 
     /// <summary>One event in the wire's framing. Its data is one line, since the JSON is not indented.</summary>
@@ -77,7 +85,7 @@ public static class ThreadEventStream
         {
             frames.TryWrite(Outcome(await exchange(new Queued(frames, json), stopping), json));
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception) when (!stopping.IsCancellationRequested)
         {
             // What the plain route answers when an exchange throws: a 500, nothing stored. Said
             // here because the response has begun and the exception handler can no longer say it;

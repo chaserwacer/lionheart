@@ -827,11 +827,15 @@ them, the only sign of the cut.
   blocking request needed.
 - **A lost connection does not lose the answer.** The server finishes and stores the exchange
   whatever happens to the connection. If the stream ends without its outcome, the screen says so and
-  reads the thread every three seconds until the answer to those words is there
-  (`ThreadTranscript.answer(to:askedAt:in:)`), for up to `HTTP.modelPatience`. An answer found that
-  way arrived whole, so it is set down word by word over at most 1.2 s (`ChatReveal`), laid out
+  reads the thread every three seconds until the answer to those words is there, for up to
+  `HTTP.modelPatience` from the drop (`ThreadTranscript.answer(to:after:in:)`, which takes no turn
+  the thread already held, so the same words asked earlier do not count). An answer found that way
+  arrived whole, so it is set down word by word over at most 1.2 s (`ChatReveal`), laid out
   invisibly first so the bubble does not grow; Reduce Motion shows it whole. Only a refusal the
-  server sent, or a request it never accepted, hands the words back to the composer.
+  server sent, a request it never accepted, or a thread it refuses to read hands the words back to
+  the composer.
+- **The transcript follows a growing answer** only while the athlete is at the bottom; scrolled
+  up to re-read, he is left where he is.
 - **The composer sits beside the folded tab bar (iOS 26).** On Chat the system tab bar is hidden
   and its folded form, the Chat glyph in glass, starts the composer's row (`InlineComposer`,
   `FoldedTabBar`). Tapping it unfolds the real tab bar and puts the composer away; scrolling the

@@ -96,6 +96,31 @@ public sealed class AnswerStreamingTests : IDisposable
         Assert.IsType<Problem.Upstream>(problem);
     }
 
+    private const string StartedAnswer =
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-opus-5-5\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":11,\"output_tokens\":1}}}\n\n"
+        + "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n"
+        + "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Rest \"}}\n\n";
+
+    [Fact]
+    public async Task A_stream_that_reports_an_error_partway_fails_as_an_upstream_problem()
+    {
+        _server.RespondsWithStream(StartedAnswer
+            + "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"overloaded_error\",\"message\":\"Overloaded\"}}\n\n");
+
+        var problem = ResultAssert.Failed(await Complete());
+
+        Assert.IsType<Problem.Upstream>(problem);
+        Assert.Equal(["Rest "], _heard.Written);
+    }
+
+    [Fact]
+    public async Task A_stream_cut_off_before_its_end_fails_as_an_upstream_problem()
+    {
+        _server.RespondsWithStream(StartedAnswer);
+
+        Assert.IsType<Problem.Upstream>(ResultAssert.Failed(await Complete()));
+    }
+
     private sealed class Heard : IExchangeObserver
     {
         public List<ExchangeProgress> Progress { get; } = [];

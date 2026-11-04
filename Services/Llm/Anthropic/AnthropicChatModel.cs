@@ -439,6 +439,16 @@ public sealed class AnthropicChatModel(AnthropicClient client, string model, ILo
         {
             return Upstream($"Anthropic request failed: {ex.Message}");
         }
+        // A stream cut short: the connection broke partway through the body, or it closed before
+        // message_stop and the SDK's aggregator had no whole message to give.
+        catch (IOException ex)
+        {
+            return Upstream($"The connection to Anthropic broke partway through its answer: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Upstream($"Anthropic's answer ended before it was complete: {ex.Message}");
+        }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             return Upstream("Anthropic did not respond in time.");

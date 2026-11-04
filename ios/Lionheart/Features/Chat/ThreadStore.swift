@@ -116,7 +116,7 @@ final class ThreadStore {
     /// their screen.
     private func runExchange(_ words: String) async {
         let pending = ChatTurn.pending(id: UUID(), text: words)
-        let askedAt = Date()
+        let known = transcript.value?.messageIds ?? []
         exchange = .awaitingReply(pending, .thinking)
 
         let replies: ThreadReplies
@@ -151,7 +151,7 @@ final class ThreadStore {
             if Task.isCancelled { return }
         }
 
-        await recover(pending, askedAt: askedAt)
+        await recover(pending, after: known)
     }
 
     /// The answer arrived, as the session it was stored in.
@@ -170,21 +170,32 @@ final class ThreadStore {
     /// The connection went while the answer was arriving. The server finishes and stores it
     /// regardless, so the thread is read until it holds the answer, for as long as an answer could
     /// take. Only then are the words handed back, saying what is known: not that nothing was kept.
-    private func recover(_ pending: ChatTurn, askedAt: Date) async {
+    ///
+    /// - Parameter known: The turns the thread held before the question was sent, so the same words
+    ///   asked earlier are not taken for this question's answer.
+    private func recover(_ pending: ChatTurn, after known: Set<UUID>) async {
         exchange = .recovering(pending)
-        let deadline = askedAt.addingTimeInterval(HTTP.modelPatience)
+        let deadline = Date().addingTimeInterval(HTTP.modelPatience)
 
         while Date() < deadline {
-            guard (try? await Task.sleep(for: Self.recoveryInterval)) != nil else { return }
-            // Only the server's own answer counts: a thread recalled from the device predates the
-            // question, and failing to reach the server here is the reason to keep looking.
-            guard case .current(let thread)? = try? await api.latest(remembering: .chatThread),
-                  ThreadTranscript.answer(to: pending.text, askedAt: askedAt, in: thread) != nil,
-                  let session = thread.sessions.last
-            else { continue }
-            transcript = transcript.applying(.current(thread))
-            arrived(session, watched: false)
-            return
+            do {
+                try await Task.sleep(for: Self.recoveryInterval)
+                // Only the server's own answer counts: a thread recalled from the device predates
+                // the question, and not reaching the server is the reason to keep looking.
+                guard case .current(let thread) = try await api.latest(remembering: .chatThread),
+                      ThreadTranscript.answer(to: pending.text, after: known, in: thread) != nil,
+                      let session = thread.sessions.last
+                else { continue }
+                transcript = transcript.applying(.current(thread))
+                arrived(session, watched: false)
+                return
+            } catch is CancellationError {
+                return
+            } catch {
+                // The server answered, and refused to read the thread: looking again will not help.
+                exchange = .refused(.unsent(id: pending.id, text: pending.text, failure: failure(from: error)))
+                return
+            }
         }
         exchange = .refused(.unsent(
             id: pending.id, text: pending.text,

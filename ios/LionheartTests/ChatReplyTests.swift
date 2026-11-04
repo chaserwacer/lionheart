@@ -91,30 +91,31 @@ struct ChatReplyTests {
             """)
     }
 
-    private static let askedAt = ISO8601DateFormatter().date(from: "2026-03-04T17:29:00Z") ?? .distantPast
+    private static let first = UUID(uuidString: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01") ?? UUID()
 
     @Test("The answer is the model's turn after the question, once the thread holds both")
     func findingTheAnswer() throws {
         let answered = try Self.thread([
-            Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01", role: 0, content: "Legs?", createdAt: "2026-03-04T17:30:00"),
+            Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01", role: 0, content: "Legs?"),
             Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee02", role: 1, content: "Squat.", createdAt: "2026-03-04T17:31:00"),
         ])
         let unanswered = try Self.thread([
-            Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01", role: 0, content: "Legs?", createdAt: "2026-03-04T17:30:00"),
+            Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01", role: 0, content: "Legs?"),
         ])
 
-        #expect(ThreadTranscript.answer(to: "Legs?", askedAt: Self.askedAt, in: answered)?.text == "Squat.")
-        #expect(ThreadTranscript.answer(to: "Legs?", askedAt: Self.askedAt, in: unanswered) == nil)
-        #expect(ThreadTranscript.answer(to: "Arms?", askedAt: Self.askedAt, in: answered) == nil)
+        #expect(ThreadTranscript.answer(to: "Legs?", after: [], in: answered)?.text == "Squat.")
+        #expect(ThreadTranscript.answer(to: "Legs?", after: [], in: unanswered) == nil)
+        #expect(ThreadTranscript.answer(to: "Arms?", after: [], in: answered) == nil)
     }
 
-    @Test("The same words asked earlier are not this question's answer")
+    @Test("The same words asked before this question are not its answer, however recently")
     func anEarlierAskingDoesNotCount() throws {
         let earlier = try Self.thread([
-            Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01", role: 0, content: "Legs?", createdAt: "2026-03-04T17:00:00"),
-            Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee02", role: 1, content: "Squat.", createdAt: "2026-03-04T17:01:00"),
+            Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01", role: 0, content: "Legs?"),
+            Chat.message(id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee02", role: 1, content: "Squat.", createdAt: "2026-03-04T17:31:00"),
         ])
 
-        #expect(ThreadTranscript.answer(to: "Legs?", askedAt: Self.askedAt, in: earlier) == nil)
+        #expect(ThreadTranscript.answer(to: "Legs?", after: [Self.first], in: earlier) == nil)
+        #expect(ThreadTranscript.answer(to: "Legs?", after: earlier.messageIds, in: earlier) == nil)
     }
 }

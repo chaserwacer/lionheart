@@ -55,6 +55,9 @@ struct ChatThread: Equatable, Sendable {
     /// The cursor for the next stretch back: the opening of the oldest session read.
     var oldestOpening: Date? { sessions.first?.openedAt }
 
+    /// Every turn held, by id: what the thread already said before a question was sent.
+    var messageIds: Set<UUID> { Set(sessions.flatMap { $0.messages.map(\.chatMessageId) }) }
+
     /// An older stretch put in front of this one. Its own `hasEarlier` is the thread's now, and a
     /// session both stretches hold — the server's page edges are instants — is kept once.
     func prepending(_ earlier: ChatThread) -> ChatThread {

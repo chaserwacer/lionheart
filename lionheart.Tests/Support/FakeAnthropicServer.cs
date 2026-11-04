@@ -36,6 +36,16 @@ public sealed class FakeAnthropicServer : IDisposable
         return this;
     }
 
+    /// <summary>
+    /// A streamed answer written out by hand, for the streams the API can send that a whole message
+    /// cannot describe: one cut off before its end, or one that reports an error partway.
+    /// </summary>
+    public FakeAnthropicServer RespondsWithStream(string eventStream)
+    {
+        _responses.Enqueue(new CannedResponse(eventStream, HttpStatusCode.OK, IsEventStream: true));
+        return this;
+    }
+
     /// <summary>The network is down — the request fails before any response exists.</summary>
     public FakeAnthropicServer RespondsWithTransportFailure()
     {
@@ -71,7 +81,7 @@ public sealed class FakeAnthropicServer : IDisposable
         : _standingResponse ?? throw new InvalidOperationException(
             $"The model was called {RequestCount} time(s) but no response was queued for call {RequestCount}.");
 
-    private sealed record CannedResponse(string? Body, HttpStatusCode Status);
+    private sealed record CannedResponse(string? Body, HttpStatusCode Status, bool IsEventStream = false);
 
     private sealed class Handler(FakeAnthropicServer server) : HttpMessageHandler
     {
@@ -91,7 +101,9 @@ public sealed class FakeAnthropicServer : IDisposable
             var streams = JsonNode.Parse(body)?["stream"]?.GetValue<bool>() is true;
             return new HttpResponseMessage(canned.Status)
             {
-                Content = streams && canned.Status == HttpStatusCode.OK
+                Content = canned.IsEventStream
+                    ? new StringContent(canned.Body, Encoding.UTF8, RelayStream.ContentType)
+                    : streams && canned.Status == HttpStatusCode.OK
                     ? new StringContent(
                         string.Concat(RelayStream.Events(JsonNode.Parse(canned.Body)!.AsObject()).Select(e => e.Frame())),
                         Encoding.UTF8, RelayStream.ContentType)

@@ -24,6 +24,12 @@ struct ThreadView: View {
     /// The bottom of the transcript, scrolled to when a turn is added there.
     private static let bottom = "thread-bottom"
 
+    /// How near the bottom the athlete has to be reading for a growing answer to carry him down.
+    private static let followDistance: CGFloat = 80
+
+    /// Whether the transcript is at its bottom, where a growing answer carries it down.
+    @State private var isFollowing = true
+
     var body: some View {
         NavigationStack {
             Group {
@@ -88,7 +94,8 @@ struct ThreadView: View {
         // Said once, whole, when it is stored: the bubble it was written into is silent meanwhile.
         .onChange(of: thread.answered?.id) {
             guard let answer = thread.answered else { return }
-            AccessibilityNotification.Announcement("Lionheart answered. \(answer.text)").post()
+            let words = String(ChatProse.attributed(answer.text).characters)
+            AccessibilityNotification.Announcement("Lionheart answered. \(words)").post()
         }
     }
 
@@ -131,10 +138,17 @@ struct ThreadView: View {
             .onChange(of: rows.last?.id) {
                 withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(Self.bottom, anchor: .bottom) }
             }
-            // An answer being written grows the bottom, and the transcript follows it down. Not
-            // animated: a scroll animated at the pace words arrive reads as the screen shaking.
+            // An answer being written grows the bottom, and the transcript follows it down while
+            // the athlete is reading there; scrolled up to read something else, he is left there.
+            // Not animated: a scroll animated at the pace words arrive reads as the screen shaking.
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.containerSize.height
+                    >= geometry.contentSize.height - Self.followDistance
+            } action: { _, isAtBottom in
+                isFollowing = isAtBottom
+            }
             .onChange(of: writtenSoFar?.count) {
-                proxy.scrollTo(Self.bottom, anchor: .bottom)
+                if isFollowing { proxy.scrollTo(Self.bottom, anchor: .bottom) }
             }
         }
     }
