@@ -80,6 +80,21 @@ struct TrainingBalanceTests {
         #expect(parts[3].summary == "2 · 2 · 1 · 0 of 3 a week, newest first")
     }
 
+    @Test("Progress names each family's lift, so an untrained lift does not read as an untrained family")
+    func breakdownProgressNamesTheLift() throws {
+        let progress = #"""
+        {"points":0,"outOf":20,"families":[
+          {"of":{"family":"push","lift":{"$type":"chosen","movementDataId":"77777777-7777-7777-7777-777777777777",
+            "name":"Barbell Overhead Press","choice":{"$type":"mostTrained","sessions":1},"progress":{"$type":"notTrained"},
+            "sessionsLastFourWeeks":1,"series":[]}},"points":0,"outOf":6.67}]}
+        """#
+        let json = Self.scoreJSON(cardio: Self.measuredCardio)
+            .replacingOccurrences(of: #""progress":{"points":13.3,"outOf":20,"families":[]}"#, with: #""progress":\#(progress)"#)
+        let parts = ScoreBreakdown.of(try Decoding.decode(TrainingScore.self, json))
+
+        #expect(parts[2].summary == "Push lift not trained this week")
+    }
+
     @Test("Unknown cardio is one unknown cell across its part, never a zero")
     func breakdownUnknownCardio() throws {
         let partial = try Decoding.decode(

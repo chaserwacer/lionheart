@@ -45,11 +45,13 @@ enum ScoreBreakdown {
         })
     }
 
+    /// Labelled by the family's lift, so "Push lift not trained" never reads against the hard sets
+    /// that same family logged.
     static func progress(_ part: ProgressPart, from start: Double) -> [ScoreCell] {
         placed(from: start, part.families.map { scored in
             Measure(
                 id: "progress.\(scored.of.family.wire)",
-                label: scored.of.family.name,
+                label: "\(scored.of.family.name) lift",
                 reading: .standing(standing(scored.of.lift)),
                 points: scored.points, outOf: scored.outOf)
         })
