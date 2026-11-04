@@ -207,7 +207,7 @@ struct RecordedWorkoutView: View {
     /// The mile splits. Indoors there is no route to cut, so the section is left out.
     @ViewBuilder
     private func splitsSection(_ run: RecordedWorkout) -> some View {
-        let splits = Imperial.splits(of: run)
+        let splits = run.miles
         if !(splits.isEmpty && isIndoors(run)) {
             routeSplitsSection(run, splits: splits)
         }

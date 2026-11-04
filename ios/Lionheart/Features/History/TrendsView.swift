@@ -105,15 +105,15 @@ struct TrendsView: View {
                     Chart(points) { point in
                         LineMark(
                             x: .value("Day", point.day.middayDate()),
-                            y: .value("Weight", point.weight))
+                            y: .value("Weight", Imperial.pounds(point.weight, from: series.unit)))
                         .foregroundStyle(Tokens.accent)
                         PointMark(
                             x: .value("Day", point.day.middayDate()),
-                            y: .value("Weight", point.weight))
+                            y: .value("Weight", Imperial.pounds(point.weight, from: series.unit)))
                         .symbolSize(span.isLong ? 10 : 18)
                         .foregroundStyle(Tokens.accent)
                     }
-                    .chartYAxisLabel(series.unit.abbreviation)
+                    .chartYAxisLabel(Imperial.weightLabel(series.unit))
                     .chartYScale(domain: .automatic(includesZero: false))
                     .frame(height: chartHeight)
                     .padding(.vertical, 8)
@@ -135,9 +135,9 @@ struct TrendsView: View {
     private func strengthFigures(_ summary: StrengthSeries.Summary, unit: WeightUnit) -> some View {
         let change = summary.change
         return SummaryFigures(figures: [
-            ("Latest", "\(Formatting.measure(summary.latest.weight)) × \(summary.latest.reps)"),
-            ("Best", "\(Formatting.measure(summary.best.weight)) × \(summary.best.reps)"),
-            ("Change", "\(change < 0 ? "−" : "+")\(Formatting.measure(abs(change))) \(unit.abbreviation)"),
+            ("Latest", "\(Formatting.weightParts(summary.latest.weight, unit).amount) × \(summary.latest.reps)"),
+            ("Best", "\(Formatting.weightParts(summary.best.weight, unit).amount) × \(summary.best.reps)"),
+            ("Change", Formatting.signedWeight(change, unit)),
         ])
     }
 
@@ -152,7 +152,6 @@ struct TrendsView: View {
 
     private func strengthAccessibilityValue(_ points: [StrengthSeries.Point], unit: WeightUnit) -> String {
         guard let first = points.first, let last = points.last else { return "" }
-        let unit = unit.abbreviation
-        return "From \(MeasurementText.plain(first.weight)) \(unit) to \(MeasurementText.plain(last.weight)) \(unit) over \(Formatting.count(points.count, "session"))."
+        return "From \(Formatting.weight(first.weight, unit)) to \(Formatting.weight(last.weight, unit)) over \(Formatting.count(points.count, "session"))."
     }
 }

@@ -161,11 +161,11 @@ struct BodyCompositionDraftTests {
 
         let weights = history.points(.weight)
         #expect(weights.map(\.day) == [kilograms.day, AScan.day])
-        #expect(abs(weights[0].value - kilograms.sheet.weight / 0.453_592_37) < 0.0001)
+        #expect(weights[0].value == (kilograms.sheet.weight / 0.453_592_37 * 10).rounded() / 10)
         // A share is not a mass, and is never converted.
         #expect(history.points(.percentBodyFat).map(\.value) == [kilograms.sheet.percentBodyFat, latest.sheet.percentBodyFat])
         let change = try #require(history.change(.weight, at: latest))
-        #expect(abs(change - (latest.sheet.weight - kilograms.sheet.weight / 0.453_592_37)) < 0.0001)
+        #expect(abs(change - (latest.sheet.weight - weights[0].value)) < 0.000_1)
     }
 
     @Test("Segmental balance is left against right and the arm, trunk and leg pattern")

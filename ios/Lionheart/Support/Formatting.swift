@@ -158,16 +158,11 @@ enum Formatting {
         return parts.unit.isEmpty ? parts.amount : "\(parts.amount) \(parts.unit)"
     }
 
-    /// A weight's figure and unit apart, for a row that aligns them in columns. A weight logged in
-    /// kilograms converts to the tenth of a pound — finer than any plate, and no finer, so 100 kg
-    /// reads `220.5` rather than `220.46`. A unit this build cannot name keeps its number and says
-    /// no unit, rather than calling it pounds.
+    /// A weight's figure and unit apart, for a row that aligns them in columns, in pounds
+    /// (`Imperial.pounds`). A unit this build cannot name keeps its number and says no unit,
+    /// rather than calling it pounds.
     static func weightParts(_ value: Double, _ unit: WeightUnit) -> (amount: String, unit: String) {
-        let amount = switch unit {
-        case .pounds, .unrecognised: measure(value)
-        case .kilograms: measure((Imperial.pounds(value, from: unit) * 10).rounded() / 10)
-        }
-        return (amount, Imperial.weightLabel(unit))
+        (measure(Imperial.pounds(value, from: unit)), Imperial.weightLabel(unit))
     }
 
     /// A distance in the unit it reads in: kilometres as miles, a track's metres and yards as
@@ -246,10 +241,8 @@ enum Formatting {
     /// lifted in kilograms converted into it. Lifts that moved no load (bodyweight work recorded at
     /// zero) add no volume to say; a unit this build cannot name is said on its own, unconverted.
     static func totals(_ totals: WorkoutTotals) -> String {
-        let loaded = totals.weights.filter { $0.volume > 0 }
-        let named = loaded.filter { !Imperial.weightLabel($0.unit).isEmpty }
-        let pounds = named.isEmpty ? [] : [volume(named.map { Imperial.pounds($0.volume, from: $0.unit) }.reduce(0, +), .pounds)]
-        let unnamed = loaded.filter { Imperial.weightLabel($0.unit).isEmpty }.map(volume)
+        let pounds = totals.poundsVolume.map { [volume($0, .pounds)] } ?? []
+        let unnamed = totals.weights.filter { $0.volume > 0 && Imperial.weightLabel($0.unit).isEmpty }.map(volume)
         return ([count(totals.setCount, "set")] + pounds + unnamed).joined(separator: " · ")
     }
 
@@ -445,8 +438,8 @@ enum Formatting {
             nil
         case .longestDistance(let effort):
             "in \(clock(seconds: effort.duration))"
-        case .fastestTime(_, let effort):
-            distance(effort.distance, effort.unit)
+        case .fastestTime(let meters, let effort):
+            raceDistance(bracketMeters: meters, effort)
         case .bestPace(let pace):
             "\(distance(pace.effort.distance, pace.effort.unit)) in \(clock(seconds: pace.effort.duration))"
         }

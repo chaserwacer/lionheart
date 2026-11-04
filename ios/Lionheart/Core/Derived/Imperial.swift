@@ -29,12 +29,15 @@ enum Imperial {
     /// A time per kilometre as the time per mile.
     static func perMile(perKilometre seconds: TimeInterval) -> TimeInterval { seconds * metersPerMile / 1000 }
 
-    /// A weight in pounds, whichever unit it was logged in. A unit this build cannot name is left
-    /// as it arrived, since converting it would be a guess.
+    /// A weight in pounds, whichever unit it was logged in. One logged in kilograms converts to the
+    /// tenth of a pound — finer than any plate or scale, and no finer, so 100 kg reads 220.5 and a
+    /// reading reads the same in a list, a chart and a change. One in pounds is left exact, so a
+    /// 2.25 lb microplate keeps its quarter. A unit this build cannot name is left as it arrived,
+    /// since converting it would be a guess.
     static func pounds(_ weight: Double, from unit: WeightUnit) -> Double {
         switch unit {
         case .pounds, .unrecognised: weight
-        case .kilograms: weight / kilogramsPerPound
+        case .kilograms: (weight / kilogramsPerPound * 10).rounded() / 10
         }
     }
 
@@ -102,9 +105,6 @@ enum Imperial {
 
     // MARK: - Splits
 
-    /// A recorded workout's splits are read by the mile.
-    static func splits(of workout: RecordedWorkout) -> [WorkoutSplit] { workout.miles }
-
     /// A mile split's own pace, which the server gives per mile: "8:07".
     static func splitPace(_ split: WorkoutSplit) -> String {
         MeasurementText.clock(seconds: split.pace.rounded())
@@ -114,5 +114,14 @@ enum Imperial {
     static func splitSpeed(_ split: WorkoutSplit) -> String {
         guard split.pace > 0 else { return "–" }
         return String(format: "%.1f", 3600 / split.pace)
+    }
+}
+
+extension WorkoutTotals {
+    /// The volume lifted, in pounds: a part lifted in kilograms converted into it, so a session
+    /// reads one figure. `nil` where no load was moved in a unit this build can name.
+    var poundsVolume: Double? {
+        let named = weights.filter { $0.volume > 0 && !Imperial.weightLabel($0.unit).isEmpty }
+        return named.isEmpty ? nil : named.map { Imperial.pounds($0.volume, from: $0.unit) }.reduce(0, +)
     }
 }

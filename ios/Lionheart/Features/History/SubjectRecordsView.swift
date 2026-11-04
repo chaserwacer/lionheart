@@ -77,12 +77,12 @@ struct SubjectRecordsSections: View {
             Section {
                 Picker("Unit", selection: unitSelection(reading)) {
                     ForEach(reading.lifting) { held in
-                        Text(Formatting.unitName(held.unit)).tag(held.unit)
+                        Text("Logged in \(Formatting.unitName(held.unit).lowercased())").tag(held.unit)
                     }
                 }
                 .pickerStyle(.segmented)
             } footer: {
-                Text("Each unit keeps its own records. Weights never convert, so switching units starts new records rather than comparing against the old ones.")
+                Text("Each unit keeps its own records: a lift logged in kilograms is ranked against kilograms only, so switching units starts new records. Every figure reads in pounds.")
             }
         }
 

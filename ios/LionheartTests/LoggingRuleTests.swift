@@ -258,9 +258,9 @@ struct BodyweightRuleTests {
 
         let points = mixed.pointsInPounds()
         #expect(points.count == 4)
-        // 79.5 kg is 175.27 lb, so a scale switched to kilograms reads as the same man, not a drop.
-        #expect(abs((points.last?.value ?? 0) - 175.267) < 0.001)
-        #expect(mixed.change(over: 1).map { ($0 * 100).rounded() / 100 } == 0.07)
+        // 79.5 kg is 175.3 lb, so a scale switched to kilograms reads as the same man, not a drop.
+        #expect(points.last?.value == 175.3)
+        #expect(mixed.change(over: 1).map { ($0 * 10).rounded() / 10 } == 0.1)
     }
 
     @Test("System load is bodyweight plus the plate, only where the setup says so and the units agree")

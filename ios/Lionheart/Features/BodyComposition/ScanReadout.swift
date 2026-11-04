@@ -48,7 +48,7 @@ struct ScanReadout: View {
         }
     }
 
-    /// The headline figures against the scan before this one, when there is one in the same unit.
+    /// The headline figures against the scan before this one, in pounds, when there is one.
     private var changeLine: String? {
         guard let previous = history.previous(to: scan) else { return nil }
         let parts: [String] = [

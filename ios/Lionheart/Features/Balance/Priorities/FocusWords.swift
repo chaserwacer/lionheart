@@ -24,10 +24,11 @@ enum FocusWords {
 
     static func progress(_ progress: FocusReading.Progress) -> String {
         let unit = progress.unit
-        let before = progress.before.map { Formatting.measure($0.value.rounded()) } ?? "—"
-        let best = progress.best.map { Formatting.measure($0.value.rounded()) } ?? "—"
-        let change = progress.change.map { " (\($0 < 0 ? "−" : "+")\(Formatting.measure(abs($0).rounded())))" } ?? ""
-        return "\(before) → \(best) \(unit.abbreviation)\(change)"
+        let pounds = { (value: Double) in Formatting.measure(Imperial.pounds(value, from: unit).rounded()) }
+        let before = progress.before.map { pounds($0.value) } ?? "—"
+        let best = progress.best.map { pounds($0.value) } ?? "—"
+        let change = progress.change.map { " (\($0 < 0 ? "−" : "+")\(pounds(abs($0))))" } ?? ""
+        return "\(before) → \(best) \(Imperial.weightLabel(unit))\(change)"
     }
 
     static func target(_ target: FocusReading.TargetStanding) -> String? {

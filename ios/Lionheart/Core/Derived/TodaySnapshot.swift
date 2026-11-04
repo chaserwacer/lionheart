@@ -20,8 +20,8 @@ struct TodaySnapshot: Equatable, Sendable {
     /// rests on. Empty when there is no recovery to read.
     let contributors: [ReadinessContributorReading]
     /// The newest main sleep filed on or before the recovery's day — the night its figures were
-    /// read from, or the last one the ring scored when it filed a readiness without a night — with
-    /// its clock time, for the hypnogram.
+    /// read from, or the last one the ring scored when it filed a readiness without a night — which
+    /// a contributor row resting on the night opens. The night rows read `nights`.
     let night: OuraEvent<OuraSleepPeriod>?
     /// The night that ended on `day` and the one before it, each filed or not — what the screen's
     /// night rows read, so last night is never the night before standing in for it.
