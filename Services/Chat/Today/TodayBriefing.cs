@@ -163,7 +163,7 @@ public static class TodayBriefing
         var bpm = ZoneMinutes.LowerEdges.Select(edge => (int)Math.Round(edge * max.Bpm)).ToList();
         var basis = max switch
         {
-            MaxHeartRate.AgePredicted { ObservedPeak: { } peak } => $"age-predicted; the ring's highest cardio reading is {peak}",
+            MaxHeartRate.AgePredicted { ObservedPeak: { } peak } => $"age-predicted; the ring's cardio samples over the last year reach {peak} at the 99th percentile",
             MaxHeartRate.AgePredicted => "age-predicted",
             MaxHeartRate.Observed => "the ring's own peak, above the age prediction",
             _ => "estimated",
@@ -238,7 +238,12 @@ public static class TodayBriefing
 
     private static string Minutes(double minutes) => string.Create(Invariant, $"{Math.Round(minutes):0} min");
 
-    private static string Hours(int seconds) => $"{seconds / 3600}h{seconds % 3600 / 60:00}m";
+    /// <summary>Rounded to the minute, as the app's screens read the same night.</summary>
+    private static string Hours(int seconds)
+    {
+        var minutes = (int)Math.Round(seconds / 60.0, MidpointRounding.AwayFromZero);
+        return $"{minutes / 60}h{minutes % 60:00}m";
+    }
 
     private static string Score(double? score) => score is { } value ? string.Create(Invariant, $"{value:0}") : "n/a";
 }

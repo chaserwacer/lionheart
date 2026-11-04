@@ -117,6 +117,20 @@ public sealed class TodayBriefingTests
     }
 
     [Fact]
+    public void Time_asleep_rounds_to_the_minute_as_the_app_reads_it()
+    {
+        var night = new NightFact(
+            new DateOnly(2026, 3, 10),
+            new DateTimeOffset(2026, 3, 9, 23, 30, 0, Eastern),
+            new DateTimeOffset(2026, 3, 10, 7, 0, 0, Eastern),
+            TotalSleepSeconds: 6 * 3600 + 41 * 60 + 40, Efficiency: 90, LowestHeartRate: 44, AverageHrv: 71, SleepScore: 82);
+
+        var briefing = TodayBriefing.Render(Facts(nights: [night]));
+
+        Assert.Contains("6h42m asleep", briefing);
+    }
+
+    [Fact]
     public void Readiness_is_stated_against_his_usual_range_as_scores_not_measurements()
     {
         var briefing = TodayBriefing.Render(Facts(readiness: new ReadinessFact(68, 74, 80, -0.2, 66, 88)));
@@ -138,7 +152,7 @@ public sealed class TodayBriefingTests
     {
         var briefing = TodayBriefing.Render(Facts(max: new MaxHeartRate.AgePredicted(190, 25, ObservedPeak: 172)));
 
-        Assert.Contains("Heart-rate zones (maximum 190 bpm, age-predicted; the ring's highest cardio reading is 172): zone 2 114-132, zone 3 133-151, zone 4 152-170, zone 5 171+ bpm.", briefing);
+        Assert.Contains("Heart-rate zones (maximum 190 bpm, age-predicted; the ring's cardio samples over the last year reach 172 at the 99th percentile): zone 2 114-132, zone 3 133-151, zone 4 152-170, zone 5 171+ bpm.", briefing);
     }
 
     [Fact]
