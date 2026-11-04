@@ -56,8 +56,31 @@ enum LiftProgress: Equatable, Sendable {
     case noEstimate
     /// Trained with nothing in the twelve weeks before to compare with.
     case firstBack(best: Double, unit: WeightUnit, onSystemLoad: Bool)
-    case compared(best: Double, priorBest: Double, allTimeBest: Double, unit: WeightUnit, onSystemLoad: Bool)
+    case compared(
+        best: Double, priorBest: Double, standing: ProgressStanding, unit: WeightUnit, onSystemLoad: Bool)
     case unrecognised(String)
+}
+
+/// Where a compared best stands against the twelve weeks before, as the server banded it.
+enum ProgressStanding: Equatable, Sendable {
+    /// Above every best before the window.
+    case lifetimeBest
+    /// Above the twelve weeks before.
+    case newBest
+    /// Within five per cent under the prior best.
+    case held
+    case below
+    case unrecognised(String)
+
+    init(wire: String) {
+        switch wire {
+        case "lifetimeBest": self = .lifetimeBest
+        case "newBest": self = .newBest
+        case "held": self = .held
+        case "below": self = .below
+        default: self = .unrecognised(wire)
+        }
+    }
 }
 
 struct SessionBest: Equatable, Sendable, Identifiable {
@@ -187,7 +210,8 @@ extension LiftProgress: Decodable {
                 return
             }
             self = .compared(
-                best: best, priorBest: prior, allTimeBest: container.lenient("allTimeBest", or: prior),
+                best: best, priorBest: prior,
+                standing: ProgressStanding(wire: container.lenient("standing", or: "")),
                 unit: unit, onSystemLoad: onSystemLoad)
         default:
             self = .unrecognised(type)

@@ -1,5 +1,6 @@
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.Patterns;
+using lionheart.Model.Training.Sets;
 using lionheart.Services.Training.Focus;
 using lionheart.Tests.Support;
 using static lionheart.Tests.Balance.ALog;
@@ -18,13 +19,13 @@ public class PriorityAnalysisTests
         Assert.IsType<PriorityLift.Chosen>(PriorityAnalysis.Read(log.Build(), pins, Sunday)
             .Single(family => family.Family == PatternFamily.Push).Lift);
 
-    private static FocusPin PushPriority(Guid movement, DateOnly starts, DateOnly ends) =>
+    private static FocusPin PushPriority(Guid movement, DateOnly starts, DateOnly ends, DateTime? pinnedAt = null) =>
         FocusPin.Pin(
             Guid.NewGuid(), Guid.NewGuid(), movement,
             ResultAssert.Succeeded(FocusRole.Priority.For(PatternFamily.Push)),
             ResultAssert.Succeeded(FocusTerms.Of(
                 ResultAssert.Succeeded(FocusHorizon.Of(starts, ends)), 2, new FocusTarget.None())),
-            DateTime.UnixEpoch);
+            pinnedAt ?? DateTime.UnixEpoch);
 
     [Fact]
     public void The_pinned_priority_is_read_even_when_another_push_lift_was_trained_more()
@@ -74,10 +75,28 @@ public class PriorityAnalysisTests
 
         var progress = Assert.IsType<LiftProgress.Compared>(Push(log).Progress);
 
-        Assert.True(progress.IsNewBest);
-        Assert.False(progress.IsLifetimeBest);
+        Assert.Equal(ProgressStanding.NewBest, progress.Standing);
         Assert.Equal(210 * (1 + 5 / 30.0), progress.Best, precision: 6);
         Assert.Equal(250 * (1 + 5 / 30.0), progress.AllTimeBest, precision: 6);
+    }
+
+    [Theory]
+    [InlineData(260, ProgressStanding.LifetimeBest)]
+    [InlineData(210, ProgressStanding.NewBest)]
+    [InlineData(191, ProgressStanding.Held)]
+    [InlineData(189, ProgressStanding.Below)]
+    public void A_best_stands_above_every_best_above_the_twelve_weeks_within_five_per_cent_or_below(
+        double best, ProgressStanding standing) =>
+        Assert.Equal(standing, new LiftProgress.Compared(best, 200, 250, WeightUnit.Pounds, false).Standing);
+
+    [Fact]
+    public void Where_a_superseded_priority_still_stands_on_its_last_day_the_newer_pin_is_read()
+    {
+        var dips = PushPriority(Dip, Sunday, Sunday.AddDays(60), pinnedAt: DateTime.UnixEpoch);
+        var bench = PushPriority(Bench, Sunday.AddDays(-10), Sunday.AddDays(60), pinnedAt: DateTime.UnixEpoch.AddDays(1));
+        ResultAssert.Succeeded(dips.SupersededBy(bench));
+
+        Assert.Equal(Bench, Push(Catalogue, dips, bench).MovementDataId);
     }
 
     [Fact]

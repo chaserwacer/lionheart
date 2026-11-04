@@ -44,8 +44,19 @@ public static class TrainingVolumeAnalysis
             family,
             inWindow.Count(placed => placed.Trains.Family == family),
             VolumeTargets.Family,
-            LastDay(history.Where(placed => placed.Trains.Family == family))))
+            LastTrained(family, history)))
     ];
+
+    /// <summary>The last day that trained the family: any compound set of it, or a few accessory sets.</summary>
+    private static DateOnly? LastTrained(PatternFamily family, IReadOnlyList<PlacedSet> history) =>
+        history
+            .Where(placed => placed.Trains.Family == family)
+            .GroupBy(placed => placed.Day)
+            .Where(day => day.Any(placed => MovementPatterns.Compound.Contains(placed.Trains.Pattern))
+                          || day.Count() >= VolumeTargets.AccessoryDay)
+            .Select(day => (DateOnly?)day.Key)
+            .DefaultIfEmpty(null)
+            .Max();
 
     private static PatternVolume Pattern(MovementPattern pattern, IReadOnlyList<PlacedSet> inWindow, IReadOnlyList<PlacedSet> history) =>
         new(
@@ -93,35 +104,4 @@ public static class TrainingVolumeAnalysis
 
     private static DateOnly? LastDay(IEnumerable<PlacedSet> placed) =>
         placed.Select(set => (DateOnly?)set.Day).DefaultIfEmpty(null).Max();
-}
-
-/// <summary>Reads a day's readiness against the athlete's own usual range.</summary>
-public static class ReadinessNotes
-{
-    /// <summary>The days of history the usual range is drawn from.</summary>
-    public const int UsualRangeDays = 90;
-
-    /// <summary>The fewest scored days a usual range is read from; fewer and its tails are noise.</summary>
-    public const int FewestDays = 30;
-
-    /// <param name="scores">Oura's readiness scores by day, any order; days with none are left out.</param>
-    public static ReadinessNote Of(IReadOnlyList<(DateOnly Day, int Score)> scores, DateOnly day)
-    {
-        var today = scores.Where(score => score.Day == day).Select(score => (int?)score.Score).FirstOrDefault();
-        var before = scores
-            .Where(score => score.Day < day && score.Day >= day.AddDays(-UsualRangeDays))
-            .Select(score => score.Score)
-            .Order()
-            .ToList();
-
-        if (today is not { } score || before.Count < FewestDays) return new ReadinessNote.NotRead();
-
-        var low = Percentile(before, 0.1);
-        var high = Percentile(before, 0.9);
-        return score < low ? new ReadinessNote.Low(score, low, high) : new ReadinessNote.Usual(score);
-    }
-
-    /// <summary>Nearest-rank percentile of a sorted list.</summary>
-    private static int Percentile(IReadOnlyList<int> sorted, double fraction) =>
-        sorted[(int)Math.Floor(fraction * (sorted.Count - 1))];
 }

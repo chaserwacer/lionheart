@@ -126,7 +126,7 @@ public sealed class TwoAthletes : IDisposable
     public async Task<T> ClassificationAsync<T>(Func<IMovementClassificationService, Task<T>> act)
     {
         using var context = CreateContext();
-        return await act(new MovementClassificationService(context));
+        return await act(new MovementClassificationService(context, MovementPatternMap.Shipped));
     }
 
     public async Task<T> VolumeAsync<T>(Func<ITrainingVolumeService, Task<T>> act)
@@ -138,7 +138,7 @@ public sealed class TwoAthletes : IDisposable
     public async Task<T> MovementDataAsync<T>(Func<IMovementDataService, Task<T>> act)
     {
         using var context = CreateContext();
-        return await act(new MovementDataService(context, new MovementModifierService(context)));
+        return await act(new MovementDataService(context, new MovementModifierService(context), MovementPatternMap.Shipped));
     }
 
     /// <summary>

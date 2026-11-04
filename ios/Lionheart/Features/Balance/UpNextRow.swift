@@ -21,8 +21,8 @@ struct UpNextRow: View {
                 Text(reason(due, lastTrained: lastTrained))
                     .font(.subheadline)
                     .foregroundStyle(Color(.secondaryLabel))
-                if case .low(let score, let usualLow, let usualHigh) = readiness {
-                    Text("Oura's readiness score is \(score), under your 90-day range of \(usualLow)–\(usualHigh).")
+                if case .low(let ouraScore, let usualLow, let usualHigh) = readiness {
+                    Text("Oura's readiness score is \(ouraScore), under your 90-day range of \(usualLow)–\(usualHigh).")
                         .font(.subheadline)
                         .foregroundStyle(.orange)
                 }

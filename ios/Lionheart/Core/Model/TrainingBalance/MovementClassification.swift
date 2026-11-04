@@ -155,16 +155,6 @@ enum MuscleGroup: Hashable, Sendable {
         }
     }
 
-    /// The family a muscle is trained in, the server's `MuscleGroups.FamilyOf`.
-    var family: PatternFamily {
-        switch self {
-        case .chest, .frontDelts, .sideDelts, .triceps: .push
-        case .rearDelts, .lats, .upperBack, .biceps, .forearms: .pull
-        case .quads, .hamstrings, .glutes, .adductors, .calves, .lowerBack: .legs
-        case .abs: .core
-        case .unrecognised(let wire): .unrecognised(wire)
-        }
-    }
 }
 
 /// What a movement base trains: its pattern, and its primary and secondary muscle groups.
@@ -172,17 +162,6 @@ struct MovementClassification: Equatable, Sendable {
     let pattern: MovementPattern
     let primary: [MuscleGroup]
     let secondary: [MuscleGroup]
-
-    /// The compound pattern's own family, else the first primary muscle's — the server's rule, so
-    /// the priority picker offers only the lifts the server would accept for a family.
-    var family: PatternFamily {
-        switch pattern {
-        case .horizontalPush, .verticalPush: .push
-        case .horizontalPull, .verticalPull: .pull
-        case .squat, .hinge, .singleLeg: .legs
-        case .isolation, .other, .unrecognised: primary.first?.family ?? .unrecognised("")
-        }
-    }
 
     var isCompound: Bool {
         switch pattern {
@@ -208,12 +187,18 @@ enum ClassificationSource: Equatable, Sendable {
 enum ClassificationStanding: Equatable, Sendable {
     /// Neither stated nor in the map: its sets are counted nowhere until it is classified.
     case unclassified
-    case classified(MovementClassification, source: ClassificationSource)
+    /// `family` is the one it counts toward, as the server reads it: the family a priority must match.
+    case classified(MovementClassification, source: ClassificationSource, family: PatternFamily)
     case unrecognised(String)
 
     var classification: MovementClassification? {
-        guard case .classified(let classification, _) = self else { return nil }
+        guard case .classified(let classification, _, _) = self else { return nil }
         return classification
+    }
+
+    var family: PatternFamily? {
+        guard case .classified(_, _, let family) = self else { return nil }
+        return family
     }
 }
 
@@ -253,7 +238,9 @@ extension ClassificationStanding: Decodable {
                 return
             }
             self = .classified(
-                classification, source: container.lenient(ClassificationSource.self, "source") ?? .unrecognised(""))
+                classification,
+                source: container.lenient(ClassificationSource.self, "source") ?? .unrecognised(""),
+                family: PatternFamily(wire: container.lenient("family", or: "")))
         default:
             self = .unrecognised(type)
         }

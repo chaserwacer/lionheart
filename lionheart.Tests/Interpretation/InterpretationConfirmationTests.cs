@@ -11,6 +11,7 @@ using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using lionheart.Services.Training.Patterns;
 
 namespace lionheart.Tests.Interpretation;
 
@@ -223,7 +224,7 @@ public class InterpretationConfirmationTests : IDisposable
             context,
             parser,
             new InterpretationResolver(
-                new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context))),
+                new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context), MovementPatternMap.Shipped)),
                 new FacetResolver(context, _embeddings)),
             new InterpretationCommitter(context, _embeddings, new PersonalRecordDetector(context, TimeProvider.System)));
 

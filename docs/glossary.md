@@ -60,8 +60,9 @@ first and then in the code.
 | **Movement-pattern map** | The athlete-editable file, `movement-patterns.json`, saying what each movement base trains, with judgement calls marked unsure. Read live, so a correction reaches every base the athlete has not classified himself. |
 | **Hard set** | A working, drop or failure set of a lift; never a warm-up. The unit weekly volume is counted in: whole toward each primary muscle, half toward each secondary one. |
 | **Weekly volume** | Hard sets over the seven days ending on a day, by family, pattern and muscle group, each against a weekly target, with the last day each was trained. |
+| **Training balance** | Where the week's training stands across the body: weekly volume and up next, the priorities, and the training score. The name of the folders, store and routes that read them. |
 | **Up next** | The family or families trained longest ago, named together when last trained the same day, with the day's readiness beside it where it is unusual. A recommendation, never an instruction. |
-| **Training score** | Lionheart's own 0–100 for the seven days ending on a day: lifting volume, cardio, priority progress and consistency, each read as measurements against targets. Not Oura's activity score. A part with no data is unknown, and a score with one never reads 90. |
+| **Training score** | Lionheart's own 0–100 for the seven days ending on a day: lifting volume, cardio, priority progress and consistency, each read as measurements against targets. Not Oura's activity score. A part with no data is unknown: named, and its points out of reach rather than counted as zero. |
 | **Oura's score** | A 0–100 rating Oura gives a day or one of its contributors — readiness, recovery index, training frequency. A judgement Oura made, not a measurement; shown as Oura's and never mixed with Lionheart's figures. |
 
 ## Body and context

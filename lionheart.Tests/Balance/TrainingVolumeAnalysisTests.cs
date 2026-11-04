@@ -90,6 +90,27 @@ public class TrainingVolumeAnalysisTests
     }
 
     [Fact]
+    public void Two_accessory_sets_on_a_push_day_do_not_make_it_a_pull_day()
+    {
+        var volume = Volume(Catalogue
+            .WithSession(Wednesday.AddDays(-5), Set(Row))
+            .WithSession(Wednesday.AddDays(-2), Set(Bench), Set(Bench), Set(Curl), Set(Curl))
+            .WithSession(Wednesday.AddDays(-1), Set(Squat)));
+
+        Assert.Equal([PatternFamily.Pull], Assert.IsType<UpNext.Train>(volume.UpNext).Families);
+        Assert.Equal(Wednesday.AddDays(-5), Family(volume, PatternFamily.Pull).LastTrained);
+        Assert.Equal(3, Family(volume, PatternFamily.Pull).HardSets);
+    }
+
+    [Fact]
+    public void A_day_of_three_accessory_sets_trains_their_family()
+    {
+        var volume = Volume(Catalogue.WithSession(Wednesday.AddDays(-1), Set(Curl), Set(Curl), Set(Curl)));
+
+        Assert.Equal(Wednesday.AddDays(-1), Family(volume, PatternFamily.Pull).LastTrained);
+    }
+
+    [Fact]
     public void Families_last_trained_the_same_day_are_up_next_together()
     {
         var volume = Volume(Catalogue
@@ -131,7 +152,7 @@ public class TrainingVolumeAnalysisTests
         var usual = Enumerable.Range(1, 60).Select(days => (Wednesday.AddDays(-days), 70 + days % 20)).ToList();
 
         var low = Assert.IsType<ReadinessNote.Low>(ReadinessNotes.Of([.. usual, (Wednesday, 60)], Wednesday));
-        Assert.Equal(60, low.Score);
+        Assert.Equal(60, low.OuraScore);
         Assert.True(low.UsualLow > 60 && low.UsualHigh > low.UsualLow);
         Assert.IsType<ReadinessNote.Usual>(ReadinessNotes.Of([.. usual, (Wednesday, 80)], Wednesday));
     }

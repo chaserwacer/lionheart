@@ -23,8 +23,13 @@ public interface IMovementClassificationService
 public sealed class MovementClassificationService : IMovementClassificationService
 {
     private readonly ModelContext _context;
+    private readonly MovementPatternMap _map;
 
-    public MovementClassificationService(ModelContext context) => _context = context;
+    public MovementClassificationService(ModelContext context, MovementPatternMap map)
+    {
+        _context = context;
+        _map = map;
+    }
 
     public Task<Result<MovementBaseDTO, Problem>> ClassifyAsync(
         IdentityUser user, Guid movementBaseId, ClassifyMovementRequest request, CancellationToken ct) =>
@@ -60,6 +65,6 @@ public sealed class MovementClassificationService : IMovementClassificationServi
     private async Task<MovementBaseDTO> CommitAsync(MovementBase movementBase, CancellationToken ct)
     {
         await _context.SaveChangesAsync(ct);
-        return movementBase.ToDTO();
+        return movementBase.ToDTO(_map.StandingOf(movementBase));
     }
 }

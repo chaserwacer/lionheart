@@ -15,13 +15,13 @@ struct ClassificationSection: View {
         if let movement = library.movement(movementDataId) {
             Section {
                 switch movement.classification {
-                case .classified(let trains, let source):
+                case .classified(let trains, let source, let family):
                     LabeledContent("Pattern", value: trains.pattern.name)
                     LabeledContent("Primary", value: Self.names(trains.primary))
                     if !trains.secondary.isEmpty {
                         LabeledContent("Secondary", value: Self.names(trains.secondary))
                     }
-                    Text(Self.source(source, family: trains.family))
+                    Text(Self.source(source, family: family))
                         .font(.footnote)
                         .foregroundStyle(Self.isUnsure(source) ? .orange : Color(.secondaryLabel))
                 case .unclassified:
@@ -85,7 +85,7 @@ struct ClassificationSheet: View {
                 }
                 muscleSection(.primary)
                 muscleSection(.secondary)
-                if case .classified(_, let source) = movement.classification, source == .athlete {
+                if case .classified(_, let source, _) = movement.classification, source == .athlete {
                     Section {
                         Button("Use the map's classification") { Task { await withdraw() } }
                             .disabled(isSaving)

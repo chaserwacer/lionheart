@@ -1,6 +1,7 @@
 using lionheart.Model.Training.Balance;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.Patterns;
+using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Training.Balance;
 
@@ -38,12 +39,16 @@ public static class PriorityAnalysis
     }
 
     /// <summary>The pin in force on the day, else the family's most-trained compound lift, else nothing.</summary>
+    /// <remarks>
+    /// The newest pin wins where two stand on one day: a priority that superseded another unpins it
+    /// on that one's own first day when it starts earlier, and on that day both are in force.
+    /// </remarks>
     private static (Guid MovementDataId, PriorityChoice Choice)? Choose(
         TrainingLog log, IReadOnlyList<FocusPin> pins, PatternFamily family, DateOnly day)
     {
         var pinned = pins
             .Where(pin => pin.Role.IsPriorityFor(family) && InForce(pin, day))
-            .MaxBy(pin => (pin.Terms.Horizon.Starts, pin.PinnedAt));
+            .MaxBy(pin => (pin.PinnedAt, pin.Terms.Horizon.Starts));
         if (pinned is not null) return (pinned.MovementDataId, new PriorityChoice.ByPin(FocusPinView.Of(pin: pinned)));
 
         var implied = log.Between(day.AddDays(1 - ImpliedLookBackDays), day)
@@ -126,11 +131,9 @@ public static class PriorityAnalysis
             .Where(set => set.Unit == unit && set.Reps is >= 1 and <= MostRepsEstimated)
             .Select(set => (Load: log.LoadOf(set, day), set.Reps))
             .Where(set => set.Load > 0)
-            .Select(set => new SessionBest(day, Epley(set.Load, set.Reps), set.Load, set.Reps))
+            .Select(set => new SessionBest(
+                day, new LiftPerformance(set.Load, unit, set.Reps).EstimatedOneRepMax, set.Load, set.Reps))
             .MaxBy(best => best.EstimatedOneRepMax);
-
-    /// <summary>Epley's single, <c>load × (1 + reps / 30)</c>, the formula the records report.</summary>
-    public static double Epley(double load, int reps) => reps <= 1 ? load : load * (1 + reps / 30.0);
 
     private static bool OnSystemLoad(TrainingLog log, Guid movementDataId, WeightUnit unit) =>
         log.Movements.TryGetValue(movementDataId, out var movement)

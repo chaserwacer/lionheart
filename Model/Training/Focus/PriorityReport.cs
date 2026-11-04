@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.Patterns;
-using lionheart.Model.Training.Score;
+using lionheart.Model.Cardio;
 using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Training.Focus;
@@ -81,12 +81,33 @@ public abstract record LiftProgress
     public sealed record Compared(
         double Best, double PriorBest, double AllTimeBest, WeightUnit Unit, bool OnSystemLoad) : LiftProgress
     {
+        /// <summary>A best within this fraction under the prior best is held rather than lost.</summary>
+        public const double HeldWithin = 0.05;
+
         public double Change => Best - PriorBest;
 
-        public bool IsNewBest => Best > PriorBest;
-
-        public bool IsLifetimeBest => Best > AllTimeBest;
+        /// <summary>Where the window's best stands, sent so no client draws the bands again.</summary>
+        public ProgressStanding Standing =>
+            Best > AllTimeBest ? ProgressStanding.LifetimeBest
+            : Best > PriorBest ? ProgressStanding.NewBest
+            : Best >= (1 - HeldWithin) * PriorBest ? ProgressStanding.Held
+            : ProgressStanding.Below;
     }
+}
+
+/// <summary>A compared best against the twelve weeks before: above, within five per cent, or under that.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ProgressStanding>))]
+public enum ProgressStanding
+{
+    /// <summary>Above every best before the window, the twelve weeks and all before them.</summary>
+    [JsonStringEnumMemberName("lifetimeBest")] LifetimeBest,
+
+    /// <summary>Above the twelve weeks before.</summary>
+    [JsonStringEnumMemberName("newBest")] NewBest,
+
+    [JsonStringEnumMemberName("held")] Held,
+
+    [JsonStringEnumMemberName("below")] Below,
 }
 
 /// <summary>One session's best estimated one-rep max on a lift.</summary>

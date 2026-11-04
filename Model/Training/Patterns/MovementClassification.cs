@@ -111,7 +111,11 @@ public abstract record ClassificationStanding
     /// <summary>Neither stated nor in the map. Its sets are listed as unplaced, never guessed at.</summary>
     public sealed record Unclassified : ClassificationStanding;
 
-    public sealed record Classified(MovementClassification Classification, ClassificationSource Source) : ClassificationStanding;
+    public sealed record Classified(MovementClassification Classification, ClassificationSource Source) : ClassificationStanding
+    {
+        /// <summary>The family it counts toward, sent so no client draws the rule again.</summary>
+        public PatternFamily Family => Classification.Family;
+    }
 }
 
 /// <summary>Where a classification came from, and so how far to trust it.</summary>

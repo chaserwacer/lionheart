@@ -17,7 +17,7 @@ enum PriorityCandidates {
         }
         let fitting = movements.filter { movement in
             guard let trains = movement.classification.classification else { return false }
-            return trains.isCompound && trains.family == family
+            return trains.isCompound && movement.classification.family == family
         }
         let unclassified = movements.filter { movement in
             switch movement.classification {

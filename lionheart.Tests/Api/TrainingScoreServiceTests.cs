@@ -1,5 +1,6 @@
 using lionheart.Functional;
 using lionheart.Model.Analysis;
+using lionheart.Model.Cardio;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Score;
 using lionheart.Services.Cardio;
@@ -65,15 +66,20 @@ public class TrainingScoreServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task The_chat_tool_hands_over_the_latest_score_its_volume_and_the_weeks_before()
+    public async Task The_chat_tool_hands_over_the_score_as_a_few_hundred_tokens_of_measurements()
     {
         await PlantBenchSessionAsync(Sunday.AddDays(-1), sets: 3);
 
-        var briefing = Assert.IsType<TrainingScoreForChat>(await ScoreAsync(service =>
-            service.GetTrainingScoreForChatAsync(_athletes.Owner, new DayRange(Sunday.AddDays(-13), Sunday.AddDays(2)))));
+        var digest = Assert.IsType<TrainingScoreDigest>(await ScoreAsync(service =>
+            service.GetTrainingScoreForChatAsync(_athletes.Owner, new DayRange(Sunday.AddDays(-85), Sunday.AddDays(2)))));
 
-        Assert.Equal(Sunday.AddDays(2), briefing.Score.Window.To);
-        Assert.Equal(3, briefing.Volume.Families.Single(family => family.Family == PatternFamily.Push).HardSets);
-        Assert.Equal([Sunday.AddDays(-7), Sunday], briefing.Weeks.Select(week => week.Window.To));
+        Assert.Equal($"{Sunday.AddDays(-4):yyyy-MM-dd}..{Sunday.AddDays(2):yyyy-MM-dd}", digest.Window);
+        Assert.StartsWith("lifting ", digest.Parts[0]);
+        Assert.Contains("push 3/8", digest.Parts[0]);
+        Assert.StartsWith("cardio unknown", digest.Parts[1]);
+        Assert.Contains("of 75 that could be read", digest.Score);
+        Assert.Equal(12, digest.Weeks.Split(", ").Length);
+        // About four characters a token: a whole briefing stays within a few hundred tokens.
+        Assert.InRange(System.Text.Json.JsonSerializer.Serialize(digest).Length, 1, 2400);
     }
 }

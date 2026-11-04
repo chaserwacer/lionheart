@@ -20,7 +20,7 @@ struct TrainingBalanceTests {
         #expect(volume.unplaced.map(\.name) == ["Cable Mystery"])
         #expect(volume.upNext == .train(
             families: [.push, .pull], lastTrained: CalendarDay(year: 2026, month: 10, day: 28),
-            trainedToday: false, readiness: .low(score: 58, usualLow: 63, usualHigh: 87)))
+            trainedToday: false, readiness: .low(ouraScore: 58, usualLow: 63, usualHigh: 87)))
     }
 
     @Test("A pattern, a muscle or an up-next case this build does not know still lets the volume load")
@@ -56,6 +56,7 @@ struct TrainingBalanceTests {
         #expect(partial.cardio.points == nil)
         #expect(partial.cardio.measure == .unknown(.noHeartRate))
         #expect(partial.unknown == [.cardio])
+        #expect((score.outOf, partial.outOf) == (100, 75))
         #expect(ScoreBreakdown.cardio(partial.cardio.measure).isEmpty)
     }
 
@@ -68,7 +69,7 @@ struct TrainingBalanceTests {
             return
         }
         #expect(pin.role == .priority(.push))
-        #expect(push.progress == .compared(best: 286, priorBest: 278, allTimeBest: 290, unit: .pounds, onSystemLoad: true))
+        #expect(push.progress == .compared(best: 286, priorBest: 278, standing: .newBest, unit: .pounds, onSystemLoad: true))
         #expect(push.series.map(\.load) == [220, 225])
         guard case .chosen(let pull) = report.lift(for: .pull) else {
             Issue.record("Expected a pull priority")
@@ -85,8 +86,8 @@ struct TrainingBalanceTests {
         #expect(movement.movementBaseId == UUID(uuidString: "33333333-3333-3333-3333-333333333333"))
         #expect(movement.classification == .classified(
             MovementClassification(pattern: .horizontalPush, primary: [.chest, .triceps], secondary: [.frontDelts]),
-            source: .mapUnsure(reason: "between two presses")))
-        #expect(movement.classification.classification?.family == .push)
+            source: .mapUnsure(reason: "between two presses"), family: .push))
+        #expect(movement.classification.family == .push)
     }
 
     @Test("A pin from a server older than roles reads as an emphasis")
@@ -99,12 +100,11 @@ struct TrainingBalanceTests {
 
     // MARK: - Readings
 
-    @Test("A best above the twelve weeks before is a new best, within five per cent held, further under below")
-    func liftStandingBands() {
-        let best = LiftStanding.of(.compared(best: 210, priorBest: 200, allTimeBest: 250, unit: .pounds, onSystemLoad: false))
-        let held = LiftStanding.of(.compared(best: 191, priorBest: 200, allTimeBest: 250, unit: .pounds, onSystemLoad: false))
-        let below = LiftStanding.of(.compared(best: 189, priorBest: 200, allTimeBest: 250, unit: .pounds, onSystemLoad: false))
-        let lifetime = LiftStanding.of(.compared(best: 260, priorBest: 200, allTimeBest: 250, unit: .pounds, onSystemLoad: false))
+    @Test("The server's band names the verdict, and the change is read against the prior best")
+    func liftStandingFromServer() {
+        let best = LiftStanding.of(.compared(best: 210, priorBest: 200, standing: .newBest, unit: .pounds, onSystemLoad: false))
+        let lifetime = LiftStanding.of(.compared(best: 260, priorBest: 200, standing: .lifetimeBest, unit: .pounds, onSystemLoad: false))
+        let unknown = LiftStanding.of(.compared(best: 260, priorBest: 200, standing: .unrecognised("x"), unit: .pounds, onSystemLoad: false))
 
         guard case .newBest(_, _, let change, let isLifetime, _) = best else {
             Issue.record("Expected a new best, got \(best)")
@@ -112,12 +112,9 @@ struct TrainingBalanceTests {
         }
         #expect(abs(change - 0.05) < 1e-9)
         #expect(!isLifetime)
-        guard case .held = held, case .below = below else {
-            Issue.record("Expected held then below, got \(held) and \(below)")
-            return
-        }
         #expect(lifetime.verdict == "Lifetime best")
         #expect(best.verdict == "12-week best")
+        #expect(unknown == .unreadable)
     }
 
     @Test("Consistency reads the window first, then each seven-day block before it")
@@ -179,7 +176,7 @@ struct TrainingBalanceTests {
      "muscles":[{"muscle":"upperBack","direct":0,"indirect":3,"target":4,"lastTrained":"2026-09-17","sets":1.5}],
      "unplaced":[{"movementDataId":"44444444-4444-4444-4444-444444444444","name":"Cable Mystery","hardSets":2}],
      "upNext":{"$type":"train","families":["push","pull"],"lastTrained":"2026-10-28","trainedToday":false,
-               "readiness":{"$type":"low","score":58,"usualLow":63,"usualHigh":87}}}
+               "readiness":{"$type":"low","ouraScore":58,"usualLow":63,"usualHigh":87}}}
     """
 
     private static let measuredCardio = """
@@ -189,7 +186,7 @@ struct TrainingBalanceTests {
 
     private static func scoreJSON(cardio: String, unknown: String = "[]") -> String {
         """
-        {"window":{"from":"2026-10-28","to":"2026-11-03"},"value":49,"unknown":\(unknown),
+        {"window":{"from":"2026-10-28","to":"2026-11-03"},"value":49,"outOf":\(unknown == "[]" ? 100 : 75),"unknown":\(unknown),
          "lifting":{"points":20.4,"outOf":35,"families":[
             {"family":"push","hardSets":4,"target":8,"lastTrained":"2026-10-28"},
             {"family":"pull","hardSets":3,"target":8,"lastTrained":"2026-10-28"},
@@ -215,7 +212,7 @@ struct TrainingBalanceTests {
          "families":[
           {"family":"push","lift":{"$type":"chosen","movementDataId":"66666666-6666-6666-6666-666666666666","name":"Dip Bars Dip",
             "choice":{"$type":"pinned","pin":\(pinJSON(role: #"{"$type":"priority","family":"push"}"#))},
-            "progress":{"$type":"compared","best":286,"priorBest":278,"allTimeBest":290,"unit":1,"onSystemLoad":true},
+            "progress":{"$type":"compared","best":286,"priorBest":278,"allTimeBest":290,"standing":"newBest","unit":1,"onSystemLoad":true},
             "sessionsLastFourWeeks":3,
             "series":[{"day":"2026-10-21","estimatedOneRepMax":278,"load":220,"reps":8},
                       {"day":"2026-11-01","estimatedOneRepMax":286,"load":225,"reps":8}]}},
@@ -228,7 +225,8 @@ struct TrainingBalanceTests {
 
     private static func classified(_ pattern: String, _ primary: [String]) -> String {
         let muscles = primary.map { "\"\($0)\"" }.joined(separator: ",")
-        return #"{"$type":"classified","classification":{"pattern":"\#(pattern)","primary":[\#(muscles)],"secondary":[]},"source":{"$type":"map"}}"#
+        let family = ["horizontalPush": "push", "verticalPull": "pull", "isolation": "push"][pattern] ?? "core"
+        return #"{"$type":"classified","classification":{"pattern":"\#(pattern)","primary":[\#(muscles)],"secondary":[]},"source":{"$type":"map"},"family":"\#(family)"}"#
     }
 
     private static func movement(id: String, base: String, classification: String) -> String {
@@ -244,6 +242,6 @@ struct TrainingBalanceTests {
 
     private static let movementJSON = movement(id: "3", base: "Dip", classification: """
         {"$type":"classified","classification":{"pattern":"horizontalPush","primary":["chest","triceps"],"secondary":["frontDelts"]},
-         "source":{"$type":"mapUnsure","reason":"between two presses"}}
+         "source":{"$type":"mapUnsure","reason":"between two presses"},"family":"push"}
         """)
 }

@@ -8,6 +8,7 @@ using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using lionheart.Services.Training.Patterns;
 
 namespace lionheart.Tests.Interpretation;
 
@@ -49,7 +50,7 @@ public class MovementResolverTests : IDisposable
     }
 
     private static MovementResolver BuildResolver(ModelContext context) =>
-        new(context, new MovementDataService(context, new MovementModifierService(context)));
+        new(context, new MovementDataService(context, new MovementModifierService(context), MovementPatternMap.Shipped));
 
     [Fact]
     public async Task ExactNamesResolveToAMovementDataId()

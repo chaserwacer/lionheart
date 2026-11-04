@@ -25,9 +25,6 @@ public interface ITrainingScoreService
     Task<Result<IReadOnlyList<WeeklyScore>, Problem>> GetWeeksAsync(IdentityUser user, DayRange range, CancellationToken ct);
 }
 
-/// <summary>What the chat model is handed about the score: the latest, the volume behind it, and the weeks before.</summary>
-public sealed record TrainingScoreForChat(TrainingScore Score, TrainingVolume Volume, IReadOnlyList<WeeklyScore> Weeks);
-
 /// <summary>Reads the log, the pins and the cardio a span of windows needs, once, and scores each window.</summary>
 [ToolProvider]
 public sealed class TrainingScoreService : ITrainingScoreService
@@ -61,17 +58,17 @@ public sealed class TrainingScoreService : ITrainingScoreService
             .MapAsync(IReadOnlyList<WeeklyScore> (scores) => [.. scores.Select(WeeklyScore.Of)]);
 
     [Tool(Name = "GetTrainingScore",
-        Description = "Lionheart's own training score (0-100; not Oura's activity score) for the seven days ending on the range's last day, part by part with the measurements behind each: hard sets of push, pull and legs against 8 each (35 points); zone-2 minutes against 150 and minutes at 80% of maximum heart rate or above against 20, from cardio sessions (25 points, unknown rather than zero with no heart rate); each family's priority lift — pinned, or the most-trained compound lift of 8 weeks — its best estimated one-rep max against the 12 weeks before (20 points); and sessions in each of the last four 7-day blocks against 3 (20 points). A score with cardio unknown is read over the known parts and never reaches 90. Also the same window's hard sets by family, movement pattern and muscle group (secondary muscles count half), the last day each was trained, what the log says is up next, and the scores of the weeks ending on each Sunday of the range, at most the last 12.")]
-    public Task<TrainingScoreForChat?> GetTrainingScoreForChatAsync(IdentityUser user, DayRange range)
+        Description = "Lionheart's own training score (0-100; not Oura's activity score) for the seven days ending on the range's last day, as a few lines: part by part with the measurements behind each: hard sets of push, pull and legs against 8 each (35 points); zone-2 minutes against 150 and minutes at 80% of maximum heart rate or above against 20, from cardio sessions (25 points, unknown rather than zero with no heart rate); each family's priority lift — pinned, or the most-trained compound lift of 8 weeks — its best estimated one-rep max against the 12 weeks before (20 points); and sessions in each of the last four 7-day blocks against 3 (20 points). With cardio unknown the score is what the other parts earned, out of 75. Also what the log says is up next, the patterns and muscle groups under their weekly hard-set target (secondary muscles count half), and the scores of the weeks ending on each Sunday of the range, at most the last 12.")]
+    public Task<TrainingScoreDigest?> GetTrainingScoreForChatAsync(IdentityUser user, DayRange range)
     {
         var sundays = Sundays(range).TakeLast(ChatWeeks).ToList();
         return InputsAsync(user, Span([.. sundays, range.To]), CancellationToken.None)
-            .MapAsync(async inputs => new TrainingScoreForChat(
+            .MapAsync(async inputs => TrainingScoreDigest.Of(
                 inputs.Score(range.To),
                 TrainingVolumeAnalysis.Build(
                     inputs.Log, range.To, await _context.ReadinessOnAsync(inputs.UserId, range.To, CancellationToken.None)),
                 [.. sundays.Select(inputs.Score).Select(WeeklyScore.Of)]))
-            .MatchAsync(briefing => (TrainingScoreForChat?)briefing, _ => null);
+            .MatchAsync(digest => (TrainingScoreDigest?)digest, _ => null);
     }
 
     /// <summary>Scores each window ending on the days given, from one read of everything they need.</summary>

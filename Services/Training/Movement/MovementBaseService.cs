@@ -1,5 +1,6 @@
 using lionheart.Functional;
 using lionheart.Data;
+using lionheart.Services.Training.Patterns;
 using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -18,11 +19,13 @@ namespace lionheart.Services.Training
     {
         private readonly ModelContext _context;
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly MovementPatternMap _map;
 
-        public MovementBaseService(ModelContext context, UserManager<IdentityUser> userManager)
+        public MovementBaseService(ModelContext context, UserManager<IdentityUser> userManager, MovementPatternMap map)
         {
             _context = context;
             _userManager = userManager;
+            _map = map;
         }
 
         public async Task<Result<MovementBaseDTO, Problem>> CreateMovementBaseAsync(IdentityUser user, CreateMovementBaseRequest request)
@@ -47,7 +50,7 @@ namespace lionheart.Services.Training
 
             _context.MovementBases.Add(movementBase);
             await _context.SaveChangesAsync();
-            return Result<MovementBaseDTO, Problem>.Success(movementBase.ToDTO());
+            return Result<MovementBaseDTO, Problem>.Success(movementBase.ToDTO(_map.StandingOf(movementBase)));
         }
 
         public async Task<Result<Unit, Problem>> DeleteMovementBaseAsync(IdentityUser user, Guid movementBaseId)
@@ -82,7 +85,7 @@ namespace lionheart.Services.Training
                 .OrderBy(mb => mb.Name)
                 .ToListAsync();
 
-            var dtos = movementBases.Select(mb => mb.ToDTO()).ToList();
+            var dtos = movementBases.Select(mb => mb.ToDTO(_map.StandingOf(mb))).ToList();
             return Result<List<MovementBaseDTO>, Problem>.Success(dtos);
         }
 
@@ -102,7 +105,7 @@ namespace lionheart.Services.Training
             movementBase.Description = request.Description;
 
             await _context.SaveChangesAsync();
-            return Result<MovementBaseDTO, Problem>.Success(movementBase.ToDTO());
+            return Result<MovementBaseDTO, Problem>.Success(movementBase.ToDTO(_map.StandingOf(movementBase)));
         }
     }
 }

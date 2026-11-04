@@ -4,11 +4,12 @@ import Foundation
 /// `TrainingScore` (`GET /api/training/score/{day}`). Not Oura's activity score.
 ///
 /// Every part arrives with the measurements it was read from, so the screen states measurements
-/// ("push 6 of 8 hard sets") rather than sub-scores. A part with no data is in `unknown`, and the
-/// value is then read over the parts that are known and never reaches 90.
+/// ("push 6 of 8 hard sets") rather than sub-scores. A part with no data is in `unknown`: its points
+/// are out of reach rather than counted as zero, so `outOf` is 100 less its weight.
 struct TrainingScore: Equatable, Sendable {
     let window: DayRange
     let value: Int
+    let outOf: Int
     let unknown: [ScorePart]
     let lifting: LiftingPart
     let cardio: CardioPart
@@ -76,6 +77,7 @@ struct ConsistencyPart: Equatable, Sendable {
 struct WeeklyScore: Equatable, Sendable, Identifiable {
     let window: DayRange
     let value: Int
+    let outOf: Int
     let unknown: [ScorePart]
     let liftingPoints: Double
     let cardioPoints: Double?
@@ -100,6 +102,7 @@ extension TrainingScore: Decodable {
         self.init(
             window: window,
             value: value,
+            outOf: container.lenient("outOf", or: 100),
             unknown: container.lenientList(String.self, "unknown").map(ScorePart.init(wire:)),
             lifting: container.lenient(LiftingPart.self, "lifting") ?? LiftingPart(points: 0, outOf: 0, families: []),
             cardio: container.lenient(CardioPart.self, "cardio")
@@ -163,6 +166,7 @@ extension WeeklyScore: Decodable {
         self.init(
             window: window,
             value: value,
+            outOf: container.lenient("outOf", or: 100),
             unknown: container.lenientList(String.self, "unknown").map(ScorePart.init(wire:)),
             liftingPoints: container.lenient("liftingPoints", or: 0),
             cardioPoints: container.lenient(Double.self, "cardioPoints"),

@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.Balance;
+using lionheart.Model.Cardio;
 using lionheart.Model.Training.Focus;
 
 namespace lionheart.Model.Training.Score;
@@ -12,18 +13,18 @@ namespace lionheart.Model.Training.Score;
 /// </summary>
 /// <remarks>
 /// Built to be earned rather than handed out: every part is a measurement against a target that a
-/// good week of this athlete's reaches only in part, so a typical decent week reads in the 60s and
-/// 90 takes everything at once. A part with no data is unknown, never zero, and the score is then
-/// read over the parts that are known and says which are missing.
+/// good week of this athlete's reaches only in part, so a decent lifting week reads in the 50s and
+/// 60s and 90 takes everything at once, a new best included. A part with no data is unknown, never
+/// zero: it is named, its points are out of reach rather than lost, and the value is what the known
+/// parts earned. So a week with the ring off can never outscore the same week with it on.
 /// </remarks>
-/// <param name="Value">
-/// Points earned over the points that could be read, out of 100; with a part unknown, at most
-/// <see cref="ScoreRules.HighestPartial"/>.
-/// </param>
-/// <param name="Unknown">The parts left out because their data is missing; empty for a whole score.</param>
+/// <param name="Value">The points the known parts earned, out of 100.</param>
+/// <param name="OutOf">The points that could be read: 100, less the weight of any part unknown.</param>
+/// <param name="Unknown">The parts whose data is missing; empty for a whole score.</param>
 public sealed record TrainingScore(
     DayRange Window,
     int Value,
+    int OutOf,
     IReadOnlyList<ScorePart> Unknown,
     LiftingPart Lifting,
     CardioPart Cardio,
@@ -52,46 +53,13 @@ public sealed record ProgressPart(double Points, int OutOf, IReadOnlyList<Family
 /// <summary>Sessions in each of the last four seven-day blocks, the window's own first.</summary>
 public sealed record ConsistencyPart(double Points, int OutOf, IReadOnlyList<int> SessionsPerBlock, int Target);
 
-/// <summary>
-/// Cardio over the window as the heart-rate zones read it, or unknown.
-/// </summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
-[JsonDerivedType(typeof(Measured), "measured")]
-[JsonDerivedType(typeof(Unknown), "unknown")]
-public abstract record CardioMeasure
-{
-    private protected CardioMeasure() { }
-
-    /// <param name="Zone2Minutes">Minutes at 60–70 % of maximum heart rate inside cardio sessions.</param>
-    /// <param name="HighIntensityMinutes">Minutes at 80 % of maximum and above (zones 4 and 5) inside cardio sessions.</param>
-    /// <param name="HeartRateDays">Days of the window with any heart rate from the ring, out of seven.</param>
-    public sealed record Measured(
-        double Zone2Minutes, int Zone2Target, double HighIntensityMinutes, int HighIntensityTarget,
-        int Sessions, int HeartRateDays) : CardioMeasure;
-
-    public sealed record Unknown(CardioUnknownReason Reason) : CardioMeasure;
-}
-
-[JsonConverter(typeof(JsonStringEnumConverter<CardioUnknownReason>))]
-public enum CardioUnknownReason
-{
-    /// <summary>No heart rate from the ring on any day of the window.</summary>
-    [JsonStringEnumMemberName("noHeartRate")] NoHeartRate,
-
-    /// <summary>No age on the profile to draw zones from.</summary>
-    [JsonStringEnumMemberName("noMaximumHeartRate")] NoMaximumHeartRate,
-
-    /// <summary>Most of the window's cardio session time has no heart rate behind it.</summary>
-    [JsonStringEnumMemberName("sessionsUnrecorded")] SessionsUnrecorded,
-}
-
 /// <summary>One week's score, for the trend: its value and each part's points.</summary>
 public sealed record WeeklyScore(
-    DayRange Window, int Value, IReadOnlyList<ScorePart> Unknown,
+    DayRange Window, int Value, int OutOf, IReadOnlyList<ScorePart> Unknown,
     double LiftingPoints, double? CardioPoints, double ProgressPoints, double ConsistencyPoints)
 {
     public static WeeklyScore Of(TrainingScore score) => new(
-        score.Window, score.Value, score.Unknown,
+        score.Window, score.Value, score.OutOf, score.Unknown,
         score.Lifting.Points, score.Cardio.Points, score.Progress.Points, score.Consistency.Points);
 }
 
@@ -124,18 +92,16 @@ public static class ScoreRules
 
     public const int ConsistencyBlocks = 4;
 
-    /// <summary>A priority lift's share of its points by how the window's best compares with the twelve weeks before.</summary>
-    public const double NewBestShare = 1;
-    public const double HeldShare = 0.5;
-    public const double FirstBackShare = 0.5;
-    public const double BelowShare = 0.25;
-
-    /// <summary>A best within this fraction of the prior best is held rather than lost.</summary>
-    public const double HeldWithin = 0.05;
-
     /// <summary>
-    /// The highest a score with a part unknown can read. Ninety and above says the week was shown
-    /// to be excellent in every part, which a week with no heart rate cannot be.
+    /// A priority lift's share of its points by how the window's best compares with the twelve
+    /// weeks before.
     /// </summary>
-    public const int HighestPartial = 89;
+    /// <remarks>
+    /// Only a new best pays well. With every other part full, holding all three lifts reads 85, so
+    /// 90 takes a new best on at least one priority, the progress the owner asked a 90 to mean.
+    /// </remarks>
+    public const double NewBestShare = 1;
+    public const double HeldShare = 0.25;
+    public const double FirstBackShare = 0.25;
+    public const double BelowShare = 0.1;
 }

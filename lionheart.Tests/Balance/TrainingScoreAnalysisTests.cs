@@ -1,4 +1,5 @@
 using lionheart.Model.Cardio;
+using lionheart.Services.Cardio;
 using lionheart.Model.Training.Score;
 using lionheart.Services.Training.Score;
 using static lionheart.Tests.Balance.ALog;
@@ -60,22 +61,46 @@ public class TrainingScoreAnalysisTests
     }
 
     [Fact]
-    public void Unknown_cardio_is_left_out_of_the_score_and_named()
+    public void Unknown_cardio_is_named_and_its_points_are_out_of_reach_rather_than_zeroed()
     {
         var score = TrainingScoreAnalysis.Score(Catalogue.WithSession(Sunday, Sets(4, Bench)).Build(), [], NoHeartRate, Sunday);
 
         Assert.Null(score.Cardio.Points);
         Assert.Equal([ScorePart.Cardio], score.Unknown);
+        Assert.Equal(75, score.OutOf);
         var known = score.Lifting.Points + score.Progress.Points + score.Consistency.Points;
-        Assert.Equal((int)Math.Round(100 * known / 75, MidpointRounding.AwayFromZero), score.Value);
+        Assert.Equal((int)Math.Round(known, MidpointRounding.AwayFromZero), score.Value);
     }
 
     [Fact]
-    public void A_score_with_cardio_unknown_never_reads_ninety()
+    public void Taking_the_ring_off_never_scores_more_than_the_same_week_with_no_cardio_measured()
     {
-        var score = TrainingScoreAnalysis.Score(AnExcellentMonth().Build(), [], NoHeartRate, Sunday);
+        var none = new CardioMeasure.Measured(0, ScoreRules.Zone2Minutes, 0, ScoreRules.HighIntensityMinutes, 0, 7);
 
-        Assert.Equal(ScoreRules.HighestPartial, score.Value);
+        var worn = TrainingScoreAnalysis.Score(AnExcellentMonth().Build(), [], none, Sunday);
+        var off = TrainingScoreAnalysis.Score(AnExcellentMonth().Build(), [], NoHeartRate, Sunday);
+
+        Assert.Equal(worn.Value, off.Value);
+        Assert.Equal((100, 75), (worn.OutOf, off.OutOf));
+    }
+
+    [Fact]
+    public void Every_part_met_with_the_priorities_only_held_falls_short_of_ninety()
+    {
+        // The last week repeats the loads before it, so every priority is held rather than bettered.
+        var held = Catalogue;
+        foreach (var week in new[] { 21, 14, 7, 0 })
+        {
+            held = held
+                .WithSession(Sunday.AddDays(-week - 1), Sets(8, Bench, 200, 5))
+                .WithSession(Sunday.AddDays(-week - 3), Sets(8, Row, 150, 8))
+                .WithSession(Sunday.AddDays(-week - 5), Sets(8, Squat, 300, 5));
+        }
+
+        var score = TrainingScoreAnalysis.Score(held.Build(), [], FullCardio, Sunday);
+
+        Assert.Equal(80 + ScoreRules.ProgressPoints * ScoreRules.HeldShare, score.Value);
+        Assert.True(score.Value < 90);
     }
 
     [Fact]

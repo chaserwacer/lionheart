@@ -17,7 +17,6 @@ namespace lionheart.Migrations
                 name: "MuscleGroups");
 
             // Every existing base starts unstated, so the shipped map answers for it.
-
             migrationBuilder.AddColumn<string>(
                 name: "Classification",
                 table: "MovementBases",

@@ -120,7 +120,7 @@ public sealed class FocusPinService : IFocusPinService
 
         if (movementBase is null) return Result<Guid, Problem>.Failure(new Problem.NotFound("Movement not found."));
 
-        return (role, movementBase.Standing(_map)) switch
+        return (role, _map.StandingOf(movementBase)) switch
         {
             (FocusRole.Priority priority, ClassificationStanding.Classified { Classification: var trains })
                 when trains.Family != priority.Family =>

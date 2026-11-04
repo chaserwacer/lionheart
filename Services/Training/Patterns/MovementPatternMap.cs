@@ -42,6 +42,15 @@ public sealed class MovementPatternMap
 
     public IReadOnlyCollection<string> Bases => [.. _byBase.Keys];
 
+    /// <summary>What a base trains: the athlete's statement, else this map's entry for its name, else nothing.</summary>
+    public ClassificationStanding StandingOf(MovementBase movementBase) => movementBase.Classification switch
+    {
+        StatedClassification.Stated stated => new ClassificationStanding.Classified(
+            stated.Classification, new ClassificationSource.Athlete()),
+        StatedClassification.Unstated => For(movementBase.Name),
+        _ => throw new System.Diagnostics.UnreachableException(),
+    };
+
     /// <summary>The entry for a base, or unclassified when the file has none.</summary>
     public ClassificationStanding For(string baseName) =>
         _byBase.TryGetValue(baseName.Trim(), out var entry) ? entry : new ClassificationStanding.Unclassified();

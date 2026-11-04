@@ -9,6 +9,7 @@ using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using lionheart.Services;
 using Microsoft.AspNetCore.Identity;
+using lionheart.Services.Training.Patterns;
 
 namespace lionheart.Tests.Interpretation;
 
@@ -44,7 +45,7 @@ public class InterpretationResolverTests : IDisposable
     {
         using var context = _database.CreateContext();
         var resolver = new InterpretationResolver(
-            new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context))),
+            new MovementResolver(context, new MovementDataService(context, new MovementModifierService(context), MovementPatternMap.Shipped)),
             new FacetResolver(context, _embeddings));
 
         return ResultAssert.Succeeded(await resolver.ResolveAsync(_user, parsed));

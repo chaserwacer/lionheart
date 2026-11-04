@@ -4,7 +4,6 @@ using lionheart.Model.Training.Balance;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Score;
-using lionheart.Services.Cardio;
 using lionheart.Services.Training.Balance;
 using lionheart.Services.Training.Focus;
 
@@ -30,10 +29,10 @@ public static class TrainingScoreAnalysis
         var earned = lifting.Points + (cardioPart.Points ?? 0) + progress.Points + consistency.Points;
         var possible = lifting.OutOf + (cardioPart.Points is null ? 0 : cardioPart.OutOf) + progress.OutOf + consistency.OutOf;
 
-        var value = (int)Math.Round(100 * earned / possible, MidpointRounding.AwayFromZero);
         return new TrainingScore(
             window,
-            unknown.Length is 0 ? value : Math.Min(value, ScoreRules.HighestPartial),
+            (int)Math.Round(earned, MidpointRounding.AwayFromZero),
+            possible,
             unknown,
             lifting,
             cardioPart,
@@ -68,7 +67,7 @@ public static class TrainingScoreAnalysis
             ScoreRules.ProgressPoints,
             families);
 
-    /// <summary>A priority lift's share of its points: a new best pays whole, holding or coming back half.</summary>
+    /// <summary>A priority lift's share of its points: a new best pays whole, anything else a fraction.</summary>
     public static double ShareOf(PriorityLift lift) => lift switch
     {
         PriorityLift.NoLift => 0,
@@ -77,9 +76,13 @@ public static class TrainingScoreAnalysis
             LiftProgress.NotTrained => 0,
             LiftProgress.NoEstimate => ScoreRules.BelowShare,
             LiftProgress.FirstBack => ScoreRules.FirstBackShare,
-            LiftProgress.Compared compared when compared.IsNewBest => ScoreRules.NewBestShare,
-            LiftProgress.Compared compared when compared.Best >= (1 - ScoreRules.HeldWithin) * compared.PriorBest => ScoreRules.HeldShare,
-            LiftProgress.Compared => ScoreRules.BelowShare,
+            LiftProgress.Compared compared => compared.Standing switch
+            {
+                ProgressStanding.LifetimeBest or ProgressStanding.NewBest => ScoreRules.NewBestShare,
+                ProgressStanding.Held => ScoreRules.HeldShare,
+                ProgressStanding.Below => ScoreRules.BelowShare,
+                _ => throw new System.Diagnostics.UnreachableException(),
+            },
             _ => throw new System.Diagnostics.UnreachableException(),
         },
         _ => throw new System.Diagnostics.UnreachableException(),
@@ -100,30 +103,4 @@ public static class TrainingScoreAnalysis
     }
 
     private static double Share(double measured, double target) => target <= 0 ? 0 : Math.Min(1, measured / target);
-}
-
-/// <summary>A window's cardio from the cardio report's sessions, or why it is unknown.</summary>
-public static class CardioMeasures
-{
-    /// <param name="sessions">The cardio sessions that began inside the window.</param>
-    /// <param name="heartRateDays">Days of the window with any stored heart rate.</param>
-    public static CardioMeasure Of(IReadOnlyList<CardioSession> sessions, MaxHeartRate? maximum, int heartRateDays)
-    {
-        if (heartRateDays is 0) return new CardioMeasure.Unknown(CardioUnknownReason.NoHeartRate);
-        if (maximum is null) return new CardioMeasure.Unknown(CardioUnknownReason.NoMaximumHeartRate);
-
-        var total = sessions.Sum(session => session.Minutes);
-        var covered = sessions.Where(session => session.HeartRate is SessionHeartRate.Recorded).Sum(session => session.Minutes);
-        if (total > 0 && covered < CardioAnalysis.ZoneCoverageFloor * total)
-            return new CardioMeasure.Unknown(CardioUnknownReason.SessionsUnrecorded);
-
-        var zones = sessions
-            .Select(session => session.HeartRate is SessionHeartRate.Recorded { Zones: { } recorded } ? recorded : ZoneMinutes.None)
-            .Aggregate(ZoneMinutes.None, (sum, next) => sum + next);
-
-        return new CardioMeasure.Measured(
-            zones.Zone2, ScoreRules.Zone2Minutes,
-            zones.Zone4 + zones.Zone5, ScoreRules.HighIntensityMinutes,
-            sessions.Count, heartRateDays);
-    }
 }

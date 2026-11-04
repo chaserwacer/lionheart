@@ -2,12 +2,10 @@ using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
-using lionheart.Model.Training.Score;
-using lionheart.Services.Cardio;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace lionheart.Services.Training.Score;
+namespace lionheart.Services.Cardio;
 
 /// <summary>
 /// The cardio of any seven-day window inside a span, read once: one cardio report for the span and

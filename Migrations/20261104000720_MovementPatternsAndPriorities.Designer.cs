@@ -12,7 +12,7 @@ using lionheart.Data;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(ModelContext))]
-    [Migration("20261103230145_MovementPatternsAndPriorities")]
+    [Migration("20261104000720_MovementPatternsAndPriorities")]
     partial class MovementPatternsAndPriorities
     {
         /// <inheritdoc />
@@ -436,6 +436,80 @@ namespace lionheart.Migrations
                     b.HasIndex("ChatConversationID");
 
                     b.ToTable("UserChatMessages");
+                });
+
+            modelBuilder.Entity("lionheart.Model.Chat.Memory.ChatMemory", b =>
+                {
+                    b.Property<Guid>("MemoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("CurrentVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("LineageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Standing")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Vector")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.HasKey("MemoryId");
+
+                    b.HasIndex("LineageId");
+
+                    b.HasIndex("UserId", "CurrentVersion");
+
+                    b.ToTable("ChatMemories", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Chat.Thread.ChatThreadSession", b =>
+                {
+                    b.Property<Guid>("ChatConversationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Consolidated")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Consolidation")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ChatConversationId");
+
+                    b.HasIndex("Consolidated");
+
+                    b.HasIndex("UserId", "OpenedAt");
+
+                    b.ToTable("ChatThreadSessions", (string)null);
                 });
 
             modelBuilder.Entity("lionheart.Model.Contexts.Context", b =>
@@ -1476,6 +1550,30 @@ namespace lionheart.Migrations
                         .IsRequired();
 
                     b.Navigation("ChatConversation");
+                });
+
+            modelBuilder.Entity("lionheart.Model.Chat.Memory.ChatMemory", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Chat.Thread.ChatThreadSession", b =>
+                {
+                    b.HasOne("lionheart.Model.Chat.LHChatConversation", null)
+                        .WithOne()
+                        .HasForeignKey("lionheart.Model.Chat.Thread.ChatThreadSession", "ChatConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("lionheart.Model.Contexts.Context", b =>

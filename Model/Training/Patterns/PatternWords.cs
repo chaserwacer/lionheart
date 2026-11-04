@@ -30,4 +30,25 @@ public static class PatternWords
         MovementPattern.Other => "other",
         _ => throw new UnreachableException(),
     };
+
+    public static string Of(MuscleGroup muscle) => muscle switch
+    {
+        MuscleGroup.Chest => "chest",
+        MuscleGroup.FrontDelts => "front delts",
+        MuscleGroup.SideDelts => "side delts",
+        MuscleGroup.RearDelts => "rear delts",
+        MuscleGroup.Triceps => "triceps",
+        MuscleGroup.Lats => "lats",
+        MuscleGroup.UpperBack => "upper back",
+        MuscleGroup.Biceps => "biceps",
+        MuscleGroup.Forearms => "forearms",
+        MuscleGroup.Quads => "quads",
+        MuscleGroup.Hamstrings => "hamstrings",
+        MuscleGroup.Glutes => "glutes",
+        MuscleGroup.Adductors => "adductors",
+        MuscleGroup.Calves => "calves",
+        MuscleGroup.LowerBack => "lower back",
+        MuscleGroup.Abs => "abs",
+        _ => throw new UnreachableException(),
+    };
 }

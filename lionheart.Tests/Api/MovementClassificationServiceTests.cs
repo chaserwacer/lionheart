@@ -1,6 +1,7 @@
 using lionheart.Functional;
 using lionheart.Model.Training.Balance;
 using lionheart.Model.Training.Patterns;
+using lionheart.Services.Training.Patterns;
 using lionheart.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,7 +32,8 @@ public class MovementClassificationServiceTests : IDisposable
         var standing = Assert.IsType<ClassificationStanding.Classified>(classified.Classification);
         Assert.Equal(MovementPattern.HorizontalPush, standing.Classification.Pattern);
         Assert.IsType<ClassificationSource.Athlete>(standing.Source);
-        Assert.Equal(classified, (await StoredAsync(press)).ToDTO());
+        var stored = await StoredAsync(press);
+        Assert.Equal(classified, stored.ToDTO(MovementPatternMap.Shipped.StandingOf(stored)));
     }
 
     [Fact]

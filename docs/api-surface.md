@@ -263,8 +263,8 @@ no compound lift of the family in eight weeks) or `chosen`:
 (carrying the `FocusPinView` in force on the day) or `mostTrained` (`sessions` in eight weeks).
 `progress` is `notTrained` | `noEstimate` (trained, no set of 1–12 reps at a load) | `firstBack`
 (`best`, nothing in the twelve weeks before) | `compared` (`best`, `priorBest` of the twelve weeks
-before, `allTimeBest` before the window, `change`, `isNewBest`, `isLifetimeBest`), each with `unit` and
-`onSystemLoad`. Estimates are Epley on the load moved: bodyweight plus plate for a movement whose
+before, `allTimeBest` before the window, `change`, and `standing`: `lifetimeBest`, `newBest`, `held`
+within 5 % of the prior best, or `below`), each with `unit` and `onSystemLoad`. Estimates are Epley on the load moved: bodyweight plus plate for a movement whose
 setup adds to bodyweight, with bodyweight on a day the newest on or before it and the first weighing
 standing in before any. `series` is `SessionBest { day, estimatedOneRepMax, load, reps }` for each
 session of the last twelve weeks and the window.
@@ -284,8 +284,13 @@ Patterns travel as `horizontalPush`, `verticalPush`, `horizontalPull`, `vertical
 `adductors`, `calves`, `lowerBack`, `abs`. No primary group, or a group both primary and secondary, is
 a 400 naming `Primary` or `Secondary`; another athlete's base is a 404. Every `MovementBaseDTO` (and
 so every `MovementDataDTO`'s `movementBase`) carries `classification`: `$type` `unclassified` or
-`classified` `{ classification: { pattern, primary, secondary }, source }`, `source` being `athlete`,
-`map`, or `mapUnsure` with its `reason`. The map is `Services/Training/Patterns/movement-patterns.json`.
+`classified` `{ classification: { pattern, primary, secondary }, source, family }`, `source` being
+`athlete`, `map`, or `mapUnsure` with its `reason`, and `family` the one it counts toward. The map is
+`Services/Training/Patterns/movement-patterns.json`.
+
+`GET /api/muscle-groups/get-all` is gone, and the movement-base create and update requests no longer
+carry `MuscleGroups`: what a movement trains is its classification. The web app's muscle-group picker
+still calls the old route.
 
 ### Weekly volume — `GET /api/training/volume/{day}`
 
@@ -298,8 +303,10 @@ classifies) and `upNext`. A hard set is a working, drop or failure lift; `lastTr
 over the whole log. `upNext` is `$type` `nothingLogged` or `train`
 `{ families, lastTrained?, trainedToday, readiness }`, `families` the one to three trained longest
 ago, together when last trained the same day; `readiness` is `notRead`, `usual { score }` or
-`low { score, usualLow, usualHigh }` — Oura's readiness score under the tenth percentile of its
-last 90 days.
+`low { ouraScore, usualLow, usualHigh }` — Oura's readiness score (Oura's 0–100 rating, not a
+measurement) under the tenth percentile of its last 90 days. A day trains a family with any compound
+set of it, or three or more sets of its accessory work, so two face pulls on a push day do not make
+it a pull day.
 
 ## Training score — `/api/training/score`
 
@@ -308,7 +315,7 @@ last 90 days.
 | GET | `/{day}` | `TrainingScore` for the seven days ending on `{day}` |
 | GET | `/weeks?from=&to=` | `WeeklyScore[]`, one per Sunday in the range, oldest first; more than 52 Sundays is a 400 on `To` |
 
-`TrainingScore { window, value, unknown: [part], lifting, cardio, progress, consistency }`. Each part
+`TrainingScore { window, value, outOf, unknown: [part], lifting, cardio, progress, consistency }`. Each part
 carries `points` and `outOf` and the measurements it was read from:
 
 - `lifting` (35): `families` as in weekly volume; each family pays `min(1, hardSets / 8)` of a third.
@@ -316,16 +323,20 @@ carries `points` and `outOf` and the measurements it was read from:
   150, highIntensityMinutes, highIntensityTarget: 20, sessions, heartRateDays }` or `unknown { reason:
   noHeartRate | noMaximumHeartRate | sessionsUnrecorded }`. Zone 2 pays 15, zones 4–5 pay 10, each
   capped at its target, from the cardio report's sessions.
-- `progress` (20): `families` as in the priority report; each family pays a third — a new best over
-  the twelve weeks before whole, `firstBack` or a best within 5 % of it half, below or `noEstimate` a
-  quarter, `notTrained` or `none` nothing.
+- `progress` (20): `families` as in the priority report; each family pays a third — a new or
+  lifetime best whole, `held` or `firstBack` a quarter, `below` or `noEstimate` a tenth, `notTrained`
+  or `none` nothing. With every other part full, holding all three priorities reads 85: 90 takes a
+  new best.
 - `consistency` (20): `sessionsPerBlock`, completed sessions in the window and the three seven-day
   blocks before it, each paying `min(1, sessions / 3)` of a quarter; `target` 3.
 
-`value` is the points earned over the points of the parts that could be read; a part with no data is
-in `unknown` rather than counted as zero, and a score with any part unknown reads at most 89.
-`WeeklyScore { window, value, unknown, liftingPoints, cardioPoints?, progressPoints,
-consistencyPoints }`. Chat reads the same through the `GetTrainingScore` tool.
+`value` is the points the known parts earned; `outOf` is 100 less the weight of any part in
+`unknown`. A part with no data is named rather than measured as zero, and its points are out of
+reach, so a week with the ring off never outscores the same week with it worn and no cardio.
+`WeeklyScore { window, value, outOf, unknown, liftingPoints, cardioPoints?, progressPoints,
+consistencyPoints }`. Chat reads the score through the `GetTrainingScore` tool as a
+`TrainingScoreDigest`: a few lines of the same measurements, what is up next, what is under target,
+and up to twelve weeks — a few hundred tokens.
 
 ## Oura — `/api/oura`
 

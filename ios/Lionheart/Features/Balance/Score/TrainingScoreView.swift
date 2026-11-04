@@ -64,7 +64,7 @@ struct TrainingScoreView: View {
                     Text("\(score.value)")
                         .font(.system(.largeTitle, design: .default).weight(.bold))
                         .monospacedDigit()
-                    Text("of 100")
+                    Text("of \(score.outOf)")
                         .foregroundStyle(Color(.secondaryLabel))
                 }
                 Text("7 days, \(Formatting.date(score.window.from)) – \(Formatting.date(score.window.to))")
@@ -165,12 +165,12 @@ struct TrainingScoreView: View {
         let names = score.unknown.map { $0.name.lowercased() }
         let parts = names.count > 1 ? names.dropLast().joined(separator: ", ") + " and " + names[names.count - 1] : names.first ?? ""
 
-        return "\(parts.capitalisingFirst) unknown, so the score is read over the parts that are known, and cannot reach 90."
+        return "\(parts.capitalisingFirst) unknown: its points are out of reach this week rather than counted as zero."
     }
 
     private func trendNote(_ weeks: [WeeklyScore]) -> String {
         let excellent = weeks.filter { $0.value >= WeeklyScoreChart.excellent }.count
-        let partial = weeks.contains(where: \.isPartial) ? " Pale bars were read with a part unknown." : ""
+        let partial = weeks.contains(where: \.isPartial) ? " Pale bars had a part unknown." : ""
         let reached = excellent == 0 ? "none has reached it" : "\(Formatting.count(excellent, "week")) reached it"
         return "Each week to its Sunday, the last in colour. The dashed line is 90; \(reached).\(partial)"
     }

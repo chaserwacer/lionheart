@@ -109,7 +109,7 @@ internal static class ScoreCalibrationCommand
     }
 
     private static string Line(WeeklyScore week) =>
-        $"{week.Window.To:yyyy-MM-dd} {week.Value,3}  lifting {week.LiftingPoints,4:0.0}  cardio {(week.CardioPoints is { } cardio ? $"{cardio,4:0.0}" : "   ?")}"
+        $"{week.Window.To:yyyy-MM-dd} {week.Value,3}/{week.OutOf}  lifting {week.LiftingPoints,4:0.0}  cardio {(week.CardioPoints is { } cardio ? $"{cardio,4:0.0}" : "   ?")}"
         + $"  progress {week.ProgressPoints,4:0.0}  consistency {week.ConsistencyPoints,4:0.0}";
 
     private static DateOnly Min(DateOnly left, DateOnly right) => left < right ? left : right;

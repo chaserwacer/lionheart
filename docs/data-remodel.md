@@ -312,7 +312,7 @@ everything else about it.
 | Program status | `Planned/Active/CompletedTrainingProgram` subtypes (kills `IsCompleted`) |
 | Activity | Deleted; absorbed by `ExertionContext` |
 | Movement wrapper | Deleted; flat ordered set list, grouping derivable. `MovementData` kept |
-| Old data | Abandoned (user call 2026-07-19) — no backfill; legacy tables dropped. Kept: MovementData/Base/Modifier, Equipment, MuscleGroups, PersonalRecords |
+| Old data | Abandoned (user call 2026-07-19) — no backfill; legacy tables dropped. Kept: MovementData/Base/Modifier, Equipment, MuscleGroups, PersonalRecords (MuscleGroups since replaced; see Movement classification) |
 | Session date | Derived (`abstract Date`) from each lifecycle state's own time-truth (PlannedFor / StartedAt / Period) — never stored alongside it |
 | Storage provider | SQLite (already in use; no quality loss at this scale). Retrieval interface stays provider-shaped for a contained Postgres swap later |
 | Embedding storage | No EmbeddingRef indirection — vectors live directly on `FacetValue` and the `AnalyzableEntry` projection; `Decoration` carries `SummaryText` |

@@ -26,7 +26,11 @@ public sealed record TrainingVolume(
     UpNext UpNext);
 
 /// <summary>Push, pull or legs over the window: every hard set of a movement in the family, counted once.</summary>
-/// <param name="LastTrained">The last day a hard set of the family was logged, on or before the window's end; absent when never.</param>
+/// <param name="LastTrained">
+/// The last day the family was trained, on or before the window's end; absent when never. A day
+/// trains a family with any compound set of it, or <see cref="VolumeTargets.AccessoryDay"/> sets of
+/// its accessory work, so two face pulls on a push day do not make it a pull day.
+/// </param>
 public sealed record FamilyVolume(PatternFamily Family, int HardSets, int Target, DateOnly? LastTrained);
 
 /// <summary>One movement pattern's hard sets over the window.</summary>
@@ -56,6 +60,9 @@ public sealed record UnplacedMovement(Guid MovementDataId, string Name, int Hard
 public static class VolumeTargets
 {
     public const int Family = 8;
+
+    /// <summary>The fewest isolation or other sets of a family that make a day one that trained it.</summary>
+    public const int AccessoryDay = 3;
     public const int Pattern = 4;
     public const int Muscle = 4;
 
@@ -108,8 +115,10 @@ public abstract record ReadinessNote
     public sealed record NotRead : ReadinessNote;
 
     /// <summary>Oura's readiness score inside or above his usual range.</summary>
-    public sealed record Usual(int Score) : ReadinessNote;
+    /// <param name="OuraScore">Oura's 0–100 rating of the day, not a measurement.</param>
+    public sealed record Usual(int OuraScore) : ReadinessNote;
 
     /// <summary>Oura's readiness score under the tenth percentile of his last 90 days.</summary>
-    public sealed record Low(int Score, int UsualLow, int UsualHigh) : ReadinessNote;
+    /// <param name="OuraScore">Oura's 0–100 rating of the day, not a measurement.</param>
+    public sealed record Low(int OuraScore, int UsualLow, int UsualHigh) : ReadinessNote;
 }
