@@ -1,0 +1,187 @@
+using lionheart.Functional;
+using lionheart.Model.Analysis;
+using lionheart.Model.Health;
+using lionheart.Model.Training.Sessions;
+using lionheart.Model.Training.Sets;
+using lionheart.Services.Health;
+using lionheart.Tests.Support;
+
+namespace lionheart.Tests.Health;
+
+/// <summary>
+/// Which Apple Health workouts become training, and as what: the sources left out, the kinds left
+/// out, and a run already in the log under another name.
+/// </summary>
+public class HealthWorkoutDecisionTests
+{
+    private static readonly Guid Athlete = Guid.NewGuid();
+    private static readonly NewSessionIdentity Identity = new(Guid.NewGuid(), Athlete, Some.Clock);
+
+    // ---- What a run becomes ----
+
+    [Fact]
+    public void An_outdoor_run_becomes_a_completed_trail_run_in_kilometres_with_its_recording_beside_it()
+    {
+        var workout = AHealthRun.Outdoor(meters: 5000) with { ElevationAscendedMeters = 64 };
+
+        var import = Assert.IsType<HealthWorkoutDecision.Import>(Decide(workout));
+
+        var run = Assert.IsType<TrailRunSet>(Assert.Single(import.Session.Sets));
+        Assert.Equal((5.0, DistanceUnit.Kilometers, workout.Duration, 64.0), (run.Distance, run.Unit, run.Duration, run.ElevationGainMeters));
+        Assert.Equal(new Interval(workout.Start, workout.End), import.Session.Period);
+        Assert.Equal(new SessionSource.AppleHealth(workout.WorkoutId, new RecordingApp("Strava", AHealthRun.StravaBundle)), import.Session.Source);
+        Assert.Equal((Identity.TrainingSessionId, Athlete, Provenance.User), (import.Session.TrainingSessionId, import.Session.UserId, import.Session.Provenance));
+        Assert.Equal(Identity.TrainingSessionId, import.Recording.TrainingSessionId);
+        Assert.Equal(workout.Route.Count, import.Recording.Route.Points.Count);
+        Assert.True(import.Recording.HeartRate.IsRecorded);
+    }
+
+    [Fact]
+    public void A_run_with_no_stated_climb_takes_the_climb_its_route_shows()
+    {
+        var start = AHealthRun.Start;
+        var workout = AHealthRun.Outdoor(meters: 1800) with
+        {
+            Route = AHealthRun.North(start, 1800, 3, altitude: index => index <= 60 ? 400 + index : 460),
+        };
+
+        var import = Assert.IsType<HealthWorkoutDecision.Import>(Decide(workout));
+
+        Assert.Equal(60, Assert.IsType<TrailRunSet>(Assert.Single(import.Session.Sets)).ElevationGainMeters, precision: 6);
+    }
+
+    [Fact]
+    public void A_run_the_app_stated_no_distance_for_takes_its_routes_length()
+    {
+        var workout = AHealthRun.Outdoor(meters: 3000) with { DistanceMeters = null };
+
+        var import = Assert.IsType<HealthWorkoutDecision.Import>(Decide(workout));
+
+        Assert.Equal(3.0, Assert.IsType<TrailRunSet>(Assert.Single(import.Session.Sets)).Distance, precision: 2);
+    }
+
+    // ---- What is left out ----
+
+    [Theory]
+    [InlineData("com.ouraring.oura")]
+    [InlineData("io.strongapp.strong")]
+    public void A_workout_from_an_app_Lionheart_reads_directly_is_left_out(string bundle)
+    {
+        var workout = AHealthRun.Outdoor() with { AppBundleId = bundle };
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.ReadDirectly), Decide(workout));
+    }
+
+    [Fact]
+    public void A_walk_is_not_a_run()
+    {
+        Assert.Equal(Excluded(HealthWorkoutExclusion.NotARun), Decide(AHealthRun.Outdoor() with { Activity = "walking" }));
+    }
+
+    [Fact]
+    public void A_treadmill_run_is_left_out()
+    {
+        var workout = AHealthRun.Outdoor() with { Indoor = true, Route = [] };
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.Indoor), Decide(workout));
+    }
+
+    [Fact]
+    public void A_run_with_neither_a_distance_nor_a_route_is_left_out()
+    {
+        var workout = AHealthRun.Outdoor() with { DistanceMeters = null, Route = [] };
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.NoDistance), Decide(workout));
+    }
+
+    // ---- Counted once ----
+
+    [Fact]
+    public void A_run_lying_inside_a_logged_run_is_that_run()
+    {
+        var workout = AHealthRun.Outdoor(meters: 5400);
+        var logged = Logged(workout.Start.AddMinutes(-5), minutes: 40, Some.TrailRunSet);
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.SameAsLoggedRun, logged.TrainingSessionId), Decide(workout, logged));
+    }
+
+    [Fact]
+    public void A_run_lying_inside_a_logged_lifting_session_is_that_session_as_another_device_saw_it()
+    {
+        var workout = AHealthRun.Outdoor(meters: 1800);
+        var lifting = Logged(workout.Start.AddMinutes(-30), minutes: 90, Some.LiftSet);
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.InsideLoggedLifting, lifting.TrainingSessionId), Decide(workout, lifting));
+    }
+
+    [Fact]
+    public void The_same_run_written_by_two_apps_is_taken_once()
+    {
+        var first = AHealthRun.Outdoor(meters: 5400);
+        var taken = Assert.IsType<HealthWorkoutDecision.Import>(Decide(first)).Session;
+        var second = AHealthRun.Outdoor(meters: 5400, start: first.Start.AddSeconds(20)) with { AppName = "Runna", AppBundleId = "com.runna.app" };
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.SameAsLoggedRun, taken.TrainingSessionId), Decide(second, taken));
+    }
+
+    [Fact]
+    public void A_run_merely_near_a_logged_session_is_a_session_of_its_own()
+    {
+        var workout = AHealthRun.Outdoor(meters: 5400);
+        var before = Logged(workout.Start.AddMinutes(-80), minutes: 75, Some.LiftSet);
+
+        Assert.IsType<HealthWorkoutDecision.Import>(Decide(workout, before));
+    }
+
+    // ---- The wire ----
+
+    [Fact]
+    public void A_workout_ending_before_it_starts_is_refused_at_the_wire()
+    {
+        var workout = AHealthRun.Outdoor() with { End = AHealthRun.Start.AddMinutes(-1) };
+
+        var problem = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(workout.Stated()));
+        Assert.Equal(nameof(HealthWorkoutImport.End), Assert.Single(problem.Fields).Field);
+    }
+
+    [Fact]
+    public void A_fix_that_is_not_a_place_on_Earth_is_refused_at_the_wire()
+    {
+        var workout = AHealthRun.Outdoor() with { Route = [new RoutePointCommand(AHealthRun.Start, 91, 8, null)] };
+
+        var problem = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(workout.Stated()));
+        Assert.Equal(nameof(HealthWorkoutImport.Route), Assert.Single(problem.Fields).Field);
+    }
+
+    [Fact]
+    public void A_heart_rate_of_zero_is_refused_rather_than_averaged()
+    {
+        var workout = AHealthRun.Outdoor() with { HeartRate = [new HeartRateCommand(AHealthRun.Start, 0)] };
+
+        var problem = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(workout.Stated()));
+        Assert.Equal(nameof(HealthWorkoutImport.HeartRate), Assert.Single(problem.Fields).Field);
+    }
+
+    [Fact]
+    public void A_fix_is_held_to_a_millionth_of_a_degree()
+    {
+        var workout = AHealthRun.Outdoor() with { Route = [new RoutePointCommand(AHealthRun.Start, 46.123456789, 8.987654321, 412.345)] };
+
+        var point = Assert.Single(ResultAssert.Succeeded(workout.Stated()).Route.Points);
+        Assert.Equal((46.123457, 8.987654, 412.3), (point.Latitude, point.Longitude, point.Altitude!.Value));
+    }
+
+    // ---- Helpers ----
+
+    private static HealthWorkoutDecision Decide(HealthWorkoutImport workout, params CompletedTrainingSession[] logged) =>
+        HealthWorkoutDecisions.Decide(ResultAssert.Succeeded(workout.Stated()), logged, Identity);
+
+    private static HealthWorkoutDecision.Excluded Excluded(HealthWorkoutExclusion reason, Guid? matched = null) => new(reason, matched);
+
+    private static CompletedTrainingSession Logged(DateTimeOffset start, double minutes, SetEntry set) =>
+        Some.CompletedSession(Athlete) with
+        {
+            Sets = [set],
+            Period = new Interval(start, start.AddMinutes(minutes)),
+        };
+}

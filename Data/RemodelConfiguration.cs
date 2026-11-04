@@ -31,6 +31,12 @@ public static class RemodelConfiguration
     internal const string RecordBracketColumn = "KindBracket";
     internal const string RecordIsStandingColumn = "Stands";
 
+    /// <summary>
+    /// The Apple Health workout a session was imported from, stamped from its source on every save;
+    /// absent for a session from the athlete's own log.
+    /// </summary>
+    public const string HealthWorkoutIdColumn = "HealthWorkoutId";
+
     public static void Apply(ModelBuilder modelBuilder)
     {
         ConfigureSessions(modelBuilder);
@@ -160,6 +166,17 @@ public static class RemodelConfiguration
                 .HasConversion(o => OriginToGuid(o), g => GuidToOrigin(g))
                 .HasColumnName("RoutineId");
             session.HasIndex(s => s.Origin);
+
+            // Where the session came from, as JSON like every other closed shape on the row. Its
+            // Health workout id is stamped out beside it (ModelContext) so the unique index can
+            // make a second import of one workout unrepresentable rather than merely checked for.
+            // The default is the athlete's log, which is what every row written before sources
+            // existed was.
+            session.Property(s => s.Source).HasJsonConversion().HasDefaultValue(new Sessions.SessionSource.AthleteLog());
+            session.Property<Guid?>(HealthWorkoutIdColumn);
+            session.HasIndex(nameof(Sessions.TrainingSession.UserId), HealthWorkoutIdColumn)
+                .IsUnique()
+                .HasFilter($"\"{HealthWorkoutIdColumn}\" IS NOT NULL");
 
             session.HasDiscriminator<string>("Lifecycle")
                 .HasValue<Sessions.PlannedTrainingSession>("planned")

@@ -313,6 +313,7 @@ public class RecordCandidateTests
             Provenance = Provenance.User,
             Membership = new Standalone(),
             Origin = new RoutineOrigin.AdHoc(),
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = Some.Clock,
         };
 

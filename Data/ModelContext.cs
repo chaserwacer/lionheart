@@ -17,6 +17,7 @@ using lionheart.Model.BodyMeasurements;
 using lionheart.Model.Chat.Memory;
 using lionheart.Model.Chat.Thread;
 using lionheart.Model.BodyMeasurements.Composition;
+using lionheart.Model.Health;
 using Programs = lionheart.Model.Training.Programs;
 using Sessions = lionheart.Model.Training.Sessions;
 
@@ -57,6 +58,7 @@ namespace lionheart.Data
         public DbSet<Routine> Routines { get; set; }
         public DbSet<BodyweightMeasurement> BodyweightMeasurements { get; set; }
         public DbSet<BodyCompositionScan> BodyCompositionScans { get; set; }
+        public DbSet<WorkoutRecording> WorkoutRecordings { get; set; }
 
         // Oura — design in docs/oura-integration.md. One table per collection: eight documents that
         // describe a calendar day, four that describe events within one, and the all-day heart-rate
@@ -98,6 +100,7 @@ namespace lionheart.Data
         private void StampDerivedColumns()
         {
             StampDerivedTimeColumns();
+            StampSessionSourceColumns();
             StampRecordLookupColumns();
             StampChatThreadLookupColumns();
         }
@@ -120,6 +123,20 @@ namespace lionheart.Data
                     _ => null
                 };
                 if (period is not null) entry.Property("StartTime").CurrentValue = period.StartTimeUtc;
+            }
+        }
+
+        /// <summary>
+        /// A session's Health workout id lives inside its JSON source; stamped out so the unique
+        /// index can hold one session per imported workout.
+        /// </summary>
+        private void StampSessionSourceColumns()
+        {
+            foreach (var entry in ChangeTracker.Entries<Sessions.TrainingSession>())
+            {
+                if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
+                entry.Property(RemodelConfiguration.HealthWorkoutIdColumn).CurrentValue =
+                    entry.Entity.Source is Sessions.SessionSource.AppleHealth health ? health.WorkoutId : null;
             }
         }
 
@@ -341,6 +358,7 @@ namespace lionheart.Data
             OuraConfiguration.Apply(modelBuilder);
             BodyMeasurementConfiguration.Apply(modelBuilder);
             ChatThreadConfiguration.Apply(modelBuilder);
+            HealthConfiguration.Apply(modelBuilder);
         }
     }
 }

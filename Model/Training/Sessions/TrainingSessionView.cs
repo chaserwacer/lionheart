@@ -38,6 +38,7 @@ public abstract record TrainingSessionView
         Provenance = session.Provenance;
         TrainingProgramId = session.Membership is InProgram inProgram ? inProgram.TrainingProgramId : null;
         RoutineId = session.Origin is RoutineOrigin.FromRoutine fromRoutine ? fromRoutine.RoutineId : null;
+        Source = session.Source;
         CreatedAt = session.CreatedAt;
         Date = session.Date;
     }
@@ -54,6 +55,12 @@ public abstract record TrainingSessionView
     /// have been deleted since; the session still says where it came from.
     /// </summary>
     public Guid? RoutineId { get; init; }
+
+    /// <summary>
+    /// Where the session came from: the athlete's own log, or a workout another app recorded and
+    /// Apple Health holds — which has a route and the app's heart rate beside it.
+    /// </summary>
+    public SessionSource Source { get; init; }
 
     public DateTime CreatedAt { get; init; }
 

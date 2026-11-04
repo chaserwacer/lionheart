@@ -71,7 +71,11 @@ public sealed record TrailRunSet(
     public DistanceUnit Unit { get; init; } = Require.ClosedEnum(Unit, nameof(Unit));
     public TimeSpan Duration { get; init; } = Duration;
 
-    /// <summary>Net gain, so a descent-dominant route may legitimately be negative.</summary>
+    /// <summary>
+    /// The climb as stated: the athlete's own figure, or, for a run imported from Apple Health, its
+    /// total ascent. Its sign is not policed, because a figure an athlete states may
+    /// be a net gain, which a descent-dominant route makes negative.
+    /// </summary>
     public double ElevationGainMeters { get; init; } = Require.Finite(ElevationGainMeters, nameof(ElevationGainMeters));
 
     public Rpe Rpe { get; init; } = Rpe;

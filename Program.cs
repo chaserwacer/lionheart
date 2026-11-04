@@ -35,6 +35,7 @@ using lionheart.Services.CoachedSheets;
 using lionheart.Services.Chat.Memory;
 using lionheart.Services.Chat.Thread;
 using lionheart.Services.BodyComposition;
+using lionheart.Services.Health;
 
 // Load .env into the process environment before the host reads configuration, so the Llm__,
 // Anthropic__, LmStudio__ and Embedding__ keys flow through the default environment-variable
@@ -163,6 +164,8 @@ builder.Services.AddTransient<IInterpretationCommitter, InterpretationCommitter>
 builder.Services.AddTransient<IInterpretationEngine, InterpretationEngine>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddTransient<ITrainingSessionService, TrainingSessionService>();
+builder.Services.AddTransient<IHealthWorkoutImportService, HealthWorkoutImportService>();
+builder.Services.AddTransient<IRecordedRunService, RecordedRunService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
 builder.Services.AddTransient<IFocusPinService, FocusPinService>();
 builder.Services.AddSingleton(_ => MovementPatternMap.Shipped);

@@ -1,5 +1,6 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
+using lionheart.Model.Health;
 using lionheart.Model.Oura;
 using lionheart.Model.Oura.Readings;
 using lionheart.Model.Training.Sessions;
@@ -11,12 +12,17 @@ namespace lionheart.Services.Cardio;
 /// <param name="Range">The days the report describes.</param>
 /// <param name="Sessions">The gathered sessions and exclusions from twelve weeks before the range's end, and a year back for the peak.</param>
 /// <param name="HeartRate">Every stored heart-rate sample on the UTC days those sessions touch, oldest first.</param>
+/// <param name="RecordedHeartRate">
+/// The heart rate the recording app wrote to Apple Health, by the logged session it was imported as —
+/// read for that session ahead of the ring's series.
+/// </param>
 /// <param name="MainSleeps">The night's main sleep per waking day, for resting heart rate.</param>
 public sealed record CardioInputs(
     DayRange Range,
     int Age,
     CardioGathering Sessions,
     IReadOnlyList<HeartRateSample> HeartRate,
+    IReadOnlyDictionary<Guid, RecordedHeartRate> RecordedHeartRate,
     IReadOnlyList<OuraVo2Max> Vo2Max,
     IReadOnlyList<OuraDailyCardiovascularAge> CardiovascularAge,
     IReadOnlyList<OuraSleepPeriod> MainSleeps);
@@ -42,16 +48,6 @@ public static class CardioAnalysis
     public const int PeakLookBackDays = 365;
 
     /// <summary>
-    /// How much of a ring workout must lie inside a logged session for the two to be one session.
-    /// </summary>
-    /// <remarks>
-    /// The ring detects most of what the athlete logs, a few minutes late and a few minutes short.
-    /// Half its own length inside the logged session is a match; anything less is two things that
-    /// happened to be near each other.
-    /// </remarks>
-    public const double SameSessionOverlap = 0.5;
-
-    /// <summary>
     /// The share of a window's session time that must have heart rate behind it for the window's
     /// zone-2 minutes to mean anything.
     /// </summary>
@@ -74,17 +70,18 @@ public static class CardioAnalysis
     public static CardioReport Build(CardioInputs inputs)
     {
         var withSamples = inputs.Sessions.Sessions
-            .Select(session => (Session: session, Samples: Samples(inputs.HeartRate, session)))
+            .Select(session => (Session: session, Read: HeartRateRead(inputs, session)))
             .ToList();
 
-        var maximum = MaxHeartRate.Estimate(inputs.Age, Peak(withSamples, inputs.Range.To));
+        var maximum = MaxHeartRate.Estimate(
+            inputs.Age, Peak(withSamples.Select(pair => (pair.Session, pair.Read.Samples)), inputs.Range.To));
         var sessions = withSamples
             .Select(pair => new CardioSession(
                 pair.Session.Source,
                 pair.Session.Start,
                 pair.Session.End,
                 pair.Session.DistanceMeters,
-                HeartRateOf(pair.Session, pair.Samples, maximum)))
+                HeartRateOf(pair.Session, pair.Read.Samples, pair.Read.Source, maximum)))
             .OrderBy(session => session.Start)
             .ToList();
 
@@ -114,18 +111,19 @@ public static class CardioAnalysis
     /// <remarks>
     /// A ring workout inside a logged lifting session is that lifting session as the ring saw it, so
     /// it is excluded rather than counted as cardio. Inside a logged run, it is the run, already
-    /// counted.
+    /// counted (<see cref="SessionMatching"/>).
     /// </remarks>
     public static CardioGathering Gather(
         IReadOnlyList<OuraWorkout> ringWorkouts, IReadOnlyList<CompletedTrainingSession> logged)
     {
-        var loggedCardio = logged.Where(IsCardio).ToList();
-        var loggedLifting = logged.Where(session => !IsCardio(session)).ToList();
-
-        var fromLog = loggedCardio
-            .Select(session => Span(session.Period) is { } span
+        var fromLog = logged
+            .Where(SessionMatching.IsCardio)
+            .Select(session => SessionMatching.Span(session.Period) is { } span
                 ? new GatheredSession(
-                    new CardioSessionSource.LoggedSession(session.TrainingSessionId, session.Sets.OfType<TrailRunSet>().Any()),
+                    new CardioSessionSource.LoggedSession(
+                        session.TrainingSessionId,
+                        session.Sets.OfType<TrailRunSet>().Any(),
+                        session.Source is SessionSource.AppleHealth),
                     span.Start,
                     span.End,
                     DistanceMeters(session))
@@ -133,7 +131,7 @@ public static class CardioAnalysis
             .OfType<GatheredSession>();
 
         var decided = ringWorkouts
-            .Select(workout => Decide(workout, loggedCardio, loggedLifting))
+            .Select(workout => Decide(workout, logged))
             .ToList();
 
         return new CardioGathering(
@@ -151,18 +149,21 @@ public static class CardioAnalysis
         public sealed record Excluded(Exclusion Exclusion) : RingDecision;
     }
 
-    private static RingDecision Decide(
-        OuraWorkout workout,
-        IReadOnlyList<CompletedTrainingSession> loggedCardio,
-        IReadOnlyList<CompletedTrainingSession> loggedLifting)
+    private static RingDecision Decide(OuraWorkout workout, IReadOnlyList<CompletedTrainingSession> logged)
     {
         var category = WorkoutCategories.Of(workout.Reading.Activity);
         RingDecision Excluded(WorkoutExclusion reason) =>
             new RingDecision.Excluded(new Exclusion(workout.Day, category, reason));
 
-        if (Span(workout.Period) is not { } span) return Excluded(WorkoutExclusion.NoDuration);
-        if (loggedCardio.Any(session => Overlaps(span, session.Period))) return Excluded(WorkoutExclusion.SameAsLoggedRun);
-        if (loggedLifting.Any(session => Overlaps(span, session.Period))) return Excluded(WorkoutExclusion.InsideLoggedLifting);
+        if (SessionMatching.Span(workout.Period) is not { } span) return Excluded(WorkoutExclusion.NoDuration);
+
+        switch (SessionMatching.Find(span, logged))
+        {
+            case SessionMatch.LoggedRun: return Excluded(WorkoutExclusion.SameAsLoggedRun);
+            case SessionMatch.LoggedLifting: return Excluded(WorkoutExclusion.InsideLoggedLifting);
+            case SessionMatch.None: break;
+            default: throw new System.Diagnostics.UnreachableException();
+        }
 
         if (WorkoutCategories.IsCardioSession(category, span.End - span.Start))
         {
@@ -185,9 +186,6 @@ public static class CardioAnalysis
         });
     }
 
-    private static bool IsCardio(CompletedTrainingSession session) =>
-        session.Sets.Any(set => set is TrailRunSet or DistanceTimeSet);
-
     private static double? DistanceMeters(CompletedTrainingSession session)
     {
         var distances = session.Sets
@@ -203,26 +201,19 @@ public static class CardioAnalysis
         return distances.Count is 0 ? null : distances.Sum();
     }
 
-    private static bool Overlaps((DateTimeOffset Start, DateTimeOffset End) workout, Period logged)
-    {
-        if (Span(logged) is not { } loggedSpan) return false;
-
-        var shared = Min(workout.End, loggedSpan.End) - Max(workout.Start, loggedSpan.Start);
-        var own = workout.End - workout.Start;
-        return own > TimeSpan.Zero && shared.TotalSeconds >= SameSessionOverlap * own.TotalSeconds;
-    }
-
-    private static (DateTimeOffset Start, DateTimeOffset End)? Span(Period period) => period switch
-    {
-        Interval interval => (interval.Start, interval.End),
-        Instant => null,
-        _ => throw new System.Diagnostics.UnreachableException(),
-    };
-
-    private static DateTimeOffset Min(DateTimeOffset left, DateTimeOffset right) => left < right ? left : right;
-    private static DateTimeOffset Max(DateTimeOffset left, DateTimeOffset right) => left > right ? left : right;
-
     // ---- Heart rate across a session ----
+
+    /// <summary>
+    /// The samples a session's heart rate is read from: the recording app's, for a run imported
+    /// from Apple Health with any, and otherwise the ring's series over its clock time.
+    /// </summary>
+    private static (IReadOnlyList<HeartRateSample> Samples, HeartRateSource Source) HeartRateRead(
+        CardioInputs inputs, GatheredSession session) =>
+        session.Source is CardioSessionSource.LoggedSession logged
+        && inputs.RecordedHeartRate.TryGetValue(logged.TrainingSessionId, out var recorded)
+        && recorded.IsRecorded
+            ? ([.. recorded.Samples.Where(sample => sample.At >= session.Start && sample.At < session.End)], HeartRateSource.AppleHealth)
+            : (Samples(inputs.HeartRate, session), HeartRateSource.Ring);
 
     /// <summary>
     /// The samples inside a session, from a run sorted by instant: found by bisection rather than
@@ -247,7 +238,7 @@ public static class CardioAnalysis
         return low;
     }
 
-    /// <summary>The ring's peak across the cardio sessions of the year ending on <paramref name="lastDay"/>.</summary>
+    /// <summary>The recorded peak across the cardio sessions of the year ending on <paramref name="lastDay"/>.</summary>
     private static int? Peak(
         IEnumerable<(GatheredSession Session, IReadOnlyList<HeartRateSample> Samples)> sessions, DateOnly lastDay)
     {
@@ -261,34 +252,26 @@ public static class CardioAnalysis
         ]);
     }
 
-    /// <summary>
-    /// What the series says about one session.
-    /// </summary>
-    /// <remarks>
-    /// The average is weighted by the time each sample stands for, so a burst of fast samples at
-    /// the end of a run does not outvote the hour of five-minute samples before it.
-    /// </remarks>
+    /// <summary>What a session's samples say about it: average and peak, coverage, and zones.</summary>
     public static SessionHeartRate HeartRateOf(
-        GatheredSession session, IReadOnlyList<HeartRateSample> samples, MaxHeartRate? maximum)
+        GatheredSession session, IReadOnlyList<HeartRateSample> samples, HeartRateSource source, MaxHeartRate? maximum)
     {
         if (samples.Count is 0) return new SessionHeartRate.NotRecorded();
 
         var attributed = SampleTime.Attributed(samples, session.End).ToList();
         var minutes = attributed.Sum(pair => pair.Minutes);
-        var average = minutes > 0
-            ? attributed.Sum(pair => pair.Sample.Bpm * pair.Minutes) / minutes
-            : samples.Average(sample => sample.Bpm);
         var sessionMinutes = (session.End - session.Start).TotalMinutes;
 
         return new SessionHeartRate.Recorded(
-            (int)Math.Round(average),
+            (int)Math.Round(SampleTime.AverageBpm(attributed)),
             samples.Max(sample => sample.Bpm),
             sessionMinutes > 0 ? Math.Min(1, minutes / sessionMinutes) : 0,
             maximum is null
                 ? null
                 : attributed.Aggregate(
                     ZoneMinutes.None,
-                    (zones, pair) => zones + ZoneMinutes.InZone(ZoneMinutes.ZoneOf(pair.Sample.Bpm, maximum.Bpm), pair.Minutes)));
+                    (zones, pair) => zones + ZoneMinutes.InZone(ZoneMinutes.ZoneOf(pair.Sample.Bpm, maximum.Bpm), pair.Minutes)),
+            source);
     }
 
     private static ZoneMinutes ZonesOf(CardioSession session) =>

@@ -1,5 +1,6 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
+using lionheart.Model.Health;
 using lionheart.Model.Oura;
 using lionheart.Model.Oura.Readings;
 using lionheart.Model.Training.Sessions;
@@ -66,7 +67,49 @@ public class CardioAnalysisTests
         Assert.Equal(6.2 * 1609.344, session.DistanceMeters!.Value, precision: 3);
     }
 
+    [Fact]
+    public void A_ring_workout_inside_a_run_imported_from_Apple_Health_is_that_run()
+    {
+        var run = Logged(At(14, 7), 60, Some.TrailRunSet) with { Source = AHealthRun.Source() };
+        var report = Build(ring: [Ring("running", At(14, 7).AddMinutes(4), 52)], logged: [run]);
+
+        var source = Assert.IsType<CardioSessionSource.LoggedSession>(Assert.Single(report.Sessions).Source);
+        Assert.True(source.IsRecorded);
+        Assert.Equal(WorkoutExclusion.SameAsLoggedRun, Assert.Single(report.Excluded).Reason);
+    }
+
     // ---- Heart rate across a session ----
+
+    [Fact]
+    public void An_imported_run_reads_the_recording_apps_heart_rate_ahead_of_the_rings_and_says_whose()
+    {
+        var start = At(16, 7);
+        var run = Logged(start, 30, Some.TrailRunSet) with { Source = AHealthRun.Source() };
+        var strap = RecordedHeartRate.Of(Enumerable.Range(0, 30).Select(minute => (start.AddMinutes(minute), 160)));
+
+        var report = Build(
+            logged: [run],
+            heartRate: Beats(start, 120, count: 6),
+            recorded: new Dictionary<Guid, RecordedHeartRate> { [run.TrainingSessionId] = strap });
+
+        var heartRate = Assert.IsType<SessionHeartRate.Recorded>(Assert.Single(report.Sessions).HeartRate);
+        Assert.Equal((160, HeartRateSource.AppleHealth), (heartRate.AverageBpm, heartRate.Source));
+    }
+
+    [Fact]
+    public void An_imported_run_whose_app_wrote_no_heart_rate_reads_the_rings_and_says_so()
+    {
+        var start = At(16, 7);
+        var run = Logged(start, 30, Some.TrailRunSet) with { Source = AHealthRun.Source() };
+
+        var report = Build(
+            logged: [run],
+            heartRate: Beats(start, 120, count: 6),
+            recorded: new Dictionary<Guid, RecordedHeartRate> { [run.TrainingSessionId] = RecordedHeartRate.None });
+
+        var heartRate = Assert.IsType<SessionHeartRate.Recorded>(Assert.Single(report.Sessions).HeartRate);
+        Assert.Equal((120, HeartRateSource.Ring), (heartRate.AverageBpm, heartRate.Source));
+    }
 
     [Fact]
     public void Each_sample_stands_for_the_time_to_the_next_and_the_zones_follow_the_maximum()
@@ -223,10 +266,13 @@ public class CardioAnalysisTests
         IReadOnlyList<CompletedTrainingSession>? logged = null,
         IReadOnlyList<HeartRateSample>? heartRate = null,
         IReadOnlyList<OuraSleepPeriod>? sleeps = null,
+        IReadOnlyDictionary<Guid, RecordedHeartRate>? recorded = null,
         int age = 20) =>
         CardioAnalysis.Build(new CardioInputs(
             October, age, CardioAnalysis.Gather(ring ?? [], logged ?? []),
-            [.. (heartRate ?? []).OrderBy(sample => sample.At)], [], [], sleeps ?? []));
+            [.. (heartRate ?? []).OrderBy(sample => sample.At)],
+            recorded ?? new Dictionary<Guid, RecordedHeartRate>(),
+            [], [], sleeps ?? []));
 
     private static DateTimeOffset At(int day, int hour) => new(2026, 10, day, hour, 0, 0, Eastern);
 

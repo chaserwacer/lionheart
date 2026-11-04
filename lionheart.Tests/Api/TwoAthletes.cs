@@ -3,6 +3,8 @@ using lionheart.Model.Training;
 using lionheart.Model.User;
 using lionheart.Services;
 using lionheart.Services.BodyComposition;
+using lionheart.Services.Cardio;
+using lionheart.Services.Health;
 using lionheart.Services.Contexts;
 using lionheart.Services.Training.Balance;
 using lionheart.Services.Training.Focus;
@@ -140,6 +142,21 @@ public sealed class TwoAthletes : IDisposable
     {
         using var context = CreateContext();
         return await act(new BodyCompositionService(context));
+    }
+
+    /// <remarks>Wired with the real detector and rebuild, for the reason <see cref="SessionsAsync{T}"/> is.</remarks>
+    public async Task<T> HealthImportAsync<T>(Func<IHealthWorkoutImportService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        var detector = new PersonalRecordDetector(context, TimeProvider.System);
+        return await act(new HealthWorkoutImportService(
+            context, TimeProvider.System, detector, new PersonalRecordRebuild(context, detector)));
+    }
+
+    public async Task<T> RecordedRunsAsync<T>(Func<IRecordedRunService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        return await act(new RecordedRunService(context, new CardioReportService(context)));
     }
 
     public async Task<T> MovementDataAsync<T>(Func<IMovementDataService, Task<T>> act)

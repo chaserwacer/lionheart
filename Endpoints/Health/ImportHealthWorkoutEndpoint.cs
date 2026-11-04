@@ -1,0 +1,43 @@
+using Ardalis.ApiEndpoints;
+using lionheart.Endpoints.Filters;
+using lionheart.Model.Health;
+using lionheart.Services.Health;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+
+namespace lionheart.Endpoints.Health;
+
+/// <summary>Offers one Apple Health workout for import; answers what became of it.</summary>
+[ValidateModel]
+public class ImportHealthWorkoutEndpoint : EndpointBaseAsync
+    .WithRequest<HealthWorkoutImport>
+    .WithActionResult<HealthImportOutcome>
+{
+    private readonly IHealthWorkoutImportService _service;
+    private readonly UserManager<IdentityUser> _userManager;
+
+    public ImportHealthWorkoutEndpoint(IHealthWorkoutImportService service, UserManager<IdentityUser> userManager)
+    {
+        _service = service;
+        _userManager = userManager;
+    }
+
+    [HttpPost("api/health/workouts")]
+    [EndpointDescription("Import an Apple Health workout: a session with its route and heart rate, or why it was not taken. Idempotent on the workout's Health UUID.")]
+    [ProducesResponseType<HealthImportOutcome>(StatusCodes.Status201Created)]
+    [ProducesResponseType<HealthImportOutcome>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public override async Task<ActionResult<HealthImportOutcome>> HandleAsync(
+        [FromBody] HealthWorkoutImport request, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null) return Unauthorized("User is not recognized or no longer exists.");
+
+        return this.ToActionResult(
+            await _service.ImportAsync(user, request, cancellationToken),
+            outcome => outcome,
+            outcome => outcome is HealthImportOutcome.Imported ? StatusCodes.Status201Created : StatusCodes.Status200OK);
+    }
+}

@@ -149,7 +149,7 @@ public class TrainingScoreAnalysisTests
         var start = new DateTimeOffset(2026, 11, 5, 18, 0, 0, TimeSpan.FromHours(-5));
         CardioSession Run(ZoneMinutes zones) => new(
             new CardioSessionSource.RingWorkout(Guid.NewGuid(), "running", WorkoutCategory.Endurance),
-            start, start.AddHours(1), null, new SessionHeartRate.Recorded(140, 180, 1, zones));
+            start, start.AddHours(1), null, new SessionHeartRate.Recorded(140, 180, 1, zones, HeartRateSource.Ring));
 
         var measured = Assert.IsType<CardioMeasure.Measured>(CardioMeasures.Of(
             [Run(new ZoneMinutes(0, 5, 40, 10, 4, 1)), Run(new ZoneMinutes(0, 0, 20, 0, 0, 0))],

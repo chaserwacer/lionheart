@@ -5,6 +5,7 @@ using lionheart.Model.Analysis;
 using lionheart.Model.Training;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
+using lionheart.Services.Health;
 using lionheart.Services.Training.PersonalRecords;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -227,6 +228,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
             Membership = membership,
             // Planning names no routine; a routine's sessions are started or logged from it.
             Origin = new RoutineOrigin.AdHoc(),
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = Now(),
         };
 
@@ -240,6 +242,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
             Provenance = Provenance.User,
             Membership = placement.Membership,
             Origin = placement.Origin,
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = Now(),
         };
 
@@ -257,6 +260,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
             Provenance = Provenance.User,
             Membership = placement.Membership,
             Origin = placement.Origin,
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = Now(),
         };
 
@@ -276,6 +280,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
                 Provenance = planned.Provenance,
                 Membership = planned.Membership,
                 Origin = planned.Origin,
+                Source = planned.Source,
                 CreatedAt = planned.CreatedAt,
             })
             : Refusal(session, "started", "planned");
@@ -296,6 +301,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
                     Provenance = active.Provenance,
                     Membership = active.Membership,
                     Origin = active.Origin,
+                    Source = active.Source,
                     CreatedAt = active.CreatedAt,
                 })
             : Refusal<CompletedTrainingSession>(session, "completed", "active");
@@ -310,6 +316,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
                 Provenance = planned.Provenance,
                 Membership = planned.Membership,
                 Origin = planned.Origin,
+                Source = planned.Source,
                 CreatedAt = planned.CreatedAt,
             })
             : Refusal(session, "skipped", "planned");
@@ -457,6 +464,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
     {
         _context.Sessions.Remove(session);
         await _context.StageProjectionRemovalAsync(session.TrainingSessionId, ct);
+        await _context.StageRecordingRemovalAsync(session.TrainingSessionId, ct);
         await _context.SaveChangesAsync(ct);
 
         return Result<Unit, Problem>.Success(Unit.Value);

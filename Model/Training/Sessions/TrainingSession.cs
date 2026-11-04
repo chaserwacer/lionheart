@@ -64,6 +64,7 @@ public abstract record TrainingSession
     public required Provenance Provenance { get; init; }
     public required ProgramMembership Membership { get; init; }
     public required RoutineOrigin Origin { get; init; }
+    public required SessionSource Source { get; init; }
     public required DateTime CreatedAt { get; init; }
 
     /// <summary>

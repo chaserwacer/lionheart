@@ -2,6 +2,7 @@ using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
+using lionheart.Model.Health;
 using lionheart.Model.Oura;
 using lionheart.Model.Oura.Readings;
 using lionheart.Model.Training.Sessions;
@@ -102,9 +103,31 @@ public sealed class CardioReportService : ICardioReportService
             age,
             gathered,
             heartRate,
+            await RecordedHeartRateAsync(logged, ct),
             await Daily(_context.OuraVo2Max, userId, read).ToListAsync(ct),
             await Daily(_context.OuraDailyCardiovascularAge, userId, read).ToListAsync(ct),
             mainSleeps);
+    }
+
+    /// <summary>
+    /// The recording app's heart rate for each logged session imported from Apple Health — the
+    /// trace alone, so a year of runs does not read a year of routes.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, RecordedHeartRate>> RecordedHeartRateAsync(
+        IEnumerable<CompletedTrainingSession> logged, CancellationToken ct)
+    {
+        var imported = logged
+            .Where(session => session.Source is SessionSource.AppleHealth)
+            .Select(session => session.TrainingSessionId)
+            .ToList();
+
+        if (imported.Count is 0) return new Dictionary<Guid, RecordedHeartRate>();
+
+        return await _context.WorkoutRecordings
+            .AsNoTracking()
+            .Where(recording => imported.Contains(recording.TrainingSessionId))
+            .Select(recording => new { recording.TrainingSessionId, recording.HeartRate })
+            .ToDictionaryAsync(recording => recording.TrainingSessionId, recording => recording.HeartRate, ct);
     }
 
     private static IQueryable<TDocument> Events<TDocument>(DbSet<TDocument> table, Guid userId, TimeWindow window)

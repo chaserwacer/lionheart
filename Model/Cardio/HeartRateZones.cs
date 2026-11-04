@@ -143,4 +143,17 @@ public static class SampleTime
             var span = next - sample.At;
             return (sample, Math.Max(0, Math.Min(span.TotalMinutes, NominalInterval.TotalMinutes)));
         });
+
+    /// <summary>
+    /// The average rate across attributed samples, each weighted by the time it stands for — so a
+    /// burst of fast samples does not outvote the longer stretch of slower ones beside it. The plain
+    /// mean where no sample stands for any time.
+    /// </summary>
+    public static double AverageBpm(IReadOnlyList<(HeartRateSample Sample, double Minutes)> attributed)
+    {
+        var minutes = attributed.Sum(pair => pair.Minutes);
+        return minutes > 0
+            ? attributed.Sum(pair => pair.Sample.Bpm * pair.Minutes) / minutes
+            : attributed.Average(pair => pair.Sample.Bpm);
+    }
 }
