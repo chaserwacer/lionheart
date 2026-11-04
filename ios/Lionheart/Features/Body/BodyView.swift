@@ -3,18 +3,21 @@ import SwiftUI
 /// What is my body doing?
 ///
 /// An inset-grouped `List` that leads with the latest readiness, then the last night and the latest
-/// day's scores, then the two questions with screens of their own — cardio and daily movement —
-/// and finally the records behind it all: the wearable's days, the readings the athlete entered,
-/// and the injuries being tracked.
+/// day's scores, then the questions with screens of their own — cardio, daily movement and body
+/// composition — and finally the records behind it all: the wearable's days, the readings the
+/// athlete entered, and the injuries being tracked.
 struct BodyView: View {
     let store: BodyStore
     let ouraSync: OuraSyncStore
     let cardio: CardioStore
     let habits: HabitsStore
     let wellness: WellnessStore
+    let composition: BodyCompositionStore
+    let bodyweight: BodyweightStore
 
     @State private var isNewInjuryPresented = false
     @State private var isWellnessPresented = false
+    @State private var isAddingScan = false
 
     var body: some View {
         NavigationStack {
@@ -35,10 +38,11 @@ struct BodyView: View {
             .navigationTitle("Body")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    // The two things logged by hand here: how the day feels, and an injury.
+                    // What is logged by hand here: how the day feels, an injury, and a scan's sheet.
                     Menu {
                         Button("Log wellness") { isWellnessPresented = true }
                         Button("New injury") { isNewInjuryPresented = true }
+                        Button("Add scan") { isAddingScan = true }
                     } label: {
                         Label("Add", systemImage: "plus")
                     }
@@ -46,6 +50,9 @@ struct BodyView: View {
             }
             .sheet(isPresented: $isNewInjuryPresented) {
                 NewInjurySheet(store: store)
+            }
+            .sheet(isPresented: $isAddingScan) {
+                ScanEntrySheet(store: composition, bodyweight: bodyweight)
             }
             .sheet(isPresented: $isWellnessPresented) {
                 WellnessEntrySheet(store: wellness, existing: store.state.value?.wellness ?? [], since: store.firstDay)
@@ -73,6 +80,7 @@ struct BodyView: View {
         .task {
             if habits.reports[.month] == nil { await habits.load(.month) }
         }
+        .task { await composition.refreshIfNeeded() }
     }
 
     @ViewBuilder
@@ -114,6 +122,16 @@ struct BodyView: View {
             WellnessHistoryView(store: wellness)
         case .injuries:
             InjuriesView(injuries: snapshot?.injuries ?? [], store: store)
+        case .composition:
+            BodyCompositionView(store: composition, bodyweight: bodyweight)
+        case .scan(let id):
+            if let scan = composition.history.scans.first(where: { $0.id == id }) {
+                ScanDetailView(scan: scan, store: composition, bodyweight: bodyweight)
+            } else {
+                notLoaded("That scan is no longer loaded")
+            }
+        case .bodyweight:
+            BodyweightView(store: bodyweight)
         case .injury(let id):
             if let injury = snapshot?.injuries.first(where: { $0.injuryId == id }) {
                 InjuryDetailView(history: InjuryHistory.of(injury), store: store)
@@ -206,7 +224,19 @@ struct BodyView: View {
             NavigationLink(value: BodyRoute.habits) {
                 QuestionRow(title: "Daily movement", detail: movementLine)
             }
+            NavigationLink(value: BodyRoute.composition) {
+                QuestionRow(title: "Body composition", detail: compositionLine)
+            }
         }
+    }
+
+    private var compositionLine: String? {
+        guard let scan = composition.history.latest else {
+            return composition.state.value == nil ? nil : "No scan recorded"
+        }
+        let sheet = scan.sheet
+        return "\(Formatting.date(scan.day)) · \(SheetFigure.mass(sheet.weight, sheet.unit)) · "
+            + "muscle \(SheetFigure.number(sheet.skeletalMuscleMass)) · fat \(SheetFigure.percent(sheet.percentBodyFat))"
     }
 
     /// The aerobic base's two minute figures, in words: a week's means over the last four weeks.

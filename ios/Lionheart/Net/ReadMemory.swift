@@ -121,6 +121,7 @@ extension ReadKey {
     static let trainRoutines = ReadKey("train.routines")
     static let previousPerformances = ReadKey("train.previous-performances")
     static let bodyweight = ReadKey("bodyweight")
+    static let bodyComposition = ReadKey("body.composition")
 
     static let historySessions = ReadKey("history.sessions")
 

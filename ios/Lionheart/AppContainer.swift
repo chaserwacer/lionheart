@@ -36,6 +36,7 @@ final class AppContainer {
     let movements: MovementLibraryStore
     let routines: RoutineStore
     let bodyweight: BodyweightStore
+    let bodyComposition: BodyCompositionStore
 
     private let tokens: TokenProvider
     private let memory: ReadMemory
@@ -83,6 +84,7 @@ final class AppContainer {
         train = TrainStore(sessions: sessions, activeWorkout: activeWorkout, outbox: outbox)
         routines = RoutineStore(routines: RoutinesAPI(client: client))
         bodyweight = BodyweightStore(bodyweight: BodyweightAPI(client: client))
+        bodyComposition = BodyCompositionStore(api: BodyCompositionAPI(client: client))
         history = HistoryStore(
             sessions: TrainingSessionsAPI(client: client),
             library: movements,
@@ -143,13 +145,14 @@ final class AppContainer {
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
-            [profile, today, train, routines, bodyweight, movements, history, focus, balance, chat, thread,
-             chatMemory, body, ouraSync, cardio, habits, diary, wellness, memory] in
+            [profile, today, train, routines, bodyweight, bodyComposition, movements, history, focus, balance, chat,
+             thread, chatMemory, body, ouraSync, cardio, habits, diary, wellness, memory] in
             profile.reset()
             today.reset()
             train.reset()
             routines.reset()
             bodyweight.reset()
+            bodyComposition.reset()
             movements.reset()
             history.reset()
             focus.reset()
@@ -251,6 +254,7 @@ final class AppContainer {
             if train.state.isWaitingOnServer { group.addTask { await self.train.refresh() } }
             if routines.state.isWaitingOnServer { group.addTask { await self.routines.refresh() } }
             if bodyweight.state.isWaitingOnServer { group.addTask { await self.bodyweight.refresh() } }
+            if bodyComposition.state.isWaitingOnServer { group.addTask { await self.bodyComposition.refresh() } }
             if history.state.isWaitingOnServer { group.addTask { await self.history.refresh() } }
             if focus.state.isWaitingOnServer { group.addTask { await self.focus.refresh() } }
             if balance.isWaitingOnServer { group.addTask { await self.balance.refresh() } }

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Services.Chat;
 using lionheart.Services.Llm;
+using lionheart.Services.BodyComposition;
 
 namespace lionheart.Services.Profile
 {
@@ -40,7 +41,7 @@ namespace lionheart.Services.Profile
         : IAthleteContextCardService
     {
         /// <summary>Bump when aggregation or rendering changes so existing cards are detected as stale.</summary>
-        private const int GENERATOR_VERSION = 2;
+        private const int GENERATOR_VERSION = 3;
 
         /// <summary>Recent State is considered stale after this long and is lazily recomputed on read.</summary>
         private static readonly TimeSpan RecentStateMaxAge = TimeSpan.FromHours(6);
@@ -167,10 +168,13 @@ namespace lionheart.Services.Profile
 
             var standingRecordCount = await StandingRecordCountAsync(userId);
 
+            // History only: whether an injury is still active changes when it is resolved, and the
+            // stable tier is rebuilt only when the generator changes, so a status here would go
+            // stale. Recent State reads the active ones from the records on every refresh.
             var chronicInjuries = await _context.Injuries
                 .Where(i => i.UserID == userId)
                 .OrderByDescending(i => i.InjuryDate)
-                .Select(i => new { i.Name, i.InjuryDate, i.IsActive })
+                .Select(i => new { i.Name, i.InjuryDate })
                 .Take(8)
                 .ToListAsync();
 
@@ -180,7 +184,6 @@ namespace lionheart.Services.Profile
                 var bio = new List<string>();
                 if (!string.IsNullOrWhiteSpace(lhUser.Name)) bio.Add($"name {lhUser.Name}");
                 if (lhUser.Age > 0) bio.Add($"age {lhUser.Age}");
-                if (lhUser.Weight > 0) bio.Add($"weight {lhUser.Weight:0.#}");
                 if (bio.Count > 0) facts.Add($"Athlete: {string.Join(", ", bio)}.");
             }
             if (readinessYear.Count > 0 || restingRates.Count > 0)
@@ -201,9 +204,8 @@ namespace lionheart.Services.Profile
             facts.Add($"Training history: {sessionsYear} sessions logged in the last 12 months; {standingRecordCount} personal records currently standing.");
             if (chronicInjuries.Count > 0)
             {
-                var injuryList = string.Join("; ", chronicInjuries.Select(i =>
-                    $"{i.Name} ({i.InjuryDate:yyyy-MM}{(i.IsActive ? ", active" : "")})"));
-                facts.Add($"Injury history: {injuryList}.");
+                var injuryList = string.Join("; ", chronicInjuries.Select(i => $"{i.Name} ({i.InjuryDate:yyyy-MM})"));
+                facts.Add($"Injury history (whether any is active is under RECENT STATE): {injuryList}.");
             }
 
             var deterministic = facts.Count > 0 ? string.Join("\n", facts) : "No profile data on record yet.";
@@ -304,6 +306,8 @@ namespace lionheart.Services.Profile
 
             lines.Add($"Training load: {acuteSessions} sessions in 7d, acute:chronic ratio {acwr} (vs trailing 28d).");
 
+            lines.AddRange(await BodyFactsAsync(userId));
+
             if (activeInjuries.Count > 0)
             {
                 var inj = string.Join("; ", activeInjuries.Select(i =>
@@ -332,6 +336,7 @@ namespace lionheart.Services.Profile
                 $"oura: 7d readiness/sleep/HRV/stress means present (n={Math.Max(readinessWeek.Count, sleepWeek.Count)}); per-night detail (stages, hypnogram, HRV curve), workouts, sessions and tags NOT loaded -> the /api/oura routes.",
                 $"training: 7d count + acute:chronic present; no drill-in tool available yet — do not attempt to fetch per-session detail.",
                 $"injuries: {activeInjuries.Count} active summarized; full event history NOT loaded -> GetUserInjuries(filters).",
+                "body: latest dated bodyweight and the latest body-composition scan (with its change since the one before) present; every scan's full sheet NOT loaded -> GetBodyCompositionScans().",
                 $"Personal records: {standingRecordCount} standing records counted; the numbers and their progression NOT loaded -> GetPersonalRecords(), or GetPersonalRecordsForMovement(movementDataId) for one movement."
             });
 
@@ -428,6 +433,27 @@ namespace lionheart.Services.Profile
               card, describe it, or open an answer by summarising it.
             Do not narrate tool calls.
             """;
+
+        /// <summary>
+        /// The athlete's body with its dates: the newest bodyweight measurement rather than the
+        /// profile's undated weight, and the newest scan against the one before it.
+        /// </summary>
+        private async Task<IReadOnlyList<string>> BodyFactsAsync(Guid userId)
+        {
+            var bodyweight = await _context.BodyweightMeasurements
+                .AsNoTracking()
+                .Where(m => m.UserId == userId)
+                .OrderByDescending(m => m.Day)
+                .FirstOrDefaultAsync();
+
+            var scans = _context.BodyCompositionScans.AsNoTracking().Where(s => s.UserId == userId);
+            var latest = await scans
+                .OrderByDescending(s => s.Day).ThenByDescending(s => s.Time)
+                .Take(2)
+                .ToListAsync();
+
+            return BodyFacts.Lines(bodyweight, latest, await scans.CountAsync());
+        }
 
         /// <summary>
         /// Completed sessions only — planned/skipped don't count toward workload. Time comes

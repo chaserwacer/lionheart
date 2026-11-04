@@ -317,8 +317,16 @@ A first implementation slice landed on `claude/lionheart-user-profiles-Ob5y0`:
 - **Context management** — `ChatCompletionService.HandleConversationHistory`
   reserves the card's budget first, packs user/model turns by priority, then
   fills remaining budget with tool-result payloads (dropped first, kept in DB).
-- **Invalidation** — `WellnessService.AddWellnessStateAsync` marks Recent State
-  stale (batched, no extra round trip); lazy rebuild on next read (6h max age).
+- **Invalidation** — a wellness entry, any injury or injury-event write, a bodyweight logged or
+  deleted, and a body-composition scan recorded, corrected or deleted each mark Recent State stale
+  (`RecentStateInvalidation`, staged into the write's own save); lazy rebuild on next read (6h
+  max age).
+- **Body** — Recent State states the latest dated bodyweight and the latest scan (core figures,
+  segmental lean and fat against the analyser's own reference, ECW/TBW, the analyser's scores,
+  and the change since the previous scan), each with its date (`BodyFacts`). The profile's undated
+  weight is no longer on the card; full sheets are behind the `GetBodyCompositionScans` tool.
+- **Injuries** — the Stable Profile lists injury history without status, since it is rebuilt only
+  when the generator changes; which injuries are active is Recent State's, read from the records.
 - **DI / config** — `Program.cs` registers the card service and the cheap
   narrative client (model from `OpenAI:NarrativeModel`, default `gpt-5.2-mini`).
 

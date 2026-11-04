@@ -129,7 +129,9 @@ private struct SignedInTabs: View {
                     ouraSync: container.ouraSync,
                     cardio: container.cardio,
                     habits: container.habits,
-                    wellness: container.wellness)
+                    wellness: container.wellness,
+                    composition: container.bodyComposition,
+                    bodyweight: container.bodyweight)
             } label: {
                 TabLabel("Body", systemImage: "waveform.path.ecg")
             }

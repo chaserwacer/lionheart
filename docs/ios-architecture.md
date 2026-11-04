@@ -660,9 +660,9 @@ them, and withdraws one when the athlete says the set was not real. Three rules 
   movement lights nothing rather than eleven badges. Several records beaten read as one sentence,
   the most worth saying first: "New heaviest set and 5 more records".
 
-## Body: the scores, cardio and daily movement
+## Body: the scores, cardio, daily movement and body composition
 
-Body leads with the latest readiness and the last night, then the latest day's scores, then two
+Body leads with the latest readiness and the last night, then the latest day's scores, then three
 questions with screens of their own.
 
 - **Scores and contributors.** A day's readiness, sleep, activity and resilience are drawn as an
@@ -699,9 +699,29 @@ the mean readiness on days he rated low, middling and high, and Pearson's r betw
 rating and readiness once eight days carry both.
 
 Both are server-side derivations rather than `Core/` ones, because their input is the all-day
-heart-rate series and a year of five-minute classes, and because the chat analyst reads the same
-reports as tools; the client derives nothing it could get wrong differently. Each store holds one
-report per span, like Today's trends, and reads the span again after an Oura sync.
+
+- **Body composition** is one InBody sheet per scan, drawn as an instrument rather than a copy of
+  the paper: the headline figures and their change since the scan before, segmental lean as bars
+  against the analyser's own reference (100 is its reference for his height and weight, not a norm)
+  with left against right beneath, segmental fat the same way, then the trends across scans — with
+  one scan, the trend section says a trend starts with the second rather than drawing a lone
+  point — and the sheet's other panels. A scan's weight is that day's bodyweight measurement, so
+  the bodyweight screen is linked from here as well as from Train.
+
+  **Adding a scan** reads the sheet on the phone: VisionKit's document camera (or a photo or PDF)
+  gives a page, `SheetRecognizer` runs Vision's text recognition over the whole page and over
+  overlapping tiles of it, `InBodySheetReader` (`Core/`) reads each pass by the sheet's layout,
+  and the passes vote. The athlete then checks every figure in `ScanReviewForm`: an illegible
+  figure is an empty box marked "Not read"; a figure the passes read differently, or that the
+  sheet's own sums contradict, is marked "Check" with each reading offered or the sum it fails; and
+  nothing is saved until every asked figure is filled. No model is involved: the live chat model is
+  a local one whose image input is unverified, and a layout reader is deterministic and testable
+  against a real sheet's recognised text.
+
+Cardio and daily movement are server-side derivations rather than `Core/` ones, because their input
+is the all-day heart-rate series and a year of five-minute classes, and because the chat analyst
+reads the same reports as tools; the client derives nothing it could get wrong differently. Each
+store holds one report per span, like Today's trends, and reads the span again after an Oura sync.
 
 ## Chat: one thread, with memory
 
