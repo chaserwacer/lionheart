@@ -24,7 +24,7 @@ public class OuraReadServiceTests : IAsyncLifetime
         _user = new IdentityUser("tester@lionheart.local") { Id = _database.UserId.ToString() };
 
         await new OuraArchiveImporter(context)
-            .ImportAsync(RecordedPayloads.ArchiveDirectory, _database.UserId, CancellationToken.None);
+            .ImportAsync(ArchiveFixtures.ArchiveDirectory, _database.UserId, CancellationToken.None);
     }
 
     public Task DisposeAsync()

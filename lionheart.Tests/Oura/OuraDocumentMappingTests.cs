@@ -25,7 +25,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void An_activity_document_keeps_every_measure_and_takes_Ouras_id_as_its_key()
     {
-        var document = Mapped(RecordedPayloads.Activity(0).ToDocument(Athlete));
+        var document = Mapped(ArchiveFixtures.Activity(0).ToDocument(Athlete));
 
         Assert.Equal(Guid.Parse("4887ef8a-967c-4b07-b21c-df2dc8b697c9"), document.OuraId);
         Assert.Equal(Athlete, document.UserId);
@@ -47,7 +47,7 @@ public class OuraDocumentMappingTests
     {
         // Oura sends days with a null score and a null for every contributor. A substituted 0
         // would make a day the ring scored badly indistinguishable from one it did not score.
-        var reading = Mapped(RecordedPayloads.Activity(1).ToDocument(Athlete)).Reading;
+        var reading = Mapped(ArchiveFixtures.Activity(1).ToDocument(Athlete)).Reading;
 
         Assert.Null(reading.Score);
         Assert.Null(reading.Contributors.MeetDailyTargets);
@@ -63,10 +63,10 @@ public class OuraDocumentMappingTests
         // the wire record does not declare them, so they are skipped rather than read and dropped.
         // The daily MET-minute totals below are the same information at the resolution anything
         // here actually reads. This asserts the record maps at all in their presence.
-        var line = RecordedPayloads.Lines("daily_activity")[0];
+        var line = ArchiveFixtures.Lines("daily_activity")[0];
         Assert.Contains("\"met\"", line);
 
-        var reading = Mapped(RecordedPayloads.Activity(0).ToDocument(Athlete)).Reading;
+        var reading = Mapped(ArchiveFixtures.Activity(0).ToDocument(Athlete)).Reading;
 
         Assert.Equal(5, reading.LowActivityMetMinutes);
         Assert.Equal(11, reading.MediumActivityMetMinutes);
@@ -78,7 +78,7 @@ public class OuraDocumentMappingTests
     {
         // Oura's activity day starts at 04:00 local, and the document's timestamp carries that
         // offset, so slot n sits 5n minutes after it on the clock the athlete lived.
-        var timeline = Mapped(RecordedPayloads.Activity(1).ToDocument(Athlete)).Reading.Timeline;
+        var timeline = Mapped(ArchiveFixtures.Activity(1).ToDocument(Athlete)).Reading.Timeline;
 
         Assert.NotNull(timeline);
         Assert.Equal(new DateTimeOffset(2025, 1, 20, 4, 0, 0, TimeSpan.FromHours(-5)), timeline.StartedAt);
@@ -91,7 +91,7 @@ public class OuraDocumentMappingTests
     public void An_activity_document_with_no_classification_is_stored_without_a_timeline()
     {
         // Optional in Oura's schema, so its absence is a day without a shape, not a defect.
-        var reading = Mapped((RecordedPayloads.Activity(0) with { Class5Min = null }).ToDocument(Athlete)).Reading;
+        var reading = Mapped((ArchiveFixtures.Activity(0) with { Class5Min = null }).ToDocument(Athlete)).Reading;
 
         Assert.Null(reading.Timeline);
         Assert.Equal(22, reading.ActiveCalories);
@@ -100,7 +100,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_classification_with_no_instant_to_start_from_is_refused_naming_the_timestamp()
     {
-        var defects = Refused((RecordedPayloads.Activity(0) with { Timestamp = null }).ToDocument(Athlete));
+        var defects = Refused((ArchiveFixtures.Activity(0) with { Timestamp = null }).ToDocument(Athlete));
 
         Assert.Equal("timestamp", Assert.Single(defects.Defects).Field);
     }
@@ -108,7 +108,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_readiness_document_keeps_all_nine_of_its_contributors()
     {
-        var reading = Mapped(RecordedPayloads.Readiness(1).ToDocument(Athlete)).Reading;
+        var reading = Mapped(ArchiveFixtures.Readiness(1).ToDocument(Athlete)).Reading;
 
         Assert.Equal(79, reading.Contributors.SleepRegularity);
         Assert.Equal(0.17, reading.TemperatureTrendDeviation);
@@ -119,7 +119,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void Readiness_contributors_Oura_had_too_little_history_for_are_absent_not_zero()
     {
-        var reading = Mapped(RecordedPayloads.Readiness(0).ToDocument(Athlete)).Reading;
+        var reading = Mapped(ArchiveFixtures.Readiness(0).ToDocument(Athlete)).Reading;
 
         Assert.Null(reading.Contributors.ActivityBalance);
         Assert.Null(reading.Contributors.HrvBalance);
@@ -133,8 +133,8 @@ public class OuraDocumentMappingTests
     {
         // Oura nulls the whole spo2_percentage object rather than its average, so a mapping that
         // reached for .average without checking would throw on every night the ring missed.
-        var measured = Mapped(RecordedPayloads.Spo2(0).ToDocument(Athlete)).Reading;
-        var unmeasured = Mapped(RecordedPayloads.Spo2(1).ToDocument(Athlete)).Reading;
+        var measured = Mapped(ArchiveFixtures.Spo2(0).ToDocument(Athlete)).Reading;
+        var unmeasured = Mapped(ArchiveFixtures.Spo2(1).ToDocument(Athlete)).Reading;
 
         Assert.Equal(97.613, measured.AverageSpo2Percentage);
         Assert.Equal(4, measured.BreathingDisturbanceIndex);
@@ -147,8 +147,8 @@ public class OuraDocumentMappingTests
     {
         // Oura has issued two documents for one day, for weeks at a stretch. Both are kept: a day
         // is not this collection's key, Oura's document id is.
-        var first = Mapped(RecordedPayloads.Spo2(2).ToDocument(Athlete));
-        var second = Mapped(RecordedPayloads.Spo2(3).ToDocument(Athlete));
+        var first = Mapped(ArchiveFixtures.Spo2(2).ToDocument(Athlete));
+        var second = Mapped(ArchiveFixtures.Spo2(3).ToDocument(Athlete));
 
         Assert.Equal(first.Day, second.Day);
         Assert.NotEqual(first.OuraId, second.OuraId);
@@ -157,8 +157,8 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_stress_document_keeps_Ouras_verdict_and_tolerates_its_absence()
     {
-        var judged = Mapped(RecordedPayloads.Stress(0).ToDocument(Athlete)).Reading;
-        var unjudged = Mapped(RecordedPayloads.Stress(1).ToDocument(Athlete)).Reading;
+        var judged = Mapped(ArchiveFixtures.Stress(0).ToDocument(Athlete)).Reading;
+        var unjudged = Mapped(ArchiveFixtures.Stress(1).ToDocument(Athlete)).Reading;
 
         Assert.Equal("restored", judged.DaySummary);
         Assert.Equal(1800, judged.StressHighSeconds);
@@ -171,7 +171,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_night_keeps_its_stages_its_hypnogram_and_both_overnight_curves()
     {
-        var night = Mapped(RecordedPayloads.Sleep(0).ToDocument(Athlete));
+        var night = Mapped(ArchiveFixtures.Sleep(0).ToDocument(Athlete));
         var reading = night.Reading;
 
         Assert.Equal(new DateOnly(2024, 1, 26), night.Day);
@@ -198,7 +198,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_nights_period_runs_from_bedtime_to_waking_at_the_offset_it_was_lived_at()
     {
-        var night = Mapped(RecordedPayloads.Sleep(0).ToDocument(Athlete));
+        var night = Mapped(ArchiveFixtures.Sleep(0).ToDocument(Athlete));
 
         var period = Assert.IsType<Interval>(night.Period);
         Assert.Equal(new DateTimeOffset(2024, 1, 26, 1, 43, 12, TimeSpan.FromHours(-5)), period.Start);
@@ -212,7 +212,7 @@ public class OuraDocumentMappingTests
         // Oura's `day` and the date its bedtime fell on often disagree. Both are stored: the day
         // is what a reader asking "how did he sleep on the 28th" means, and the period is where
         // the night sits on the clock.
-        var night = Mapped(RecordedPayloads.Sleep(2).ToDocument(Athlete));
+        var night = Mapped(ArchiveFixtures.Sleep(2).ToDocument(Athlete));
 
         Assert.Equal(new DateOnly(2024, 1, 28), night.Day);
         Assert.Equal(new DateOnly(2024, 1, 27), night.Period.LocalDate);
@@ -224,7 +224,7 @@ public class OuraDocumentMappingTests
         // Oura answers 0 rather than null for average_heart_rate on naps it read nothing on. It is
         // stored as it arrived: rewriting it to absence on the way in would destroy the only
         // evidence of which of the two Oura actually said.
-        var nap = Mapped(RecordedPayloads.Sleep(1).ToDocument(Athlete)).Reading;
+        var nap = Mapped(ArchiveFixtures.Sleep(1).ToDocument(Athlete)).Reading;
 
         Assert.Equal(0, nap.AverageHeartRate);
         Assert.Null(nap.LowestHeartRate);
@@ -237,7 +237,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_sample_runs_clock_position_comes_from_its_interval_and_start()
     {
-        var series = Mapped(RecordedPayloads.Sleep(0).ToDocument(Athlete)).Reading.HeartRate;
+        var series = Mapped(ArchiveFixtures.Sleep(0).ToDocument(Athlete)).Reading.HeartRate;
 
         Assert.Equal(series.StartedAt, series.At(0));
         Assert.Equal(series.StartedAt.AddMinutes(5), series.At(1));
@@ -249,8 +249,8 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_workout_keeps_its_vocabulary_and_the_measures_Oura_could_not_take()
     {
-        var measured = Mapped(RecordedPayloads.Workout(0).ToDocument(Athlete));
-        var unmeasured = Mapped(RecordedPayloads.Workout(1).ToDocument(Athlete)).Reading;
+        var measured = Mapped(ArchiveFixtures.Workout(0).ToDocument(Athlete));
+        var unmeasured = Mapped(ArchiveFixtures.Workout(1).ToDocument(Athlete)).Reading;
 
         Assert.Equal("tennis", measured.Reading.Activity);
         Assert.Equal("hard", measured.Reading.Intensity);
@@ -269,7 +269,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_session_keeps_all_three_of_its_sample_runs()
     {
-        var session = Mapped(RecordedPayloads.Session(0).ToDocument(Athlete)).Reading;
+        var session = Mapped(ArchiveFixtures.Session(0).ToDocument(Athlete)).Reading;
 
         Assert.Equal("breathing", session.Kind);
         Assert.Equal("good", session.Mood);
@@ -282,15 +282,15 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_session_without_a_mood_recorded_maps_without_one()
     {
-        Assert.Null(Mapped(RecordedPayloads.Session(2).ToDocument(Athlete)).Reading.Mood);
+        Assert.Null(Mapped(ArchiveFixtures.Session(2).ToDocument(Athlete)).Reading.Mood);
     }
 
     [Fact]
     public void A_tag_marks_an_instant_and_keeps_its_codes_and_whatever_was_typed()
     {
-        var written = Mapped(RecordedPayloads.Tag(0).ToDocument(Athlete));
-        var bare = Mapped(RecordedPayloads.Tag(1).ToDocument(Athlete)).Reading;
-        var blank = Mapped(RecordedPayloads.Tag(2).ToDocument(Athlete)).Reading;
+        var written = Mapped(ArchiveFixtures.Tag(0).ToDocument(Athlete));
+        var bare = Mapped(ArchiveFixtures.Tag(1).ToDocument(Athlete)).Reading;
+        var blank = Mapped(ArchiveFixtures.Tag(2).ToDocument(Athlete)).Reading;
 
         Assert.Equal(["tag_generic_late_meal"], written.Reading.Codes);
         Assert.Equal("Late dinner, screens until midnight. ", written.Reading.Text);
@@ -435,7 +435,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_sample_run_Oura_omitted_entirely_names_that_run()
     {
-        var defects = Refused((RecordedPayloads.Sleep(0) with { Hrv = null }).ToDocument(Athlete));
+        var defects = Refused((ArchiveFixtures.Sleep(0) with { Hrv = null }).ToDocument(Athlete));
 
         Assert.Equal("hrv", Assert.Single(defects.Defects).Field);
     }
@@ -443,7 +443,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_sample_run_with_no_items_names_the_items_rather_than_the_run()
     {
-        var defects = Refused((RecordedPayloads.Sleep(0) with
+        var defects = Refused((ArchiveFixtures.Sleep(0) with
         {
             Hrv = new WireSampleSeries { Interval = 300, Timestamp = "2024-01-26T01:43:12.000-05:00" },
         }).ToDocument(Athlete));
@@ -472,7 +472,7 @@ public class OuraDocumentMappingTests
     [Fact]
     public void A_tag_with_an_empty_code_is_refused_so_no_hole_reaches_the_stored_list()
     {
-        var defects = Refused((RecordedPayloads.Tag(0) with { Tags = [null] }).ToDocument(Athlete));
+        var defects = Refused((ArchiveFixtures.Tag(0) with { Tags = [null] }).ToDocument(Athlete));
 
         Assert.Equal("tags", Assert.Single(defects.Defects).Field);
     }

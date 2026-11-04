@@ -37,6 +37,7 @@
     <Content Include="Oura\Archive\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Oura\Damaged\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Strong\Exports\*.csv" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Services\CoachedSheets\coached-sheets.example.json" Link="CoachedSheets\coached-sheets.example.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

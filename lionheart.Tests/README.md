@@ -53,7 +53,7 @@ to the output directory. The archive is a miniature of the athlete's own recorde
 real bytes, so what the mapping tests assert is what a live pull would produce, which matters
 because the pull itself cannot be run without his credential. `Damaged/` holds records broken on
 purpose. Point the importer at a directory the way production does rather than hand-feeding it
-lines; `RecordedPayloads` resolves both paths.
+lines; `ArchiveFixtures` resolves both paths.
 
 `Serialization/StorageFormatTests.cs` is deliberately redundant with the round-trip tests:
 round trips use the serializer as its own oracle, so a serializer-level change round-trips

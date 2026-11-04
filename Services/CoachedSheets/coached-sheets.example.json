@@ -1,0 +1,35 @@
+// The judgement calls reading the coached-programme spreadsheets needs, for the import that reads
+// training-os's derived/sets.tsv. The real file is the athlete's training evidence, so it lives
+// with the spreadsheets, outside this repository, and the command line names it:
+//   import-coached-sheets <sets.tsv> --decisions <coached-sheets.json> --user <athlete-guid>
+// Every value below is invented; it shows the format.
+//
+// "programs": each sheet (training-os's slug for it) and the completed programme its sessions join.
+//   "readAs" maps a training-os slug to the one this sheet means by it, where a sheet's wording
+//   says less than the athlete did (a block whose "Deadlift" was pulled sumo).
+//
+// "templateText": openings of notes a spreadsheet template prints on every row. They are dropped
+//   from session notes because they describe the template, not the session.
+//
+// "notPerformed": rows the set log holds that are not sets the athlete lifted, with the evidence.
+//   Each names one spreadsheet row by its source, date, exercise as written, weight and reps;
+//   "sets" is how many sets training-os expanded it into, and a run refuses if the log no longer
+//   holds exactly that many, since the entry would then describe rows that have changed.
+//   "kind" is one of:
+//   - "computed": the weight cell is a formula; a prescription, never a load on a bar.
+//   - "placeholder": a stand-in value typed to fill the cell.
+//   - "contradicted": the athlete's own note on the row says it did not happen as written.
+//   - "implausible": a value no lift could have, so a typing slip.
+{
+  "programs": [
+    { "sheet": "rpe-template", "title": "RPE template — Your Program (RPE)", "summary": "Twelve-week RPE template; the athlete entered top sets and the template computed the rest.", "tags": ["coached", "powerlifting", "spreadsheet"] },
+    { "sheet": "block-two", "title": "Strength block — two", "summary": "Coached block.", "tags": ["coached", "powerlifting", "spreadsheet"], "readAs": { "deadlift-barbell": "sumo-deadlift-barbell", "paused-deadlift": "paused-sumo-deadlift" } }
+  ],
+  "templateText": [
+    "WEIGHT WILL BE AUTO GENERATED"
+  ],
+  "notPerformed": [
+    {"source": "sheet:rpe-template#w1", "date": "2023-02-06", "exercise": "SQUAT", "weight": 281.6, "reps": 5, "sets": 4, "kind": "computed", "reason": "Weight cell is a formula (=E7*0.88): the template computed it from the top set entered above it."},
+    {"source": "sheet:block-two#w1", "date": "2023-11-13", "exercise": "Leg Curl", "weight": 3, "reps": 10, "sets": 3, "kind": "implausible", "reason": "3 lb typed in the weight cell beside 90 lb on the sets around it."}
+  ]
+}

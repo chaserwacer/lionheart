@@ -77,6 +77,17 @@ public class CoachedSheetFilesTests
     }
 
     [Fact]
+    public void The_example_decisions_file_reads()
+    {
+        var example = Path.Combine(AppContext.BaseDirectory, "CoachedSheets", "coached-sheets.example.json");
+
+        var decisions = ResultAssert.Succeeded(SheetDecisions.Read(example));
+
+        Assert.Equal("sumo-deadlift-barbell", decisions.Programs["block-two"].Reading("deadlift-barbell"));
+        Assert.Equal([NotPerformedKind.Computed, NotPerformedKind.Implausible], decisions.NotPerformed.Select(row => row.Kind));
+    }
+
+    [Fact]
     public void A_decisions_path_with_no_file_is_refused_by_name()
     {
         var missing = Path.Combine(Path.GetTempPath(), $"absent-{Guid.NewGuid():N}.json");

@@ -13,7 +13,7 @@ namespace lionheart.Tests.Oura;
 /// the archive import and the pull share one mapping, so a test that maps one of these payloads is
 /// the only evidence available about what the pull would do with Oura's.
 /// </remarks>
-internal static class RecordedPayloads
+internal static class ArchiveFixtures
 {
     /// <summary>The miniature archive: a few representative records per collection.</summary>
     public static string ArchiveDirectory => Path.Combine(AppContext.BaseDirectory, "Oura", "Archive");

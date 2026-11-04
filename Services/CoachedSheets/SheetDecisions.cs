@@ -55,6 +55,7 @@ public sealed record NotPerformed(
 /// reviewable, with its evidence, without reading C#. Unlike the maps it is named on the command
 /// line rather than compiled in, because its evidence is the athlete's own training (dates,
 /// weights, his notes) and stays with his spreadsheets rather than in this repository.
+/// <c>coached-sheets.example.json</c>, beside this file, shows the format with invented values.
 /// </remarks>
 public sealed class SheetDecisions
 {
