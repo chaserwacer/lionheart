@@ -97,7 +97,10 @@ public sealed class TodayBriefingService(
             await WellnessAsync(userId, today, ct),
             await InjuriesAsync(userId, ct),
             await PlannedAsync(userId, log, today, ct),
-            await ScoreAsync(user, today, ct));
+            await ToolAsync(user, "GetTrainingScore", today, ct))
+        {
+            Next = await ToolAsync(user, "GetNextSessions", today, ct),
+        };
     }
 
     // ---- Training ----
@@ -202,18 +205,18 @@ public sealed class TodayBriefingService(
                 [.. plan.Prescriptions.OfType<LiftPrescription>().Select(lift => log.NameOf(lift.MovementDataId)).Distinct()]))];
 
     /// <summary>
-    /// The score as the score tool states it, run through the tool itself, so the briefing and the
-    /// tool can never describe one week two ways, whatever shape the score takes.
+    /// The score, or what is up next, as its tool states it, run through the tool itself, so the
+    /// briefing and the tool can never describe one day two ways, whatever shape the answer takes.
     /// </summary>
-    private Task<string> ScoreAsync(IdentityUser user, DateOnly today, CancellationToken ct) =>
+    private Task<string> ToolAsync(IdentityUser user, string tool, DateOnly today, CancellationToken ct) =>
         _tools.ExecuteToolCallAsync(
-                new ToolInvocation("briefing", "GetTrainingScore", JsonSerializer.Serialize(new { from = Iso(today), to = Iso(today) })),
+                new ToolInvocation("briefing", tool, JsonSerializer.Serialize(new { from = Iso(today), to = Iso(today) })),
                 user, allowedToolNames: null, ct)
             .MatchAsync(
                 outcome => outcome.Content is "null" ? string.Empty : outcome.Content,
                 problem =>
                 {
-                    _logger.LogWarning("The briefing could not read the training score: {Problem}", problem.Description);
+                    _logger.LogWarning("The briefing could not read {Tool}: {Problem}", tool, problem.Description);
                     return string.Empty;
                 });
 

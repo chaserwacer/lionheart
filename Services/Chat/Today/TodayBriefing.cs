@@ -53,6 +53,11 @@ public static class TodayBriefing
         text.Append("Training score, seven days ending today (exactly what GetTrainingScore returns; call it only for other windows): ")
             .Append(string.IsNullOrWhiteSpace(facts.Score) ? "not available." : facts.Score.Trim());
 
+        if (!string.IsNullOrWhiteSpace(facts.Next))
+        {
+            text.AppendLine().Append("Up next, as of today (exactly what GetNextSessions returns): ").Append(facts.Next.Trim());
+        }
+
         return text.ToString();
     }
 
