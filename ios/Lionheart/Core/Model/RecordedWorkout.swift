@@ -1,13 +1,15 @@
 import Foundation
 
-/// A run imported from Apple Health, read for its own page (`GET /api/training/sessions/{id}/recording`).
+/// A workout imported from Apple Health — a run, a ride, a hike, a walk — read for its own page
+/// (`GET /api/training/sessions/{id}/recording`).
 ///
 /// Every figure is the server's: the distance, time and climb are the session's own set, and the
 /// splits, moving time and descent are derived from the route there, so the page, the records and
-/// the chat model read one number each. The client converts a per-kilometre pace to per-mile, which
-/// is a change of unit and not a second derivation.
+/// the chat model read one number each. The client converts a per-kilometre pace to per-mile, or to
+/// a ride's speed, which is a change of unit and not a second derivation.
 struct RecordedWorkout: Equatable, Sendable {
     let trainingSessionId: UUID
+    let activity: RecordedActivity
     /// The app that wrote the run to Health, as Health names it.
     let recordedBy: String
     let start: Date
@@ -32,17 +34,118 @@ struct RecordedWorkout: Equatable, Sendable {
     let miles: [WorkoutSplit]
     /// The path, oldest fix first. Where the athlete was: drawn on his own phone and nowhere else.
     let route: [RouteCoordinate]
+    /// What else the recording app measured, one entry per metric; empty for none.
+    let metrics: [MetricReadout]
+
+    /// One metric's readout, where the app wrote it.
+    func metric(_ metric: WorkoutMetric) -> MetricReadout? {
+        metrics.first { $0.metric == metric }
+    }
 
     var elapsed: TimeInterval { end.timeIntervalSince(start) }
 }
 
-/// The heart-rate samples across a run and whose they are.
+/// What a recorded workout is: a run along a route, or an endurance activity.
+enum RecordedActivity: Equatable, Sendable {
+    case run
+    case endurance(EnduranceActivity)
+
+    init(wire: String?) {
+        switch wire {
+        case "run", nil: self = .run
+        case let other?: self = .endurance(EnduranceActivity(wire: other))
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .run: "Run"
+        case .endurance(let activity): activity.title
+        }
+    }
+
+    /// Whether the page reads it as a speed rather than a pace: a ride.
+    var readsAsSpeed: Bool {
+        switch self {
+        case .run: false
+        case .endurance(let activity): activity.readsAsSpeed
+        }
+    }
+
+    /// Whether running form is what its metrics describe: a run, indoors or out.
+    var isRunning: Bool {
+        switch self {
+        case .run, .endurance(.indoorRun): true
+        case .endurance: false
+        }
+    }
+}
+
+/// What one of a workout's metric series measures, each in the one unit the server holds it in.
+enum WorkoutMetric: Hashable, Sendable {
+    /// Watts.
+    case power
+    /// Pedal revolutions per minute.
+    case cadence
+    /// Metres per second.
+    case speed
+    /// Milliseconds.
+    case groundContactTime
+    /// Centimetres.
+    case verticalOscillation
+    /// Metres.
+    case strideLength
+    /// Beats per minute the heart rate fell in the minute after the workout.
+    case heartRateRecovery
+    case unrecognised(String)
+
+    init(wire: String) {
+        switch wire {
+        case "power": self = .power
+        case "cadence": self = .cadence
+        case "speed": self = .speed
+        case "groundContactTime": self = .groundContactTime
+        case "verticalOscillation": self = .verticalOscillation
+        case "strideLength": self = .strideLength
+        case "heartRateRecovery": self = .heartRateRecovery
+        default: self = .unrecognised(wire)
+        }
+    }
+
+    var wire: String {
+        switch self {
+        case .power: "power"
+        case .cadence: "cadence"
+        case .speed: "speed"
+        case .groundContactTime: "groundContactTime"
+        case .verticalOscillation: "verticalOscillation"
+        case .strideLength: "strideLength"
+        case .heartRateRecovery: "heartRateRecovery"
+        case .unrecognised(let wire): wire
+        }
+    }
+}
+
+/// One metric across a workout: its mean over the samples, its highest, and the samples to draw.
+struct MetricReadout: Equatable, Sendable {
+    let metric: WorkoutMetric
+    let average: Double
+    let peak: Double
+    let samples: [MetricSample]
+}
+
+struct MetricSample: Equatable, Sendable {
+    let at: Date
+    let value: Double
+}
+
+/// The heart-rate samples across a workout and whose they are.
 struct HeartRateTrace: Equatable, Sendable {
     let source: HeartRateSource
     let samples: [HeartRateSample]
 }
 
-/// One stretch of a run a unit long — a kilometre or a mile — or what is left after the last whole one.
+/// One stretch of a workout a unit long — a kilometre or a mile — or what is left after the last whole one.
 struct WorkoutSplit: Equatable, Sendable, Identifiable {
     let number: Int
     let distanceMeters: Double
@@ -74,11 +177,12 @@ extension RecordedWorkout: Decodable {
               let end = container.instant("end")
         else {
             throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath, debugDescription: "A run needs its session and its clock time."))
+                codingPath: decoder.codingPath, debugDescription: "A workout needs its session and its clock time."))
         }
         let recordedBy = container.lenient(Named.self, "recordedBy")
         self.init(
             trainingSessionId: id,
+            activity: RecordedActivity(wire: container.lenient(String.self, "activity")),
             recordedBy: recordedBy?.name ?? "",
             start: start,
             end: end,
@@ -94,11 +198,40 @@ extension RecordedWorkout: Decodable {
             trace: container.lenient(HeartRateTrace.self, "trace") ?? HeartRateTrace(source: .ring, samples: []),
             kilometres: container.lenientList(WorkoutSplit.self, "kilometres"),
             miles: container.lenientList(WorkoutSplit.self, "miles"),
-            route: container.lenientList(RouteCoordinate.self, "route"))
+            route: container.lenientList(RouteCoordinate.self, "route"),
+            metrics: container.lenientList(MetricReadout.self, "metrics"))
     }
 
     private struct Named: Decodable {
         let name: String
+    }
+}
+
+extension MetricReadout: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        guard let metric = container.lenient(String.self, "metric"),
+              let average = container.lenient(Double.self, "average")
+        else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath, debugDescription: "A metric needs its name and its mean."))
+        }
+        self.init(
+            metric: WorkoutMetric(wire: metric),
+            average: average,
+            peak: container.lenient("peak", or: average),
+            samples: container.lenientList(MetricSample.self, "samples"))
+    }
+}
+
+extension MetricSample: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        guard let at = container.instant("at"), let value = container.lenient(Double.self, "value") else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath, debugDescription: "A reading needs its instant and its value."))
+        }
+        self.init(at: at, value: value)
     }
 }
 

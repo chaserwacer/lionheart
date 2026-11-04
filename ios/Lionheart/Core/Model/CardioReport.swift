@@ -62,16 +62,17 @@ struct CardioSession: Equatable, Sendable, Identifiable {
     var id: String {
         switch source {
         case .ringWorkout(let id, _, _): id.uuidString
-        case .loggedSession(let id, _, _): id.uuidString
+        case .loggedSession(let id, _, _, _): id.uuidString
         case .unrecognised(let type): "\(type)-\(start.timeIntervalSince1970)"
         }
     }
 
     enum Source: Equatable, Sendable {
         case ringWorkout(ouraId: UUID, activity: String, category: WorkoutCategory)
-        /// `isRecorded`: imported from Apple Health, so its run page has the route and the
-        /// recording app's own figures.
-        case loggedSession(trainingSessionId: UUID, isTrailRun: Bool, isRecorded: Bool)
+        /// `isRecorded`: imported from Apple Health, so its page has the route and the recording
+        /// app's own figures. `activity`: what an endurance session was — a ride, a hike, a walk —
+        /// and `nil` for a trail run or a distance-and-time session.
+        case loggedSession(trainingSessionId: UUID, isTrailRun: Bool, isRecorded: Bool, activity: EnduranceActivity?)
         case unrecognised(String)
     }
 }
@@ -312,7 +313,8 @@ extension CardioSession.Source: Decodable {
             self = .loggedSession(
                 trainingSessionId: id,
                 isTrailRun: container.lenient("isTrailRun", or: false),
-                isRecorded: container.lenient("isRecorded", or: false))
+                isRecorded: container.lenient("isRecorded", or: false),
+                activity: container.lenient(String.self, "activity").map(EnduranceActivity.init(wire:)))
         default:
             self = .unrecognised(type)
         }

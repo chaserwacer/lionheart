@@ -32,9 +32,10 @@ struct MovementDigest: Equatable, Sendable, Identifiable {
         let reps: Int
     }
 
-    /// The movements of a set list, in the order they were performed, then each trail run on a line
-    /// of its own — a run imported from Apple Health is a session of exactly one — then any other
-    /// work that names no movement, a freeform set, as one counted line, so no set goes unmentioned.
+    /// The movements of a set list, in the order they were performed, then each trail run or
+    /// endurance set on a line of its own — a workout imported from Apple Health is a session of
+    /// exactly one — then any other work that names no movement, a freeform set, as one counted
+    /// line, so no set goes unmentioned.
     static func of(_ sets: [SetEntry], catalogue: MovementCatalogue) -> [MovementDigest] {
         let detail = SessionDetail.of(sets, catalogue: catalogue)
         let movements = detail.blocks.map { block in
@@ -42,12 +43,18 @@ struct MovementDigest: Equatable, Sendable, Identifiable {
                 order: block.order, movementDataId: block.movementDataId, movementName: block.movementName,
                 line: line(of: block.sets.map(\.entry)))
         }
-        let runs = detail.unattached.compactMap { set -> Line? in
-            guard case .trailRun(let run) = set.entry else { return nil }
-            return .run(distance: run.distance, unit: run.unit, duration: run.duration, climbMeters: run.elevationGainMeters)
+        let runs = detail.unattached.compactMap { set -> (name: String, line: Line)? in
+            switch set.entry {
+            case .trailRun(let run):
+                ("Trail run", .run(distance: run.distance, unit: run.unit, duration: run.duration, climbMeters: run.elevationGainMeters))
+            case .endurance(let set):
+                (set.activity.title, .run(distance: set.distance, unit: set.unit, duration: set.duration, climbMeters: set.elevationGainMeters))
+            case .lift, .distanceTime, .freeform, .unrecognised:
+                nil
+            }
         }
         let ranLines = runs.enumerated().map { index, run in
-            MovementDigest(order: movements.count + index, movementDataId: nil, movementName: "Trail run", line: run)
+            MovementDigest(order: movements.count + index, movementDataId: nil, movementName: run.name, line: run.line)
         }
         let others = detail.unattached.count - runs.count
         guard others > 0 else { return movements + ranLines }

@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// A run imported from Apple Health: the route on a map, the figures, the splits, and the heart
-/// rate against the zones.
+/// A workout imported from Apple Health — a run, a ride, a hike, a walk: the route on a map, the
+/// figures, the splits, the heart rate against the zones, and whatever else the recording app
+/// measured — a ride's power and cadence, a run's form, the heart rate's recovery.
 ///
 /// Every figure is the server's (`RecordedWorkout`). The page converts only the unit — kilometres or
-/// miles, the athlete's choice, kept between runs.
+/// miles, the athlete's choice, kept between workouts — and reads a ride as a speed.
 struct RecordedWorkoutView: View {
     let trainingSessionId: UUID
     let store: RecordedWorkoutStore
@@ -47,16 +48,19 @@ struct RecordedWorkoutView: View {
 
     private var title: String {
         store.runs[trainingSessionId]?.value
-            .map { $0.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) } ?? "Run"
+            .map { "\($0.activity.title), \($0.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))" }
+            ?? "Workout"
     }
 
     @ViewBuilder
     private func content(_ run: RecordedWorkout) -> some View {
         routeSection(run)
         figuresSection(run)
+        formSection(run)
         splitsSection(run)
         heartRateSection(run)
         zonesSection(run)
+        tracesSection(run)
     }
 
     // MARK: - Sections
@@ -77,7 +81,8 @@ struct RecordedWorkoutView: View {
                     RouteMapSheet(route: run.route)
                 }
             } else {
-                Text("No route was recorded with this run.").foregroundStyle(Color(.secondaryLabel))
+                Text(isIndoors(run) ? "Indoors: no route." : "No route was recorded with this \(noun(run)).")
+                    .foregroundStyle(Color(.secondaryLabel))
             }
         } footer: {
             Text("Recorded by \(run.recordedBy.nonEmpty ?? "an app") and imported from Apple Health, \(run.start.formatted(date: .omitted, time: .shortened))–\(run.end.formatted(date: .omitted, time: .shortened)). The route is kept on this phone and your server only; the chat model is given the figures, never the route.")
@@ -88,7 +93,7 @@ struct RecordedWorkoutView: View {
         Section {
             FigureGrid(figures: figures(run))
         } footer: {
-            Text("Time is what \(run.recordedBy.nonEmpty ?? "the app") counted, its pauses left out. Moving time is the route's time in motion, read from it with every stop removed, and moving pace is per that time.")
+            Text(figuresFootnote(run))
         }
     }
 
@@ -100,11 +105,12 @@ struct RecordedWorkoutView: View {
         if let moving = run.movingTime {
             figures.append(OuraPanel.Figure(label: "Moving", value: MeasurementText.clock(seconds: moving)))
         }
+        let rate = run.activity.readsAsSpeed ? "Speed" : "Pace"
         if let pace = run.pace {
-            figures.append(OuraPanel.Figure(label: "Pace", value: unit.pace(perKilometre: pace)))
+            figures.append(OuraPanel.Figure(label: rate, value: self.rate(run, pace)))
         }
         if let movingPace = run.movingPace {
-            figures.append(OuraPanel.Figure(label: "Moving pace", value: unit.pace(perKilometre: movingPace)))
+            figures.append(OuraPanel.Figure(label: "Moving \(rate.lowercased())", value: self.rate(run, movingPace)))
         }
         figures.append(OuraPanel.Figure(label: "Climb", value: "\(Int(run.climbMeters.rounded())) m"))
         if let descent = run.descentMeters {
@@ -114,7 +120,89 @@ struct RecordedWorkoutView: View {
             figures.append(OuraPanel.Figure(label: "Avg HR", value: "\(average)"))
             figures.append(OuraPanel.Figure(label: "Peak HR", value: "\(peak)"))
         }
+        if let recovery = run.metric(.heartRateRecovery) {
+            figures.append(OuraPanel.Figure(label: "HR recovery", value: "−\(Int(recovery.average.rounded()))"))
+        }
+        // A ride's drivers lead its own figures; a run's power and form have a section of their own.
+        if !run.activity.isRunning {
+            for metric in [WorkoutMetric.power, .cadence] {
+                guard let readout = run.metric(metric) else { continue }
+                figures.append(OuraPanel.Figure(
+                    label: "Avg \(WorkoutMetricText.name(metric, for: run.activity).lowercased())",
+                    value: WorkoutMetricText.figure(metric, readout.average, for: run.activity, in: unit)))
+            }
+            if let power = run.metric(.power) {
+                figures.append(OuraPanel.Figure(
+                    label: "Peak power", value: WorkoutMetricText.figure(.power, power.peak, for: run.activity, in: unit)))
+            }
+        }
         return figures
+    }
+
+    private func rate(_ run: RecordedWorkout, _ perKilometre: TimeInterval) -> String {
+        run.activity.readsAsSpeed ? unit.speed(perKilometre: perKilometre) : unit.pace(perKilometre: perKilometre)
+    }
+
+    private func figuresFootnote(_ run: RecordedWorkout) -> String {
+        let app = run.recordedBy.nonEmpty ?? "the app"
+        let rate = run.activity.readsAsSpeed ? "speed" : "pace"
+        var lines = ["Time is what \(app) counted, its pauses left out."]
+        if run.movingTime != nil {
+            lines.append("Moving time is the route's time in motion, every stop removed, and moving \(rate) is per that time.")
+        }
+        if run.metric(.heartRateRecovery) != nil {
+            lines.append("HR recovery is how far the heart rate fell in the first minute after the workout ended, as the watch measured it; a larger drop is a fitter heart.")
+        }
+        if !run.activity.isRunning, run.metric(.power) != nil {
+            lines.append("Average power counts the coasting, as a power meter's own average does.")
+        }
+        return lines.joined(separator: " ")
+    }
+
+    /// A run's form, as the watch measured it: the averages, each explained.
+    @ViewBuilder
+    private func formSection(_ run: RecordedWorkout) -> some View {
+        let form = WorkoutMetricText.runningForm(run)
+        if !form.isEmpty {
+            Section {
+                FigureGrid(figures: form.map { readout in
+                    OuraPanel.Figure(
+                        label: WorkoutMetricText.name(readout.metric, for: run.activity),
+                        value: WorkoutMetricText.figure(readout.metric, readout.average, for: run.activity, in: unit))
+                })
+            } header: {
+                Text("Running form")
+            } footer: {
+                Text("Averages across the run, from \(run.recordedBy.nonEmpty ?? "the watch"). Ground contact is the time each foot is down; vertical oscillation is the bounce each stride; shorter contact and less bounce at the same pace are the more economical stride. Running power is the watch's estimate of the work, in watts.")
+            }
+        }
+    }
+
+    /// Each metric the app wrote often enough to draw, against its mean.
+    @ViewBuilder
+    private func tracesSection(_ run: RecordedWorkout) -> some View {
+        ForEach(WorkoutMetricText.traced(run), id: \.metric) { readout in
+            Section {
+                MetricTraceChart(readout: readout, unit: unit, start: run.start, end: run.end)
+                    .accessibilityLabel("\(WorkoutMetricText.name(readout.metric, for: run.activity)) across the \(noun(run))")
+                    .accessibilityValue("Mean \(WorkoutMetricText.figure(readout.metric, readout.average, for: run.activity, in: unit)), peak \(WorkoutMetricText.figure(readout.metric, readout.peak, for: run.activity, in: unit))")
+            } header: {
+                Text("\(WorkoutMetricText.name(readout.metric, for: run.activity)), \(WorkoutMetricText.unitLabel(readout.metric, in: unit))")
+            } footer: {
+                Text("Mean \(WorkoutMetricText.figure(readout.metric, readout.average, for: run.activity, in: unit)), dashed; peak \(WorkoutMetricText.figure(readout.metric, readout.peak, for: run.activity, in: unit)).")
+            }
+        }
+    }
+
+    private func noun(_ run: RecordedWorkout) -> String {
+        run.activity.title.lowercased()
+    }
+
+    private func isIndoors(_ run: RecordedWorkout) -> Bool {
+        switch run.activity {
+        case .endurance(.indoorRide), .endurance(.indoorRun): true
+        case .run, .endurance: false
+        }
     }
 
     @ViewBuilder
@@ -131,12 +219,12 @@ struct RecordedWorkoutView: View {
             if splits.isEmpty {
                 Text("No route to cut into splits.").foregroundStyle(Color(.secondaryLabel))
             } else {
-                SplitsGrid(splits: splits, unit: unit)
+                SplitsGrid(splits: splits, unit: unit, readsAsSpeed: run.activity.readsAsSpeed)
             }
         } header: {
             Text("Splits")
         } footer: {
-            Text("Pace is moving time per \(unit == .kilometres ? "kilometre" : "mile"); a short last split reads at the pace it was run. Climb and descent are read from the route's altitudes, counting a change once it passes 3 m.")
+            Text("\(run.activity.readsAsSpeed ? "Speed is per moving time" : "Pace is moving time per \(unit == .kilometres ? "kilometre" : "mile")"); a short last split reads at the \(run.activity.readsAsSpeed ? "speed" : "pace") it was covered at. Climb and descent are read from the route's altitudes, counting a change once it passes 3 m.")
         }
     }
 
@@ -146,9 +234,9 @@ struct RecordedWorkoutView: View {
             if run.trace.samples.count >= 2 {
                 HeartRateZoneChart(
                     samples: run.trace.samples, maxHeartRate: run.maxHeartRate, start: run.start, end: run.end)
-                    .accessibilityLabel("Heart rate across the run")
+                    .accessibilityLabel("Heart rate across the \(noun(run))")
             } else {
-                Text("No heart rate for this run: \(run.recordedBy.nonEmpty ?? "the app") wrote none to Health, and the ring's series has none over the same time.")
+                Text("No heart rate for this \(noun(run)): \(run.recordedBy.nonEmpty ?? "the app") wrote none to Health, and the ring's series has none over the same time.")
                     .foregroundStyle(Color(.secondaryLabel))
             }
         } header: {
@@ -179,17 +267,18 @@ struct RecordedWorkoutView: View {
             } header: {
                 Text("Minutes in each zone")
             } footer: {
-                Text("The heart rate covers \(coverage.formatted(.percent.precision(.fractionLength(0)))) of the run. Load \(zones.load.formatted(.number.precision(.fractionLength(0)))), Edwards: minutes times zone.")
+                Text("The heart rate covers \(coverage.formatted(.percent.precision(.fractionLength(0)))) of the \(noun(run)). Load \(zones.load.formatted(.number.precision(.fractionLength(0)))), Edwards: minutes times zone.")
             }
         }
     }
 }
 
-/// A run's splits as a table: each one's distance where it is short, its pace, its climb and
-/// descent, and its average heart rate.
+/// A workout's splits as a table: each one's distance where it is short, its pace — a ride's
+/// speed — its climb and descent, and its average heart rate.
 private struct SplitsGrid: View {
     let splits: [WorkoutSplit]
     let unit: RunUnit
+    let readsAsSpeed: Bool
 
     var body: some View {
         let hasClimb = splits.contains { $0.climbMeters != nil }
@@ -198,7 +287,7 @@ private struct SplitsGrid: View {
         Grid(alignment: .trailing, horizontalSpacing: 14, verticalSpacing: 6) {
             GridRow {
                 Text(unit.abbreviation).gridColumnAlignment(.leading)
-                Text("Pace")
+                Text(readsAsSpeed ? unit.speedAbbreviation : "Pace")
                 if hasClimb { Text("+m"); Text("−m") }
                 if hasHeartRate { Text("bpm") }
             }
@@ -208,7 +297,7 @@ private struct SplitsGrid: View {
             ForEach(splits) { split in
                 GridRow {
                     Text(label(split)).gridColumnAlignment(.leading)
-                    Text(RunUnit.splitPace(split))
+                    Text(readsAsSpeed ? unit.splitSpeed(split) : RunUnit.splitPace(split))
                     if hasClimb {
                         Text(split.climbMeters.map { "\(Int($0.rounded()))" } ?? "")
                         Text(split.descentMeters.map { "\(Int($0.rounded()))" } ?? "")

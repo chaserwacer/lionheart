@@ -25,7 +25,8 @@ struct HealthWireTests {
             distanceMeters: nil,
             elevationAscendedMeters: 42,
             route: [.init(at: start, latitude: 46.5, longitude: 8.25, altitude: nil)],
-            heartRate: [.init(at: start, bpm: 131)])
+            heartRate: [.init(at: start, bpm: 131)],
+            metrics: [.init(metric: .groundContactTime, samples: [MetricSample(at: start, value: 244)])])
 
         let json = try #require(
             JSONSerialization.jsonObject(with: Wire.encoder().encode(workout)) as? [String: Any])
@@ -39,6 +40,9 @@ struct HealthWireTests {
         #expect(fix["altitude"] is NSNull)
         #expect(fix["latitude"] as? Double == 46.5)
         #expect((json["heartRate"] as? [[String: Any]])?.first?["bpm"] as? Int == 131)
+        let series = try #require((json["metrics"] as? [[String: Any]])?.first)
+        #expect(series["metric"] as? String == "groundContactTime")
+        #expect((series["samples"] as? [[String: Any]])?.first?["value"] as? Double == 244)
     }
 
     // MARK: - The answer
@@ -54,12 +58,16 @@ struct HealthWireTests {
         let left = try Decoding.decode(HealthImportOutcome.self, """
             {"$type":"notImported","reason":"readDirectly","trainingSessionId":null}
             """)
+        let deleted = try Decoding.decode(HealthImportOutcome.self, """
+            {"$type":"notImported","reason":"deleted","trainingSessionId":null}
+            """)
         let unknown = try Decoding.decode(HealthImportOutcome.self, #"{"$type":"queued"}"#)
 
         let id = try #require(UUID(uuidString: Session.id))
         #expect(imported == .imported(trainingSessionId: id))
         #expect(already == .alreadyImported(trainingSessionId: id))
         #expect(left == .notImported(.readDirectly))
+        #expect(deleted == .notImported(.deleted))
         #expect(unknown == .unrecognised("queued"))
     }
 
@@ -94,8 +102,19 @@ struct HealthWireTests {
             """)
 
         let id = try #require(UUID(uuidString: Session.id))
-        #expect(session.source == .loggedSession(trainingSessionId: id, isTrailRun: true, isRecorded: true))
+        #expect(session.source == .loggedSession(trainingSessionId: id, isTrailRun: true, isRecorded: true, activity: nil))
         #expect(session.heartRate == .recorded(averageBpm: 152, peakBpm: 171, coverage: 1, zones: nil, source: .appleHealth))
+    }
+
+    @Test("An imported ride in the cardio report names itself a ride")
+    func cardioNamesARide() throws {
+        let session = try Decoding.decode(CardioSession.self, """
+            {"source":{"$type":"loggedSession","trainingSessionId":"\(Session.id)","isTrailRun":false,"isRecorded":true,"activity":"ride"},
+             "start":"2026-09-20T07:00:00+02:00","end":"2026-09-20T08:30:00+02:00","distanceMeters":42000,
+             "heartRate":{"$type":"notRecorded"}}
+            """)
+
+        #expect(session.activityName == "Ride")
     }
 
     @Test("A heart rate read before sources were sent is the ring's")
@@ -125,6 +144,28 @@ struct HealthWireTests {
         #expect(run.trace.source == .appleHealth)
         #expect(run.trace.samples.map(\.bpm) == [140, 150])
         #expect(run.route == [RouteCoordinate(latitude: 46.5, longitude: 8.25), RouteCoordinate(latitude: 46.51, longitude: 8.25)])
+    }
+
+    @Test("A run with no activity named is a run, and one with no metrics has none")
+    func aRunFromAnOlderServerIsARun() throws {
+        let run = try Decoding.decode(RecordedWorkout.self, Self.runJSON)
+
+        #expect(run.activity == .run)
+        #expect(run.metrics.isEmpty)
+    }
+
+    @Test("A ride decodes its activity and each metric, and a metric this build does not know is kept by name")
+    func aRideDecodesItsMetrics() throws {
+        let json = Self.runJSON.replacingOccurrences(
+            of: #""route":["#,
+            with: #""activity":"ride","metrics":[{"metric":"power","average":212,"peak":640,"samples":[{"at":"2026-09-20T05:00:00+00:00","value":200},{"at":"2026-09-20T05:00:01+00:00","value":224}]},{"metric":"torque","average":3,"peak":4,"samples":[]},{"metric":"cadence"}],"route":["#)
+
+        let ride = try Decoding.decode(RecordedWorkout.self, json)
+
+        #expect(ride.activity == .endurance(.ride))
+        #expect(ride.activity.readsAsSpeed)
+        #expect(ride.metrics.map(\.metric) == [.power, .unrecognised("torque")])
+        #expect(ride.metric(.power)?.samples.map(\.value) == [200, 224])
     }
 
     @Test("A split that cannot be read is dropped and the run still loads")

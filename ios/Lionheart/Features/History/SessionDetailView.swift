@@ -137,8 +137,8 @@ struct SessionDetailView: View {
         }
     }
 
-    /// A run imported from Apple Health opens onto its own page: the route, the splits and the
-    /// recording app's heart rate.
+    /// A workout imported from Apple Health opens onto its own page: the route, the splits, the
+    /// recording app's heart rate and whatever else it measured.
     @ViewBuilder
     private var recordingSection: some View {
         switch session.envelope.source {
@@ -182,10 +182,9 @@ struct SessionDetailView: View {
                 }
             }
             if !detail.unattached.isEmpty {
-                // Work that names no movement: a trail run — the whole of a run imported from
-                // Health — says so; anything mixed in with it is other work.
-                let onlyRuns = detail.unattached.allSatisfy { if case .trailRun = $0.entry { true } else { false } }
-                Section(onlyRuns ? "Trail run" : "Other work") {
+                // Work that names no movement: a trail run or an endurance set — the whole of a
+                // workout imported from Health — says what it is; anything mixed is other work.
+                Section(SessionDetail.unattachedTitle(detail.unattached.map(\.entry))) {
                     ForEach(detail.unattached) { set in
                         SetRow(number: set.order + 1, entry: set.entry)
                     }

@@ -366,11 +366,11 @@ struct CardioView: View {
 
     // MARK: - Sessions
 
-    /// A run imported from Apple Health opens onto its own page, which has the route and the
+    /// A workout imported from Apple Health opens onto its own page, which has the route and the
     /// recording app's heart rate; every other session onto its heart-rate curve.
     private func route(to session: CardioSession) -> BodyRoute {
         switch session.source {
-        case .loggedSession(let id, _, isRecorded: true): .run(id)
+        case .loggedSession(let id, _, isRecorded: true, _): .run(id)
         case .loggedSession, .ringWorkout, .unrecognised: .cardioSession(session.id, span)
         }
     }

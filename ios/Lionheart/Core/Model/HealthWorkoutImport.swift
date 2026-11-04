@@ -8,7 +8,7 @@ import Foundation
 struct HealthWorkoutImport: Equatable, Sendable {
     /// The workout's UUID in Health, which a second import of it is recognised by.
     let workoutId: UUID
-    /// Health's activity in its own spelling: "running".
+    /// Health's activity in its own spelling: "running", "cycling", "hiking", "walking".
     let activity: String
     let indoor: Bool
     let appName: String
@@ -25,6 +25,9 @@ struct HealthWorkoutImport: Equatable, Sendable {
     let route: [RouteFix]
     /// The heart rate the same app wrote across the workout, oldest first.
     let heartRate: [HeartRateReading]
+    /// Everything else the same app measured, one series per metric — power, cadence, speed,
+    /// running form, and the heart rate's recovery after it.
+    let metrics: [MetricSeries]
 
     /// One fix of the route.
     struct RouteFix: Equatable, Sendable {
@@ -38,6 +41,12 @@ struct HealthWorkoutImport: Equatable, Sendable {
     struct HeartRateReading: Equatable, Sendable {
         let at: Date
         let bpm: Int
+    }
+
+    /// One metric's samples, each in the unit the server holds the metric in (`WorkoutMetric`).
+    struct MetricSeries: Equatable, Sendable {
+        let metric: WorkoutMetric
+        let samples: [MetricSample]
     }
 }
 
@@ -58,6 +67,27 @@ extension HealthWorkoutImport: Encodable {
         try container.encode(elevationAscendedMeters, forKey: WireKey(stringValue: "elevationAscendedMeters"))
         try container.encode(route, forKey: WireKey(stringValue: "route"))
         try container.encode(heartRate, forKey: WireKey(stringValue: "heartRate"))
+        try container.encode(metrics, forKey: WireKey(stringValue: "metrics"))
+    }
+}
+
+extension HealthWorkoutImport.MetricSeries: Encodable {
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: WireKey.self)
+        try container.encode(metric.wire, forKey: WireKey(stringValue: "metric"))
+        try container.encode(samples.map(Sample.init), forKey: WireKey(stringValue: "samples"))
+    }
+
+    private struct Sample: Encodable {
+        let reading: MetricSample
+
+        init(_ reading: MetricSample) { self.reading = reading }
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: WireKey.self)
+            try container.encode(WireDate.wire(from: reading.at), forKey: WireKey(stringValue: "at"))
+            try container.encode(reading.value, forKey: WireKey(stringValue: "value"))
+        }
     }
 }
 

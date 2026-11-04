@@ -137,6 +137,28 @@ struct PersonalRecordDecodingTests {
         #expect(record.subject.movementDataId == nil)
     }
 
+    @Test("A record naming riding or hiking is held on that subject, and an unknown kind on trail running")
+    func aSubjectKindNamesTheActivity() throws {
+        let achievement = #"{"$type":"longestDistance","distance":42,"unit":3,"duration":"01:30:00"}"#
+        func subject(_ kind: String) throws -> RecordSubject {
+            try Decoding.decode(PersonalRecord.self, Self.record(achievement, movementId: nil)
+                .replacingOccurrences(of: #""standing":"#, with: #""subject":"\#(kind)","standing":"#)).subject
+        }
+
+        #expect(try subject("riding") == .riding)
+        #expect(try subject("hiking") == .hiking)
+        #expect(try subject("paddling") == .trailRunning)
+    }
+
+    @Test("A ride or a hike competes on its own subject; an indoor ride and a walk compete on none")
+    func enduranceSubjects() {
+        #expect(EnduranceActivity.ride.recordSubject == .riding)
+        #expect(EnduranceActivity.hike.recordSubject == .hiking)
+        #expect(EnduranceActivity.indoorRide.recordSubject == nil)
+        #expect(EnduranceActivity.walk.recordSubject == nil)
+        #expect(EnduranceActivity.indoorRun.recordSubject == nil)
+    }
+
     @Test("An achievement this build does not know still decodes, as one it cannot show")
     func anUnknownAchievementIsKept() throws {
         let record = try Decoding.decode(PersonalRecord.self, Self.record(

@@ -35,7 +35,7 @@ struct CardioSessionView: View {
 
     private var sourceText: String {
         switch session.source {
-        case .loggedSession(_, _, isRecorded: true): "Imported from Apple Health. The curve is the ring's series; the run's own page has the recording app's."
+        case .loggedSession(_, _, isRecorded: true, _): "Imported from Apple Health. The curve is the ring's series; the workout's own page has the recording app's."
         case .loggedSession: "Logged in Lionheart; heart rate from the ring over the same time."
         case .ringWorkout(_, _, .walk): "A walk the ring detected, long enough to count as a session."
         case .ringWorkout: "Detected or entered on the ring."
