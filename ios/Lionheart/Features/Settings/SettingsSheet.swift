@@ -38,7 +38,7 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Apple Health")
                 } footer: {
-                    Text("Lionheart reads the runs other apps write to Health — Strava's, with its route and heart rate — and never writes there. Oura's and Strong's workouts are left out, since Lionheart reads those directly. Syncs when the app opens and when History or Cardio is pulled to refresh.")
+                    Text("Lionheart reads the runs, rides, hikes and walks other apps write to Health — Strava's, a watch's — with their routes, heart rate, power and running form, and never writes there. Oura's and Strong's workouts are left out, since Lionheart reads those directly; rides and hikes set records, walks and indoor workouts do not. Syncs when the app opens and when History or Cardio is pulled to refresh.")
                 }
 
                 if !auth.isSessionPersisted {

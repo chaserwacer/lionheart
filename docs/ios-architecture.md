@@ -738,20 +738,24 @@ side:
 - **Read only.** `SampleRuns`, the seeding behind a Settings button, is the one writer, and it is
   compiled only into a Debug build for the simulator — never Release, and never a Debug build on the
   phone, whose Health store is the athlete's own.
-- **`HealthSyncStore`** keeps HealthKit's anchor in a file, reads ten runs a page after it, offers
-  each, and moves the anchor on only once the page is answered — so a sync that loses the server
-  resumes at that page, and the server's idempotence absorbs the overlap. A run the server refuses is
+- **`HealthSyncStore`** keeps HealthKit's anchor in a file, reads ten workouts — runs, rides, hikes,
+  walks — a page after it, offers each, and moves the anchor on only once the page is answered — so a
+  sync that loses the server resumes at that page, and the server's idempotence absorbs the overlap.
+  The anchor carries the reading it belongs to, so reading more activities starts once from the
+  beginning (`docs/apple-health.md` → "Reading more"). A workout the server refuses is
   counted, its id held back and offered again first on the next sync, and the sync goes on; anything
   else stops it. It runs on returning to the app (once per
   15 minutes, and only once connected) and on pull to refresh in History and on Cardio. Connecting is
   a tap on the row, never a sheet sprung at launch. Its row sits beside Oura's on Today and in
   Settings.
-- **The run's page** (`RunView`, reached from a session's detail and from Cardio) draws the server's
-  `RecordedRun`: the route with MapKit's `MapPolyline` — a still picture at a fixed height, since a
+- **A recorded workout's page** (`RecordedWorkoutView`, reached from a session's detail and from
+  Cardio) draws the server's `RecordedWorkout`: the route with MapKit's `MapPolyline` — a still picture at a fixed height, since a
   map that pans inside a list takes the list's scroll and one that grows with Dynamic Type outgrows
   the screen; a tap opens it full screen to move and zoom — the figures, splits in kilometres or miles —
-  the one conversion the page makes, a change of unit — and the heart rate against the zones, footed
-  with whose it is. It shares the cardio session's chart and zone grid, which moved to `Design/` for
+  the conversions the page makes, a change of unit and a ride's pace read as a speed — the heart
+  rate against the zones, footed with whose it is, a run's form, and each metric the app wrote —
+  power, cadence, speed, running form — drawn against its mean (`MetricTraceChart`, thinned to a few
+  hundred points by `MetricTrace`). It shares the cardio session's chart and zone grid, which moved to `Design/` for
   the second caller.
 
 ## Chat: one thread, with memory

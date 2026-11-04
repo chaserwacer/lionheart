@@ -30,6 +30,8 @@ struct MetricTraceChart: View {
                 .foregroundStyle(Color.accentColor)
         }
         .chartXScale(domain: start...max(end, start.addingTimeInterval(1)))
+        // The spread is what reads — a cadence of 80 to 92 drawn from nought is a flat line.
+        .chartYScale(domain: .automatic(includesZero: false))
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                 AxisGridLine()
