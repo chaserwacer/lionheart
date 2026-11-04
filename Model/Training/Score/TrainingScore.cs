@@ -3,18 +3,20 @@ using lionheart.Model.Analysis;
 using lionheart.Model.Training.Balance;
 using lionheart.Model.Cardio;
 using lionheart.Model.Training.Focus;
+using lionheart.Model.Training.Patterns;
 
 namespace lionheart.Model.Training.Score;
 
 /// <summary>
 /// Lionheart's own training score for the seven days ending on a day: lifting volume across push,
-/// pull and legs, zone-2 and high-intensity cardio, progress on the priority lifts, and
-/// consistency, each stated as the measurements it was read from.
+/// pull and legs, zone-2 and quality cardio, progress on the priority lifts, and consistency, each
+/// stated as the measurements it was read from.
 /// </summary>
 /// <remarks>
-/// Built to be earned rather than handed out: every part is a measurement against a target that a
-/// good week of this athlete's reaches only in part, so a decent week reads in the 60s and 70s and
-/// 90 takes everything at once, a new best included. A part with no data is unknown, never
+/// Built to be earned rather than handed out. The volume measurements are read against targets
+/// that grow from his recent weeks (<see cref="Progression"/>), but half of every one is kept for
+/// the committed standard, so a comeback week that meets its ramp reads well and 90 still takes a
+/// committed week, a new best included. A part with no data is unknown, never
 /// zero: it is named, its points are out of reach rather than lost, and the value is what the known
 /// parts earned. So a week with the ring off can never outscore the same week with it on.
 /// </remarks>
@@ -48,25 +50,34 @@ public enum ScorePart
 /// </remarks>
 public sealed record Scored<T>(T Of, double Points, double OutOf);
 
-/// <summary>Hard sets of push, pull and legs against eight each. Over-doing one family does not pay for another.</summary>
-public sealed record LiftingPart(double Points, int OutOf, IReadOnlyList<Scored<FamilyVolume>> Families);
+/// <summary>
+/// Hard sets of push, pull and legs, each against its week's target. Over-doing one family does
+/// not pay for another.
+/// </summary>
+public sealed record LiftingPart(double Points, int OutOf, IReadOnlyList<Scored<FamilyTarget>> Families);
 
-/// <summary>Zone-2 and zone 3–5 minutes from cardio sessions, or why they cannot be read.</summary>
+/// <summary>One family's hard sets over the window against the week's target for it.</summary>
+public sealed record FamilyTarget(PatternFamily Family, int HardSets, WeeklyTarget Target, DateOnly? LastTrained);
+
+/// <summary>Zone-2 and quality minutes from cardio sessions, or why they cannot be read.</summary>
 /// <param name="Zones">Each band against its target; empty when the measure is unknown.</param>
 public sealed record CardioPart(double? Points, int OutOf, CardioMeasure Measure, IReadOnlyList<Scored<ZoneTarget>> Zones);
 
-/// <summary>Minutes in a band of heart-rate zones against the week's target for it.</summary>
-public sealed record ZoneTarget(ZoneBand Band, double Minutes, int Target);
+/// <summary>Minutes in a band against the week's target for it.</summary>
+public sealed record ZoneTarget(ZoneBand Band, double Minutes, WeeklyTarget Target);
 
-/// <summary>The two bands of heart-rate zones the score reads.</summary>
+/// <summary>The two kinds of cardio minutes the score reads.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<ZoneBand>))]
 public enum ZoneBand
 {
     /// <summary>60–70 % of maximum: the aerobic base.</summary>
     [JsonStringEnumMemberName("zone2")] Zone2,
 
-    /// <summary>70 % of maximum and above: tempo, threshold and intervals.</summary>
-    [JsonStringEnumMemberName("zones3To5")] Zones3To5,
+    /// <summary>
+    /// Work bouts at zone 4 or above (80 % of maximum and over) in endurance sessions that held a
+    /// session's worth of them: threshold and interval work (<see cref="QualityWork"/>).
+    /// </summary>
+    [JsonStringEnumMemberName("quality")] Quality,
 }
 
 /// <summary>Each family's priority lift over the window, against its own recent best.</summary>
@@ -99,19 +110,29 @@ public static class ScoreRules
     public const int LiftingPoints = 35;
     public const int CardioPoints = 25;
     public const int Zone2Points = 15;
-    public const int HighIntensityPoints = 10;
+    public const int QualityPoints = 10;
     public const int ProgressPoints = 20;
     public const int ConsistencyPoints = 20;
 
-    /// <summary>The physical-activity guidelines' 150 moderate minutes a week, read as zone 2.</summary>
-    public const int Zone2Minutes = 150;
+    /// <summary>
+    /// A committed week of zone 2: the physical-activity guidelines' 150 moderate minutes, from an
+    /// hour's floor — two half-hour sessions — in five-minute steps.
+    /// </summary>
+    public static readonly Standard Zone2 = new(150, 60, 5);
 
     /// <summary>
-    /// Thirty minutes at 70 % of maximum or above: two short hard sessions, or one tempo run. Zone
-    /// 3 counts, because the athlete's own line between easy and hard work is zone 2 against
-    /// zones 3 to 5.
+    /// A committed week of quality work: forty minutes in work bouts, two sessions of the 16 to 32
+    /// minutes the interval trials accumulated (Helgerud et al. 2007; Seiler et al. 2013) — the
+    /// one or two hard sessions a week that polarised and pyramidal programmes hold (Seiler 2010;
+    /// Casado et al. 2022). The floor is one ten-minute quality session.
     /// </summary>
-    public const int HighIntensityMinutes = 30;
+    public static readonly Standard Quality = new(40, QualityWork.LeastSessionMinutes, 5);
+
+    /// <summary>
+    /// A committed week of a family: eight hard sets, the volume screen's target. The floor is the
+    /// four that buy most of the dose (Pelland 2026).
+    /// </summary>
+    public static readonly Standard FamilySets = new(VolumeTargets.Family, 4, 1);
 
     /// <summary>
     /// Three sessions a week: his median in every block he has trained, so a block that simply

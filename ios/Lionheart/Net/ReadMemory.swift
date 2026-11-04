@@ -143,6 +143,7 @@ extension ReadKey {
     static let trainingVolume = ReadKey("balance.volume")
     static let trainingScore = ReadKey("balance.score")
     static let trainingScoreWeeks = ReadKey("balance.score-weeks")
+    static let nextSessions = ReadKey("balance.next")
     static let priorities = ReadKey("balance.priorities")
 
     /// The records one movement established, for its history.

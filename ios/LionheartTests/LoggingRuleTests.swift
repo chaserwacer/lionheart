@@ -73,8 +73,8 @@ struct PreviousColumnTests {
         #expect(next?.reps == 6)
     }
 
-    @Test("The entry row says last time only when its fields differ from it")
-    func theGuideSaysLastTimeOnlyWhenItDiffers() {
+    @Test("The entry row always says last time, and where the fields stand against it")
+    func theGuideSaysLastTimeAndTheStanding() {
         let workout = AWorkout.live()
         var draft = SetDraft(next: AWorkout.bench, in: workout, previous: Self.lastTime)
 
@@ -82,8 +82,32 @@ struct PreviousColumnTests {
         draft.weight = "170"
         let changed = SetGuide.of(draft, in: workout, previous: Self.lastTime, movement: nil, bodyweight: BodyweightSeries([]))
 
-        #expect(opened.lastTime == nil)
-        #expect(changed.lastTime?.set == Self.entry(160, 8))
+        #expect(opened.lastTime?.set == Self.entry(160, 8))
+        #expect(opened.lastTime?.versus == .same)
+        #expect(changed.lastTime?.versus == .load(10))
+    }
+
+    @Test("Standing against last time names the one figure that moved, or the estimated single when both did")
+    func standingAgainstLastTime() {
+        var draft = SetDraft(from: .lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 9, weight: 160, unit: .pounds, rpe: .unrated)))
+        #expect(SetGuide.versus(draft, against: Self.entry(160, 8)) == .reps(1))
+
+        // 165 × 7 against 160 × 8: 203.5 against 202.67 by Epley.
+        draft.weight = "165"
+        draft.reps = "7"
+        guard case .estimate(let change) = SetGuide.versus(draft, against: Self.entry(160, 8)) else {
+            Issue.record("Expected an estimated-single comparison")
+            return
+        }
+        #expect(abs(change - 0.8333) < 0.001)
+        #expect(SetGuide.Versus.estimate(change).isAhead)
+
+        draft.weightUnit = .kilograms
+        #expect(SetGuide.versus(draft, against: Self.entry(160, 8)) == .incomparable)
+        draft.weightUnit = .pounds
+        draft.reps = ""
+        #expect(SetGuide.versus(draft, against: Self.entry(160, 8)) == .incomparable)
     }
 
     @Test("A warm-up being typed is compared with nothing")
@@ -250,13 +274,17 @@ struct BodyweightRuleTests {
         #expect(Self.series.change(over: 60) == nil)
     }
 
-    @Test("A reading in another unit is left out of a chart, not converted")
-    func anotherUnitIsLeftOut() {
+    @Test("A reading logged in kilograms is charted and compared in pounds")
+    func kilogramsReadInPounds() {
         let mixed = BodyweightSeries(Self.series.measurements + [
             BodyweightMeasurement(day: CalendarDay(year: 2026, month: 11, day: 3), weight: 79.5, unit: .kilograms),
         ])
 
-        #expect(mixed.points(in: .pounds).count == 3)
+        let points = mixed.pointsInPounds()
+        #expect(points.count == 4)
+        // 79.5 kg is 175.3 lb, so a scale switched to kilograms reads as the same man, not a drop.
+        #expect(points.last?.value == 175.3)
+        #expect(mixed.change(over: 1).map { ($0 * 10).rounded() / 10 } == 0.1)
     }
 
     @Test("System load is bodyweight plus the plate, only where the setup says so and the units agree")

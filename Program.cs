@@ -18,12 +18,15 @@ using lionheart.Services.Llm;
 using lionheart.Services.Interpretation;
 using lionheart.Services.Contexts;
 using lionheart.Services.Training.Focus;
+using lionheart.Services.Training.GoingIn;
 using lionheart.Services.Training.Patterns;
 using lionheart.Services.Training.Balance;
+using lionheart.Services.Training.Next;
 using lionheart.Services.Training.Score;
 using lionheart.Services.Training.Programs;
 using lionheart.Services.Training.Routines;
 using lionheart.Services.Training.PersonalRecords;
+using lionheart.Services.Training.Movement.Library;
 using lionheart.Services.Training.Sessions;
 using lionheart.Endpoints.OpenApi;
 using lionheart.Services.Cardio;
@@ -65,6 +68,11 @@ if (args is [CoachedSheetImportCommand.Verb, ..])
 if (args is [RebuildRecordsCommand.Verb, ..])
 {
     return await RebuildRecordsCommand.RunAsync(args, CancellationToken.None);
+}
+
+if (args is [TidyMovementsCommand.Verb, ..])
+{
+    return await TidyMovementsCommand.RunAsync(args, CancellationToken.None);
 }
 
 if (args is [StrongUpgradeCommand.Verb, ..])
@@ -157,6 +165,7 @@ builder.Services.AddTransient<IChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
 builder.Services.AddTransient<ChatSystemPrompt>();
 builder.Services.AddTransient<ITodayBriefing, TodayBriefingService>();
+builder.Services.AddTransient<ITodayFacts, TodayBriefingService>();
 builder.Services.AddTransient<IChatThreadService, ChatThreadService>();
 builder.Services.AddTransient<ISessionConsolidator, SessionConsolidator>();
 builder.Services.AddTransient<IChatMemoryService, ChatMemoryService>();
@@ -184,7 +193,9 @@ builder.Services.AddSingleton(_ => MovementPatternMap.Shipped);
 builder.Services.AddTransient<IMovementClassificationService, MovementClassificationService>();
 builder.Services.AddTransient<ITrainingVolumeService, TrainingVolumeService>();
 builder.Services.AddTransient<IPriorityReportService, PriorityReportService>();
+builder.Services.AddTransient<IGoingInService, GoingInService>();
 builder.Services.AddTransient<ITrainingScoreService, TrainingScoreService>();
+builder.Services.AddTransient<INextSessionsService, NextSessionsService>();
 builder.Services.AddTransient<IContextService, ContextService>();
 builder.Services.AddTransient<IRoutineService, RoutineService>();
 builder.Services.AddTransient<IPreviousPerformanceService, PreviousPerformanceService>();

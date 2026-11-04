@@ -20,7 +20,8 @@ enum Haptics {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
-    /// A rest ran out. The one haptic that arrives unprompted, so it is the firmest.
+    /// A rest ran out. The firmest of the haptics that arrive unprompted; the other is the rest
+    /// bar's soft tap ten seconds before, which only says to get set.
     static func restFinished() {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }

@@ -168,11 +168,12 @@ struct HealthMeasureTests {
         #expect(gait.after == 0.30)
     }
 
-    @Test("Shares read as percentages and step length in centimetres; a change is signed and judged by the figure's direction")
+    @Test("Shares read as percentages, step length in inches and speed in mph; a change is signed and judged by the figure's direction")
     func figuresAreWrittenInTheirShownUnit() {
         #expect(HealthMetric.walkingAsymmetry.text(0.042) == "4.2%")
-        #expect(HealthMetric.walkingStepLength.text(0.72) == "72 cm")
-        #expect(HealthMetric.walkingSpeed.text(1.315) == "1.32 m/s")
+        #expect(HealthMetric.walkingStepLength.text(0.72) == "28.3 in")
+        #expect(HealthMetric.walkingSpeed.text(1.315) == "2.9 mph")
+        #expect(HealthMetric.sixMinuteWalkDistance.text(500) == "1,640 ft")
         #expect(HealthMetric.walkingAsymmetry.change(-0.011) == "−1.1")
         #expect(HealthMetric.walkingAsymmetry.isImprovement(-0.011) == true)
         #expect(HealthMetric.walkingSpeed.isImprovement(-0.05) == false)

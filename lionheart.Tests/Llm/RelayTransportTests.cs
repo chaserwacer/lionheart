@@ -18,7 +18,7 @@ public sealed class RelayTransportTests : IDisposable
     public void Dispose() => Directory.Delete(_folder, recursive: true);
 
     private IChatModel Model() =>
-        new AnthropicChatModel(RelayTransport.Client(_folder, NullLogger.Instance), "claude-opus-5-5", NullLogger.Instance);
+        new AnthropicChatModel(RelayTransport.Client(_folder, wordsPerSecond: 1000, NullLogger.Instance), "claude-opus-5-5", NullLogger.Instance);
 
     private static ChatTurnRequest Chat() => ChatTurnRequest.Conversation(
         "You are Lionheart.",
@@ -94,6 +94,31 @@ public sealed class RelayTransportTests : IDisposable
         await AnswerAsync(8, RelayFiles.TextResponseName(8), "ok");
 
         ResultAssert.Succeeded(await turn);
+    }
+
+    [Fact]
+    public async Task A_streamed_request_is_answered_word_by_word_and_ends_in_the_same_turn()
+    {
+        var written = new List<string>();
+        var turn = Model().StreamAsync(Chat(), written.Add);
+        await AnswerAsync(1, RelayFiles.TextResponseName(1), "Train. Readiness is in range.");
+
+        var answered = Assert.IsType<ModelTurn.Answered>(ResultAssert.Succeeded(await turn));
+        Assert.Equal("Train. Readiness is in range.", answered.Text);
+        Assert.Equal(["Train. ", "Readiness ", "is ", "in ", "range."], written);
+    }
+
+    [Fact]
+    public async Task A_streamed_tool_call_comes_back_as_the_same_request_for_tools()
+    {
+        var written = new List<string>();
+        var turn = Model().StreamAsync(Chat(), written.Add);
+        await AnswerAsync(1, RelayFiles.ResponseName(1),
+            """{"content":[{"type":"tool_use","name":"GetTrainingScore","input":{"From":"2026-01-05"}}]}""");
+
+        var requested = Assert.IsType<ModelTurn.RequestedTools>(ResultAssert.Succeeded(await turn));
+        Assert.Equal("""{"From":"2026-01-05"}""", Assert.Single(requested.Calls).ArgumentsJson);
+        Assert.Empty(written);
     }
 
     [Fact]

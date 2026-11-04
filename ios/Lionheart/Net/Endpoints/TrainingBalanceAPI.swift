@@ -16,7 +16,12 @@ struct TrainingBalanceAPI: Sendable {
         try await client.get("/api/training/score/\(day.wire)", as: TrainingScore.self, remembering: key)
     }
 
-    /// One score per Sunday in the range, oldest first; the server scores at most 52.
+    /// The next lift, the next cardio and which first, as of the day (`GET /api/training/next/{day}`).
+    func next(asOf day: CalendarDay, remembering key: ReadKey) async throws -> Remembered<NextSessions> {
+        try await client.get("/api/training/next/\(day.wire)", as: NextSessions.self, remembering: key)
+    }
+
+    /// One score per Sunday in the range, oldest first; the server scores at most 48.
     func weeks(_ range: DayRange, remembering key: ReadKey) async throws -> Remembered<[WeeklyScore]> {
         try await client.get(
             "/api/training/score/weeks",

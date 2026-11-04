@@ -271,12 +271,12 @@ struct LegacyWireShapeTests {
     }
 
     @Test(
-        "A workout's distance reads in metres under a kilometre and kilometres above it",
-        arguments: [(40.0, "40 m"), (735.2, "735 m"), (1000.0, "1 km"), (5400.0, "5.4 km")])
-    func shortDistancesReadInMetres(meters: Double, expected: String) {
-        // Rounding a 40-metre walk to "0.0 km" reads as no distance at all, which is the opposite
+        "A workout's distance reads in feet under a tenth of a mile and miles above it",
+        arguments: [(40.0, "131 ft"), (150.0, "492 ft"), (1609.344, "1 mi"), (5400.0, "3.4 mi")])
+    func shortDistancesReadInFeet(meters: Double, expected: String) {
+        // Rounding a 40-metre walk to "0.0 mi" reads as no distance at all, which is the opposite
         // of what Oura measured.
-        #expect(OuraWorkout.distance(meters: meters) == expected)
+        #expect(Imperial.roughDistance(meters: meters) == expected)
     }
 
     @Test("A measurement Oura could not take is left out, not printed as zero")

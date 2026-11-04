@@ -16,43 +16,46 @@ enum WorkoutMetricText {
         }
     }
 
-    /// A value of the metric in its unit. A run's speed reads as a pace, a ride's as a speed, in the
-    /// page's unit; stride length stays in metres, which is how every watch states it.
-    static func figure(_ metric: WorkoutMetric, _ value: Double, for activity: RecordedActivity, in unit: RunUnit) -> String {
+    /// A value of the metric in the unit it reads in. A run's speed reads as a pace per mile, a
+    /// ride's in mph; the bounce in inches and the stride in feet, as a watch set to imperial units
+    /// states them.
+    static func figure(_ metric: WorkoutMetric, _ value: Double, for activity: RecordedActivity) -> String {
         switch metric {
         case .power: "\(Int(value.rounded())) W"
         case .cadence: "\(Int(value.rounded())) rpm"
         case .speed:
             activity.isRunning && value > 0
-                ? unit.pace(perKilometre: 1000 / value)
-                : unit.speed(metersPerSecond: value)
+                ? Imperial.pace(perKilometre: 1000 / value)
+                : Imperial.speed(metersPerSecond: value)
         case .groundContactTime: "\(Int(value.rounded())) ms"
-        case .verticalOscillation: String(format: "%.1f cm", value)
-        case .strideLength: String(format: "%.2f m", value)
+        case .verticalOscillation: String(format: "%.1f in", Imperial.inches(meters: value / 100))
+        case .strideLength: String(format: "%.1f ft", Imperial.feet(meters: value))
         case .heartRateRecovery: "\(Int(value.rounded())) bpm"
         case .unrecognised: String(format: "%.1f", value)
         }
     }
 
     /// The axis label for a trace of the metric: its unit alone.
-    static func unitLabel(_ metric: WorkoutMetric, in unit: RunUnit) -> String {
+    static func unitLabel(_ metric: WorkoutMetric) -> String {
         switch metric {
         case .power: "W"
         case .cadence: "rpm"
-        case .speed: unit.speedAbbreviation
+        case .speed: "mph"
         case .groundContactTime: "ms"
-        case .verticalOscillation: "cm"
-        case .strideLength: "m"
+        case .verticalOscillation: "in"
+        case .strideLength: "ft"
         case .heartRateRecovery: "bpm"
         case .unrecognised: ""
         }
     }
 
-    /// The value a trace plots: a speed in the page's unit an hour, everything else as held.
-    static func plotted(_ metric: WorkoutMetric, _ value: Double, in unit: RunUnit) -> Double {
+    /// The value a trace plots, in the unit its axis is labelled in.
+    static func plotted(_ metric: WorkoutMetric, _ value: Double) -> Double {
         switch metric {
-        case .speed: value * 3600 / unit.meters
-        case .power, .cadence, .groundContactTime, .verticalOscillation, .strideLength, .heartRateRecovery, .unrecognised:
+        case .speed: Imperial.milesPerHour(metersPerSecond: value)
+        case .verticalOscillation: Imperial.inches(meters: value / 100)
+        case .strideLength: Imperial.feet(meters: value)
+        case .power, .cadence, .groundContactTime, .heartRateRecovery, .unrecognised:
             value
         }
     }

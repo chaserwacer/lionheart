@@ -280,6 +280,10 @@ struct ActiveWorkout: Equatable, Sendable {
         sets.count(where: { $0.movementDataId == movementDataId && $0.command.takesAPlace })
     }
 
+    /// The sets of work logged so far — warm-ups left out, as every total and the server's records
+    /// leave them out. The one count the bar, the Lock Screen and the logging surface all say.
+    var workSetCount: Int { sets.count(where: \.command.isWork) }
+
     /// Whether the movement already has a section: prescribed, logged on, or added.
     private func holds(_ movementDataId: UUID) -> Bool {
         addedMovementDataIds.contains(movementDataId)

@@ -2,11 +2,12 @@ import SwiftUI
 
 /// Let me do it.
 ///
-/// The tab leads with the training score — where the week stands, part by part — because it is the
-/// reading every session on this tab moves, and the start section sits directly under it: start a
-/// workout or log one already done. Then what it is time for, from what was trained and when; the
-/// week's volume across push, pull and legs; the priorities. Routines, bodyweight and the plan
-/// follow, there when wanted.
+/// The tab opens with what to train next — the next lift and the next cardio, the one to do first on
+/// top, each with its reasons — and the training score beside it, where the week stands part by
+/// part, because those two are what every session on this tab is chosen by and moves. The start
+/// section sits directly under them: start a workout or log one already done. Then the week's volume
+/// across push, pull and legs; the priorities. Routines, bodyweight and the plan follow, there when
+/// wanted.
 struct TrainView: View {
     let store: TrainStore
     let activeWorkout: ActiveWorkoutStore
@@ -52,10 +53,10 @@ struct TrainView: View {
     var body: some View {
         NavigationStack(path: $route) {
             List {
+                NextSessionsSection()
                 scoreSection
                 startSection
                 if !outbox.finished.isEmpty { finishedSection }
-                upNextSection
                 volumeSection
                 prioritiesSection
                 routinesSection
@@ -194,21 +195,6 @@ struct TrainView: View {
     }
 
     // MARK: - What it is time for
-
-    /// The family trained longest ago, with its reason. Nothing while the first read is out, so the
-    /// start buttons above do not jump.
-    @ViewBuilder
-    private var upNextSection: some View {
-        if let volume = balance.volume.value {
-            Section {
-                UpNextRow(upNext: volume.upNext, families: volume.families)
-            } header: {
-                Text("Up next")
-            } footer: {
-                Text("The family trained longest ago. Families last trained the same day are named together.")
-            }
-        }
-    }
 
     /// Push, pull and legs this week against their targets, opening the patterns and muscle groups.
     @ViewBuilder

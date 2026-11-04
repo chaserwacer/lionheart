@@ -29,8 +29,11 @@ public interface ITrainingScoreService
 [ToolProvider]
 public sealed class TrainingScoreService : ITrainingScoreService
 {
-    /// <summary>The most weeks one call scores: a year, which keeps the cardio read inside one report.</summary>
-    public const int MostWeeks = 52;
+    /// <summary>
+    /// The most weeks one call scores: 48, which with the four weeks before the first that its
+    /// targets grow from keeps the cardio read inside one report.
+    /// </summary>
+    public const int MostWeeks = 48;
 
     private const int ChatWeeks = 12;
 
@@ -58,7 +61,7 @@ public sealed class TrainingScoreService : ITrainingScoreService
             .MapAsync(IReadOnlyList<WeeklyScore> (scores) => [.. scores.Select(WeeklyScore.Of)]);
 
     [Tool(Name = "GetTrainingScore",
-        Description = "Lionheart's own training score (0-100; not Oura's activity score) for the seven days ending on the range's last day, as a few lines: part by part with the measurements behind each: hard sets of push, pull and legs against 8 each (35 points); zone-2 minutes (60-70% of maximum heart rate) against 150 and zone 3-5 minutes (70% and above) against 30, from cardio sessions, ring-detected workouts only where their heart rate showed training (25 points, unknown rather than zero with no heart rate); each family's priority lift — pinned, or the most-trained compound lift of 8 weeks — its best estimated one-rep max against the 12 weeks before (20 points); and sessions in each of the last four 7-day blocks against 3 (20 points). With cardio unknown the score is what the other parts earned, out of 75. Also what the log says is up next, the patterns and muscle groups under their weekly hard-set target (secondary muscles count half), and the scores of the weeks ending on each Sunday of the range, at most the last 12.")]
+        Description = "Lionheart's own training score (0-100; not Oura's activity score) for the seven days ending on the range's last day, as a few lines: part by part with the measurements behind each: hard sets of push, pull and legs (35 points); zone-2 minutes (60-70% of maximum heart rate) and quality minutes — work bouts of 2 minutes or more at zone 4-5 (80% of maximum and above) in runs, rides and other endurance sessions holding at least 10 such minutes (25 points, unknown rather than zero with no heart rate; ring-detected games and dances never count). Each volume measurement has this week's target, grown 10% from the mean of the four weeks before and kept between a floor and the committed standard (8 sets a family, 150 zone-2 minutes, 40 quality minutes); half its points are paid against this week's target and half against the committed standard; each family's priority lift — pinned, or the most-trained compound lift of 8 weeks — its best estimated one-rep max against the 12 weeks before (20 points); and sessions in each of the last four 7-day blocks against 3 (20 points). With cardio unknown the score is what the other parts earned, out of 75. Also what the log says is up next, the patterns and muscle groups under their weekly hard-set target (secondary muscles count half), and the scores of the weeks ending on each Sunday of the range, at most the last 12.")]
     public Task<TrainingScoreDigest?> GetTrainingScoreForChatAsync(IdentityUser user, DayRange range)
     {
         var sundays = Sundays(range).TakeLast(ChatWeeks).ToList();
@@ -79,9 +82,9 @@ public sealed class TrainingScoreService : ITrainingScoreService
             : InputsAsync(user, Span(endings), ct)
                 .MapAsync(IReadOnlyList<TrainingScore> (inputs) => [.. endings.Select(inputs.Score)]);
 
-    /// <summary>The days the windows ending on the days given cover, first to last.</summary>
+    /// <summary>The days the windows ending on the days given cover, and the four weeks their targets grow from.</summary>
     private static DayRange Span(IReadOnlyList<DateOnly> endings) =>
-        new(VolumeTargets.WindowEndingOn(endings.Min()).From, endings.Max());
+        new(TrainingScoreAnalysis.Before(VolumeTargets.WindowEndingOn(endings.Min())).Min(block => block.From), endings.Max());
 
     private Task<Result<ScoreInputs, Problem>> InputsAsync(IdentityUser user, DayRange span, CancellationToken ct) =>
         _context.AthleteIdAsync(user, ct)
@@ -96,7 +99,7 @@ public sealed class TrainingScoreService : ITrainingScoreService
     private sealed record ScoreInputs(Guid UserId, TrainingLog Log, IReadOnlyList<FocusPin> Pins, CardioWindows Cardio)
     {
         public TrainingScore Score(DateOnly endingOn) =>
-            TrainingScoreAnalysis.Score(Log, Pins, Cardio.For(VolumeTargets.WindowEndingOn(endingOn)), endingOn);
+            TrainingScoreAnalysis.Score(Log, Pins, Cardio.For, endingOn);
     }
 
     /// <summary>Every Sunday in the range, oldest first.</summary>

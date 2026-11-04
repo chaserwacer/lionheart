@@ -50,8 +50,7 @@ enum Achievement: Equatable, Sendable {
     }
 
     struct Pace: Equatable, Sendable {
-        /// Seconds per kilometer and per mile, both the server's. Which one reads is a choice for
-        /// the screen, made from the unit the effort was logged in.
+        /// Seconds per kilometer and per mile, both the server's. The screens read per mile.
         let perKilometer: TimeInterval
         let perMile: TimeInterval
         let effort: Distance

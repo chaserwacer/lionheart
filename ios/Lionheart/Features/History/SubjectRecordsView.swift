@@ -77,12 +77,12 @@ struct SubjectRecordsSections: View {
             Section {
                 Picker("Unit", selection: unitSelection(reading)) {
                     ForEach(reading.lifting) { held in
-                        Text(Formatting.unitName(held.unit)).tag(held.unit)
+                        Text("Logged in \(Formatting.unitName(held.unit).lowercased())").tag(held.unit)
                     }
                 }
                 .pickerStyle(.segmented)
             } footer: {
-                Text("Each unit keeps its own records. Weights never convert, so switching units starts new records rather than comparing against the old ones.")
+                Text("Each unit keeps its own records: a lift logged in kilograms is ranked against kilograms only, so switching units starts new records. Every figure reads in pounds.")
             }
         }
 
@@ -128,7 +128,9 @@ struct SubjectRecordsSections: View {
                 RecordRow(record: session, name: name, ask: ask)
             }
         } header: {
-            Text("Best in \(Formatting.unitName(lifting.unit).lowercased())")
+            // Every figure reads in pounds; a movement also logged in kilograms keeps those records
+            // apart, as the server ranks them, and says which these are.
+            Text(lifting.unit == .kilograms ? "Best, logged in kilograms" : "Best")
         }
 
         if lifting.grid.holdsRepMaxes {
@@ -137,7 +139,7 @@ struct SubjectRecordsSections: View {
             } header: {
                 Text("Rep maxes")
             } footer: {
-                Text("Heaviest load at each rep count, \(lifting.unit.abbreviation). A set holds its own count and every count below it; the 1RM is the heaviest set. Filled: set in the latest session that set any.")
+                Text("Heaviest load at each rep count, lb. A set holds its own count and every count below it; the 1RM is the heaviest set. Filled: set in the latest session that set any.")
             }
         }
     }
@@ -164,7 +166,7 @@ struct SubjectRecordsSections: View {
             } header: {
                 Text("Fastest times")
             } footer: {
-                Text("Timed at the distance you actually covered, so a 10 km run sets no 5 km time.")
+                Text("Timed at the distance you actually covered, so a 10K sets no 5K time. Race distances go by their names; the rest read in miles.")
             }
         }
     }
@@ -241,7 +243,7 @@ private struct RecordRow: View {
     /// nothing until the figures are read.
     private var label: String {
         switch record.achievement {
-        case .fastestTime(_, let effort): Formatting.distance(effort.distance, effort.unit)
+        case .fastestTime(let meters, let effort): Formatting.raceDistance(bracketMeters: meters, effort)
         case .heaviestSet, .bestSetVolume, .repMax, .bestSessionVolume, .longestDistance, .bestPace,
              .unrecognised:
             record.achievement.kind.label

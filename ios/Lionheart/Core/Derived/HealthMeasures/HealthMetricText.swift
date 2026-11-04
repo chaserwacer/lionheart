@@ -2,8 +2,10 @@ import Foundation
 
 /// How each Apple Health figure is named and written on screen.
 ///
-/// Shown in the unit a reader thinks in rather than the stored one where they differ: step length in
-/// centimetres, and the three shares as percentages, since "4.2%" reads and "0.042" does not.
+/// Shown in the unit a reader thinks in rather than the stored one where they differ: walking speed
+/// in mph, step length in inches and the six-minute walk in feet (`Imperial`), and the three shares
+/// as percentages, since "4.2%" reads and "0.042" does not. Health stores metres, metres a second
+/// and fractions.
 extension HealthMetric {
     var title: String {
         switch self {
@@ -27,10 +29,10 @@ extension HealthMetric {
         case .restingHeartRate, .walkingHeartRateAverage: "bpm"
         case .heartRateVariabilitySdnn: "ms"
         case .respiratoryRate: "br/min"
-        case .walkingSpeed: "m/s"
-        case .walkingStepLength: "cm"
+        case .walkingSpeed: "mph"
+        case .walkingStepLength: "in"
         case .walkingDoubleSupport, .walkingAsymmetry, .walkingSteadiness: "%"
-        case .sixMinuteWalkDistance: "m"
+        case .sixMinuteWalkDistance: "ft"
         }
     }
 
@@ -48,9 +50,11 @@ extension HealthMetric {
     /// A stored value in the unit shown.
     func shown(_ stored: Double) -> Double {
         switch self {
-        case .walkingStepLength, .walkingDoubleSupport, .walkingAsymmetry, .walkingSteadiness: stored * 100
-        case .vo2Max, .restingHeartRate, .heartRateVariabilitySdnn, .respiratoryRate, .walkingHeartRateAverage,
-             .walkingSpeed, .sixMinuteWalkDistance:
+        case .walkingSpeed: Imperial.milesPerHour(metersPerSecond: stored)
+        case .walkingStepLength: Imperial.inches(meters: stored)
+        case .sixMinuteWalkDistance: Imperial.feet(meters: stored)
+        case .walkingDoubleSupport, .walkingAsymmetry, .walkingSteadiness: stored * 100
+        case .vo2Max, .restingHeartRate, .heartRateVariabilitySdnn, .respiratoryRate, .walkingHeartRateAverage:
             stored
         }
     }
@@ -58,10 +62,9 @@ extension HealthMetric {
     /// Decimal places the figure is worth: no more than the device measures.
     var fractionDigits: Int {
         switch self {
-        case .walkingSpeed: 2
-        case .vo2Max, .respiratoryRate, .walkingDoubleSupport, .walkingAsymmetry: 1
-        case .restingHeartRate, .heartRateVariabilitySdnn, .walkingHeartRateAverage, .walkingStepLength,
-             .walkingSteadiness, .sixMinuteWalkDistance:
+        case .walkingSpeed, .walkingStepLength, .vo2Max, .respiratoryRate, .walkingDoubleSupport, .walkingAsymmetry: 1
+        case .restingHeartRate, .heartRateVariabilitySdnn, .walkingHeartRateAverage, .walkingSteadiness,
+             .sixMinuteWalkDistance:
             0
         }
     }
@@ -71,7 +74,7 @@ extension HealthMetric {
         shown(stored).formatted(.number.precision(.fractionLength(fractionDigits)))
     }
 
-    /// "1.32 m/s", "4.2%".
+    /// "3.0 mph", "4.2%".
     func text(_ stored: Double) -> String {
         unit == "%" ? "\(number(stored))%" : "\(number(stored)) \(unit)"
     }

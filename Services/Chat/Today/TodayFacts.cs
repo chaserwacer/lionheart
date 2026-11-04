@@ -20,7 +20,11 @@ public sealed record TodayFacts(
     WellnessFact? Wellness,
     IReadOnlyList<InjuryFact> Injuries,
     IReadOnlyList<PlannedFact> Planned,
-    string Score);
+    string Score)
+{
+    /// <summary>What the next-sessions tool answers for today, verbatim; empty when it had nothing.</summary>
+    public string Next { get; init; } = "";
+}
 
 /// <summary>One completed session: when, how long, and the lifting in it.</summary>
 /// <param name="Lifts">Each movement's hard sets, in the order first performed; empty for a session of only cardio sets.</param>

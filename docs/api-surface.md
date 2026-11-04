@@ -347,35 +347,73 @@ measurement) under the tenth percentile of its last 90 days. A day trains a fami
 set of it, or when its accessory work is at least half the day's hard sets, so face pulls finishing a
 push day do not make it a pull day.
 
+### Going-in state — `GET /api/training/going-in`
+
+`GoingInState` for a session now, on the athlete's clock: `asOf`, `rating`, five parts, and what to
+note. Read from the chat briefing's facts (`ITodayFacts`), the week's volume and the active
+injuries, so the rating and what the chat says about today cannot disagree.
+
+- `rating` — `$type` `rated { score, band: high | normal | reduced | low }` (80, 65 and 50 the
+  floors) or `notRated`, when none of readiness, autonomic or sleep could be scored — no readiness
+  filed, and last night either not synced or with neither enough baseline nights nor a sleep score.
+- Each part carries `score` — `$type` `scored { score, share }` (0–100 with his usual day near 75,
+  and the share of the rating it carried) or `notScored` — and the figures it was read from:
+  `readiness { ouraScore?, usualLow?, usualHigh?, hrvBalance?, restingHeartRate?,
+  temperatureDeviation? }` (Oura's ratings; the score is Oura's readiness unchanged, weight .30);
+  `autonomic { hrv?, hrvBaseline?, lowestHeartRate?, lowestHeartRateBaseline?, baselineNights }`
+  (last night against the nights before the last two, at least 14; ±1.25 per per cent of HRV and ∓8
+  per beat of lowest heart rate from 75, halves averaged; .25); `sleep { lastNight?, nightBefore? }`,
+  each `{ day, totalSleepSeconds, efficiency, sleepScore? }` (Oura's sleep scores two to one; .20);
+  `load { hardSets, highIntensityMinutes?, zoneTwoMinutes?, hardSetsLast7, hardSetsWeeklyMean28 }`
+  (since the start of yesterday: 100 less 1.5 a hard set, 1 a minute at zone 4 or above, 0.15 a
+  minute of zone 2, 0.5 a minute of cardio with no heart rate to zone, and 50 per unit the week runs
+  above 1.3 times the month's weekly mean; not scored, and its minutes absent, when cardio could not
+  be read; .15); `wellness { today? }` with `{ overall, mood, energy,
+  stress, motivation }` when rated today (`overall` 1–5 onto 0–100; .10).
+- `injuries` — active ones, `{ injuryId, name, lastPain?, movementDataIds }`, the movements every
+  check-in has named. `plannedToday` — `{ movements }` per planned session dated today, by name.
+  `recentMuscles` — `{ muscle, lastTrained }` for each muscle group last trained as a primary mover
+  yesterday or today.
+
 ## Training score — `/api/training/score`
 
 | Verb | Route | Answers |
 |---|---|---|
 | GET | `/{day}` | `TrainingScore` for the seven days ending on `{day}` |
-| GET | `/weeks?from=&to=` | `WeeklyScore[]`, one per Sunday in the range, oldest first; more than 52 Sundays is a 400 on `To` |
+| GET | `/weeks?from=&to=` | `WeeklyScore[]`, one per Sunday in the range, oldest first; more than 48 Sundays is a 400 on `To` |
 
 `TrainingScore { window, value, outOf, unknown: [part], lifting, cardio, progress, consistency }`. Each part
 carries `points` and `outOf` and the measurements it was read from:
 
-Each measurement pays `sqrt(min(1, measured / target))` of its points: concave, because the first
-half of a target buys most of what the whole would, and only the whole target pays in full. Every
+Each volume measurement — a family's hard sets, zone-2 minutes, quality minutes — carries a
+`WeeklyTarget { target, committed, floor, chronic? }`: `chronic` the mean weekly figure of the four
+seven-day blocks before the window that could be read (absent when none could, and `target` is then
+`committed`), `target` that plus 10 %, rounded up to its step and held between `floor` and
+`committed` (8 / 4 sets a family, 150 / 60 zone-2 minutes, 40 / 10 quality minutes). It pays half
+`sqrt(min(1, measured / target))` and half `sqrt(min(1, measured / committed))` of its points:
+concave, because the first half of a target buys most of what the whole would, and only the
+committed standard pays in full. Design: `docs/training-science.md`. Every
 measurement arrives as `Scored { of, points, outOf }` — the measurement and what it earned of what
 it could — so the client draws the server's arithmetic rather than re-deriving it.
 
-- `lifting` (35): `families` — `Scored<FamilyVolume>`, `of` as in weekly volume, each `outOf` a
-  third.
-- `cardio` (25): `points` null when unknown; `measure` `$type` `measured { zone2Minutes, zone2Target:
-  150, highIntensityMinutes, highIntensityTarget: 30, sessions, heartRateDays }` or `unknown { reason:
-  noHeartRate | noMaximumHeartRate | sessionsUnrecorded }`; `zones` — `Scored<ZoneTarget { band:
-  zone2 | zones3To5, minutes, target }>`, zone 2 out of 15 and zones 3–5 (70 % of maximum and
-  above) out of 10, empty when unknown. From the cardio report's sessions, so a ring-detected
-  workout counts only where its heart rate showed training.
+- `lifting` (35): `families` — `Scored<FamilyTarget { family, hardSets, target: WeeklyTarget,
+  lastTrained? }>`, each `outOf` a third.
+- `cardio` (25): `points` null when unknown; `measure` `$type` `measured { zone2Minutes,
+  qualityMinutes, qualitySessions, sessions, heartRateDays }` or `unknown { reason: noHeartRate |
+  noMaximumHeartRate | sessionsUnrecorded }`; `zones` — `Scored<ZoneTarget { band: zone2 | quality,
+  minutes, target: WeeklyTarget }>`, zone 2 out of 15 and quality out of 10, empty when unknown.
+  Quality minutes are work bouts — two minutes or more at zone 4–5, 80 % of maximum and above — in
+  endurance sessions (runs, rides, rows, machines; never walks, hikes or games) holding at least
+  ten such minutes. From the cardio report's sessions: a ring-detected game or dance never counts,
+  and a week with no ring heart rate is still measured from a watch-recorded session's own.
+  `heartRateDays` counts ring days only.
 - `progress` (20): `families` — `Scored<FamilyPriority>`, `of` as in the priority report, each a
   third — a new or lifetime best whole, `held` or `firstBack` a quarter, `below` or `noEstimate` a
   tenth, `notTrained` or `none` nothing. With every other part full, holding all three priorities
   reads 85: 90 takes a new best.
 - `consistency` (20): `blocks` — `Scored<SessionBlock { window, sessions }>`, the window and the
-  three seven-day blocks before it, newest first, each out of a quarter against `target` 3.
+  three seven-day blocks before it, newest first, each out of a quarter against `target` 3. A session
+  of nothing but walking is not counted.
 
 `value` is the points the known parts earned; `outOf` is 100 less the weight of any part in
 `unknown`. A part with no data is named rather than measured as zero, and its points are out of
@@ -385,6 +423,28 @@ consistencyPoints }`. Chat reads the score through the `GetTrainingScore` tool a
 `TrainingScoreDigest`: a few lines of the same measurements, what is up next ("next: legs (last
 trained …)", then separately whether the window's last day already has hard sets), what is under
 target, and up to twelve weeks — a few hundred tokens.
+
+## What's next — `GET /api/training/next/{day}`
+
+`NextSessions { day, first, lift, cardio, recovery }`, as of `{day}`; design in
+`docs/training-science.md`. Every choice carries `reasons`: short lines of the facts it was read
+from, with no weights in them.
+
+- `first { session: lift | cardio, reasons }` — which of the two to do next.
+- `lift` `$type` `train { families, lastTrained?, priorities, reasons }` (the families trained
+  longest ago, as weekly volume's `upNext`) or `nothingLogged { reasons }`. `priorities` —
+  `PriorityAim { family, movementDataId, name, aim }` for each due family with a priority lift; `aim`
+  `$type` `beat { load, reps, unit, estimatedOneRepMax, bestToBeat, onSystemLoad }` (the last
+  session's best set plus 5 lb / 2.5 kg, or one more rep on system load; `unit` the numeric
+  `WeightUnit` as in sets; `bestToBeat` the best estimate of the twelve weeks and the window) or
+  `establish` (nothing to build on).
+- `cardio` `$type` `zone2 { minutes, reasons }` or `quality { bouts, boutMinutes, recoveryMinutes,
+  workMinutes, reasons }`.
+- `recovery { readiness, sleepMinutes?, hrv?, usualHrv?, hrvSpread? }` — `readiness` the
+  `ReadinessNote` of weekly volume; the night's main sleep and HRV against the 28 nights before.
+
+Chat reads it through the `GetNextSessions` tool as three lines, and the TODAY briefing carries the
+same lines.
 
 ## Oura — `/api/oura`
 
@@ -444,7 +504,8 @@ when there is no maximum heart rate, or when less than half the window's session
 rate synced), `excluded` (ring workouts left out, counted by `category` — `endurance`, `sport`,
 `walk`, `strength`, `incidental`, `unspecified` (Oura's "other"), `unrecognised` — and `reason`:
 `sameAsLoggedRun`, `insideLoggedLifting`, `shortWalk`, `strength`, `notTraining`, `heartRateUnread`,
-`heartRateBelowTraining`, `noDuration`), and `declined` (`{ session, reason }`, each ring workout
+`heartRateBelowTraining`, `detectedGame` (a game or dance the ring guessed, whatever its heart rate),
+`noDuration`), and `declined` (`{ session, reason }`, each ring workout
 in the range that needed its heart rate to show training and did not, with that heart rate; the
 chat tool gets the counts only). A `ringWorkout` source carries `entry`: `entered` (the athlete's
 own, taken at its name) or `detected` (the ring's guess, here because its heart rate showed
@@ -453,7 +514,10 @@ training). A `loggedSession` source carries `isRecorded` — imported from Apple
 (`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`; null for a trail run or a distance-and-time
 session, which `isTrailRun` tells apart); a `recorded` heart rate carries
 `source`: `ring` (the all-day series over the session's clock time) or `appleHealth` (the recording
-app's own samples, read ahead of the ring's for an imported run).
+app's own samples, read ahead of the ring's for an imported run) and `bouts` (`WorkBout { start,
+minutes, averageBpm }`, the stretches held at zone 4 or above). Every session carries `modality`
+(`endurance`, `onFoot`, `game`, `unnamed`) and `qualityMinutes`, the minutes of its bouts the score
+credits.
 
 ## Apple Health — `/api/health`
 
@@ -544,6 +608,7 @@ said in the old one rather than its transcript.
 |---|---|---|---|
 | GET | `/api/chat/thread` | `before?` — an instant, the `openedAt` of the oldest session already shown | `ChatThreadPage`: up to ten `sessions`, oldest first, and `hasEarlier` |
 | POST | `/api/chat/thread/messages` | `{ content }` | the `ThreadSessionView` the exchange went into, whole — a new session when the message opened one. 400 for an empty message, 502 when the model failed; a failed exchange stores nothing |
+| POST | `/api/chat/thread/messages/stream` | `{ content }` | the same exchange, followed as it is written: `text/event-stream`, see below. The iOS app sends here |
 | GET | `/api/chat/memories` | — | every current `MemoryView`: goals, injuries and preferences first, then newest first |
 | PUT | `/api/chat/memories/{id}` | `{ kind, text }` | the new `MemoryView`; the version it replaces is kept and listed under `earlier`. 409 when the memory is no longer current |
 | DELETE | `/api/chat/memories/{id}` | — | 204; the memory and every earlier version of it are gone |
@@ -555,6 +620,19 @@ said in the old one rather than its transcript.
   `4` decision, `5` fact), `text`, `recordedAt`, `source` (int: `0` distilled from the chat, `1`
   written by the athlete), `quotes[]` (`messageId`, `byAthlete`, `said` — clipped to 280 characters,
   `at`), and `earlier[]` (`kind`, `text`, `recordedAt`, `replacedAt`), newest first.
+- **The streamed exchange** answers 200 at once and then sends server-sent events, each a named
+  `event:` with one line of JSON `data:`:
+  - `delta` `{ text }` — the next piece of the answer;
+  - `tools` `{ tools }` — the tool names a round is running. Any text sent before it was a preamble
+    and is withdrawn; only the last round's text is the answer;
+  - `done` — the `ThreadSessionView` the exchange was stored in, the plain route's body;
+  - `failed` — the problem document the plain route would have answered with (`status`, `title`,
+    `detail`, and `errors` for a 400). Nothing was stored.
+
+  A comment line (`: still working`) goes every 15 seconds while nothing else does. The exchange
+  runs to its end even if the connection drops, and is stored as usual, so a client that loses the
+  stream reads the thread to find the answer. Validation of the body itself (a missing `content`)
+  is still a plain 400 before any event.
 - A memory changes by being **superseded**: a correction, or a session that revises it, writes a new
   current version and keeps the old one dated. A session can also **retire** a memory that no longer
   holds; a retired memory is no longer listed.

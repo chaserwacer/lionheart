@@ -5,7 +5,6 @@ import SwiftUI
 /// its mean ruled across it.
 struct MetricTraceChart: View {
     let readout: MetricReadout
-    let unit: RunUnit
     let start: Date
     let end: Date
 
@@ -14,14 +13,14 @@ struct MetricTraceChart: View {
 
     var body: some View {
         let points = MetricTrace.drawn(readout.samples)
-        let average = WorkoutMetricText.plotted(readout.metric, readout.average, in: unit)
+        let average = WorkoutMetricText.plotted(readout.metric, readout.average)
 
         Chart {
             ForEach(Array(points.enumerated()), id: \.offset) { _, point in
                 LineMark(
                     x: .value("Time", point.at),
-                    y: .value(WorkoutMetricText.unitLabel(readout.metric, in: unit),
-                              WorkoutMetricText.plotted(readout.metric, point.value, in: unit)))
+                    y: .value(WorkoutMetricText.unitLabel(readout.metric),
+                              WorkoutMetricText.plotted(readout.metric, point.value)))
                     .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 1.2))
                     .foregroundStyle(Color(.label))

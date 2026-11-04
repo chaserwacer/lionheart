@@ -58,6 +58,10 @@ internal sealed record ALog(
             Sessions = [.. Sessions, new SessionInLog(Guid.NewGuid(), day, [.. sets.Where(HardSets.IsHard)])],
         };
 
+    /// <summary>A session of nothing but walking on the day, as a watch records a walk somewhere.</summary>
+    public ALog WithWalk(DateOnly day) =>
+        this with { Sessions = [.. Sessions, new SessionInLog(Guid.NewGuid(), day, []) { OnlyWalking = true }] };
+
     public ALog WithBodyweight(DateOnly day, double pounds) =>
         this with { Bodyweights = [.. Bodyweights, new BodyweightOnDay(day, new Bodyweight(pounds, WeightUnit.Pounds))] };
 

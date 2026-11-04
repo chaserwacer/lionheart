@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using lionheart.Data;
 using lionheart.Functional;
+using lionheart.Model;
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
 using lionheart.Model.Training;
@@ -28,6 +29,13 @@ public interface ITodayBriefing
     Task<string> ForAsync(IdentityUser user, CancellationToken ct);
 }
 
+/// <summary>The facts the briefing renders, for a reader that judges them rather than states them.</summary>
+public interface ITodayFacts
+{
+    /// <summary>The athlete's day as of now. Throws only where the database cannot be read.</summary>
+    Task<TodayFacts> ReadAsync(IdentityUser user, CancellationToken ct);
+}
+
 /// <summary>Reads the facts <see cref="TodayBriefing"/> renders, fresh for every message.</summary>
 /// <remarks>
 /// Not cached, unlike the context card, because the questions it answers ("did I train today", "how
@@ -42,7 +50,7 @@ public sealed class TodayBriefingService(
     ChatToolCallExecutor tools,
     MovementPatternMap map,
     TimeProvider clock,
-    ILogger<TodayBriefingService> logger) : ITodayBriefing
+    ILogger<TodayBriefingService> logger) : ITodayBriefing, ITodayFacts
 {
     /// <summary>The nights the sleep baseline is drawn from.</summary>
     private const int BaselineNights = 60;
@@ -76,6 +84,9 @@ public sealed class TodayBriefingService(
         }
     }
 
+    public Task<TodayFacts> ReadAsync(IdentityUser user, CancellationToken ct) =>
+        ReadAsync(user, Guid.Parse(user.Id), AthleteNow.Of(_clock), ct);
+
     private async Task<TodayFacts> ReadAsync(IdentityUser user, Guid userId, AthleteNow now, CancellationToken ct)
     {
         var today = now.Today;
@@ -97,7 +108,10 @@ public sealed class TodayBriefingService(
             await WellnessAsync(userId, today, ct),
             await InjuriesAsync(userId, ct),
             await PlannedAsync(userId, log, today, ct),
-            await ScoreAsync(user, today, ct));
+            await ToolAsync(user, "GetTrainingScore", today, ct))
+        {
+            Next = await ToolAsync(user, "GetNextSessions", today, ct),
+        };
     }
 
     // ---- Training ----
@@ -140,8 +154,7 @@ public sealed class TodayBriefingService(
             session.Effort is EffortReported difficulty ? difficulty.Ratings.DifficultyRating : null,
             session.Effort is EffortReported fatigue ? fatigue.Ratings.AccumulatedFatigue : null);
 
-    private static string TopSet(LiftSet set) =>
-        string.Create(CultureInfo.InvariantCulture, $"{set.Weight:0.#} {(set.Unit is WeightUnit.Kilograms ? "kg" : "lb")} × {set.Reps}");
+    private static string TopSet(LiftSet set) => $"{Imperial.Weight(set.Weight, set.Unit)} × {set.Reps}";
 
     private static LoadFact Load(TrainingLog log, DateOnly today)
     {
@@ -202,18 +215,18 @@ public sealed class TodayBriefingService(
                 [.. plan.Prescriptions.OfType<LiftPrescription>().Select(lift => log.NameOf(lift.MovementDataId)).Distinct()]))];
 
     /// <summary>
-    /// The score as the score tool states it, run through the tool itself, so the briefing and the
-    /// tool can never describe one week two ways, whatever shape the score takes.
+    /// The score, or what is up next, as its tool states it, run through the tool itself, so the
+    /// briefing and the tool can never describe one day two ways, whatever shape the answer takes.
     /// </summary>
-    private Task<string> ScoreAsync(IdentityUser user, DateOnly today, CancellationToken ct) =>
+    private Task<string> ToolAsync(IdentityUser user, string tool, DateOnly today, CancellationToken ct) =>
         _tools.ExecuteToolCallAsync(
-                new ToolInvocation("briefing", "GetTrainingScore", JsonSerializer.Serialize(new { from = Iso(today), to = Iso(today) })),
+                new ToolInvocation("briefing", tool, JsonSerializer.Serialize(new { from = Iso(today), to = Iso(today) })),
                 user, allowedToolNames: null, ct)
             .MatchAsync(
                 outcome => outcome.Content is "null" ? string.Empty : outcome.Content,
                 problem =>
                 {
-                    _logger.LogWarning("The briefing could not read the training score: {Problem}", problem.Description);
+                    _logger.LogWarning("The briefing could not read {Tool}: {Problem}", tool, problem.Description);
                     return string.Empty;
                 });
 

@@ -135,7 +135,7 @@ public sealed class TodayBriefingTests
     {
         var briefing = TodayBriefing.Render(Facts(readiness: new ReadinessFact(68, 74, 80, -0.2, 66, 88)));
 
-        Assert.Contains("Readiness today (Oura's 1-100 scores, not measurements): 68/100 (usual 66-88 over 90 days), HRV balance 74/100, resting heart rate score 80/100, temperature -0.2 °C.", briefing);
+        Assert.Contains("Readiness today (Oura's 1-100 scores, not measurements): 68/100 (usual 66-88 over 90 days), HRV balance 74/100, resting heart rate score 80/100, temperature -0.4 °F.", briefing);
     }
 
     [Fact]
@@ -181,6 +181,14 @@ public sealed class TodayBriefingTests
 
         Assert.Contains("Now: Tuesday 10 March 2026, 21:40 (UTC-05:00).", briefing);
         Assert.Contains("do not assume what he did today", briefing);
+    }
+
+    [Fact]
+    public void Every_briefing_tells_the_model_to_state_figures_in_imperial_units()
+    {
+        // The tools hand over meters, kilograms and °C; he reads none of them.
+        Assert.Contains(TodayBriefing.Units, TodayBriefing.Render(Facts()));
+        Assert.Contains(TodayBriefing.Units, TodayBriefing.ClockOnly(Evening));
     }
 
     // ---- The clock ----

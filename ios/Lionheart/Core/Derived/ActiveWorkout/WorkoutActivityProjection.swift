@@ -44,7 +44,7 @@ struct WorkoutActivityProjection: Equatable, Sendable {
                 startedAt: workout.startedAt),
             state: WorkoutActivityAttributes.ContentState(
                 movementTitle: movementTitle.flatMap { $0.isEmpty ? nil : $0 },
-                setCount: workout.sets.count,
+                setCount: workout.workSetCount,
                 rest: rest(of: workout.rest, at: now),
                 concern: concern(of: workout.sync, isPersisted: isPersisted)))
     }

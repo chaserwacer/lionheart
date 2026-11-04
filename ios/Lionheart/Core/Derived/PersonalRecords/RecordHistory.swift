@@ -27,7 +27,7 @@ struct RecordHistory: Equatable, Sendable {
     }
 
     /// What a trend's numbers are, so a chart can label its axis. A time is seconds — a fastest
-    /// time, or a pace per kilometer.
+    /// time, or a pace per mile.
     enum TrendMeasure: Hashable, Sendable {
         case weight(WeightUnit)
         case distance(DistanceUnit)
@@ -83,7 +83,7 @@ struct RecordHistory: Equatable, Sendable {
         case .bestSessionVolume(let session): (session.volume, .weight(session.unit))
         case .longestDistance(let effort): (effort.distance, .distance(effort.unit))
         case .fastestTime(_, let effort): (effort.duration, .time)
-        case .bestPace(let pace): (pace.perKilometer, .time)
+        case .bestPace(let pace): (pace.perMile, .time)
         case .unrecognised: nil
         }
         return measured.map { TrendPoint(record: record, value: $0.0, measure: $0.1) }

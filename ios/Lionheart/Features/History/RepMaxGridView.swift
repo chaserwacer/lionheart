@@ -67,7 +67,7 @@ struct RepMaxGridView: View {
         VStack(spacing: 2) {
             Text("\(cell.reps)RM")
                 .font(.caption)
-            Text(cell.weight.map(Formatting.measure) ?? "—")
+            Text(cell.record?.achievement.performedSet.map { Formatting.weightParts($0.weight, $0.unit).amount } ?? "—")
                 .font(.headline.monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)

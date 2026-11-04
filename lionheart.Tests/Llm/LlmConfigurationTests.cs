@@ -96,6 +96,28 @@ public class LlmConfigurationTests
         Assert.Equal(ChatProviderSettings.Relay.DefaultFolder, Assert.IsType<ChatProviderSettings.Relay>(configuration.Chat).Folder);
     }
 
+    [Fact]
+    public void The_relay_plays_back_at_the_pace_it_is_given_or_the_default()
+    {
+        ChatProviderSettings.Relay Relay(params (string, string)[] extra) => Assert.IsType<ChatProviderSettings.Relay>(
+            ResultAssert.Succeeded(ReadIn("Development", [("Llm:ChatProvider", "Relay"), .. extra, .. EmbeddingKeys])).Chat);
+
+        Assert.Equal(ChatProviderSettings.Relay.DefaultWordsPerSecond, Relay().WordsPerSecond);
+        Assert.Equal(4, Relay(("Relay:WordsPerSecond", "4")).WordsPerSecond);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-3")]
+    [InlineData("fast")]
+    public void A_relay_pace_that_is_not_a_positive_whole_number_is_refused_by_name(string pace)
+    {
+        var problem = ResultAssert.Failed(ReadIn("Development",
+            [("Llm:ChatProvider", "Relay"), ("Relay:WordsPerSecond", pace), .. EmbeddingKeys]));
+
+        Assert.Equal(ChatProviderSettings.Relay.WordsPerSecondKey, Assert.Single(Assert.IsType<Problem.Invalid>(problem).Fields).Field);
+    }
+
     [Theory]
     [InlineData("Production")]
     [InlineData("Staging")]

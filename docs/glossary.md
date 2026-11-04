@@ -18,6 +18,8 @@ first and then in the code.
 | **Prescription** | A target set on a planned session — the intended reps, weight, distance or duration. |
 | **Movement data** | The identity of a thing you do: a movement base plus equipment plus a modifier. Records hang off it. |
 | **Movement base** | The bare exercise, before equipment: "bench press", "deadlift". |
+| **Movement name** | How a movement reads: "Variation Exercise (Equipment)", as Strong names its library — "Seated Leg Curl (Machine)". The base is the exercise, the equipment the implement, the modifier the variation. |
+| **Library tidy** | `tidy-movements`: brings an athlete's movements to the naming convention by the rules in `movement-library.json` — renaming, merging movements that are one, retiring unused ones, adding the common lifts — as one all-or-nothing change, with a dry run. |
 | **Strong movement map** | The athlete-editable file saying which movement each exercise name in a Strong export becomes. |
 | **Coached programme sheets** | The athlete's earlier powerlifting spreadsheets (a self-run RPE template and coached blocks), read through training-os's derived set log. Each sheet imports as a completed training program. |
 | **Not-performed row** | A row the set log holds that the athlete did not lift as written — a weight the spreadsheet computed, a placeholder, a row his own note contradicts. Left out of the session and named in its notes; the decisions file listing them stays with the spreadsheets, outside this repository. |
@@ -62,11 +64,18 @@ first and then in the code.
 | **Weekly volume** | Hard sets over the seven days ending on a day, by family, pattern and muscle group, each against a weekly target, with the last day each was trained. |
 | **Training balance** | Where the week's training stands across the body: weekly volume and up next, the priorities, and the training score. The name of the folders, store and routes that read them. |
 | **Up next** | The family or families trained longest ago, named together when last trained the same day, with the day's readiness beside it where it is unusual. A recommendation, never an instruction. |
+| **Going-in rating** | Lionheart's own 0–100 rating of how ready the athlete is for a session now, his usual day near 75: the weighted mean of five parts — Oura's readiness, last night's HRV and lowest heart rate against his nights, the last two nights' sleep scores, the load since yesterday, and wellness rated today — over those that could be read. Not Oura's readiness, which is one of its parts. |
+| **Going-in state** | The going-in rating with its parts and their figures, and what is worth knowing before the first set: active injuries and the movements they touch, today's plans, the muscles trained since yesterday. |
 | **Ring entry** | How a ring workout came to be on the record: `entered` by the athlete, or `detected` — proposed by the ring from movement and approved. A detected workout's name is a guess. |
 | **Declined workout** | A ring workout that needed its heart rate to show training — a detected one, or one nobody named — and did not: listed in the cardio report with that heart rate, and counted nowhere. |
-| **Training evidence** | The rule that admits a ring's guess as a cardio session: half its time read, 20 minutes at zone 2 or above or 10 at zone 3 or above, and zone 2 or above for half the time read. |
+| **Training evidence** | The rule that admits a ring's guess as a cardio session: half its time read, 20 minutes at zone 2 or above or 10 at zone 3 or above, and zone 2 or above for half the time read. A game or dance the ring guessed is never admitted. |
+| **Work bout** | A stretch of a session with heart rate held at zone 4 or above (80 % of maximum) for two minutes or more; a dip of half a minute does not end it, a gap of a minute in the samples does. |
+| **Quality minutes** | The score's intensity band: work-bout minutes in an endurance session (run, ride, row, machine) holding at least ten of them. Walks, hikes and games earn none. |
+| **Weekly target** | What a volume measurement is read against this week: the mean of the four weeks before plus 10 %, between a floor and the committed standard. Half its points are paid against it, half against the standard. |
+| **Committed standard** | The figure a committed week reaches — 8 hard sets a family, 150 zone-2 minutes, 40 quality minutes — which the whole of a measurement's points still needs. |
+| **Next sessions** | What to train next: the next lift (the family due, its priority's next top set), the next cardio (zone 2 minutes or an interval structure), and which first, each with its reasons. |
 | **Score partition** | The training score drawn as three rows on one 100-point axis — the score, its parts, every measurement — each cell as wide as the points it can earn and filled with what it earned. |
-| **Heartbeats per kilometre** | A run's average heart rate times its minutes per kilometre: what a kilometre cost the heart. Roughly level across easy and steady paces, so it falls as the aerobic base grows. |
+| **Heartbeats per mile** | A run's average heart rate times its minutes per kilometre: what a kilometre cost the heart. Roughly level across easy and steady paces, so it falls as the aerobic base grows. |
 | **Training score** | Lionheart's own 0–100 for the seven days ending on a day: lifting volume, cardio, priority progress and consistency, each read as measurements against targets. Not Oura's activity score. A part with no data is unknown: named, and its points out of reach rather than counted as zero. |
 | **Session source** | Where a session came from: the athlete's log — entered in Lionheart, or imported from his own logs — or Apple Health, with the workout's Health id and the app that recorded it. Orthogonal to provenance. |
 | **Health workout** | A workout another app wrote to Apple Health, read by the phone and offered to the server, which decides whether it becomes training. |
@@ -140,6 +149,7 @@ first and then in the code.
 | **Athlete context card** | The standing per-user summary handed to the model, so a conversation starts knowing the athlete instead of re-reading everything. |
 | **Briefing** | The TODAY note each chat message goes with: the date and time on the athlete's clock, his training today and yesterday, his last two nights, readiness, injuries, the week so far and the score. It is read fresh for every message, is never stored, and decides what "today" means. |
 | **Relay** | The development-only chat provider in which whoever is testing plays the model by answering request files (`docs/chat-relay.md`). |
+| **Streamed answer** | A thread reply sent to the app as it is written, as server-sent events: its text piece by piece, each round of tools as it runs, then the stored session. The exchange finishes and is stored even if the connection drops. |
 | **Thread** | The athlete's one continuing chat with Lionheart, read back as a single transcript. Beside it, a **conversation** is a standalone chat he starts and names; nothing said in one is remembered. |
 | **Thread session** | The run of thread messages the model actually reads: it ends after three hours idle or once its transcript passes about 60k tokens, and its system prompt is frozen when it opens. |
 | **Memory** | What the athlete told the thread, distilled when a session ends: a dated goal, injury, preference, commitment, decision or fact, traced to the messages it came from. The context card is what his data shows; memory is what he said. |
@@ -154,6 +164,10 @@ first and then in the code.
 | **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement, the movements the athlete added. The one piece of state the device owns. |
 | **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |
+| **Folded tab bar** | On the Chat tab (iOS 26), the tab bar shrunk to the Chat glyph at the start of the composer's row. Tapping it unfolds the tabs and puts the composer away. |
+| **Add sheet** | What the logging surface's one Add button opens: the priority lifts, recent movements, distance-and-time work, a set in words, and the catalogue, searchable. |
+| **Distance-and-time work** | Cardio as the Add sheet offers it: an outdoor run (a trail run set), an endurance activity, or a movement last logged as distance and time. |
+| **Standing against last time** | How the entry row's fields compare with last time's set at the same position: level, the reps or the load that moved, or the estimated single where both did. |
 | **Rest clock** | The countdown between sets. |
 | **Load state** | A screen's enum for what it has: not loaded, loaded, unavailable with a reason, or stale — a value that is not current. Never flags plus an optional error. |
 | **Staleness** | Why a value on screen is not current: a refresh the server answered with a fault, a server that could not be reached, marked with the time the value dates from ("As of 14:02"), or a recalled value the server has not answered for yet. |
@@ -178,7 +192,8 @@ first and then in the code.
 | **Logging surface** | The set-by-set sheet the workout bar opens into. |
 | **Profile gate** | The root's answer to whether a signed-in athlete may see the tabs: undetermined, absent, present, or unreachable. An Identity account without a Lionheart profile is refused by every training write, while reads answer empty — which is why the gate asks rather than waiting to be refused. |
 | **Session log** | History's list of sessions, grouped by month, newest first — the training log. A completed session reads as a log-book entry: its day and duration, a movement digest per movement, and its total. Other rows read as in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. Filtered by movement by identity, never by name. |
-| **Session total** | What a session's sets came to: the set count and the volume (weight × reps) in each unit lifted in. Units never convert. |
+| **Session total** | What a session's sets came to: the set count and the volume (weight × reps), read as one figure in pounds. |
+| **Last night** | The main sleep Oura filed under the day being read — Oura files a night under the morning it ended. Never the newest night on record standing in for one not filed yet; "the night before" is the one filed under the day before. |
 | **Movement page** | One movement's screen: its history, its charts, its records, and how often it is trained. Reached from anywhere a movement is named. |
 | **Movement history** | Every session one movement was performed in, newest first, with that movement's sets — a filter over the whole log the device already holds. Variants are separate movements. |
 | **Movement measure** | What a movement's chart reads per session: the estimated one-rep max, the heaviest set, the best set volume, or the reps at one load. |

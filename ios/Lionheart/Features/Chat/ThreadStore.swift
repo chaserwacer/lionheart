@@ -19,9 +19,14 @@ final class ThreadStore {
     /// Where a read of earlier sessions stands.
     private(set) var earlier: ActionState = .idle
 
-    /// The answer this screen has just received, which is set down word by word as it lands. Any
-    /// answer read back from the server rather than arriving here is shown whole.
+    /// An answer this screen has just received whole rather than watched being written — read back
+    /// from the thread after the connection went — which is set down word by word as it lands. An
+    /// answer the athlete watched arrive, or any read back on a refresh, is shown as it stands.
     private(set) var arrivedReply: UUID?
+
+    /// The answer most recently completed here, for the screen to say once to VoiceOver. Nothing
+    /// is said while an answer is being written: the athlete hears it when it is whole.
+    private(set) var answered: ChatMessage?
 
     private let api: ChatThreadAPI
 
@@ -49,6 +54,7 @@ final class ThreadStore {
         exchange = .idle
         earlier = .idle
         arrivedReply = nil
+        answered = nil
     }
 
     /// The arrived answer has been set down, so it is shown whole from now on, even when its bubble
@@ -77,9 +83,9 @@ final class ThreadStore {
         earlier = .idle
     }
 
-    /// Sends one message and waits for the whole exchange.
+    /// Sends one message and follows the exchange to its end.
     ///
-    /// The words go on screen before the request leaves, and a failure hands them back to the
+    /// The words go on screen before the request leaves, and a refusal hands them back to the
     /// composer rather than dropping them, because the server kept nothing.
     func send(_ text: String) async {
         let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -103,23 +109,100 @@ final class ThreadStore {
         }
     }
 
+    /// Sends the words, then follows the answer as it is written.
+    ///
+    /// Cancellation ends it silently at every step: only `reset` cancels an exchange, and it has
+    /// already emptied the tab for the next athlete, so putting the question back would show it on
+    /// their screen.
     private func runExchange(_ words: String) async {
         let pending = ChatTurn.pending(id: UUID(), text: words)
-        exchange = .awaitingReply(pending)
+        let known = transcript.value?.messageIds ?? []
+        exchange = .awaitingReply(pending, .thinking)
 
+        let replies: ThreadReplies
         do {
-            let session = try await api.send(words)
-            arrivedReply = session.transcript.last { !ChatTurn.said($0).isFromAthlete }?.chatMessageId
-            transcript = transcript.editing { $0.with(session) }
-            exchange = .idle
+            replies = try await api.ask(words)
         } catch is CancellationError {
-            // Only `reset` cancels an exchange, and it has already emptied the tab for the next
-            // athlete; putting the question back would show it on their screen.
             return
         } catch {
             exchange = .refused(.unsent(id: pending.id, text: words, failure: failure(from: error)))
+            return
         }
+
+        do {
+            for try await event in replies {
+                switch event {
+                case .wrote, .consulting:
+                    if case .awaitingReply(_, let progress) = exchange {
+                        exchange = .awaitingReply(pending, progress.after(event))
+                    }
+                case .stored(let session):
+                    arrived(session, watched: true)
+                    return
+                case .refused(let refusal):
+                    exchange = .refused(.unsent(id: pending.id, text: words, failure: failure(from: refusal)))
+                    return
+                case .unrecognised:
+                    continue
+                }
+            }
+        } catch {
+            // A cancelled task reads its bytes as a cancelled connection, which is not a lost one.
+            if Task.isCancelled { return }
+        }
+
+        await recover(pending, after: known)
     }
+
+    /// The answer arrived, as the session it was stored in.
+    ///
+    /// - Parameter watched: Whether the athlete watched it being written. One that arrives whole —
+    ///   read back from the thread after the connection went — is set down as it lands instead
+    ///   (`ChatReveal`), so it still reads as arriving rather than appearing.
+    private func arrived(_ session: ThreadSession, watched: Bool) {
+        let answer = session.transcript.last { !ChatTurn.said($0).isFromAthlete }
+        arrivedReply = watched ? nil : answer?.chatMessageId
+        transcript = transcript.editing { $0.with(session) }
+        exchange = .idle
+        if let answer { answered = answer }
+    }
+
+    /// The connection went while the answer was arriving. The server finishes and stores it
+    /// regardless, so the thread is read until it holds the answer, for as long as an answer could
+    /// take. Only then are the words handed back, saying what is known: not that nothing was kept.
+    ///
+    /// - Parameter known: The turns the thread held before the question was sent, so the same words
+    ///   asked earlier are not taken for this question's answer.
+    private func recover(_ pending: ChatTurn, after known: Set<UUID>) async {
+        exchange = .recovering(pending)
+        let deadline = Date().addingTimeInterval(HTTP.modelPatience)
+
+        while Date() < deadline {
+            do {
+                try await Task.sleep(for: Self.recoveryInterval)
+                // Only the server's own answer counts: a thread recalled from the device predates
+                // the question, and not reaching the server is the reason to keep looking.
+                guard case .current(let thread) = try await api.latest(remembering: .chatThread),
+                      ThreadTranscript.answer(to: pending.text, after: known, in: thread) != nil,
+                      let session = thread.sessions.last
+                else { continue }
+                transcript = transcript.applying(.current(thread))
+                arrived(session, watched: false)
+                return
+            } catch is CancellationError {
+                return
+            } catch {
+                // The server answered, and refused to read the thread: looking again will not help.
+                exchange = .refused(.unsent(id: pending.id, text: pending.text, failure: failure(from: error)))
+                return
+            }
+        }
+        exchange = .refused(.unsent(
+            id: pending.id, text: pending.text,
+            failure: .offline("The connection dropped before the answer arrived, and it has not reached the thread yet. Sending again asks twice.")))
+    }
+
+    private static let recoveryInterval: Duration = .seconds(3)
 
     private func failure(from error: any Error) -> LoadFailure {
         (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))

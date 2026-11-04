@@ -17,6 +17,33 @@ struct SetGuide: Equatable, Sendable {
     struct LastTime: Equatable, Sendable {
         let set: SetEntry
         let day: CalendarDay
+        /// How the fields as typed stand against it.
+        let versus: Versus
+    }
+
+    /// The fields against last time at this position, in the terms a lifter compares two sets in:
+    /// the one figure that differs, or the estimated single where both do.
+    enum Versus: Equatable, Sendable {
+        /// The same load for the same reps.
+        case same
+        /// The same load; reps more (positive) or fewer.
+        case reps(Int)
+        /// The same reps; load more (positive) or less, in the set's unit.
+        case load(Double)
+        /// Both differ: the estimated single more or less, in the set's unit.
+        case estimate(Double)
+        /// Another unit, or fields that are not a set yet.
+        case incomparable
+
+        /// Whether the set as typed would beat last time's.
+        var isAhead: Bool {
+            switch self {
+            case .reps(let reps): reps > 0
+            case .load(let load): load > 0
+            case .estimate(let change): change > 0
+            case .same, .incomparable: false
+            }
+        }
     }
 
     var isEmpty: Bool { lastTime == nil && plates == nil && systemLoad == nil }
@@ -33,14 +60,16 @@ struct SetGuide: Equatable, Sendable {
         }
 
         // A warm-up has no position among the working sets, so last time says nothing about it.
+        // Always said otherwise, with where the fields stand against it: last time is the target
+        // a set to failure is aimed at, and "level", "+1 rep" or "+5 lb" is the answer the athlete
+        // is reading the line for.
         let position = workout.workingSetCount(on: movementDataId)
-        // Said only when the fields differ from it: a row opened on last time's numbers already
-        // shows them, and the line is for comparing once the athlete has changed one.
         let prior = draft.kind.takesAPlace
             ? previous.flatMap { performance in
-                performance.workingSet(at: position).map { LastTime(set: $0, day: performance.date) }
+                performance.workingSet(at: position).map {
+                    LastTime(set: $0, day: performance.date, versus: versus(draft, against: $0))
+                }
             }
-            .flatMap { lastTime in isShowing(lastTime.set, in: draft) ? nil : lastTime }
             : nil
 
         let weight = SetDraft.number(draft.weight)
@@ -59,11 +88,21 @@ struct SetGuide: Equatable, Sendable {
         return SetGuide(lastTime: prior, plates: plates, systemLoad: systemLoad)
     }
 
-    /// Whether the fields already hold last time's load and reps.
-    private static func isShowing(_ entry: SetEntry, in draft: SetDraft) -> Bool {
-        guard case .lift(let before) = entry else { return false }
-        return SetDraft.number(draft.weight) == before.weight
-            && SetDraft.whole(draft.reps) == before.reps
-            && draft.weightUnit == before.unit
+    /// Where the fields stand against a set from last time.
+    static func versus(_ draft: SetDraft, against entry: SetEntry) -> Versus {
+        guard case .lift(let before) = entry, draft.weightUnit == before.unit,
+              let weight = SetDraft.number(draft.weight), let reps = SetDraft.whole(draft.reps), reps > 0
+        else { return .incomparable }
+
+        switch (weight == before.weight, reps == before.reps) {
+        case (true, true): return .same
+        case (true, false): return .reps(reps - before.reps)
+        case (false, true): return .load(weight - before.weight)
+        case (false, false):
+            guard let now = EstimatedOneRepMax.of(weight: weight, reps: reps),
+                  let then = EstimatedOneRepMax.of(weight: before.weight, reps: before.reps)
+            else { return .incomparable }
+            return .estimate(now - then)
+        }
     }
 }

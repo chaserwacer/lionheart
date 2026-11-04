@@ -107,10 +107,10 @@ public class CardioAnalysisTests
     // Age 20 predicts a maximum of 194: zone 2 from 117 bpm, zone 3 from 136.
 
     [Fact]
-    public void A_detected_game_of_catch_in_zone_one_is_declined_and_shown_with_its_heart_rate()
+    public void A_detected_walk_in_zone_one_is_declined_and_shown_with_its_heart_rate()
     {
         var start = At(10, 17);
-        var report = Build(ring: [Detected("handball", start, 25)], heartRate: Minutes(start, (105, 25)));
+        var report = Build(ring: [Detected("walking", start, 35)], heartRate: Minutes(start, (105, 35)));
 
         Assert.Empty(report.Sessions);
         Assert.Equal(0, report.Weeks.Sum(week => week.Zones.Zone2));
@@ -118,14 +118,42 @@ public class CardioAnalysisTests
         Assert.Equal(WorkoutExclusion.HeartRateBelowTraining, declined.Reason);
         Assert.Equal(105, Assert.IsType<SessionHeartRate.Recorded>(declined.Session.HeartRate).AverageBpm);
         var excluded = Assert.Single(report.Excluded);
-        Assert.Equal((WorkoutCategory.Sport, WorkoutExclusion.HeartRateBelowTraining, 1), (excluded.Category, excluded.Reason, excluded.Count));
+        Assert.Equal((WorkoutCategory.Walk, WorkoutExclusion.HeartRateBelowTraining, 1), (excluded.Category, excluded.Reason, excluded.Count));
+    }
+
+    [Theory]
+    [InlineData("dance")]
+    [InlineData("handball")]
+    [InlineData("basketball")]
+    public void A_detected_game_or_dance_never_counts_whatever_its_heart_rate(string activity)
+    {
+        // An hour held at zone 2 with twenty minutes at zone 4: a night out reads like a session.
+        var start = At(31, 21);
+        var report = Build(ring: [Detected(activity, start, 60)], heartRate: Minutes(start, (125, 40), (165, 20)));
+
+        Assert.Empty(report.Sessions);
+        Assert.Empty(report.Declined);
+        Assert.Equal(0, report.Weeks.Sum(week => week.Zones.Zone2));
+        var excluded = Assert.Single(report.Excluded);
+        Assert.Equal((WorkoutCategory.Sport, WorkoutExclusion.DetectedGame), (excluded.Category, excluded.Reason));
     }
 
     [Fact]
-    public void A_detected_game_held_in_zone_two_counts_and_its_minutes_with_it()
+    public void A_detected_game_still_tells_the_maximum_what_rate_was_reached()
+    {
+        // 199 bpm is above the 194 predicted for age 20; the game earns nothing, but the rate is real.
+        var start = At(10, 17);
+        var report = Build(ring: [Detected("basketball", start, 120)], heartRate: Minutes(start, (199, 120)));
+
+        Assert.Empty(report.Sessions);
+        Assert.Equal(199, report.MaxHeartRate?.Bpm);
+    }
+
+    [Fact]
+    public void A_detected_walk_held_in_zone_two_counts_and_its_minutes_with_it()
     {
         var start = At(10, 17);
-        var report = Build(ring: [Detected("handball", start, 40)], heartRate: Minutes(start, (125, 30), (100, 10)));
+        var report = Build(ring: [Detected("walking", start, 40)], heartRate: Minutes(start, (125, 30), (100, 10)));
 
         var source = Assert.IsType<CardioSessionSource.RingWorkout>(Assert.Single(report.Sessions).Source);
         Assert.Equal(RingEntry.Detected, source.Entry);
@@ -136,7 +164,7 @@ public class CardioAnalysisTests
     [Fact]
     public void A_detected_workout_with_no_heart_rate_is_declined_as_unread_rather_than_counted()
     {
-        var report = Build(ring: [Detected("basketball", At(12, 17), 45)]);
+        var report = Build(ring: [Detected("running", At(12, 17), 45)]);
 
         Assert.Empty(report.Sessions);
         Assert.Equal(WorkoutExclusion.HeartRateUnread, Assert.Single(report.Declined).Reason);
@@ -151,7 +179,7 @@ public class CardioAnalysisTests
         // declined, but a rate reached is evidence about the maximum whatever the activity was.
         var start = At(10, 17);
         var report = Build(
-            ring: [Detected("handball", start, 600)],
+            ring: [Detected("other", start, 600)],
             heartRate: [.. Minutes(start, (95, 480)), .. Minutes(start.AddMinutes(480), (199, 120))]);
 
         Assert.Equal(WorkoutExclusion.HeartRateBelowTraining, Assert.Single(report.Declined).Reason);

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
+using lionheart.Model;
 using lionheart.Model.Cardio;
 using lionheart.Model.Training.Patterns;
 
@@ -53,6 +54,11 @@ public static class TodayBriefing
         text.Append("Training score, seven days ending today (exactly what GetTrainingScore returns; call it only for other windows): ")
             .Append(string.IsNullOrWhiteSpace(facts.Score) ? "not available." : facts.Score.Trim());
 
+        if (!string.IsNullOrWhiteSpace(facts.Next))
+        {
+            text.AppendLine().Append("Up next, as of today (exactly what GetNextSessions returns): ").Append(facts.Next.Trim());
+        }
+
         return text.ToString();
     }
 
@@ -60,7 +66,15 @@ public static class TodayBriefing
         new StringBuilder()
             .AppendLine(Invariant, $"{Heading} (written by Lionheart with this message; it is current and outranks any date or state earlier in the conversation)")
             .AppendLine(Invariant, $"Now: {now.Local:dddd d MMMM yyyy, HH:mm} ({Offset(now.Local)}). This week runs Monday {now.WeekStart:d MMMM} to Sunday {now.WeekStart.AddDays(6):d MMMM}.")
+            .AppendLine(Units)
             .ToString();
+
+    /// <summary>
+    /// He reads every figure in imperial units, and a tool's raw fields (meters, kilograms, °C) are
+    /// not what he would say; the briefing's own figures are already converted.
+    /// </summary>
+    public const string Units =
+        "Units: he reads pounds, miles, pace in min/mi, speed in mph, elevation in feet and temperature deviation in °F. State every figure that way; where a tool gives meters, kilometres, kilograms or °C, convert before saying it.";
 
     // ---- Training ----
 
@@ -212,7 +226,7 @@ public static class TodayBriefing
         var parts = new List<string> { $"{score}/100{usual}" };
         if (readiness.HrvBalance is { } hrv) parts.Add($"HRV balance {hrv}/100");
         if (readiness.RestingHeartRate is { } rhr) parts.Add($"resting heart rate score {rhr}/100");
-        if (readiness.TemperatureDeviation is { } temperature) parts.Add(string.Create(Invariant, $"temperature {temperature:+0.0;-0.0;0.0} °C"));
+        if (readiness.TemperatureDeviation is { } temperature) parts.Add(string.Create(Invariant, $"temperature {Imperial.FahrenheitChange(temperature):+0.0;-0.0;0.0} °F"));
         return $"Readiness today (Oura's 1-100 scores, not measurements): {string.Join(", ", parts)}.{week}";
     }
 

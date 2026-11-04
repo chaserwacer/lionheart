@@ -163,7 +163,7 @@ struct TodayView: View {
                 trend: { store.trends[$0] },
                 load: { await store.loadTrend($0) })
         case .night(let day):
-            if let night = store.state.value?.night, night.day == day {
+            if let night = store.state.value?.night(wakingOn: day) {
                 NightView(night: night)
             } else {
                 ContentUnavailableView {
@@ -277,24 +277,19 @@ struct TodayView: View {
         }
     }
 
-    /// The night the figures came from and the shown day's movement, each a strip that opens onto
-    /// its own screen.
+    /// Last night, the night before, and the shown day's movement, each a strip that opens onto its
+    /// own screen.
     @ViewBuilder
     private func bodyDaySection(_ snapshot: TodaySnapshot) -> some View {
         // A day stored before the five-minute classification was kept has no shape to draw; its
         // steps are already among the figures above.
         let movement = habits.days[snapshot.day]?.value.flatMap(\.self).flatMap { $0.runs.isEmpty ? nil : $0 }
-        if snapshot.night != nil || movement != nil {
+        if !snapshot.nights.isEmpty || movement != nil {
             Section {
-                if let night = snapshot.night {
-                    NavigationLink(value: Route.night(night.day)) {
-                        NightSummaryRow(
-                            night: night,
-                            caption: night.day == snapshot.day
-                                ? nil
-                                : "Night of \(Formatting.date(night.day.adding(days: -1)))")
+                if !snapshot.nights.isEmpty {
+                    RecentNightRows(nights: snapshot.nights, isToday: snapshot.day == store.today, zoom: zoom) {
+                        Route.night($0)
                     }
-                    .matchedTransitionSource(id: Route.night(night.day), in: zoom)
                 }
                 if let movement {
                     NavigationLink(value: Route.dayActivity(snapshot.day)) {
@@ -303,7 +298,7 @@ struct TodayView: View {
                     .matchedTransitionSource(id: Route.dayActivity(snapshot.day), in: zoom)
                 }
             } header: {
-                Text("Night and day")
+                Text("Nights and day")
             }
         }
     }

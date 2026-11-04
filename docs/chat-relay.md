@@ -59,16 +59,28 @@ reason (`tool_use` when there is a call, otherwise `end_turn`), and estimated `u
 do write is kept, so `"stop_reason":"max_tokens"` exercises that failure. A tool call comes back as
 the next numbered request, with the tool's result in it.
 
-A request waits as long as its caller does. The iOS app waits five minutes for a chat reply
-(`HTTP.modelPatience`), so answer within that when driving the app; `curl --max-time 3600` gives an
-hour. Card narratives and session consolidation go through the relay too. A consolidation runs
+### Streaming
+
+Chat turns ask to stream (`"stream": true` in the request file), as production does. The relay
+answers them with the same file as any other request, and plays it back as the Messages API's event
+stream: the answer's text a word at a time, at `Relay__WordsPerSecond` (25 by default), thinking and
+tool calls in one piece each. So a reply arrives on the phone the way Claude's would, however fast
+the file was written. Set the pace low (`Relay__WordsPerSecond=3`) to have time to watch a reply
+arrive, or to drop the connection partway through one: the server finishes and stores it anyway,
+and the app finds it in the thread when it returns. Extractions and narratives do not stream.
+
+A request waits as long as its caller does. The iOS app follows a thread reply for as long as it
+takes, since the server's heartbeat keeps the stream open, but a standalone conversation waits five
+minutes (`HTTP.modelPatience`), so answer within that when driving one; `curl --max-time 3600` gives
+an hour. Card narratives and session consolidation go through the relay too. A consolidation runs
 under the thread's lock, so a chat message waits behind an unanswered `extract`.
 
 ## Driving it from Claude Code
 
 1. Start the server as above in the background. Copy the snapshot database into the worktree's
    `Data/` and set a throwaway password on that copy only.
-2. Send a message (`POST /api/chat/thread/messages` with a bearer token) in the background.
+2. Send a message (`POST /api/chat/thread/messages` with a bearer token, or
+   `/api/chat/thread/messages/stream` with `curl -N` to watch the events) in the background.
 3. Wait for the next numbered `*.prompt.md`. Read it, and answer the way Claude would with exactly
    that context. That means making the tool calls a careful model would make, not the ones you know
    to be needed.

@@ -1,3 +1,4 @@
+using System.Globalization;
 using lionheart.Functional;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -99,10 +100,18 @@ public abstract record ChatProviderSettings
     /// The model the request names, so a request file reads as the one production would send.
     /// Nothing serves it.
     /// </param>
-    public sealed record Relay(string Folder, string ChatModel) : ChatProviderSettings
+    /// <param name="WordsPerSecond">
+    /// How fast a streamed answer is played back, whenever it was written: slow enough to watch a
+    /// reply arrive, or to drop the connection partway through one.
+    /// </param>
+    public sealed record Relay(string Folder, string ChatModel, int WordsPerSecond) : ChatProviderSettings
     {
         public const string Name = "Relay";
         public const string FolderKey = "Relay__Folder";
+        public const string WordsPerSecondKey = "Relay__WordsPerSecond";
+
+        /// <summary>About a fast model's pace, and long enough on a full answer to interrupt it.</summary>
+        public const int DefaultWordsPerSecond = 25;
 
         /// <summary>
         /// Outside the repository: every request carries the athlete's own data, and a folder in
@@ -133,14 +142,25 @@ public abstract record ChatProviderSettings
 
     private static Result<ChatProviderSettings, Problem> ReadRelay(IConfiguration configuration, string environmentName) =>
         environmentName.Equals(Environments.Development, StringComparison.OrdinalIgnoreCase)
-            ? Result<ChatProviderSettings, Problem>.Success(new Relay(
+            ? RelayPace(configuration).Map(wordsPerSecond => (ChatProviderSettings)new Relay(
                 Optional(configuration, "Relay:Folder") ?? Relay.DefaultFolder,
-                Optional(configuration, "Anthropic:Model") ?? Anthropic.DefaultModel))
+                Optional(configuration, "Anthropic:Model") ?? Anthropic.DefaultModel,
+                wordsPerSecond))
             : Result<ChatProviderSettings, Problem>.Failure(new Problem.Invalid(
                 LlmConfiguration.ChatProviderKey,
                 $"The '{Relay.Name}' chat provider is a development harness and does not run in the "
                 + $"'{environmentName}' environment. Set {LlmConfiguration.ChatProviderKey} to "
                 + $"'{LmStudio.Name}' or '{Anthropic.Name}'."));
+
+    private static Result<int, Problem> RelayPace(IConfiguration configuration) =>
+        Optional(configuration, "Relay:WordsPerSecond") switch
+        {
+            null => Result<int, Problem>.Success(Relay.DefaultWordsPerSecond),
+            var text when int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var pace) && pace > 0 =>
+                Result<int, Problem>.Success(pace),
+            var text => Result<int, Problem>.Failure(new Problem.Invalid(
+                Relay.WordsPerSecondKey, $"'{text}' is not a pace. Give a whole number of words a second, above zero.")),
+        };
 
     private static Result<ChatProviderSettings, Problem> ReadLmStudio(IConfiguration configuration) =>
         Required(configuration, "LmStudio:BaseUrl", LmStudio.BaseUrlKey)

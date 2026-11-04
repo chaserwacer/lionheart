@@ -88,6 +88,8 @@ public class MovementDataService : IMovementDataService
             .Include(md => md.MovementModifier)
             .OrderBy(md => md.MovementBase.Name)
             .ThenBy(md => md.Equipment.Name)
+            // The variations of one exercise on one machine — lying, seated, standing — in a stable order.
+            .ThenBy(md => md.MovementModifier == null ? string.Empty : md.MovementModifier.Name)
             .ToListAsync();
 
         return Result<List<MovementDataDTO>, Problem>.Success(movementDatas.Select(Described).ToList());

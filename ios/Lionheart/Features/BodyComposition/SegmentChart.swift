@@ -47,7 +47,7 @@ struct SegmentChart: View {
                     y: .value("Segment", segment.title))
                     .foregroundStyle(Tokens.accent.opacity(segment == .trunk ? 0.55 : 0.85))
                     .annotation(position: reading.percentOfReference >= 100 ? .trailing : .leading, spacing: 4) {
-                        Text("\(SheetFigure.number(reading.mass)) · \(SheetFigure.percent(reading.percentOfReference))")
+                        Text("\(SheetFigure.number(Imperial.pounds(reading.mass, from: unit))) · \(SheetFigure.percent(reading.percentOfReference))")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(Color(.secondaryLabel))
                     }

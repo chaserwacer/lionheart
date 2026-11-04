@@ -111,9 +111,11 @@ public sealed class OuraSyncService : IOuraSyncService
     /// </remarks>
     private IReadOnlyList<Func<CancellationToken, Task<Result<OuraCollectionTally, Problem>>>> Steps(SyncRun run) =>
     [
-        // The activity collection answers an end_date of its own last day with that day missing,
-        // so it is asked for one day more. Applied only here, so the workaround stays attached to
-        // the quirk it exists for rather than looking like a convention.
+        // The activity and sleep-period collections answer an end_date of their own last day with
+        // that day missing, so each is asked for one day more. Applied only to those two, so the
+        // workaround stays attached to the quirk it exists for rather than looking like a
+        // convention. For sleep the missing day is this morning's: without it, last night stays
+        // unstored until the next day's sync, and every screen reads the night before as the latest.
         ct => CollectAsync<WireDailyActivity, OuraDailyActivity, DailyActivityReading>(
             run, "daily_activity", endDayShift: 1, wire => wire.ToDocument(run.UserId), _context.OuraDailyActivity, ct),
         ct => CollectAsync<WireDailyReadiness, OuraDailyReadiness, DailyReadinessReading>(
@@ -128,7 +130,7 @@ public sealed class OuraSyncService : IOuraSyncService
             run, "daily_resilience", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraDailyResilience, ct),
 
         ct => CollectAsync<WireSleep, OuraSleepPeriod, SleepPeriodReading>(
-            run, "sleep", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraSleepPeriods, ct),
+            run, "sleep", endDayShift: 1, wire => wire.ToDocument(run.UserId), _context.OuraSleepPeriods, ct),
         ct => CollectAsync<WireWorkout, OuraWorkout, WorkoutReading>(
             run, "workout", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraWorkouts, ct),
         ct => CollectAsync<WireSession, OuraSession, SessionReading>(

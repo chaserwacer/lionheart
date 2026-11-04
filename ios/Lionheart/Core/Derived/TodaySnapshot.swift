@@ -20,9 +20,12 @@ struct TodaySnapshot: Equatable, Sendable {
     /// rests on. Empty when there is no recovery to read.
     let contributors: [ReadinessContributorReading]
     /// The newest main sleep filed on or before the recovery's day — the night its figures were
-    /// read from, or the last one the ring scored when it filed a readiness without a night — with
-    /// its clock time, for the hypnogram.
+    /// read from, or the last one the ring scored when it filed a readiness without a night — which
+    /// a contributor row resting on the night opens. The night rows read `nights`.
     let night: OuraEvent<OuraSleepPeriod>?
+    /// The night that ended on `day` and the one before it, each filed or not — what the screen's
+    /// night rows read, so last night is never the night before standing in for it.
+    let nights: RecentNights
     /// What was trained or skipped on `day`, in the server's order. On today it leaves out what is still
     /// to come and what is in progress, which have their own answers below.
     let sessionsOnDay: [TrainingSession]
@@ -34,6 +37,12 @@ struct TodaySnapshot: Equatable, Sendable {
     let inProgress: TrainingSession.Active?
 
     var readiness: ReadinessReading? { recovery?.readiness }
+
+    /// A night this snapshot holds, by the day it ended on: one of the two recent nights, or the
+    /// night the recovery figures were read from.
+    func night(wakingOn day: CalendarDay) -> OuraEvent<OuraSleepPeriod>? {
+        nights.night(wakingOn: day) ?? night.flatMap { $0.day == day ? $0 : nil }
+    }
 
     /// The recovery figures no contributor row already shows, in their reading order.
     var otherFigures: [MetricReading] {
@@ -133,6 +142,7 @@ extension TodaySnapshot {
                     .filter { $0.reading.isMainSleep && $0.day <= recoveryDay && $0.day >= earliestFallback }
                     .max { $0.day < $1.day }
             },
+            nights: RecentNights.reading(wakingOn: day, nights: nights),
             sessionsOnDay: onDay,
             lastCompleted: isToday && !performedToday ? lastCompleted(in: sessions, onOrBefore: today) : nil,
             nextPlanned: isToday ? nextPlanned(in: sessions, onOrAfter: today) : nil,

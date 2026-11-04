@@ -25,23 +25,25 @@ struct BodyweightSeries: Equatable, Sendable {
         measurements.last { $0.day <= day }
     }
 
-    /// The series in one unit, as chart points. Weights never convert, so a reading in another unit
-    /// is left out rather than turned into a number the athlete never stood on the scale for.
-    func points(in unit: WeightUnit, from: CalendarDay? = nil) -> [MetricPoint] {
+    /// The series in pounds, as chart points: a reading logged in kilograms converts, so a scale
+    /// set to either unit draws one line.
+    func pointsInPounds(from: CalendarDay? = nil) -> [MetricPoint] {
         measurements
-            .filter { measurement in
-                measurement.unit == unit && (from.map { measurement.day >= $0 } ?? true)
-            }
-            .map { MetricPoint(day: $0.day, value: $0.weight) }
+            .filter { measurement in from.map { measurement.day >= $0 } ?? true }
+            .map { MetricPoint(day: $0.day, value: $0.pounds) }
     }
 
-    /// How far the latest reading sits from the one in force `days` before it, in the latest's
-    /// unit; `nil` with nothing that old to compare against.
+    /// How far the latest reading sits from the one in force `days` before it, in pounds; `nil`
+    /// with nothing that old to compare against.
     func change(over days: Int, calendar: Calendar = .current) -> Double? {
         guard let latest else { return nil }
-        guard let then = inForce(on: latest.day.adding(days: -days, in: calendar)), then.unit == latest.unit,
-              then.day != latest.day
+        guard let then = inForce(on: latest.day.adding(days: -days, in: calendar)), then.day != latest.day
         else { return nil }
-        return latest.weight - then.weight
+        return latest.pounds - then.pounds
     }
+}
+
+extension BodyweightMeasurement {
+    /// The reading in pounds, whichever unit the scale was set to.
+    var pounds: Double { Imperial.pounds(weight, from: unit) }
 }

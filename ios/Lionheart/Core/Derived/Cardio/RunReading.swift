@@ -1,11 +1,11 @@
 import Foundation
 
 /// One logged run as a fitness reading: its pace, its average heart rate, and the heartbeats each
-/// kilometre cost.
+/// mile cost.
 ///
-/// Heartbeats per kilometre is average heart rate times minutes per kilometre — what a kilometre
-/// cost the heart. It is roughly level across easy and steady paces, since a faster pace raises
-/// the rate about as much as it shortens the kilometre, so runs of different paces sit on one
+/// Heartbeats per mile is average heart rate times minutes per mile — what a mile cost the heart.
+/// It is roughly level across easy and steady paces, since a faster pace raises the rate about as
+/// much as it shortens the mile, so runs of different paces sit on one
 /// trend; as the aerobic base grows, it falls. Pace is elapsed, the only time the cardio report
 /// carries for every run; a run's own page has its moving pace.
 struct RunReading: Equatable, Sendable, Identifiable {
@@ -15,9 +15,9 @@ struct RunReading: Equatable, Sendable, Identifiable {
     let secondsPerKilometre: Double
     let averageBpm: Int
 
-    /// The heartbeats one kilometre, or one mile, cost: average rate times minutes per unit.
-    func beats(per unit: RunUnit) -> Double {
-        Double(averageBpm) * secondsPerKilometre * (unit.meters / 1000) / 60
+    /// The heartbeats one mile cost: average rate times minutes per mile.
+    var beatsPerMile: Double {
+        Double(averageBpm) * Imperial.perMile(perKilometre: secondsPerKilometre) / 60
     }
 
     /// The share of a run's clock time that must have heart rate behind it for its average to stand

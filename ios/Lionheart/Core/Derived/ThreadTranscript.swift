@@ -5,14 +5,18 @@ import Foundation
 /// can be awaited over a transcript that is not current.
 enum ThreadExchange: Equatable, Sendable {
     case idle
-    /// A question is out, on screen but not yet kept by the server.
-    case awaitingReply(ChatTurn)
+    /// A question is out, on screen but not yet kept by the server, and the answer is arriving.
+    case awaitingReply(ChatTurn, ReplyProgress)
+    /// The connection went while the answer was arriving. The server finishes and stores it
+    /// regardless, so the thread is being read until it shows up.
+    case recovering(ChatTurn)
     /// The last question failed and the server kept nothing of it; it goes back to the composer.
     case refused(ChatTurn)
 
+    /// Whether an answer is still to come, which is when nothing else may be asked.
     var isAwaitingReply: Bool {
         switch self {
-        case .awaitingReply: true
+        case .awaitingReply, .recovering: true
         case .idle, .refused: false
         }
     }
@@ -21,14 +25,14 @@ enum ThreadExchange: Equatable, Sendable {
     var tail: ChatTurn? {
         switch self {
         case .idle: nil
-        case .awaitingReply(let turn), .refused(let turn): turn
+        case .awaitingReply(let turn, _), .recovering(let turn), .refused(let turn): turn
         }
     }
 
     var unsentText: String? {
         switch self {
         case .refused(let turn): turn.text
-        case .idle, .awaitingReply: nil
+        case .idle, .awaitingReply, .recovering: nil
         }
     }
 }
@@ -55,6 +59,19 @@ enum ThreadTranscript {
                 + session.transcript.map { ThreadRow.turn(.said($0)) }
         }
         return kept + (tail.map { [ThreadRow.turn($0)] } ?? [])
+    }
+
+    /// The stored answer to `words`, once the thread holds one: the model's turn straight after the
+    /// newest session's last words from the athlete, when those are `words` and are not among the
+    /// turns `known` before they were sent — the same words asked earlier are another question.
+    static func answer(to words: String, after known: Set<UUID>, in thread: ChatThread) -> ChatMessage? {
+        guard let transcript = thread.sessions.last?.transcript,
+              let asked = transcript.lastIndex(where: { ChatTurn.said($0).isFromAthlete }),
+              transcript[asked].text == words,
+              !known.contains(transcript[asked].chatMessageId),
+              transcript.indices.contains(asked + 1)
+        else { return nil }
+        return transcript[asked + 1]
     }
 
     /// How a session's opening reads: "Today" or "Yesterday" and the time, then the weekday and

@@ -193,17 +193,15 @@ struct BodyView: View {
         }
     }
 
-    /// The last night and the newest scored day, each opening onto its own screen.
+    /// Last night, the night before, and the newest scored day, each opening onto its own screen.
     @ViewBuilder
     private func latestSection(_ snapshot: BodySnapshot) -> some View {
-        let night = snapshot.latestNight(onOrBefore: today)
+        let nights = snapshot.recentNights(today: today)
         let day = snapshot.ouraDays.first { $0.readiness?.score != nil || $0.sleep?.score != nil }
-        if night != nil || day != nil {
+        if !nights.isEmpty || day != nil {
             Section {
-                if let night {
-                    NavigationLink(value: BodyRoute.night(night.day)) {
-                        NightSummaryRow(night: night)
-                    }
+                if !nights.isEmpty {
+                    RecentNightRows(nights: nights, isToday: true) { BodyRoute.night($0) }
                 }
                 if let day {
                     NavigationLink(value: BodyRoute.ouraDay(day.date)) {
@@ -211,7 +209,7 @@ struct BodyView: View {
                     }
                 }
             } header: {
-                Text(night.map { "Night of \(Formatting.date($0.day.adding(days: -1)))" } ?? "Latest")
+                Text("Nights")
             }
         }
     }
@@ -246,7 +244,7 @@ struct BodyView: View {
         }
         let sheet = scan.sheet
         return "\(Formatting.date(scan.day)) · \(SheetFigure.mass(sheet.weight, sheet.unit)) · "
-            + "muscle \(SheetFigure.number(sheet.skeletalMuscleMass)) · fat \(SheetFigure.percent(sheet.percentBodyFat))"
+            + "muscle \(SheetFigure.number(Imperial.pounds(sheet.skeletalMuscleMass, from: sheet.unit))) · fat \(SheetFigure.percent(sheet.percentBodyFat))"
     }
 
     /// The aerobic base's two minute figures, in words: a week's means over the last four weeks.

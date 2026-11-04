@@ -48,42 +48,62 @@ struct MovementData: Equatable, Sendable, Identifiable {
         equipmentName.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare("Barbell") == .orderedSame
     }
 
-    /// The movement as the athlete names it: the modifier qualifies the base.
+    /// The movement as the athlete names it: the variation qualifying the exercise, "Seated Leg
+    /// Curl". The modifier is left out when the base already says it ("Incline Bench Press" with
+    /// "incline").
     ///
-    /// Only the **modifier's** first letter is forced upper case. The server stores a modifier's
-    /// name lower-cased however it was created, so "incline bench press" sitting under "Back squat"
-    /// in a list reads as a bug — but everything else keeps the capitalisation the server holds,
-    /// because that is the athlete's own and this client has no better information about it.
+    /// The server stores a modifier lower-cased however it was created, so its words are
+    /// capitalised here, short joining words apart ("Behind-the-Back"). The base keeps the
+    /// capitalisation the server holds, because that is the athlete's own.
     var title: String {
-        guard let modifierName, !modifierName.isEmpty else { return baseName }
-        return "\(Self.capitalisingFirst(modifierName)) \(baseName)"
-    }
-
-    private static func capitalisingFirst(_ name: String) -> String {
-        guard let first = name.first else { return name }
-        return first.uppercased() + name.dropFirst()
+        let base = baseName.trimmingCharacters(in: .whitespaces)
+        guard let variation = modifierName?.trimmingCharacters(in: .whitespaces), !variation.isEmpty,
+              !Self.says(base, variation)
+        else { return base }
+        return Self.says(variation, base) ? Self.capitalised(variation) : "\(Self.capitalised(variation)) \(base)"
     }
 
     /// The equipment, shown beside the title rather than inside it.
     var qualifier: String { equipmentName }
 
     /// The whole movement as one phrase, for somewhere with room for only one — a section header,
-    /// a record row — where `title` and `qualifier` cannot sit side by side. The equipment sits
-    /// where a lifter says it, between the modifier and the base.
+    /// a record row, a set list — where `title` and `qualifier` cannot sit side by side: "Seated
+    /// Leg Curl (Machine)", the library's convention and Strong's.
     ///
-    /// It is dropped when the name already contains the word, because a naive join reads
-    /// "Barbell Barbell Row".
+    /// Where one part already says another, as whole words, the shorter is left out, so a movement
+    /// whose parts overlap cannot read twice: "T-Bar Row" on a T-Bar, and "Standing Leg Curl"
+    /// where the machine was stored as the equipment. The server composes the same phrase for the
+    /// chat (`MovementNames.Of`); the two are held together by their tests.
     var displayName: String {
-        let base = baseName.isEmpty ? "Unnamed movement" : baseName
-        var words: [String] = []
-        if let modifierName, !modifierName.isEmpty {
-            words.append(Self.capitalisingFirst(modifierName))
+        let title = baseName.trimmingCharacters(in: .whitespaces).isEmpty ? "Unnamed movement" : self.title
+        let kit = equipmentName.trimmingCharacters(in: .whitespaces)
+        if kit.isEmpty || Self.says(title, kit) { return title }
+        return Self.says(kit, title) ? kit : "\(title) (\(kit))"
+    }
+
+    private static let joiningWords: Set<String> = ["a", "and", "of", "on", "the", "to"]
+
+    /// Every word capitalised but a joining word inside the phrase.
+    private static func capitalised(_ modifier: String) -> String {
+        modifier.replacing(/\b\p{L}[\p{L}']*/) { match in
+            let word = String(match.output)
+            let isInside = match.range.lowerBound != modifier.startIndex
+            return isInside && joiningWords.contains(word.lowercased())
+                ? word
+                : word.prefix(1).uppercased() + word.dropFirst()
         }
-        if !equipmentName.isEmpty, !base.localizedCaseInsensitiveContains(equipmentName) {
-            words.append(equipmentName)
+    }
+
+    /// Whether `phrase` holds `part` as whole words, ignoring case.
+    private static func says(_ phrase: String, _ part: String) -> Bool {
+        let words = phrase.split(separator: " ")
+        let wanted = part.split(separator: " ")
+        guard !wanted.isEmpty, words.count >= wanted.count else { return false }
+        return (0...(words.count - wanted.count)).contains { start in
+            zip(words[start..<(start + wanted.count)], wanted).allSatisfy {
+                $0.caseInsensitiveCompare($1) == .orderedSame
+            }
         }
-        words.append(base)
-        return words.joined(separator: " ")
     }
 
     /// Whether this movement answers `query`, matched against everything the athlete can see.

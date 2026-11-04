@@ -490,7 +490,7 @@ struct CardioSessionRow: View {
 
     private var facts: String {
         var parts = [Formatting.minutes(session.minutes)]
-        if let meters = session.distanceMeters, meters >= 1 { parts.append(OuraWorkout.distance(meters: meters)) }
+        if let meters = session.distanceMeters, meters >= 1 { parts.append(Imperial.roughDistance(meters: meters)) }
         switch session.heartRate {
         case .recorded(let average, let peak, _, let zones, _):
             parts.append("avg \(average) · peak \(peak) bpm")

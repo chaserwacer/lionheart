@@ -11,6 +11,8 @@ public interface ITestTools
     Task<string> EchoAsync(string phrase);
     Task<string> BoomAsync(string phrase);
     Task<int> CountSetsAsync(int days);
+    Task<string> FaultAsync(string phrase);
+    Task<int> DaysInAsync(lionheart.Model.Analysis.DayRange range);
 }
 
 /// <summary>
@@ -37,6 +39,20 @@ public sealed class TestTools : ITestTools
     {
         Calls.Add($"count:{days}");
         return Task.FromResult(days * 3);
+    }
+
+    /// <summary>Fails once awaited, the way a real async tool's read does.</summary>
+    public async Task<string> FaultAsync(string phrase)
+    {
+        Calls.Add($"fault:{phrase}");
+        await Task.Yield();
+        throw new ArgumentOutOfRangeException(nameof(phrase));
+    }
+
+    public Task<int> DaysInAsync(lionheart.Model.Analysis.DayRange range)
+    {
+        Calls.Add($"days:{range.From:yyyy-MM-dd}..{range.To:yyyy-MM-dd}");
+        return Task.FromResult(range.Days);
     }
 }
 
@@ -79,6 +95,8 @@ public sealed class TestToolbox : IDisposable
             Describe("echo", nameof(ITestTools.EchoAsync), "phrase", "string"),
             Describe("boom", nameof(ITestTools.BoomAsync), "phrase", "string"),
             Describe("count_sets", nameof(ITestTools.CountSetsAsync), "days", "integer"),
+            Describe("fault", nameof(ITestTools.FaultAsync), "phrase", "string"),
+            Describe("days_in", nameof(ITestTools.DaysInAsync), "range", "object"),
         };
 
         return new ToolRegistry(descriptors.ToDictionary(d => d.ToolName, StringComparer.Ordinal));

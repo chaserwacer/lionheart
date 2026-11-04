@@ -208,12 +208,15 @@ seven-day mean, over 30 days, 90 days or a year, read on demand and held by key 
 
 ### The night and the day under the figures
 
-Under the figures sits the night they were read from — the hypnogram as a strip, with how long and
+Under the figures sit last night and the night before — each a hypnogram strip, with how long and
 how efficiently he slept — and the shown day's movement as a strip of Oura's five-minute classes.
 Each opens its own screen: the night's stages, stage shares and overnight heart-rate and HRV curves
-on one time axis; the day's timeline with its long sittings shaded and listed. The night is the
-newest main sleep on or before the reading's day, labelled with its date when it is not that day's,
-because Oura files a readiness some mornings before it files the night. The day's timeline is
+on one time axis; the day's timeline with its long sittings shaded and listed. The nights are
+`RecentNights`: last night is the main sleep Oura filed under the shown day, the night before the
+one filed under the day before, each counted in his own time zone. A night not filed yet says so
+("Not synced yet") rather than letting the newest night on record stand in for it, because Oura
+files a readiness some mornings before it files the night, and that substitution read the night
+before as last night. Body's nights section is the same two rows. The day's timeline is
 `GET /api/habits/days/{day}`, read through `HabitsStore` beside Today's own reads.
 
 ### Oura sync
@@ -480,8 +483,11 @@ that only warmed up on a movement is not last time for it. Each movement's
 section shows it as one line, and the entry row opens on it (`SetDefaults`): the first set on last
 time's first working set; later sets on today's weight with last time's reps at the same position,
 which is the number a set to failure is trying to beat. A plan's target still beats last time, and a
-warm-up is never a precedent, so the set after a ramp opens on the work. The row's guide line says
-"Last 160 × 6" only once the fields differ from it.
+warm-up is never a precedent, so the set after a ramp opens on the work. The row's guide line always
+says last time at this position and where the fields stand against it (`SetGuide.Versus`): "level",
+the one figure that moved ("+1 rep", "+5 lb"), or the estimated single where both did ("e1RM +3 lb"),
+green when it would beat last time. A row that opened before last time was read back — a relaunch
+mid-workout — is reseeded when it arrives, if nothing has been typed into it.
 
 ### Set kinds
 
@@ -529,6 +535,60 @@ against last time's, as a change in estimated one-rep max — on bodyweight plus
 dip when both days have a reading in force, and on the plate alone otherwise, so a day with no
 bodyweight never reads as a leap.
 
+### One Add button
+
+The toolbar holds Close, Add and the More menu. Add is what the surface is used for between sets, so
+it has the primary place; Finish happens once a session and lives in More, opening the same finish
+sheet it always did, beside Sync now and Discard. Add opens `AddWorkSheet` at half height with
+search always showing, and grows to full height as soon as anything is typed: the families' priority
+lifts (from the priority report), recent movements, distance and time, a set in words, then the
+catalogue. Distance and time (`CardioWork`) is the domain's cardio with no movement — an outdoor run,
+which is a trail-run set and holds records, and the endurance activities (ride, indoor ride, hike,
+walk, indoor run) — then any movement last logged as distance and time (a rower, a treadmill). The
+server takes endurance sets from a client; they were previously only written by the Health import. A
+cardio pick opens the entry row in an "Other work" section titled with what is being logged, on the
+last of the same work in the workout, or empty in the unit the last run or ride was logged in.
+`AddWorkMenu` is the pure rule for what is listed. Distance and time and words never wait on the
+catalogue: while it loads, or with nothing remembered and no signal, they are listed and only the
+movement sections say where the catalogue stands.
+
+### The going-in header
+
+The surface opens on how ready the athlete came in: `GET /api/training/going-in` (the rating, its
+five parts and their figures, injuries with the movements their check-ins name, today's plans, the
+muscles trained since yesterday) and `GET /api/training/next/{day}` (what to lift and what cardio is
+next, and which comes first — the training-science stream's recommender, shown and never re-derived).
+`GoingInStore` reads both, each with its own load state and remembered, and reads again when the
+surface opens more than ten minutes after the last read or on another day. The rating is a capacity
+ring tinted by band — green over his usual day, blue on it, orange and red under; never the accent,
+which is red here — over a sentence naming the part clearly holding it down and the parts not read.
+The five parts sit under it as capacity bars, then injuries (orange where one touches a movement in
+this workout, and marked again on that movement's section), plans, recent muscles, and what is next
+with each due priority lift's aim and last time. `GoingInReading` decides what bears on this workout.
+At the first set of work the header folds to one line: by then he knows how he came in. The info
+sheet takes the rating apart, part by part, with each part's figures and the rule the server applied,
+so the arithmetic can be redone from the screen. A workout written down afterwards shows no header;
+today's state says nothing about another day.
+
+### Fewer taps per set
+
+Weight and reps each have a −/+ pair under the field: a plate pair in the unit (5 lb, 2.5 kg) and one
+rep, with a selection tick, and no keyboard. Marking a set a drop takes a fifth off the load, down to
+a step, since a drop set is by definition lighter than the set before it. After every set the list
+scrolls the entry row back above the rest bar that appears with it, and the keyboard bar's Log is
+never disabled — the system draws that bar once on first focus and keeps its state, so a row opened
+empty kept a dead button. A record lands as the heavy haptic and the record's name in words under
+the set — on the logging surface only; a session's history keeps the trophy mark alone, since a line
+under every record set of a long history is noise.
+
+### The rest bar
+
+The rest bar names the set it is a rest before ("Next 185 lb × 5") and its clock is a menu of rest
+lengths (1:00 to 5:00): choosing one makes it the standard and moves the running rest to it, keeping
+its start. The last ten seconds turn the clock and the track orange with a soft tap, so the athlete
+stands up before the alarm. The bar, the Lock Screen and the Dynamic Island count work sets, as the
+totals do; they used to count warm-ups too, so the three disagreed.
+
 ## History: the training log, a movement's page, and pinned movements
 
 **The log reads as a diary.** It is grouped by Monday-to-Sunday week, newest first — the unit his
@@ -565,7 +625,7 @@ so none was added. `HistoryStore` is the app's one reading of the log; Today ope
 from it too, through the same `HistoryDestination`, so a movement reads the same from either tab.
 
 **The log is a log book.** A completed session's row is its day and duration, each movement's
-`MovementDigest` line, and its session total — the volume per unit, since units never convert. The
+`MovementDigest` line, and its session total — one volume in pounds. The
 filter by movement is a search token: typing suggests movements as completions (iOS 26 does not show
 `suggestedTokens` while the field is minimized into the toolbar), and a chosen token keeps the
 sessions that performed that movement **by id**, so a paused squat never brings in the high-bar
@@ -674,7 +734,8 @@ The server establishes records when a session's sets become final; the client re
 them, and withdraws one when the athlete says the set was not real. Three rules shape it:
 
 - **The unit is part of a record's identity.** A movement logged in pounds and kilograms holds a
-  record of each kind in each, and weights never convert. Everything that groups or looks records
+  record of each kind in each, and the server never converts one into the other to rank them; the
+  screens read both in pounds (`Imperial`). Everything that groups or looks records
   up keys on `RecordKey` — subject, kind, unit — never on the kind alone. The movement screen reads
   one unit at a time behind a segmented control, and a history narrows the route's every-unit
   answer to the record's own key. Distances carry no unit in their key: they rank in meters.
@@ -697,7 +758,7 @@ them, and withdraws one when the athlete says the set was not real. Three rules 
 
 ## Body: the scores, cardio, daily movement and body composition
 
-Body leads with the latest readiness and the last night, then the latest day's scores, then three
+Body leads with the latest readiness, last night and the night before, then the latest day's scores, then three
 questions with screens of their own.
 
 - **Scores and contributors.** A day's readiness, sleep, activity and resilience are drawn as an
@@ -789,8 +850,8 @@ side:
 - **A recorded workout's page** (`RecordedWorkoutView`, reached from a session's detail and from
   Cardio) draws the server's `RecordedWorkout`: the route with MapKit's `MapPolyline` — a still picture at a fixed height, since a
   map that pans inside a list takes the list's scroll and one that grows with Dynamic Type outgrows
-  the screen; a tap opens it full screen to move and zoom — the figures, splits in kilometres or miles —
-  the conversions the page makes, a change of unit and a ride's pace read as a speed — the heart
+  the screen; a tap opens it full screen to move and zoom — the figures, splits by the mile — the
+  conversions the page makes, a change of unit to miles and feet and a ride's pace read as mph — the heart
   rate against the zones, footed with whose it is, a run's form, and each metric the app wrote —
   power, cadence, speed, running form — drawn against its mean (`MetricTraceChart`, thinned to a few
   hundred points by `MetricTrace`). It shares the cardio session's chart and zone grid, which moved to `Design/` for
@@ -805,27 +866,48 @@ The screen draws the sessions as one transcript; each session's opening is a dat
 them, the only sign of the cut.
 
 - `ThreadStore` holds two states, not one: the transcript as a `LoadState<ChatThread>`, which can be
-  recalled offline, and the exchange (`ThreadExchange`: idle, awaiting a reply, refused). They vary
-  apart — a recalled thread can hold a question that failed to send — so a single enum would have to
-  multiply their cases.
-- Sending answers with the whole session the exchange went into, which replaces the session held or
-  is appended when the message opened a new one. Earlier sessions are read on request, by the
-  oldest opening on screen, and put in front.
+  recalled offline, and the exchange (`ThreadExchange`: idle, awaiting a reply with its
+  `ReplyProgress`, recovering, refused). They vary apart — a recalled thread can hold a question
+  that failed to send — so a single enum would have to multiply their cases.
+- The exchange ends with the whole session it went into, which replaces the session held or is
+  appended when the message opened a new one. Earlier sessions are read on request, by the oldest
+  opening on screen, and put in front.
 - The standalone conversations (`ChatView`) are pushed from the thread's toolbar. They are where a
   question goes that should not be remembered, and keep their list sheet and new-conversation button.
 - `MemorySheet` lists memory by kind, standing kinds first; a memory's page shows the words it came
   from and the versions it replaced, and the athlete can correct it (the old wording becomes its
   history) or forget it (every version goes). A correction has a new id, and the page follows it.
-- **Quick questions.** The questions asked most days ("Should I train today?", "Am I recovered?",
-  and so on) sit as a row of capsule buttons above the composer. The row shows only while the field
-  is empty and the keyboard is down, and a tap sends the question as written. A one-line question
-  is enough because the server sends the TODAY briefing with every message.
-- **The answer is set down, not dropped in.** The server answers in one piece, so the answer that
-  has just arrived (`ThreadStore.arrivedReply`) is revealed word by word over at most 1.2 s
-  (`ChatReveal`). The full answer is laid out invisibly from the first frame, so the bubble has its
-  final size and the transcript never shifts. Reduce Motion shows the answer whole. A message waits
-  five minutes for its answer (`HTTP.modelPatience`), not the system's one minute. A long tool loop
-  would otherwise show the question as unsent while the server went on to answer and store it.
+- **The answer is streamed.** A message goes to `POST /api/chat/thread/messages/stream` and the
+  answer arrives as server-sent events (`ChatThreadAPI.ask`, read by `ServerSentEventReader`): the
+  waiting row says "Thinking", then which tools the model is reading ("Reading training score and
+  memory"), and the answer is written into its bubble as it comes (`WritingBubble`), the transcript
+  following it down. Text written before a round of tools is withdrawn, since only the last round's
+  text is stored. The bubble is silent to VoiceOver while it fills; the finished answer is announced
+  once. A heartbeat every fifteen seconds keeps the connection open while the model thinks, so the
+  request gives up after 45 s of silence (`HTTP.streamSilence`) rather than the five minutes a
+  blocking request needed.
+- **A lost connection does not lose the answer.** The server finishes and stores the exchange
+  whatever happens to the connection. If the stream ends without its outcome, the screen says so and
+  reads the thread every three seconds until the answer to those words is there, for up to
+  `HTTP.modelPatience` from the drop (`ThreadTranscript.answer(to:after:in:)`, which takes no turn
+  the thread already held, so the same words asked earlier do not count). An answer found that way
+  arrived whole, so it is set down word by word over at most 1.2 s (`ChatReveal`), laid out
+  invisibly first so the bubble does not grow; Reduce Motion shows it whole. Only a refusal the
+  server sent, a request it never accepted, or a thread it refuses to read hands the words back to
+  the composer.
+- **The transcript follows a growing answer** only while the athlete is at the bottom; scrolled
+  up to re-read, he is left where he is.
+- **The composer sits beside the folded tab bar (iOS 26).** On Chat the system tab bar is hidden
+  and its folded form, the Chat glyph in glass, starts the composer's row (`InlineComposer`,
+  `FoldedTabBar`). Tapping it unfolds the real tab bar and puts the composer away; scrolling the
+  transcript or leaving the tab folds it again, so typing happens only in the folded state. It is
+  drawn rather than asked for because iOS 26 cannot hold a tab bar folded: `tabBarMinimizeBehavior`
+  folds only on scroll and has no "always", and `tabViewBottomAccessory` is one slot for the whole
+  `TabView` (the workout bar's) whose placement follows the fold rather than setting it. On iOS 18,
+  which has no folded tab bar, the tab bar stays and the composer sits above it. The other tabs keep
+  their tab bar as it is.
+- **Not lazy.** The thread's stack draws every row of the page: a `LazyVStack` opened at its bottom
+  on iOS 26 was left past the end of the transcript, blank, when the rows were long answers.
 - **The context sheet leads with the briefing**, exactly as the next message will carry it, then
   the two standing tiers with their as-of instants.
 
@@ -859,6 +941,14 @@ runs it on its own.
 
 There is no design system. Apple's is the design system, which is the direct expression of the
 owner's brief: native, like Apple Music, and explicitly not the web app's custom look.
+
+**Every figure reads in imperial units**: pounds, miles, pace per mile, mph, feet, inches and °F.
+`Core/Derived/Imperial` converts at the words, and the shared formatters (`Formatting`,
+`SetFigures`, `WorkoutMetricText`, `HealthMetric`'s text) go through it, so no stored or wire value
+changes: a set keeps the unit it was logged in, and a record logged in kilograms is still ranked in
+kilograms by the server and read in pounds here. A track's metres and yards read as logged — a 400
+is a 400 — and only kilometres become miles. Entry forms keep their unit pickers, starting in pounds
+and miles. A fastest time at a race distance goes by its name (Mile, 5K, 10K); any other in miles.
 
 - One brand token — the accent in the asset catalog — applied once as `.tint` on `RootView`.
   Everything below inherits it, and light and dark are then correct for free.

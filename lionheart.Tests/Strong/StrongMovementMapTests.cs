@@ -25,16 +25,15 @@ public class StrongMovementMapTests
     }
 
     [Fact]
-    public void Movements_the_athlete_already_has_are_named_the_way_his_catalogue_names_them()
+    public void Movements_land_on_the_names_the_tidied_library_holds()
     {
-        // His catalogue spells it "Dumbell" and calls the incline machine its own equipment. A map
-        // written in Strong's spelling would grow a second dumbbell beside the first.
+        // The library is tidied to the convention, so an import has to name its movements the same
+        // way or it would grow a "Dumbell" beside the "Dumbbell", and a machine named after its
+        // exercise beside the Machine.
         var covered = ResultAssert.Succeeded(Shipped.Cover(["Bicep Curl (Dumbbell)", "Incline Chest Press (Machine)"]));
 
-        Assert.Equal(new MovementName("Bicep Curl", "Dumbell", ""), covered["Bicep Curl (Dumbbell)"].Movement);
-        Assert.Equal(
-            new MovementName("Bench Press", "Incline Machine Press", "incline"),
-            covered["Incline Chest Press (Machine)"].Movement);
+        Assert.Equal(new MovementName("Bicep Curl", "Dumbbell", ""), covered["Bicep Curl (Dumbbell)"].Movement);
+        Assert.Equal(new MovementName("Chest Press", "Machine", "incline"), covered["Incline Chest Press (Machine)"].Movement);
     }
 
     [Theory]
@@ -52,7 +51,7 @@ public class StrongMovementMapTests
     {
         var covered = ResultAssert.Succeeded(Shipped.Cover(["SHOULDER PRESS DUMBELL  "]));
 
-        Assert.Equal(new MovementName("Shoulder Press", "Dumbell", ""), Assert.Single(covered.Values).Movement);
+        Assert.Equal(new MovementName("Shoulder Press", "Dumbbell", ""), Assert.Single(covered.Values).Movement);
     }
 
     [Fact]

@@ -94,12 +94,12 @@ public class StrongImportTests : IDisposable
     [Fact]
     public async Task A_movement_the_athlete_already_has_is_reused_however_he_capitalised_it()
     {
-        var curl = await _database.PlantMovementAsync("bicep curl", " DUMBELL ");
+        var curl = await _database.PlantMovementAsync("bicep curl", " DUMBBELL ");
 
         var report = ResultAssert.Succeeded(await ImportAsync(FourWorkouts));
 
-        Assert.DoesNotContain(new MovementName("Bicep Curl", "Dumbell", ""), report.Catalogue.Movements);
-        Assert.DoesNotContain("Dumbell", report.Catalogue.Equipment);
+        Assert.DoesNotContain(new MovementName("Bicep Curl", "Dumbbell", ""), report.Catalogue.Movements);
+        Assert.DoesNotContain("Dumbbell", report.Catalogue.Equipment);
 
         var arms = await SessionOnAsync(new DateOnly(2026, 4, 14));
         Assert.Contains(arms.Sets.OfType<LiftSet>(), set => set.MovementDataId == curl);
@@ -116,7 +116,7 @@ public class StrongImportTests : IDisposable
             .ToListAsync();
 
         Assert.Equal(identities.Count, identities.Distinct().Count());
-        Assert.Equal(1, await context.Equipments.CountAsync(equipment => equipment.Name == "Dumbell"));
+        Assert.Equal(1, await context.Equipments.CountAsync(equipment => equipment.Name == "Dumbbell"));
     }
 
     // ---- Re-running ----

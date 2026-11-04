@@ -15,7 +15,7 @@ namespace lionheart.Services.Import;
 /// transaction decides when any of it is written.
 /// <para>
 /// Names match the way the rest of the application matches them — ignoring case and surrounding
-/// spaces — so "Dumbell" in the athlete's catalogue is reused rather than joined by a second
+/// spaces — so "dumbbell " in the athlete's catalogue is reused rather than joined by a second
 /// spelling of the same thing. A new modifier is stored lowercase, as the modifier service stores
 /// them.
 /// </para>

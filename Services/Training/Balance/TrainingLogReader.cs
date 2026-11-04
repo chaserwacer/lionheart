@@ -1,4 +1,5 @@
 using lionheart.Data;
+using lionheart.Services.Training.Movement;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Training.Patterns;
@@ -26,7 +27,11 @@ public static class TrainingLogReader
             .Select(session => new SessionInLog(
                 session.TrainingSessionId,
                 session.Date,
-                [.. session.Sets.OfType<LiftSet>().Where(HardSets.IsHard)]))
+                [.. session.Sets.OfType<LiftSet>().Where(HardSets.IsHard)])
+            {
+                OnlyWalking = session.Sets.Count > 0
+                              && session.Sets.All(set => set is EnduranceSet { Activity: EnduranceActivity.Walk }),
+            })
             .ToList();
 
         var movements = await context.MovementDatas

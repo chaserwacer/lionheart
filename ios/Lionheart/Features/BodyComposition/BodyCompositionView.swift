@@ -146,7 +146,7 @@ struct BodyCompositionView: View {
         case .percentBodyFat: SheetFigure.percent(value)
         case .extracellularWaterRatio: String(format: "%.3f", value)
         case .weight, .skeletalMuscleMass, .bodyFatMass, .leanBodyMass:
-            SheetFigure.mass(value, history.latest?.sheet.unit ?? .pounds)
+            SheetFigure.mass(value, .pounds)
         }
     }
 
@@ -205,7 +205,7 @@ struct ScanRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(Formatting.date(scan.day)) · \(scan.sheet.device)")
-            Text("\(SheetFigure.mass(scan.sheet.weight, scan.sheet.unit)) · muscle \(SheetFigure.number(scan.sheet.skeletalMuscleMass)) · fat \(SheetFigure.percent(scan.sheet.percentBodyFat))")
+            Text("\(SheetFigure.mass(scan.sheet.weight, scan.sheet.unit)) · muscle \(SheetFigure.number(Imperial.pounds(scan.sheet.skeletalMuscleMass, from: scan.sheet.unit))) · fat \(SheetFigure.percent(scan.sheet.percentBodyFat))")
                 .font(.subheadline.monospacedDigit())
                 .foregroundStyle(Color(.secondaryLabel))
         }

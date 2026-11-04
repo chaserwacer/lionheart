@@ -20,8 +20,7 @@ enum CompositionMeasure: CaseIterable, Hashable, Sendable {
         }
     }
 
-    /// Whether the figure is a mass, in the sheet's unit, so two sheets in different units cannot
-    /// sit on one line.
+    /// Whether the figure is a mass, which reads in pounds whatever unit the sheet printed.
     var isMass: Bool {
         switch self {
         case .weight, .skeletalMuscleMass, .bodyFatMass, .leanBodyMass: true
@@ -29,8 +28,10 @@ enum CompositionMeasure: CaseIterable, Hashable, Sendable {
         }
     }
 
+    /// The figure on one sheet, a mass in pounds (`Imperial`) so scans printed in either unit sit
+    /// on one line.
     func value(in sheet: BodyCompositionSheet) -> Double? {
-        switch self {
+        let printed: Double? = switch self {
         case .weight: sheet.weight
         case .skeletalMuscleMass: sheet.skeletalMuscleMass
         case .bodyFatMass: sheet.bodyFatMass
@@ -38,6 +39,7 @@ enum CompositionMeasure: CaseIterable, Hashable, Sendable {
         case .leanBodyMass: sheet.leanBodyMass
         case .extracellularWaterRatio: sheet.extracellularWaterRatio
         }
+        return isMass ? printed.map { Imperial.pounds($0, from: sheet.unit) } : printed
     }
 }
 
@@ -57,20 +59,15 @@ struct CompositionHistory: Equatable, Sendable {
         scans.firstIndex(of: scan).flatMap { $0 > 0 ? scans[$0 - 1] : nil }
     }
 
-    /// A measure at every scan that carries it. A mass keeps to the latest scan's unit: weights
-    /// never convert, so a scan in the other unit is left off rather than redrawn in this one.
+    /// A measure at every scan that carries it, a mass in pounds.
     func points(_ measure: CompositionMeasure) -> [MetricPoint] {
-        let unit = latest?.sheet.unit
-        return scans
-            .filter { !measure.isMass || $0.sheet.unit == unit }
-            .compactMap { scan in measure.value(in: scan.sheet).map { MetricPoint(day: scan.day, value: $0) } }
+        scans.compactMap { scan in measure.value(in: scan.sheet).map { MetricPoint(day: scan.day, value: $0) } }
     }
 
-    /// How far a measure moved from the scan before `scan` to `scan`, or `nil` with no comparable
-    /// scan before it.
+    /// How far a measure moved from the scan before `scan` to `scan`, a mass in pounds, or `nil`
+    /// with no scan before it carrying the measure.
     func change(_ measure: CompositionMeasure, at scan: BodyCompositionScan) -> Double? {
         guard let previous = previous(to: scan),
-              !measure.isMass || previous.sheet.unit == scan.sheet.unit,
               let then = measure.value(in: previous.sheet), let now = measure.value(in: scan.sheet)
         else { return nil }
         return now - then

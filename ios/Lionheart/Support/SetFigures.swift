@@ -7,8 +7,9 @@ import Foundation
 /// surface and a finished session's detail both draw sets this way, from a `SetCommand` and a
 /// `SetEntry` respectively, so the two constructors are the one place either is turned into words.
 ///
-/// Load leads, then reps — `145 kg × 5` — which is how records already read (`Formatting.lift`),
-/// so a set and the record it set read the same way round.
+/// Load leads, then reps — `315 lb × 5` — which is how records already read (`Formatting.lift`),
+/// so a set and the record it set read the same way round. Figures are in pounds and miles
+/// (`Formatting.weightParts`, `Formatting.distanceParts`), whatever the set was logged in.
 enum SetFigures: Equatable, Sendable {
     /// A set with numbers.
     case measured(Measured)
@@ -24,7 +25,7 @@ enum SetFigures: Equatable, Sendable {
         let unit: String
         /// What was done against the amount: `× 5`, or a time, `48:30`.
         let work: String
-        /// A figure only some shapes carry — a trail run's climb, `+310 m`.
+        /// A figure only some shapes carry — a trail run's climb, `+1017 ft`.
         let extra: String?
         let rpe: Double?
         /// The set as one phrase, for VoiceOver, which cannot read column position.
@@ -73,9 +74,10 @@ enum SetFigures: Equatable, Sendable {
         case .failure: "failure"
         case .working, .warmUp, .unrecognised: nil
         }
+        let load = Formatting.weightParts(weight, unit)
         return Measured(
-            amount: Formatting.measure(weight),
-            unit: unit.abbreviation,
+            amount: load.amount,
+            unit: load.unit,
             work: "× \(reps)",
             extra: marked,
             rpe: rpe.value,
@@ -86,11 +88,12 @@ enum SetFigures: Equatable, Sendable {
     private static func timed(
         _ distance: Double, _ unit: DistanceUnit, _ duration: TimeInterval, gain: Double?, rpe: Rpe
     ) -> Measured {
-        let climb = gain.map { "\($0 < 0 ? "−" : "+")\(Formatting.measure(abs($0))) m" }
-        let spokenClimb = gain.map { ", \(Formatting.measure($0)) m gain" } ?? ""
+        let climb = gain.map(Formatting.climb(meters:))
+        let spokenClimb = gain.map { ", \(Imperial.climb(meters: $0)) gain" } ?? ""
+        let covered = Formatting.distanceParts(distance, unit)
         return Measured(
-            amount: Formatting.measure(distance),
-            unit: unit.abbreviation,
+            amount: covered.amount,
+            unit: covered.unit,
             work: Formatting.clock(seconds: duration),
             extra: climb,
             rpe: rpe.value,

@@ -52,7 +52,7 @@ struct CardioSessionView: View {
     private var figures: [OuraPanel.Figure] {
         var figures = [OuraPanel.Figure(label: "Duration", value: Formatting.minutes(session.minutes))]
         if let meters = session.distanceMeters, meters >= 1 {
-            figures.append(OuraPanel.Figure(label: "Distance", value: OuraWorkout.distance(meters: meters)))
+            figures.append(OuraPanel.Figure(label: "Distance", value: Imperial.roughDistance(meters: meters)))
         }
         if case .recorded(let average, let peak, let coverage, let zones, _) = session.heartRate {
             figures.append(OuraPanel.Figure(label: "Avg HR", value: "\(average)"))

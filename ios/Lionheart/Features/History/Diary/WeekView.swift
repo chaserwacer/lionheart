@@ -94,9 +94,7 @@ struct WeekView: View {
                 SummaryFigures(figures: [
                     (label: "Sessions", value: "\(training.sessions.count)"),
                     (label: "Sets", value: "\(training.totals.setCount)"),
-                ] + training.totals.weights.filter { $0.volume > 0 }.map {
-                    (label: "Volume, \($0.unit.abbreviation)", value: Int($0.volume.rounded()).formatted())
-                })
+                ] + (training.totals.poundsVolume.map { [(label: "Volume, lb", value: Int($0.rounded()).formatted())] } ?? []))
                 .padding(.vertical, 2)
                 ForEach(training.sessions) { session in
                     NavigationLink(value: HistoryRoute.session(session.sessionId)) {

@@ -71,17 +71,19 @@ namespace Services.Chat
                     new Problem.Unexpected(
                         $"The chat model asked for tools {MAX_TOOL_ROUNDS} times without answering.")))
                 : _chatModel
-                    .RespondAsync(
+                    .StreamAsync(
                         ChatTurnRequest.Conversation(
                             exchange.SystemPrompt,
                             exchange.Messages,
                             _toolRegistry.GetAllToolDefinitions(),
                             request.MaxOutputTokens) with { Briefing = request.Briefing },
+                        text => request.Observer.Observe(new ExchangeProgress.Wrote(text)),
                         cancellationToken)
-                    .BindAsync(turn => ActOnAsync(user, exchange, turn, cancellationToken));
+                    .BindAsync(turn => ActOnAsync(user, request.Observer, exchange, turn, cancellationToken));
 
         private async Task<Result<Loop<Exchange, ChatCompletionResponse>, Problem>> ActOnAsync(
             IdentityUser user,
+            IExchangeObserver observer,
             Exchange exchange,
             ModelTurn turn,
             CancellationToken cancellationToken)
@@ -93,6 +95,8 @@ namespace Services.Chat
                         new Loop<Exchange, ChatCompletionResponse>.Done(exchange.Concluded(answered)));
 
                 case ModelTurn.RequestedTools requested:
+                    observer.Observe(new ExchangeProgress.Consulting(
+                        [.. requested.Calls.Select(call => call.ToolName).Distinct(StringComparer.Ordinal)]));
                     var outcomes = await RunToolsAsync(user, requested, cancellationToken);
                     return Result<Loop<Exchange, ChatCompletionResponse>, Problem>.Success(
                         new Loop<Exchange, ChatCompletionResponse>.Continue(

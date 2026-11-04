@@ -1,4 +1,5 @@
 using System.Globalization;
+using lionheart.Model;
 using lionheart.Model.Cardio;
 using lionheart.Model.Health;
 using lionheart.Model.Training.Sessions;
@@ -13,8 +14,10 @@ namespace lionheart.Services.Health.Recordings;
 /// <remarks>
 /// <b>No coordinate is ever written here.</b> The route is where the athlete was, so the model is
 /// given what was derived from it — distance, time, pace, climb, splits — and never the path.
-/// The heart rate says whose it is, since a strap's and the ring's are not the same instrument. A
-/// ride reads in km/h, as a rider states it; everything else in minutes per kilometre.
+/// The heart rate says whose it is, since a strap's and the ring's are not the same instrument.
+/// Every figure is in the units the athlete reads (<see cref="Imperial"/>), because the model
+/// repeats them to him: a ride in mph, everything else in minutes per mile, climb in feet, splits per
+/// mile.
 /// </remarks>
 public static class WorkoutFacts
 {
@@ -34,7 +37,7 @@ public static class WorkoutFacts
             .ToList();
 
         var counts = byActivity.Select(group =>
-            $"{Counted(group.Count(), group.Key)} {Kilometres(group.Sum(workout => Measured(workout).Meters))}");
+            $"{Counted(group.Count(), group.Key)} {Imperial.Miles(group.Sum(workout => Measured(workout).Meters))}");
         var latest = byActivity.Select(group => Latest(group.Key, group.MaxBy(workout => workout.Period.StartTimeUtc)!));
 
         return $"Workouts from Apple Health in the last {days} days: {string.Join(", ", counts)}; {string.Join("; ", latest)}.";
@@ -43,9 +46,9 @@ public static class WorkoutFacts
     private static string Latest(RecordedActivity activity, CompletedTrainingSession workout)
     {
         var (meters, duration, climb) = Measured(workout);
-        return $"latest {Noun(activity)} {workout.Period.StartTime:yyyy-MM-dd}, {Kilometres(meters)} in {Clock(duration)}"
-               + (meters > 0 ? $", {Rate(activity, duration * (1000 / meters))}" : string.Empty)
-               + $", climb {Metres(climb)}";
+        return $"latest {Noun(activity)} {workout.Period.StartTime:yyyy-MM-dd}, {Imperial.Miles(meters)} in {Clock(duration)}"
+               + (meters > 0 ? $", {Rate(activity, duration * (Imperial.MetersPerMile / meters))}" : string.Empty)
+               + $", climb {Imperial.Feet(climb)}";
     }
 
     private static (double Meters, TimeSpan Duration, double Climb) Measured(CompletedTrainingSession workout)
@@ -61,19 +64,19 @@ public static class WorkoutFacts
         var lines = new List<string>
         {
             $"{Capitalised(Noun(workout.Activity))} {workout.Start:yyyy-MM-dd HH:mm} (recorded by {workout.RecordedBy.Name}, imported from Apple Health): "
-            + $"{Kilometres(workout.DistanceMeters)} in {Clock(workout.Duration)}"
+            + $"{Imperial.Miles(workout.DistanceMeters)} in {Clock(workout.Duration)}"
             + (workout.MovingTime is { } moving ? $", moving {Clock(moving)}" : string.Empty)
-            + (workout.Pace is { } pace ? $", {Rate(workout.Activity, pace)}" : string.Empty)
-            + (workout.MovingPace is { } movingPace ? $" (moving {Rate(workout.Activity, movingPace)})" : string.Empty)
-            + $", climb {Metres(workout.ClimbMeters)}"
-            + (workout.DescentMeters is { } descent ? $", descent {Metres(descent)}" : string.Empty)
+            + (workout.Pace is { } pace ? $", {Rate(workout.Activity, Imperial.PerMile(pace))}" : string.Empty)
+            + (workout.MovingPace is { } movingPace ? $" (moving {Rate(workout.Activity, Imperial.PerMile(movingPace))})" : string.Empty)
+            + $", climb {Imperial.Feet(workout.ClimbMeters)}"
+            + (workout.DescentMeters is { } descent ? $", descent {Imperial.Feet(descent)}" : string.Empty)
             + ".",
             HeartRate(workout),
         };
 
         lines.AddRange(Measures(workout));
-        if (workout.Kilometres.Count > 0)
-            lines.Add("Splits per km: " + string.Join("; ", workout.Kilometres.Select(split => Split(workout.Activity, split))) + ".");
+        if (workout.Miles.Count > 0)
+            lines.Add("Splits per mile: " + string.Join("; ", workout.Miles.Select(split => Split(workout.Activity, split))) + ".");
 
         return string.Join("\n", lines);
     }
@@ -108,10 +111,10 @@ public static class WorkoutFacts
     {
         WorkoutMetric.Power => $"{value.ToString("0", CultureInfo.InvariantCulture)} W",
         WorkoutMetric.Cadence => $"{value.ToString("0", CultureInfo.InvariantCulture)} rpm",
-        WorkoutMetric.Speed => $"{(value * 3.6).ToString("0.0", CultureInfo.InvariantCulture)} km/h",
+        WorkoutMetric.Speed => Imperial.Speed(metersPerSecond: value),
         WorkoutMetric.GroundContactTime => $"{value.ToString("0", CultureInfo.InvariantCulture)} ms",
-        WorkoutMetric.VerticalOscillation => $"{value.ToString("0.0", CultureInfo.InvariantCulture)} cm",
-        WorkoutMetric.StrideLength => $"{value.ToString("0.00", CultureInfo.InvariantCulture)} m",
+        WorkoutMetric.VerticalOscillation => $"{(value / 100 / Imperial.MetersPerInch).ToString("0.0", CultureInfo.InvariantCulture)} in",
+        WorkoutMetric.StrideLength => $"{(value / Imperial.MetersPerFoot).ToString("0.0", CultureInfo.InvariantCulture)} ft",
         WorkoutMetric.HeartRateRecovery => $"{value.ToString("0", CultureInfo.InvariantCulture)} bpm",
         _ => throw new System.Diagnostics.UnreachableException(),
     };
@@ -131,11 +134,11 @@ public static class WorkoutFacts
 
     private static string Capitalised(string noun) => char.ToUpperInvariant(noun[0]) + noun[1..];
 
-    /// <summary>A ride's speed in km/h, anything else's pace per kilometre, from the time per kilometre.</summary>
-    private static string Rate(RecordedActivity activity, TimeSpan perKilometre) =>
+    /// <summary>A ride's speed in mph, anything else's pace per mile, from the time per mile.</summary>
+    private static string Rate(RecordedActivity activity, TimeSpan perMile) =>
         activity is RecordedActivity.Ride or RecordedActivity.IndoorRide
-            ? $"speed {(3600 / perKilometre.TotalSeconds).ToString("0.0", CultureInfo.InvariantCulture)} km/h"
-            : $"pace {Pace(perKilometre)}/km";
+            ? $"speed {Imperial.Speed(perMile)}"
+            : $"pace {Imperial.Pace(perMile)}";
 
     private static string HeartRate(RecordedWorkoutView workout) => workout.HeartRate switch
     {
@@ -160,23 +163,12 @@ public static class WorkoutFacts
     };
 
     private static string Split(RecordedActivity activity, Split split) =>
-        $"{split.Number}: {Kilometres(split.DistanceMeters)} at {Rate(activity, split.Pace)}"
-        + (split.ClimbMeters is { } climb && split.DescentMeters is { } descent ? $", +{Metres(climb)} −{Metres(descent)}" : string.Empty)
+        $"{split.Number}: {Imperial.Miles(split.DistanceMeters)} at {Rate(activity, split.Pace)}"
+        + (split.ClimbMeters is { } climb && split.DescentMeters is { } descent ? $", +{Imperial.Feet(climb)} −{Imperial.Feet(descent)}" : string.Empty)
         + (split.AverageBpm is { } bpm ? $", {bpm} bpm" : string.Empty);
-
-    private static string Kilometres(double meters) =>
-        $"{(meters / 1000).ToString("0.00", CultureInfo.InvariantCulture)} km";
-
-    private static string Metres(double meters) => $"{meters.ToString("0", CultureInfo.InvariantCulture)} m";
 
     private static string Minutes(double minutes) => minutes.ToString("0", CultureInfo.InvariantCulture);
 
     private static string Clock(TimeSpan time) =>
         time.TotalHours >= 1 ? time.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture) : time.ToString(@"m\:ss", CultureInfo.InvariantCulture);
-
-    private static string Pace(TimeSpan pace)
-    {
-        var seconds = (int)Math.Round(pace.TotalSeconds);
-        return $"{seconds / 60}:{seconds % 60:00}";
-    }
 }

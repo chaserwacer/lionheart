@@ -76,11 +76,11 @@ struct RecordHistoryView: View {
         }
     }
 
-    /// The subject, and the unit where the identity has one — so "pounds" is said once, here,
-    /// rather than implied by which figures happen to be on screen.
+    /// The subject, and the unit the chain was logged in where the identity has one: every figure
+    /// reads in pounds, so a chain held in kilograms says so here.
     private var header: String {
         guard let unit = key.heldIn else { return name }
-        return "\(name) · \(Formatting.unitName(unit).lowercased())"
+        return "\(name) · logged in \(Formatting.unitName(unit).lowercased())"
     }
 
     // MARK: - Trend

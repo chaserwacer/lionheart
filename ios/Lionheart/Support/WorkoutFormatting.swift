@@ -29,9 +29,23 @@ extension Formatting {
         entry.command.flatMap(set)
     }
 
-    /// A weight change with its sign: "+2.5 lb", "−1 lb", "±0 lb".
+    /// Where the fields stand against last time: "level", "+1 rep", "+5 lb", "e1RM −3 lb".
+    static func versus(_ versus: SetGuide.Versus, unit: WeightUnit) -> String? {
+        switch versus {
+        case .same: "level"
+        case .reps(let reps): "\(signedCount(reps)) \(abs(reps) == 1 ? "rep" : "reps")"
+        case .load(let load): signedWeight(load, unit)
+        case .estimate(let change): "e1RM \(signedWeight((change * 10).rounded() / 10, unit))"
+        case .incomparable: nil
+        }
+    }
+
+    /// A weight change in pounds with its sign: "+2.5 lb", "−1 lb", "±0 lb".
     static func signedWeight(_ value: Double, _ unit: WeightUnit) -> String {
-        "\(signed(value)) \(unit.abbreviation)"
+        let pounds = Imperial.pounds(value, from: unit)
+        let parts = weightParts(abs(value), unit)
+        let sign = pounds > 0 ? "+" : pounds < 0 ? "−" : "±"
+        return parts.unit.isEmpty ? "\(sign)\(parts.amount)" : "\(sign)\(parts.amount) \(parts.unit)"
     }
 
     /// A count change with its sign: "+2", "−1", "±0".
@@ -64,9 +78,5 @@ extension Formatting {
         case .inDays(let days): "in \(days) days"
         case .distant(let day): date(day)
         }
-    }
-
-    private static func signed(_ value: Double) -> String {
-        value > 0 ? "+\(measure(value))" : value < 0 ? "−\(measure(-value))" : "±0"
     }
 }

@@ -109,9 +109,9 @@ struct ScorePartView: View {
     private func footer(_ score: TrainingScore) -> String {
         switch part {
         case .lifting:
-            "Each family pays a third. Over the target in one does not make up for another."
+            "Each family pays a third: half against this week's target, grown from the four weeks before, and half against the committed 8. Over the target in one does not make up for another."
         case .cardio:
-            "Minutes inside cardio sessions, against the week's targets. Each pays the square root of its share of the target."
+            "Minutes inside cardio sessions, against this week's targets. Each pays half against this week's target and half against the committed standard, the square root of its share of each."
         case .progress:
             "A new best pays a family's third in full; held or first back a quarter; below a tenth."
         case .consistency:
@@ -140,10 +140,11 @@ struct ScorePartView: View {
 
     @ViewBuilder
     private func cardioDetail(_ score: TrainingScore) -> some View {
-        if case .measured(_, _, _, _, let sessions, let heartRateDays) = score.cardio.measure {
+        if case .measured(_, _, let qualitySessions, let sessions, let heartRateDays) = score.cardio.measure {
             Section {
                 LabeledContent("Cardio sessions") { Text("\(sessions)").monospacedDigit() }
-                LabeledContent("Days with heart rate") { Text("\(heartRateDays) of 7").monospacedDigit() }
+                LabeledContent("Quality sessions") { Text("\(qualitySessions)").monospacedDigit() }
+                LabeledContent("Days with ring heart rate") { Text("\(heartRateDays) of 7").monospacedDigit() }
             }
         } else if case .unknown(let reason) = score.cardio.measure {
             Section {

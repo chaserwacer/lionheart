@@ -74,9 +74,8 @@ struct CardioAndHabitsTests {
         let reading = try #require(readings.first)
         #expect(readings.count == 1)
         #expect(reading.secondsPerKilometre == 360)
-        // 150 bpm for six minutes a kilometre.
-        #expect(reading.beats(per: .kilometres) == 900)
-        #expect(abs(reading.beats(per: .miles) - 900 * 1.609344) < 0.001)
+        // 150 bpm for six minutes a kilometre: 900 beats a kilometre, read per mile.
+        #expect(abs(reading.beatsPerMile - 900 * 1.609344) < 0.001)
     }
 
     @Test("The zone split is per week of days in the span, and zones 3–5 are zone 3 and up")

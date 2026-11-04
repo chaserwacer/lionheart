@@ -107,7 +107,7 @@ struct BodyweightView: View {
 
         if let latest = series.latest {
             let from = CalendarDay(Date()).adding(days: 1 - span.days)
-            let points = series.points(in: latest.unit, from: from)
+            let points = series.pointsInPounds(from: from)
 
             Section {
                 Picker("Span", selection: $span) {
@@ -159,7 +159,7 @@ struct BodyweightView: View {
 
     private func readout(_ series: BodyweightSeries, latest: BodyweightMeasurement, points: [MetricPoint]) -> some View {
         let selected = DailyTrendChart.nearest(to: selection, in: points)
-        let value = selected?.value ?? latest.weight
+        let value = selected?.value ?? latest.pounds
         let caption = selected.map { Formatting.date($0.day) } ?? "Latest · \(Formatting.dayInline(latest.day))"
         let change = selected == nil ? series.change(over: 30) : nil
 
@@ -169,15 +169,15 @@ struct BodyweightView: View {
                     .font(.subheadline)
                     .foregroundStyle(Color(.secondaryLabel))
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(Formatting.measure(value)).font(.title.weight(.semibold).monospacedDigit())
-                    Text(latest.unit.abbreviation).font(.subheadline).foregroundStyle(Color(.secondaryLabel))
+                    Text(Formatting.weightParts(value, .pounds).amount).font(.title.weight(.semibold).monospacedDigit())
+                    Text("lb").font(.subheadline).foregroundStyle(Color(.secondaryLabel))
                 }
             }
             Spacer()
             if let change {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("30 days").font(.subheadline).foregroundStyle(Color(.secondaryLabel))
-                    Text(Formatting.signedWeight(change, latest.unit))
+                    Text(Formatting.signedWeight(change, .pounds))
                         .font(.body.monospacedDigit())
                 }
             }

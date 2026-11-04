@@ -80,5 +80,13 @@ extension WorkoutActivityAttributes.ContentState {
     var isResting: Bool { rest != nil }
 
     /// The set count in words. Said the same way on every surface that has room for it.
-    var setCountPhrase: String { setCount == 1 ? "1 set" : "\(setCount) sets" }
+    /// Work sets only, and "No sets yet" before the first — warm-ups included — as the in-app bar
+    /// says it.
+    var setCountPhrase: String {
+        switch setCount {
+        case 0: "No sets yet"
+        case 1: "1 set"
+        default: "\(setCount) sets"
+        }
+    }
 }

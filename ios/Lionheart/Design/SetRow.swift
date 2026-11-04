@@ -22,6 +22,10 @@ struct SetRow: View {
     /// The prescription the set answered, only where the set fell short of it.
     let unmetTarget: SetPrescription?
     let record: SetRecordOutcome
+    /// Whether a record is said in words under the set as well as marked: on the logging surface,
+    /// where it has just happened, and not in a session's history, where a line under every record
+    /// set would be noise.
+    let saysRecord: Bool
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .subheadline) private var numberWidth: CGFloat = 20
@@ -37,6 +41,7 @@ struct SetRow: View {
         self.figures = .of(command)
         self.unmetTarget = target.flatMap { $0.isMet(by: command) ? nil : $0 }
         self.record = record
+        self.saysRecord = true
     }
 
     /// A set in a finished session, read back from the server, with the records it established.
@@ -46,6 +51,7 @@ struct SetRow: View {
         self.figures = .of(entry)
         self.unmetTarget = nil
         self.record = record
+        self.saysRecord = false
     }
 
     var body: some View {
@@ -60,6 +66,15 @@ struct SetRow: View {
                     .font(.footnote.monospacedDigit())
                     .foregroundStyle(Color(.secondaryLabel))
                     .padding(.leading, numberWidth + Self.spacing)
+            }
+            // Said in words under the set, not only as the glyph: a record is the moment of the
+            // session, and the glyph alone does not say which record it was.
+            if saysRecord, let beaten = Formatting.recordsBeaten(record) {
+                Text(beaten)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .padding(.leading, numberWidth + Self.spacing)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .listRowInsets(EdgeInsets(top: 7, leading: 20, bottom: 7, trailing: 20))

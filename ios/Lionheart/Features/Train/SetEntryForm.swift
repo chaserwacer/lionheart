@@ -27,6 +27,9 @@ struct SetEntryForm: View {
     /// Which field has the keyboard. Held so the keyboard toolbar can put it away — a number pad
     /// has no Return key, so without this there is no way off it but tapping elsewhere.
     @FocusState private var focused: Field?
+    /// Taps on a step button, for the selection tick. A count rather than the fields themselves, so
+    /// typing a digit does not tick.
+    @State private var steps = 0
 
     private enum Field: Hashable {
         case weight, reps, distance, minutes, seconds, elevation, text
@@ -90,8 +93,20 @@ struct SetEntryForm: View {
     @ViewBuilder
     private func guideParts(_ guide: SetGuide) -> some View {
         if let lastTime = guide.lastTime, let text = Formatting.lastTime(lastTime.set) {
-            Text("\(Text("Last").foregroundStyle(Color(.tertiaryLabel))) \(text)")
-                .accessibilityLabel("Last time, \(Formatting.date(lastTime.day)): \(text)")
+            HStack(spacing: 6) {
+                Text("\(Text("Last").foregroundStyle(Color(.tertiaryLabel))) \(text)")
+                if let standing = Formatting.versus(lastTime.versus, unit: draft.weightUnit) {
+                    Text(standing)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(lastTime.versus.isAhead ? Color.green : Color(.secondaryLabel))
+                        .contentTransition(.numericText())
+                        .animation(.snappy, value: lastTime.versus)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+                "Last time, \(Formatting.date(lastTime.day)): \(text). "
+                    + (Formatting.versus(lastTime.versus, unit: draft.weightUnit) ?? ""))
         }
         if let load = guide.systemLoad {
             Text("\(Text("System").foregroundStyle(Color(.tertiaryLabel))) \(Formatting.weight(load.total, load.unit))")
@@ -114,11 +129,14 @@ struct SetEntryForm: View {
         ToolbarItemGroup(placement: .keyboard) {
             Button("Done") { focused = nil }
             Spacer()
+            // Never disabled, unlike the row's own button. Found by logging a run: the keyboard's
+            // toolbar is drawn once when the first field takes focus and keeps the state it had
+            // then, so a row opened with its distance empty kept a dead Log button after the
+            // distance was typed. Fields that are not a set yet make the tap do nothing.
             Button(actionLabel) {
                 if let command = draft.command { log(command) }
             }
             .fontWeight(.semibold)
-            .disabled(!draft.isLoggable)
         }
     }
 
@@ -136,8 +154,7 @@ struct SetEntryForm: View {
             set: { type in
                 switch type {
                 case .lift(let kind):
-                    draft.modality = .lift
-                    draft.kind = kind
+                    draft = draft.marked(kind)
                 case .distanceTime:
                     draft.modality = .distanceTime
                     draft.kind = .working
@@ -164,17 +181,65 @@ struct SetEntryForm: View {
         }
     }
 
+    /// Weight, unit and reps, each number with a step pair under it.
+    ///
+    /// The steps are the fewer-taps answer to the commonest change between sets — five more pounds,
+    /// one rep fewer — which by keyboard is a tap on the field, a select, two digits and Done. A
+    /// step is one tap and leaves the keyboard down, so the Log button stays where the thumb is.
     private var liftFields: some View {
-        HStack(alignment: .bottom, spacing: Tokens.cardPadding) {
-            // Empty is the start of a movement with no load to carry forward, and a lift needs a
-            // weight to be logged — so the field says how to log one that has none. Short because
-            // the field is a third of the row: "0 for bodyweight" truncated to "0 for bodyw…".
-            field(
-                "Weight", text: $draft.weight, keyboard: .decimalPad, focus: .weight,
-                prompt: "0 if none")
+        HStack(alignment: .top, spacing: Tokens.cardPadding) {
+            VStack(spacing: 6) {
+                // Empty is the start of a movement with no load to carry forward, and a lift needs a
+                // weight to be logged — so the field says how to log one that has none. Short because
+                // the field is a third of the row: "0 for bodyweight" truncated to "0 for bodyw…".
+                field(
+                    "Weight", text: $draft.weight, keyboard: .decimalPad, focus: .weight,
+                    prompt: "0 if none")
+                stepPair(
+                    less: "Less weight", more: "More weight",
+                    step: Formatting.measure(draft.weightStep)
+                ) { draft = draft.steppingWeight(by: $0) }
+            }
             weightUnitMenu
-            field("Reps", text: $draft.reps, keyboard: .numberPad, focus: .reps)
+            VStack(spacing: 6) {
+                field("Reps", text: $draft.reps, keyboard: .numberPad, focus: .reps)
+                stepPair(less: "One rep fewer", more: "One rep more", step: "1") { draft = draft.steppingReps(by: $0) }
+            }
         }
+        .sensoryFeedback(.selection, trigger: steps)
+    }
+
+    /// A − and a + under a field, each moving it one step.
+    private func stepPair(less: String, more: String, step: String, move: @escaping (Int) -> Void) -> some View {
+        HStack(spacing: 6) {
+            Button {
+                move(-1)
+                steps += 1
+            } label: {
+                stepLabel("−", step)
+            }
+            .accessibilityLabel(less)
+            Button {
+                move(1)
+                steps += 1
+            } label: {
+                stepLabel("+", step)
+            }
+            .accessibilityLabel(more)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .font(.footnote.monospacedDigit())
+    }
+
+    /// "+2.5", or the sign alone where the step no longer fits: at the accessibility sizes the
+    /// figure would truncate to "+2…", and the field above already shows what the step did.
+    private func stepLabel(_ sign: String, _ step: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            Text("\(sign)\(step)").lineLimit(1)
+            Text(sign)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var distanceFields: some View {
@@ -195,7 +260,7 @@ struct SetEntryForm: View {
             }
             durationFields
             field(
-                "Elevation gain (m)", text: $draft.elevationGainMeters,
+                "Elevation gain (ft)", text: $draft.elevationGainFeet,
                 keyboard: .numbersAndPunctuation, focus: .elevation)
         }
     }

@@ -21,6 +21,8 @@ struct ScoreCell: Equatable, Sendable, Identifiable {
     let outOf: Double
     /// Where the cell begins on the score's axis.
     let start: Double
+    /// The week's target and what it grew from, for a volume measurement; `nil` for the others.
+    var weekly: WeeklyTarget?
 
     var share: Double {
         guard let points, outOf > 0 else { return 0 }
@@ -40,5 +42,17 @@ struct ScoreCell: Equatable, Sendable, Identifiable {
         case .standing(let words):
             return words
         }
+    }
+
+    /// Where the week's target came from: "4-week mean 5.5 + 10 % · committed 8", "committed 150",
+    /// or "the floor · committed 8" after a lay-off. `nil` for a measurement with no weekly target.
+    var basis: String? {
+        guard let weekly else { return nil }
+        let committed = "committed \(MeasurementText.plain(weekly.committed))"
+        guard let chronic = weekly.chronic else { return "No 4 weeks to grow from · \(committed)" }
+        let mean = "4-week mean \(MeasurementText.plain((chronic * 10).rounded() / 10))"
+        if !weekly.isRamped { return "\(mean) · at the committed \(MeasurementText.plain(weekly.committed))" }
+        if weekly.target <= weekly.floor { return "\(mean) · the floor \(MeasurementText.plain(weekly.floor)) · \(committed)" }
+        return "\(mean) + 10 % · \(committed)"
     }
 }

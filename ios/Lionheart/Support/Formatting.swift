@@ -152,12 +152,34 @@ enum Formatting {
         value.formatted(.number.precision(.fractionLength(0...2)).grouping(.never))
     }
 
+    /// A weight in pounds, whichever unit it was logged in: `225 lb`.
     static func weight(_ value: Double, _ unit: WeightUnit) -> String {
-        "\(measure(value)) \(unit.abbreviation)"
+        let parts = weightParts(value, unit)
+        return parts.unit.isEmpty ? parts.amount : "\(parts.amount) \(parts.unit)"
     }
 
+    /// A weight's figure and unit apart, for a row that aligns them in columns, in pounds
+    /// (`Imperial.pounds`). A unit this build cannot name keeps its number and says no unit,
+    /// rather than calling it pounds.
+    static func weightParts(_ value: Double, _ unit: WeightUnit) -> (amount: String, unit: String) {
+        (measure(Imperial.pounds(value, from: unit)), Imperial.weightLabel(unit))
+    }
+
+    /// A distance in the unit it reads in: kilometres as miles, a track's metres and yards as
+    /// logged (`Imperial.distance`).
     static func distance(_ value: Double, _ unit: DistanceUnit) -> String {
-        "\(measure(value)) \(unit.abbreviation)"
+        let parts = distanceParts(value, unit)
+        return parts.unit.isEmpty ? parts.amount : "\(parts.amount) \(parts.unit)"
+    }
+
+    static func distanceParts(_ value: Double, _ unit: DistanceUnit) -> (amount: String, unit: String) {
+        let shown = Imperial.distance(value, unit)
+        return (measure(shown.value), shown.unit.abbreviation)
+    }
+
+    /// A trail run's or a ride's climb, signed: `+459 ft`.
+    static func climb(meters: Double) -> String {
+        "\(meters < 0 ? "−" : "+")\(Imperial.climb(meters: abs(meters)))"
     }
 
     /// What a set did, in one line. `nil` for a set whose words are the record — a freeform set's
@@ -170,10 +192,10 @@ enum Formatting {
             return "\(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
         case .trailRun(let set):
             return "\(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
-                + " · \(measure(set.elevationGainMeters)) m gain"
+                + " · \(Imperial.climb(meters: set.elevationGainMeters)) gain"
         case .endurance(let set):
             return "\(set.activity.title) \(distance(set.distance, set.unit)) in \(clock(seconds: set.duration))"
-                + " · \(measure(set.elevationGainMeters)) m gain"
+                + " · \(Imperial.climb(meters: set.elevationGainMeters)) gain"
         case .freeform:
             return nil
         }
@@ -203,21 +225,25 @@ enum Formatting {
         "RPE \(measure(value))"
     }
 
-    /// A running volume total — `4,250 kg`, with the grouping a four-figure number wants.
+    /// A running volume total — `4,250 lb`, with the grouping a four-figure number wants.
     static func volume(_ total: WorkoutTotals.WeightTotal) -> String {
         volume(total.volume, total.unit)
     }
 
+    /// A volume in pounds, whichever unit it was lifted in, to a tenth at most.
     static func volume(_ volume: Double, _ unit: WeightUnit) -> String {
-        "\(volume.formatted(.number.precision(.fractionLength(0...1)))) \(unit.abbreviation)"
+        let figure = Imperial.pounds(volume, from: unit).formatted(.number.precision(.fractionLength(0...1)))
+        let label = Imperial.weightLabel(unit)
+        return label.isEmpty ? figure : "\(figure) \(label)"
     }
 
-    /// What a session's sets came to — "14 sets · 12,450 lb" — with a volume per unit lifted in,
-    /// because weights never convert. A unit whose lifts moved no load (bodyweight work recorded at
-    /// zero) adds no volume to say.
+    /// What a session's sets came to — "14 sets · 12,450 lb" — as one volume in pounds, a part
+    /// lifted in kilograms converted into it. Lifts that moved no load (bodyweight work recorded at
+    /// zero) add no volume to say; a unit this build cannot name is said on its own, unconverted.
     static func totals(_ totals: WorkoutTotals) -> String {
-        ([count(totals.setCount, "set")] + totals.weights.filter { $0.volume > 0 }.map(volume))
-            .joined(separator: " · ")
+        let pounds = totals.poundsVolume.map { [volume($0, .pounds)] } ?? []
+        let unnamed = totals.weights.filter { $0.volume > 0 && Imperial.weightLabel($0.unit).isEmpty }.map(volume)
+        return ([count(totals.setCount, "set")] + pounds + unnamed).joined(separator: " · ")
     }
 
     /// How much of a session set a record: the sets that did, and the movements whose best
@@ -244,7 +270,7 @@ enum Formatting {
         case .hrv: (whole(value), "ms")
         case .lowestHeartRate: (whole(value), "bpm")
         case .respiratoryRate: (value.formatted(.number.precision(.fractionLength(1))), "/min")
-        case .temperatureDeviation: (signed(value, fractionDigits: 2), "°C")
+        case .temperatureDeviation: (signed(value, fractionDigits: 1), "°F")
         case .steps: (value.formatted(.number.precision(.fractionLength(0))), nil)
         case .sleepDuration: (hoursAndMinutes(seconds: value), nil)
         }
@@ -300,6 +326,15 @@ enum Formatting {
         }
     }
 
+    /// Which night a row is, by the evening it began — Oura files a night under the morning it
+    /// ended: "Last night · Mon, Nov 2" and "Night before · Sun, Nov 1" counted back from today,
+    /// "Night of Mon, Nov 2" from any other day.
+    static func nightCaption(_ night: RecentNights.Night, isLastNight: Bool, isToday: Bool) -> String {
+        let evening = date(night.wakingDay.adding(days: -1))
+        guard isToday else { return "Night of \(evening)" }
+        return "\(isLastNight ? "Last night" : "Night before") · \(evening)"
+    }
+
     // MARK: - Cardio and habits
 
     /// A time of day from minutes after midnight, on a 24-hour clock: `23:30`, `07:05`. Wraps, so a
@@ -347,9 +382,11 @@ enum Formatting {
         }
     }
 
-    /// An estimate, rounded to the whole number it can honestly claim and marked as one.
+    /// An estimate in pounds, rounded to the whole number it can honestly claim and marked as one.
     static func estimate(_ value: Double, _ unit: WeightUnit) -> String {
-        "≈ \(estimateFigure(value)) \(unit.abbreviation)"
+        let figure = estimateFigure(Imperial.pounds(value, from: unit))
+        let label = Imperial.weightLabel(unit)
+        return label.isEmpty ? "≈ \(figure)" : "≈ \(figure) \(label)"
     }
 
     /// An estimated single as a whole number, rounded the one way everywhere it is shown.
@@ -362,8 +399,8 @@ enum Formatting {
         instant.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
-    /// What a record holds, as its headline figure — `245 lb × 1`, `26:45`, `5:21 /km`. A rep max
-    /// reads at its own count, `180 kg × 6`, even when the set holding it was longer; the detail
+    /// What a record holds, as its headline figure — `245 lb × 1`, `26:45`, `8:37 /mi`. A rep max
+    /// reads at its own count, `405 lb × 6`, even when the set holding it was longer; the detail
     /// line says which set.
     static func achievement(_ achievement: Achievement) -> String {
         switch achievement {
@@ -401,14 +438,28 @@ enum Formatting {
             nil
         case .longestDistance(let effort):
             "in \(clock(seconds: effort.duration))"
-        case .fastestTime(_, let effort):
-            distance(effort.distance, effort.unit)
+        case .fastestTime(let meters, let effort):
+            raceDistance(bracketMeters: meters, effort)
         case .bestPace(let pace):
             "\(distance(pace.effort.distance, pace.effort.unit)) in \(clock(seconds: pace.effort.duration))"
         }
     }
 
-    /// One set as performed — `180 kg × 7`.
+    /// A fastest time's distance as a runner names it: a race distance by its name, any other in
+    /// miles — or as logged, for a track's metres (`distance(_:_:)`). The bracket is the server's,
+    /// the distance actually covered rounded to the metre, so only an exact race distance is named.
+    static func raceDistance(bracketMeters: Int, _ effort: Achievement.Distance) -> String {
+        switch bracketMeters {
+        case 1609: "Mile"
+        case 5000: "5K"
+        case 10_000: "10K"
+        case 21_097: "Half marathon"
+        case 42_195: "Marathon"
+        default: distance(effort.distance, effort.unit)
+        }
+    }
+
+    /// One set as performed — `405 lb × 7`.
     static func lift(_ lift: Achievement.Lift) -> String {
         "\(weight(lift.weight, lift.unit)) × \(lift.reps)"
     }
@@ -432,13 +483,9 @@ enum Formatting {
         }
     }
 
-    /// A pace in the athlete's own scale: per mile for an effort logged in miles or yards, per
-    /// kilometer otherwise. Both figures are the server's; this only chooses which to read.
+    /// A pace per mile, whichever unit the effort was logged in. The figure is the server's.
     static func pace(_ pace: Achievement.Pace) -> String {
-        switch pace.effort.unit {
-        case .miles, .yards: "\(clock(seconds: pace.perMile)) /mi"
-        case .meters, .kilometers, .unrecognised: "\(clock(seconds: pace.perKilometer)) /km"
-        }
+        Imperial.pace(perMile: pace.perMile)
     }
 
     /// How a record came to be, from its own lineage: when it was set, and how long the one it

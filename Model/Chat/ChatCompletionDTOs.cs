@@ -31,6 +31,9 @@ namespace Model.Chat.Completion
         /// every round of the exchange and stored with none of them. Empty sends no briefing.
         /// </summary>
         public string Briefing { get; init; } = string.Empty;
+
+        /// <summary>Told the answer's text as it is written, and each round of tools as it is run.</summary>
+        public IExchangeObserver Observer { get; init; } = ExchangeObserver.Unwatched;
     }
 
     /// <summary>

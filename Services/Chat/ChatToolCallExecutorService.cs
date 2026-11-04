@@ -101,7 +101,19 @@ namespace Model.Tools
                     new Problem.Unexpected($"Tool execution failed. ({ex.GetType().Name})"));
             }
 
-            var unwrapped = await UnwrapAsync(invokeResult, cancellationToken).ConfigureAwait(false);
+            // An async tool fails when its task is awaited, after Invoke has returned, so the
+            // failure is caught here too or it would end the exchange instead of reaching the model.
+            object? unwrapped;
+            try
+            {
+                unwrapped = await UnwrapAsync(invokeResult, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return Result<ToolOutcome, Problem>.Failure(
+                    new Problem.Unexpected($"Tool execution failed. ({ex.GetType().Name})"));
+            }
+
             return Result<ToolOutcome, Problem>.Success(
                 ToolOutcome.Produced(toolCall.CallId, JsonSerializer.Serialize(unwrapped, _jsonOptions)));
         }
@@ -275,6 +287,13 @@ namespace Model.Tools
             {
                 if (arg is null)
                     continue;
+
+                // A range the model left out binds as two default dates, which no reader can use.
+                if (arg is lionheart.Model.Analysis.DayRange { From.Year: 1 } or lionheart.Model.Analysis.DayRange { To.Year: 1 })
+                {
+                    errors.Add(new InvalidField("range", "Give the range as { \"from\": \"yyyy-MM-dd\", \"to\": \"yyyy-MM-dd\" }."));
+                    continue;
+                }
 
                 var context = new ValidationContext(arg);
                 var results = new List<ValidationResult>();
