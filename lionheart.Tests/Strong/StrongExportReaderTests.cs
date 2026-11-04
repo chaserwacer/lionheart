@@ -11,7 +11,7 @@ namespace lionheart.Tests.Strong;
 /// </summary>
 public class StrongExportReaderTests
 {
-    // ---- The real export ----
+    // ---- The four-workout export ----
 
     [Fact]
     public void Rows_sharing_a_date_and_name_become_one_workout_with_its_sets_in_order()
@@ -19,14 +19,14 @@ public class StrongExportReaderTests
         var workouts = Read(FourWorkouts);
 
         Assert.Equal(
-            [("Push Workout", 20), ("RIT Legs", 13), ("Evening Workout", 8), ("Afternoon Workout", 12)],
+            [("Push Day", 20), ("Lower Body", 13), ("Evening Workout", 8), ("Afternoon Workout", 12)],
             workouts.Select(workout => (workout.Key.Name, workout.Sets.Count)));
 
         var push = workouts[0];
         Assert.Equal(
             ["Bench Press (Barbell)", "Bench Press (Barbell)", "Bench Press (Barbell)"],
             push.Sets.Take(3).Select(set => set.Exercise));
-        Assert.Equal([155.0, 185.0, 185.0], push.Sets.Take(3).Select(set => set.Weight));
+        Assert.Equal([135.0, 180.0, 180.0], push.Sets.Take(3).Select(set => set.Weight));
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class StrongExportReaderTests
         var evening = Read(FourWorkouts)[2];
 
         Assert.Equal(
-            "horizontal pulling movement \nvertical pressing movement \nhamstring curl?\noverhead tricep",
+            "pull first \nthen press \nleg curl?\narms",
             evening.Notes);
     }
 

@@ -15,7 +15,7 @@ public class StrongMovementMapTests
     // ---- The shipped map ----
 
     [Fact]
-    public void The_shipped_map_reads_and_covers_every_exercise_in_the_real_workouts()
+    public void The_shipped_map_reads_and_covers_every_exercise_in_the_four_workout_export()
     {
         var exercises = ResultAssert.Succeeded(StrongExportReader.Read(StrongExports.FourWorkouts, StrongExports.NewYork))
             .SelectMany(workout => workout.Sets)

@@ -8,14 +8,14 @@ using lionheart.Tests.Support;
 namespace lionheart.Tests.Strong;
 
 /// <summary>
-/// Strong exports for the import tests: the real miniature under <c>Strong/Exports</c>, and
-/// hand-written ones whose premise is stated where the test is.
+/// Strong exports for the import tests: the four-workout miniature under <c>Strong/Exports</c>,
+/// and hand-written ones whose premise is stated where the test is.
 /// </summary>
 /// <remarks>
-/// <c>four-workouts.csv</c> is four of the athlete's own workouts copied byte for byte from his
-/// export: one with a warm-up, one with sets to failure, one with workout notes and rest timers,
-/// and one with a set note. Real rows rather than invented ones, for the reason the Oura fixtures
-/// are real: what the importer has to survive is what Strong actually writes.
+/// <c>four-workouts.csv</c> is invented, written the way Strong writes an export: quoting only on
+/// an exercise's first row, trailing spaces on custom exercise names, escaped line breaks in
+/// workout notes, and rest timers as rows of their own. One workout has a warm-up, one sets to
+/// failure, one workout notes and rest timers, and one a set note.
 /// </remarks>
 internal static class StrongExports
 {
@@ -24,7 +24,7 @@ internal static class StrongExports
 
     public static string FourWorkouts => Path.Combine(AppContext.BaseDirectory, "Strong", "Exports", "four-workouts.csv");
 
-    /// <summary>Where the athlete was when these were logged; tests pin it rather than read the machine's.</summary>
+    /// <summary>The zone the export's wall-clock times are read in; tests pin it rather than read the machine's.</summary>
     public static TimeZoneInfo NewYork => TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
 
     /// <summary>One set row, quoted the way Strong quotes them.</summary>
