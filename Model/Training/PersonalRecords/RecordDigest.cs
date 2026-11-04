@@ -1,5 +1,3 @@
-using System.Globalization;
-using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Training.PersonalRecords;
 
@@ -10,6 +8,8 @@ namespace lionheart.Model.Training.PersonalRecords;
 /// The full standing set runs to well over a thousand records, and handed to the model whole it
 /// cost about $2 a call and filled a session's context in one read. The headline answers most
 /// questions; the movement's id is there so the model can ask for every rep max and its date.
+/// Figures are stated in the units the athlete reads (<see cref="Imperial"/>), since the model
+/// repeats them to him; a record logged in kilograms still ranks within its own unit.
 /// </remarks>
 public sealed record RecordDigest(Guid? MovementDataId, string Subject, DateTime LastSetAt, string Records)
 {
@@ -45,20 +45,16 @@ public sealed record RecordDigest(Guid? MovementDataId, string Subject, DateTime
     {
         Achievement.HeaviestSet heaviest => $"heaviest {Lift(heaviest.Lift)}",
         Achievement.RepMax repMax => $"{repMax.Reps}RM {Lift(repMax.Lift)}",
-        Achievement.BestSetVolume set => $"best set volume {Lift(set.Lift)} = {Number(set.Lift.Volume)} {Unit(set.Lift.Unit)}",
-        Achievement.BestSessionVolume session => $"best session volume {Number(session.Total.Volume)} {Unit(session.Total.Unit)}",
+        Achievement.BestSetVolume set => $"best set volume {Lift(set.Lift)} = {Imperial.Weight(set.Lift.Volume, set.Lift.Unit)}",
+        Achievement.BestSessionVolume session => $"best session volume {Imperial.Weight(session.Total.Volume, session.Total.Unit)}",
         Achievement.LongestDistance longest => $"longest {Effort(longest.Effort)}",
         Achievement.FastestTime fastest => $"fastest {Effort(fastest.Effort)}",
         Achievement.BestPace pace => $"best pace {Effort(pace.Effort)}",
         _ => achievement.Kind.Name,
     };
 
-    private static string Lift(LiftPerformance lift) => $"{Number(lift.Weight)} {Unit(lift.Unit)} × {lift.Reps}";
+    private static string Lift(LiftPerformance lift) => $"{Imperial.Weight(lift.Weight, lift.Unit)} × {lift.Reps}";
 
     private static string Effort(DistanceEffort effort) =>
-        $"{Number(effort.Distance)} {effort.Unit.ToString().ToLowerInvariant()} in {effort.Duration:hh\\:mm\\:ss}";
-
-    private static string Unit(WeightUnit unit) => unit == WeightUnit.Pounds ? "lb" : "kg";
-
-    private static string Number(double value) => value.ToString("#,0.##", CultureInfo.InvariantCulture);
+        $"{Imperial.Distance(effort.Distance, effort.Unit)} in {effort.Duration:hh\\:mm\\:ss}";
 }

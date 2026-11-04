@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using lionheart.Data;
 using lionheart.Functional;
+using lionheart.Model;
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
 using lionheart.Model.Training;
@@ -140,8 +141,7 @@ public sealed class TodayBriefingService(
             session.Effort is EffortReported difficulty ? difficulty.Ratings.DifficultyRating : null,
             session.Effort is EffortReported fatigue ? fatigue.Ratings.AccumulatedFatigue : null);
 
-    private static string TopSet(LiftSet set) =>
-        string.Create(CultureInfo.InvariantCulture, $"{set.Weight:0.#} {(set.Unit is WeightUnit.Kilograms ? "kg" : "lb")} × {set.Reps}");
+    private static string TopSet(LiftSet set) => $"{Imperial.Weight(set.Weight, set.Unit)} × {set.Reps}";
 
     private static LoadFact Load(TrainingLog log, DateOnly today)
     {

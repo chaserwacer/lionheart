@@ -16,7 +16,7 @@ public class WorkoutFactsTests
     }
 
     [Fact]
-    public void The_line_counts_each_activity_sums_its_distance_and_reads_its_latest()
+    public void The_line_counts_each_activity_sums_its_distance_and_reads_its_latest_in_miles_and_feet()
     {
         var start = new DateTimeOffset(2026, 10, 3, 7, 0, 0, TimeSpan.FromHours(-4));
         IReadOnlyList<CompletedTrainingSession> runs =
@@ -27,9 +27,9 @@ public class WorkoutFactsTests
         ];
 
         Assert.Equal(
-            "Workouts from Apple Health in the last 28 days: 2 runs 15.00 km, 1 ride 45.00 km; "
-            + "latest run 2026-10-07, 10.00 km in 50:00, pace 5:00/km, climb 140 m; "
-            + "latest ride 2026-10-05, 45.00 km in 1:30:00, speed 30.0 km/h, climb 300 m.",
+            "Workouts from Apple Health in the last 28 days: 2 runs 9.32 mi, 1 ride 27.96 mi; "
+            + "latest run 2026-10-07, 6.21 mi in 50:00, pace 8:03/mi, climb 459 ft; "
+            + "latest ride 2026-10-05, 27.96 mi in 1:30:00, speed 18.6 mph, climb 984 ft.",
             WorkoutFacts.Recent(runs, days: 28));
     }
 

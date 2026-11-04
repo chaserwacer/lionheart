@@ -401,8 +401,8 @@ public class HealthWorkoutImportServiceTests : IDisposable
             _athletes.Owner, new Model.Analysis.DayRange(DateOnly.FromDateTime(AHealthRun.Start.DateTime), DateOnly.FromDateTime(AHealthRun.Start.DateTime))));
 
         var text = Assert.Single(runs);
-        Assert.Contains("5.00 km", text);
-        Assert.Contains("Splits per km", text);
+        Assert.Contains("3.11 mi", text);
+        Assert.Contains("Splits per mile", text);
         Assert.DoesNotContain("46.5", text);
         Assert.DoesNotContain("8.25", text);
     }
