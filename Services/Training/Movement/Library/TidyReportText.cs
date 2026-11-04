@@ -9,6 +9,7 @@ public static class TidyReportText
     public static IEnumerable<string> Lines(TidyReport report)
     {
         var plan = report.Plan;
+        var survivors = plan.Survivors;
 
         yield return report switch
         {
@@ -46,7 +47,7 @@ public static class TidyReportText
                      $"'{carry.From}' to '{carry.Into}'{(carry.Statement is StatedClassification.Stated ? ": its classification" : string.Empty)}"
                      + (carry.Description.Length > 0 ? $"; its description \"{carry.Description}\"" : string.Empty))))
             yield return line;
-        foreach (var line in Section("Setups carried over", plan.SetupCarries.Select(carry => $"onto movement {carry.IntoId}")))
+        foreach (var line in Section("Setups carried over", plan.SetupCarries.Select(carry => $"onto {MovementNames.Of(survivors[carry.IntoId])}")))
             yield return line;
 
         yield return string.Empty;

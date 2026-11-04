@@ -84,7 +84,7 @@ struct MovementData: Equatable, Sendable, Identifiable {
     private static let joiningWords: Set<String> = ["a", "and", "of", "on", "the", "to"]
 
     /// Every word capitalised but a joining word inside the phrase.
-    static func capitalised(_ modifier: String) -> String {
+    private static func capitalised(_ modifier: String) -> String {
         modifier.replacing(/\b\p{L}[\p{L}']*/) { match in
             let word = String(match.output)
             let isInside = match.range.lowerBound != modifier.startIndex
