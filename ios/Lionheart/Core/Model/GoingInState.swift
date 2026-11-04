@@ -186,9 +186,9 @@ extension GoingInRating: Decodable {
         let type = container.wireType
         switch type {
         case "rated":
-            self = .rated(
-                score: container.lenient("score", or: 0),
-                band: GoingInBand(wire: container.lenient("band", or: "")))
+            // A rating without its number is not a rating of nought, which would read as "0 Low".
+            guard let score = container.lenient(Int.self, "score") else { self = .unrecognised(type); return }
+            self = .rated(score: score, band: GoingInBand(wire: container.lenient("band", or: "")))
         case "notRated":
             self = .notRated
         default:
@@ -203,7 +203,8 @@ extension PartScore: Decodable {
         let type = container.wireType
         switch type {
         case "scored":
-            self = .scored(score: container.lenient("score", or: 0), share: container.lenient("share", or: 0))
+            guard let score = container.lenient(Int.self, "score") else { self = .unrecognised(type); return }
+            self = .scored(score: score, share: container.lenient("share", or: 0))
         case "notScored":
             self = .notScored
         default:

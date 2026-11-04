@@ -19,8 +19,12 @@ public interface IGoingInService
 /// <see cref="GoingInAnalysis"/>.
 /// </summary>
 /// <remarks>
-/// The briefing's facts rather than reads of its own, so the rating and what the chat says about
-/// today are drawn from one reading of the nights, readiness and training and cannot disagree.
+/// The nights, readiness, wellness, plans and training are the briefing's facts rather than reads of
+/// its own, so the rating and what the chat says about today cannot disagree. Two things the
+/// briefing does not hold are read here: the muscles each set trained, from the volume service, and
+/// the movements an injury's check-ins name. Reading the facts also runs the briefing's score and
+/// week means, which the rating does not use; for one athlete opening one surface that costs a
+/// fraction of a second, and keeping one reading of today is worth it.
 /// </remarks>
 public sealed class GoingInService(ModelContext context, ITodayFacts today, ITrainingVolumeService volume)
     : IGoingInService

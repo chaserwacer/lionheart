@@ -42,8 +42,8 @@ public abstract record GoingInRating
     public sealed record Rated(int Score, GoingInBand Band) : GoingInRating;
 
     /// <summary>
-    /// No readiness, no night and no sleep to read: training load and wellness alone say nothing
-    /// about recovery, so no rating is made from them.
+    /// None of readiness, autonomic or sleep could be scored: training load and wellness alone say
+    /// nothing about recovery, so no rating is made from them.
     /// </summary>
     public sealed record NotRated : GoingInRating;
 }

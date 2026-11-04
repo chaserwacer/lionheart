@@ -122,10 +122,9 @@ struct ActiveWorkoutBar: View {
         } else if workout.rest.isResting(at: now) {
             Text("Resting \(Formatting.clock(seconds: workout.rest.remaining(at: now)))")
                 .monospacedDigit()
-        } else if workout.sets.isEmpty {
-            Text("No sets logged")
         } else if workout.workSetCount == 0 {
-            Text("Warming up")
+            // Warm-ups are not sets anywhere a count is said, and the Lock Screen says this too.
+            Text("No sets yet")
         } else {
             Text(Formatting.count(workout.workSetCount, "set"))
         }

@@ -18,8 +18,9 @@ namespace lionheart.Services.Training.GoingIn;
 /// of lowest heart rate above or below moves it 8 points the other way.</item>
 /// <item>Sleep is Oura's sleep score for last night and the night before, two to one.</item>
 /// <item>Load starts at 100 and loses 1.5 per hard set since yesterday, 1 per minute at zone 4 or
-/// above, 0.15 per minute of zone 2, and 50 per unit the week's hard sets run above 1.3 times
-/// his four-week weekly mean.</item>
+/// above, 0.15 per minute of zone 2, 0.5 per minute of a cardio session with no heart rate to
+/// zone, and 50 per unit the week's hard sets run above 1.3 times his four-week weekly mean. It is
+/// not scored when the cardio could not be read: training it cannot see is not training not done.</item>
 /// <item>Wellness is today's 1–5 overall rating on the same scale; absent when not rated today.</item>
 /// </list>
 /// The rating is the parts' weighted mean over those that could be scored. It is made only when at
@@ -165,8 +166,14 @@ public static class GoingInAnalysis
             ({ } last, { } before) => (2.0 * last + before) / 3,
         };
 
-    private static double LoadScore(TodayFacts facts, DateOnly yesterday)
+    /// <summary>
+    /// The load since yesterday, or absent when the cardio could not be read: a run the report
+    /// could not see would otherwise cost nothing and the part would read fresher than he is.
+    /// </summary>
+    private static double? LoadScore(TodayFacts facts, DateOnly yesterday)
     {
+        if (facts.Cardio is CardioDays.Unread) return null;
+
         var hardSets = SinceYesterday(facts, yesterday).Sum(session => session.HardSets);
         var cardio = CardioSinceYesterday(facts, yesterday).ToList();
         var ratio = facts.Load.HardSetsWeeklyMean28 > 0
@@ -177,8 +184,17 @@ public static class GoingInAnalysis
                - 1.5 * hardSets
                - 1.0 * cardio.Sum(session => session.ZoneFourPlus ?? 0)
                - 0.15 * cardio.Sum(session => session.ZoneTwo ?? 0)
+               - UnzonedMinuteCost * cardio.Where(IsUnzoned).Sum(session => session.Minutes)
                - 50 * Math.Max(0, ratio - LoadRatioAllowance);
     }
+
+    /// <summary>
+    /// What a minute of cardio with no heart rate to zone costs: between zone 2 and zone 4, since
+    /// the session happened and how hard it was is unknown.
+    /// </summary>
+    public const double UnzonedMinuteCost = 0.5;
+
+    private static bool IsUnzoned(CardioFact session) => session.ZoneTwo is null && session.ZoneFourPlus is null;
 
     private static IEnumerable<SessionFact> SinceYesterday(TodayFacts facts, DateOnly yesterday) =>
         facts.Sessions.Where(session => session.Day >= yesterday);

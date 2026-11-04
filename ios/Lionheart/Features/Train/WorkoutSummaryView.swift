@@ -49,7 +49,7 @@ struct WorkoutSummaryView: View {
             SummaryFigures(figures: [
                 ("Duration", Formatting.duration(seconds: summary.duration)),
                 ("Sets", "\(summary.totals.setCount)"),
-            ] + summary.totals.weights.prefix(1).map { ("Volume", Formatting.volume($0)) }
+            ] + (summary.totals.poundsVolume.map { [("Volume", Formatting.volume($0, .pounds))] } ?? [])
               + [("Records", "\(summary.recordSets)")])
         } footer: {
             Text(summary.startedAt.formatted(date: .abbreviated, time: .shortened))
@@ -64,11 +64,10 @@ struct WorkoutSummaryView: View {
             }
             compared("Working sets", now: "\(summary.totals.setCount)",
                      change: Formatting.signedCount(summary.totals.setCount - comparison.totals.setCount))
-            ForEach(summary.totals.weights) { weight in
-                if let before = comparison.totals.weights.first(where: { $0.unit == weight.unit }), before.volume > 0 {
-                    compared("Volume", now: Formatting.volume(weight),
-                             change: Formatting.percentChange(weight.volume / before.volume - 1))
-                }
+            // Both in pounds, so a session lifted partly in kilograms compares whole.
+            if let now = summary.totals.poundsVolume, let before = comparison.totals.poundsVolume, before > 0 {
+                compared("Volume", now: Formatting.volume(now, .pounds),
+                         change: Formatting.percentChange(now / before - 1))
             }
         } header: {
             Text("Against \(Formatting.date(comparison.date))")

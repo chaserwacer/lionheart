@@ -72,16 +72,24 @@ struct GoingInSection: View {
             Text(GoingInWords.band(reading.rating))
                 .font(.subheadline)
             Spacer(minLength: 4)
-            Text(reading.parts.compactMap { part in
-                part.score.score.map { "\(GoingInWords.shortName(part.kind)) \($0)" }
-            }.joined(separator: " · "))
+            // The scored parts by name where they fit, by number alone where they do not, and not
+            // at all before a figure would truncate: the line is a reminder, and a tap opens them.
+            ViewThatFits(in: .horizontal) {
+                partsLine { "\(GoingInWords.shortName($0.kind)) \($1)" }
+                partsLine { "\($1)" }
+                EmptyView()
+            }
             .font(.caption.monospacedDigit())
             .foregroundStyle(Color(.secondaryLabel))
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
         }
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
+    }
+
+    private func partsLine(_ text: (GoingInReading.Part, Int) -> String) -> some View {
+        Text(reading.parts.compactMap { part in part.score.score.map { text(part, $0) } }.joined(separator: " · "))
+            .lineLimit(1)
+            .fixedSize()
     }
 
     /// The five parts across one row, each a score over a capacity bar, so the eye finds the one

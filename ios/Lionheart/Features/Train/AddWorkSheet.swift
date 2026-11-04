@@ -18,30 +18,15 @@ struct AddWorkSheet: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch library.state {
-                case .loading:
-                    List { Section("Movements") { SkeletonRows(count: 6) } }
-                        .listStyle(.insetGrouped)
-                case .unavailable(let failure):
-                    ContentUnavailableView {
-                        Label("Movements are not available", systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(failure.message)
-                    } actions: {
-                        if failure.isWorthRetrying {
-                            Button("Try again") { Task { await library.refresh() } }
-                        }
-                    }
-                case .loaded(let movements), .stale(let movements, _):
-                    list(AddWorkMenu.of(
-                        catalogue: movements,
-                        recentIds: library.recent.map(\.movementDataId),
-                        priorityIds: priorityIds,
-                        previous: library.previous,
-                        query: query))
-                }
-            }
+            // Built from whatever the catalogue holds, empty while it loads: distance and time and
+            // words need no catalogue, and in a basement with nothing remembered they are still
+            // there to log — only the movement sections wait on it.
+            list(AddWorkMenu.of(
+                catalogue: library.state.value ?? [],
+                recentIds: library.recent.map(\.movementDataId),
+                priorityIds: priorityIds,
+                previous: library.previous,
+                query: query))
             .navigationTitle("Add")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -65,10 +50,11 @@ struct AddWorkSheet: View {
 
     @ViewBuilder
     private func list(_ menu: AddWorkMenu) -> some View {
-        if menu.isEmpty {
+        if menu.isEmpty, library.state.value != nil {
             ContentUnavailableView.search(text: query)
         } else {
             List {
+                catalogueStatus
                 if !menu.priorities.isEmpty {
                     Section("Priority lifts") {
                         ForEach(menu.priorities) { movementRow($0) }
@@ -100,6 +86,32 @@ struct AddWorkSheet: View {
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
+        }
+    }
+
+    /// Where the catalogue stands when it has nothing to list yet: rows shaped like what is coming,
+    /// or why it is not, with a retry worth trying.
+    @ViewBuilder
+    private var catalogueStatus: some View {
+        switch library.state {
+        case .loading:
+            Section("Movements") { SkeletonRows(count: 3) }
+        case .unavailable(let failure):
+            Section("Movements") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Movements are not available")
+                        .font(.subheadline.weight(.semibold))
+                    Text(failure.message)
+                        .font(.footnote)
+                        .foregroundStyle(Color(.secondaryLabel))
+                    if failure.isWorthRetrying {
+                        Button("Try again") { Task { await library.refresh() } }
+                            .font(.footnote)
+                    }
+                }
+            }
+        case .loaded, .stale:
+            EmptyView()
         }
     }
 

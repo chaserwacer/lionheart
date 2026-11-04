@@ -64,6 +64,17 @@ struct GoingInTests {
         #expect(try Decoding.decode(GoingInState.self, json).rating == .unrecognised("provisional"))
     }
 
+    @Test("A rating or a part score with no number is unrecognised, never read as nought")
+    func aMissingScoreIsNotZero() throws {
+        let json = Self.state
+            .replacingOccurrences(of: #""score":79,"band":"normal""#, with: #""band":"normal""#)
+            .replacingOccurrences(of: #"{"$type":"scored","score":64,"share":0.3333}"#, with: #"{"$type":"scored"}"#)
+        let state = try Decoding.decode(GoingInState.self, json)
+
+        #expect(state.rating == .unrecognised("rated"))
+        #expect(state.load.score == .unrecognised("scored"))
+    }
+
     @Test("What is next decodes with the aim's weight in its own numeric unit")
     func decodesWhatIsNext() throws {
         let next = try Decoding.decode(NextSessions.self, Self.next)

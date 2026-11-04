@@ -89,7 +89,7 @@ struct ImperialTests {
     @Test("A new lift starts in pounds and new distance work in miles")
     func newWorkStartsImperial() {
         let lift = SetDefaults.nextSet(on: AWorkout.bench, in: AWorkout.live())
-        let run = SetDefaults.nextTrailRun(in: AWorkout.live())
+        let run = CardioWork.outdoorRun.nextSet(in: AWorkout.live())
 
         #expect(lift.liftPart?.unit == .pounds)
         guard case .trailRun(let trail) = run else {

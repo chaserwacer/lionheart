@@ -42,6 +42,7 @@ enum CardioWork: Hashable, Sendable, Identifiable {
         if let last = workout.sets.last(where: { isSame(as: $0.command) }) {
             return last.command
         }
+        // From the last run or ride, not from a rower's metres: the unit a stretch of road is read in.
         let unit = workout.sets.reversed().lazy.compactMap { Self.distanceUnit(of: $0.command) }.first
             ?? SetDefaults.distanceUnit
 
@@ -52,6 +53,15 @@ enum CardioWork: Hashable, Sendable, Identifiable {
         case .activity(let activity):
             return .endurance(SetCommand.Endurance(
                 activity: activity, distance: 0, unit: unit, duration: 0, elevationGainMeters: 0, rpe: .unrated))
+        }
+    }
+
+    /// The work an entry row is open on, for one with no movement of its own.
+    init?(_ draft: SetDraft) {
+        switch draft.modality {
+        case .trailRun: self = .outdoorRun
+        case .endurance: self = .activity(draft.enduranceActivity)
+        case .lift, .distanceTime, .freeform: return nil
         }
     }
 
@@ -70,10 +80,9 @@ enum CardioWork: Hashable, Sendable, Identifiable {
 
     private static func distanceUnit(of command: SetCommand) -> DistanceUnit? {
         switch command {
-        case .distanceTime(let set): set.unit
         case .trailRun(let set): set.unit
         case .endurance(let set): set.unit
-        case .lift, .freeform: nil
+        case .lift, .distanceTime, .freeform: nil
         }
     }
 }

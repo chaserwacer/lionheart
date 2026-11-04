@@ -37,6 +37,10 @@ struct SetDraft: Equatable, Sendable {
     /// What the lift is for. Working unless the athlete marks it otherwise; only a lift has one.
     var kind: SetKind = .working
     var text: String = ""
+    /// The weight the field held before marking the set a drop took a fifth off it, so marking it
+    /// something else puts it back rather than leaving it lighter — and a second drop does not
+    /// compound on the first.
+    var weightBeforeDrop: String?
 
     /// Seeds the fields from a set — the previous one on this movement, or its target.
     ///
@@ -150,6 +154,20 @@ struct SetDraft: Equatable, Sendable {
     /// Whether these fields are ready to be logged. The Log button reads this.
     var isLoggable: Bool { command != nil }
 
+    /// The row filled from last time, where last time arrived after the row was opened on a movement
+    /// and nothing has been typed into it since; `nil` to leave the row as it is.
+    ///
+    /// The row opens before the library has read last time back — a relaunch mid-workout — so it
+    /// opened empty and in the default unit. Only a row still exactly as the rule seeded it without
+    /// last time is filled: one the athlete has typed into is his.
+    func filledFromLastTime(_ previous: PreviousPerformance?, in workout: ActiveWorkout) -> SetDraft? {
+        guard let movementDataId, let previous,
+              self == SetDraft(next: movementDataId, in: workout, previous: nil)
+        else { return nil }
+        let filled = SetDraft(next: movementDataId, in: workout, previous: previous)
+        return filled == self ? nil : filled
+    }
+
     // MARK: - Stepping
 
     /// What one tap of a weight step moves: the smallest plate pair a bar takes in the unit, which is
@@ -175,15 +193,26 @@ struct SetDraft: Equatable, Sendable {
 
     /// The fields marked as `kind`. Marking a set as a drop takes a fifth off the weight, rounded
     /// down to a step, because a drop set is by definition lighter than the set before it and the
-    /// field otherwise holds that set's load — six taps of −5 for every drop.
+    /// field otherwise holds that set's load — six taps of −5 for every drop. A load too light to
+    /// drop a step from is left as it is rather than dropped to nothing, which would log as
+    /// bodyweight. Marking it anything else puts back the weight the drop took off.
     func marked(_ kind: SetKind) -> SetDraft {
         var next = self
         next.modality = .lift
-        if kind == .drop, self.kind != .drop, let weight = Self.number(weight), weight > 0 {
-            let dropped = (weight * Self.dropShare / weightStep).rounded(.down) * weightStep
-            next.weight = Self.weightField(dropped)
-        }
         next.kind = kind
+        switch (self.kind == .drop, kind == .drop) {
+        case (false, true):
+            guard let weight = Self.number(weight) else { return next }
+            let dropped = (weight * Self.dropShare / weightStep).rounded(.down) * weightStep
+            guard dropped >= weightStep else { return next }
+            next.weightBeforeDrop = self.weight
+            next.weight = Self.weightField(dropped)
+        case (true, false):
+            if let weightBeforeDrop { next.weight = weightBeforeDrop }
+            next.weightBeforeDrop = nil
+        case (false, false), (true, true):
+            break
+        }
         return next
     }
 

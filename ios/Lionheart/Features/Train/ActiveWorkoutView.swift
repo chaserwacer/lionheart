@@ -294,7 +294,7 @@ struct ActiveWorkoutView: View {
                     standard: restSeconds,
                     extend: { store.extendRest(by: $0) },
                     skip: { store.skipRest() },
-                    choose: { chooseRest($0, in: workout) })
+                    choose: { chooseRest($0) })
             }
         }
     }
@@ -338,13 +338,10 @@ struct ActiveWorkoutView: View {
         return "Next \(numbers)"
     }
 
-    /// Makes `duration` the standard rest and moves the one running to it, keeping its start: a
-    /// rest stretched to three minutes forty seconds in has two minutes twenty left.
-    private func chooseRest(_ duration: TimeInterval, in workout: ActiveWorkout) {
+    /// Makes `duration` the standard rest and moves the one running to it (`RestClock.resized`).
+    private func chooseRest(_ duration: TimeInterval) {
         restSeconds = duration
-        if case .running(_, let current) = workout.rest {
-            store.extendRest(by: duration - current)
-        }
+        store.resizeRest(to: duration)
     }
 
     @ViewBuilder
@@ -380,8 +377,9 @@ struct ActiveWorkoutView: View {
         Section {
             HStack(alignment: .top, spacing: Tokens.cardPadding) {
                 StatTile(value: "\(totals.setCount)", label: "Sets")
-                if let weight = totals.weights.first {
-                    StatTile(value: Formatting.volume(weight), label: "Volume")
+                // One figure in pounds: a session that mixed kilograms and pounds reads its whole volume.
+                if let pounds = totals.poundsVolume {
+                    StatTile(value: Formatting.volume(pounds, .pounds), label: "Volume")
                 }
                 if let distance = totals.distances.first {
                     StatTile(
@@ -596,8 +594,7 @@ struct ActiveWorkoutView: View {
     private var unattachedTitle: String {
         guard isOpenOnUnattached, let draft else { return "Other work" }
         if draft.modality == .freeform { return "In words" }
-        return draft.command.flatMap(CardioWork.init)?.title
-            ?? (draft.modality == .trailRun ? CardioWork.outdoorRun.title : draft.enduranceActivity.title)
+        return CardioWork(draft)?.title ?? "Other work"
     }
 
     /// An unplanned workout before anything is in it: where Add and Finish are, said once.
@@ -726,17 +723,13 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    /// Fills the entry row from last time when last time arrived after the row opened.
-    ///
-    /// Found by relaunching mid-workout: the row opens before the library has read last time back,
-    /// so it opened empty and in kilograms, and stayed that way. A row the athlete has typed into
-    /// is left alone — only one still exactly as the rule seeded it without last time is reseeded.
+    /// Fills the entry row from last time when last time arrived after the row opened
+    /// (`SetDraft.filledFromLastTime`). Found by relaunching mid-workout: the row opened empty.
     private func reseedUntouchedRow() {
-        guard let draft, let movementDataId = draft.movementDataId, let workout = store.workout,
-              let previous = library.previous[movementDataId],
-              draft == SetDraft(next: movementDataId, in: workout, previous: nil)
+        guard let draft, let workout = store.workout,
+              let filled = draft.filledFromLastTime(draft.movementDataId.flatMap { library.previous[$0] }, in: workout)
         else { return }
-        self.draft = SetDraft(next: movementDataId, in: workout, previous: previous)
+        self.draft = filled
     }
 
     /// Opens the entry row on a movement, pre-filled by the carry-forward rule.

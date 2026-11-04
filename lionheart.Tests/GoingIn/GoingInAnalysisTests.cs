@@ -130,12 +130,55 @@ public sealed class GoingInAnalysisTests
     }
 
     [Fact]
-    public void Cardio_that_could_not_be_read_leaves_its_minutes_absent_rather_than_zero()
+    public void Cardio_that_could_not_be_read_leaves_load_unscored_and_its_minutes_absent_rather_than_zero()
     {
-        var state = Of(Facts(cardio: new CardioDays.Unread()));
+        var state = Of(Facts(nights: [Night(Today)], cardio: new CardioDays.Unread(), sessions: [Lifting(Yesterday, 12)]));
 
+        Assert.IsType<PartScore.NotScored>(state.Load.Score);
         Assert.Null(state.Load.HighIntensityMinutes);
         Assert.Null(state.Load.ZoneTwoMinutes);
+        Assert.Equal(12, state.Load.HardSets);
+        Assert.IsType<GoingInRating.Rated>(state.Rating);
+    }
+
+    [Fact]
+    public void Cardio_with_no_heart_rate_to_zone_still_costs_load_by_its_minutes()
+    {
+        var state = Of(Facts(cardio: new CardioDays.Read(
+            [new CardioFact(Yesterday, Evening.Local.AddDays(-1), 40, "running", null, ZoneTwo: null, ZoneFourPlus: null)], null)));
+
+        // 100 - 0.5 × 40
+        Assert.Equal(80, ScoreOf(state.Load.Score));
+    }
+
+    [Fact]
+    public void Sleep_alone_makes_a_rating_and_carries_the_whole_of_it_with_load()
+    {
+        var state = Of(Facts(nights: [Night(Today, hrv: null, lowest: null, score: 70)]));
+
+        // Sleep 70 × .20 and load 100 × .15, over .35.
+        var rated = Assert.IsType<GoingInRating.Rated>(state.Rating);
+        Assert.Equal(83, rated.Score);
+        Assert.IsType<PartScore.NotScored>(state.Readiness.Score);
+        Assert.IsType<PartScore.NotScored>(state.Autonomic.Score);
+    }
+
+    [Fact]
+    public void Autonomic_with_one_half_missing_is_the_half_it_has()
+    {
+        var state = Of(Facts(nights: [Night(Today, hrv: null, lowest: 47)]));
+
+        // Lowest heart rate 2 over: 75 - 16.
+        Assert.Equal(59, ScoreOf(state.Autonomic.Score));
+    }
+
+    [Fact]
+    public void Hrv_far_above_baseline_is_held_at_one_hundred()
+    {
+        var state = Of(Facts(nights: [Night(Today, hrv: 140, lowest: 45)]));
+
+        // HRV half clamps at 100, heart-rate half 75.
+        Assert.Equal(88, ScoreOf(state.Autonomic.Score));
     }
 
     [Fact]

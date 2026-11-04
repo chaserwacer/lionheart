@@ -22,9 +22,12 @@ struct SetRow: View {
     /// The prescription the set answered, only where the set fell short of it.
     let unmetTarget: SetPrescription?
     let record: SetRecordOutcome
+    /// Whether a record is said in words under the set as well as marked: on the logging surface,
+    /// where it has just happened, and not in a session's history, where a line under every record
+    /// set would be noise.
+    let saysRecord: Bool
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var hasAppeared = false
     @ScaledMetric(relativeTo: .subheadline) private var numberWidth: CGFloat = 20
     @ScaledMetric(relativeTo: .body) private var amountWidth: CGFloat = 78
     @ScaledMetric(relativeTo: .body) private var workWidth: CGFloat = 52
@@ -38,6 +41,7 @@ struct SetRow: View {
         self.figures = .of(command)
         self.unmetTarget = target.flatMap { $0.isMet(by: command) ? nil : $0 }
         self.record = record
+        self.saysRecord = true
     }
 
     /// A set in a finished session, read back from the server, with the records it established.
@@ -47,6 +51,7 @@ struct SetRow: View {
         self.figures = .of(entry)
         self.unmetTarget = nil
         self.record = record
+        self.saysRecord = false
     }
 
     var body: some View {
@@ -64,7 +69,7 @@ struct SetRow: View {
             }
             // Said in words under the set, not only as the glyph: a record is the moment of the
             // session, and the glyph alone does not say which record it was.
-            if let beaten = Formatting.recordsBeaten(record) {
+            if saysRecord, let beaten = Formatting.recordsBeaten(record) {
                 Text(beaten)
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.orange)
@@ -186,9 +191,6 @@ struct SetRow: View {
             Image(systemName: "trophy.fill")
                 .font(.caption)
                 .foregroundStyle(.orange)
-                // Once, as the row first appears: the set that just broke a record lands with it.
-                .symbolEffect(.bounce, options: .nonRepeating, value: hasAppeared)
-                .onAppear { hasAppeared = true }
         }
     }
 

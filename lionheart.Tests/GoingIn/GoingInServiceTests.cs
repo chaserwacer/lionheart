@@ -91,12 +91,12 @@ public sealed class GoingInServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task An_athlete_with_no_ring_data_is_not_rated()
+    public async Task An_athlete_with_no_ring_data_is_not_rated_and_unread_cardio_leaves_load_unscored()
     {
         var state = await ReadAsync();
 
         Assert.IsType<GoingInRating.NotRated>(state.Rating);
-        Assert.IsType<PartScore.Scored>(state.Load.Score);
+        Assert.IsType<PartScore.NotScored>(state.Load.Score);
     }
 
     private sealed class NoCardio : ICardioReportService

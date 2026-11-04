@@ -61,16 +61,18 @@ struct AddWorkTests {
         #expect(CardioWork.activity(.ride).nextSet(in: workout) == ride.command)
     }
 
-    @Test("Cardio new to the workout opens empty, in the unit the last distance was logged in")
+    @Test("Cardio new to the workout opens empty, in the unit the last run or ride was logged in")
     func newCardioTakesTheLastDistanceUnit() {
-        let workout = AWorkout.live(sets: [AWorkout.run(unit: .miles)])
+        let ride = LoggedSet(loggedAt: AWorkout.start, command: .endurance(SetCommand.Endurance(
+            activity: .ride, distance: 20, unit: .kilometers, duration: 3600, elevationGainMeters: 0, rpe: .unrated)))
+        let workout = AWorkout.live(sets: [ride])
 
         guard case .trailRun(let run) = CardioWork.outdoorRun.nextSet(in: workout) else {
             Issue.record("An outdoor run is a trail run set")
             return
         }
         #expect(run.distance == 0)
-        #expect(run.unit == .miles)
+        #expect(run.unit == .kilometers)
         guard case .endurance(let hike) = CardioWork.activity(.hike).nextSet(in: AWorkout.live()) else {
             Issue.record("A hike is an endurance set")
             return
@@ -103,6 +105,65 @@ struct AddWorkTests {
         #expect(dropped.weight == "255")
         #expect(dropped.marked(.drop).weight == "255")
         #expect(draft.marked(.failure).weight == "320")
+    }
+
+    @Test("Unmarking a drop puts the weight back, so dropping again does not compound")
+    func unmarkingADropRestores() {
+        let draft = SetDraft(from: .lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 5, weight: 100, unit: .pounds, rpe: .unrated)))
+
+        let back = draft.marked(.drop).marked(.working)
+        #expect(back.weight == "100")
+        #expect(back.marked(.drop).weight == "80")
+    }
+
+    @Test("A load too light to drop a step from is left as it is, never dropped to nothing")
+    func aLightDropIsNotZero() {
+        let draft = SetDraft(from: .lift(SetCommand.Lift(
+            movementDataId: AWorkout.bench, reps: 5, weight: 5, unit: .pounds, rpe: .unrated)))
+
+        let dropped = draft.marked(.drop)
+        #expect(dropped.kind == .drop)
+        #expect(dropped.weight == "5")
+    }
+
+    @Test("A row opened before last time arrived is filled from it, unless it has been typed into")
+    func fillingFromLastTime() {
+        let workout = AWorkout.live()
+        let opened = SetDraft(next: AWorkout.bench, in: workout, previous: nil)
+
+        let filled = opened.filledFromLastTime(PreviousColumnTests.lastTime, in: workout)
+        #expect(filled?.weight == "160")
+        #expect(filled?.weightUnit == .pounds)
+
+        var typed = opened
+        typed.reps = "3"
+        #expect(typed.filledFromLastTime(PreviousColumnTests.lastTime, in: workout) == nil)
+        #expect(opened.filledFromLastTime(nil, in: workout) == nil)
+    }
+
+    @Test("A rest resized keeps its start: longer has more left, shorter than it has run is over")
+    func resizingARest() {
+        let rest = RestClock.running(since: AWorkout.start, duration: 120)
+        let fortyIn = AWorkout.start.addingTimeInterval(40)
+
+        #expect(rest.resized(to: 180).remaining(at: fortyIn) == 140)
+        #expect(rest.resized(to: 30).remaining(at: fortyIn) == 0)
+        #expect(RestClock.idle.resized(to: 180) == .idle)
+    }
+
+    @Test("A row open on cardio is named for its work; one on words or a movement is not cardio")
+    func cardioFromARow() {
+        #expect(CardioWork(SetDraft(from: CardioWork.activity(.hike).nextSet(in: AWorkout.live())))?.title == "Hike")
+        #expect(CardioWork(SetDraft(from: CardioWork.outdoorRun.nextSet(in: AWorkout.live()))) == .outdoorRun)
+        #expect(CardioWork(SetDraft(from: .freeform(text: ""))) == nil)
+    }
+
+    @Test("A run after a rower opens in the default unit, not the rower's metres")
+    func aRunDoesNotTakeTheRowersUnit() {
+        let workout = AWorkout.live(sets: [AWorkout.run(unit: .meters)])
+
+        #expect(CardioWork.outdoorRun.nextSet(in: workout).coveredPart?.unit == SetDefaults.distanceUnit)
     }
 
     @Test("Warm-ups are not sets on the bar or the Lock Screen, as they are not in the totals")

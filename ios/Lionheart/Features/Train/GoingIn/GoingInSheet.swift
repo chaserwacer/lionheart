@@ -52,8 +52,8 @@ struct GoingInSheet: View {
                 Lionheart's own rating, not Oura's. Each part is scored 0–100 with your usual day near \
                 75, and the rating is their weighted mean: readiness 30 %, HRV and heart rate 25 %, \
                 sleep 20 %, load 15 %, wellness 10 %. A part that cannot be read is left out and the \
-                others carry its weight. Without readiness, last night or its sleep score there is no \
-                rating. 80 and above is high, 65 normal, 50 reduced.
+                others carry its weight. With none of readiness, HRV and heart rate or sleep scored \
+                there is no rating. 80 and above is high, 65 normal, 50 reduced.
                 """)
         }
     }
@@ -121,9 +121,10 @@ struct GoingInSheet: View {
             partHeader(.load, state.load.score)
         } footer: {
             Text("""
-                Since the start of yesterday: 100, less 1.5 a hard set, 1 a minute at zone 4 or above and \
-                0.15 a minute of zone 2, and 50 for each unit the last 7 days' hard sets run above 1.3 \
-                times your four-week weekly mean.
+                Since the start of yesterday: 100, less 1.5 a hard set, 1 a minute at zone 4 or above, \
+                0.15 a minute of zone 2 and 0.5 a minute of cardio with no heart rate to zone, and 50 for \
+                each unit the last 7 days' hard sets run above 1.3 times your four-week weekly mean. Not \
+                scored when the cardio could not be read.
                 """)
         }
     }

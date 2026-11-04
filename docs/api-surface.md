@@ -354,7 +354,8 @@ note. Read from the chat briefing's facts (`ITodayFacts`), the week's volume and
 injuries, so the rating and what the chat says about today cannot disagree.
 
 - `rating` — `$type` `rated { score, band: high | normal | reduced | low }` (80, 65 and 50 the
-  floors) or `notRated`, when neither readiness, last night nor its sleep could be read.
+  floors) or `notRated`, when none of readiness, autonomic or sleep could be scored — no readiness
+  filed, and last night either not synced or with neither enough baseline nights nor a sleep score.
 - Each part carries `score` — `$type` `scored { score, share }` (0–100 with his usual day near 75,
   and the share of the rating it carried) or `notScored` — and the figures it was read from:
   `readiness { ouraScore?, usualLow?, usualHigh?, hrvBalance?, restingHeartRate?,
@@ -365,8 +366,9 @@ injuries, so the rating and what the chat says about today cannot disagree.
   each `{ day, totalSleepSeconds, efficiency, sleepScore? }` (Oura's sleep scores two to one; .20);
   `load { hardSets, highIntensityMinutes?, zoneTwoMinutes?, hardSetsLast7, hardSetsWeeklyMean28 }`
   (since the start of yesterday: 100 less 1.5 a hard set, 1 a minute at zone 4 or above, 0.15 a
-  minute of zone 2, and 50 per unit the week runs above 1.3 times the month's weekly mean; minutes
-  absent when cardio could not be read; .15); `wellness { today? }` with `{ overall, mood, energy,
+  minute of zone 2, 0.5 a minute of cardio with no heart rate to zone, and 50 per unit the week runs
+  above 1.3 times the month's weekly mean; not scored, and its minutes absent, when cardio could not
+  be read; .15); `wellness { today? }` with `{ overall, mood, energy,
   stress, motivation }` when rated today (`overall` 1–5 onto 0–100; .10).
 - `injuries` — active ones, `{ injuryId, name, lastPain?, movementDataIds }`, the movements every
   check-in has named. `plannedToday` — `{ movements }` per planned session dated today, by name.
