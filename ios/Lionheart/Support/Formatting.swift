@@ -335,6 +335,15 @@ enum Formatting {
         }
     }
 
+    /// Which night a row is, by the evening it began — Oura files a night under the morning it
+    /// ended: "Last night · Mon, Nov 2" and "Night before · Sun, Nov 1" counted back from today,
+    /// "Night of Mon, Nov 2" from any other day.
+    static func nightCaption(_ night: RecentNights.Night, isLastNight: Bool, isToday: Bool) -> String {
+        let evening = date(night.wakingDay.adding(days: -1))
+        guard isToday else { return "Night of \(evening)" }
+        return "\(isLastNight ? "Last night" : "Night before") · \(evening)"
+    }
+
     // MARK: - Cardio and habits
 
     /// A time of day from minutes after midnight, on a 24-hour clock: `23:30`, `07:05`. Wraps, so a

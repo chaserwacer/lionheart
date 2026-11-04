@@ -208,12 +208,15 @@ seven-day mean, over 30 days, 90 days or a year, read on demand and held by key 
 
 ### The night and the day under the figures
 
-Under the figures sits the night they were read from — the hypnogram as a strip, with how long and
+Under the figures sit last night and the night before — each a hypnogram strip, with how long and
 how efficiently he slept — and the shown day's movement as a strip of Oura's five-minute classes.
 Each opens its own screen: the night's stages, stage shares and overnight heart-rate and HRV curves
-on one time axis; the day's timeline with its long sittings shaded and listed. The night is the
-newest main sleep on or before the reading's day, labelled with its date when it is not that day's,
-because Oura files a readiness some mornings before it files the night. The day's timeline is
+on one time axis; the day's timeline with its long sittings shaded and listed. The nights are
+`RecentNights`: last night is the main sleep Oura filed under the shown day, the night before the
+one filed under the day before, each counted in his own time zone. A night not filed yet says so
+("Not synced yet") rather than letting the newest night on record stand in for it, because Oura
+files a readiness some mornings before it files the night, and that substitution read the night
+before as last night. Body's nights section is the same two rows. The day's timeline is
 `GET /api/habits/days/{day}`, read through `HabitsStore` beside Today's own reads.
 
 ### Oura sync
@@ -565,7 +568,7 @@ so none was added. `HistoryStore` is the app's one reading of the log; Today ope
 from it too, through the same `HistoryDestination`, so a movement reads the same from either tab.
 
 **The log is a log book.** A completed session's row is its day and duration, each movement's
-`MovementDigest` line, and its session total — the volume per unit, since units never convert. The
+`MovementDigest` line, and its session total — one volume in pounds. The
 filter by movement is a search token: typing suggests movements as completions (iOS 26 does not show
 `suggestedTokens` while the field is minimized into the toolbar), and a chosen token keeps the
 sessions that performed that movement **by id**, so a paused squat never brings in the high-bar
@@ -697,7 +700,7 @@ them, and withdraws one when the athlete says the set was not real. Three rules 
 
 ## Body: the scores, cardio, daily movement and body composition
 
-Body leads with the latest readiness and the last night, then the latest day's scores, then three
+Body leads with the latest readiness, last night and the night before, then the latest day's scores, then three
 questions with screens of their own.
 
 - **Scores and contributors.** A day's readiness, sleep, activity and resilience are drawn as an
@@ -789,8 +792,8 @@ side:
 - **A recorded workout's page** (`RecordedWorkoutView`, reached from a session's detail and from
   Cardio) draws the server's `RecordedWorkout`: the route with MapKit's `MapPolyline` — a still picture at a fixed height, since a
   map that pans inside a list takes the list's scroll and one that grows with Dynamic Type outgrows
-  the screen; a tap opens it full screen to move and zoom — the figures, splits in kilometres or miles —
-  the conversions the page makes, a change of unit and a ride's pace read as a speed — the heart
+  the screen; a tap opens it full screen to move and zoom — the figures, splits by the mile — the
+  conversions the page makes, a change of unit to miles and feet and a ride's pace read as mph — the heart
   rate against the zones, footed with whose it is, a run's form, and each metric the app wrote —
   power, cadence, speed, running form — drawn against its mean (`MetricTraceChart`, thinned to a few
   hundred points by `MetricTrace`). It shares the cardio session's chart and zone grid, which moved to `Design/` for
@@ -859,6 +862,14 @@ runs it on its own.
 
 There is no design system. Apple's is the design system, which is the direct expression of the
 owner's brief: native, like Apple Music, and explicitly not the web app's custom look.
+
+**Every figure reads in imperial units**: pounds, miles, pace per mile, mph, feet, inches and °F.
+`Core/Derived/Imperial` converts at the words, and the shared formatters (`Formatting`,
+`SetFigures`, `WorkoutMetricText`, `HealthMetric`'s text) go through it, so no stored or wire value
+changes: a set keeps the unit it was logged in, and a record logged in kilograms is still ranked in
+kilograms by the server and read in pounds here. A track's metres and yards read as logged — a 400
+is a 400 — and only kilometres become miles. Entry forms keep their unit pickers, starting in pounds
+and miles. A fastest time at a race distance goes by its name (Mile, 5K, 10K); any other in miles.
 
 - One brand token — the accent in the asset catalog — applied once as `.tint` on `RootView`.
   Everything below inherits it, and light and dark are then correct for free.

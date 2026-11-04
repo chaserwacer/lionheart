@@ -43,9 +43,9 @@ struct BodySnapshot: Equatable, Sendable {
         (nights[day] ?? []).first { $0.reading.isMainSleep }
     }
 
-    /// The newest main sleep filed on or before `day`.
-    func latestNight(onOrBefore day: CalendarDay) -> OuraEvent<OuraSleepPeriod>? {
-        nights.keys.filter { $0 <= day }.sorted(by: >).lazy.compactMap(mainSleepEvent(on:)).first
+    /// Last night and the night before, counted back from `today`.
+    func recentNights(today: CalendarDay) -> RecentNights {
+        RecentNights.reading(wakingOn: today, nights: nights.values.flatMap(\.self))
     }
 
     /// The recovery figures for the newest day the ring filed, against his baseline — the same

@@ -178,7 +178,8 @@ first and then in the code.
 | **Logging surface** | The set-by-set sheet the workout bar opens into. |
 | **Profile gate** | The root's answer to whether a signed-in athlete may see the tabs: undetermined, absent, present, or unreachable. An Identity account without a Lionheart profile is refused by every training write, while reads answer empty — which is why the gate asks rather than waiting to be refused. |
 | **Session log** | History's list of sessions, grouped by month, newest first — the training log. A completed session reads as a log-book entry: its day and duration, a movement digest per movement, and its total. Other rows read as in progress, skipped, missed or planned — "missed" being a planned session whose day has gone by, which only the client can tell. Filtered by movement by identity, never by name. |
-| **Session total** | What a session's sets came to: the set count and the volume (weight × reps) in each unit lifted in. Units never convert. |
+| **Session total** | What a session's sets came to: the set count and the volume (weight × reps), read as one figure in pounds. |
+| **Last night** | The main sleep Oura filed under the day being read — Oura files a night under the morning it ended. Never the newest night on record standing in for one not filed yet; "the night before" is the one filed under the day before. |
 | **Movement page** | One movement's screen: its history, its charts, its records, and how often it is trained. Reached from anywhere a movement is named. |
 | **Movement history** | Every session one movement was performed in, newest first, with that movement's sets — a filter over the whole log the device already holds. Variants are separate movements. |
 | **Movement measure** | What a movement's chart reads per session: the estimated one-rep max, the heaviest set, the best set volume, or the reps at one load. |
