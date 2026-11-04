@@ -53,6 +53,7 @@ struct MetricTrendView: View {
             case .stale(let trend, let staleness):
                 content(trend, staleBecause: staleness)
             }
+            AppleWatchHistoryLink(metric: metric)
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)

@@ -21,6 +21,10 @@ struct CardioReport: Equatable, Sendable {
     let restingHeartRate: [DayFigure]
     let aerobicBase: AerobicBase
     let excluded: [ExcludedWorkouts]
+    /// The Apple Watch's VO₂max estimates from Health — its own series beside Oura's `vo2Max`, so a
+    /// change of device never reads as a change of fitness. Defaulted so a report built by hand
+    /// need not name it.
+    var appleWatchVo2Max: [DayFigure] = []
 }
 
 /// One figure on one day, as the server sent it.
@@ -239,7 +243,8 @@ extension CardioReport: Decodable {
             cardiovascularAge: container.lenientList(DayFigure.self, "cardiovascularAge"),
             restingHeartRate: container.lenientList(DayFigure.self, "restingHeartRate"),
             aerobicBase: container.lenient(AerobicBase.self, "aerobicBase") ?? .empty(range),
-            excluded: container.lenientList(ExcludedWorkouts.self, "excluded"))
+            excluded: container.lenientList(ExcludedWorkouts.self, "excluded"),
+            appleWatchVo2Max: container.lenientList(DayFigure.self, "appleWatchVo2Max"))
     }
 }
 

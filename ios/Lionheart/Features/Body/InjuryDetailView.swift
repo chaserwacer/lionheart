@@ -34,6 +34,7 @@ struct InjuryDetailView: View {
             }
 
             painSection
+            InjuryGaitSection(injuredOn: history.injury.injuryDate)
             eventsSection
         }
         .listStyle(.insetGrouped)

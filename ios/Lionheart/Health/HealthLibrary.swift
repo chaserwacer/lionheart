@@ -18,7 +18,7 @@ final class HealthLibrary: Sendable {
     }
 
     /// Every type a reader reads.
-    static let readTypes: Set<HKObjectType> = WorkoutReader.readTypes
+    static let readTypes: Set<HKObjectType> = WorkoutReader.readTypes.union(MeasurementReader.readTypes)
 
     /// Whether this device has a Health store at all. An iPad without the Health app does not.
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }

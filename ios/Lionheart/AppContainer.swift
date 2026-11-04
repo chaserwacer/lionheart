@@ -27,6 +27,8 @@ final class AppContainer {
     let body: BodyStore
     let ouraSync: OuraSyncStore
     let healthSync: HealthSyncStore
+    let healthMeasureSync: HealthMeasureSyncStore
+    let healthMeasures: HealthMeasuresStore
     let runs: RunStore
     let cardio: CardioStore
     let habits: HabitsStore
@@ -106,6 +108,9 @@ final class AppContainer {
         healthSync = HealthSyncStore(
             health: HealthLibrary(), server: HealthAPI(client: client), marks: HealthSyncMarkFile())
         runs = RunStore(health: HealthAPI(client: client))
+        healthMeasureSync = HealthMeasureSyncStore(
+            health: HealthLibrary(), server: HealthMeasuresAPI(client: client), marks: HealthMeasureMarkFile())
+        healthMeasures = HealthMeasuresStore(api: HealthMeasuresAPI(client: client))
         cardio = CardioStore(cardio: CardioAPI(client: client), oura: OuraAPI(client: client))
         habits = HabitsStore(habits: HabitsAPI(client: client))
         diary = DiaryStore(
@@ -142,6 +147,17 @@ final class AppContainer {
             await diary.refreshLoaded(since: CalendarDay(year: 1, month: 1, day: 1))
             if balance.score.value != nil { await balance.refresh() }
         }
+        // New days of what Apple's devices measured: the gait and the watch's history, the watch's
+        // VO2max in the cardio report, and the bodyweights a backfill filled in.
+        healthMeasureSync.onSynced { [healthMeasures, cardio, bodyweight, balance] tally in
+            await healthMeasures.refreshLoaded()
+            await cardio.refreshLoaded()
+            if tally.bodyweightsAdded > 0 {
+                if bodyweight.state.value != nil { await bodyweight.refresh() }
+                // A weighted dip's system load reads the bodyweight on its day.
+                if balance.score.value != nil { await balance.refresh() }
+            }
+        }
         // Today holds its own window of sessions, so a correction made from History shows there too.
         history.onRevised { [today, balance, runs] in
             await today.refresh()
@@ -162,7 +178,8 @@ final class AppContainer {
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
             [profile, today, train, routines, bodyweight, bodyComposition, movements, history, focus, balance, chat,
-             thread, chatMemory, body, ouraSync, healthSync, runs, cardio, habits, diary, wellness, memory] in
+             thread, chatMemory, body, ouraSync, healthSync, healthMeasureSync, healthMeasures, runs, cardio, habits,
+             diary, wellness, memory] in
             profile.reset()
             today.reset()
             train.reset()
@@ -180,6 +197,8 @@ final class AppContainer {
             ouraSync.reset()
             // The anchor goes too: the next athlete's server holds none of these runs.
             healthSync.reset()
+            healthMeasureSync.reset()
+            healthMeasures.reset()
             runs.reset()
             cardio.reset()
             habits.reset()
@@ -281,6 +300,7 @@ final class AppContainer {
             if cardio.isWaitingOnServer { group.addTask { await self.cardio.refreshLoaded() } }
             if habits.isWaitingOnServer { group.addTask { await self.habits.refreshLoaded() } }
             if runs.isWaitingOnServer { group.addTask { await self.runs.refreshLoaded() } }
+            if healthMeasures.state.isWaitingOnServer { group.addTask { await self.healthMeasures.refresh() } }
             if movements.state.isWaitingOnServer { group.addTask { await self.movements.refresh() } }
             if case .unavailable = chat.state { group.addTask { await self.chat.refresh() } }
             if thread.transcript.isWaitingOnServer { group.addTask { await self.thread.refresh() } }

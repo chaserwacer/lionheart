@@ -166,6 +166,7 @@ struct BodyView: View {
         latestSection(snapshot)
         questionsSection
         activeInjuriesSection(snapshot)
+        HealthMeasuresSections()
         recordsSection(snapshot)
 
         if snapshot.isEmpty {

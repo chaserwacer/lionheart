@@ -184,8 +184,47 @@ invented, run due north from an empty meadow.
    Recorded Data and Future Data**, or the first sync can only backfill the last 30 days. The first
    sync reads everything Health lets it.
 
-## Next
+## Measurements: the watch, the phone's gait, weigh-ins, date of birth
 
-A second reader — the other data Oura and the phone write to Health that Lionheart lacks — joins
-`HealthLibrary`: its types added to `readTypes`, so the athlete is asked once for everything, and a
-reader of its own beside `WorkoutReader`.
+A second reader, `MeasurementReader`, takes what Lionheart otherwise lacks: the Apple Watch's
+VO2max, resting heart rate, HRV, respiratory rate and walking heart rate (Oura issues no VO2max, and
+its data starts years after the watch's); the iPhone's walking speed, step length, double support,
+asymmetry, Walking Steadiness and six-minute walk estimate; every weigh-in; and the date of birth.
+Its types join `HealthLibrary.readTypes`, so an athlete already connected for runs sees the row ask
+to connect again and one sheet lists the new types. Its sync, `HealthMeasureSyncStore`, runs beside
+the workout sync — on returning to the app (at most hourly), from its own row in Body's gait section
+— and keeps its own mark. Headphone and environmental audio, dietary data, rings, mindful minutes
+and Garmin's history are not read.
+
+**Only Apple's own measurements.** A reading counts when Health's own device source wrote it
+(`com.apple.health.<device>`) and the hardware was a watch or an iPhone (`MeasuringDevice.measuring`,
+on the phone). Oura's app writes its overnight RMSSD under Health's SDNN type, from the iPhone it
+runs on; the bundle check is what keeps it out. Apple's HRV is SDNN and Oura's is RMSSD — different
+statistics over different windows — so the watch's figures are stored apart from Oura's
+(`HealthDailyMeasures`, keyed by athlete, figure, device and day), labelled by device on every
+screen, and never drawn on one axis with Oura's.
+
+**Days, not readings.** The phone reduces a window's readings to one row per figure, device and
+calendar day — mean, lowest, highest, count — because a walking speed is read per walk and six
+years of them are hundreds of thousands of samples. A day measured by the watch and the phone keeps
+both rows. Every sync reads again from a week before the last day it finished: the watch hands over
+a night late and Health issues estimates after the fact, and the server restates a day that grew. A
+first sync reads from Health's oldest reading, a quarter at a time, the mark kept after each.
+
+**Weigh-ins fill the gaps.** Each day's first weigh-in becomes that day's bodyweight measurement
+when the day has none; a day logged in Lionheart, or measured by a scan, is kept. Health holds mass
+in no unit, so the server states it in the unit of the athlete's newest measurement — else the one
+most of his lifts are logged in — because a bodyweight adds to a set's plate only in the set's unit.
+Personal records are on the logged weight and nothing stored holds a system load, so there is no
+replay: the import reports how many weighted dips and pull-ups now read a different bodyweight, and
+the priority report and the score read the new system load on their next read.
+
+**Date of birth** sets the profile's age when it is unset or a birthday has passed; it is the age
+the cardio zones' predicted maximum falls back on.
+
+**Where it shows.** The gait figures lead Body's gait section, each a four-week mean against the
+twelve weeks before, opening onto its history, with an info sheet on each. Asymmetry and double
+support — the two that rise when a leg is favoured — sit on an injury's page, eight weeks before
+against four from it. The watch's history has its own screen, linked from Body and from the
+HRV, resting-rate and breathing trends Today opens. The cardio report carries the watch's VO2max as
+`appleWatchVo2Max`, its own series and comparison beside Oura's.

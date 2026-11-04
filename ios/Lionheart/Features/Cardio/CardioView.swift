@@ -308,6 +308,11 @@ struct CardioView: View {
                 "VO₂max, ml/kg/min", points: report.vo2Max, smooths: false,
                 footer: "Oura's estimate from heart rate and walking, not a test, issued on the days it has walking to work from. Read the trend, not the number.")
         }
+        if !report.appleWatchVo2Max.isEmpty {
+            trendSection(
+                "VO₂max, Apple Watch, ml/kg/min", points: report.appleWatchVo2Max, smooths: false,
+                footer: "The watch's estimate from heart rate against pace on outdoor walks, runs and hikes. Its own line, apart from Oura's: two devices' models of one figure.")
+        }
         trendSection(
             "Lowest night heart rate, bpm", points: report.restingHeartRate, smooths: true,
             footer: "From each night's main sleep; the line is the seven-day mean. A falling resting rate is the slowest-moving sign of a growing aerobic base.")

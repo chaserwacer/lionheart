@@ -44,6 +44,9 @@ struct RootView: View {
         // cardio screen syncs Apple Health.
         .environment(container.runs)
         .environment(container.healthSync)
+        // Body's gait, the watch's history, and an injury's gait read what Apple's devices measured.
+        .environment(container.healthMeasures)
+        .environment(container.healthMeasureSync)
         .task { await container.start() }
         // Coming back to the app is when the athlete expects it to have caught up, so whatever was
         // waiting on the server is tried again then.
@@ -153,6 +156,7 @@ private struct SignedInTabs: View {
             case .active:
                 Task { await container.ouraSync.syncIfBehind() }
                 Task { await container.healthSync.syncIfDue() }
+                Task { await container.healthMeasureSync.syncIfDue() }
             case .inactive, .background: break
             @unknown default: break
             }

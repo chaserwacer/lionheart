@@ -428,8 +428,9 @@ reports". The report carries `maxHeartRate` (`$type` `agePredicted` | `observed`
 usable age), `sessions` (each with a `source` — `$type` `ringWorkout` | `loggedSession` — and a
 `heartRate` — `$type` `recorded` | `notRecorded`), one `weeks` entry per Monday-to-Sunday week the
 range touches, empty weeks included and each with `daysInRange` so a part-week at either end reads
-as short, the `vo2Max`, `cardiovascularAge` and `restingHeartRate` series, `aerobicBase` (the last
-four weeks against the eight before, each figure null where its window has no data — zone 2 also
+as short, the `vo2Max` (Oura's), `appleWatchVo2Max` (the Apple Watch's, from Apple Health — its
+own series, never merged with Oura's), `cardiovascularAge` and `restingHeartRate` series, `aerobicBase` (the last
+four weeks against the eight before, `appleWatchVo2Max` beside `vo2Max`, each figure null where its window has no data — zone 2 also
 when there is no maximum heart rate, or when less than half the window's session time has heart
 rate synced), and `excluded` (ring workouts left out, counted by category and `reason`:
 `sameAsLoggedRun`, `insideLoggedLifting`, `shortWalk`, `strength`, `notTraining`, `unclassified`,
@@ -443,6 +444,10 @@ app's own samples, read ahead of the ring's for an imported run).
 | Verb | Route | Body | Answers |
 |---|---|---|---|
 | POST | `/workouts` | `HealthWorkoutImport` | `HealthImportOutcome`: 201 `imported` (with `session`), 200 `alreadyImported` (`trainingSessionId`) or `notImported` (`reason`, and `trainingSessionId` when it matched a logged session) |
+| POST | `/measurements` | `HealthMeasuresImport` | `HealthMeasuresImportReport` |
+| GET | `/measurements?from=&to=` | `DayRange` | `HealthMeasureSeries[]` |
+| POST | `/bodyweights` | `HealthBodyweightsImport` | `HealthBodyweightImportReport` |
+| PUT | `/birth-date` | `HealthBirthDate` | `ProfileAgeView` |
 
 The phone offers one Health workout at a time, as Health holds it: `workoutId` (its Health UUID),
 `activity` (Health's spelling: `running`), `indoor`, `appName` and `appBundleId` (the app that wrote
@@ -465,6 +470,29 @@ Health, and 404 for any other: `recordedBy`, `start`, `end`, the session's `dist
 `kilometres` and `miles` (each split: `number`, `distanceMeters`, `elapsed`, `moving`, `pace` per
 its own unit, `climbMeters`, `descentMeters`, `averageBpm`); and `route` (`latitude`, `longitude`).
 The route goes only to the athlete's own client — the chat model's `GetRecordedRuns` has none.
+
+**Measurements.** The phone offers days of what Apple's own devices measured: `days`, each
+`metric`, `device` (`appleWatch` | `iPhone`), `day`, and that day's `mean`, `minimum`, `maximum`
+and `count` of readings, in the metric's fixed unit — `vo2Max` (ml/kg/min), `restingHeartRate` and
+`walkingHeartRateAverage` (bpm), `heartRateVariabilitySdnn` (ms; SDNN, never compared with Oura's
+RMSSD), `respiratoryRate` (breaths/min), `walkingSpeed` (m/s), `walkingStepLength` (m),
+`walkingDoubleSupport`, `walkingAsymmetry` and `walkingSteadiness` (fractions, 0 to 1), and
+`sixMinuteWalkDistance` (m). A day already held for that metric and device is restated. The answer
+counts `recorded`, `restated`, `unchanged` and `unreadable` (a day whose numbers are outside the
+metric's bounds or out of order, left out while the rest of the batch is kept). The read answers one
+series per metric and device: `metric`, `device`, `days` (each `day`, `mean`, `minimum`, `maximum`,
+`count`), oldest first.
+
+**Weigh-ins.** `weighIns`, each `day` (on the phone's clock), `at` and `kilograms`. Each day's first
+weigh-in becomes that day's bodyweight measurement, in the unit of the athlete's newest measurement
+(else the unit most of his lifts are logged in, else kilograms), to a tenth; a day already measured
+is kept as it was. The answer counts `added`, `daysAlreadyMeasured`, `unreadable`, and
+`setsReweighed`: sets on a movement whose weight adds to bodyweight whose system load now reads a
+different bodyweight. Records are not replayed — they are on the logged weight, and system load is
+read fresh on every read.
+
+**Date of birth.** `dateOfBirth`; the profile's age becomes the age on the server's today and the
+answer is `age` and `changed`. A date in the future or more than 120 years back is a 400.
 
 ## Habits — `/api/habits`
 
