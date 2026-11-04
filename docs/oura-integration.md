@@ -232,7 +232,13 @@ every collection and rejected none, so the token still works and paging returns 
 The tests cover everything short of the network: the paging, the failure mapping, and, through the
 mapping both paths share, what a real Oura response turns into.
 
-Two things a reader should know before trusting the pull:
+**Backfilling from the command line.** `dotnet run -- sync-oura --user <athlete-guid> --from
+<yyyy-MM-dd> --to <yyyy-MM-dd>` runs the same pull with the stored credential, for ranges the
+app never asks for. It needs neither a sign-in nor the token in hand, and pulls a calendar month
+at a time, so a refusal partway leaves every earlier month stored. The API serves history from
+before the archive import began, heart rate included.
+
+Things a reader should know before trusting the pull:
 
 - **Paging was broken in the integration this replaces.** It declared Oura's cursor as `NextToken`
   with no JSON name, so it never bound to the `next_token` Oura sends and every collection stopped
