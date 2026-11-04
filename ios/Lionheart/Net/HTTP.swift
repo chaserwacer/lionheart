@@ -21,6 +21,12 @@ enum HTTP {
     /// hanging rather than refusing it.
     static let readPatience: TimeInterval = 10
 
+    /// How long a chat message waits for its answer. The server sends nothing until the model has
+    /// finished every round of its tool loop, which on a hard question passes the system's minute;
+    /// timing out then shows the question as unsent while the server goes on to answer and store
+    /// it, and sending it again asks it twice.
+    static let modelPatience: TimeInterval = 300
+
     static func request(
         _ method: Method,
         path: String,

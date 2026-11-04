@@ -13,7 +13,7 @@ public sealed class TodayBriefingTests
 {
     private static readonly TimeSpan Eastern = TimeSpan.FromHours(-5);
 
-    /// <summary>An evening on his clock that is already the next day in UTC: the hour the old card got the day wrong.</summary>
+    /// <summary>An evening on his clock that is already the next day in UTC, where a UTC day boundary names the wrong day.</summary>
     private static readonly AthleteNow Evening = new(new DateTimeOffset(2026, 3, 10, 21, 40, 0, Eastern));
 
     private static TodayFacts Facts(

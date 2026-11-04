@@ -3,9 +3,8 @@ import SwiftUI
 /// What the model is given about the athlete, in the athlete's own hands.
 ///
 /// It is the premise behind every answer on the Chat screen, and an answer is only worth trusting
-/// if its premise is inspectable. The two tiers are shown separately with their as-of instants,
-/// because that is the difference that matters: advice drawn from a Recent State computed six hours
-/// ago reads differently once you can see when it was computed.
+/// if its premise is inspectable. The briefing leads, exactly as the next message will carry it,
+/// because it is what most answers rest on; the two standing tiers follow with their as-of instants.
 ///
 /// Read-only on purpose. The card is a derived view over the sessions, wellness entries, Oura days
 /// and injuries — it is regenerated from them and is never a source of truth, so editing it here
@@ -59,16 +58,37 @@ struct ContextCardSheet: View {
                 .listRowBackground(Color.clear)
             }
         } else {
+            briefing(card.today)
             tier(
                 "Who you are",
                 text: card.stableProfile,
                 asOf: card.stableProfileAsOf,
                 footer: "Slow-changing: your identity, your baselines, and trends over the last year.")
             tier(
-                "Where you are now",
+                "Last four weeks",
                 text: card.recentState,
                 asOf: card.recentStateAsOf,
-                footer: "Recomputed as you log things — the last week of wellness, recovery and load.")
+                footer: "Runs and body, recomputed as you log them. Fixed for a chat session once it opens.")
+        }
+    }
+
+    /// The briefing, in the monospaced face it is written in: it is a dense block of figures the
+    /// model reads line by line, and aligned digits are how the athlete checks it the same way.
+    @ViewBuilder
+    private func briefing(_ text: String) -> some View {
+        Section {
+            if let briefing = text.nonEmpty {
+                Text(briefing)
+                    .font(.footnote.monospaced())
+                    .textSelection(.enabled)
+            } else {
+                Text("This server does not send the briefing yet.")
+                    .foregroundStyle(Color(.secondaryLabel))
+            }
+        } header: {
+            Text("With your next message")
+        } footer: {
+            Text("Read fresh for every message you send, so the model never guesses what today is, what you trained or how you slept.")
         }
     }
 

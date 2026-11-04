@@ -50,12 +50,17 @@ struct ThreadView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                ChatComposer(
-                    typed: $typed,
-                    isFocused: $isComposerFocused,
-                    acceptsTyping: thread.transcript.value != nil && !thread.exchange.isAwaitingReply,
-                    isAwaitingReply: thread.exchange.isAwaitingReply,
-                    onSend: send)
+                VStack(spacing: 0) {
+                    if offersQuickPrompts {
+                        QuickPrompts(onAsk: ask)
+                    }
+                    ChatComposer(
+                        typed: $typed,
+                        isFocused: $isComposerFocused,
+                        acceptsTyping: acceptsTyping,
+                        isAwaitingReply: thread.exchange.isAwaitingReply,
+                        onSend: send)
+                }
             }
             .sheet(isPresented: $isMemoryPresented) {
                 MemorySheet(store: memory)
@@ -97,7 +102,7 @@ struct ThreadView: View {
                         case .opened(_, let at):
                             SessionOpening(at: at)
                         case .turn(let turn):
-                            TurnBubble(turn: turn)
+                            TurnBubble(turn: turn, revealsOnArrival: turn.id == thread.arrivedReply)
                         }
                     }
                     if thread.exchange.isAwaitingReply {
@@ -182,11 +187,25 @@ struct ThreadView: View {
         }
     }
 
+    private var acceptsTyping: Bool {
+        thread.transcript.value != nil && !thread.exchange.isAwaitingReply
+    }
+
+    /// Only while nothing is typed and the keyboard is down: a half-written question is the
+    /// athlete's own, and the row would sit between him and it.
+    private var offersQuickPrompts: Bool {
+        acceptsTyping && typed.isEmpty && !isComposerFocused
+    }
+
     private func send() {
         let words = typed
         typed = ""
         isComposerFocused = false
         Task { await thread.send(words) }
+    }
+
+    private func ask(_ question: String) {
+        Task { await thread.send(question) }
     }
 }
 

@@ -326,7 +326,7 @@ A first implementation slice landed on `claude/lionheart-user-profiles-Ob5y0`:
   and the change since the previous scan), each with its date (`BodyFacts`). The profile's undated
   weight is no longer on the card; full sheets are behind the `GetBodyCompositionScans` tool.
 - **Injuries** — the Stable Profile lists injury history without status, since it is rebuilt only
-  when the generator changes; which injuries are active is Recent State's, read from the records.
+  when the generator changes; which injuries are active is the briefing's, read from the records on every message.
 - **DI / config** — `Program.cs` registers the card service and the cheap
   narrative client (model from `OpenAI:NarrativeModel`, default `gpt-5.2-mini`).
 
@@ -355,6 +355,38 @@ desired.
 - Eval/observability: log tool-calls and input-tokens per conversation (before/after).
 - "Summarize the oldest turns" history compaction (current pass drops tool
   results first; turn-summarization is the next refinement).
+
+### Current shape (November 2026): the card, the briefing, and the voice
+
+- **The card is frozen for a session; the day is not.** Everything in the system prompt holds for a
+  whole conversation: the voice, the Stable Profile, the last four weeks of runs and body (what
+  Recent State now holds), the tool-routing policy and a fixed coverage manifest. What changes by
+  the hour goes with each message as the **TODAY briefing** (`Services/Chat/Today`), read fresh:
+  - the date, weekday and time on the athlete's own clock, with its UTC offset;
+  - today's and yesterday's sessions, by push, pull and legs, with each lift's top set;
+  - cardio with zone minutes, the 7-day load against the 28-day mean, and heart-rate zones in bpm;
+  - the last two nights against a 60-night baseline, and readiness against its 90-day usual range;
+  - the latest wellness check-in and active injuries;
+  - the week so far, and the training score exactly as `GetTrainingScore` states it.
+- **Why.** The model got "today" wrong for two reasons. The card was dated in UTC, which in his
+  evening is already tomorrow, while the session line used his local time. And nothing said what he
+  had trained that day, so the model guessed from a tool line.
+- **The briefing is placed after the cache breakpoint.** On Anthropic it is a mid-conversation
+  `system` message straight after the athlete's latest words, which carry the hour-long breakpoint.
+  It is never stored, so the next request's history matches the cached prefix byte for byte. On LM
+  Studio it is appended to the system prompt.
+- **Measured through the relay** (`docs/chat-relay.md`), on a snapshot of real data:
+
+  | Question | Before | After |
+  |---|---|---|
+  | "Should I train today?" | 3 tool calls, about 8,800 input tokens | none, about 4,800 |
+  | "How was my week?" | 2 tool calls, about 11,800 input tokens | one, for the earlier weeks' scores |
+
+- **No Recent State narrative.** The tier now changes too slowly to need a sentence, so a card
+  rebuild costs a model call only when the Stable Profile is rebuilt.
+- **Voice.** The chat speaks as a coach invested in the athlete's progress as an all-round athlete,
+  and no longer as a neutral analyst. It stays quantitative and honest, connects today to his goals,
+  and ends on the one thing to do next. It does no hype, cheerleading or beginner explanation.
 
 ---
 

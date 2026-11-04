@@ -345,11 +345,13 @@ enum Chat {
 enum ContextCard {
     static func card(
         stable: String = "Trains four times a week around a shoulder.",
-        recent: String = "Wellness: latest 2026-03-03 overall 4.0."
+        recent: String = "Bodyweight: 180.0 lb on 2026-03-01.",
+        today: String = "TODAY\\nNow: Wednesday 4 March 2026, 07:10 (UTC-05:00)."
     ) -> String {
         """
         {"stableProfileText":"\(stable)","stableProfileAsOf":"2026-03-01T06:00:00",
-         "recentStateText":"\(recent)","recentStateAsOf":"2026-03-04T06:00:00"}
+         "recentStateText":"\(recent)","recentStateAsOf":"2026-03-04T06:00:00",
+         "todayText":"\(today)"}
         """
     }
 }

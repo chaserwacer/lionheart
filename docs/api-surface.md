@@ -509,6 +509,16 @@ said in the old one rather than its transcript.
 - The chat model reaches memory through the `SearchMemory` tool, offered to standalone
   conversations too.
 
+### What the model is given — `GET /api/profile/context-card`
+
+`AthleteContextCardView`: `stableProfileText` and `stableProfileAsOf` (identity, baselines, injury
+history), `recentStateText` and `recentStateAsOf` (the last four weeks of runs and body), and
+`todayText` — the **briefing** exactly as the next chat message would carry it: the date and time on
+the athlete's clock, today's and yesterday's training, load, heart-rate zones, the last two nights,
+readiness, wellness, active injuries, the week so far and the training score. The briefing is read
+fresh on every call and every message and is never stored, so it carries no as-of beyond the time it
+states. Instants are UTC; the briefing's own text is in the athlete's local time.
+
 ## Interpretation engine — `/api/interpretation`
 
 - `POST /interpret` — `{ RawText, LoggedAt }` → `Committed | AwaitingConfirmation`

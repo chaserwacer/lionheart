@@ -89,10 +89,12 @@ final class APIClient: Sendable {
         return .recalled(value, asOf: kept.asOf)
     }
 
+    /// - Parameter timeout: How long to wait with nothing back, when the system's minute is wrong for
+    ///   the route; see `HTTP.modelPatience`.
     func post<Response: Decodable>(
-        _ path: String, body: some Encodable, as type: Response.Type = Response.self
+        _ path: String, body: some Encodable, timeout: TimeInterval? = nil, as type: Response.Type = Response.self
     ) async throws -> Response {
-        try await authenticated(.post, path, query: [], body: try Wire.encoder().encode(body))
+        try await authenticated(.post, path, query: [], body: try Wire.encoder().encode(body), timeout: timeout)
     }
 
     func post<Response: Decodable>(
@@ -143,9 +145,11 @@ final class APIClient: Sendable {
     // MARK: -
 
     private func authenticated<Response: Decodable>(
-        _ method: HTTP.Method, _ path: String, query: [URLQueryItem], body: Data?
+        _ method: HTTP.Method, _ path: String, query: [URLQueryItem], body: Data?,
+        timeout: TimeInterval? = nil
     ) async throws -> Response {
-        try HTTP.decode(Response.self, from: await authenticatedBody(method, path, query: query, body: body))
+        try HTTP.decode(
+            Response.self, from: await authenticatedBody(method, path, query: query, body: body, timeout: timeout))
     }
 
     /// Sends the request with a bearer token, and on a 401 renews once and sends it again. Answers

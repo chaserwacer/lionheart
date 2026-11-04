@@ -251,8 +251,56 @@ struct AthleteContextCardTests {
 
     @Test("A card with no prose in it is empty, so the screen says so rather than showing blanks")
     func aCardWithoutProseIsEmpty() throws {
-        let card = try Decoding.decode(AthleteContextCard.self, ContextCard.card(stable: "", recent: ""))
+        let card = try Decoding.decode(AthleteContextCard.self, ContextCard.card(stable: "", recent: "", today: ""))
 
         #expect(card.isEmpty)
+    }
+
+    @Test("The briefing arrives as the next message would carry it, line breaks and all")
+    func theBriefingArrivesWhole() throws {
+        let card = try Decoding.decode(AthleteContextCard.self, ContextCard.card())
+
+        #expect(card.today == "TODAY\nNow: Wednesday 4 March 2026, 07:10 (UTC-05:00).")
+    }
+
+    @Test("A server from before the briefing still decodes, with no briefing")
+    func aCardWithoutTheBriefingStillDecodes() throws {
+        let card = try Decoding.decode(AthleteContextCard.self, """
+            {"stableProfileText":"Trains four times a week.","recentStateText":""}
+            """)
+
+        #expect(card.today.isEmpty)
+        #expect(!card.isEmpty)
+    }
+}
+
+/// Setting a just-arrived answer down word by word.
+@Suite("Chat reveal")
+struct ChatRevealTests {
+    private let answer = "Train today. Readiness is in range and legs are due."
+
+    @Test("Nothing shows at the instant it arrives, and all of it once the reveal is over")
+    func startsEmptyAndEndsWhole() {
+        #expect(ChatReveal.visibleCount(of: answer, after: 0) == 0)
+        #expect(ChatReveal.visibleCount(of: answer, after: ChatReveal.duration(of: answer)) == answer.count)
+        #expect(ChatReveal.isFinished(answer, after: ChatReveal.duration(of: answer)))
+    }
+
+    @Test("A word is never shown half-written")
+    func stopsOnlyAtWordEnds() {
+        let duration = ChatReveal.duration(of: answer)
+        for step in 1..<20 {
+            let shown = ChatReveal.visibleCount(of: answer, after: duration * Double(step) / 20)
+            let characters = Array(answer)
+            #expect(shown == answer.count || characters[shown].isWhitespace)
+        }
+    }
+
+    @Test("A long answer takes no longer than the cap")
+    func longAnswersAreCapped() {
+        let long = String(repeating: "zone two minutes ", count: 400)
+
+        #expect(ChatReveal.duration(of: long) == ChatReveal.longest)
+        #expect(ChatReveal.visibleCount(of: long, after: ChatReveal.longest) == long.count)
     }
 }

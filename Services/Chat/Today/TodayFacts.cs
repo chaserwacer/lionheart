@@ -90,7 +90,7 @@ public sealed record NightFact(
     int? AverageHrv,
     int? SleepScore);
 
-/// <summary>The nights before last night, as the measure of what is normal for him.</summary>
+/// <summary>The nights before the two the briefing states, as the measure of what is normal for him.</summary>
 public sealed record NightBaseline(double? AverageHrv, double? LowestHeartRate, int Nights);
 
 /// <summary>Today's readiness and the contributors that bear on recovery, each Oura's own 1-100 score.</summary>

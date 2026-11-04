@@ -81,12 +81,20 @@ struct ChatComposer: View {
 struct TurnBubble: View {
     let turn: ChatTurn
 
+    /// Whether this is the answer that has just arrived, set down word by word rather than all at
+    /// once (`ChatReveal`). Only ever the newest answer, and never with Reduce Motion on.
+    var revealsOnArrival = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var arrivedAt = Date()
+    @State private var isRevealed = false
+
     var body: some View {
         HStack {
             if turn.isFromAthlete { Spacer(minLength: 40) }
 
             VStack(alignment: turn.isFromAthlete ? .trailing : .leading, spacing: 4) {
-                Text(turn.isFromAthlete ? AttributedString(turn.text) : ChatProse.attributed(turn.text))
+                words
                     .font(.body)
                     .foregroundStyle(turn.isFromAthlete ? Color.white : Color(.label))
                     .padding(.horizontal, 14)
@@ -121,6 +129,44 @@ struct TurnBubble: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(turn.isFromAthlete ? "You said" : "Lionheart said")
         .accessibilityValue(turn.text)
+        .task(id: turn.id) {
+            guard isRevealing else { return }
+            try? await Task.sleep(for: .seconds(ChatReveal.duration(of: String(prose.characters))))
+            isRevealed = true
+        }
+    }
+
+    private var prose: AttributedString {
+        turn.isFromAthlete ? AttributedString(turn.text) : ChatProse.attributed(turn.text)
+    }
+
+    private var isRevealing: Bool {
+        revealsOnArrival && !reduceMotion && !turn.isFromAthlete && !isRevealed
+    }
+
+    /// The words, or as many of them as have been set down. The whole answer is laid out from the
+    /// first frame, invisibly, so the bubble has its final size at once and the transcript does not
+    /// shift under the athlete as the words fill it.
+    @ViewBuilder
+    private var words: some View {
+        let full = prose
+        if isRevealing {
+            Text(full)
+                .hidden()
+                .overlay(alignment: .topLeading) {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                        Text(Self.prefix(of: full, after: context.date.timeIntervalSince(arrivedAt)))
+                    }
+                }
+        } else {
+            Text(full)
+        }
+    }
+
+    private static func prefix(of full: AttributedString, after elapsed: TimeInterval) -> AttributedString {
+        let shown = ChatReveal.visibleCount(of: String(full.characters), after: elapsed)
+        let end = full.characters.index(full.startIndex, offsetBy: shown)
+        return AttributedString(full[full.startIndex..<end])
     }
 
     private var background: Color {
@@ -129,6 +175,43 @@ struct TurnBubble: View {
         case .unsent: Color(.systemFill)
         case .said: turn.isFromAthlete ? Tokens.accent : Color(.secondarySystemGroupedBackground)
         }
+    }
+}
+
+/// The questions asked most days, one tap from being asked.
+///
+/// Stock capsule buttons in a row that scrolls sideways, so the row stays one line at any text size
+/// and a question never wraps into two. Each is sent as written, exactly as if typed: the briefing
+/// that goes with every message is what makes a one-line question enough.
+struct QuickPrompts: View {
+    let onAsk: (String) -> Void
+
+    @Environment(ServerReachability.self) private var reachability
+
+    static let questions = [
+        "Should I train today?",
+        "Am I recovered?",
+        "How was my week?",
+        "What should I do for cardio?",
+        "Plan my next 7 days",
+    ]
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(Self.questions, id: \.self) { question in
+                    Button(question) { onAsk(question) }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.small)
+                        .disabled(!reachability.isReachable)
+                }
+            }
+            .padding(.horizontal, Tokens.cardPadding)
+        }
+        .scrollIndicators(.hidden)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Suggested questions")
     }
 }
 

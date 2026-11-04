@@ -49,8 +49,9 @@ public sealed record ChatTurnRequest(
     /// <remarks>
     /// Kept apart from <see cref="SystemPrompt"/> because it changes every message while the prompt
     /// is frozen for a whole conversation: inside the prompt it would change the front of every
-    /// request and nothing after it could be read from a cache. Each provider places it after the
-    /// athlete's latest words instead, and it is never stored, so history replays without it.
+    /// request and nothing after it could be read from a cache. Anthropic places it after the
+    /// athlete's latest words instead; LM Studio, whose local cache costs nothing to miss, appends
+    /// it to the system prompt. It is never stored, so history replays without it.
     /// </remarks>
     public string Briefing { get; init; } = string.Empty;
 
