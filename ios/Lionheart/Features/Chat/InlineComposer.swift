@@ -9,7 +9,7 @@ import SwiftUI
 /// `TabView` — the workout bar's, on every tab — whose placement follows the bar's fold rather than
 /// setting it. So on Chat the system bar is hidden, and its folded form is drawn in glass at its
 /// size, in the place it folds to, where tapping it unfolds the real one exactly as tapping a
-/// folded bar does. Scrolling the transcript, or coming back to the tab, folds it again.
+/// folded bar does. Scrolling the transcript, or coming back to the screen, folds it again.
 ///
 /// iOS 18 has no folded tab bar to match, so there the tabs stay as they are and the composer sits
 /// above them.
@@ -17,15 +17,24 @@ struct InlineComposer: ViewModifier {
     /// Whether the athlete has unfolded the tab bar, which puts the composer away.
     @Binding var showsTabs: Bool
 
+    /// Whether this screen is the one showing. The bar is hidden only while it is: a hidden bar
+    /// asked for by a screen that has gone, whether by a tab switch or a push, stays hidden on the
+    /// next tab, which has no way to bring it back.
+    @State private var isShowing = false
+
     @ViewBuilder
     func body(content: Content) -> some View {
         if Self.isAvailable {
             content
-                .toolbarVisibility(showsTabs ? .visible : .hidden, for: .tabBar)
+                .toolbarVisibility(isShowing && !showsTabs ? .hidden : .automatic, for: .tabBar)
                 .onScrollPhaseChange { _, phase in
                     if phase == .interacting, showsTabs { fold() }
                 }
-                .onDisappear { showsTabs = false }
+                .onAppear {
+                    isShowing = true
+                    showsTabs = false
+                }
+                .onDisappear { isShowing = false }
         } else {
             content
         }
