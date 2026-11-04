@@ -91,6 +91,18 @@ public class CardioAnalysisTests
         Assert.Equal(WorkoutExclusion.SameAsLoggedRun, Assert.Single(report.Excluded).Reason);
     }
 
+    [Theory]
+    [InlineData(20, false)]
+    [InlineData(45, true)]
+    public void An_imported_walk_is_a_cardio_session_only_as_long_as_a_rings_walk_must_be(double minutes, bool counted)
+    {
+        var walk = Logged(At(14, 7), minutes, Some.RideSet with { Activity = EnduranceActivity.Walk }) with { Source = AHealthRun.Source() };
+        var report = Build(logged: [walk]);
+
+        Assert.Equal(counted, report.Sessions.Count == 1);
+        Assert.Equal(counted ? [] : [WorkoutExclusion.ShortWalk], report.Excluded.Select(excluded => excluded.Reason));
+    }
+
     // ---- Heart rate across a session ----
 
     [Fact]

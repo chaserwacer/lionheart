@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace lionheart.Endpoints.Training.Sessions;
 
-/// <summary>A session imported from Apple Health, read as a run: route, splits and heart rate.</summary>
+/// <summary>A session imported from Apple Health, read whole: route, splits, heart rate and the app's metrics.</summary>
 [ValidateModel]
 public class GetRecordedWorkoutEndpoint : EndpointBaseAsync
     .WithRequest<Guid>
@@ -23,7 +23,7 @@ public class GetRecordedWorkoutEndpoint : EndpointBaseAsync
     }
 
     [HttpGet("api/training/sessions/{id:guid}/recording")]
-    [EndpointDescription("Get a run imported from Apple Health: its route, its splits per kilometre and per mile, and its heart rate.")]
+    [EndpointDescription("Get a workout imported from Apple Health — a run, ride, hike or walk: its route, its splits per kilometre and per mile, its heart rate, and the recording app's other metrics.")]
     [ProducesResponseType<RecordedWorkoutView>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

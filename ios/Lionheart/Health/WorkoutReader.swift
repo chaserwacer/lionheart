@@ -144,11 +144,12 @@ struct WorkoutReader: Sendable {
             let samples = try await samples(of: measure.type, in: measure.unit, from: workout.startDate, to: workout.endDate, by: workout)
             if !samples.isEmpty { series.append(.init(metric: measure.metric, samples: samples)) }
         }
-        // Written once the minute after the workout has passed, so it falls just past its end.
+        // Written once the minute after the workout has passed, so it falls just past its end; the
+        // first in the window, since a later one belongs to whatever the watch recorded next.
         let recovery = try await samples(
             of: HKQuantityType(.heartRateRecoveryOneMinute), in: Self.perMinute,
             from: workout.endDate, to: workout.endDate.addingTimeInterval(Self.recoveryWindow), by: workout)
-        if let last = recovery.last { series.append(.init(metric: .heartRateRecovery, samples: [last])) }
+        if let first = recovery.first { series.append(.init(metric: .heartRateRecovery, samples: [first])) }
         return series
     }
 

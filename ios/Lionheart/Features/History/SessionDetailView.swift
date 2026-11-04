@@ -145,7 +145,7 @@ struct SessionDetailView: View {
         case .appleHealth(_, let recordedBy):
             Section {
                 NavigationLink(value: HistoryRoute.run(session.id)) {
-                    Text("Route, splits and heart rate")
+                    Text("Splits, heart rate and route")
                 }
             } footer: {
                 Text("Recorded by \(recordedBy.nonEmpty ?? "an app") and imported from Apple Health.")

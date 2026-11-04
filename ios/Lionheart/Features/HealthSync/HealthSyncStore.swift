@@ -1,13 +1,13 @@
 import Foundation
 import Observation
 
-/// Bringing the runs other apps wrote to Apple Health into Lionheart, on request and when the app
+/// Bringing the workouts other apps wrote to Apple Health into Lionheart, on request and when the app
 /// comes back to the foreground.
 ///
 /// One store for the whole app, because Today and Settings both show the row and pull to refresh on
-/// History and Cardio starts a sync: two stores would let two syncs offer the same runs at once.
+/// History and Cardio starts a sync: two stores would let two syncs offer the same workouts at once.
 ///
-/// A sync reads Health's runs after the kept anchor a page at a time and offers each to the server,
+/// A sync reads Health's workouts after the kept anchor a page at a time and offers each to the server,
 /// which answers what became of it. The anchor moves on only once a whole page has been answered,
 /// so a sync that stops — the server out of reach, Health refusing a read — starts the next one at
 /// the page it stopped in; the server's import is idempotent, so a run offered twice is answered
@@ -65,7 +65,7 @@ final class HealthSyncStore {
     }
 
     /// Shows Health's own sheet for what Lionheart reads, then syncs. The athlete's choice is
-    /// Health's to keep: a refusal reads as no runs, which Health does not let an app tell apart.
+    /// Health's to keep: a refusal reads as no workouts, which Health does not let an app tell apart.
     func connect() async {
         do {
             try await health.requestAuthorization()
@@ -108,7 +108,7 @@ final class HealthSyncStore {
     }
 
     /// Forgets the kept anchor with everything else at sign-out: the next athlete's server has none
-    /// of these runs, so their first sync offers Health's whole history again.
+    /// of these workouts, so their first sync offers Health's whole history again.
     func reset() {
         generation += 1
         running?.cancel()
@@ -161,7 +161,7 @@ final class HealthSyncStore {
             state = .failed(failure, done: progress ?? walk.tally, lastSynced: kept.lastSynced)
         }
 
-        // A sync that stopped partway may still have imported runs, and those are on the server.
+        // A sync that stopped partway may still have imported workouts, and those are on the server.
         if (state.done ?? .empty).imported > 0 {
             for action in whenImported { await action() }
         }

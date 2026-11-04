@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace lionheart.Services.Health.Import;
 
-internal static class WorkoutRecordingRemoval
+internal static class HealthImportRemoval
 {
     extension(ModelContext context)
     {
@@ -19,7 +19,7 @@ internal static class WorkoutRecordingRemoval
         /// so nothing at the database level removes it, and a deleted run's route — where the athlete
         /// was — would otherwise outlive the session it belonged to.
         /// </remarks>
-        public async Task StageRecordingRemovalAsync(TrainingSession session, CancellationToken ct)
+        public async Task StageHealthImportRemovalAsync(TrainingSession session, CancellationToken ct)
         {
             if (session.Source is not SessionSource.AppleHealth health) return;
 

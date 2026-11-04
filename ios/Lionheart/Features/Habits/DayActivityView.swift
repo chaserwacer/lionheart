@@ -160,7 +160,8 @@ enum TrainingSpanName {
         switch span.activity {
         case "strengthTraining" where span.isLogged: "Strength session"
         case "trailRun" where span.isLogged: "Trail run"
-        case "ride", "indoorRide", "hike", "walk", "indoorRun" where span.isLogged:
+        case "ride" where span.isLogged, "indoorRide" where span.isLogged, "hike" where span.isLogged,
+             "walk" where span.isLogged, "indoorRun" where span.isLogged:
             EnduranceActivity(wire: span.activity).title
         case "distanceAndTime" where span.isLogged: "Run"
         default: OuraVocabulary.phrase(span.activity)

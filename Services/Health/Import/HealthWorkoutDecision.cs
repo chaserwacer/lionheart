@@ -14,8 +14,15 @@ public abstract record HealthWorkoutDecision
     private HealthWorkoutDecision() { }
 
     /// <param name="Source">The workout the session was imported from — the session's own source, held typed.</param>
-    public sealed record Import(CompletedTrainingSession Session, WorkoutRecording Recording, SessionSource.AppleHealth Source)
-        : HealthWorkoutDecision;
+    /// <param name="Superseding">
+    /// Walks imported earlier that this workout is the better reading of — a watch's walk that a
+    /// later-arriving Strava hike lies inside — removed as it lands; empty almost always.
+    /// </param>
+    public sealed record Import(
+        CompletedTrainingSession Session,
+        WorkoutRecording Recording,
+        SessionSource.AppleHealth Source,
+        IReadOnlyList<Guid> Superseding) : HealthWorkoutDecision;
 
     /// <param name="MatchedSessionId">The logged session the workout already is, where it matched one.</param>
     public sealed record Excluded(HealthWorkoutExclusion Reason, Guid? MatchedSessionId) : HealthWorkoutDecision;
@@ -39,7 +46,8 @@ public sealed record NewSessionIdentity(Guid TrainingSessionId, Guid UserId, Dat
 /// <item>One lying at least half inside a session already in the log is that session, by the same
 /// rule the cardio report holds the ring's workouts to (<see cref="SessionMatching"/>). The log
 /// includes workouts imported earlier, so a ride two apps both wrote to Health is taken once —
-/// whichever the phone offered first.</item>
+/// whichever the phone offered first — except that a run, ride or hike lying inside nothing but an
+/// imported walk replaces the walk, whichever arrived first.</item>
 /// </list>
 /// What is left is a completed session holding one set — a trail run for an outdoor run, an
 /// endurance set for everything else — with the route, heart rate and metrics beside it.
@@ -57,25 +65,45 @@ public static class HealthWorkoutDecisions
     {
         if (ReadDirectly.Any(prefix => workout.Source.RecordedBy.BundleId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
             return Excluded(HealthWorkoutExclusion.ReadDirectly);
-        if (Taken(workout.Activity, workout.Indoor) is not { } taken)
+        var taken = Taken(workout.Activity, workout.Indoor);
+        if (taken is TakenAs.NotTaken)
             return Excluded(HealthWorkoutExclusion.OtherActivity);
         if (DistanceMeters(workout) is not { } distance)
             return Excluded(HealthWorkoutExclusion.NoDistance);
 
-        return SessionMatching.Find((workout.Period.Start, workout.Period.End), logged) switch
+        HealthWorkoutDecision Import(IReadOnlyList<Guid> superseding) => new HealthWorkoutDecision.Import(
+            Session(workout, Set(taken, workout, distance), identity),
+            WorkoutRecording.Of(identity.TrainingSessionId, identity.UserId, workout.Route, workout.HeartRate, workout.Metrics),
+            workout.Source,
+            superseding);
+
+        // An imported walk is the weakest reading of a stretch of time: a watch saves the walk it
+        // detected the moment it ends, and the app that recorded the hike or ride writes it later.
+        var span = (workout.Period.Start, workout.Period.End);
+        var walks = logged.Where(IsImportedWalk).ToList();
+        if (!IsWalk(taken) && SessionMatching.Find(span, walks) is SessionMatch.LoggedRun walk
+            && SessionMatching.Find(span, logged.Except(walks)) is SessionMatch.None)
+            return Import([walk.TrainingSessionId]);
+
+        return SessionMatching.Find(span, logged) switch
         {
             SessionMatch.LoggedRun run => Excluded(HealthWorkoutExclusion.SameAsLoggedRun, run.TrainingSessionId),
             SessionMatch.LoggedLifting lifting => Excluded(HealthWorkoutExclusion.InsideLoggedLifting, lifting.TrainingSessionId),
-            SessionMatch.None => new HealthWorkoutDecision.Import(
-                Session(workout, Set(taken, workout, distance), identity),
-                WorkoutRecording.Of(identity.TrainingSessionId, identity.UserId, workout.Route, workout.HeartRate, workout.Metrics),
-                workout.Source),
+            SessionMatch.None => Import([]),
             _ => throw new System.Diagnostics.UnreachableException(),
         };
     }
 
+    private static bool IsWalk(TakenAs taken) => taken is TakenAs.Endurance { Activity: EnduranceActivity.Walk };
+
+    /// <summary>A session imported from Health that is a walk and nothing else.</summary>
+    private static bool IsImportedWalk(CompletedTrainingSession session) =>
+        session.Source is SessionSource.AppleHealth
+        && session.Sets.Count > 0
+        && session.Sets.All(set => set is EnduranceSet { Activity: EnduranceActivity.Walk });
+
     /// <summary>
-    /// What a workout of Health's activity becomes, or nothing for an activity Lionheart does not take.
+    /// What a workout of Health's activity becomes, if Lionheart takes it.
     /// </summary>
     /// <remarks>
     /// An outdoor run is a trail run, competing on trail running. A ride outdoors and a hike are
@@ -85,7 +113,7 @@ public static class HealthWorkoutDecisions
     /// the rest are left out: a handful each, with no distance that means anything, and the ring's
     /// own workout still carries any of them into the cardio report.
     /// </remarks>
-    public static TakenAs? Taken(string activity, bool indoor) => (activity.ToLowerInvariant(), indoor) switch
+    public static TakenAs Taken(string activity, bool indoor) => (activity.ToLowerInvariant(), indoor) switch
     {
         ("running", false) => new TakenAs.TrailRun(),
         ("running", true) => new TakenAs.Endurance(EnduranceActivity.IndoorRun),
@@ -93,7 +121,7 @@ public static class HealthWorkoutDecisions
         ("cycling", true) => new TakenAs.Endurance(EnduranceActivity.IndoorRide),
         ("hiking", _) => new TakenAs.Endurance(EnduranceActivity.Hike),
         ("walking", _) => new TakenAs.Endurance(EnduranceActivity.Walk),
-        _ => null,
+        _ => new TakenAs.NotTaken(),
     };
 
     /// <summary>
@@ -128,6 +156,7 @@ public static class HealthWorkoutDecisions
                 Source = new Formed(),
                 Facets = [],
             },
+            TakenAs.NotTaken => throw new System.Diagnostics.UnreachableException(),
             _ => throw new System.Diagnostics.UnreachableException(),
         };
     }
@@ -149,7 +178,7 @@ public static class HealthWorkoutDecisions
         new HealthWorkoutDecision.Excluded(reason, matched);
 }
 
-/// <summary>The set a Health workout Lionheart takes becomes.</summary>
+/// <summary>The set a Health workout becomes, or that Lionheart does not take it.</summary>
 public abstract record TakenAs
 {
     private TakenAs() { }
@@ -159,4 +188,7 @@ public abstract record TakenAs
 
     /// <summary>Anything else taken: an <see cref="EnduranceSet"/> of this activity.</summary>
     public sealed record Endurance(EnduranceActivity Activity) : TakenAs;
+
+    /// <summary>An activity Lionheart does not take from Health: elliptical, stairs and the rest.</summary>
+    public sealed record NotTaken : TakenAs;
 }

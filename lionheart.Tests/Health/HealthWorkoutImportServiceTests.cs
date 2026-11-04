@@ -252,6 +252,23 @@ public class HealthWorkoutImportServiceTests : IDisposable
         Assert.Equal(0, await context.DeletedHealthWorkouts.CountAsync());
     }
 
+    [Fact]
+    public async Task A_hike_replacing_a_watchs_walk_leaves_one_session_and_remembers_nothing_deleted()
+    {
+        var walk = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3) with { Activity = "walking" };
+        await ImportAsync(walk);
+        var hike = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3, start: walk.Start.AddMinutes(2)) with { Activity = "hiking" };
+
+        var imported = Assert.IsType<HealthImportOutcome.Imported>(await ImportAsync(hike));
+
+        await using var context = _athletes.CreateContext();
+        var session = await context.Sessions.OfType<CompletedTrainingSession>().SingleAsync();
+        Assert.Equal(imported.Session.TrainingSessionId, session.TrainingSessionId);
+        Assert.Equal(session.TrainingSessionId, (await context.WorkoutRecordings.SingleAsync()).TrainingSessionId);
+        Assert.Equal(0, await context.DeletedHealthWorkouts.CountAsync());
+        Assert.All(await StandingAsync(), record => Assert.IsType<RecordSubject.Hiking>(record.Subject));
+    }
+
     // ---- Filling in what an earlier import lacked ----
 
     [Fact]
@@ -270,6 +287,25 @@ public class HealthWorkoutImportServiceTests : IDisposable
         Assert.Equal([245.0], recording.Metrics.Of(WorkoutMetric.GroundContactTime).Select(sample => sample.Value));
         Assert.Equal(ResultAssert.Succeeded(bare.Stated()).Route, recording.Route);
         Assert.Equal(1, await context.Sessions.CountAsync());
+    }
+
+    [Fact]
+    public async Task The_watchs_copy_of_a_run_already_imported_from_Strava_gives_it_the_form_only_the_watch_measured()
+    {
+        var strava = AHealthRun.Outdoor(meters: 5400);
+        var imported = Assert.IsType<HealthImportOutcome.Imported>(await ImportAsync(strava));
+        var watch = AHealthRun.Outdoor(meters: 5400, start: strava.Start.AddSeconds(15)) with
+        {
+            AppName = "Apple Watch",
+            AppBundleId = "com.apple.health.00000000-0000-0000-0000-00000000000B",
+            Metrics = [new MetricSeriesCommand("verticalOscillation", [new(AHealthRun.Start, 8.6)])],
+        };
+
+        var answer = await ImportAsync(watch);
+
+        Assert.Equal(new HealthImportOutcome.NotImported(HealthWorkoutExclusion.SameAsLoggedRun, imported.Session.TrainingSessionId), answer);
+        await using var context = _athletes.CreateContext();
+        Assert.Equal([8.6], (await context.WorkoutRecordings.SingleAsync()).Metrics.Of(WorkoutMetric.VerticalOscillation).Select(sample => sample.Value));
     }
 
     // ---- Reading a run back ----

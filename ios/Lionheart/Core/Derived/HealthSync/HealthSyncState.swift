@@ -3,7 +3,7 @@ import Foundation
 /// Where the Apple Health sync stands, as its row shows it.
 ///
 /// When the last sync finished travels with every case once it is known, because the row always
-/// says how current the runs are — "last synced 14:02" stays true while a sync is out and after one
+/// says how current the workouts are — "last synced 14:02" stays true while a sync is out and after one
 /// fails.
 enum HealthSyncState: Equatable, Sendable {
     /// What is kept on the device has not been read yet.

@@ -179,6 +179,38 @@ public class HealthWorkoutDecisionTests
     }
 
     [Fact]
+    public void A_hike_arriving_after_a_watchs_walk_of_the_same_time_replaces_the_walk()
+    {
+        var walk = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3) with { Activity = "walking", AppBundleId = "com.apple.health.watch" };
+        var imported = Assert.IsType<HealthWorkoutDecision.Import>(Decide(walk)).Session;
+        var hike = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3, start: walk.Start.AddMinutes(2)) with { Activity = "hiking" };
+
+        var replacing = Assert.IsType<HealthWorkoutDecision.Import>(Decide(hike, imported));
+
+        Assert.Equal([imported.TrainingSessionId], replacing.Superseding);
+        Assert.Equal(EnduranceActivity.Hike, Assert.IsType<EnduranceSet>(Assert.Single(replacing.Session.Sets)).Activity);
+    }
+
+    [Fact]
+    public void A_walk_arriving_after_a_hike_of_the_same_time_is_the_hike()
+    {
+        var hike = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3) with { Activity = "hiking" };
+        var imported = Assert.IsType<HealthWorkoutDecision.Import>(Decide(hike)).Session;
+        var walk = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3, start: hike.Start.AddMinutes(2)) with { Activity = "walking" };
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.SameAsLoggedRun, imported.TrainingSessionId), Decide(walk, imported));
+    }
+
+    [Fact]
+    public void A_walk_the_athlete_logged_himself_is_never_replaced()
+    {
+        var hike = AHealthRun.Outdoor(meters: 9000, metersPerSecond: 1.3) with { Activity = "hiking" };
+        var logged = Logged(hike.Start, minutes: 120, Some.RideSet with { Activity = EnduranceActivity.Walk });
+
+        Assert.Equal(Excluded(HealthWorkoutExclusion.SameAsLoggedRun, logged.TrainingSessionId), Decide(hike, logged));
+    }
+
+    [Fact]
     public void A_run_merely_near_a_logged_session_is_a_session_of_its_own()
     {
         var workout = AHealthRun.Outdoor(meters: 5400);

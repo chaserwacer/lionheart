@@ -464,7 +464,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
     {
         _context.Sessions.Remove(session);
         await _context.StageProjectionRemovalAsync(session.TrainingSessionId, ct);
-        await _context.StageRecordingRemovalAsync(session, ct);
+        await _context.StageHealthImportRemovalAsync(session, ct);
         await _context.SaveChangesAsync(ct);
 
         return Result<Unit, Problem>.Success(Unit.Value);

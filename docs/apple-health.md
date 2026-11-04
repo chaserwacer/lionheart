@@ -56,7 +56,7 @@ nothing:
 | Hike | hiking | |
 | Indoor ride (a trainer, Peloton) | none | Its distance is the machine's estimate from power or a flywheel, not ground covered, so it would stand beside the riding records as if measured. |
 | Indoor run (a treadmill) | none | The same rule as the indoor ride: the watch estimates a treadmill's distance from the wrist, and a belt's is the machine's. It is training — history, cardio, the score — and nothing else. |
-| Walk, indoors or out | none | Movement rather than an effort to rank: a walk to the shop would set a "record". It is history and cardio. |
+| Walk, indoors or out | none | Movement rather than an effort to rank: a walk to the shop would set a "record". It is history, and cardio when it is as long as a ring walk must be to count (30 minutes); shorter, the cardio report leaves it out as `shortWalk`, as it does the ring's. |
 
 The subjects that name no movement are stored in the records' movement-id column as sentinels —
 `Guid.Empty` for trail running, the next two ids up for riding and hiking — so the domain never sees
@@ -119,8 +119,13 @@ That covers every overlap the athlete's sources produce:
   imported, and the answer names the session it already is.
 - **Two apps writing the same workout** (Strava and a watch both writing one ride). The first
   offered is imported; the second lies inside it and is left out. The phone offers in Health's
-  insertion order, oldest first within a page. Activities are not compared: a watch's walk inside a
-  Strava hike is the hike.
+  insertion order, oldest first within a page.
+- **A watch's walk and another app's hike or ride.** A watch saves the walk it detected the moment
+  it ends; Strava writes the hike when it uploads, later — and a backfill replays Health in that
+  order. So a walk is the weakest reading of a stretch of time: a run, ride or hike lying inside
+  nothing but an imported walk replaces the walk (its session, recording and projection go, and it
+  is not remembered as deleted; a walk sets no record, so nothing else moves). A walk arriving after
+  the hike is the hike. A walk the athlete logged himself is never replaced.
 - **Inside a logged lifting session.** Left out, as the cardio report leaves out a ring workout there:
   the gym as another device saw it. A deliberate run recorded in the middle of a logged gym session
   would also be left out by this; if that turns out to happen, it is a change to the shared rule.
@@ -146,11 +151,17 @@ became runs, rides, hikes and walks — an anchor of another reading is no ancho
 reads Health's whole history once more. That backfill is idempotent with what the first import
 stored: a workout already imported answers `alreadyImported` and writes nothing, except that its
 recording takes the metrics it now carries where it held none — which is how a run imported before
-running form was read gets it. A workout deleted from the log answers `deleted`. A first backfill
+running form was read gets it. A workout deleted from the log since deletions were remembered
+answers `deleted`; **one deleted before then comes back** on that first re-read — nothing recorded
+its deletion — and is deleted again by hand, after which it stays deleted. A first backfill
 offers every Oura-written walk too, a thousand small answers of `readDirectly`.
 
-A workout Health deletes later is not deleted from Lionheart; the session can be deleted by hand.
-Deleting an imported session and signing in again on a fresh install would import it again.
+A workout Health deletes later is not deleted from Lionheart; the session can be deleted by hand,
+and once deleted it stays deleted through any later read of Health, a fresh install's included.
+
+**Deploying.** The server goes first. A phone that reads rides, hikes and walks answering to a server
+that does not take them would be told each is not a run — an answer, so the anchor would pass
+them and they would not be offered again until the reading moved on once more.
 
 **Records and history arriving out of order.** A backfilled workout older than a standing record it
 contests cannot be judged against what stands — it would claim to have beaten a record set
@@ -178,7 +189,9 @@ an Apple Watch has written since 2022. The heart rate's one-minute recovery is t
 writes just after the workout ends; the phone looks for it in the quarter hour after. Each is a
 series held in the recording (`RecordedMetrics`); a reading past what any rider or runner produces
 is dropped as an impossible heart rate is, and a metric a newer phone names is passed over rather
-than refusing the workout.
+than refusing the workout. Where two apps wrote one run, only the watch's copy carries its form; if
+the other copy was imported first, the watch's copy is left out as the same run and its metrics are
+filled into that session's recording, where it held none.
 
 The workout's page leads a ride with its average and peak power and its cadence, gives a run a
 **Running form** section of averages, draws each series against its mean, and puts the recovery
