@@ -777,6 +777,29 @@ Backend half of the native logging round; the wire is in `docs/api-surface.md`.
   `MovementBases.Classification` (existing rows unstated) and `FocusPins.Role` (existing rows
   emphasis). Applied to a worktree copy of the database only.
 
+### ✅ Movement library — the naming convention and `tidy-movements`
+
+- **The convention** (header of `Services/Training/Movement/Library/movement-library.json`): a
+  movement reads "Variation Exercise (Equipment)", Strong's style — "Seated Leg Curl (Machine)". The
+  base is the exercise, the equipment an implement from a short list (never a machine named after
+  the exercise; pull-up and dip bars are Bodyweight), the modifier the variation, stored lower case.
+  `MovementNames.Of` composes it on the server and `MovementData.displayName` on iOS; where one part
+  already says another as whole words the shorter is dropped, in either direction, so overlapping
+  parts cannot read twice.
+- **The corrections** live in the same file: part renames (a rename onto an existing name folds the
+  rows), whole-movement restatements, retirements of movements nothing names, and a seed list of
+  common lifts. The file is refused if a rule's result would be rewritten by another rule, so a
+  second run has nothing to do. The Strong and coached-sheet maps land on the convention, and a test
+  holds them to it.
+- **The command**: `dotnet run -- tidy-movements --user <athlete-guid> [--dry-run]`.
+  `TidyPlanner` plans everything before a row is touched and refuses, all at once, what cannot be
+  done cleanly: retiring a movement anything names, merging movements set up differently, losing a
+  base's stated classification or description, two movements that would read the same.
+  `MovementLibraryTidy` stages the plan in one transaction: a merge repoints sets, prescriptions,
+  routines, pins and injury notes (refusing a routine that holds both halves of one), then replays
+  the records. The dry run does all of it and rolls back. Run it against the live database only
+  after a backup.
+
 ### Traps — non-obvious failures already paid for
 
 Read this before debugging something that "should obviously work".
