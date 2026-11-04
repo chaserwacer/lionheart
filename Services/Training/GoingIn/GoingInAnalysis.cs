@@ -152,8 +152,8 @@ public static class GoingInAnalysis
             ? Usual - 8 * (lowest - usualLowest)
             : null;
 
-        double?[] halves = [hrv is null ? null : Math.Clamp(hrv.Value, 0, 100), heartRate is null ? null : Math.Clamp(heartRate.Value, 0, 100)];
-        var read = halves.OfType<double>().ToList();
+        double?[] halves = [hrv, heartRate];
+        var read = halves.OfType<double>().Select(half => Math.Clamp(half, 0, 100)).ToList();
         return read.Count == 0 ? null : read.Average();
     }
 
