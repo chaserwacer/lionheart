@@ -8,14 +8,16 @@ import SwiftUI
 ///
 /// Not a `List`: a transcript is bubbles of varying width, bottom-anchored, and `List`'s row insets
 /// and separators fight all three. The thing this screen has to get right is the **wait** — a reply
-/// takes tens of seconds and there is no streaming route, so the question stays on screen, a working
-/// row counts under it, and the composer says what is happening.
+/// takes tens of seconds and arrives whole, since only the thread is streamed, so the question stays
+/// on screen, a working row counts under it, and the composer says what is happening.
 struct ChatView: View {
     let store: ChatStore
 
     @State private var typed = ""
     @State private var isContextCardPresented = false
     @State private var isConversationListPresented = false
+    /// Whether the athlete has unfolded the tab bar, which puts the composer away (`InlineComposer`).
+    @State private var showsTabs = false
     @FocusState private var isComposerFocused: Bool
 
     var body: some View {
@@ -39,13 +41,18 @@ struct ChatView: View {
         .navigationTitle(store.state.conversation?.title ?? "Conversations")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
+        .composerInlineWithTabBar(showsTabs: $showsTabs)
         .safeAreaInset(edge: .bottom) {
-            ChatComposer(
-                typed: $typed,
-                isFocused: $isComposerFocused,
-                acceptsTyping: store.state.acceptsTyping,
-                isAwaitingReply: store.state.isAwaitingReply,
-                onSend: send)
+            if !showsTabs {
+                ChatComposer(
+                    typed: $typed,
+                    isFocused: $isComposerFocused,
+                    acceptsTyping: store.state.acceptsTyping,
+                    waitingNote: store.state.isAwaitingReply
+                        ? "Reading your training data. This can take a minute." : nil,
+                    showTabs: unfoldsTabs,
+                    onSend: send)
+            }
         }
         .sheet(isPresented: $isContextCardPresented) {
             ContextCardSheet(store: store)
@@ -128,6 +135,12 @@ struct ChatView: View {
             }
             .disabled(store.state.isAwaitingReply)
         }
+    }
+
+    /// Unfolds the tab bar from the composer's row, where the OS draws the row with one.
+    private var unfoldsTabs: (() -> Void)? {
+        guard InlineComposer.isAvailable else { return nil }
+        return { withAnimation(.snappy) { showsTabs = true } }
     }
 
     private func send() {

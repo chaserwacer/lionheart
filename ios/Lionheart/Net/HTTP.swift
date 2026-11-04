@@ -21,10 +21,11 @@ enum HTTP {
     /// hanging rather than refusing it.
     static let readPatience: TimeInterval = 10
 
-    /// How long a chat message waits for its answer. The server sends nothing until the model has
-    /// finished every round of its tool loop, which on a hard question passes the system's minute;
-    /// timing out then shows the question as unsent while the server goes on to answer and store
-    /// it, and sending it again asks it twice.
+    /// How long an answer from the model can take. A standalone conversation's message waits this
+    /// long, since the server sends nothing until every round of the tool loop is done, which on a
+    /// hard question passes the system's minute; timing out sooner would show the question as
+    /// unsent while the server went on to answer and store it. The thread, whose answer streams,
+    /// looks for an answer whose connection dropped for this long.
     static let modelPatience: TimeInterval = 300
 
     static func request(
@@ -97,12 +98,44 @@ enum HTTP {
     /// as `URLError.cancelled` — an ordinary-looking transport error. Letting it through as one
     /// would turn every dismissed screen into a visible failure.
     static func send(_ request: URLRequest, on session: URLSession) async throws -> (Data, Int) {
-        do {
+        try await transported {
             let (data, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw APIError.transport("The response was not HTTP.")
-            }
-            return (data, http.statusCode)
+            return (data, try status(of: response))
+        }
+    }
+
+    /// How long a stream of events may go with nothing arriving before it is taken as lost. The
+    /// server sends a heartbeat every fifteen seconds while the model works, so three missed beats
+    /// is a connection that has gone, not a model that is slow.
+    static let streamSilence: TimeInterval = 45
+
+    /// Opens `request` and returns its body as it arrives, once the status and headers are in.
+    /// Failures are translated as `send` translates them; a failure partway through the body is
+    /// thrown by the bytes themselves, untranslated, since only the reader knows what it lost.
+    static func open(_ request: URLRequest, on session: URLSession) async throws -> (URLSession.AsyncBytes, Int) {
+        try await transported {
+            let (bytes, response) = try await session.bytes(for: request)
+            return (bytes, try status(of: response))
+        }
+    }
+
+    /// A body read to its end, for a status that is not a success and so is a small problem document.
+    static func collect(_ bytes: URLSession.AsyncBytes) async throws -> Data {
+        try await transported {
+            try await bytes.reduce(into: Data()) { $0.append($1) }
+        }
+    }
+
+    private static func status(of response: URLResponse) throws -> Int {
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.transport("The response was not HTTP.")
+        }
+        return http.statusCode
+    }
+
+    private static func transported<T>(_ exchange: () async throws -> T) async throws -> T {
+        do {
+            return try await exchange()
         } catch let error as URLError where error.code == .cancelled {
             throw CancellationError()
         } catch is CancellationError {

@@ -16,7 +16,10 @@ struct ThreadView: View {
     @State private var typed = ""
     @State private var isMemoryPresented = false
     @State private var isContextCardPresented = false
+    /// Whether the athlete has unfolded the tab bar, which puts the composer away (`InlineComposer`).
+    @State private var showsTabs = false
     @FocusState private var isComposerFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The bottom of the transcript, scrolled to when a turn is added there.
     private static let bottom = "thread-bottom"
@@ -38,6 +41,7 @@ struct ThreadView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .composerInlineWithTabBar(showsTabs: $showsTabs)
             // The pair every chat screen needs: a model bubble is `secondarySystemGroupedBackground`,
             // white in light mode, and vanishes on a plain white page.
             .background(Color(.systemGroupedBackground))
@@ -50,15 +54,12 @@ struct ThreadView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 0) {
-                    if offersQuickPrompts {
-                        QuickPrompts(onAsk: ask)
-                    }
+                if !showsTabs {
                     ChatComposer(
                         typed: $typed,
                         isFocused: $isComposerFocused,
                         acceptsTyping: acceptsTyping,
-                        isAwaitingReply: thread.exchange.isAwaitingReply,
+                        showTabs: unfoldsTabs,
                         onSend: send)
                 }
             }
@@ -84,6 +85,11 @@ struct ThreadView: View {
         .onChange(of: thread.exchange.unsentText) { _, unsent in
             if let unsent, typed.isEmpty { typed = unsent }
         }
+        // Said once, whole, when it is stored: the bubble it was written into is silent meanwhile.
+        .onChange(of: thread.answered?.id) {
+            guard let answer = thread.answered else { return }
+            AccessibilityNotification.Announcement("Lionheart answered. \(answer.text)").post()
+        }
     }
 
     // MARK: - Transcript
@@ -92,7 +98,11 @@ struct ThreadView: View {
         let rows = ThreadTranscript.rows(held, tail: thread.exchange.tail)
         return ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
+                // Not lazy. A lazy stack opened at its bottom estimates the height of the rows it
+                // has not drawn, and on iOS 26 it opened past the end of the transcript, blank,
+                // when those rows were long answers. A page is ten sessions, so drawing every row
+                // costs little.
+                VStack(alignment: .leading, spacing: 14) {
                     if held.hasEarlier { earlierButton }
                     if case .stale(_, let staleness) = thread.transcript {
                         StaleBanner(staleness)
@@ -108,9 +118,7 @@ struct ThreadView: View {
                                 onRevealed: { thread.settle(reply: turn.id) })
                         }
                     }
-                    if thread.exchange.isAwaitingReply {
-                        WorkingRow()
-                    }
+                    arriving
                     Color.clear.frame(height: 1).id(Self.bottom)
                 }
                 .padding(.horizontal, Tokens.cardPadding)
@@ -121,8 +129,41 @@ struct ThreadView: View {
             .defaultScrollAnchor(.bottom, for: .initialOffset)
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: rows.last?.id) {
-                withAnimation { proxy.scrollTo(Self.bottom, anchor: .bottom) }
+                withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(Self.bottom, anchor: .bottom) }
             }
+            // An answer being written grows the bottom, and the transcript follows it down. Not
+            // animated: a scroll animated at the pace words arrive reads as the screen shaking.
+            .onChange(of: writtenSoFar?.count) {
+                proxy.scrollTo(Self.bottom, anchor: .bottom)
+            }
+        }
+    }
+
+    /// The answer on its way: what it is doing until it starts writing, then the words so far.
+    ///
+    /// One waiting row whatever it says, so its count runs on from thinking into reading tools.
+    @ViewBuilder
+    private var arriving: some View {
+        if let written = writtenSoFar {
+            WritingBubble(text: written)
+        } else if let activity = waitingFor {
+            WorkingRow(activity: activity)
+        }
+    }
+
+    private var writtenSoFar: String? {
+        switch thread.exchange {
+        case .awaitingReply(_, let progress): progress.written
+        case .idle, .recovering, .refused: nil
+        }
+    }
+
+    private var waitingFor: WorkingRow.Activity? {
+        switch thread.exchange {
+        case .awaitingReply(_, .thinking): .answering
+        case .awaitingReply(_, .consulting(let tools)): .consulting(tools: tools)
+        case .recovering: .recovering
+        case .awaitingReply(_, .writing), .idle, .refused: nil
         }
     }
 
@@ -194,12 +235,6 @@ struct ThreadView: View {
         thread.transcript.value != nil && !thread.exchange.isAwaitingReply
     }
 
-    /// Only while nothing is typed and the keyboard is down: a half-written question is the
-    /// athlete's own, and the row would sit between him and it.
-    private var offersQuickPrompts: Bool {
-        acceptsTyping && typed.isEmpty && !isComposerFocused
-    }
-
     private func send() {
         let words = typed
         typed = ""
@@ -207,8 +242,10 @@ struct ThreadView: View {
         Task { await thread.send(words) }
     }
 
-    private func ask(_ question: String) {
-        Task { await thread.send(question) }
+    /// Unfolds the tab bar from the composer's row, where the OS draws the row with one.
+    private var unfoldsTabs: (() -> Void)? {
+        guard InlineComposer.isAvailable else { return nil }
+        return { withAnimation(.snappy) { showsTabs = true } }
     }
 }
 

@@ -103,13 +103,15 @@ struct ChatThreadTests {
         #expect(thread.with(opened).sessions.count == 2)
     }
 
-    @Test("A refused exchange hands its words back; an awaited one holds the composer")
+    @Test("A refused exchange hands its words back; an awaited or recovering one holds the composer")
     func theExchangeStates() {
         let pending = ChatTurn.pending(id: UUID(), text: "Legs?")
         let unsent = ChatTurn.unsent(id: UUID(), text: "Legs?", failure: .offline("no route"))
 
-        #expect(ThreadExchange.awaitingReply(pending).isAwaitingReply)
-        #expect(ThreadExchange.awaitingReply(pending).unsentText == nil)
+        #expect(ThreadExchange.awaitingReply(pending, .thinking).isAwaitingReply)
+        #expect(ThreadExchange.awaitingReply(pending, .writing("Squat")).unsentText == nil)
+        #expect(ThreadExchange.recovering(pending).isAwaitingReply)
+        #expect(ThreadExchange.recovering(pending).tail == pending)
         #expect(ThreadExchange.refused(unsent).unsentText == "Legs?")
         #expect(ThreadExchange.idle.tail == nil)
     }
