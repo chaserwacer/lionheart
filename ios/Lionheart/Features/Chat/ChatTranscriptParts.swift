@@ -180,8 +180,10 @@ struct TurnBubble: View {
 
 /// The questions asked most days, one tap from being asked.
 ///
-/// Stock capsule buttons in a row that scrolls sideways, so the row stays one line at any text size
-/// and a question never wraps into two. Each is sent as written, exactly as if typed: the briefing
+/// Capsules on the same glass as the composer, in a row that scrolls sideways, so the row stays
+/// one line at any text size and a question never wraps into two. Glass rather than a bordered
+/// button's tint because the transcript scrolls under the composer, and a tint alone lets the words
+/// beneath it read through the question. Each is sent as written, exactly as if typed: the briefing
 /// that goes with every message is what makes a one-line question enough.
 struct QuickPrompts: View {
     let onAsk: (String) -> Void
@@ -198,16 +200,24 @@ struct QuickPrompts: View {
 
     var body: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                ForEach(Self.questions, id: \.self) { question in
-                    Button(question) { onAsk(question) }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                        .controlSize(.small)
+            GlassChromeGroup(spacing: 8) {
+                HStack(spacing: 8) {
+                    ForEach(Self.questions, id: \.self) { question in
+                        Button { onAsk(question) } label: {
+                            Text(question)
+                                .font(.subheadline)
+                                .foregroundStyle(reachability.isReachable ? Tokens.accent : Color(.tertiaryLabel))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .glassChrome(in: .capsule, interactive: true)
+                        }
+                        .buttonStyle(.plain)
                         .disabled(!reachability.isReachable)
+                    }
                 }
+                .padding(.horizontal, Tokens.cardPadding)
+                .padding(.vertical, 4)
             }
-            .padding(.horizontal, Tokens.cardPadding)
         }
         .scrollIndicators(.hidden)
         .accessibilityElement(children: .contain)
