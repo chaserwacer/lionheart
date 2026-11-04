@@ -14,6 +14,8 @@ enum BodyRoute: Hashable {
     case cardio
     /// A session in the cardio report for that span, by its id.
     case cardioSession(String, TrendSpan)
+    /// A run imported from Apple Health, by its session's id.
+    case run(UUID)
     case habits
     case dayActivity(CalendarDay)
     case wellness

@@ -62,14 +62,16 @@ struct CardioSession: Equatable, Sendable, Identifiable {
     var id: String {
         switch source {
         case .ringWorkout(let id, _, _): id.uuidString
-        case .loggedSession(let id, _): id.uuidString
+        case .loggedSession(let id, _, _): id.uuidString
         case .unrecognised(let type): "\(type)-\(start.timeIntervalSince1970)"
         }
     }
 
     enum Source: Equatable, Sendable {
         case ringWorkout(ouraId: UUID, activity: String, category: WorkoutCategory)
-        case loggedSession(trainingSessionId: UUID, isTrailRun: Bool)
+        /// `isRecorded`: imported from Apple Health, so its run page has the route and the
+        /// recording app's own figures.
+        case loggedSession(trainingSessionId: UUID, isTrailRun: Bool, isRecorded: Bool)
         case unrecognised(String)
     }
 }
@@ -91,14 +93,32 @@ enum WorkoutCategory: Equatable, Sendable {
     }
 }
 
-/// What the all-day heart-rate series held across a session.
+/// What the heart rate held across a session: the recording app's, or the ring's all-day series.
 enum SessionHeartRate: Equatable, Sendable {
     /// No sample inside the session: the ring was off, or the series is not synced that far back.
     case notRecorded
     /// `coverage` is the share of the session's clock time the samples stand for, 0 to 1. `zones`
     /// is absent only when there is no maximum to draw them from.
-    case recorded(averageBpm: Int, peakBpm: Int, coverage: Double, zones: ZoneMinutes?)
+    case recorded(averageBpm: Int, peakBpm: Int, coverage: Double, zones: ZoneMinutes?, source: HeartRateSource)
     case unrecognised(String)
+}
+
+/// Whose samples a session's heart rate was read from.
+enum HeartRateSource: Equatable, Sendable {
+    /// The ring's all-day series over the session's clock time.
+    case ring
+    /// The samples the app that recorded the workout wrote to Apple Health.
+    case appleHealth
+    case unrecognised(String)
+
+    /// A reading with no source is the ring's: until runs came from Health, every one was.
+    init(wire: String?) {
+        switch wire {
+        case nil, "ring": self = .ring
+        case "appleHealth": self = .appleHealth
+        case .some(let other): self = .unrecognised(other)
+        }
+    }
 }
 
 /// Minutes in each of the five heart-rate zones, and below the first.
@@ -289,7 +309,10 @@ extension CardioSession.Source: Decodable {
                 category: WorkoutCategory(wire: container.lenient("category", or: "")))
         case "loggedSession":
             guard let id = container.lenient(UUID.self, "trainingSessionId") else { self = .unrecognised(type); return }
-            self = .loggedSession(trainingSessionId: id, isTrailRun: container.lenient("isTrailRun", or: false))
+            self = .loggedSession(
+                trainingSessionId: id,
+                isTrailRun: container.lenient("isTrailRun", or: false),
+                isRecorded: container.lenient("isRecorded", or: false))
         default:
             self = .unrecognised(type)
         }
@@ -314,7 +337,8 @@ extension SessionHeartRate: Decodable {
                 averageBpm: average,
                 peakBpm: peak,
                 coverage: container.lenient("coverage", or: 0),
-                zones: container.lenient(ZoneMinutes.self, "zones"))
+                zones: container.lenient(ZoneMinutes.self, "zones"),
+                source: HeartRateSource(wire: container.lenient(String.self, "source")))
         default:
             self = .unrecognised(type)
         }

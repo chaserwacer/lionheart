@@ -18,7 +18,7 @@ struct CardioAndHabitsTests {
 
         let session = try #require(report.sessions.first)
         #expect(session.activityName == "Cardiovascular exercise")
-        guard case .recorded(let average, let peak, _, let zones?) = session.heartRate else {
+        guard case .recorded(let average, let peak, _, let zones?, _) = session.heartRate else {
             Issue.record("Expected a recorded heart rate, got \(session.heartRate)")
             return
         }

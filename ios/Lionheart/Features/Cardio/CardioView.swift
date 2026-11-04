@@ -24,6 +24,8 @@ struct CardioView: View {
     @ScaledMetric(relativeTo: .body) private var trendHeight: CGFloat = 120
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .caption) private var legendWidth: CGFloat = 72
+    /// Pulling to refresh brings in any new runs from Apple Health with the report.
+    @Environment(HealthSyncStore.self) private var healthSync
 
     var body: some View {
         List {
@@ -74,7 +76,11 @@ struct CardioView: View {
         .sheet(isPresented: $isMethodShown) {
             CardioMethodSheet(report: store.reports[span]?.value)
         }
-        .refreshable { await store.load(span) }
+        .refreshable {
+            async let runs: Void = healthSync.syncIfConnected()
+            async let report: Void = store.load(span)
+            _ = await (runs, report)
+        }
         .task(id: span) {
             if store.reports[span]?.value == nil { await store.load(span) }
         }
@@ -360,6 +366,15 @@ struct CardioView: View {
 
     // MARK: - Sessions
 
+    /// A run imported from Apple Health opens onto its own page, which has the route and the
+    /// recording app's heart rate; every other session onto its heart-rate curve.
+    private func route(to session: CardioSession) -> BodyRoute {
+        switch session.source {
+        case .loggedSession(let id, _, isRecorded: true): .run(id)
+        case .loggedSession, .ringWorkout, .unrecognised: .cardioSession(session.id, span)
+        }
+    }
+
     @ViewBuilder
     private func sessionsSection(_ report: CardioReport) -> some View {
         Section {
@@ -367,7 +382,7 @@ struct CardioView: View {
                 Text("No cardio sessions in this span.").foregroundStyle(Color(.secondaryLabel))
             }
             ForEach(report.sessions.reversed()) { session in
-                NavigationLink(value: BodyRoute.cardioSession(session.id, span)) {
+                NavigationLink(value: route(to: session)) {
                     CardioSessionRow(session: session)
                 }
             }
@@ -455,7 +470,7 @@ struct CardioSessionRow: View {
             Text(facts)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(Color(.secondaryLabel))
-            if case .recorded(_, _, _, let zones?) = session.heartRate, zones.inZones > 0 {
+            if case .recorded(_, _, _, let zones?, _) = session.heartRate, zones.inZones > 0 {
                 ZoneBar(zones: zones).frame(height: 6)
             }
         }
@@ -467,7 +482,7 @@ struct CardioSessionRow: View {
         var parts = [Formatting.minutes(session.minutes)]
         if let meters = session.distanceMeters, meters >= 1 { parts.append(OuraWorkout.distance(meters: meters)) }
         switch session.heartRate {
-        case .recorded(let average, let peak, _, let zones):
+        case .recorded(let average, let peak, _, let zones, _):
             parts.append("avg \(average) · peak \(peak) bpm")
             if let zones, zones.zone2 >= 1 { parts.append("Z2 \(Formatting.minutes(zones.zone2))") }
         case .notRecorded:

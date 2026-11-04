@@ -160,6 +160,7 @@ public class InterpretationRecordTests : IDisposable
             Provenance = Provenance.AiAssisted,
             Membership = new Standalone(),
             Origin = new RoutineOrigin.AdHoc(),
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = Some.Clock,
         };
 

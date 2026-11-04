@@ -313,11 +313,14 @@ is also a chat tool (`GetCardioReport`, `GetHabitsReport`). Code in `Services/Ca
 distance sets, plus the ring's workouts once their noise is taken out: housework, yard work and
 stretching; walks under 30 minutes (the median auto-detected walk is 19); strength work; and any
 ring workout lying at least half inside a logged session, which is that session as the ring saw it.
-What was excluded is counted by reason in the report. Each session's heart rate is read from the
-all-day series over its own clock time. Zones are percentages of maximum heart rate (50/60/70/80/90),
-with maximum the higher of the Tanaka age prediction (208 − 0.7 × age, from the profile) and the
-99th percentile of the ring's cardio-session samples over the last year: a ring peak above the
-prediction is evidence, one below it is as likely a finger sensor under-reading a hard effort.
+What was excluded is counted by reason in the report. A run imported from Apple Health is a logged
+run here, so the ring's workout inside it is excluded the same way (`docs/apple-health.md`). Each
+session's heart rate is read from the all-day series over its own clock time — except an imported
+run's, read from the recording app's own samples where it wrote any — and says whose it is. Zones
+are percentages of maximum heart rate (50/60/70/80/90), with maximum the higher of the Tanaka age
+prediction (208 − 0.7 × age, from the profile) and the 99th percentile of the cardio sessions'
+samples over the last year (the ring's, and an imported run's own): a peak above the prediction is
+evidence, one below it is as likely a finger sensor under-reading a hard effort.
 Weekly load is Edwards' TRIMP (zone minutes × zone number). "Is the aerobic base moving" is four
 weeks against the eight before: zone-2 minutes per week, cardio minutes per week, VO2max, the
 nights' lowest heart rate and cardiovascular age.

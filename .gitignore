@@ -257,6 +257,7 @@ strong_workouts*.csv
 # Generated from ios/project.yml by `xcodegen generate` — never edited by hand, so never committed
 ios/Lionheart.xcodeproj/
 ios/Lionheart/Info.plist
+ios/Lionheart/Lionheart.entitlements
 ios/LionheartWorkoutActivity/Info.plist
 ios/DerivedData/
 ios/DerivedData-*/

@@ -33,4 +33,6 @@ enum HistoryRoute: Hashable {
     case night(CalendarDay)
     /// One day's movement, five minutes at a time.
     case dayActivity(CalendarDay)
+    /// A run imported from Apple Health, by its session's id: route, splits and heart rate.
+    case run(UUID)
 }

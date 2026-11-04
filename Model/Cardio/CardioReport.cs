@@ -54,12 +54,28 @@ public abstract record CardioSessionSource
     /// <summary>
     /// A completed Lionheart session carrying trail-run or distance-and-time sets. Where the ring
     /// saw the same session, this is the record kept: the athlete's own log names it and measures
-    /// it, and the ring's heart rate over the same clock time is read either way.
+    /// it. Its heart rate is the recording app's where it was imported from Apple Health with one,
+    /// and the ring's over the same clock time otherwise.
     /// </summary>
-    public sealed record LoggedSession(Guid TrainingSessionId, bool IsTrailRun) : CardioSessionSource;
+    /// <param name="IsRecorded">
+    /// Imported from Apple Health, so a route and the recording app's own figures stand behind it
+    /// (<c>GET /api/training/sessions/{id}/recording</c>).
+    /// </param>
+    public sealed record LoggedSession(Guid TrainingSessionId, bool IsTrailRun, bool IsRecorded) : CardioSessionSource;
 }
 
-/// <summary>What the all-day heart-rate series held across a session.</summary>
+/// <summary>Whose samples a session's heart rate was read from.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<HeartRateSource>))]
+public enum HeartRateSource
+{
+    /// <summary>The ring's all-day series over the session's clock time.</summary>
+    [JsonStringEnumMemberName("ring")] Ring,
+
+    /// <summary>The samples the app that recorded the workout wrote to Apple Health.</summary>
+    [JsonStringEnumMemberName("appleHealth")] AppleHealth,
+}
+
+/// <summary>What the heart rate held across a session — the recording app's, or the ring's all-day series.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(NotRecorded), "notRecorded")]
 [JsonDerivedType(typeof(Recorded), "recorded")]
@@ -75,11 +91,13 @@ public abstract record SessionHeartRate
     /// the zone minutes describe part of the session rather than the whole of it.
     /// </param>
     /// <param name="Zones">Absent only when there is no maximum heart rate to draw zones from.</param>
+    /// <param name="Source">Whose samples these are.</param>
     public sealed record Recorded(
         int AverageBpm,
         int PeakBpm,
         double Coverage,
-        ZoneMinutes? Zones) : SessionHeartRate;
+        ZoneMinutes? Zones,
+        HeartRateSource Source) : SessionHeartRate;
 }
 
 /// <summary>

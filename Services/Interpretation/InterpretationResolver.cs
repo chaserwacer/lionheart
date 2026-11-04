@@ -121,6 +121,7 @@ public sealed class InterpretationResolver : IInterpretationResolver
             Provenance = Provenance.AiAssisted,
             Membership = new Standalone(),
             Origin = new RoutineOrigin.AdHoc(),
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = DateTime.UtcNow
         };
 

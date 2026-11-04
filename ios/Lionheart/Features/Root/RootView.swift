@@ -40,6 +40,10 @@ struct RootView: View {
         .environment(container.diary)
         .environment(container.cardio)
         .environment(container.habits)
+        // A run's page is reached from History, Today and Body; pull to refresh on the log and the
+        // cardio screen syncs Apple Health.
+        .environment(container.runs)
+        .environment(container.healthSync)
         .task { await container.start() }
         // Coming back to the app is when the athlete expects it to have caught up, so whatever was
         // waiting on the server is tried again then.
@@ -90,6 +94,7 @@ private struct SignedInTabs: View {
                 TodayView(
                     store: container.today,
                     ouraSync: container.ouraSync,
+                    healthSync: container.healthSync,
                     habits: container.habits,
                     library: container.movements,
                     history: container.history,
@@ -140,10 +145,14 @@ private struct SignedInTabs: View {
         // Read by the score on Today, the priorities and the classification sheet, wherever they open.
         .environment(container.balance)
         // Coming back to the app is when the ring's night has usually reached Oura, so a store
-        // that is behind syncs then — at most once per `OuraSyncPlan.automaticRetryInterval`.
+        // that is behind syncs then — at most once per `OuraSyncPlan.automaticRetryInterval`. A run
+        // recorded since has usually reached Health too, so that syncs on the same return, at most
+        // once per `HealthSyncPlan.automaticRetryInterval`.
         .onChange(of: scenePhase, initial: true) { _, phase in
             switch phase {
-            case .active: Task { await container.ouraSync.syncIfBehind() }
+            case .active:
+                Task { await container.ouraSync.syncIfBehind() }
+                Task { await container.healthSync.syncIfDue() }
             case .inactive, .background: break
             @unknown default: break
             }

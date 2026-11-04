@@ -1,17 +1,16 @@
-import Charts
 import SwiftUI
 
 /// One cardio session: its heart rate across the session against the zone bands, and the minutes
 /// in each zone.
 ///
 /// The curve is the all-day series, read a little either side of the session so the climb into it
-/// and the recovery out of it are visible; dashed rules mark where the session begins and ends.
+/// and the recovery out of it are visible; dashed rules mark where the session begins and ends. A
+/// run imported from Apple Health opens onto its own page instead (`RunView`), which draws the
+/// recording app's heart rate where it wrote one.
 struct CardioSessionView: View {
     let session: CardioSession
     let maxHeartRate: MaxHeartRate?
     let store: CardioStore
-
-    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 220
 
     var body: some View {
         List {
@@ -36,6 +35,7 @@ struct CardioSessionView: View {
 
     private var sourceText: String {
         switch session.source {
+        case .loggedSession(_, _, isRecorded: true): "Imported from Apple Health. The curve is the ring's series; the run's own page has the recording app's."
         case .loggedSession: "Logged in Lionheart; heart rate from the ring over the same time."
         case .ringWorkout(_, _, .walk): "A walk the ring detected, long enough to count as a session."
         case .ringWorkout: "Detected or entered on the ring."
@@ -48,7 +48,7 @@ struct CardioSessionView: View {
         if let meters = session.distanceMeters, meters >= 1 {
             figures.append(OuraPanel.Figure(label: "Distance", value: OuraWorkout.distance(meters: meters)))
         }
-        if case .recorded(let average, let peak, let coverage, let zones) = session.heartRate {
+        if case .recorded(let average, let peak, let coverage, let zones, _) = session.heartRate {
             figures.append(OuraPanel.Figure(label: "Avg HR", value: "\(average)"))
             figures.append(OuraPanel.Figure(label: "Peak HR", value: "\(peak)"))
             figures.append(OuraPanel.Figure(
@@ -72,7 +72,9 @@ struct CardioSessionView: View {
                 Text(failure.message).foregroundStyle(Color(.secondaryLabel))
             case .loaded(let samples), .stale(let samples, _):
                 if samples.count >= 2 {
-                    chart(samples)
+                    HeartRateZoneChart(samples: samples, maxHeartRate: maxHeartRate, start: session.start, end: session.end)
+                        .accessibilityLabel("Heart rate across the session")
+                        .accessibilityValue(figures.map { "\($0.label) \($0.value)" }.joined(separator: ", "))
                 } else {
                     Text("No heart rate stored for this session. The series reaches back as far as it has been synced.")
                         .foregroundStyle(Color(.secondaryLabel))
@@ -85,77 +87,13 @@ struct CardioSessionView: View {
         }
     }
 
-    private func chart(_ samples: [HeartRateSample]) -> some View {
-        let floors = maxHeartRate?.zoneFloors ?? []
-        let top = Double(max(maxHeartRate?.bpm ?? 0, samples.map(\.bpm).max() ?? 0))
-        let low = Double(samples.map(\.bpm).min() ?? 0)
-        let from = samples.first?.at ?? session.start
-        let to = samples.last?.at ?? session.end
-
-        return Chart {
-            ForEach(Array(floors.enumerated()), id: \.offset) { index, floor in
-                RectangleMark(
-                    xStart: .value("From", from), xEnd: .value("To", to),
-                    yStart: .value("Floor", Double(floor)),
-                    yEnd: .value("Ceiling", index + 1 < floors.count ? Double(floors[index + 1]) : top))
-                    .foregroundStyle(ZoneColour.of(index + 1).opacity(0.22))
-            }
-            ForEach([session.start, session.end], id: \.self) { edge in
-                RuleMark(x: .value("Session", edge))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    .foregroundStyle(Color(.secondaryLabel))
-            }
-            ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
-                LineMark(x: .value("Time", sample.at), y: .value("bpm", sample.bpm))
-                    .interpolationMethod(.monotone)
-                    .lineStyle(StrokeStyle(lineWidth: 1.5))
-                    .foregroundStyle(Color(.label))
-            }
-        }
-        .chartYScale(domain: max(0, min(low, Double(floors.first ?? Int(low))) - 5)...(top + 5))
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                AxisGridLine()
-                AxisValueLabel(format: .dateTime.hour().minute())
-            }
-        }
-        .frame(height: chartHeight)
-        .padding(.vertical, 6)
-        .accessibilityLabel("Heart rate across the session")
-        .accessibilityValue(figures.map { "\($0.label) \($0.value)" }.joined(separator: ", "))
-    }
-
     // MARK: - Zones
 
     @ViewBuilder
     private var zonesSection: some View {
-        if case .recorded(_, _, _, let zones?) = session.heartRate {
-            let floors = maxHeartRate?.zoneFloors ?? []
+        if case .recorded(_, _, _, let zones?, _) = session.heartRate {
             Section("Minutes in each zone") {
-                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
-                    ForEach(Array(zones.byZone.enumerated()).reversed(), id: \.offset) { index, minutes in
-                        GridRow {
-                            RoundedRectangle(cornerRadius: 2).fill(ZoneColour.of(index + 1)).frame(width: 10, height: 10)
-                            Text("Zone \(index + 1)").font(.subheadline)
-                            Text(floors.count == 5 ? "\(floors[index])+ bpm" : "")
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(Color(.secondaryLabel))
-                            Text(Formatting.minutes(minutes))
-                                .font(.subheadline.monospacedDigit())
-                                .gridColumnAlignment(.trailing)
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
-                    GridRow {
-                        Color.clear.frame(width: 10, height: 10)
-                        Text("Below zone 1").font(.subheadline).foregroundStyle(Color(.secondaryLabel))
-                        Text("")
-                        Text(Formatting.minutes(zones.belowZones))
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(Color(.secondaryLabel))
-                    }
-                }
-                .padding(.vertical, 2)
+                ZoneMinutesGrid(zones: zones, maxHeartRate: maxHeartRate)
             }
         }
     }

@@ -65,6 +65,7 @@ internal static partial class SheetSessions
             Provenance = Provenance.User,
             Membership = new InProgram(ProgramIdFor(program.Sheet, userId)),
             Origin = new RoutineOrigin.AdHoc(),
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = createdAt,
         };
 

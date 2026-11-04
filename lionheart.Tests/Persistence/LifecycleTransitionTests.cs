@@ -41,6 +41,7 @@ public class LifecycleTransitionTests : IDisposable
                 Provenance = planned.Provenance,
                 Membership = planned.Membership,
                 Origin = planned.Origin,
+                Source = planned.Source,
                 CreatedAt = planned.CreatedAt,
             });
 

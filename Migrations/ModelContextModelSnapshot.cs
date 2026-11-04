@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using lionheart.Data;
+using lionheart.Model.Training.Sessions;
 
 #nullable disable
 
@@ -574,6 +575,30 @@ namespace lionheart.Migrations
                     b.HasDiscriminator<string>("Kind").HasValue("Context");
 
                     b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Health.WorkoutRecording", b =>
+                {
+                    b.Property<Guid>("TrainingSessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HeartRate")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Route")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TrainingSessionId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("WorkoutRecordings", (string)null);
                 });
 
             modelBuilder.Entity("lionheart.Model.InjuryManagement.Injury", b =>
@@ -1259,6 +1284,9 @@ namespace lionheart.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("HealthWorkoutId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Lifecycle")
                         .IsRequired()
                         .HasMaxLength(21)
@@ -1279,6 +1307,12 @@ namespace lionheart.Migrations
                     b.Property<int>("Provenance")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("{\"$type\":\"athleteLog\"}");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
@@ -1289,6 +1323,10 @@ namespace lionheart.Migrations
                     b.HasIndex("Origin");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "HealthWorkoutId")
+                        .IsUnique()
+                        .HasFilter("\"HealthWorkoutId\" IS NOT NULL");
 
                     b.ToTable("Sessions", (string)null);
 
@@ -1610,6 +1648,15 @@ namespace lionheart.Migrations
                 });
 
             modelBuilder.Entity("lionheart.Model.Contexts.Context", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Health.WorkoutRecording", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany()

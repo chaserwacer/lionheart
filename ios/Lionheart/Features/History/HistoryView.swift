@@ -24,6 +24,8 @@ struct HistoryView: View {
     /// The stack's path, held so a context menu can push a movement's page.
     @State private var path = NavigationPath()
     @ScaledMetric(relativeTo: .body) private var consistencyChartHeight: CGFloat = 64
+    /// Pulling to refresh brings in any new runs from Apple Health with the log.
+    @Environment(HealthSyncStore.self) private var healthSync
 
     /// A transition waiting on the athlete's confirmation.
     ///
@@ -66,7 +68,11 @@ struct HistoryView: View {
                 }
             }
             .minimizingSearchField()
-            .refreshable { await refresh() }
+            .refreshable {
+                async let runs: Void = healthSync.syncIfConnected()
+                async let log: Void = refresh()
+                _ = await (runs, log)
+            }
             .navigationDestination(for: HistoryRoute.self) { route in
                 HistoryDestination(route: route, history: store, focus: focus, library: library)
             }

@@ -82,6 +82,7 @@ public static class Some
             Provenance = Provenance.User,
             Membership = new Standalone(),
             Origin = new RoutineOrigin.AdHoc(),
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = Clock,
         };
 
@@ -94,6 +95,7 @@ public static class Some
             Provenance = Provenance.User,
             Membership = new Standalone(),
             Origin = new RoutineOrigin.AdHoc(),
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = Clock,
         };
 
@@ -106,6 +108,7 @@ public static class Some
             Provenance = Provenance.AiAssisted,
             Membership = new Standalone(),
             Origin = new RoutineOrigin.AdHoc(),
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = Clock,
         };
 
@@ -118,6 +121,7 @@ public static class Some
             Provenance = Provenance.User,
             Membership = new Standalone(),
             Origin = new RoutineOrigin.AdHoc(),
+            Source = new SessionSource.AthleteLog(),
             CreatedAt = Clock,
         };
 

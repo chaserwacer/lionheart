@@ -119,6 +119,7 @@ public sealed class RoutinePersistenceTests : IDisposable
             context.Sessions.Add(Some.CompletedSession(_db.UserId) with
             {
                 Origin = new RoutineOrigin.FromRoutine(routine.RoutineId),
+                Source = new SessionSource.AthleteLog(),
             });
             context.SaveChanges();
         }

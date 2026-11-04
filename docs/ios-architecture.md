@@ -723,6 +723,37 @@ is the all-day heart-rate series and a year of five-minute classes, and because 
 reads the same reports as tools; the client derives nothing it could get wrong differently. Each
 store holds one report per span, like Today's trends, and reads the span again after an Oura sync.
 
+## Apple Health: runs in, a page each
+
+The athlete records his runs in Strava, which writes them to Apple Health with their routes; the
+phone reads them there and offers each to the server. What becomes training, and how a run several
+sources saw is counted once, is the server's rule — `docs/apple-health.md` has all of it. The phone's
+side:
+
+- **`Health/` is the one door into HealthKit**, a top-level folder beside `Net/` because it is the
+  app's second outside source. `HealthLibrary` owns the store and asks for every reader's types in
+  one sheet; `WorkoutReader` is its first reader. A later reader adds its types to
+  `HealthLibrary.readTypes` and sits beside it. Nothing outside `Health/` sees a HealthKit type: a
+  reader hands over `HealthWorkoutImport`, a plain wire value.
+- **Read only.** `SampleRuns`, the seeding behind a Settings button, is the one writer, and it is
+  compiled only into a Debug build for the simulator — never Release, and never a Debug build on the
+  phone, whose Health store is the athlete's own.
+- **`HealthSyncStore`** keeps HealthKit's anchor in a file, reads ten runs a page after it, offers
+  each, and moves the anchor on only once the page is answered — so a sync that loses the server
+  resumes at that page, and the server's idempotence absorbs the overlap. A run the server refuses is
+  counted, its id held back and offered again first on the next sync, and the sync goes on; anything
+  else stops it. It runs on returning to the app (once per
+  15 minutes, and only once connected) and on pull to refresh in History and on Cardio. Connecting is
+  a tap on the row, never a sheet sprung at launch. Its row sits beside Oura's on Today and in
+  Settings.
+- **The run's page** (`RunView`, reached from a session's detail and from Cardio) draws the server's
+  `RecordedRun`: the route with MapKit's `MapPolyline` — a still picture at a fixed height, since a
+  map that pans inside a list takes the list's scroll and one that grows with Dynamic Type outgrows
+  the screen; a tap opens it full screen to move and zoom — the figures, splits in kilometres or miles —
+  the one conversion the page makes, a change of unit — and the heart rate against the zones, footed
+  with whose it is. It shares the cardio session's chart and zone grid, which moved to `Design/` for
+  the second caller.
+
 ## Chat: one thread, with memory
 
 The Chat tab opens on the **thread**, not a conversation list. The athlete never starts a chat: he
@@ -765,7 +796,9 @@ and `SummaryFigures` (a span's headline figures as columns, or labelled rows whe
 value on a fixed scale against a usual band), `MeasureColours` (the one place a sleep stage, an
 activity class or a heart-rate zone gets its colour, so each reads the same on every screen), and
 `DailyTrendChart` (a per-day figure's readings, a line through them, the span's mean and a pressed
-day — bodyweight's trend, and any other figure read once a day or less).
+day — bodyweight's trend, and any other figure read once a day or less), and `HeartRateZoneChart`
+with `ZoneMinutesGrid` (heart rate over a session against the zone bands, and minutes per zone — a
+cardio session's and a recorded run's).
 
 Colour carries a verdict in one way only: orange marks a recovery figure, or a readiness band,
 that asks for attention. Oura's other bands read in the secondary label colour — a traffic light's
