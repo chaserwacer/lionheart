@@ -112,13 +112,16 @@ public static class WorkoutCategories
     /// <remarks>
     /// A name the athlete typed is taken at its word, as his own log is. A name the ring guessed,
     /// or no name at all, has to be shown by the heart rate. Incidental movement is out whatever
-    /// its heart rate did: carrying boxes upstairs is not zone 2.
+    /// its heart rate did: carrying boxes upstairs is not zone 2. So is a game or dance the ring
+    /// guessed: a night out can hold zone 2 for an hour and zone 4 for twenty minutes, and heart
+    /// rate cannot tell it from a session.
     /// </remarks>
     public static RingAdmission AdmissionOf(WorkoutCategory category, TimeSpan duration, RingEntry entry) => category switch
     {
         WorkoutCategory.Strength => new RingAdmission.Excluded(WorkoutExclusion.Strength),
         WorkoutCategory.Incidental => new RingAdmission.Excluded(WorkoutExclusion.NotTraining),
         WorkoutCategory.Walk when duration < SessionWalk => new RingAdmission.Excluded(WorkoutExclusion.ShortWalk),
+        WorkoutCategory.Sport when entry is RingEntry.Detected => new RingAdmission.Excluded(WorkoutExclusion.DetectedGame),
         WorkoutCategory.Endurance or WorkoutCategory.Sport or WorkoutCategory.Walk => entry switch
         {
             RingEntry.Entered => new RingAdmission.Session(),

@@ -24,7 +24,7 @@ public class GetWeeklyScoresEndpoint : EndpointBaseAsync
     }
 
     [HttpGet("api/training/score/weeks")]
-    [EndpointDescription("Get the training score of each week ending on a Sunday in the range, at most 52.")]
+    [EndpointDescription("Get the training score of each week ending on a Sunday in the range, at most 48.")]
     [ProducesResponseType<IReadOnlyList<WeeklyScore>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

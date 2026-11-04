@@ -25,11 +25,12 @@ internal static class ScoreCalibrationCommand
 {
     public const string Verb = "score-calibration";
 
-    private const string Usage = "usage: dotnet run -- score-calibration --user <athlete-guid>";
+    private const string Usage =
+        "usage: dotnet run -- score-calibration --user <athlete-guid> [--weeks <from> <to> | --sessions <from> <to> | --next <day>]";
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {
-        if (args is not [Verb, "--user", var user] || !Guid.TryParse(user, out var userId))
+        if (args is not [Verb, "--user", var user, ..] || !Guid.TryParse(user, out var userId))
         {
             Console.Error.WriteLine(Usage);
             return 2;
@@ -40,6 +41,32 @@ internal static class ScoreCalibrationCommand
         var context = scope.ServiceProvider.GetRequiredService<ModelContext>();
         var service = new TrainingScoreService(context, new CardioReportService(context), MovementPatternMap.Shipped);
         var identity = new IdentityUser { Id = userId.ToString() };
+
+        if (args is [_, _, _, "--sessions", var from, var to])
+        {
+            var report = await new CardioReportService(context).GetReportAsync(
+                identity, new DayRange(DateOnly.Parse(from), DateOnly.Parse(to)), ct);
+            return report.Match(DescribeSessions, Refuse);
+        }
+
+        if (args is [_, _, _, "--next", var asOf])
+        {
+            var next = await new Next.NextSessionsService(context, service, new CardioReportService(context), MovementPatternMap.Shipped)
+                .GetNextAsync(identity, DateOnly.Parse(asOf), ct);
+            Console.WriteLine(next.Match(found => string.Join("\n", Next.NextSessionsService.Lines(found)), problem => problem.Description));
+            return 0;
+        }
+
+        if (args is [_, _, _, "--weeks", var weeksFrom, var weeksTo])
+        {
+            // Each Sunday scored on its own, so every measurement and its target can be printed.
+            foreach (var sunday in TrainingScoreService.Sundays(new DayRange(DateOnly.Parse(weeksFrom), DateOnly.Parse(weeksTo))))
+            {
+                var scored = await service.GetScoreAsync(identity, sunday, ct);
+                Console.WriteLine(scored.Match(Detail, problem => $"{sunday:yyyy-MM-dd} refused: {problem.Description}"));
+            }
+            return 0;
+        }
 
         var first = (await context.Sessions.OfType<CompletedTrainingSession>().AsNoTracking()
                 .Where(session => session.UserId == userId).ToListAsync(ct))
@@ -111,6 +138,30 @@ internal static class ScoreCalibrationCommand
     private static string Line(WeeklyScore week) =>
         $"{week.Window.To:yyyy-MM-dd} {week.Value,3}/{week.OutOf}  lifting {week.LiftingPoints,4:0.0}  cardio {(week.CardioPoints is { } cardio ? $"{cardio,4:0.0}" : "   ?")}"
         + $"  progress {week.ProgressPoints,4:0.0}  consistency {week.ConsistencyPoints,4:0.0}";
+
+    /// <summary>One week's score with every measurement against this week's target, "measured/target".</summary>
+    private static string Detail(TrainingScore score) =>
+        $"{score.Window.To:yyyy-MM-dd} {score.Value,3}/{score.OutOf}  sets "
+        + string.Join(" ", score.Lifting.Families.Select(family => $"{family.Of.HardSets}/{family.Of.Target.Target:0}"))
+        + "  " + (score.Cardio.Zones.Count is 0
+            ? $"cardio {score.Cardio.Measure}"
+            : string.Join("  ", score.Cardio.Zones.Select(zone => $"{zone.Of.Band} {zone.Of.Minutes:0}/{zone.Of.Target.Target:0}")))
+        + $"  lift {score.Lifting.Points:0.0} cardio {score.Cardio.Points?.ToString("0.0") ?? "?"} progress {score.Progress.Points:0.0} consistency {score.Consistency.Points:0.0}";
+
+    private static int DescribeSessions(Model.Cardio.CardioReport report)
+    {
+        Console.WriteLine($"maximum {report.MaxHeartRate}");
+        foreach (var session in report.Sessions) Console.WriteLine($"  {SessionLine(session)}");
+        Console.WriteLine("declined:");
+        foreach (var declined in report.Declined) Console.WriteLine($"  {SessionLine(declined.Session)} {declined.Reason}");
+        return 0;
+    }
+
+    private static string SessionLine(Model.Cardio.CardioSession session) =>
+        $"{session.Start:yyyy-MM-dd HH:mm} {session.Minutes,4:0}m {session.Source} "
+        + (session.HeartRate is Model.Cardio.SessionHeartRate.Recorded recorded
+            ? $"avg {recorded.AverageBpm} peak {recorded.PeakBpm} cov {recorded.Coverage:0.00} {recorded.Zones}"
+            : "no heart rate");
 
     private static DateOnly Min(DateOnly left, DateOnly right) => left < right ? left : right;
 }

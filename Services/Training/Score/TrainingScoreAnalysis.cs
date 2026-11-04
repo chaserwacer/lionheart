@@ -9,19 +9,22 @@ using lionheart.Services.Training.Focus;
 
 namespace lionheart.Services.Training.Score;
 
-/// <summary>The training score as a function of the log, the pins and the window's cardio.</summary>
+/// <summary>The training score as a function of the log, the pins and the cardio of each window.</summary>
 /// <remarks>
-/// Pure, so the weights and targets in <see cref="ScoreRules"/> are tested and calibrated against
-/// the athlete's history without a database. Each part's points are its measurements against
-/// their targets, on a concave curve capped at the target, so no part pays for another.
+/// Pure, so the weights and standards in <see cref="ScoreRules"/> are tested and calibrated against
+/// the athlete's history without a database. Each volume measurement is read against a target grown
+/// from the four weeks before it (<see cref="Progression"/>); every measurement pays on a concave
+/// curve capped at its target, so no part pays for another.
 /// </remarks>
 public static class TrainingScoreAnalysis
 {
-    public static TrainingScore Score(TrainingLog log, IReadOnlyList<FocusPin> pins, CardioMeasure cardio, DateOnly endingOn)
+    /// <param name="cardioOf">The cardio of any seven-day window: the score's own, and the four before it for the targets.</param>
+    public static TrainingScore Score(
+        TrainingLog log, IReadOnlyList<FocusPin> pins, Func<DayRange, CardioMeasure> cardioOf, DateOnly endingOn)
     {
         var window = VolumeTargets.WindowEndingOn(endingOn);
         var lifting = Lifting(log, window);
-        var cardioPart = Cardio(cardio);
+        var cardioPart = Cardio(cardioOf(window), Before(window).Select(cardioOf).ToList());
         var progress = Progress(PriorityAnalysis.Read(log, pins, endingOn));
         var consistency = Consistency(log, endingOn);
 
@@ -40,33 +43,51 @@ public static class TrainingScoreAnalysis
             consistency);
     }
 
+    /// <summary>The four seven-day blocks before a window, newest first: what its targets grow from.</summary>
+    public static IEnumerable<DayRange> Before(DayRange window) =>
+        Enumerable.Range(1, Progression.ChronicWeeks)
+            .Select(block => new DayRange(window.From.AddDays(-7 * block), window.To.AddDays(-7 * block)));
+
     private static LiftingPart Lifting(TrainingLog log, DayRange window)
     {
         var history = TrainingVolumeAnalysis.Placed(log, DateOnly.MinValue, window.To).ToList();
+        IReadOnlyList<FamilyVolume> In(DayRange range) =>
+            TrainingVolumeAnalysis.Families([.. history.Where(placed => placed.Day >= range.From && placed.Day <= range.To)], history);
+
+        var before = Before(window).Select(In).ToList();
         var families = Shared(
-            TrainingVolumeAnalysis.Families([.. history.Where(placed => placed.Day >= window.From)], history),
+            [
+                .. In(window).Select(family => new FamilyTarget(
+                    family.Family,
+                    family.HardSets,
+                    Progression.Of(
+                        ScoreRules.FamilySets,
+                        [.. before.Select(block => (double?)block.Single(earlier => earlier.Family == family.Family).HardSets)]),
+                    family.LastTrained))
+            ],
             ScoreRules.LiftingPoints,
-            family => Share(family.HardSets, family.Target));
+            family => Progression.Share(family.HardSets, family.Target));
         return new LiftingPart(families.Sum(family => family.Points), ScoreRules.LiftingPoints, families);
     }
 
-    private static CardioPart Cardio(CardioMeasure measure) => measure switch
+    private static CardioPart Cardio(CardioMeasure measure, IReadOnlyList<CardioMeasure> before)
     {
-        CardioMeasure.Measured measured => Zones(
-            measure,
-            [
-                Band(new ZoneTarget(ZoneBand.Zone2, measured.Zone2Minutes, measured.Zone2Target), ScoreRules.Zone2Points),
-                Band(new ZoneTarget(ZoneBand.Zones3To5, measured.HighIntensityMinutes, measured.HighIntensityTarget), ScoreRules.HighIntensityPoints),
-            ]),
-        CardioMeasure.Unknown => new CardioPart(null, ScoreRules.CardioPoints, measure, []),
-        _ => throw new System.Diagnostics.UnreachableException(),
-    };
+        if (measure is not CardioMeasure.Measured measured) return new CardioPart(null, ScoreRules.CardioPoints, measure, []);
 
-    private static CardioPart Zones(CardioMeasure measure, IReadOnlyList<Scored<ZoneTarget>> bands) =>
-        new(bands.Sum(band => band.Points), ScoreRules.CardioPoints, measure, bands);
+        var earlier = before.Select(block => block as CardioMeasure.Measured).ToList();
+        Scored<ZoneTarget> Band(ZoneBand band, double minutes, Standard standard, Func<CardioMeasure.Measured, double> figure, int points)
+        {
+            var target = new ZoneTarget(band, minutes, Progression.Of(standard, [.. earlier.Select(block => block is null ? (double?)null : figure(block))]));
+            return new Scored<ZoneTarget>(target, points * Progression.Share(minutes, target.Target), points);
+        }
 
-    private static Scored<ZoneTarget> Band(ZoneTarget band, int points) =>
-        new(band, points * Share(band.Minutes, band.Target), points);
+        IReadOnlyList<Scored<ZoneTarget>> bands =
+        [
+            Band(ZoneBand.Zone2, measured.Zone2Minutes, ScoreRules.Zone2, block => block.Zone2Minutes, ScoreRules.Zone2Points),
+            Band(ZoneBand.Quality, measured.QualityMinutes, ScoreRules.Quality, block => block.QualityMinutes, ScoreRules.QualityPoints),
+        ];
+        return new CardioPart(bands.Sum(band => band.Points), ScoreRules.CardioPoints, measure, bands);
+    }
 
     private static ProgressPart Progress(IReadOnlyList<FamilyPriority> families)
     {
@@ -109,24 +130,12 @@ public static class TrainingScoreAnalysis
                 .. Enumerable.Range(0, ScoreRules.ConsistencyBlocks)
                     .Select(block => endingOn.AddDays(-7 * block))
                     .Select(blockEnd => new DayRange(blockEnd.AddDays(-6), blockEnd))
-                    .Select(window => new SessionBlock(window, log.Between(window.From, window.To).Count()))
+                    .Select(window => new SessionBlock(window, log.Between(window.From, window.To).Count(session => session.Trained)))
             ],
             ScoreRules.ConsistencyPoints,
-            block => Share(block.Sessions, ScoreRules.SessionsPerWeek));
+            block => Progression.Share(block.Sessions, ScoreRules.SessionsPerWeek));
 
         return new ConsistencyPart(
             blocks.Sum(block => block.Points), ScoreRules.ConsistencyPoints, blocks, ScoreRules.SessionsPerWeek);
     }
-
-    /// <summary>
-    /// A measurement's share of its points: the square root of how much of the target it reached,
-    /// capped at the whole.
-    /// </summary>
-    /// <remarks>
-    /// Concave because the returns are: the first four of eight hard sets, or the first hour of
-    /// zone 2, buy most of what the target would (Pelland 2026), so half the target pays 71 per cent
-    /// rather than half. The top is unchanged — only the whole target pays in full.
-    /// </remarks>
-    public static double Share(double measured, double target) =>
-        target <= 0 ? 0 : Math.Sqrt(Math.Clamp(measured / target, 0, 1));
 }

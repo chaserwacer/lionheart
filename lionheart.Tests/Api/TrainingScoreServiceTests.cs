@@ -75,7 +75,7 @@ public class TrainingScoreServiceTests : IDisposable
 
         Assert.Equal($"{Sunday.AddDays(-4):yyyy-MM-dd}..{Sunday.AddDays(2):yyyy-MM-dd}", digest.Window);
         Assert.StartsWith("lifting ", digest.Parts[0]);
-        Assert.Contains("push 3/8", digest.Parts[0]);
+        Assert.Contains("push 3/4 (committed 8", digest.Parts[0]);
         Assert.StartsWith("cardio unknown", digest.Parts[1]);
         Assert.Contains("of 75 that could be read", digest.Score);
         // The families due and the day's own lifting are separate statements, so neither reads as the other.

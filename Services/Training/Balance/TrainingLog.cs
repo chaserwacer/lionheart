@@ -64,7 +64,17 @@ public sealed record TrainingLog(
 
 /// <summary>One completed session: its day on the athlete's own clock, and its hard sets.</summary>
 /// <remarks>A session of runs or freeform sets has no hard sets and still counts as a session.</remarks>
-public sealed record SessionInLog(Guid TrainingSessionId, DateOnly Day, IReadOnlyList<LiftSet> HardSets);
+public sealed record SessionInLog(Guid TrainingSessionId, DateOnly Day, IReadOnlyList<LiftSet> HardSets)
+{
+    /// <summary>
+    /// Nothing but walking: a watch's record of getting somewhere, which is in the log but is not a
+    /// training session.
+    /// </summary>
+    public bool OnlyWalking { get; init; }
+
+    /// <summary>Whether the session counts as one trained: anything but a session of only walking.</summary>
+    public bool Trained => !OnlyWalking;
+}
 
 /// <summary>A movement as the log reads it: a display name, what it trains, and how its weight is read.</summary>
 public sealed record LoggedMovement(Guid MovementDataId, string Name, ClassificationStanding Classification, bool AddsToBodyweight);

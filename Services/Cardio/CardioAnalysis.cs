@@ -342,7 +342,10 @@ public static class CardioAnalysis
                 : attributed.Aggregate(
                     ZoneMinutes.None,
                     (zones, pair) => zones + ZoneMinutes.InZone(ZoneMinutes.ZoneOf(pair.Sample.Bpm, maximum.Bpm), pair.Minutes)),
-            source);
+            source)
+        {
+            Bouts = maximum is null ? [] : WorkBouts.Of(samples, session.End, maximum.Bpm),
+        };
     }
 
     private static ZoneMinutes ZonesOf(CardioSession session) =>
@@ -398,7 +401,8 @@ public static class CardioAnalysis
 
             var held = In(window);
             var total = held.Sum(session => session.Minutes)
-                        + unread.Where(session => Within(window, LocalDay(session.Start))).Sum(session => session.Minutes);
+                        + unread.Where(session => Within(window, LocalDay(session.Start)) && session.Modality is CardioModality.Endurance)
+                            .Sum(session => session.Minutes);
             var covered = held
                 .Where(session => session.HeartRate is SessionHeartRate.Recorded)
                 .Sum(session => session.Minutes);
