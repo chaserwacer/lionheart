@@ -10,7 +10,7 @@ namespace lionheart.Services.CoachedSheets;
 
 /// <summary>
 /// The command line the coached-programme import runs behind:
-/// <c>dotnet run -- import-coached-sheets &lt;training-os/derived/sets.tsv&gt; --user &lt;athlete-id&gt;</c>.
+/// <c>dotnet run -- import-coached-sheets &lt;training-os/derived/sets.tsv&gt; --decisions &lt;coached-sheets.json&gt; --user &lt;athlete-id&gt;</c>.
 /// </summary>
 /// <remarks>
 /// Packaged like the Strong import, for its reasons: a filesystem path, an athlete named on the
@@ -22,11 +22,11 @@ internal static class CoachedSheetImportCommand
     public const string Verb = "import-coached-sheets";
 
     private const string Usage =
-        "usage: dotnet run -- import-coached-sheets <training-os/derived/sets.tsv> --user <athlete-guid>";
+        "usage: dotnet run -- import-coached-sheets <training-os/derived/sets.tsv> --decisions <coached-sheets.json> --user <athlete-guid>";
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {
-        if (args is not [Verb, var log, "--user", var user] || !Guid.TryParse(user, out var userId))
+        if (args is not [Verb, var log, "--decisions", var decisionsPath, "--user", var user] || !Guid.TryParse(user, out var userId))
         {
             Console.Error.WriteLine(Usage);
             return 2;
@@ -39,7 +39,7 @@ internal static class CoachedSheetImportCommand
         var rebuild = new PersonalRecordRebuild(context, new PersonalRecordDetector(context, clock));
 
         var imported = await SheetMovementMap.Shipped()
-            .Bind(movements => SheetDecisions.Shipped().Map(decisions => (Movements: movements, Decisions: decisions)))
+            .Bind(movements => SheetDecisions.Read(decisionsPath).Map(decisions => (Movements: movements, Decisions: decisions)))
             .BindAsync(files => new CoachedSheetImporter(context, rebuild, files.Movements, files.Decisions, TimeZoneInfo.Local, clock)
                 .ImportAsync(log, userId, ct));
 

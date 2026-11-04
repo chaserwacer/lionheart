@@ -9,8 +9,8 @@ public sealed record SheetProgram(
 {
     /// <summary>
     /// The slug this programme's sheet means by <paramref name="exercise"/>. A sheet can say less than
-    /// its era did: Blake's sheets write "Heave" for a deadlift pulled sumo, where the earlier Jamal
-    /// block's deadlift was conventional, and training-os gives both one slug.
+    /// its era did: one coach's sheets write "Deadlift" for a pull done sumo where an earlier block's
+    /// was conventional, and training-os gives both one slug.
     /// </summary>
     public string Reading(string exercise) => ReadAs.GetValueOrDefault(exercise, exercise);
 }
@@ -51,14 +51,14 @@ public sealed record NotPerformed(
 /// rows were never lifted, and which note text is the template's own rather than the coach's.
 /// </summary>
 /// <remarks>
-/// A data file (<c>coached-sheets.json</c>, beside this one) for the reason the movement maps are:
-/// each call is reviewable, with its evidence, without reading C#. It is compiled into the
-/// assembly, so a run always uses the file in the source tree that built it.
+/// A data file (<c>coached-sheets.json</c>) for the reason the movement maps are: each call is
+/// reviewable, with its evidence, without reading C#. Unlike the maps it is named on the command
+/// line rather than compiled in, because its evidence is the athlete's own training (dates,
+/// weights, his notes) and stays with his spreadsheets rather than in this repository.
 /// </remarks>
 public sealed class SheetDecisions
 {
     internal const string FileName = "coached-sheets.json";
-    internal const string ResourceName = "lionheart.Services.CoachedSheets.coached-sheets.json";
 
     private static readonly JsonSerializerOptions FileJson = new()
     {
@@ -87,15 +87,11 @@ public sealed class SheetDecisions
     /// </summary>
     public IReadOnlyList<string> TemplateText { get; }
 
-    public static Result<SheetDecisions, Problem> Shipped()
-    {
-        using var stream = typeof(SheetDecisions).Assembly.GetManifestResourceStream(ResourceName)
-                           ?? throw new InvalidOperationException(
-                               $"The build carries no '{ResourceName}'; it is an embedded resource of lionheart.csproj.");
-        using var reader = new StreamReader(stream);
-
-        return Parse(reader.ReadToEnd());
-    }
+    /// <summary>The decisions the file at <paramref name="path"/> states, or why it cannot be used.</summary>
+    public static Result<SheetDecisions, Problem> Read(string path) =>
+        File.Exists(path)
+            ? Parse(File.ReadAllText(path))
+            : Result<SheetDecisions, Problem>.Failure(new Problem.Invalid("decisions", $"No file at '{path}'."));
 
     /// <summary>The decisions a file's text states, or every reason it cannot be used.</summary>
     public static Result<SheetDecisions, Problem> Parse(string json) =>

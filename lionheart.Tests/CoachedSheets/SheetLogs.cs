@@ -52,14 +52,14 @@ internal static class SheetLogs
         {
             programs = new object[]
             {
-                new { sheet = "mk-2", title = "Perfect Powerlifting — MK.2", summary = "Coached by Blake Rossi.", tags = new[] { "coached" } },
+                new { sheet = "mk-2", title = "Strength block — MK.2", summary = "Coached block.", tags = new[] { "coached" } },
                 new { sheet = "your-program-rpe", title = "Jamal V5 — Your Program (RPE)", summary = "RPE template.", tags = new[] { "coached" } },
             },
             templateText = new[] { "WEIGHT WILL BE AUTO GENERATED" },
             notPerformed,
         })));
 
-    /// <summary>The same two programmes, with MK.2 reading its deadlift as sumo, as Blake's sheets do.</summary>
+    /// <summary>The same two programmes, with MK.2 reading its deadlift as sumo.</summary>
     public static SheetDecisions DecisionsWithSumoMk2() =>
         ResultAssert.Succeeded(SheetDecisions.Parse(JsonSerializer.Serialize(new
         {
@@ -67,7 +67,7 @@ internal static class SheetLogs
             {
                 new
                 {
-                    sheet = "mk-2", title = "Perfect Powerlifting — MK.2", summary = "Coached by Blake Rossi.", tags = new[] { "coached" },
+                    sheet = "mk-2", title = "Strength block — MK.2", summary = "Coached block.", tags = new[] { "coached" },
                     readAs = new Dictionary<string, string> { ["deadlift-barbell"] = "sumo-deadlift-barbell" },
                 },
                 new { sheet = "your-program-rpe", title = "Jamal V5 — Your Program (RPE)", summary = "RPE template.", tags = new[] { "coached" } },

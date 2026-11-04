@@ -7,8 +7,8 @@ using lionheart.Tests.Support;
 namespace lionheart.Tests.CoachedSheets;
 
 /// <summary>
-/// The two shipped files the coached-programme import reads — the movement map and the sheet
-/// decisions — as shipped and as edited, and the notes the decisions shape.
+/// The two files the coached-programme import reads — the shipped movement map and the sheet
+/// decisions the command line names — and the notes the decisions shape.
 /// </summary>
 public class CoachedSheetFilesTests
 {
@@ -44,32 +44,46 @@ public class CoachedSheetFilesTests
     }
 
     [Fact]
-    public void Blakes_sheets_pull_sumo_and_the_Jamal_block_pulls_conventional()
+    public void The_sumo_slugs_a_programme_can_read_its_deadlifts_as_map_to_sumo_movements()
     {
-        // The sheets never state the stance; the athlete does. Blake's 463 x 3 and 474 x 3 are past
-        // his 463 conventional single, and he pulled conventional while running Jamal.
-        var decisions = ResultAssert.Succeeded(SheetDecisions.Shipped());
-        var movements = ResultAssert.Succeeded(Movements.Cover(["deadlift-barbell", "sumo-deadlift-barbell"]));
+        var movements = ResultAssert.Succeeded(Movements.Cover(["deadlift-barbell", "sumo-deadlift-barbell", "paused-sumo-deadlift"]));
 
-        Assert.All(
-            new[] { "disabled", "mk-2", "dont-take-3-months-for-this-one", "chase-vs-his-opps" },
-            sheet => Assert.Equal("sumo-deadlift-barbell", decisions.Programs[sheet].Reading("deadlift-barbell")));
-        Assert.Equal("deadlift-barbell", decisions.Programs["your-program-rpe"].Reading("deadlift-barbell"));
         Assert.Equal("Sumo Deadlift", movements["sumo-deadlift-barbell"].Movement.Base);
+        Assert.Equal("Sumo Deadlift", movements["paused-sumo-deadlift"].Movement.Base);
         Assert.Equal("Deadlift", movements["deadlift-barbell"].Movement.Base);
     }
 
     // ---- The sheet decisions ----
 
     [Fact]
-    public void The_shipped_decisions_read_and_give_every_sheet_a_programme()
+    public void A_decisions_file_is_read_from_the_path_it_is_named_by()
     {
-        var decisions = ResultAssert.Succeeded(SheetDecisions.Shipped());
+        var path = Path.Combine(Path.GetTempPath(), $"coached-sheets-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, """
+            // comments are allowed
+            { "programs": [ { "sheet": "mk-2", "title": "Strength block — MK.2", "readAs": { "deadlift-barbell": "sumo-deadlift-barbell" } } ] }
+            """);
 
-        Assert.Equal(
-            ["chase-vs-his-opps", "disabled", "dont-take-3-months-for-this-one", "mk-2", "your-program-rpe"],
-            decisions.Programs.Keys.Order(StringComparer.Ordinal));
-        Assert.All(decisions.NotPerformed, row => Assert.NotEmpty(row.Reason));
+        try
+        {
+            var decisions = ResultAssert.Succeeded(SheetDecisions.Read(path));
+
+            Assert.Equal("sumo-deadlift-barbell", decisions.Programs["mk-2"].Reading("deadlift-barbell"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void A_decisions_path_with_no_file_is_refused_by_name()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), $"absent-{Guid.NewGuid():N}.json");
+
+        var problem = Assert.IsType<Problem.Invalid>(ResultAssert.Failed(SheetDecisions.Read(missing)));
+
+        Assert.Contains(missing, Assert.Single(problem.Fields).Message);
     }
 
     [Fact]
@@ -99,7 +113,7 @@ public class CoachedSheetFilesTests
 
     [Theory]
     [InlineData("prescribed RPE 6.5", "prescribed RPE 6.5")]
-    [InlineData("prescribed RPE 45147.0 | Pinky on ring", "Pinky on ring")]
+    [InlineData("prescribed RPE 45147.0 | Grip a finger wider", "Grip a finger wider")]
     [InlineData("prescribed RPE 265.0", "")]
     [InlineData("prescribed RPE -%", "")]
     [InlineData("prescribed RPE 8.5-9 | PLEASE CHECK THE FAQ PAGE. IT EXPLAINS THE BACKDOWN SETS.", "prescribed RPE 8.5-9")]
