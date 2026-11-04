@@ -33,7 +33,8 @@ public static class WorkoutReadouts
         var (start, end) = SessionMatching.Span(session.Period) ?? (session.Period.StartTime, session.Period.StartTime);
         var route = RouteAnalysis.Figures(recording.Route);
         var stated = Stated(session, route, end - start);
-        var moving = recording.Route.HasPath ? route.Moving : (TimeSpan?)null;
+        var keepsTime = RouteAnalysis.KeepsTime(recording.Route, end - start);
+        var moving = keepsTime ? route.Moving : (TimeSpan?)null;
         var samples = heartRate.Samples.Where(sample => sample.At >= start && sample.At < end).ToList();
 
         return new RecordedWorkoutView(
@@ -61,8 +62,8 @@ public static class WorkoutReadouts
                 maximum),
             maximum,
             new HeartRateTrace(heartRate.Source, [.. samples.Select(sample => new HeartRateReading(sample.At, sample.Bpm))]),
-            RouteAnalysis.Splits(recording.Route, stated.Meters, DistanceUnit.Kilometers.MetersEach(), samples),
-            RouteAnalysis.Splits(recording.Route, stated.Meters, DistanceUnit.Miles.MetersEach(), samples),
+            keepsTime ? RouteAnalysis.Splits(recording.Route, stated.Meters, DistanceUnit.Kilometers.MetersEach(), samples) : [],
+            keepsTime ? RouteAnalysis.Splits(recording.Route, stated.Meters, DistanceUnit.Miles.MetersEach(), samples) : [],
             [.. recording.Route.Points.Select(point => new Coordinate(point.Latitude, point.Longitude))],
             ActivityOf(session),
             [.. recording.Metrics.Series.Select(Readout)]);

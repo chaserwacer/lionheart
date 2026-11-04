@@ -21,7 +21,7 @@ namespace lionheart.Model.Health;
 /// </remarks>
 /// <param name="Activity">What the session is: a run, a ride, a hike, a walk, indoors or out.</param>
 /// <param name="Duration">The time the recording app counted, which excludes a pause it recorded.</param>
-/// <param name="MovingTime">The route's time in motion, or absent with no route to read it from.</param>
+/// <param name="MovingTime">The route's time in motion, or absent with no route whose clock can be read.</param>
 /// <param name="Pace">The duration over the distance, per kilometre; absent with no distance.</param>
 /// <param name="MovingPace">The moving time over the distance, per kilometre.</param>
 /// <param name="ClimbMeters">The session's climb, as the recording app stated it or the route showed it.</param>

@@ -230,6 +230,10 @@ no migration:
 - **Splits** per kilometre and per mile: elapsed and moving time, moving pace per whole unit (a short
   last split reads at its own pace), climb, descent and average heart rate. A remainder under 10 m is
   not a split.
+- **A route without a clock** gives neither. Strava stamps every fix with the moment it wrote the route
+  to Health, days after the run; an old watch could keep minutes of fixes from an hour out. A route
+  whose fixes span less than half the workout keeps its length, shape and climb, but no moving time
+  and no splits.
 
 ## Location privacy
 

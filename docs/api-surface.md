@@ -486,10 +486,11 @@ at once answers `alreadyImported` to the second.
 `GET /api/training/sessions/{id}/recording` answers `RecordedWorkoutView` for a session imported
 from Health, and 404 for any other: `activity` (`run`, `ride`, `indoorRide`, `hike`, `walk`,
 `indoorRun`), `recordedBy`, `start`, `end`, the session's `distanceMeters`,
-`duration` and `climbMeters`; `movingTime`, `descentMeters` from the route (null without one);
+`duration` and `climbMeters`; `movingTime`, `descentMeters` from the route (null without one, and `movingTime` null where the
+route's fixes do not span half the workout);
 `pace` and `movingPace` per kilometre; `heartRate` (the cardio report's `SessionHeartRate`, its
 `source` included), `maxHeartRate`, and `trace` (`source`, `samples` of `at`/`bpm`) for drawing;
-`kilometres` and `miles` (each split: `number`, `distanceMeters`, `elapsed`, `moving`, `pace` per
+`kilometres` and `miles` (empty where `movingTime` is null; each split: `number`, `distanceMeters`, `elapsed`, `moving`, `pace` per
 its own unit, `climbMeters`, `descentMeters`, `averageBpm`); `route` (`latitude`, `longitude`); and
 `metrics` (each: `metric`, `average` over its samples, `peak`, `samples` of `at`/`value`; empty when
 the app wrote none — heart-rate recovery is one sample). A ride's speed is the client's conversion

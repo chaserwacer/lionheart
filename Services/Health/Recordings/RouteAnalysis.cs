@@ -49,8 +49,28 @@ public static class RouteAnalysis
     /// </summary>
     public const double ShortestLastSplit = 10;
 
+    /// <summary>
+    /// The least share of the workout's elapsed time a route's fixes must span for its clock to be
+    /// read.
+    /// </summary>
+    public const double TimedShare = 0.5;
+
     /// <summary>The mean radius of the Earth, in metres (IUGG).</summary>
     private const double EarthRadius = 6_371_008.8;
+
+    /// <summary>
+    /// Whether the route's own clock says when the athlete was where: its fixes span at least
+    /// <see cref="TimedShare"/> of the workout's <paramref name="elapsed"/> time.
+    /// </summary>
+    /// <remarks>
+    /// Strava writes a route to Apple Health with every fix stamped when it wrote them — hours or
+    /// days after the run, all within a few milliseconds — and an old watch could keep a few minutes
+    /// of fixes from an hour out. Such a route still has its length, its shape and its climb, but a
+    /// moving time or a split's time read off it would be noise: a 33-minute run "moving" for a
+    /// millisecond.
+    /// </remarks>
+    public static bool KeepsTime(WorkoutRoute route, TimeSpan elapsed) =>
+        route.HasPath && route.Points[^1].At - route.Points[0].At >= elapsed * TimedShare;
 
     public static RouteFigures Figures(WorkoutRoute route)
     {

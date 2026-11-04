@@ -231,7 +231,10 @@ struct RecordedWorkoutView: View {
             unitPicker
 
             if splits.isEmpty {
-                Text("No route to cut into splits.").foregroundStyle(Color(.secondaryLabel))
+                Text(run.route.count >= 2
+                     ? "\(run.recordedBy.nonEmpty ?? "The app") wrote the route without its times, so it cannot be cut into splits."
+                     : "No route to cut into splits.")
+                    .foregroundStyle(Color(.secondaryLabel))
             } else {
                 SplitsGrid(splits: splits, unit: unit, readsAsSpeed: run.activity.readsAsSpeed)
             }
