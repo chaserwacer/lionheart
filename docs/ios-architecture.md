@@ -677,7 +677,8 @@ The server establishes records when a session's sets become final; the client re
 them, and withdraws one when the athlete says the set was not real. Three rules shape it:
 
 - **The unit is part of a record's identity.** A movement logged in pounds and kilograms holds a
-  record of each kind in each, and weights never convert. Everything that groups or looks records
+  record of each kind in each, and the server never converts one into the other to rank them; the
+  screens read both in pounds (`Imperial`). Everything that groups or looks records
   up keys on `RecordKey` — subject, kind, unit — never on the kind alone. The movement screen reads
   one unit at a time behind a segmented control, and a history narrows the route's every-unit
   answer to the record's own key. Distances carry no unit in their key: they rank in meters.

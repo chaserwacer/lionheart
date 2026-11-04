@@ -163,11 +163,11 @@ enum Formatting {
     /// reads `220.5` rather than `220.46`. A unit this build cannot name keeps its number and says
     /// no unit, rather than calling it pounds.
     static func weightParts(_ value: Double, _ unit: WeightUnit) -> (amount: String, unit: String) {
-        switch unit {
-        case .pounds: (measure(value), "lb")
-        case .kilograms: (measure((Imperial.pounds(value, from: unit) * 10).rounded() / 10), "lb")
-        case .unrecognised: (measure(value), "")
+        let amount = switch unit {
+        case .pounds, .unrecognised: measure(value)
+        case .kilograms: measure((Imperial.pounds(value, from: unit) * 10).rounded() / 10)
         }
+        return (amount, Imperial.weightLabel(unit))
     }
 
     /// A distance in the unit it reads in: kilometres as miles, a track's metres and yards as
@@ -238,10 +238,8 @@ enum Formatting {
     /// A volume in pounds, whichever unit it was lifted in, to a tenth at most.
     static func volume(_ volume: Double, _ unit: WeightUnit) -> String {
         let figure = Imperial.pounds(volume, from: unit).formatted(.number.precision(.fractionLength(0...1)))
-        switch unit {
-        case .pounds, .kilograms: return "\(figure) lb"
-        case .unrecognised: return figure
-        }
+        let label = Imperial.weightLabel(unit)
+        return label.isEmpty ? figure : "\(figure) \(label)"
     }
 
     /// What a session's sets came to — "14 sets · 12,450 lb" — as one volume in pounds, a part
@@ -249,9 +247,9 @@ enum Formatting {
     /// zero) add no volume to say; a unit this build cannot name is said on its own, unconverted.
     static func totals(_ totals: WorkoutTotals) -> String {
         let loaded = totals.weights.filter { $0.volume > 0 }
-        let named = loaded.filter { $0.unit == .pounds || $0.unit == .kilograms }
+        let named = loaded.filter { !Imperial.weightLabel($0.unit).isEmpty }
         let pounds = named.isEmpty ? [] : [volume(named.map { Imperial.pounds($0.volume, from: $0.unit) }.reduce(0, +), .pounds)]
-        let unnamed = loaded.filter { $0.unit != .pounds && $0.unit != .kilograms }.map(volume)
+        let unnamed = loaded.filter { Imperial.weightLabel($0.unit).isEmpty }.map(volume)
         return ([count(totals.setCount, "set")] + pounds + unnamed).joined(separator: " · ")
     }
 
@@ -393,9 +391,9 @@ enum Formatting {
 
     /// An estimate in pounds, rounded to the whole number it can honestly claim and marked as one.
     static func estimate(_ value: Double, _ unit: WeightUnit) -> String {
-        let parts = weightParts(value, unit)
         let figure = estimateFigure(Imperial.pounds(value, from: unit))
-        return parts.unit.isEmpty ? "≈ \(figure)" : "≈ \(figure) \(parts.unit)"
+        let label = Imperial.weightLabel(unit)
+        return label.isEmpty ? "≈ \(figure)" : "≈ \(figure) \(label)"
     }
 
     /// An estimated single as a whole number, rounded the one way everywhere it is shown.

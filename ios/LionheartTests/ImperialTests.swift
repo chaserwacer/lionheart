@@ -36,7 +36,8 @@ struct ImperialTests {
             distances: [],
             movingDuration: 0)
 
-        #expect(Formatting.totals(totals) == "6 sets · \((3_000 + 1_000 / 0.453_592_37).formatted(.number.precision(.fractionLength(0...1)))) lb")
+        // 1,000 kg of volume is 2,204.6 lb.
+        #expect(Formatting.totals(totals) == "6 sets · 5,204.6 lb")
     }
 
     @Test("A fastest time at a race distance goes by the race's name; any other distance by miles")

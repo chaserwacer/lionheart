@@ -115,6 +115,11 @@ enum SheetFigure {
         labelled(number(Imperial.pounds(value, from: unit)), unit)
     }
 
+    private static func labelled(_ figure: String, _ unit: WeightUnit) -> String {
+        let label = Imperial.weightLabel(unit)
+        return label.isEmpty ? figure : "\(figure) \(label)"
+    }
+
     static func percent(_ value: Double) -> String { "\(number(value))%" }
 
     /// A suggested change: signed, with nought as nought rather than "±0".
@@ -123,11 +128,4 @@ enum SheetFigure {
         return value == 0 ? magnitude : "\(value > 0 ? "+" : "−")\(magnitude)"
     }
 
-    /// A unit this build cannot name keeps its number and says no unit, rather than calling it pounds.
-    private static func labelled(_ figure: String, _ unit: WeightUnit) -> String {
-        switch unit {
-        case .pounds, .kilograms: "\(figure) lb"
-        case .unrecognised: figure
-        }
-    }
 }

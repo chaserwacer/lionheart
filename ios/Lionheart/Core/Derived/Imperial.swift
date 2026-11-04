@@ -38,6 +38,15 @@ enum Imperial {
         }
     }
 
+    /// The label a weight in `unit` reads with once converted: "lb", or nothing for a unit this
+    /// build cannot name, whose number is left as it arrived rather than called pounds.
+    static func weightLabel(_ unit: WeightUnit) -> String {
+        switch unit {
+        case .pounds, .kilograms: "lb"
+        case .unrecognised: ""
+        }
+    }
+
     /// A temperature *change* in Fahrenheit: the scale's 9/5 and no offset, since a deviation of
     /// nothing is nothing in either scale.
     static func fahrenheitChange(celsius: Double) -> Double { celsius * 9 / 5 }
