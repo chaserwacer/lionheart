@@ -23,13 +23,13 @@ enum ScoreBreakdown {
             Measure(
                 id: "lifting.\(scored.of.family.wire)",
                 label: scored.of.family.name,
-                reading: .quantity(measured: Double(scored.of.hardSets), target: Double(scored.of.target), unit: .hardSets),
-                points: scored.points, outOf: scored.outOf)
+                reading: .quantity(measured: Double(scored.of.hardSets), target: scored.of.target.target, unit: .hardSets),
+                points: scored.points, outOf: scored.outOf, weekly: scored.of.target)
         })
     }
 
-    /// Zone 2 and zones 3–5 when measured; one unknown cell across the part otherwise, so the
-    /// part's width still reads and nothing reads as zero.
+    /// Zone 2 and quality when measured; one unknown cell across the part otherwise, so the part's
+    /// width still reads and nothing reads as zero.
     static func cardio(_ part: CardioPart, from start: Double) -> [ScoreCell] {
         guard part.points != nil, !part.zones.isEmpty else {
             return placed(from: start, [Measure(
@@ -40,8 +40,8 @@ enum ScoreBreakdown {
             Measure(
                 id: "cardio.\(scored.of.band.name)",
                 label: scored.of.band.name,
-                reading: .quantity(measured: scored.of.minutes, target: Double(scored.of.target), unit: .minutes),
-                points: scored.points, outOf: scored.outOf)
+                reading: .quantity(measured: scored.of.minutes, target: scored.of.target.target, unit: .minutes),
+                points: scored.points, outOf: scored.outOf, weekly: scored.of.target)
         })
     }
 
@@ -88,6 +88,7 @@ enum ScoreBreakdown {
         let reading: ScoreCell.Reading
         let points: Double?
         let outOf: Double
+        var weekly: WeeklyTarget?
     }
 
     /// Measurements laid end to end from `start`, each as wide as the points it could earn.
@@ -96,24 +97,20 @@ enum ScoreBreakdown {
             cells.append(ScoreCell(
                 id: measure.id, label: measure.label, reading: measure.reading,
                 points: measure.points, outOf: measure.outOf,
-                start: cells.last.map { $0.start + $0.outOf } ?? start))
+                start: cells.last.map { $0.start + $0.outOf } ?? start,
+                weekly: measure.weekly))
         }
     }
 }
 
-/// A week's zone 2 and zone 3–5 minutes from the priority report's cardio, as rows state them.
+/// A week's zone 2 and quality minutes against their targets, as rows state them outside the score.
 extension ScoreBreakdown {
-    static func zoneRows(_ measure: CardioMeasure) -> [ScoreCell] {
-        guard case .measured(let zone2, let zone2Target, let high, let highTarget, _, _) = measure else { return [] }
-        return [
+    static func zoneRows(_ part: CardioPart) -> [ScoreCell] {
+        part.zones.map { scored in
             ScoreCell(
-                id: "zone2", label: ZoneBand.zone2.name,
-                reading: .quantity(measured: zone2, target: Double(zone2Target), unit: .minutes),
-                points: nil, outOf: 0, start: 0),
-            ScoreCell(
-                id: "zones3To5", label: ZoneBand.zones3To5.name,
-                reading: .quantity(measured: high, target: Double(highTarget), unit: .minutes),
-                points: nil, outOf: 0, start: 0),
-        ]
+                id: "zone.\(scored.of.band.name)", label: scored.of.band.name,
+                reading: .quantity(measured: scored.of.minutes, target: scored.of.target.target, unit: .minutes),
+                points: nil, outOf: 0, start: 0, weekly: scored.of.target)
+        }
     }
 }

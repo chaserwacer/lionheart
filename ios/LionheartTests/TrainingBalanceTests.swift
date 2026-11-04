@@ -46,9 +46,11 @@ struct TrainingBalanceTests {
         #expect(score.lifting.families.map(\.of.hardSets) == [4, 3, 7])
         #expect(score.lifting.families.map(\.points) == [8.25, 7.14, 10.91])
         #expect(score.cardio.measure == .measured(
-            zone2Minutes: 67.1, zone2Target: 150, highIntensityMinutes: 0, highIntensityTarget: 30,
-            sessions: 5, heartRateDays: 7))
-        #expect(score.cardio.zones.map(\.of.band) == [.zone2, .zones3To5])
+            zone2Minutes: 67.1, qualityMinutes: 0, qualitySessions: 0, sessions: 5, heartRateDays: 7))
+        #expect(score.cardio.zones.map(\.of.band) == [.zone2, .quality])
+        #expect(score.lifting.families.map(\.of.target.target) == [5, 4, 8])
+        #expect(score.lifting.families[1].of.target.chronic == 0)
+        #expect(score.cardio.zones[0].of.target == WeeklyTarget(target: 60, committed: 150, floor: 60, chronic: nil))
         #expect(score.cardio.zones.map(\.outOf) == [15, 10])
         #expect(score.consistency.blocks.map(\.of.sessions) == [2, 2, 1, 0])
         #expect(score.consistency.blocks.first?.of.window.to == CalendarDay(year: 2026, month: 11, day: 3))
@@ -73,11 +75,52 @@ struct TrainingBalanceTests {
         let lifting = parts[0]
         #expect(zip(lifting.cells.map(\.start), [0, 11.67, 23.34]).allSatisfy { abs($0 - $1) < 0.0001 })
         #expect(lifting.cells.map(\.label) == ["Push", "Pull", "Legs"])
-        #expect(lifting.summary == "Push 4/8 · Pull 3/8 · Legs 7/8")
+        #expect(lifting.summary == "Push 4/5 · Pull 3/4 · Legs 7/8")
+        #expect(lifting.cells.map(\.basis) == [
+            "4-week mean 4.2 + 10 % · committed 8",
+            "4-week mean 0 · the floor 4 · committed 8",
+            "4-week mean 9 · at the committed 8",
+        ])
         #expect(parts[1].cells.map(\.start) == [35, 50])
-        #expect(parts[1].cells.map(\.figure) == ["67 of 150 min", "0 of 30 min"])
+        #expect(parts[1].cells.map(\.figure) == ["67 of 60 min", "0 of 10 min"])
+        #expect(parts[1].cells[0].basis == "No 4 weeks to grow from · committed 150")
         #expect(parts[3].cells.map(\.label) == ["Last 7 days", "7–13 days ago", "14–20 days ago", "21–27 days ago"])
         #expect(parts[3].summary == "2 · 2 · 1 · 0 of 3 a week, newest first")
+    }
+
+    @Test("What is next decodes the lift with its aim, the cardio with its structure, and which first")
+    func nextDecodes() throws {
+        let json = #"""
+        {"day":"2026-11-04","first":{"session":"cardio","reasons":["Cardio is further behind."]},
+         "lift":{"$type":"train","families":["legs"],"lastTrained":"2026-10-30",
+           "priorities":[{"family":"legs","movementDataId":"88888888-8888-8888-8888-888888888888","name":"Squat",
+             "aim":{"$type":"beat","load":305,"reps":5,"unit":1,"estimatedOneRepMax":355.8,"bestToBeat":350,"onSystemLoad":false}},
+             {"family":"legs","movementDataId":"99999999-9999-9999-9999-999999999999","name":"Lunge","aim":{"$type":"establish"}}],
+           "reasons":["Legs last trained 5 days ago."]},
+         "cardio":{"$type":"quality","bouts":4,"boutMinutes":4,"recoveryMinutes":3,"workMinutes":16,"reasons":["Quality 0 of 20 min."]},
+         "recovery":{"readiness":{"$type":"usual","ouraScore":81},"sleepMinutes":452,"hrv":71,"usualHrv":68.4,"hrvSpread":7.9}}
+        """#
+
+        let next = try Decoding.decode(NextSessions.self, json)
+
+        #expect(next.first == FirstChoice(session: .cardio, reasons: ["Cardio is further behind."]))
+        guard case .train(let families, let last, let priorities, _) = next.lift else {
+            Issue.record("Expected a lift to train")
+            return
+        }
+        #expect(families == [.legs])
+        #expect(last == CalendarDay(year: 2026, month: 10, day: 30))
+        #expect(priorities.map(\.aim) == [
+            .beat(load: 305, reps: 5, unit: .pounds, estimatedOneRepMax: 355.8, bestToBeat: 350, onSystemLoad: false),
+            .establish,
+        ])
+        #expect(next.cardio == .quality(bouts: 4, boutMinutes: 4, recoveryMinutes: 3, reasons: ["Quality 0 of 20 min."]))
+        #expect(next.recovery.sleepMinutes == 452)
+
+        let unknown = try Decoding.decode(
+            NextSessions.self,
+            #"{"day":"2026-11-04","first":{"session":"rest","reasons":[]},"lift":{"$type":"plan"},"cardio":{"$type":"swim"}}"#)
+        #expect((unknown.first.session, unknown.lift, unknown.cardio) == (.unrecognised("rest"), .unrecognised("plan"), .unrecognised("swim")))
     }
 
     @Test("Progress names each family's lift, so an untrained lift does not read as an untrained family")
@@ -267,19 +310,19 @@ struct TrainingBalanceTests {
     """
 
     private static let measuredCardio = """
-    {"points":10,"outOf":25,"measure":{"$type":"measured","zone2Minutes":67.1,"zone2Target":150,
-     "highIntensityMinutes":0,"highIntensityTarget":30,"sessions":5,"heartRateDays":7},
-     "zones":[{"of":{"band":"zone2","minutes":67.1,"target":150},"points":10,"outOf":15},
-              {"of":{"band":"zones3To5","minutes":0,"target":30},"points":0,"outOf":10}]}
+    {"points":10,"outOf":25,"measure":{"$type":"measured","zone2Minutes":67.1,
+     "qualityMinutes":0,"qualitySessions":0,"sessions":5,"heartRateDays":7},
+     "zones":[{"of":{"band":"zone2","minutes":67.1,"target":{"target":60,"committed":150,"floor":60,"chronic":null}},"points":10,"outOf":15},
+              {"of":{"band":"quality","minutes":0,"target":{"target":10,"committed":40,"floor":10,"chronic":0}},"points":0,"outOf":10}]}
     """
 
     private static func scoreJSON(cardio: String, unknown: String = "[]") -> String {
         """
         {"window":{"from":"2026-10-28","to":"2026-11-03"},"value":49,"outOf":\(unknown == "[]" ? 100 : 75),"unknown":\(unknown),
          "lifting":{"points":26.3,"outOf":35,"families":[
-            {"of":{"family":"push","hardSets":4,"target":8,"lastTrained":"2026-10-28"},"points":8.25,"outOf":11.67},
-            {"of":{"family":"pull","hardSets":3,"target":8,"lastTrained":"2026-10-28"},"points":7.14,"outOf":11.67},
-            {"of":{"family":"legs","hardSets":7,"target":8,"lastTrained":"2026-11-02"},"points":10.91,"outOf":11.67}]},
+            {"of":{"family":"push","hardSets":4,"target":{"target":5,"committed":8,"floor":4,"chronic":4.2},"lastTrained":"2026-10-28"},"points":8.25,"outOf":11.67},
+            {"of":{"family":"pull","hardSets":3,"target":{"target":4,"committed":8,"floor":4,"chronic":0},"lastTrained":"2026-10-28"},"points":7.14,"outOf":11.67},
+            {"of":{"family":"legs","hardSets":7,"target":{"target":8,"committed":8,"floor":4,"chronic":9},"lastTrained":"2026-11-02"},"points":10.91,"outOf":11.67}]},
          "cardio":\(cardio),
          "progress":{"points":13.3,"outOf":20,"families":[]},
          "consistency":{"points":8.3,"outOf":20,"target":3,"blocks":[

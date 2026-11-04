@@ -78,6 +78,8 @@ struct CardioSession: Equatable, Sendable, Identifiable {
     let end: Date
     let distanceMeters: Double?
     let heartRate: SessionHeartRate
+    /// The minutes of work bouts at zone 4–5 the score credits as quality; 0 for a session without them.
+    var qualityMinutes: Double = 0
 
     var minutes: Double { end.timeIntervalSince(start) / 60 }
 
@@ -213,6 +215,8 @@ struct ExcludedWorkouts: Equatable, Sendable, Identifiable {
         case heartRateUnread
         /// A ring's guess, or a workout nobody named, whose heart rate stayed below training.
         case heartRateBelowTraining
+        /// A game or dance the ring guessed at: never a session, whatever its heart rate did.
+        case detectedGame
         case unrecognised(String)
 
         init(wire: String) {
@@ -224,6 +228,7 @@ struct ExcludedWorkouts: Equatable, Sendable, Identifiable {
             case "notTraining": self = .notTraining
             case "heartRateUnread": self = .heartRateUnread
             case "heartRateBelowTraining": self = .heartRateBelowTraining
+            case "detectedGame": self = .detectedGame
             case "noDuration": self = .noDuration
             default: self = .unrecognised(wire)
             }
@@ -239,6 +244,7 @@ struct ExcludedWorkouts: Equatable, Sendable, Identifiable {
             case .notTraining: "housework, yard work or stretching"
             case .heartRateUnread: "workouts with too little heart rate to show training"
             case .heartRateBelowTraining: "workouts whose heart rate stayed below training"
+            case .detectedGame: "games or dances the ring guessed"
             case .noDuration: "with no duration"
             case .unrecognised(let wire): wire
             }
@@ -355,7 +361,8 @@ extension CardioSession: Decodable {
             start: start,
             end: end,
             distanceMeters: container.lenient(Double.self, "distanceMeters"),
-            heartRate: container.lenient(SessionHeartRate.self, "heartRate") ?? .unrecognised(""))
+            heartRate: container.lenient(SessionHeartRate.self, "heartRate") ?? .unrecognised(""),
+            qualityMinutes: container.lenient("qualityMinutes", or: 0))
     }
 }
 

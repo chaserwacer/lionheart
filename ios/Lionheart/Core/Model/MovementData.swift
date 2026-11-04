@@ -180,3 +180,11 @@ private struct NamedEntity: Decodable {
         name = container.lenient("name", or: "")
     }
 }
+
+extension String {
+    /// The first letter upper case, the rest as written.
+    var capitalisingFirst: String {
+        guard let first else { return self }
+        return first.uppercased() + dropFirst()
+    }
+}

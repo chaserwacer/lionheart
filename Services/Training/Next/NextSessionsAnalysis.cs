@@ -154,7 +154,7 @@ public static class NextSessionsAnalysis
 
         var reasons = new List<string>();
         var qualityLeft = quality.Target.Target - quality.Minutes;
-        reasons.Add(Invariant($"Quality {quality.Minutes:0} of {quality.Target.Target:0} min this week, zone 2 {zone2.Minutes:0} of {zone2.Target.Target:0}."));
+        reasons.Add(Invariant($"This week: quality at {quality.Minutes:0} of {quality.Target.Target:0} min, zone 2 at {zone2.Minutes:0} of {zone2.Target.Target:0}."));
         if (inputs.Score.Cardio.Points is null) reasons.Add("This week's cardio could not be read from heart rate.");
 
         var spaced = lastQuality is not { } lastDay || inputs.Day.DayNumber - lastDay.DayNumber >= QualitySpacingDays;

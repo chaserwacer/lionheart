@@ -94,10 +94,10 @@ struct SessionBest: Equatable, Sendable, Identifiable {
 
 /// The window's cardio as the heart-rate zones read it, or why it cannot be read.
 enum CardioMeasure: Equatable, Sendable {
-    /// Zone 2 is 60–70 % of maximum heart rate; high intensity is 70 % and above (zones 3 to 5).
+    /// Zone 2 is 60–70 % of maximum heart rate; quality minutes are work bouts at zone 4–5 in
+    /// endurance sessions holding at least ten of them. `heartRateDays` counts the ring's days.
     case measured(
-        zone2Minutes: Double, zone2Target: Int, highIntensityMinutes: Double, highIntensityTarget: Int,
-        sessions: Int, heartRateDays: Int)
+        zone2Minutes: Double, qualityMinutes: Double, qualitySessions: Int, sessions: Int, heartRateDays: Int)
     case unknown(CardioUnknownReason)
     case unrecognised(String)
 }
@@ -240,9 +240,8 @@ extension CardioMeasure: Decodable {
         case "measured":
             self = .measured(
                 zone2Minutes: container.lenient("zone2Minutes", or: 0),
-                zone2Target: container.lenient("zone2Target", or: 0),
-                highIntensityMinutes: container.lenient("highIntensityMinutes", or: 0),
-                highIntensityTarget: container.lenient("highIntensityTarget", or: 0),
+                qualityMinutes: container.lenient("qualityMinutes", or: 0),
+                qualitySessions: container.lenient("qualitySessions", or: 0),
                 sessions: container.lenient("sessions", or: 0),
                 heartRateDays: container.lenient("heartRateDays", or: 0))
         case "unknown":
