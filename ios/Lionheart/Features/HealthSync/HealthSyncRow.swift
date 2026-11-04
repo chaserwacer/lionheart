@@ -36,7 +36,14 @@ struct HealthSyncRow: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .task { if case .unknown = store.state { await store.refreshStatus() } }
+        // Asked again while not connected: the measurement sync's row asks for the same Health sheet, and
+        // connecting there connects this too.
+        .task {
+            switch store.state {
+            case .unknown, .notConnected: await store.refreshStatus()
+            case .unavailable, .idle, .syncing, .synced, .failed: break
+            }
+        }
     }
 
     private var name: some View {
