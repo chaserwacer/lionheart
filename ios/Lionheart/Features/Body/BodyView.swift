@@ -216,11 +216,12 @@ struct BodyView: View {
         }
     }
 
+    /// Readiness and sleep only: Oura's activity score pays for moving rather than training, so it
+    /// stays on the day's own screen and out of the line he reads at a glance.
     private static func scores(of day: OuraDay) -> String {
         [
             day.readiness?.score.map { "Readiness \($0)" },
             day.sleep?.score.map { "Sleep \($0)" },
-            day.activity?.score.map { "Activity \($0)" },
         ].compactMap(\.self).joined(separator: " · ")
     }
 
@@ -255,7 +256,7 @@ struct BodyView: View {
             base.cardioMinutesPerWeek.recent.map { "\(Int($0.rounded())) min of cardio" },
             base.zone2MinutesPerWeek.recent.map { "\(Int($0.rounded())) in zone 2" },
         ].compactMap(\.self)
-        return figures.isEmpty ? nil : "A week, last 4 weeks: " + figures.joined(separator: ", ")
+        return figures.isEmpty ? nil : figures.joined(separator: ", ") + " a week, last 4 weeks"
     }
 
     private var movementLine: String? {
