@@ -78,8 +78,9 @@ public static class HealthWorkoutDecisions
     /// The climb a run is recorded with: the recording app's own figure where it stated one, since
     /// it may have read a barometer or a terrain model, and otherwise what the route's altitudes show.
     /// </summary>
+    /// <remarks>To a tenth of a metre, the precision a climb is stated to anywhere.</remarks>
     public static double Climb(StatedHealthWorkout workout) =>
-        workout.ElevationAscendedMeters ?? RouteAnalysis.Figures(workout.Route).ClimbMeters ?? 0;
+        Math.Round(workout.ElevationAscendedMeters ?? RouteAnalysis.Figures(workout.Route).ClimbMeters ?? 0, 1);
 
     /// <summary>The app's stated distance, else the route's length; nothing when neither has any.</summary>
     private static double? DistanceMeters(StatedHealthWorkout workout) =>

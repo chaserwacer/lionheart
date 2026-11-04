@@ -37,6 +37,7 @@ ios/
     Net/
       APIClient.swift          one client: base URL, bearer token, decode, APIError
       Endpoints/<Thing>API.swift
+    Health/                    the one door into HealthKit: HealthLibrary, one reader per kind of data
     Auth/                      AuthStore, Keychain token storage, the refresh gate
     Store/
       ActiveWorkout/           the in-flight workout, disk-backed

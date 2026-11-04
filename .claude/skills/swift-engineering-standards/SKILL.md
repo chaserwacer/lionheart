@@ -262,9 +262,9 @@ the file name.
   mutating/non-mutating pairs (`sort`/`sorted`, `apply`/`applying`), types and protocols as nouns
   or `-able`/`-ing` capabilities.
 - **The top-level folders are fixed by purpose** — `Core/` (pure: `Model/` for wire values,
-  `Derived/` for derivations), `Net/`, `Store/`, `Auth/`, `Features/<Feature>/`, `Design/`,
-  `Support/`. A new feature is a folder under `Features/` holding its screens and its store; its
-  pure rules go in `Core/Derived/`.
+  `Derived/` for derivations), `Net/`, `Health/` (HealthKit, the other outside source), `Store/`,
+  `Auth/`, `Features/<Feature>/`, `Design/`, `Support/`. A new feature is a folder under
+  `Features/` holding its screens and its store; its pure rules go in `Core/Derived/`.
 - **Folders are earned by groups.** Three files sharing a purpose can earn a folder, five clearly do;
   never a folder for one file. A change that adds the fifth file to a folder that has outgrown its
   shape proposes the new tree in its summary first.

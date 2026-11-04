@@ -27,6 +27,7 @@ directly* in any of the three live states, because logging after the fact is the
 | POST | `/{id}/skip` | Planned → Skipped | — |
 | POST | `/{id}/revise` | Completed → Completed (corrected) | `Sets[]`, `Period`, `Notes` |
 | GET | `/{id}` | — | — |
+| GET | `/{id}/recording` | — | a run imported from Apple Health: route, splits, heart rate (see "Apple Health") |
 | GET | `?from=&to=` | — | window over the stamped `StartTime` column |
 | PATCH | `/{id}/notes` | any state | `Notes` |
 | DELETE | `/{id}` | — | — |
@@ -54,6 +55,11 @@ was trained from, or `null` when it was ad hoc. `POST /active` and `POST /comple
 since, or never theirs — is **dropped to ad hoc, never refused**: a workout started offline from a
 routine deleted meanwhile still happened, and must land. A planned session is ad hoc, and every
 transition carries the origin over. Deleting a routine leaves its sessions naming it.
+
+**Session source.** Every session view carries `source`: `$type` `athleteLog` (entered in Lionheart,
+or imported from the athlete's own logs) or `appleHealth` with `workoutId` (the workout's Health
+UUID) and `recordedBy` (`name`, `bundleId` — the app that wrote it to Health). The server sets it;
+no request states it.
 
 **Set kind.** A lift set carries `kind` (int): `0` working, `1` warm-up, `2` drop, `3` failure. A lift
 sent without one is a working set, and a stored lift written before sets had a kind reads as one.
@@ -427,7 +433,37 @@ four weeks against the eight before, each figure null where its window has no da
 when there is no maximum heart rate, or when less than half the window's session time has heart
 rate synced), and `excluded` (ring workouts left out, counted by category and `reason`:
 `sameAsLoggedRun`, `insideLoggedLifting`, `shortWalk`, `strength`, `notTraining`, `unclassified`,
-`noDuration`).
+`noDuration`). A `loggedSession` source carries `isRecorded` — imported from Apple Health, so
+`GET /api/training/sessions/{id}/recording` has its route — and a `recorded` heart rate carries
+`source`: `ring` (the all-day series over the session's clock time) or `appleHealth` (the recording
+app's own samples, read ahead of the ring's for an imported run).
+
+## Apple Health — `/api/health`
+
+| Verb | Route | Body | Answers |
+|---|---|---|---|
+| POST | `/workouts` | `HealthWorkoutImport` | `HealthImportOutcome`: 201 `imported` (with `session`), 200 `alreadyImported` (`trainingSessionId`) or `notImported` (`reason`, and `trainingSessionId` when it matched a logged session) |
+
+The phone offers one Health workout at a time, as Health holds it: `workoutId` (its Health UUID),
+`activity` (Health's spelling: `running`), `indoor`, `appName` and `appBundleId` (the app that wrote
+it), `start` and `end` at the offset the workout was recorded in, `duration` (the app's, a
+`TimeSpan`), `distanceMeters` and `elevationAscendedMeters` (null when not stated), `route` (every
+fix: `at`, `latitude`, `longitude`, `altitude` or null) and `heartRate` (`at`, `bpm` — the same app's
+samples). Which workouts become sessions is the server's rule (`docs/apple-health.md`), so every
+answer but a refusal is a 2xx; `reason` is `readDirectly`, `notARun`, `indoor`, `noDistance`,
+`sameAsLoggedRun` or `insideLoggedLifting`. Idempotent on (athlete, `workoutId`). A workout that
+cannot be read is a 400; a 409 is a run older than a standing trail-running record while a record is
+withdrawn (placing it would replay the records), or the same workout imported by another request at
+the same moment.
+
+`GET /api/training/sessions/{id}/recording` answers `RecordedRunView` for a session imported from
+Health, and 404 for any other: `recordedBy`, `start`, `end`, the session's `distanceMeters`,
+`duration` and `climbMeters`; `movingTime`, `descentMeters` from the route (null without one);
+`pace` and `movingPace` per kilometre; `heartRate` (the cardio report's `SessionHeartRate`, its
+`source` included), `maxHeartRate`, and `trace` (`source`, `samples` of `at`/`bpm`) for drawing;
+`kilometres` and `miles` (each split: `number`, `distanceMeters`, `elapsed`, `moving`, `pace` per
+its own unit, `climbMeters`, `descentMeters`, `averageBpm`); and `route` (`latitude`, `longitude`).
+The route goes only to the athlete's own client — the chat model's `GetRecordedRuns` has none.
 
 ## Habits — `/api/habits`
 

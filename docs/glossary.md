@@ -63,6 +63,14 @@ first and then in the code.
 | **Training balance** | Where the week's training stands across the body: weekly volume and up next, the priorities, and the training score. The name of the folders, store and routes that read them. |
 | **Up next** | The family or families trained longest ago, named together when last trained the same day, with the day's readiness beside it where it is unusual. A recommendation, never an instruction. |
 | **Training score** | Lionheart's own 0–100 for the seven days ending on a day: lifting volume, cardio, priority progress and consistency, each read as measurements against targets. Not Oura's activity score. A part with no data is unknown: named, and its points out of reach rather than counted as zero. |
+| **Session source** | Where a session came from: the athlete's log — entered in Lionheart, or imported from his own logs — or Apple Health, with the workout's Health id and the app that recorded it. Orthogonal to provenance. |
+| **Health workout** | A workout another app wrote to Apple Health, read by the phone and offered to the server, which decides whether it becomes training. |
+| **Workout recording** | What the app that recorded an imported run captured beyond the session: its route and its own heart rate. Kept beside the session, never in it. |
+| **Recorded run** | A run imported from Apple Health read for its page: the session's figures, the route's moving time, descent and splits, and the heart rate labelled with whose it is. |
+| **Split** | One kilometre or mile of a recorded run, or what is left after the last whole one: its time, moving pace, climb, descent and average heart rate. |
+| **Moving time** | A route's time in motion: its fix-to-fix legs faster than a slow shuffle. Stops, and a paused recording, are left out. |
+| **Heart-rate source** | Whose samples a session's heart rate was read from: the ring's all-day series, or the recording app's own, through Apple Health. |
+| **Health sync** | Offering the runs Apple Health gained since the kept anchor to the server, a page at a time; the anchor moves on once a page is answered. |
 | **Oura's score** | A 0–100 rating Oura gives a day or one of its contributors — readiness, recovery index, training frequency. A judgement Oura made, not a measurement; shown as Oura's and never mixed with Lionheart's figures. |
 
 ## Body and context
@@ -86,7 +94,7 @@ first and then in the code.
 | **Complete day** | An activity day whose timeline covers at least 23 hours, with no more than three of them off the finger or lying still. Only complete days count toward a habits summary; today never does. |
 | **Habits report** | How the athlete's days are shaped over a span — sittings, movement and training by hour, steps, sleep timing — split into weekdays and weekends and set against the equal span before. |
 | **Heart-rate series** | Oura's all-day heart rate: samples about every five minutes, faster in workouts, each with what the ring was doing. Stored as one run per UTC day. |
-| **Cardio session** | A logged run, or a ring workout that is endurance, a sport, or a walk of 30 minutes or more, and is not inside a logged session. |
+| **Cardio session** | A logged run — imported from Apple Health or not — or a ring workout that is endurance, a sport, or a walk of 30 minutes or more, and is not inside a logged session. |
 | **Maximum heart rate** | What the zones are drawn from: the higher of the age prediction and the ring's own cardio peak (its 99th percentile over a year). |
 | **Heart-rate zones** | Five bands at 50, 60, 70, 80 and 90 per cent of maximum heart rate. Zone 2 is 60–70 per cent. |
 | **Cardio load** | Edwards' training impulse: minutes in each zone times the zone's number, summed. |
