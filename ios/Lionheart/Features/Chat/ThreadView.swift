@@ -50,7 +50,7 @@ struct ThreadView: View {
             // The pair every chat screen needs: a model bubble is `secondarySystemGroupedBackground`,
             // white in light mode, and vanishes on a plain white page.
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Lionheart")
+            .navigationTitle("Tempo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .navigationDestination(for: ChatRoute.self) { route in
@@ -94,7 +94,7 @@ struct ThreadView: View {
         .onChange(of: thread.answered?.id) {
             guard let answer = thread.answered else { return }
             let words = String(ChatProse.attributed(answer.text).characters)
-            AccessibilityNotification.Announcement("Lionheart answered. \(words)").post()
+            AccessibilityNotification.Announcement("Tempo answered. \(words)").post()
         }
     }
 
@@ -199,7 +199,11 @@ struct ThreadView: View {
 
     private var nothingSaidYet: some View {
         ContentUnavailableView {
-            Label("One continuing thread", systemImage: "bubble.left.and.text.bubble.right")
+            Label {
+                Text("One continuing thread")
+            } icon: {
+                BrandMark().frame(height: 40)
+            }
         } description: {
             Text("Ask about your training here at any time. After three hours without a message, the session is distilled into memory and the next one starts from it.")
         } actions: {
@@ -228,6 +232,15 @@ struct ThreadView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        // The model's name with its mark, since this is the one screen where the app speaks.
+        ToolbarItem(placement: .principal) {
+            HStack(spacing: 6) {
+                BrandMark().frame(height: 14)
+                Text("Tempo").font(.headline)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+        }
         ToolbarItem(placement: .topBarLeading) {
             NavigationLink(value: ChatRoute.conversations) {
                 Label("Conversations", systemImage: "list.bullet")

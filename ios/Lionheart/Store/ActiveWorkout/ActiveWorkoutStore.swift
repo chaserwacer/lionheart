@@ -559,7 +559,7 @@ final class ActiveWorkoutStore {
     private func holdForDelivery(_ finished: FinishedWorkout) -> FinishOutcome {
         guard outbox.hold(finished) else {
             finish = .refused(.unavailable(
-                "Lionheart is not reachable, and the finished workout could not be saved on this phone."))
+                "Tempo is not reachable, and the finished workout could not be saved on this phone."))
             return .notFinished
         }
         clearLocally()

@@ -33,7 +33,7 @@ struct SessionRevisionDraft: Equatable, Sendable {
         var message: String {
             switch self {
             case .notCompleted: "Only a completed session can be edited."
-            case .unreadableSet: "This session holds a set this version of Lionheart cannot write back, so editing it here would lose that set."
+            case .unreadableSet: "This session holds a set this version of Tempo cannot write back, so editing it here would lose that set."
             case .unreadablePeriod: "This session's time could not be read, so it cannot be written back."
             }
         }

@@ -10,8 +10,9 @@ import WidgetKit
 /// answer in the big type changes with it, rather than one fixed layout showing both at once.
 ///
 /// It reads as the in-app bar in a different frame: the same glyph, the same movement name on top,
-/// the same sentence about an unsynced workout, the app's one accent, and otherwise system
-/// semantic colours so light and dark are right without a colour literal.
+/// the same sentence about an unsynced workout, the app's Brick accent, the app's plain figures
+/// rather than a rounded face, and otherwise system semantic colours so light and dark are right
+/// without a colour literal.
 struct WorkoutLockScreenView: View {
     let state: WorkoutActivityAttributes.ContentState
     let startedAt: Date
@@ -62,7 +63,7 @@ struct WorkoutLockScreenView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 WorkoutRestClock(rest: rest)
-                    .font(.system(.title, design: .rounded, weight: .semibold))
+                    .font(.title.weight(.semibold))
                     .foregroundStyle(.primary)
                 Text("rest")
                     .font(.subheadline)
@@ -88,7 +89,7 @@ struct WorkoutLockScreenView: View {
     private var working: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             WorkoutElapsedClock(startedAt: startedAt)
-                .font(.system(.title, design: .rounded, weight: .semibold))
+                .font(.title.weight(.semibold))
                 .foregroundStyle(.primary)
             Text("elapsed")
                 .font(.subheadline)

@@ -233,7 +233,7 @@ private struct MemoryEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("What Lionheart should remember", text: $text, axis: .vertical)
+                    TextField("What Tempo should remember", text: $text, axis: .vertical)
                         .lineLimit(3...8)
                 } footer: {
                     Text("The current wording is kept as history.")

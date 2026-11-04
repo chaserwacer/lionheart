@@ -36,8 +36,8 @@ enum HealthWorkoutExclusion: Hashable, Sendable {
     /// The reason as a phrase after a count: "2 recorded by Oura or Strong".
     var phrase: String {
         switch self {
-        case .readDirectly: "recorded by Oura or Strong, which Lionheart reads directly"
-        case .otherActivity: "of a kind Lionheart does not take"
+        case .readDirectly: "recorded by Oura or Strong, which Tempo reads directly"
+        case .otherActivity: "of a kind Tempo does not take"
         case .noDistance: "with no distance"
         case .sameAsLoggedRun: "already in the log"
         case .insideLoggedLifting: "inside a logged lifting session"

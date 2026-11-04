@@ -143,7 +143,7 @@ struct TurnBubble: View {
             if !turn.isFromAthlete { Spacer(minLength: 40) }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(turn.isFromAthlete ? "You said" : "Lionheart said")
+        .accessibilityLabel(turn.isFromAthlete ? "You said" : "Tempo said")
         .accessibilityValue(turn.text)
         .task(id: turn.id) {
             guard isRevealing else { return }
@@ -242,7 +242,7 @@ struct LoadingTranscript: View {
 /// The waiting row, which is the whole reason a chat screen does not look hung.
 ///
 /// It counts, because a spinner with no number is indistinguishable from a spinner that has stopped
-/// meaning anything. `TimelineView(.periodic)` ticks the label and nothing else — the transcript
+/// meaning anything. The spinner is the mark building, since it is Tempo that is working. `TimelineView(.periodic)` ticks the label and nothing else — the transcript
 /// above it does not redraw once a second. The count runs from when the row appeared, through every
 /// change of what it says, so it is always the length of the whole wait.
 struct WorkingRow: View {
@@ -264,7 +264,7 @@ struct WorkingRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            ProgressView()
+            MarkLoadingIndicator(height: 14)
             TimelineView(.periodic(from: startedAt, by: 1)) { context in
                 Text(waiting(for: context.date.timeIntervalSince(startedAt)))
                     .font(.footnote.monospacedDigit())
@@ -295,9 +295,9 @@ struct WorkingRow: View {
 
     private var spoken: String {
         switch activity {
-        case .answering: "Lionheart is working on an answer"
-        case .consulting(let tools): "Lionheart is reading \(ReplyProgress.reading(tools))"
-        case .recovering: "Connection lost. Lionheart is finding the answer in the thread"
+        case .answering: "Tempo is working on an answer"
+        case .consulting(let tools): "Tempo is reading \(ReplyProgress.reading(tools))"
+        case .recovering: "Connection lost. Tempo is finding the answer in the thread"
         }
     }
 }
@@ -320,6 +320,6 @@ struct WritingBubble: View {
             Spacer(minLength: 40)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Lionheart is answering")
+        .accessibilityLabel("Tempo is answering")
     }
 }

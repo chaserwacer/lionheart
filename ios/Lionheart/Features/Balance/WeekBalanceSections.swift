@@ -51,7 +51,7 @@ struct WeekBalanceSections: View {
         } footer: {
             Text(week.score.isPartial
                  ? "Read over \(week.score.outOf) points: \(week.score.unknown.map { $0.name.lowercased() }.joined(separator: ", ")) unknown."
-                 : "Lionheart's own score, out of 100. Train opens it in full.")
+                 : "Tempo's own score, out of 100. Train opens it in full.")
         }
     }
 }

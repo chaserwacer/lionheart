@@ -65,6 +65,7 @@ private struct ReadinessWidgetView: View {
                 Text("Readiness \(readiness.score) · \(readiness.band)")
             default:
                 ReadinessGlanceView(readiness: readiness, now: entry.date)
+                    .overlay(alignment: .topTrailing) { WidgetMark() }
             }
         } else {
             NoGlanceView(family: family)
@@ -75,6 +76,16 @@ private struct ReadinessWidgetView: View {
         TodayGlance.isToday(readiness.day, at: entry.date)
             ? "Readiness"
             : TodayGlance.dayName(readiness.day, at: entry.date)
+    }
+}
+
+/// The mark in a Home Screen widget's corner: small, level with the caption, so the widget says
+/// whose it is the way an app's own widgets do, without a name.
+struct WidgetMark: View {
+    var body: some View {
+        BrandMark()
+            .frame(height: 11)
+            .padding(.top, 2)
     }
 }
 
@@ -94,7 +105,7 @@ struct NoGlanceView: View {
                 Text("Readiness")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text("Open Lionheart to read today.")
+                Text("Open Tempo to read today.")
                     .font(.footnote)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

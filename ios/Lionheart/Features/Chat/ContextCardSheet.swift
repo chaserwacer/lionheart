@@ -51,9 +51,13 @@ struct ContextCardSheet: View {
         if card.isEmpty {
             Section {
                 ContentUnavailableView {
-                    Label("Nothing to summarise yet", systemImage: "person.text.rectangle")
+                    Label {
+                        Text("Nothing to summarise yet")
+                    } icon: {
+                        BrandMark().frame(height: 40)
+                    }
                 } description: {
-                    Text("Lionheart builds this from your sessions, wellness entries, Oura days and injuries. Log a few and it fills in.")
+                    Text("Tempo builds this from your sessions, wellness entries, Oura days and injuries. Log a few and it fills in.")
                 }
                 .listRowBackground(Color.clear)
             }

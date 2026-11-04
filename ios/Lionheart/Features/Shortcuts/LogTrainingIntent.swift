@@ -23,7 +23,7 @@ struct LogTrainingIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         await container.start()
         guard case .signedIn = container.auth.session else {
-            return .result(dialog: "Sign in to Lionheart first.")
+            return .result(dialog: "Sign in to Tempo first.")
         }
 
         let today = container.today
@@ -35,7 +35,7 @@ struct LogTrainingIntent: AppIntent {
             let said = ([Formatting.logged(sessions: sessions, contexts: contexts)] + warnings)
             return .result(dialog: "\(said.joined(separator: " "))")
         case .needsConfirmation:
-            return .result(dialog: "Lionheart needs to know which movement you meant. Nothing was saved.")
+            return .result(dialog: "Tempo needs to know which movement you meant. Nothing was saved.")
         case .refused(let failure):
             return .result(dialog: "\(failure.message)")
         case .idle, .interpreting:

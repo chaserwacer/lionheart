@@ -61,7 +61,7 @@ enum HTTP {
         let detail = problem?.message
 
         if isGatewayStandIn(status: status, problem: problem) {
-            return .transport("Lionheart's server is not answering behind its gateway.")
+            return .transport("Tempo's server is not answering behind its gateway.")
         }
 
         switch status {

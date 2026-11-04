@@ -17,7 +17,7 @@ struct InjuriesView: View {
                 ContentUnavailableView {
                     Text("No injuries tracked")
                 } description: {
-                    Text("Tracking one keeps its events — treatments and check-ins — in one place Lionheart can read.")
+                    Text("Tracking one keeps its events — treatments and check-ins — in one place Tempo can read.")
                 }
                 .listRowBackground(Color.clear)
             } else {

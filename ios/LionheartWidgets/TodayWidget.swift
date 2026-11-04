@@ -36,6 +36,7 @@ private struct TodayWidgetView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(alignment: .topTrailing) { WidgetMark() }
             }
         } else {
             NoGlanceView(family: .systemMedium)
