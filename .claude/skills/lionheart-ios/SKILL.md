@@ -43,6 +43,7 @@ ios/
       ActiveWorkout/           the in-flight workout, disk-backed
     Features/<Area>/           screens and their store
     Design/                    only what stock SwiftUI has no answer for
+      Brand/                   Tempo's mark, wordmark, lockup and the views drawn from them
     Support/                   formatters, small utilities
   LionheartTests/
 ```
@@ -108,8 +109,8 @@ web app's custom look carried over. So **do not build a design system.** Use App
 - **`List` with `.listStyle(.insetGrouped)` is the default screen.** It is what Apple Music, Fitness
   and Settings are made of, it gets separators, swipe actions, selection and Dynamic Type right, and
   it is the fastest way to a screen that looks like it belongs.
-- `Design/` therefore holds: `Tokens.swift` (the palette and the handful of spacing constants), the
-  brand (`ProgressionMark`, the mark's one `Shape`, and `BrandMark`, `Wordmark`, `BrandLockup`,
+- `Design/` therefore holds: `Tokens.swift` (the palette and the handful of spacing constants),
+  `Brand/` (`ProgressionMark`, the mark's one `Shape`, and `BrandMark`, `Wordmark`, `BrandLockup`,
   `MarkLoadingIndicator`, `LeanedBar`),
   `StatTile.swift`, `SetRow.swift`, `RestTimerBar.swift`, `ActiveWorkoutBar.swift`, and
   `Sparkline.swift`, `MovementLines.swift`, `SummaryFigures.swift`, plus the shared chrome and load-state rows. If another file wants in, check

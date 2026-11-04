@@ -167,8 +167,8 @@ targets:
       - path: Lionheart/Store/Glance/TodayGlanceFile.swift
       - path: Lionheart/Design/ReadinessGlanceView.swift
       # The mark in the widgets' corner, in the palette.
-      - path: Lionheart/Design/ProgressionMark.swift
-      - path: Lionheart/Design/BrandMark.swift
+      - path: Lionheart/Design/Brand/ProgressionMark.swift
+      - path: Lionheart/Design/Brand/BrandMark.swift
       - path: Lionheart/Design/Tokens.swift
       - path: Lionheart/Resources/Assets.xcassets
     configFiles:

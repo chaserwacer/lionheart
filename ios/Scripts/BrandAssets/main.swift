@@ -1,5 +1,5 @@
 // Draws Tempo's icon and launch mark from the one geometry the app draws the mark with
-// (Lionheart/Design/ProgressionMark.swift), so the Home Screen, the launch screen and the screens
+// (Lionheart/Design/Brand/ProgressionMark.swift), so the Home Screen, the launch screen and the screens
 // inside cannot drift apart. Run through render-brand-assets.sh, which compiles the two files
 // together; the output is committed, and running it again reproduces it byte for byte.
 //

@@ -34,7 +34,7 @@ struct BrandLockup: View {
 private struct Tagline: View {
     var body: some View {
         Text(verbatim: "keep moving forward.")
-            .font(.system(size: 13, design: .monospaced))
+            .font(.footnote.monospaced())
             .foregroundStyle(Color(.secondaryLabel))
             .lineLimit(1)
             .fixedSize()

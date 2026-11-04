@@ -25,6 +25,9 @@ struct RootView: View {
                 OpeningView(lockupFrame: signInLockup) { isOpening = false }
             }
         }
+        // The window's scheme still follows the phone underneath the opening, so a light phone
+        // would draw a dark clock on Graphite; the bar returns with the app.
+        .statusBarHidden(isOpening)
     }
 
     private var root: some View {

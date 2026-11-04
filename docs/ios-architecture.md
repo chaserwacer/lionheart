@@ -974,8 +974,8 @@ ends exactly on sign-in's lockup (sign-in reports where it drew it), so only the
 Motion cross-fades instead. Sign-in is Graphite in both appearances, continuing the launch screen.
 - `List(.insetGrouped)` is the default screen.
 
-`Design/` holds only what stock SwiftUI has no answer for: `Tokens`, the brand's `ProgressionMark`,
-`BrandMark`, `Wordmark`, `BrandLockup`, `MarkLoadingIndicator` and `LeanedBar`, `ActiveWorkoutBar`,
+`Design/` holds only what stock SwiftUI has no answer for: `Tokens`; `Brand/`, with the mark's
+`ProgressionMark`, `BrandMark`, `Wordmark`, `BrandLockup`, `MarkLoadingIndicator` and `LeanedBar`; `ActiveWorkoutBar`,
 `Sparkline` (a stock `Chart` with every axis removed), `StatTile`, `SetRow`, `RestTimerBar` and
 `LoadStateRows` (the loading row and stale banner three tabs share), and `MovementLines` (a
 session's movements as log-book lines, figures aligned down one column, which Today and History share),
