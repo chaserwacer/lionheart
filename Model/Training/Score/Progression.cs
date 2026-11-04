@@ -54,6 +54,8 @@ public static class Progression
         if (read.Count is 0) return new WeeklyTarget(standard.Committed, standard.Committed, standard.Floor, null);
 
         var chronic = read.Average();
+        // The epsilon absorbs floating-point excess: 100 × 1.1 is 110.00000000000001, which would
+        // otherwise round up a whole step to 115.
         var grown = Math.Ceiling(chronic * (1 + Ramp) / standard.Step - 1e-9) * standard.Step;
         return new WeeklyTarget(Math.Clamp(grown, standard.Floor, standard.Committed), standard.Committed, standard.Floor, chronic);
     }
