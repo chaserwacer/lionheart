@@ -282,13 +282,13 @@ final class HistoryStore {
         let moment = now()
         let today = CalendarDay(moment)
         let writesBefore = writes.accepted
-        let window = (from: Self.logBegins, to: moment.addingTimeInterval(Double(Self.lookAheadDays) * 86_400))
+        let span = (from: Self.logBegins, to: moment.addingTimeInterval(Double(Self.lookAheadDays) * 86_400))
 
         // The log the device last held, painted before the server answers. Only with a catalogue to
         // name it by, since a log of "Unknown movement" is worse than its placeholder rows.
         if state.value == nil, !library.all.isEmpty,
            let kept = await APIClient.onDevice({ [sessions, records] in
-               async let window = sessions.sessions(from: window.from, to: window.to, remembering: .historySessions)
+               async let window = sessions.sessions(from: span.from, to: span.to, remembering: .historySessions)
                async let bySubject = records.summaries(remembering: .recordSummaries)
                return try await (window, bySubject)
            }),
@@ -300,7 +300,7 @@ final class HistoryStore {
         }
 
         do {
-            async let window = sessions.sessions(from: window.from, to: window.to, remembering: .historySessions)
+            async let window = sessions.sessions(from: span.from, to: span.to, remembering: .historySessions)
             async let bySubject = records.summaries(remembering: .recordSummaries)
             async let catalogue: Void = library.refreshIfNeeded()
 

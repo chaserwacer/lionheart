@@ -51,13 +51,9 @@ final class TodayStore {
     private var trendPrefetch: Task<Void, Never>?
     /// When the day on screen was last read current from the server.
     private var lastRead: ReadStamp?
+    /// The reading of today the held trends were read ahead for.
+    private var trendsReadAheadFor: TodaySnapshot?
     private var whenReadToday: (@MainActor (TodaySnapshot) -> Void)?
-
-    /// Runs with every current reading of today — what feeds the widgets, which show today however
-    /// the screen is being browsed.
-    func onReadToday(_ handler: @escaping @MainActor (TodaySnapshot) -> Void) {
-        whenReadToday = handler
-    }
 
     /// How long a current answer is taken as current when nothing on this device has written
     /// since. Short, because this is the screen opened first thing, and a morning sync on the web
@@ -76,6 +72,12 @@ final class TodayStore {
         self.interpretation = interpretation
         self.writes = writes
         self.now = now
+    }
+
+    /// Runs with every current reading of today — what feeds the widgets, which show today however
+    /// the screen is being browsed.
+    func onReadToday(_ handler: @escaping @MainActor (TodaySnapshot) -> Void) {
+        whenReadToday = handler
     }
 
     /// Loads the screen, replacing any load already running.
@@ -106,6 +108,7 @@ final class TodayStore {
         load = nil
         trendPrefetch?.cancel()
         trendPrefetch = nil
+        trendsReadAheadFor = nil
         lastRead = nil
         selection = .today
         state = .loading
@@ -152,7 +155,7 @@ final class TodayStore {
             lastRead = ReadStamp(readAt: moment, acceptedWrites: writesBefore)
             guard day == today else { return }
             whenReadToday?(reading.value)
-            prefetchTrends(endingOn: reading.value.recovery?.day ?? day)
+            prefetchTrends(for: reading.value)
         } catch is CancellationError {
             // The screen went away or a newer refresh took over. Nothing to say, and in particular
             // nothing to put on screen: the value already there is still the best one.
@@ -209,12 +212,17 @@ final class TodayStore {
             over: key.span, endingOn: key.endingOn, withNights: key.metric.isReadFromTheNight, failing: key)
     }
 
-    /// Reads the span every figure's page opens on, ahead of the tap that opens one. At a low
-    /// priority and once: the figures on Today are the screen's most-opened drill-downs, and the
-    /// read behind all of them is one request each for the days and the nights.
-    private func prefetchTrends(endingOn day: CalendarDay) {
-        let opened = MetricTrendKey(metric: .readiness, span: .quarter, endingOn: day)
-        guard trendPrefetch == nil, trends[opened]?.value == nil else { return }
+    /// Reads the span every figure's page opens on, ahead of the tap that opens one, at a low
+    /// priority: the figures on Today are the screen's most-opened drill-downs, and the read behind
+    /// all of them is one request each for the days and the nights.
+    ///
+    /// Once per reading of today rather than once per day: a night's measurements that land after
+    /// the morning's first read change the trends as well as the figures, and a read that brings
+    /// nothing new reads nothing ahead.
+    private func prefetchTrends(for snapshot: TodaySnapshot) {
+        guard trendPrefetch == nil, snapshot != trendsReadAheadFor else { return }
+        trendsReadAheadFor = snapshot
+        let day = snapshot.recovery?.day ?? snapshot.day
         trendPrefetch = Task(priority: .utility) { [weak self] in
             await self?.loadTrends(over: .quarter, endingOn: day, withNights: true, failing: nil)
             self?.trendPrefetch = nil

@@ -127,8 +127,8 @@ or a skip on Train counts without either knowing who shows it), a new calendar d
 older than the screen's span (5 minutes for Today, 15 for History). Returning to the foreground asks
 the same question of both. Pull to refresh always reads.
 
-Today reads ahead once a current day lands: the 90-day trend behind every figure's page, one
-request for the days and one for the nights, so the drill-down most often opened is on screen
+Today reads ahead whenever a current reading of today brings something new: the 90-day trend behind
+every figure's page, one request for the days and one for the nights, so the drill-down most often opened is on screen
 without a spinner. A trend read for one figure fills every figure the same read answers.
 
 ### Knowing the server is there
