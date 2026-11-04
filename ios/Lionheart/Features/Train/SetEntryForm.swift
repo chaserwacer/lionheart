@@ -216,20 +216,30 @@ struct SetEntryForm: View {
                 move(-1)
                 steps += 1
             } label: {
-                Text("−\(step)").frame(maxWidth: .infinity)
+                stepLabel("−", step)
             }
             .accessibilityLabel(less)
             Button {
                 move(1)
                 steps += 1
             } label: {
-                Text("+\(step)").frame(maxWidth: .infinity)
+                stepLabel("+", step)
             }
             .accessibilityLabel(more)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
         .font(.footnote.monospacedDigit())
+    }
+
+    /// "+2.5", or the sign alone where the step no longer fits: at the accessibility sizes the
+    /// figure would truncate to "+2…", and the field above already shows what the step did.
+    private func stepLabel(_ sign: String, _ step: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            Text("\(sign)\(step)").lineLimit(1)
+            Text(sign)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var distanceFields: some View {

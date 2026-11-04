@@ -97,13 +97,18 @@ struct GoingInReading: Equatable, Sendable {
         }
     }
 
-    /// The scored part furthest under his usual day, when one is: the reason a rating is low is
-    /// almost always one part, and naming it is the sentence worth having under the number.
+    /// The scored part furthest under his usual day, when one is clearly under it: the reason a
+    /// rating is low is almost always one part, and naming it is the sentence worth having under
+    /// the number. A point or two under is his usual day, not a reason.
     var weakest: Part? {
         parts
-            .filter { ($0.score.score ?? Int.max) < Self.usualDay }
+            .filter { ($0.score.score ?? Int.max) < Self.usualDay - Self.margin }
             .min { ($0.score.score ?? 0) < ($1.score.score ?? 0) }
     }
+
+    /// How far under his usual day a part has to be before it is named as the one holding the
+    /// rating down.
+    static let margin = 5
 
     /// The parts that could not be scored, which the rating was made without.
     var unread: [Part.Kind] {

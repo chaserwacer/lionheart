@@ -13,6 +13,11 @@ enum GoingInWords {
         }
     }
 
+    /// The name inside a sentence, where only HRV keeps its capitals.
+    static func inlineName(_ kind: GoingInReading.Part.Kind) -> String {
+        kind == .autonomic ? name(kind) : name(kind).lowercased()
+    }
+
     /// For a column a fifth of the row wide.
     static func shortName(_ kind: GoingInReading.Part.Kind) -> String {
         switch kind {
@@ -65,12 +70,12 @@ enum GoingInWords {
         if let weakest = reading.weakest, let score = weakest.score.score {
             lines.append("\(name(weakest.kind)) \(score) holds it down.")
         } else {
-            lines.append("Every part read is at or above your usual day.")
+            lines.append("Every part read is at your usual day or above.")
         }
         // Wellness is often not rated and says the least, so its absence is not worth a line.
         let unread = reading.unread.filter { $0 != .wellness }
         if !unread.isEmpty {
-            lines.append("Not read yet: \(unread.map { name($0) }.joined(separator: ", ")).")
+            lines.append("Not read yet: \(unread.map(inlineName).joined(separator: ", ")).")
         }
         return lines.joined(separator: " ")
     }

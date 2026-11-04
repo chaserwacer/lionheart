@@ -68,7 +68,7 @@ struct GoingInSheet: View {
             figure("Resting heart rate (Oura)", state.readiness.restingHeartRate.map { "\($0.rounded)" })
             figure(
                 "Temperature",
-                state.readiness.temperatureDeviation.map { Formatting.deviation($0, of: .temperatureDeviation) })
+                state.readiness.temperatureDeviation.map { Formatting.figureText($0, of: .temperatureDeviation) })
         } header: {
             partHeader(.readiness, state.readiness.score)
         } footer: {
@@ -78,12 +78,14 @@ struct GoingInSheet: View {
 
     private var autonomicSection: some View {
         Section {
-            figure("HRV last night", state.autonomic.hrv.map { "\($0) ms" })
-            figure("HRV baseline", state.autonomic.hrvBaseline.map { "\(Formatting.measure($0.rounded())) ms" })
-            figure("Lowest heart rate", state.autonomic.lowestHeartRate.map { "\($0) bpm" })
+            figure("HRV last night", state.autonomic.hrv.map { Formatting.figureText(Double($0), of: .hrv) })
+            figure("HRV baseline", state.autonomic.hrvBaseline.map { Formatting.figureText($0, of: .hrv) })
+            figure(
+                "Lowest heart rate",
+                state.autonomic.lowestHeartRate.map { Formatting.figureText(Double($0), of: .lowestHeartRate) })
             figure(
                 "Lowest heart rate baseline",
-                state.autonomic.lowestHeartRateBaseline.map { "\(Formatting.measure(($0 * 10).rounded() / 10)) bpm" })
+                state.autonomic.lowestHeartRateBaseline.map { Formatting.figureText($0, of: .lowestHeartRate) })
             figure("Baseline nights", "\(state.autonomic.baselineNights)")
         } header: {
             partHeader(.autonomic, state.autonomic.score)

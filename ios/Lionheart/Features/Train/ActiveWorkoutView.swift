@@ -85,6 +85,7 @@ struct ActiveWorkoutView: View {
                 // first thing on screen, and the library is usually remembered already.
                 async let header: Void = refreshHeader()
                 await library.refreshIfNeeded()
+                reseedUntouchedRow()
                 await bodyweight.refreshIfNeeded()
                 if store.workout?.routine != nil { await routines.refreshIfNeeded() }
                 await header
@@ -246,9 +247,7 @@ struct ActiveWorkoutView: View {
                         withAnimation(.snappy) { proxy.scrollTo(Self.entryRow, anchor: .bottom) }
                     }
                 }
-                // And to a row opened from the Add sheet, whose section is new at the bottom, and to
-                // the open row whenever the surface opens mid-rest.
-                .onAppear { proxy.scrollTo(Self.entryRow, anchor: .bottom) }
+                // And to a row opened from the Add sheet, whose section is new at the bottom.
                 .onChange(of: openedOn) {
                     withAnimation(.snappy) { proxy.scrollTo(Self.entryRow, anchor: .bottom) }
                 }
@@ -725,6 +724,19 @@ struct ActiveWorkoutView: View {
             draft = SetDraft(from: .freeform(text: ""))
             store.work(on: nil)
         }
+    }
+
+    /// Fills the entry row from last time when last time arrived after the row opened.
+    ///
+    /// Found by relaunching mid-workout: the row opens before the library has read last time back,
+    /// so it opened empty and in kilograms, and stayed that way. A row the athlete has typed into
+    /// is left alone — only one still exactly as the rule seeded it without last time is reseeded.
+    private func reseedUntouchedRow() {
+        guard let draft, let movementDataId = draft.movementDataId, let workout = store.workout,
+              let previous = library.previous[movementDataId],
+              draft == SetDraft(next: movementDataId, in: workout, previous: nil)
+        else { return }
+        self.draft = SetDraft(next: movementDataId, in: workout, previous: previous)
     }
 
     /// Opens the entry row on a movement, pre-filled by the carry-forward rule.
