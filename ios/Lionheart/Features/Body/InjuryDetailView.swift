@@ -11,6 +11,8 @@ struct InjuryDetailView: View {
     let store: BodyStore
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 160
     @State private var asked: InjuryAction?
     @State private var deleting: InjuryEvent?
     @State private var isLoggingEvent = false
@@ -126,8 +128,11 @@ struct InjuryDetailView: View {
             event.createdAt.map { (event: event, at: $0) }
         }
         if dated.count >= 2 {
+            let sorted = dated.sorted { $0.at < $1.at }
+            let axis = PainAxis(from: sorted[0].at, to: sorted[sorted.count - 1].at,
+                                labels: dynamicTypeSize.isAccessibilitySize ? 2 : 4)
             Section {
-                Chart(dated.sorted { $0.at < $1.at }, id: \.event.injuryEventId) { point in
+                Chart(sorted, id: \.event.injuryEventId) { point in
                     LineMark(
                         x: .value("Logged", point.at),
                         y: .value("Pain", point.event.painLevel))
@@ -138,9 +143,20 @@ struct InjuryDetailView: View {
                     .foregroundStyle(Tokens.accent)
                 }
                 .chartYScale(domain: 0...10)
-                .frame(height: 160)
+                // Whole days, labelled as dates on day boundaries: events logged hours apart would
+                // otherwise get an axis of clock times, which says nothing about an injury's course.
+                .chartXScale(domain: axis.domain)
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: axis.daysPerLabel)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day(), collisionResolution: .greedy)
+                    }
+                }
+                .frame(height: chartHeight)
                 .padding(.vertical, 8)
                 .accessibilityLabel("Pain level over time, nought to ten")
+                .accessibilityValue(
+                    "\(sorted.count) entries from \(axis.domain.lowerBound.formatted(date: .abbreviated, time: .omitted)); latest \(sorted[sorted.count - 1].event.painLevel) of 10")
             } header: {
                 Text("Pain")
             } footer: {
@@ -221,5 +237,20 @@ private struct InjuryEventRow: View {
         case .checkIn: "Check-in"
         case .unrecognised: "Event"
         }
+    }
+}
+
+/// The pain chart's time axis: whole days from the first entry's to the last's, labelled on day
+/// boundaries, at most `labels` of them.
+private struct PainAxis {
+    let domain: ClosedRange<Date>
+    let daysPerLabel: Int
+
+    init(from first: Date, to last: Date, labels: Int, calendar: Calendar = .current) {
+        let start = calendar.startOfDay(for: first)
+        let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: last)) ?? last
+        let days = max(1, calendar.dateComponents([.day], from: start, to: end).day ?? 1)
+        domain = start...end
+        daysPerLabel = max(1, Int((Double(days) / Double(max(1, labels))).rounded(.up)))
     }
 }

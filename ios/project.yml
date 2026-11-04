@@ -39,12 +39,17 @@ targets:
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
+        # Shared with LionheartWidgets: the app leaves today's glance there for the Home and Lock
+        # Screen widgets (Store/Glance/TodayGlanceFile.swift). Available on the free developer tier.
+        com.apple.security.application-groups: [group.com.chasebalmer.lionheart]
     dependencies:
       # Embeds the widget extension in the app's PlugIns folder, which is the only way a Live
       # Activity's views are ever found: ActivityKit renders them in the extension's process, so an
       # app that links ActivityKit but ships no extension can request an activity and will only
       # ever draw a blank one.
       - target: LionheartWorkoutActivity
+      # The Home and Lock Screen widgets, embedded the same way.
+      - target: LionheartWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.chasebalmer.lionheart
@@ -76,6 +81,10 @@ targets:
         # nothing in the log saying why. It belongs here for the same reason UILaunchScreen does —
         # this project supplies its own Info.plist, so no INFOPLIST_KEY_* build setting reaches it.
         NSSupportsLiveActivities: true
+        # One morning wake to read today for the widgets (Store/Glance/BackgroundRefresh.swift). Background
+        # app refresh is the "fetch" mode; the free developer tier has it, and no push.
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [com.chasebalmer.lionheart.morning-refresh]
         # The document camera reads a printed body-composition sheet; the photo stays on the phone.
         NSCameraUsageDescription: Photographs a printed body-composition sheet so its figures can be read on this phone.
         # Read only: the workouts other apps write to Health, and what Apple's own devices measure.
@@ -132,6 +141,44 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
+  # The Home and Lock Screen widgets: readiness, and today beside the training either side of it.
+  #
+  # They read one file the app writes into the shared App Group and reach no server, so the app
+  # files compiled in are the glance's value, its file, and the one view that draws it — listed here
+  # so the surface the two processes share is visible in one place.
+  LionheartWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LionheartWidgets
+      - path: Lionheart/Core/Derived/TodayGlance.swift
+      - path: Lionheart/Store/Glance/TodayGlanceFile.swift
+      - path: Lionheart/Design/ReadinessGlanceView.swift
+      - path: Lionheart/Resources/Assets.xcassets
+    configFiles:
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
+    entitlements:
+      path: LionheartWidgets/LionheartWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.chasebalmer.lionheart]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chasebalmer.lionheart.widgets
+        PRODUCT_NAME: LionheartWidgets
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: LionheartWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Lionheart
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
   LionheartTests:
     type: bundle.unit-test
     platform: iOS
@@ -150,6 +197,7 @@ schemes:
       targets:
         Lionheart: all
         LionheartWorkoutActivity: all
+        LionheartWidgets: all
         LionheartTests: [test]
     run:
       config: Debug

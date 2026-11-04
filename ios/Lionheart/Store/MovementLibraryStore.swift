@@ -209,11 +209,17 @@ final class MovementLibraryStore {
         let task = Task { await self.reload() }
         load = task
         await task.value
+        if load == task { load = nil }
     }
 
     /// Loads only if nothing current is loaded yet, which is what a picker being opened wants: the
-    /// catalogue is not worth a round trip every time a sheet appears.
+    /// catalogue is not worth a round trip every time a sheet appears. A load already out is waited
+    /// on rather than started again — at launch Today, History and the workout bar all ask at once.
     func refreshIfNeeded() async {
+        if let load {
+            await load.value
+            return
+        }
         guard state.value == nil || state.isStale else { return }
         await refresh()
     }
@@ -232,6 +238,25 @@ final class MovementLibraryStore {
     }
 
     private func reload() async {
+        // A launch paints the catalogue the device last held before the server answers, so a
+        // restored workout's bar and Today's training lines have names from the first frame. Last
+        // time is left to the server: it is the logging surface's, which nobody opens that fast.
+        if state.value == nil,
+           let kept = await APIClient.onDevice({ [movements, personalRecords] in
+               async let catalogue = movements.movements(remembering: .movements)
+               async let summaries = personalRecords.summaries(remembering: .recordSummaries)
+               return try await (catalogue, summaries)
+           }),
+           let asOf = kept.0.asOf,
+           // A sign-out while the device was read has reset the store.
+           !Task.isCancelled {
+            state = state.recalling(kept.0.value, asOf: asOf)
+            if records.isEmpty {
+                records = Dictionary(
+                    kept.1.value.map { ($0.subject, $0) }, uniquingKeysWith: { first, _ in first })
+            }
+        }
+
         do {
             // Independent, both wanted, a known number of them.
             // Remembered, because the picker and the record badges are needed most where there is

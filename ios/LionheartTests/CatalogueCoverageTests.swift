@@ -162,7 +162,7 @@ final class ACatalogueServer: URLProtocol, @unchecked Sendable {
 }
 
 /// The movements the stub server can list, and what it names them.
-private let stubbedMovements: [(id: UUID, name: String)] = [
+let stubbedMovements: [(id: UUID, name: String)] = [
     (UUID(uuidString: "cccccccc-cccc-cccc-cccc-cccccccccccc")!, "Squat"),
     (UUID(uuidString: "dddddddd-dddd-dddd-dddd-dddddddddddd")!, "Dip"),
 ]

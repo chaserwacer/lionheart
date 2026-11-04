@@ -45,6 +45,14 @@ final class HabitsStore {
         }
     }
 
+    /// Reads a day only when no current one is held — what a screen showing the day asks each time
+    /// it appears. A held day changes only when Oura's data does, and a sync reads every held day
+    /// again itself (`refreshLoaded`).
+    func loadDayIfNeeded(_ day: CalendarDay) async {
+        if let held = days[day], held.value != nil, !held.isStale { return }
+        await loadDay(day)
+    }
+
     /// Whether any span or day on screen is what the device last knew rather than the server's answer.
     var isWaitingOnServer: Bool {
         reports.values.contains(where: \.isWaitingOnServer) || days.values.contains(where: \.isWaitingOnServer)

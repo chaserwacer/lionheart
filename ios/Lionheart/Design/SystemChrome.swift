@@ -42,6 +42,19 @@ private struct SearchMinimizing: ViewModifier {
 }
 
 extension View {
+    /// Zooms a pushed screen out of the row it was opened from — the iOS 18 navigation transition,
+    /// which the system turns into a cross-fade under Reduce Motion — or pushes it the usual way
+    /// when `sourceID` is `nil`, for a destination that can be reached from somewhere with no row to
+    /// zoom out of.
+    @ViewBuilder
+    func navigationZoom(from sourceID: (some Hashable)?, in namespace: Namespace.ID) -> some View {
+        if let sourceID {
+            navigationTransition(.zoom(sourceID: sourceID, in: namespace))
+        } else {
+            self
+        }
+    }
+
     /// The current Apple tab-bar behaviour: minimize on scroll down, restore on scroll up.
     func minimizingTabBarOnScroll() -> some View {
         modifier(TabBarMinimizing())

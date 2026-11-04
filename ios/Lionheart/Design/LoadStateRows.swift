@@ -99,7 +99,10 @@ private struct SkeletonRow: View {
 ///
 /// An unreachable server is marked the way an instrument marks a held reading: the time it dates
 /// from, and nothing apologetic. A server that answered with a fault is a different sentence, its
-/// own words, because the screen's age is not the news there.
+/// own words, because the screen's age is not the news there. A screen opened onto the device's
+/// last answer gets no row at all: the server usually answers before the row could be read, and a
+/// row that came and went would move everything under it twice. `recalledNote(_:)` says it instead,
+/// floating, once the server is slow.
 struct StaleBanner: View {
     let staleness: Staleness
 
@@ -108,27 +111,84 @@ struct StaleBanner: View {
     }
 
     var body: some View {
-        Section {
-            switch staleness {
-            case .unreachable(let asOf):
-                LabeledContent {
-                    Text("Server unreachable")
-                } label: {
-                    Text(Formatting.asOf(asOf))
-                        .monospacedDigit()
-                        .foregroundStyle(Color(.label))
-                }
+        switch staleness {
+        case .recalled:
+            EmptyView()
+        case .unreachable, .refreshFailed:
+            Section { note }
+        }
+    }
+
+    @ViewBuilder
+    private var note: some View {
+        switch staleness {
+        case .recalled:
+            EmptyView()
+        case .unreachable(let asOf):
+            LabeledContent {
+                Text("Server unreachable")
+            } label: {
+                Text(Formatting.asOf(asOf))
+                    .monospacedDigit()
+                    .foregroundStyle(Color(.label))
+            }
+            .font(.footnote)
+            .foregroundStyle(Color(.secondaryLabel))
+        case .refreshFailed(let failure):
+            // `exclamationmark` leads: the symbol with the parts the other way round does not
+            // exist, and an `Image(systemName:)` naming a symbol that is not there draws nothing
+            // at all — the row then reads as a bare sentence with a gap where its icon should be.
+            Label(failure.message, systemImage: "exclamationmark.arrow.triangle.2.circlepath")
                 .font(.footnote)
                 .foregroundStyle(Color(.secondaryLabel))
-            case .refreshFailed(let failure):
-                // `exclamationmark` leads: the symbol with the parts the other way round does not
-                // exist, and an `Image(systemName:)` naming a symbol that is not there draws
-                // nothing at all — the row then reads as a bare sentence with a gap where its icon
-                // should be.
-                Label(failure.message, systemImage: "exclamationmark.arrow.triangle.2.circlepath")
+        }
+    }
+}
+
+/// The time a recalled screen dates from, floating over the top of it once the server has kept it
+/// waiting — the way Mail says it is checking without moving a message.
+///
+/// A second's grace, because the server on a good connection answers well inside it. Floating
+/// chrome rather than a row, so neither its arrival nor its leaving moves the content under it.
+private struct RecalledNote: ViewModifier {
+    let asOf: Date?
+
+    @State private var isShown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .top) {
+                if isShown, let asOf {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("\(Formatting.asOf(asOf)) · Updating")
+                            .monospacedDigit()
+                    }
                     .font(.footnote)
                     .foregroundStyle(Color(.secondaryLabel))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .glassChrome()
+                    .padding(.top, 4)
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                    .accessibilityElement(children: .combine)
+                }
             }
-        }
+            .task(id: asOf) {
+                guard asOf != nil, (try? await Task.sleep(for: .seconds(1))) != nil else {
+                    withAnimation { isShown = false }
+                    return
+                }
+                withAnimation { isShown = true }
+            }
+    }
+}
+
+extension View {
+    /// Floats the time a recalled screen dates from over it while the server is slow to answer.
+    /// `asOf` is the recalled answer's time, or `nil` once the screen is current or says why not.
+    func recalledNote(_ asOf: Date?) -> some View {
+        modifier(RecalledNote(asOf: asOf))
     }
 }

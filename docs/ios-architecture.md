@@ -108,6 +108,29 @@ nothing. A chat answer is the model reading the server, so sending needs a conne
 composer says so; the thread's newest page and the memory list are remembered like any other read,
 so what Lionheart last said can be read back with no signal.
 
+### First paint, and coming back to a tab
+
+A screen seen before never opens on placeholders. Today, History, Body and the movement catalogue
+read their parts from the device first — the same endpoints, windows and keys, run inside
+`APIClient.onDevice`, which answers every remembered read in it from `ReadMemory` without a
+request — and paint that answer as `.stale(value, .recalled(asOf:))` while the server is asked. The
+server's answer replaces it in place; no answer turns it into `.unreachable` as before. A recalled
+screen gets no row of its own (one that came and went would move every row twice); if the server
+has not answered within a second, `recalledNote(_:)` floats the time it dates from over the top.
+The skeleton rows remain for a screen the device has never read.
+
+A tab's `.task` runs on every return to it, and History's read is the whole log and every record
+(about 1.2 MB against a real archive). So Today and History read on return only when
+`ReadFreshness` says the answer may have moved: nothing current on screen, a write accepted from
+this device since the read (`WriteLedger`, counted in `APIClient`, so a set pushed from the workout
+or a skip on Train counts without either knowing who shows it), a new calendar day, or an answer
+older than the screen's span (5 minutes for Today, 15 for History). Returning to the foreground asks
+the same question of both. Pull to refresh always reads.
+
+Today reads ahead whenever a current reading of today brings something new: the 90-day trend behind
+every figure's page, one request for the days and one for the nights, so the drill-down most often opened is on screen
+without a spinner. A trend read for one figure fills every figure the same read answers.
+
 ### Knowing the server is there
 
 `ServerReachability` learns from the requests the app actually makes, not from the phone's network
@@ -778,6 +801,32 @@ them, the only sign of the cut.
 - `MemorySheet` lists memory by kind, standing kinds first; a memory's page shows the words it came
   from and the versions it replaced, and the athlete can correct it (the old wording becomes its
   history) or forget it (every version goes). A correction has a new id, and the page follows it.
+
+## Outside the app: widgets, Shortcuts and the morning wake
+
+**Widgets.** `LionheartWidgets` is a widget extension of its own (the workout's Live Activity keeps
+its own target). Readiness comes as a small Home Screen widget and three Lock Screen families —
+a gauge out of 100, a rectangular line with the band and the baseline, and an inline line — and
+**Today** is a medium widget with the readiness beside the last session and the next one planned.
+None of them reaches the server. Each time Today reads today current, `TodayGlancePublisher` turns
+the snapshot into a `TodayGlance` — final strings plus the score — and writes it to one JSON file in
+the App Group `group.com.chasebalmer.lionheart` (`TodayGlanceFile`), reloading the timelines only
+when what they draw changed. The extension compiles just the glance, its file and
+`ReadinessGlanceView`, which every surface draws readiness with. Days are named when the widget
+draws ("Today" turns into "Yesterday" at midnight with no new data), which is the timeline's one
+later entry. Signing out deletes the file and reloads the widgets.
+
+**Shortcuts.** Two App Intents, in the app's process, acting through the container's own stores
+(`AppDependencyManager`): *Readiness* answers from the glance — reading today first, for up to four
+seconds, when the glance is from an earlier day — and *Log Training* sends plain words through the
+same request as Today's sheet. `LionheartShortcuts` gives both Siri phrases with no setup.
+
+**The morning wake.** There is no push on the free developer tier, so the Lock Screen's readiness
+can only change before the app is opened if iOS wakes it. The app asks for one background refresh
+a day, at the next 05:30 (`MorningRefresh`), on every trip to the background; the scene's
+`.backgroundTask(.appRefresh)` restores the session, syncs the ring if it is behind and reads today,
+which publishes the glance. iOS treats the time as the earliest it may run, and the simulator never
+runs it on its own.
 
 ## Design
 

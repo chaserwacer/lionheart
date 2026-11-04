@@ -24,6 +24,8 @@ struct HistoryView: View {
     /// The stack's path, held so a context menu can push a movement's page.
     @State private var path = NavigationPath()
     @ScaledMetric(relativeTo: .body) private var consistencyChartHeight: CGFloat = 64
+    /// Where the training calendar zooms out of: the row it was opened from.
+    @Namespace private var zoom
     /// Pulling to refresh brings in any new runs from Apple Health with the log.
     @Environment(HealthSyncStore.self) private var healthSync
 
@@ -55,6 +57,7 @@ struct HistoryView: View {
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
+            .recalledNote(store.state.recalledAsOf)
             .navigationTitle("History")
             .searchable(text: $query, tokens: $tokens, prompt: "Movement or note") { token in
                 Text(token.name)
@@ -75,6 +78,7 @@ struct HistoryView: View {
             }
             .navigationDestination(for: HistoryRoute.self) { route in
                 HistoryDestination(route: route, history: store, focus: focus, library: library)
+                    .navigationZoom(from: Self.zoomsFromRow(route) ? route : nil, in: zoom)
             }
             .confirmationDialog(
                 asked?.transition.confirmation?.question ?? "",
@@ -107,7 +111,24 @@ struct HistoryView: View {
         } message: {
             if let refusal = store.action.refusal { Text(refusal.message) }
         }
-        .task { await refresh() }
+        // Every return to the tab, but the log is read only when it may have moved
+        // (`ReadFreshness`): it is the heaviest read in the app.
+        .task {
+            async let log: Void = store.refreshIfDue()
+            async let pins: Void = focus.refreshIfNeeded()
+            _ = await (log, pins)
+        }
+    }
+
+    /// The destinations opened only from a row of the log itself. The rest are pushed from other
+    /// pages on this stack too — a week's page opens its days, a day's page its week — where the
+    /// row to zoom out of and back into is on the hidden root list.
+    private static func zoomsFromRow(_ route: HistoryRoute) -> Bool {
+        switch route {
+        case .consistency: true
+        case .day, .week, .session, .records, .recordSubject, .recordHistory, .trends, .movement, .movements,
+             .focus, .cardioSession, .night, .dayActivity, .run: false
+        }
     }
 
     private func refresh() async {
@@ -244,6 +265,7 @@ struct HistoryView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .matchedTransitionSource(id: HistoryRoute.consistency, in: zoom)
             } header: {
                 Text("Sessions per week")
             }

@@ -149,8 +149,13 @@ first and then in the code.
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |
 | **Rest clock** | The countdown between sets. |
 | **Load state** | A screen's enum for what it has: not loaded, loaded, unavailable with a reason, or stale — a value that is not current. Never flags plus an optional error. |
-| **Staleness** | Why a value on screen is not current: a refresh the server answered with a fault, or a server that could not be reached, marked with the time the value dates from ("As of 14:02"). |
+| **Staleness** | Why a value on screen is not current: a refresh the server answered with a fault, a server that could not be reached, marked with the time the value dates from ("As of 14:02"), or a recalled value the server has not answered for yet. |
 | **Remembered read** | A screen's read whose last answer the device keeps for the signed-in account, and shows, marked with its time, when the server cannot be reached. Forgotten at sign-out. |
+| **Recalled first paint** | A screen seen before opening on the device's last answer at once, then replaced in place by the server's. The time it dates from floats over it only if the server is slow. |
+| **Read freshness** | Whether a screen coming back into view reads again: when it holds nothing current, when this device has written since, when the day has changed, or when its answer has outlived the span it stays fresh for. |
+| **Today glance** | What the Home and Lock Screen widgets and the readiness Shortcut show: today's readiness, the last session and the next planned, already in words. Written by the app to the shared App Group whenever Today reads today; the widgets never reach the server. |
+| **Morning wake** | The one background refresh a day the app asks iOS for, at the next 05:30, so the Lock Screen's readiness is current before the app is opened. |
+| **Write ledger** | The count of writes the server has accepted from this device since launch — what tells a screen its answer may be behind. |
 | **Server reachability** | Whether the server is answering, learned from the app's own requests rather than the phone's network. Its return is what sends waiting work and refreshes screens. |
 | **Set command** | A set as the athlete states it — the numbers, and nothing the server owns. Smaller than a set entry, which also carries its source and facets. |
 | **Logged set** | A set command in the workout in flight, with the device's own id and the moment it was logged. Neither is sent; they exist so a row can be addressed and a rest recovered. |
