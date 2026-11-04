@@ -182,7 +182,10 @@ struct SessionDetailView: View {
                 }
             }
             if !detail.unattached.isEmpty {
-                Section("Other work") {
+                // Work that names no movement: a trail run — the whole of a run imported from
+                // Health — says so; anything mixed in with it is other work.
+                let onlyRuns = detail.unattached.allSatisfy { if case .trailRun = $0.entry { true } else { false } }
+                Section(onlyRuns ? "Trail run" : "Other work") {
                     ForEach(detail.unattached) { set in
                         SetRow(number: set.order + 1, entry: set.entry)
                     }

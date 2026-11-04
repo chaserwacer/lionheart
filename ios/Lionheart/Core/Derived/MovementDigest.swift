@@ -7,7 +7,7 @@ import Foundation
 /// the count, since listing every pairing would be the detail screen again.
 struct MovementDigest: Equatable, Sendable, Identifiable {
     let order: Int
-    /// The movement the line is about; absent for the "Other work" line, which names none.
+    /// The movement the line is about; absent for a trail run and the "Other work" line, which name none.
     let movementDataId: UUID?
     let movementName: String
     let line: Line
@@ -21,6 +21,8 @@ struct MovementDigest: Equatable, Sendable, Identifiable {
         case ramped(top: TopSet, setCount: Int)
         /// Sets with no single load to state — timed work, or a mix of shapes.
         case counted(setCount: Int)
+        /// A trail run: how far, how long, and the climb.
+        case run(distance: Double, unit: DistanceUnit, duration: TimeInterval, climbMeters: Double)
     }
 
     /// The heaviest set of a movement, as performed.
@@ -30,8 +32,9 @@ struct MovementDigest: Equatable, Sendable, Identifiable {
         let reps: Int
     }
 
-    /// The movements of a set list, in the order they were performed, then any work that names no
-    /// movement — a trail run, a freeform set — as one counted line, so no set goes unmentioned.
+    /// The movements of a set list, in the order they were performed, then each trail run on a line
+    /// of its own — a run imported from Apple Health is a session of exactly one — then any other
+    /// work that names no movement, a freeform set, as one counted line, so no set goes unmentioned.
     static func of(_ sets: [SetEntry], catalogue: MovementCatalogue) -> [MovementDigest] {
         let detail = SessionDetail.of(sets, catalogue: catalogue)
         let movements = detail.blocks.map { block in
@@ -39,9 +42,18 @@ struct MovementDigest: Equatable, Sendable, Identifiable {
                 order: block.order, movementDataId: block.movementDataId, movementName: block.movementName,
                 line: line(of: block.sets.map(\.entry)))
         }
-        guard !detail.unattached.isEmpty else { return movements }
-        return movements + [MovementDigest(
-            order: movements.count, movementDataId: nil, movementName: "Other work", line: .counted(setCount: detail.unattached.count))]
+        let runs = detail.unattached.compactMap { set -> Line? in
+            guard case .trailRun(let run) = set.entry else { return nil }
+            return .run(distance: run.distance, unit: run.unit, duration: run.duration, climbMeters: run.elevationGainMeters)
+        }
+        let ranLines = runs.enumerated().map { index, run in
+            MovementDigest(order: movements.count + index, movementDataId: nil, movementName: "Trail run", line: run)
+        }
+        let others = detail.unattached.count - runs.count
+        guard others > 0 else { return movements + ranLines }
+        return movements + ranLines + [MovementDigest(
+            order: movements.count + ranLines.count, movementDataId: nil, movementName: "Other work",
+            line: .counted(setCount: others))]
     }
 
     /// A movement's line reads its work: a warm-up ramp before two sets at one load is still

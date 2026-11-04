@@ -59,7 +59,8 @@ enum SetEntry: Equatable, Sendable {
         let distance: Double
         let unit: DistanceUnit
         let duration: TimeInterval
-        /// Net gain, so a descent-dominant route may legitimately be negative.
+        /// The climb as stated: the athlete's own figure, or a Health run's total ascent. Its sign is
+        /// not policed, since a stated net gain may be negative.
         let elevationGainMeters: Double
         let rpe: Rpe
     }

@@ -745,7 +745,9 @@ side:
   a tap on the row, never a sheet sprung at launch. Its row sits beside Oura's on Today and in
   Settings.
 - **The run's page** (`RunView`, reached from a session's detail and from Cardio) draws the server's
-  `RecordedRun`: the route with MapKit's `MapPolyline`, the figures, splits in kilometres or miles —
+  `RecordedRun`: the route with MapKit's `MapPolyline` — a still picture at a fixed height, since a
+  map that pans inside a list takes the list's scroll and one that grows with Dynamic Type outgrows
+  the screen; a tap opens it full screen to move and zoom — the figures, splits in kilometres or miles —
   the one conversion the page makes, a change of unit — and the heart rate against the zones, footed
   with whose it is. It shares the cardio session's chart and zone grid, which moved to `Design/` for
   the second caller.

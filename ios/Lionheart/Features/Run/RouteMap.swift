@@ -4,20 +4,20 @@ import SwiftUI
 /// A run's route on a map: the path as one line in the accent colour, framed to fit it.
 ///
 /// Points of interest are left off — the line is the subject, and a map full of cafés is not.
+/// On the run's page the map is a still picture, because a map that pans inside a scrolling list
+/// takes the scroll for itself; tapping it opens `RouteMapSheet`, which can be moved and zoomed.
 struct RouteMap: View {
     let route: [RouteCoordinate]
-
-    @ScaledMetric(relativeTo: .body) private var height: CGFloat = 280
+    var isInteractive = false
 
     var body: some View {
         let coordinates = route.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
 
-        Map(initialPosition: .rect(Self.frame(around: coordinates))) {
+        Map(initialPosition: .rect(Self.frame(around: coordinates)), interactionModes: isInteractive ? .all : []) {
             MapPolyline(coordinates: coordinates)
                 .stroke(.tint, lineWidth: 3)
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
-        .frame(height: height)
         .accessibilityLabel("Map of the route")
     }
 
@@ -31,5 +31,26 @@ struct RouteMap: View {
         }
         let margin = max(bounds.width, bounds.height) * 0.15 + 200
         return bounds.insetBy(dx: -margin, dy: -margin)
+    }
+}
+
+/// The route full screen, to move about and zoom into.
+struct RouteMapSheet: View {
+    let route: [RouteCoordinate]
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            RouteMap(route: route, isInteractive: true)
+                .ignoresSafeArea(edges: .bottom)
+                .navigationTitle("Route")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
     }
 }

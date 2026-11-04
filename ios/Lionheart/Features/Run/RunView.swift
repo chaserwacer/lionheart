@@ -10,6 +10,11 @@ struct RunView: View {
     let store: RunStore
 
     @AppStorage("lh.runUnit") private var unit: RunUnit = .kilometres
+    @State private var isMapExpanded = false
+
+    /// A picture, not text, so it does not grow with Dynamic Type: at the largest sizes a scaled map
+    /// would be taller than the screen.
+    private let mapHeight: CGFloat = 260
 
     var body: some View {
         List {
@@ -60,8 +65,17 @@ struct RunView: View {
     private func routeSection(_ run: RecordedRun) -> some View {
         Section {
             if run.route.count >= 2 {
-                RouteMap(route: run.route)
-                    .listRowInsets(EdgeInsets())
+                Button { isMapExpanded = true } label: {
+                    RouteMap(route: run.route)
+                        .frame(height: mapHeight)
+                        .allowsHitTesting(false)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the route full screen.")
+                .listRowInsets(EdgeInsets())
+                .fullScreenCover(isPresented: $isMapExpanded) {
+                    RouteMapSheet(route: run.route)
+                }
             } else {
                 Text("No route was recorded with this run.").foregroundStyle(Color(.secondaryLabel))
             }
@@ -140,7 +154,9 @@ struct RunView: View {
         } header: {
             Text("Heart rate, bpm")
         } footer: {
-            Text(heartRateSource(run))
+            if run.trace.samples.count >= 2 {
+                Text(heartRateSource(run))
+            }
         }
     }
 

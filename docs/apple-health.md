@@ -174,7 +174,9 @@ invented, run due north from an empty meadow.
 2. Install this build. HealthKit needs the capability on the signing team, which the free tier
    allows; Xcode adds it from the entitlement when it signs.
 3. In Lionheart: Today's or Settings' "Apple Health" row → Connect → allow Workouts, Workout Routes
-   and Heart Rate in Health's sheet. The first sync reads Health's whole history of runs.
+   and Heart Rate in Health's sheet. Recent iOS then asks how much history to share: choose **All
+   Recorded Data and Future Data**, or the first sync can only backfill the last 30 days. The first
+   sync reads everything Health lets it.
 
 ## Next
 

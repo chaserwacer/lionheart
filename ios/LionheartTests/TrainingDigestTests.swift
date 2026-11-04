@@ -51,6 +51,21 @@ struct MovementDigestTests {
         #expect(digests.last?.line == .counted(setCount: 1))
     }
 
+    @Test("A trail run reads on a line of its own, with its distance, time and climb")
+    func aTrailRunIsItsOwnLine() throws {
+        let sets = try Decoding.list(SetEntry.self, """
+            [{"$type":"trailRun","source":{"$type":"formed"},"facets":[],"distance":8.15,"unit":3,
+              "duration":"00:43:49","elevationGainMeters":207,"rpe":null},
+             {"$type":"freeform","source":{"$type":"texted","rawText":"strides"},"facets":[]}]
+            """)
+
+        let digests = MovementDigest.of(sets, catalogue: MovementCatalogue())
+
+        #expect(digests.map(\.movementName) == ["Trail run", "Other work"])
+        #expect(digests.first?.line == .run(distance: 8.15, unit: .kilometers, duration: 2629, climbMeters: 207))
+        #expect(digests.last?.line == .counted(setCount: 1))
+    }
+
     @Test("Movements keep the order they were performed in")
     func movementsInOrder() throws {
         let sets = try Decoding.list(SetEntry.self, """
