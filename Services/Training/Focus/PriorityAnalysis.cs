@@ -93,7 +93,7 @@ public static class PriorityAnalysis
             .Where(session => session.Sets.Count > 0)
             .ToList();
 
-        var unit = sessions.Count > 0 ? sessions[^1].Sets[^1].Unit : WeightUnit.Pounds;
+        var unit = UnitOf(log, movementDataId, endingOn);
         var bests = sessions
             .Select(session => Best(log, session.Day, session.Sets, unit))
             .OfType<SessionBest>()
@@ -135,7 +135,14 @@ public static class PriorityAnalysis
                 day, new LiftPerformance(set.Load, unit, set.Reps).EstimatedOneRepMax, set.Load, set.Reps))
             .MaxBy(best => best.EstimatedOneRepMax);
 
-    private static bool OnSystemLoad(TrainingLog log, Guid movementDataId, WeightUnit unit) =>
+    /// <summary>The unit a lift was last logged in on or before the day; pounds for one never logged.</summary>
+    public static WeightUnit UnitOf(TrainingLog log, Guid movementDataId, DateOnly endingOn) =>
+        log.Between(DateOnly.MinValue, endingOn)
+            .SelectMany(session => session.HardSets)
+            .LastOrDefault(set => set.MovementDataId == movementDataId)?.Unit ?? WeightUnit.Pounds;
+
+    /// <summary>Whether a lift's estimates are on system load: its weight adds to bodyweight, and bodyweight is logged in its unit.</summary>
+    public static bool OnSystemLoad(TrainingLog log, Guid movementDataId, WeightUnit unit) =>
         log.Movements.TryGetValue(movementDataId, out var movement)
         && movement.AddsToBodyweight
         && log.Bodyweights.Any(measured => measured.Bodyweight.Unit == unit);

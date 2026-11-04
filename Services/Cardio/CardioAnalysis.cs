@@ -40,8 +40,14 @@ public sealed record Exclusion(DateOnly Day, WorkoutCategory Category, WorkoutEx
 public sealed record CardioGathering(
     IReadOnlyList<GatheredSession> Sessions, IReadOnlyList<GatheredSession> Unproven, IReadOnlyList<Exclusion> Excluded)
 {
-    /// <summary>Every session whose heart rate has to be read: those already sessions and those waiting on it.</summary>
-    public IEnumerable<GatheredSession> Candidates => Sessions.Concat(Unproven);
+    /// <summary>
+    /// The games and dances the ring guessed at: never sessions, but a rate reached in one is still
+    /// evidence about the maximum, so their heart rate is read for the peak alone.
+    /// </summary>
+    public IReadOnlyList<GatheredSession> PeakOnly { get; init; } = [];
+
+    /// <summary>Every session whose heart rate has to be read: sessions, those waiting on it, and those read for the peak.</summary>
+    public IEnumerable<GatheredSession> Candidates => Sessions.Concat(Unproven).Concat(PeakOnly);
 }
 
 /// <summary>
@@ -85,10 +91,14 @@ public static class CardioAnalysis
             .Select(candidate => (candidate.Session, candidate.OnRecord, Read: HeartRateRead(inputs, candidate.Session)))
             .ToList();
 
-        // Read from every candidate, the ring's guesses included: a rate the athlete reached is
-        // evidence about his maximum whatever the activity was called.
+        // Read from every candidate, the ring's guesses and its detected games included: a rate the
+        // athlete reached is evidence about his maximum whatever the activity was called.
         var maximum = MaxHeartRate.Estimate(
-            inputs.Age, Peak(read.Select(candidate => (candidate.Session, candidate.Read.Samples)), inputs.Range.To));
+            inputs.Age,
+            Peak(
+                read.Select(candidate => (candidate.Session, candidate.Read.Samples))
+                    .Concat(inputs.Sessions.PeakOnly.Select(game => (game, HeartRateRead(inputs, game).Samples))),
+                inputs.Range.To));
         var judged = read
             .Select(candidate => Judged(
                 candidate.Session,
@@ -199,7 +209,11 @@ public static class CardioAnalysis
             [
                 .. shortWalks.Select(walk => new Exclusion(walk.Date, WorkoutCategory.Walk, WorkoutExclusion.ShortWalk)),
                 .. decided.OfType<RingDecision.Excluded>().Select(decision => decision.Exclusion),
-            ]);
+                .. decided.OfType<RingDecision.Game>().Select(decision => decision.Exclusion),
+            ])
+        {
+            PeakOnly = [.. decided.OfType<RingDecision.Game>().Select(decision => decision.Gathered)],
+        };
     }
 
     /// <summary>
@@ -222,6 +236,9 @@ public static class CardioAnalysis
         public sealed record Unproven(GatheredSession Gathered) : RingDecision;
 
         public sealed record Excluded(Exclusion Exclusion) : RingDecision;
+
+        /// <summary>A game or dance the ring guessed: excluded, but its heart rate still read for the maximum.</summary>
+        public sealed record Game(Exclusion Exclusion, GatheredSession Gathered) : RingDecision;
     }
 
     private static RingDecision Decide(OuraWorkout workout, IReadOnlyList<CompletedTrainingSession> logged)
@@ -251,6 +268,8 @@ public static class CardioAnalysis
         {
             RingAdmission.Session => new RingDecision.Session(gathered),
             RingAdmission.OnHeartRate => new RingDecision.Unproven(gathered),
+            RingAdmission.Excluded { Reason: WorkoutExclusion.DetectedGame } game =>
+                new RingDecision.Game(new Exclusion(workout.Day, category, game.Reason), gathered),
             RingAdmission.Excluded excluded => Excluded(excluded.Reason),
             _ => throw new System.Diagnostics.UnreachableException(),
         };

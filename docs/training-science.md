@@ -71,8 +71,17 @@ The intensity band is now **quality minutes**, credited only where all three of 
 3. **A session's worth.** The bouts add up to at least **10 minutes**: five bouts of 2 minutes, or a
    10-minute threshold block. A single hill surge in an easy run earns nothing.
 
+**What this rule cannot see.** Heart rate drifts up over a long steady effort in the heat (Coyle and
+González-Alonso 2001). An easy run whose heart rate climbs past 80 % of maximum and stays there for
+ten minutes reads as a threshold block. Telling drift from work needs the work itself: pace or power
+against heart rate. The watch's recordings carry speed and power (`WorkoutRecording.Metrics`), so a
+decoupling check is the natural next step. Until then, sustained single bouts late in a long session
+are the case to read with care in `score-calibration --sessions`.
+
 Separately, **ring-detected games and dances are excluded outright** (`WorkoutExclusion.detectedGame`),
-whatever their heart rate: they earn no zone-2 credit and no quality credit. A game he enters himself,
+whatever their heart rate: they earn no zone-2 credit and no quality credit. A rate reached in one
+still counts toward the observed maximum heart rate, because it is evidence about the heart whatever
+the activity was. A game he enters himself,
 on the ring or in the log, is still a session and earns zone 2 on its heart rate. Ring-detected
 endurance workouts, walks and unnamed workouts are still admitted on their heart rate
 (`TrainingEvidence`).
@@ -118,12 +127,8 @@ getting somewhere, is no longer one.
 
 `dotnet run -- score-calibration --user <id> [--weeks <from> <to> | --sessions <from> <to> | --next <day>]`
 prints the history's distribution, each week with its measurements against its targets, the cardio
-report's sessions and bouts, or the next-session answer. Against the athlete's own history:
-
-- No week reaches 90.
-- Weeks with lifting sit around a median in the high 40s, with the 90th percentile in the 60s.
-- The best weeks combine full lifting, some cardio and a new best.
-- A synthetic comeback week that meets every floor (4 sets a family, an hour of zone 2, one
+report's sessions and bouts, or the next-session answer. Against the athlete's own history, no week reaches 90, and the best weeks combine full lifting,
+some cardio and a new best. A synthetic comeback week that meets every floor (4 sets a family, an hour of zone 2, one
   10-minute quality session, three sessions) scores in the 60s. A committed week with new bests
   scores 100 (`TrainingScoreAnalysisTests`).
 
@@ -145,8 +150,9 @@ same reps, or one more rep where the load is bodyweight. The aim also carries th
 estimate that a new best has to pass. This is double progression in its simplest form.
 
 **The next cardio.**
-- A **quality** session when all three hold: the week's quality target is unmet, none was done in
-  the last 2 days, and recovery is not low. Hard sessions are spaced 48 hours apart with easy days
+- A **quality** session when all of these hold: the week's quality target is unmet, none was done in
+  the last 2 days, recovery is not low, legs were not trained today, and the week's cardio could be
+  read. Hard sessions are spaced 48 hours apart with easy days
   between, the polarised rule (Seiler 2010).
 - The structure is the one nearest the minutes still wanted: 5 × 2 min (the least that counts, and the
   start after four weeks without quality work), 4 × 4 min with 3 easy (Helgerud et al. 2007), 3 × 8 or
@@ -159,15 +165,18 @@ estimate that a new best has to pass. This is double progression in its simplest
    of its last 90 days; last night's HRV more than one standard deviation under the 28 nights before;
    under 6 hours asleep. HRV-guided training defers intensity on low-HRV days (Kiviniemi et al. 2007;
    Plews et al. 2013). Short sleep impairs performance and recovery (Fullagar et al. 2015).
-2. **One kind already done today → the other.**
-3. **Hard intervals wait 24–48 h after legs → lift first.** Strength work impairs running economy and
+2. **Hard intervals wait 24–48 h after legs → lift first.** Strength work impairs running economy and
    time to exhaustion the following day (Doma and Deakin 2013). Interference is greatest for running
-   and for leg work (Wilson et al. 2012).
-4. **Legs due within a day of intervals → easy cardio first, legs next.**
-5. **Otherwise, whichever part of the week's score is further behind.**
+   and for leg work (Wilson et al. 2012). Legs today also turn the next cardio into zone 2.
+3. **Legs due within a day of intervals → easy cardio first, legs next.** If the intervals were
+   today, legs are next but tomorrow.
+4. **One kind already done today → the other.** This comes after the interference rules, so they
+   hold on the same day too.
+5. **Otherwise, whichever part of the week's score is further behind.** With the week's cardio
+   unread, whichever was done longer ago; and unread cardio never prescribes intervals.
 
-The Train tab, the workout tracker's header and the chat's TODAY briefing (through the
-`GetNextSessions` tool) all read this one answer.
+The Train tab and the chat's TODAY briefing (through the `GetNextSessions` tool) read this one
+answer, and the workout tracker's header is built to read it too.
 
 ## Decisions he may want to change
 

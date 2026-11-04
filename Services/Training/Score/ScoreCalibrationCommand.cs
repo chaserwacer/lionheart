@@ -53,8 +53,13 @@ internal static class ScoreCalibrationCommand
         {
             var next = await new Next.NextSessionsService(context, service, new CardioReportService(context), MovementPatternMap.Shipped)
                 .GetNextAsync(identity, DateOnly.Parse(asOf), ct);
-            Console.WriteLine(next.Match(found => string.Join("\n", Next.NextSessionsService.Lines(found)), problem => problem.Description));
-            return 0;
+            return next.Match(
+                found =>
+                {
+                    Console.WriteLine(string.Join("\n", Next.NextSessionsService.Lines(found)));
+                    return 0;
+                },
+                Refuse);
         }
 
         if (args is [_, _, _, "--weeks", var weeksFrom, var weeksTo])

@@ -139,6 +139,17 @@ public class CardioAnalysisTests
     }
 
     [Fact]
+    public void A_detected_game_still_tells_the_maximum_what_rate_was_reached()
+    {
+        // 199 bpm is above the 194 predicted for age 20; the game earns nothing, but the rate is real.
+        var start = At(10, 17);
+        var report = Build(ring: [Detected("basketball", start, 120)], heartRate: Minutes(start, (199, 120)));
+
+        Assert.Empty(report.Sessions);
+        Assert.Equal(199, report.MaxHeartRate?.Bpm);
+    }
+
+    [Fact]
     public void A_detected_walk_held_in_zone_two_counts_and_its_minutes_with_it()
     {
         var start = At(10, 17);

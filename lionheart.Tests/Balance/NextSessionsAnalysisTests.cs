@@ -140,6 +140,65 @@ public class NextSessionsAnalysisTests
     }
 
     [Fact]
+    public void A_due_lift_not_trained_this_week_keeps_its_own_unit()
+    {
+        // Bench last done eight days ago, in kilograms: due, and outside the window.
+        var kilos = Set(Bench, 90, 5) with { Unit = WeightUnit.Kilograms };
+        var log = Catalogue
+            .WithSession(Today.AddDays(-8), kilos, kilos)
+            .WithSession(Today.AddDays(-4), Sets(4, Row))
+            .WithSession(Today.AddDays(-2), Sets(4, Squat));
+
+        var aim = Assert.IsType<LiftAim.Beat>(Assert.Single(Assert.IsType<NextLift.Train>(Next(log).Lift).Priorities).Aim);
+
+        Assert.Equal((92.5, 5, WeightUnit.Kilograms), (aim.Load, aim.Reps, aim.Unit));
+    }
+
+    [Fact]
+    public void Legs_today_keep_the_next_cardio_easy_and_put_it_next()
+    {
+        var log = Catalogue
+            .WithSession(Today.AddDays(-6), Sets(4, Bench))
+            .WithSession(Today.AddDays(-4), Sets(4, Row))
+            .WithSession(Today, Sets(4, Squat));
+
+        var next = Next(log);
+
+        Assert.IsType<NextCardio.Zone2>(next.Cardio);
+        Assert.Equal(NextKind.Cardio, next.First.Session);
+    }
+
+    [Fact]
+    public void Intervals_today_with_legs_due_put_legs_tomorrow_rather_than_straight_after()
+    {
+        var log = Catalogue
+            .WithSession(Today.AddDays(-6), Sets(4, Squat))
+            .WithSession(Today.AddDays(-4), Sets(4, Bench))
+            .WithSession(Today.AddDays(-3), Sets(4, Row));
+
+        var next = Next(log, cardio: [Intervals(Today)]);
+
+        Assert.Equal(NextKind.Lift, next.First.Session);
+        Assert.Contains(next.First.Reasons, reason => reason.Contains("tomorrow"));
+    }
+
+    [Fact]
+    public void Unread_cardio_neither_owes_intervals_nor_decides_which_first()
+    {
+        var built = AWeek().Build();
+        var next = NextSessionsAnalysis.Of(new NextInputs(
+            Today,
+            built,
+            PriorityAnalysis.Read(built, [], Today),
+            TrainingScoreAnalysis.Score(built, [], _ => new CardioMeasure.Unknown(CardioUnknownReason.NoHeartRate), Today),
+            [],
+            Rested));
+
+        Assert.IsType<NextCardio.Zone2>(next.Cardio);
+        Assert.Contains(next.First.Reasons, reason => reason.Contains("could not be read"));
+    }
+
+    [Fact]
     public void Each_choice_comes_with_its_reasons()
     {
         var next = Next(AWeek());

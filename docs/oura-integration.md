@@ -335,8 +335,8 @@ the time read, so a spike inside an hour of pottering does not carry the hour. H
 and stretching never count, whatever their heart rate. A declined guess is listed in the report's
 `declined` with the heart rate that decided it, so the call can be checked, and counted in
 `excluded` by reason (`heartRateUnread`, `heartRateBelowTraining`). The maximum heart rate is read
-from every candidate, the declined included, since a rate reached is evidence whatever the activity
-was called. A run or ride the ring guessed and could not read is still session time with nothing behind
+from every candidate, the declined and the detected games included, since a rate reached is evidence
+whatever the activity was called. A run or ride the ring guessed and could not read is still session time with nothing behind
 it, so a window mostly made of them reads its zone 2 as unknown rather than as an empty window; an
 unread walk does not. How intensity is credited is in `docs/training-science.md`. The
 habits report places only the sessions on their own record on the clock: it reads

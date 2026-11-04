@@ -8,6 +8,7 @@ using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Score;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Training.Balance;
+using lionheart.Services.Training.Focus;
 
 namespace lionheart.Services.Training.Next;
 
@@ -103,7 +104,7 @@ public static class NextSessionsAnalysis
                 .. inputs.Priorities
                     .Where(priority => due.Families.Contains(priority.Family))
                     .Select(priority => priority.Lift is PriorityLift.Chosen chosen
-                        ? new PriorityAim(priority.Family, chosen.MovementDataId, chosen.Name, AimOf(chosen))
+                        ? new PriorityAim(priority.Family, chosen.MovementDataId, chosen.Name, AimOf(inputs.Log, chosen, inputs.Day))
                         : null)
                     .OfType<PriorityAim>()
             ],
@@ -118,16 +119,16 @@ public static class NextSessionsAnalysis
     /// The priority's next top set: its last session's best set one step on — five pounds or 2.5
     /// kilograms, or a rep where the load is bodyweight — against the best a new best must pass.
     /// </summary>
-    public static LiftAim AimOf(PriorityLift.Chosen lift)
+    /// <remarks>
+    /// The unit and whether the load is bodyweight's come from the log rather than the window's
+    /// progress, because the family due was, by being due, usually not trained in the window.
+    /// </remarks>
+    public static LiftAim AimOf(TrainingLog log, PriorityLift.Chosen lift, DateOnly day)
     {
         if (lift.Series is not [.., var last]) return new LiftAim.Establish();
 
-        var (unit, onSystemLoad) = lift.Progress switch
-        {
-            LiftProgress.FirstBack back => (back.Unit, back.OnSystemLoad),
-            LiftProgress.Compared compared => (compared.Unit, compared.OnSystemLoad),
-            _ => (WeightUnit.Pounds, false),
-        };
+        var unit = PriorityAnalysis.UnitOf(log, lift.MovementDataId, day);
+        var onSystemLoad = PriorityAnalysis.OnSystemLoad(log, lift.MovementDataId, unit);
         var (load, reps) = onSystemLoad ? (last.Load, last.Reps + 1) : (last.Load + Step(unit), last.Reps);
         return new LiftAim.Beat(
             load, reps, unit, new LiftPerformance(load, unit, reps).EstimatedOneRepMax,
@@ -158,7 +159,9 @@ public static class NextSessionsAnalysis
         if (inputs.Score.Cardio.Points is null) reasons.Add("This week's cardio could not be read from heart rate.");
 
         var spaced = lastQuality is not { } lastDay || inputs.Day.DayNumber - lastDay.DayNumber >= QualitySpacingDays;
-        if (qualityLeft > 0 && spaced && recovery.Count is 0)
+        var legsToday = LegsLast(inputs.Score) == inputs.Day;
+        var read = inputs.Score.Cardio.Points is not null;
+        if (qualityLeft > 0 && spaced && recovery.Count is 0 && !legsToday && read)
         {
             var firstBack = quality.Target.Chronic is not > 0;
             var (bouts, boutMinutes, rest) = Structure(firstBack ? QualityWork.LeastSessionMinutes : qualityLeft);
@@ -173,6 +176,8 @@ public static class NextSessionsAnalysis
         if (qualityLeft > 0 && !spaced && lastQuality is { } recent)
             reasons.Add($"Quality session {Ago(inputs.Day, recent)}: keep 48 hours between hard sessions.");
         if (recovery.Count > 0) reasons.Add("Recovery reads low: easy aerobic work, no intervals.");
+        if (qualityLeft > 0 && legsToday) reasons.Add("Legs today: intervals wait 24–48 hours after legs.");
+        if (qualityLeft > 0 && !read) reasons.Add("With the week's heart rate unread, nothing says intervals are owed: keep it aerobic.");
 
         var left = zone2.Target.Target - zone2.Minutes;
         var minutes = recovery.Count > 0
@@ -197,8 +202,15 @@ public static class NextSessionsAnalysis
         score.Cardio.Zones.Select(zone => zone.Of).FirstOrDefault(zone => zone.Band == band)
         ?? new ZoneTarget(band, 0, new WeeklyTarget(standard.Floor, standard.Committed, standard.Floor, null));
 
+    private static DateOnly? LegsLast(TrainingScore score) =>
+        score.Lifting.Families.FirstOrDefault(family => family.Of.Family == PatternFamily.Legs)?.Of.LastTrained;
+
     // ---- Which first ----
 
+    /// <remarks>
+    /// The interference rules come before "the kind not done today", so legs and intervals are kept
+    /// apart on the same day as well as across two.
+    /// </remarks>
     private static FirstChoice First(NextInputs inputs, NextLift lift, NextCardio cardio, IReadOnlyList<string> recovery)
     {
         if (recovery.Count > 0)
@@ -206,24 +218,37 @@ public static class NextSessionsAnalysis
 
         var liftedToday = inputs.Log.Between(inputs.Day, inputs.Day).Any(session => session.HardSets.Count > 0);
         var cardioToday = inputs.RecentCardio.Any(session => LocalDay(session.Start) == inputs.Day);
-        if (liftedToday && !cardioToday) return new FirstChoice(NextKind.Cardio, ["You lifted today; cardio is the session not yet done."]);
-        if (cardioToday && !liftedToday) return new FirstChoice(NextKind.Lift, ["You did cardio today; lifting is the session not yet done."]);
 
-        var legsLast = inputs.Score.Lifting.Families.FirstOrDefault(family => family.Of.Family == PatternFamily.Legs)?.Of.LastTrained;
-        if (cardio is NextCardio.Quality && legsLast is { } legs && inputs.Day.DayNumber - legs.DayNumber <= 1)
+        if (cardio is NextCardio.Quality && LegsLast(inputs.Score) is { } legs && inputs.Day.DayNumber - legs.DayNumber <= 1)
             return new FirstChoice(NextKind.Lift, [$"Legs trained {Ago(inputs.Day, legs)}: intervals on tired legs lose their quality. Lift first; intervals 24–48 hours after legs."]);
 
         var lastQuality = inputs.RecentCardio.Where(session => session.QualityMinutes > 0).Select(session => (DateOnly?)LocalDay(session.Start)).Max();
         if (lift is NextLift.Train { Families: var families } && families.Contains(PatternFamily.Legs)
             && lastQuality is { } hard && inputs.Day.DayNumber - hard.DayNumber <= 1)
-            return new FirstChoice(NextKind.Cardio, [$"Quality session {Ago(inputs.Day, hard)}: heavy legs straight after intervals blunt both. Easy cardio now, legs next."]);
+            return cardioToday
+                ? new FirstChoice(NextKind.Lift, [$"Quality session {Ago(inputs.Day, hard)}: legs are next, but tomorrow rather than straight after the intervals."])
+                : new FirstChoice(NextKind.Cardio, [$"Quality session {Ago(inputs.Day, hard)}: heavy legs straight after intervals blunt both. Easy cardio now, legs next."]);
 
-        var liftShare = Share(inputs.Score.Lifting.Points, inputs.Score.Lifting.OutOf);
-        var cardioShare = Share(inputs.Score.Cardio.Points ?? 0, inputs.Score.Cardio.OutOf);
-        var behind = Invariant($"Lifting {inputs.Score.Lifting.Points:0} of {inputs.Score.Lifting.OutOf}, cardio {inputs.Score.Cardio.Points ?? 0:0} of {inputs.Score.Cardio.OutOf} this week");
-        return cardioShare < liftShare
+        if (liftedToday && !cardioToday) return new FirstChoice(NextKind.Cardio, ["You lifted today; cardio is the session not yet done."]);
+        if (cardioToday && !liftedToday) return new FirstChoice(NextKind.Lift, ["You did cardio today; lifting is the session not yet done."]);
+
+        if (inputs.Score.Cardio.Points is not { } cardioPoints)
+            return Longer(inputs, ["This week's cardio could not be read, so the week's balance cannot decide."]);
+
+        var behind = Invariant($"Lifting {inputs.Score.Lifting.Points:0} of {inputs.Score.Lifting.OutOf}, cardio {cardioPoints:0} of {inputs.Score.Cardio.OutOf} this week");
+        return Share(cardioPoints, inputs.Score.Cardio.OutOf) < Share(inputs.Score.Lifting.Points, inputs.Score.Lifting.OutOf)
             ? new FirstChoice(NextKind.Cardio, [$"{behind}: cardio is further behind."])
             : new FirstChoice(NextKind.Lift, [$"{behind}: lifting is further behind."]);
+    }
+
+    /// <summary>Whichever kind was done longer ago, lifting on a tie.</summary>
+    private static FirstChoice Longer(NextInputs inputs, IReadOnlyList<string> reasons)
+    {
+        var lastLift = inputs.Log.Sessions.Where(session => session.HardSets.Count > 0).Select(session => (DateOnly?)session.Day).Max();
+        var lastCardio = inputs.RecentCardio.Select(session => (DateOnly?)LocalDay(session.Start)).Max();
+        return (lastCardio ?? DateOnly.MinValue) < (lastLift ?? DateOnly.MinValue)
+            ? new FirstChoice(NextKind.Cardio, [.. reasons, "Cardio was done longer ago."])
+            : new FirstChoice(NextKind.Lift, [.. reasons, "Lifting was done longer ago."]);
     }
 
     private static double Share(double points, int outOf) => outOf > 0 ? points / outOf : 0;
