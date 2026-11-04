@@ -20,7 +20,7 @@ struct TrainingBalanceTests {
         #expect(volume.unplaced.map(\.name) == ["Cable Mystery"])
         #expect(volume.upNext == .train(
             families: [.push, .pull], lastTrained: CalendarDay(year: 2026, month: 10, day: 28),
-            trainedToday: false, readiness: .low(ouraScore: 58, usualLow: 63, usualHigh: 87)))
+            trainedToday: false, readiness: .low(OuraScore(58), usualLow: OuraScore(63), usualHigh: OuraScore(87))))
     }
 
     @Test("A pattern, a muscle or an up-next case this build does not know still lets the volume load")
@@ -122,7 +122,8 @@ struct TrainingBalanceTests {
         let measures = ScoreBreakdown.consistency(ConsistencyPart(points: 0, outOf: 20, sessionsPerBlock: [2, 3, 0, 1], target: 3))
 
         #expect(measures.map(\.label) == ["Last 7 days", "7–13 days ago", "14–20 days ago", "21–27 days ago"])
-        #expect(measures.map(\.share) == [2.0 / 3, 1, 0, 1.0 / 3])
+        #expect(measures.map(\.measured) == [2, 3, 0, 1])
+        #expect(measures.allSatisfy { $0.target == 3 })
     }
 
     @Test("Marking a muscle in one role takes it out of the other, and marking it again clears it")

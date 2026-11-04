@@ -127,7 +127,11 @@ final class AppContainer {
             if balance.score.value != nil { await balance.refresh() }
         }
         // Today holds its own window of sessions, so a correction made from History shows there too.
-        history.onRevised { [today] in await today.refresh() }
+        history.onRevised { [today, balance] in
+            await today.refresh()
+            // A corrected session changes the week's hard sets and its score.
+            await balance.refresh()
+        }
         // A rating shows on Body's row for it and on the day it rates.
         wellness.onLogged { [body, diary] entry in
             await body.refresh()

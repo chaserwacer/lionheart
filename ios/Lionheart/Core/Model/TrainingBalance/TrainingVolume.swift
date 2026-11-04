@@ -69,13 +69,13 @@ enum UpNext: Equatable, Sendable {
     case unrecognised(String)
 }
 
-/// Oura's readiness score for the day against the athlete's last ninety days. `ouraScore` is
-/// Oura's 0–100 rating of the day, not a measurement.
+/// Oura's readiness score for the day against the athlete's last ninety days: Oura's rating, not a
+/// measurement, so it is carried as `OuraScore`.
 enum ReadinessNote: Equatable, Sendable {
     case notRead
-    case usual(ouraScore: Int)
+    case usual(OuraScore)
     /// Under the tenth percentile of the last ninety days, which spanned `usualLow`–`usualHigh`.
-    case low(ouraScore: Int, usualLow: Int, usualHigh: Int)
+    case low(OuraScore, usualLow: OuraScore, usualHigh: OuraScore)
     case unrecognised(String)
 }
 
@@ -173,12 +173,12 @@ extension ReadinessNote: Decodable {
         case "notRead":
             self = .notRead
         case "usual":
-            self = .usual(ouraScore: container.lenient("ouraScore", or: 0))
+            self = .usual(OuraScore(container.lenient("ouraScore", or: 0)))
         case "low":
             self = .low(
-                ouraScore: container.lenient("ouraScore", or: 0),
-                usualLow: container.lenient("usualLow", or: 0),
-                usualHigh: container.lenient("usualHigh", or: 0))
+                OuraScore(container.lenient("ouraScore", or: 0)),
+                usualLow: OuraScore(container.lenient("usualLow", or: 0)),
+                usualHigh: OuraScore(container.lenient("usualHigh", or: 0)))
         default:
             self = .unrecognised(type)
         }

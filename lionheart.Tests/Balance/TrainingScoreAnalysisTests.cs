@@ -103,6 +103,16 @@ public class TrainingScoreAnalysisTests
         Assert.True(score.Value < 90);
     }
 
+    [Theory]
+    [InlineData(0, 8, 0)]
+    [InlineData(2, 8, 0.5)]
+    [InlineData(4, 8, 0.70710678)]
+    [InlineData(8, 8, 1)]
+    [InlineData(20, 8, 1)]
+    public void A_measurement_pays_the_square_root_of_its_share_of_the_target_and_no_more(
+        double measured, double target, double share) =>
+        Assert.Equal(share, TrainingScoreAnalysis.Share(measured, target), precision: 6);
+
     [Fact]
     public void Zero_measured_cardio_is_zero_points_not_unknown()
     {

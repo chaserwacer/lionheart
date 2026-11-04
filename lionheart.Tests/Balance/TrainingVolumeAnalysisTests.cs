@@ -90,24 +90,25 @@ public class TrainingVolumeAnalysisTests
     }
 
     [Fact]
-    public void Two_accessory_sets_on_a_push_day_do_not_make_it_a_pull_day()
+    public void Three_accessory_pull_sets_finishing_a_push_day_do_not_make_it_a_pull_day()
     {
         var volume = Volume(Catalogue
             .WithSession(Wednesday.AddDays(-5), Set(Row))
-            .WithSession(Wednesday.AddDays(-2), Set(Bench), Set(Bench), Set(Curl), Set(Curl))
+            .WithSession(Wednesday.AddDays(-2), [.. Sets(4, Bench), .. Sets(3, Curl)])
             .WithSession(Wednesday.AddDays(-1), Set(Squat)));
 
         Assert.Equal([PatternFamily.Pull], Assert.IsType<UpNext.Train>(volume.UpNext).Families);
         Assert.Equal(Wednesday.AddDays(-5), Family(volume, PatternFamily.Pull).LastTrained);
-        Assert.Equal(3, Family(volume, PatternFamily.Pull).HardSets);
+        Assert.Equal(4, Family(volume, PatternFamily.Pull).HardSets);
     }
 
     [Fact]
-    public void A_day_of_three_accessory_sets_trains_their_family()
+    public void An_arms_day_trains_both_families_it_works()
     {
-        var volume = Volume(Catalogue.WithSession(Wednesday.AddDays(-1), Set(Curl), Set(Curl), Set(Curl)));
+        var volume = Volume(Catalogue.WithSession(Wednesday.AddDays(-1), [.. Sets(3, Curl), .. Sets(3, Raise)]));
 
         Assert.Equal(Wednesday.AddDays(-1), Family(volume, PatternFamily.Pull).LastTrained);
+        Assert.Equal(Wednesday.AddDays(-1), Family(volume, PatternFamily.Push).LastTrained);
     }
 
     [Fact]

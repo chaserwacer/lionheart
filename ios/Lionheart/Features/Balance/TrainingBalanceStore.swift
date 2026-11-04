@@ -16,6 +16,8 @@ final class TrainingBalanceStore {
     private(set) var priorities: LoadState<PriorityReport> = .loading
     private(set) var score: LoadState<TrainingScore> = .loading
     private(set) var weeks: LoadState<[WeeklyScore]> = .loading
+    /// A past or current week's volume and score for History's week page, by the week's last day.
+    private(set) var week: [CalendarDay: LoadState<WeekBalance>] = [:]
 
     /// How many weeks of scores the trend reads: half a year, enough to see a block and the gap
     /// after one.
@@ -59,6 +61,23 @@ final class TrainingBalanceStore {
         priorities = .loading
         score = .loading
         weeks = .loading
+        week = [:]
+    }
+
+    /// The volume and the score of the seven days ending on `day` — a week's Sunday, or today for the
+    /// week in progress — read together and kept per week, so paging back does not read again.
+    func loadWeek(endingOn day: CalendarDay) async {
+        let balance = balance
+        let key = "balance.week.\(day.wire)"
+        let read: Fetched<WeekBalance> = await Self.fetched {
+            async let volume = balance.volume(endingOn: day, remembering: ReadKey("\(key).volume"))
+            async let score = balance.score(endingOn: day, remembering: ReadKey("\(key).score"))
+            let (volumeRead, scoreRead) = try await (volume, score)
+            return .derived(
+                WeekBalance(volume: volumeRead.value, score: scoreRead.value),
+                from: [volumeRead.asOf, scoreRead.asOf])
+        }
+        week[day] = Self.next(week[day] ?? .loading, read)
     }
 
     private func reload() async {
@@ -94,6 +113,12 @@ final class TrainingBalanceStore {
         let range = DayRange(from: today.adding(days: -7 * Self.trendWeeks), to: today)
         let read = await Self.fetched { try await balance.weeks(range, remembering: .trainingScoreWeeks) }
         weeks = Self.next(weeks, read)
+    }
+
+    /// The volume and the score of one week, read for History's week page.
+    struct WeekBalance: Equatable, Sendable {
+        let volume: TrainingVolume
+        let score: TrainingScore
     }
 
     /// What one read came to: an answer, a failure to state, or a cancellation that changes nothing.

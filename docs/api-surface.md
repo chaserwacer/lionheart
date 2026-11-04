@@ -305,8 +305,8 @@ over the whole log. `upNext` is `$type` `nothingLogged` or `train`
 ago, together when last trained the same day; `readiness` is `notRead`, `usual { score }` or
 `low { ouraScore, usualLow, usualHigh }` — Oura's readiness score (Oura's 0–100 rating, not a
 measurement) under the tenth percentile of its last 90 days. A day trains a family with any compound
-set of it, or three or more sets of its accessory work, so two face pulls on a push day do not make
-it a pull day.
+set of it, or when its accessory work is at least half the day's hard sets, so face pulls finishing a
+push day do not make it a pull day.
 
 ## Training score — `/api/training/score`
 
@@ -318,7 +318,10 @@ it a pull day.
 `TrainingScore { window, value, outOf, unknown: [part], lifting, cardio, progress, consistency }`. Each part
 carries `points` and `outOf` and the measurements it was read from:
 
-- `lifting` (35): `families` as in weekly volume; each family pays `min(1, hardSets / 8)` of a third.
+Each measurement pays `sqrt(min(1, measured / target))` of its points: concave, because the first
+half of a target buys most of what the whole would, and only the whole target pays in full.
+
+- `lifting` (35): `families` as in weekly volume; each family pays its share of a third.
 - `cardio` (25): `points` null when unknown; `measure` `$type` `measured { zone2Minutes, zone2Target:
   150, highIntensityMinutes, highIntensityTarget: 20, sessions, heartRateDays }` or `unknown { reason:
   noHeartRate | noMaximumHeartRate | sessionsUnrecorded }`. Zone 2 pays 15, zones 4–5 pay 10, each
@@ -328,7 +331,7 @@ carries `points` and `outOf` and the measurements it was read from:
   or `none` nothing. With every other part full, holding all three priorities reads 85: 90 takes a
   new best.
 - `consistency` (20): `sessionsPerBlock`, completed sessions in the window and the three seven-day
-  blocks before it, each paying `min(1, sessions / 3)` of a quarter; `target` 3.
+  blocks before it, each paying its share of a quarter against `target` 3.
 
 `value` is the points the known parts earned; `outOf` is 100 less the weight of any part in
 `unknown`. A part with no data is named rather than measured as zero, and its points are out of

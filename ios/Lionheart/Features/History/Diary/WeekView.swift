@@ -11,6 +11,7 @@ struct WeekView: View {
     let history: HistoryStore
     let diary: DiaryStore
 
+    @Environment(TrainingBalanceStore.self) private var balance
     @State private var start: CalendarDay
 
     init(weekStarting start: CalendarDay, history: HistoryStore, diary: DiaryStore) {
@@ -25,6 +26,7 @@ struct WeekView: View {
 
         List {
             trainingSection(training)
+            WeekBalanceSections(state: balance.week[lastDay(today: today)] ?? .loading)
             switch diary.weeks[start] ?? .loading {
             case .loading:
                 Section("Cardio") { SkeletonRows(count: 2) }
@@ -56,11 +58,23 @@ struct WeekView: View {
                     .disabled(start.adding(days: 7) > today)
             }
         }
-        .refreshable { await diary.loadWeek(start) }
-        .task(id: start) {
-            if diary.weeks[start]?.value == nil { await diary.loadWeek(start) }
-            await history.refreshIfNeeded()
+        .refreshable {
+            async let ring: Void = diary.loadWeek(start)
+            async let lifting: Void = balance.loadWeek(endingOn: lastDay(today: CalendarDay(Date())))
+            _ = await (ring, lifting)
         }
+        .task(id: start) {
+            async let ring: Void = diary.weeks[start]?.value == nil ? diary.loadWeek(start) : ()
+            async let lifting: Void = balance.loadWeek(endingOn: lastDay(today: CalendarDay(Date())))
+            async let log: Void = history.refreshIfNeeded()
+            _ = await (ring, lifting, log)
+        }
+    }
+
+    /// The week's Sunday, or today for the week in progress: the volume and score are read over the
+    /// seven days ending there.
+    private func lastDay(today: CalendarDay) -> CalendarDay {
+        min(start.adding(days: 6), today)
     }
 
     @ViewBuilder

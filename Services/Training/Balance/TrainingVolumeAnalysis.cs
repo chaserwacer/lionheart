@@ -47,16 +47,24 @@ public static class TrainingVolumeAnalysis
             LastTrained(family, history)))
     ];
 
-    /// <summary>The last day that trained the family: any compound set of it, or a few accessory sets.</summary>
+    /// <summary>
+    /// The last day that trained the family: any compound set of it, or accessory work making up a
+    /// good share of the day.
+    /// </summary>
     private static DateOnly? LastTrained(PatternFamily family, IReadOnlyList<PlacedSet> history) =>
         history
-            .Where(placed => placed.Trains.Family == family)
             .GroupBy(placed => placed.Day)
-            .Where(day => day.Any(placed => MovementPatterns.Compound.Contains(placed.Trains.Pattern))
-                          || day.Count() >= VolumeTargets.AccessoryDay)
+            .Where(day => Trained(family, [.. day]))
             .Select(day => (DateOnly?)day.Key)
             .DefaultIfEmpty(null)
             .Max();
+
+    private static bool Trained(PatternFamily family, IReadOnlyList<PlacedSet> day)
+    {
+        var ofFamily = day.Where(placed => placed.Trains.Family == family).ToList();
+        return ofFamily.Any(placed => MovementPatterns.Compound.Contains(placed.Trains.Pattern))
+               || (ofFamily.Count > 0 && ofFamily.Count >= VolumeTargets.AccessoryShare * day.Count);
+    }
 
     private static PatternVolume Pattern(MovementPattern pattern, IReadOnlyList<PlacedSet> inWindow, IReadOnlyList<PlacedSet> history) =>
         new(

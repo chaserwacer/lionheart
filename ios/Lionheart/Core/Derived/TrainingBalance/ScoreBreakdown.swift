@@ -10,8 +10,6 @@ struct ScoreMeasure: Equatable, Sendable, Identifiable {
     let unit: Unit
 
     var id: String { label }
-    /// The measurement's share of its target, capped at the whole of it — what the score pays.
-    var share: Double { target > 0 ? min(1, measured / target) : 0 }
 }
 
 /// The score's measurements, part by part, so the screen states "push 6 of 8 hard sets" rather than

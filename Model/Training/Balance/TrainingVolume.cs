@@ -28,8 +28,9 @@ public sealed record TrainingVolume(
 /// <summary>Push, pull or legs over the window: every hard set of a movement in the family, counted once.</summary>
 /// <param name="LastTrained">
 /// The last day the family was trained, on or before the window's end; absent when never. A day
-/// trains a family with any compound set of it, or <see cref="VolumeTargets.AccessoryDay"/> sets of
-/// its accessory work, so two face pulls on a push day do not make it a pull day.
+/// trains a family with any compound set of it, or when its accessory work is at least
+/// <see cref="VolumeTargets.AccessoryShare"/> of the day's hard sets — so face pulls finishing a push
+/// day do not make it a pull day, and an arms day trains both families it works.
 /// </param>
 public sealed record FamilyVolume(PatternFamily Family, int HardSets, int Target, DateOnly? LastTrained);
 
@@ -61,8 +62,8 @@ public static class VolumeTargets
 {
     public const int Family = 8;
 
-    /// <summary>The fewest isolation or other sets of a family that make a day one that trained it.</summary>
-    public const int AccessoryDay = 3;
+    /// <summary>The share of a day's hard sets a family's accessory work must hold to have trained it.</summary>
+    public const double AccessoryShare = 0.5;
     public const int Pattern = 4;
     public const int Muscle = 4;
 

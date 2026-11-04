@@ -602,8 +602,10 @@ the classification sheet refreshes the week after a change, without either scree
 knowing.
 
 **Seven days, not a calendar week.** Every figure on the week is the seven days ending today, so
-nothing empties on a Monday and the number reads the same whichever day it is opened. A week view
-asks the same routes for the seven days ending on its Sunday.
+nothing empties on a Monday and the number reads the same whichever day it is opened. History's week
+page asks the same routes for the seven days ending on its Sunday, or today for the week in
+progress (`TrainingBalanceStore.loadWeek`, drawn by `WeekBalanceSections`), so a week there and the
+week on Train agree when they are the same week.
 
 **Up next** names the family or families trained longest ago — together when last trained the same
 day, which is how an upper day followed by a lower day leaves push and pull up next as one — with

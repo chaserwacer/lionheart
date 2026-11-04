@@ -13,7 +13,7 @@ namespace lionheart.Services.Training.Score;
 /// <remarks>
 /// Pure, so the weights and targets in <see cref="ScoreRules"/> are tested and calibrated against
 /// the athlete's history without a database. Each part's points are its measurements against
-/// their targets, capped at the target, so no part pays for another.
+/// their targets, on a concave curve capped at the target, so no part pays for another.
 /// </remarks>
 public static class TrainingScoreAnalysis
 {
@@ -102,5 +102,15 @@ public static class TrainingScoreAnalysis
             ScoreRules.SessionsPerWeek);
     }
 
-    private static double Share(double measured, double target) => target <= 0 ? 0 : Math.Min(1, measured / target);
+    /// <summary>
+    /// A measurement's share of its points: the square root of how much of the target it reached,
+    /// capped at the whole.
+    /// </summary>
+    /// <remarks>
+    /// Concave because the returns are: the first four of eight hard sets, or the first hour of
+    /// zone 2, buy most of what the target would (Pelland 2026), so half the target pays 71 per cent
+    /// rather than half. The top is unchanged — only the whole target pays in full.
+    /// </remarks>
+    public static double Share(double measured, double target) =>
+        target <= 0 ? 0 : Math.Sqrt(Math.Clamp(measured / target, 0, 1));
 }
