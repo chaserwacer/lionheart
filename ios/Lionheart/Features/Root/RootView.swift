@@ -1,25 +1,39 @@
 import SwiftUI
 
-/// The app's root: a sign-in form, or the five tabs.
+/// The app's root: a sign-in form, or the five tabs, with the opening over either on launch.
 ///
 /// Which one is `AuthStore.session`'s answer, and `.undetermined` is a case so the form does not
 /// flash for a moment on every cold launch of an app that is already signed in.
 ///
-/// The tint is applied **once**, here, and everything below inherits it. That is the whole of the
-/// brand in this app — one token from the asset catalog — which is what keeps light and dark
-/// correct without a single colour literal anywhere in a view.
+/// The tint is applied **once**, here, and everything below inherits it: Brick, from the asset
+/// catalog, which is what keeps light and dark correct without a single colour literal in a view.
 struct RootView: View {
     let container: AppContainer
 
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Whether the opening is still on screen. `@State` on the root, so it plays once per launch and
+    /// never on a return from the background.
+    @State private var isOpening = true
+    /// Where sign-in drew its lockup, for the opening to end on.
+    @State private var signInLockup: CGRect?
+
     var body: some View {
+        ZStack {
+            root
+            if isOpening {
+                OpeningView(lockupFrame: signInLockup) { isOpening = false }
+            }
+        }
+    }
+
+    private var root: some View {
         Group {
             switch container.auth.session {
             case .undetermined:
-                ProgressView().controlSize(.large)
+                MarkLoadingIndicator()
             case .signedOut:
-                SignInView(auth: container.auth)
+                SignInView(auth: container.auth) { signInLockup = $0 }
             case .signedIn:
                 // Signed in is not the same as set up. An Identity account with no Lionheart
                 // profile is refused by every training write and answered with nothing by every

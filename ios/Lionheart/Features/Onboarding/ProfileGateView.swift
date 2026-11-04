@@ -14,7 +14,7 @@ struct ProfileGateView<Content: View>: View {
         Group {
             switch store.gate {
             case .undetermined:
-                ProgressView().controlSize(.large)
+                MarkLoadingIndicator()
             case .absent:
                 OnboardingView(store: store)
             case .present:
@@ -30,9 +30,11 @@ struct ProfileGateView<Content: View>: View {
     /// failures, and the form would offer to create a profile that may already exist.
     private func unreachable(_ failure: LoadFailure) -> some View {
         ContentUnavailableView {
-            Label(
-                "Lionheart cannot reach the server",
-                systemImage: "antenna.radiowaves.left.and.right.slash")
+            Label {
+                Text("Tempo cannot reach the server")
+            } icon: {
+                BrandMark().frame(height: 40)
+            }
         } description: {
             Text(failure.message)
         } actions: {
