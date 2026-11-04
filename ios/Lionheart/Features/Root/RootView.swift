@@ -33,7 +33,10 @@ struct RootView: View {
             case .undetermined:
                 MarkLoadingIndicator()
             case .signedOut:
-                SignInView(auth: container.auth) { signInLockup = $0 }
+                SignInView(auth: container.auth) { frame in
+                    // Only the opening reads it; afterwards a scroll need not redraw the root.
+                    if isOpening { signInLockup = frame }
+                }
             case .signedIn:
                 // Signed in is not the same as set up. An Identity account with no Lionheart
                 // profile is refused by every training write and answered with nothing by every

@@ -30,7 +30,7 @@ struct ProgressionMark: Shape {
     static let aspectRatio = bounds.width / bounds.height
 
     /// How far a bar's top runs ahead of its foot, per unit of height: 7.6 over 36, 11.8 over 56 and
-    /// 16 over 76 are all the same lean. Anything that echoes the mark borrows it.
+    /// 16 over 76 all lean by this to within half a percent. Anything that echoes the mark borrows it.
     static let lean = 0.2111
 
     func path(in rect: CGRect) -> Path {

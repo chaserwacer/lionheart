@@ -36,7 +36,8 @@ private struct TodayWidgetView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .overlay(alignment: .topTrailing) { WidgetMark() }
+                // The mark in the corner says whose the widget is, the way an app's own widgets do.
+                .overlay(alignment: .topTrailing) { BrandMark().frame(height: 11) }
             }
         } else {
             NoGlanceView(family: .systemMedium)

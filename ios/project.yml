@@ -73,6 +73,9 @@ targets:
         # The athlete sees Tempo; everything internal — targets, bundle identifiers, the Keychain and
         # the App Group — keeps the Lionheart name, since changing those breaks an installed app.
         CFBundleDisplayName: Tempo
+        # The short name, which the Shortcuts link and other system surfaces read instead of the
+        # display name. PRODUCT_NAME, and with it the executable, stays Lionheart.
+        CFBundleName: Tempo
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UIUserInterfaceStyle: Automatic

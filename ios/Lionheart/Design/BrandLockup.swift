@@ -32,11 +32,9 @@ struct BrandLockup: View {
 
 /// "keep moving forward." — lowercase, monospaced, with its full stop.
 private struct Tagline: View {
-    var size: CGFloat = 13
-
     var body: some View {
         Text(verbatim: "keep moving forward.")
-            .font(.system(size: size, design: .monospaced))
+            .font(.system(size: 13, design: .monospaced))
             .foregroundStyle(Color(.secondaryLabel))
             .lineLimit(1)
             .fixedSize()

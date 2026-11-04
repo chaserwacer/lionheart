@@ -161,6 +161,9 @@ first and then in the code.
 
 | Word | What it means |
 |---|---|
+| **Tempo** | The name the athlete sees: Tempo Training Systems, "keep moving forward." The app, its widgets, Siri and the chat model's name for itself. Lionheart stays the name of everything internal. |
+| **Mark** | Tempo's "Progression" mark: three forward-leaning bars, each a step taller — a training block's weeks, the last one, in Brick, this week. One `Shape`, drawn everywhere the app names itself. |
+| **Opening** | The moment after the launch screen on a cold launch: the bars rise into the lockup and the app shows through, in under a second, over a root that is already loading. |
 | **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement, the movements the athlete added. The one piece of state the device owns. |
 | **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |

@@ -238,6 +238,8 @@ struct ThreadView: View {
                 BrandMark().frame(height: 14)
                 Text("Tempo").font(.headline)
             }
+            // The bar offers the principal slot no more than its own measure, which truncated the name.
+            .fixedSize()
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
         }
