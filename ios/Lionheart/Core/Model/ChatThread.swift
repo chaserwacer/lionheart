@@ -1,6 +1,7 @@
 import Foundation
 
-/// One session of the continuing chat thread: when it opened, and its turns.
+/// One session of the continuing chat thread: when it opened, its turns, and the changes Tempo
+/// proposed in it.
 ///
 /// The server cuts the thread into sessions — a new one after three hours idle, or once a session
 /// grows full — and the model only ever reads the one a message lands in. The screen draws them as
@@ -9,6 +10,7 @@ struct ThreadSession: Equatable, Sendable, Identifiable {
     let sessionId: UUID
     let openedAt: Date
     let messages: [ChatMessage]
+    let proposals: [ChangeProposal]
 
     var id: UUID { sessionId }
 
@@ -37,7 +39,8 @@ extension ThreadSession: Decodable {
         self.init(
             sessionId: sessionId,
             openedAt: openedAt,
-            messages: container.lenientList(ChatMessage.self, "messages"))
+            messages: container.lenientList(ChatMessage.self, "messages"),
+            proposals: container.lenientList(ChangeProposal.self, "proposals"))
     }
 }
 
@@ -65,6 +68,19 @@ struct ChatThread: Equatable, Sendable {
         return ChatThread(
             sessions: earlier.sessions.filter { !known.contains($0.sessionId) } + sessions,
             hasEarlier: earlier.hasEarlier)
+    }
+
+    /// The thread with a proposal as its answer left it, in whichever session holds it.
+    func with(_ proposal: ChangeProposal) -> ChatThread {
+        ChatThread(
+            sessions: sessions.map { session in
+                ThreadSession(
+                    sessionId: session.sessionId,
+                    openedAt: session.openedAt,
+                    messages: session.messages,
+                    proposals: session.proposals.map { $0.changeProposalId == proposal.changeProposalId ? proposal : $0 })
+            },
+            hasEarlier: hasEarlier)
     }
 
     /// The thread with a session as an exchange left it: replaced where it is already held, added

@@ -39,6 +39,12 @@ enum ReplyProgress: Equatable, Sendable {
         tools.map(subject).formatted(.list(type: .and))
     }
 
+    /// Whether a round of tools is drafting a change for the athlete to confirm rather than only
+    /// reading: the server names every proposing tool `Propose…`.
+    static func isProposing(_ tools: [String]) -> Bool {
+        tools.contains { $0.hasPrefix("Propose") }
+    }
+
     private static let verbs: Set<String> = ["Get", "Search", "List", "Find"]
 
     private static func subject(of tool: String) -> String {
