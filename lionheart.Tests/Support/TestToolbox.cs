@@ -1,4 +1,6 @@
 using System.Text.Json;
+using lionheart.Functional;
+using lionheart.Model.Chat.Changes;
 using lionheart.Services.Llm;
 using Microsoft.Extensions.DependencyInjection;
 using Model.Chat.Tools;
@@ -13,6 +15,7 @@ public interface ITestTools
     Task<int> CountSetsAsync(int days);
     Task<string> FaultAsync(string phrase);
     Task<int> DaysInAsync(lionheart.Model.Analysis.DayRange range);
+    Task<Result<ProposalDraft, Problem>> ProposeAsync(string phrase);
 }
 
 /// <summary>
@@ -53,6 +56,21 @@ public sealed class TestTools : ITestTools
     {
         Calls.Add($"days:{range.From:yyyy-MM-dd}..{range.To:yyyy-MM-dd}");
         return Task.FromResult(range.Days);
+    }
+
+    /// <summary>
+    /// A proposing tool: drafts a change summarised as the phrase, or refuses one whose phrase is
+    /// "refuse", the way a real one refuses arguments it cannot draft.
+    /// </summary>
+    public Task<Result<ProposalDraft, Problem>> ProposeAsync(string phrase)
+    {
+        Calls.Add($"propose:{phrase}");
+        return Task.FromResult(phrase == "refuse"
+            ? Result<ProposalDraft, Problem>.Failure(new Problem.Invalid("phrase", "Say what to change."))
+            : Result<ProposalDraft, Problem>.Success(new ProposalDraft(
+                Guid.NewGuid(),
+                new ProposedChange.RemovePlan(Guid.NewGuid(), new PlanAsDrafted(new DateOnly(2026, 1, 7), [], "")),
+                new ProposalSummary(phrase, ["one line"]))));
     }
 }
 
@@ -97,6 +115,7 @@ public sealed class TestToolbox : IDisposable
             Describe("count_sets", nameof(ITestTools.CountSetsAsync), "days", "integer"),
             Describe("fault", nameof(ITestTools.FaultAsync), "phrase", "string"),
             Describe("days_in", nameof(ITestTools.DaysInAsync), "range", "object"),
+            Describe("propose", nameof(ITestTools.ProposeAsync), "phrase", "string") with { ProposesChange = true },
         };
 
         return new ToolRegistry(descriptors.ToDictionary(d => d.ToolName, StringComparer.Ordinal));

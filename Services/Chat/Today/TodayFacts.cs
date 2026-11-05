@@ -119,6 +119,11 @@ public sealed record WellnessFact(DateOnly Date, double Overall, int Mood, int E
 
 public sealed record InjuryFact(string Name, int? LastPain);
 
+/// <summary>A session planned on a day.</summary>
+/// <param name="Movements">
+/// What it prescribes: each movement by name, and a freeform prescription in its own words, so a
+/// planned run reads as the run rather than as nothing.
+/// </param>
 public sealed record PlannedFact(DateOnly Day, IReadOnlyList<string> Movements);
 
 /// <summary>A day he has said he will not train, with what he said about it.</summary>

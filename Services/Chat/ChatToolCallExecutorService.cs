@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using lionheart.Services.Llm;
 using Model.Chat.Tools;
+using lionheart.Model.Chat.Changes;
+using lionheart.Model.Chat.Tools;
 
 namespace Model.Tools
 {
@@ -30,35 +32,35 @@ namespace Model.Tools
         /// arguments that will not bind — so it comes back as a <see cref="Problem"/> for the caller
         /// to put in front of the model rather than as a failed exchange.
         /// </remarks>
-        public async Task<Result<ToolOutcome, Problem>> ExecuteToolCallAsync(
+        public async Task<Result<ToolAnswer, Problem>> ExecuteToolCallAsync(
             ToolInvocation toolCall,
             IdentityUser? user,
             ISet<string>? allowedToolNames = null,
             CancellationToken cancellationToken = default)
         {
             if (toolCall is null)
-                return Result<ToolOutcome, Problem>.Failure(
+                return Result<ToolAnswer, Problem>.Failure(
                     new Problem.Unexpected("Provided tool invocation is null."));
 
             if (string.IsNullOrWhiteSpace(toolCall.CallId))
-                return Result<ToolOutcome, Problem>.Failure(
+                return Result<ToolAnswer, Problem>.Failure(
                     new Problem.Unexpected("Provided tool invocation is missing a call id."));
 
             var toolName = toolCall.ToolName;
             if (string.IsNullOrWhiteSpace(toolName))
-                return Result<ToolOutcome, Problem>.Failure(
+                return Result<ToolAnswer, Problem>.Failure(
                     new Problem.Invalid("ToolName", "Tool call is missing a tool name."));
 
-            if (allowedToolNames is not null && !allowedToolNames.Contains(toolName))
-                return Result<ToolOutcome, Problem>.Failure(
-                    new Problem.Forbidden("This tool is not available in this conversation."));
-
             if (!_registry.TryGet(toolName, out var descriptor) || descriptor is null)
-                return Result<ToolOutcome, Problem>.Failure(
+                return Result<ToolAnswer, Problem>.Failure(
                     new Problem.NotFound("No such tool is available."));
 
+            if (allowedToolNames is not null && !allowedToolNames.Contains(toolName))
+                return Result<ToolAnswer, Problem>.Failure(
+                    new Problem.Forbidden("This tool is not available in this conversation."));
+
             if (descriptor.RequireAuthorization && user is null)
-                return Result<ToolOutcome, Problem>.Failure(
+                return Result<ToolAnswer, Problem>.Failure(
                     new Problem.Unauthorized("You are not authorized to call this tool."));
 
 
@@ -71,7 +73,7 @@ namespace Model.Tools
             }
             catch (Exception ex)
             {
-                return Result<ToolOutcome, Problem>.Failure(
+                return Result<ToolAnswer, Problem>.Failure(
                     new Problem.Unexpected($"Failed to resolve tool service from DI.  ({ex.GetType().Name})"));
             }
 
@@ -82,13 +84,13 @@ namespace Model.Tools
             }
             catch (ToolBindingException bex)
             {
-                return Result<ToolOutcome, Problem>.Failure(
+                return Result<ToolAnswer, Problem>.Failure(
                     new Problem.Invalid("arguments", bex.Message));
             }
 
             var validationErrors = ValidateArguments(args);
             if (validationErrors.Count > 0)
-                return Result<ToolOutcome, Problem>.Failure(new Problem.Invalid(validationErrors));
+                return Result<ToolAnswer, Problem>.Failure(new Problem.Invalid(validationErrors));
 
             object? invokeResult;
             try
@@ -97,7 +99,7 @@ namespace Model.Tools
             }
             catch (Exception ex)
             {
-                return Result<ToolOutcome, Problem>.Failure(
+                return Result<ToolAnswer, Problem>.Failure(
                     new Problem.Unexpected($"Tool execution failed. ({ex.GetType().Name})"));
             }
 
@@ -110,13 +112,25 @@ namespace Model.Tools
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                return Result<ToolOutcome, Problem>.Failure(
+                return Result<ToolAnswer, Problem>.Failure(
                     new Problem.Unexpected($"Tool execution failed. ({ex.GetType().Name})"));
             }
 
-            return Result<ToolOutcome, Problem>.Success(
-                ToolOutcome.Produced(toolCall.CallId, JsonSerializer.Serialize(unwrapped, _jsonOptions)));
+            return Answer(toolCall.CallId, unwrapped);
         }
+
+        /// <summary>
+        /// A proposing tool's draft goes to the exchange to become a card, and the model is told what it
+        /// proposed; a refused draft is a failed call, so the model hears why and can put it right.
+        /// Anything else is data, serialized for the model to read.
+        /// </summary>
+        private Result<ToolAnswer, Problem> Answer(string callId, object? unwrapped) => unwrapped switch
+        {
+            Result<ProposalDraft, Problem> drafted => drafted.Map(draft =>
+                (ToolAnswer)new ToolAnswer.Proposed(ToolOutcome.Produced(callId, draft.ToldToModel), draft)),
+            _ => Result<ToolAnswer, Problem>.Success(
+                new ToolAnswer.Read(ToolOutcome.Produced(callId, JsonSerializer.Serialize(unwrapped, _jsonOptions)))),
+        };
 
         private static object?[] BindArguments(MethodInfo method, string? functionArgsJson, IdentityUser? user, JsonSerializerOptions jsonOptions)
         {

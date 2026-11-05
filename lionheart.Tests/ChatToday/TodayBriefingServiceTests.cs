@@ -3,11 +3,14 @@ using lionheart.Functional;
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
 using lionheart.Model.InjuryManagement;
+using lionheart.Model.Training.Sessions;
 using lionheart.Services;
 using lionheart.Services.Cardio;
 using lionheart.Services.Llm;
 using lionheart.Services.Chat.Today;
 using lionheart.Services.Training.Patterns;
+using lionheart.Services.Training.PersonalRecords;
+using lionheart.Services.Training.Sessions;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.AspNetCore.Identity;
@@ -68,6 +71,25 @@ public sealed class TodayBriefingServiceTests : IDisposable
         Assert.Contains("Now: Tuesday 10 March 2026, 21:40 (UTC-04:00).", briefing);
         Assert.Contains("Trained today: lifting at 19:00, 60 min, 2 hard sets", briefing);
         Assert.Contains("(top 225 lb × 5)", briefing);
+    }
+
+    /// <summary>A plan the chat made is often a run in words; it has to read as the run, not as an empty day.</summary>
+    [Fact]
+    public async Task A_planned_session_reads_as_what_it_prescribes_in_its_own_words()
+    {
+        await using (var context = _db.CreateContext())
+        {
+            var detector = new PersonalRecordDetector(context, TimeProvider.System);
+            ResultAssert.Succeeded(await new TrainingSessionService(
+                    context, TimeProvider.System, detector, new PersonalRecordRebuild(context, detector))
+                .PlanAssistedAsync(Athlete, new PlanSessionRequest(
+                    new DateOnly(2026, 3, 12), [new FreeformPrescriptionCommand("Easy run, 4 miles")], "", null),
+                    CancellationToken.None));
+        }
+
+        var briefing = await BriefingAsync();
+
+        Assert.Contains("Planned: Thu 12 Mar Easy run, 4 miles.", briefing);
     }
 
     [Fact]

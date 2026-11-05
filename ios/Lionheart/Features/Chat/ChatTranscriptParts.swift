@@ -286,6 +286,8 @@ struct WorkingRow: View {
         case .answering:
             guard seconds >= 8 else { return "Thinking… \(seconds)s" }
             return "Reading your sessions, wellness and Oura days… \(seconds)s"
+        case .consulting(let tools) where ReplyProgress.isProposing(tools):
+            return "Drafting a change for you to confirm… \(seconds)s"
         case .consulting(let tools):
             return "Reading \(ReplyProgress.reading(tools))… \(seconds)s"
         case .recovering:
@@ -296,6 +298,7 @@ struct WorkingRow: View {
     private var spoken: String {
         switch activity {
         case .answering: "Tempo is working on an answer"
+        case .consulting(let tools) where ReplyProgress.isProposing(tools): "Tempo is drafting a change for you to confirm"
         case .consulting(let tools): "Tempo is reading \(ReplyProgress.reading(tools))"
         case .recovering: "Connection lost. Tempo is finding the answer in the thread"
         }

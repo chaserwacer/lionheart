@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using lionheart.Model.Chat.Changes;
 
 namespace lionheart.Model.Chat.Thread;
 
@@ -9,14 +10,22 @@ namespace lionheart.Model.Chat.Thread;
 /// <param name="HasEarlier">Whether sessions older than the first one here exist, to be read with <see cref="ThreadPage.Before"/>.</param>
 public sealed record ChatThreadPage(IReadOnlyList<ThreadSessionView> Sessions, bool HasEarlier);
 
-/// <summary>One session's turns — the athlete's and the model's, in order. Tool results are not turns.</summary>
-public sealed record ThreadSessionView(Guid SessionId, DateTime OpenedAt, IReadOnlyList<LHChatMessageDTO> Messages)
+/// <summary>
+/// One session's turns — the athlete's and the model's, in order — and the changes the model
+/// proposed in it, each with where it stands. Tool results are not turns.
+/// </summary>
+public sealed record ThreadSessionView(
+    Guid SessionId,
+    DateTime OpenedAt,
+    IReadOnlyList<LHChatMessageDTO> Messages,
+    IReadOnlyList<ChangeProposalView> Proposals)
 {
-    public static ThreadSessionView Of(LHChatConversation session) =>
+    public static ThreadSessionView Of(LHChatConversation session, IEnumerable<ChangeProposalView> proposals) =>
         new(
             session.ChatConversationID,
             session.CreatedAt,
-            [.. session.GetUserModelMessagesInChronologicalOrder().Select(message => new LHChatMessageDTO(message))]);
+            [.. session.GetUserModelMessagesInChronologicalOrder().Select(message => new LHChatMessageDTO(message))],
+            [.. proposals]);
 }
 
 /// <summary>Which stretch of the thread to read.</summary>

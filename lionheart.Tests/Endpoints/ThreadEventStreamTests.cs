@@ -15,7 +15,7 @@ public sealed class ThreadEventStreamTests
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    private static readonly ThreadSessionView Session = new(Guid.NewGuid(), new DateTime(2026, 1, 7, 6, 0, 0, DateTimeKind.Utc), []);
+    private static readonly ThreadSessionView Session = new(Guid.NewGuid(), new DateTime(2026, 1, 7, 6, 0, 0, DateTimeKind.Utc), [], []);
 
     [Fact]
     public async Task An_exchange_is_told_in_the_order_it_happened_and_ends_with_the_stored_session()

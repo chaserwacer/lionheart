@@ -187,7 +187,15 @@ public sealed class TodayFactsService(
             .OrderBy(plan => plan.PlannedFor)
             .Select(plan => new PlannedFact(
                 plan.PlannedFor,
-                [.. plan.Prescriptions.OfType<LiftPrescription>().Select(lift => log.NameOf(lift.MovementDataId)).Distinct()]))];
+                [.. plan.Prescriptions.Select(prescription => Prescribed(prescription, log)).Distinct()]))];
+
+    private static string Prescribed(SetPrescription prescription, TrainingLog log) => prescription switch
+    {
+        LiftPrescription lift => log.NameOf(lift.MovementDataId),
+        DistanceTimePrescription distance => log.NameOf(distance.MovementDataId),
+        FreeformPrescription freeform => freeform.Text,
+        _ => throw new System.Diagnostics.UnreachableException(),
+    };
 
     private async Task<IReadOnlyList<NonTrainingFact>> NonTrainingAsync(Guid userId, DateOnly today, CancellationToken ct) =>
         [.. (await _context.AvailabilityAsync(userId, new DayRange(today, today.AddDays(6)), ct))
