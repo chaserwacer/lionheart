@@ -5,10 +5,12 @@ import SwiftUI
 /// The training log is the screen, because that is the question, read as a diary: weeks newest
 /// first, each headed by its sessions and opening onto the week's lifting, cardio and body; each row
 /// a day, a log-book entry of what was lifted, opening onto everything else the day held. A run of
-/// weeks with nothing logged is said once, between the weeks either side of it. Above it, the three readings of the log that answer the athlete's goals:
-/// what he has pinned to emphasise, how consistently he trains, and the ways into a movement,
-/// the records and the trends. They are destinations above the log rather than a segmented control
-/// fighting the search field for the top of the screen, and they step aside while searching.
+/// weeks with nothing logged is said once, between the weeks either side of it. Above it, the
+/// readings of the log that answer the athlete's goals: the tab's hero — each pin being worked on as
+/// its block of weeks, or, with none running, how consistently he trains — then the rest of those,
+/// and the ways into a movement, the records and the trends. They are destinations above the log
+/// rather than a segmented control fighting the search field for the top of the screen, and they
+/// step aside while searching.
 ///
 /// The log is filtered by movement with search tokens: typing suggests movements, and choosing one
 /// keeps the sessions that performed it — by identity, so a paused squat does not bring in the
