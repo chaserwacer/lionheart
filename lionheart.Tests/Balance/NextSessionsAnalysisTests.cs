@@ -183,6 +183,27 @@ public class NextSessionsAnalysisTests
     }
 
     [Fact]
+    public void A_day_marked_off_is_said_first_so_the_rest_reads_as_the_next_training_days()
+    {
+        var built = AWeek().Build();
+        var next = NextSessionsAnalysis.Of(new NextInputs(
+            Today, built, Scoring.Score(built, [], CardioOf, Today, Scoring.Off(Today)), [], Rested));
+
+        Assert.Equal("Today is marked non-training (travel): this is for your next training day.", next.First.Reasons[0]);
+    }
+
+    [Fact]
+    public void A_week_with_days_off_sizes_the_next_cardio_to_the_adjusted_target()
+    {
+        var built = AWeek().Build();
+        var off = Scoring.Off(Today.AddDays(-5), Today.AddDays(-3), Today.AddDays(-1));
+        var next = NextSessionsAnalysis.Of(new NextInputs(Today, built, Scoring.Score(built, [], CardioOf, Today, off), [], Rested));
+
+        // Twenty quality minutes a week before grows to 25; over four days of seven that is 15.
+        Assert.Contains("quality at 0 of 15 min", next.Cardio.Reasons[0]);
+    }
+
+    [Fact]
     public void Unread_cardio_neither_owes_intervals_nor_decides_which_first()
     {
         var built = AWeek().Build();

@@ -49,6 +49,18 @@ public sealed class TodayBriefingTests
             Fatigue: null);
 
     [Fact]
+    public void The_days_marked_non_training_ahead_are_stated_with_his_notes()
+    {
+        var briefing = TodayBriefing.Render(Facts(nonTraining:
+        [
+            new NonTrainingFact(Evening.Today, "travel"),
+            new NonTrainingFact(Evening.Today.AddDays(5), ""),
+        ]));
+
+        Assert.Contains("Marked non-training (he has said he will not train): today (travel), Sun 15 Mar.", briefing);
+    }
+
+    [Fact]
     public void Now_is_stated_on_the_athletes_clock_with_its_offset_not_in_utc()
     {
         var briefing = TodayBriefing.Render(Facts());

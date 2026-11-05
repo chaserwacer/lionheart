@@ -99,6 +99,24 @@ public class TrainingScoreServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_day_marked_off_reaches_the_adjusted_score_and_the_chat_digest_with_its_note()
+    {
+        await PlantBenchSessionAsync(Sunday.AddDays(-1), sets: 3);
+        ResultAssert.Succeeded(await _athletes.NonTrainingDaysAsync(Clock, service => service.MarkAsync(
+            _athletes.Owner,
+            new Model.Training.Availability.MarkNonTrainingDayRequest(Sunday.AddDays(-3), Note: "travel"),
+            default)));
+
+        var score = ResultAssert.Succeeded(await ScoreAsync(service => service.GetScoreAsync(_athletes.Owner, Sunday, default)));
+        var digest = Assert.IsType<TrainingScoreDigest>(await ScoreAsync(service =>
+            service.GetTrainingScoreForChatAsync(_athletes.Owner, new DayRange(Sunday, Sunday))));
+
+        Assert.Equal(6, score.Adjusted.AvailableDays);
+        Assert.True(score.Adjusted.Value >= score.Value);
+        Assert.Contains($"6 of 7 days available (non-training {Sunday.AddDays(-3):yyyy-MM-dd} travel)", digest.Adjusted);
+    }
+
+    [Fact]
     public async Task A_day_already_lifted_on_is_stated_apart_from_the_families_due_next()
     {
         await PlantBenchSessionAsync(Sunday, sets: 3);

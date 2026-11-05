@@ -166,6 +166,43 @@ public class ResponseDiscriminatorTests
     }
 
     [Fact]
+    public async Task TheScoreNamesItsAdjustedScoreItsDaysAndItsAimAndFrequencyCases()
+    {
+        // The iOS decoders switch on the day, aim and frequency cases.
+        var log = Balance.ALog.Catalogue
+            .WithSession(new DateOnly(2026, 10, 30), Balance.ALog.Set(Balance.ALog.Bench, 200, 5) with { Rpe = Model.Training.Sets.Rpe.Of(10) })
+            .Build();
+        var score = Balance.Scoring.Score(
+            log, [], _ => new Model.Cardio.CardioMeasure.Measured(60, 10, 1, 2, 7), new DateOnly(2026, 11, 3),
+            Balance.Scoring.Off(new DateOnly(2026, 11, 1)));
+        var marked = Model.Training.Availability.NonTrainingDay.Mark(
+            Guid.NewGuid(), Guid.NewGuid(),
+            ResultAssert.Succeeded(Model.Training.Availability.NonTrainingSchedule.EveryWeekUntil.Of(new DateOnly(2026, 11, 1), new DateOnly(2026, 12, 6))),
+            "", DateTime.UnixEpoch);
+
+        var body = JsonDocument.Parse(await WriteAsync(Endpoint.ToActionResult(
+            Result<Model.Training.Score.TrainingScore, Problem>.Success(score)))).RootElement;
+        var view = JsonDocument.Parse(await WriteAsync(Endpoint.ToActionResult(
+            Result<Model.Training.Availability.NonTrainingDayView, Problem>.Success(
+                Model.Training.Availability.NonTrainingDayView.Of(marked))))).RootElement;
+
+        Assert.Equal(6, body.GetProperty("adjusted").GetProperty("availableDays").GetInt32());
+        Assert.Equal("lifting", body.GetProperty("adjusted").GetProperty("parts")[0].GetProperty("part").GetString());
+        var expectations = body.GetProperty("expectations");
+        var days = expectations.GetProperty("availability").GetProperty("days");
+        Assert.Equal(("open", "nonTraining"), (days[0].GetProperty("$type").GetString(), days[4].GetProperty("$type").GetString()));
+        Assert.Equal("2026-11-01", days[4].GetProperty("day").GetString());
+        Assert.Equal(6, expectations.GetProperty("availability").GetProperty("availableDays").GetInt32());
+        Assert.True(expectations.GetProperty("families")[0].GetProperty("sets").GetProperty("adjusted").GetProperty("target").GetDouble() > 0);
+        Assert.Equal("zone2", expectations.GetProperty("cardio").GetProperty("zones")[0].GetProperty("band").GetString());
+        var aim = expectations.GetProperty("priorities")[0];
+        Assert.Equal("hold", aim.GetProperty("aim").GetProperty("$type").GetString());
+        Assert.Equal("notPinned", aim.GetProperty("frequency").GetProperty("$type").GetString());
+        Assert.Equal("everyWeekUntil", view.GetProperty("schedule").GetProperty("$type").GetString());
+        Assert.Equal(("2026-11-01", "2026-12-06"), (view.GetProperty("schedule").GetProperty("from").GetString(), view.GetProperty("schedule").GetProperty("until").GetString()));
+    }
+
+    [Fact]
     public async Task TheCardioReportNamesHowARingWorkoutCameAboutAndWhyOneWasDeclined()
     {
         // The iOS decoders switch on the entry, the exclusion reasons and the category.

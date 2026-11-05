@@ -1,4 +1,5 @@
 using lionheart.Model.BodyMeasurements;
+using lionheart.Model.Training;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Training.Balance;
@@ -56,6 +57,23 @@ internal sealed record ALog(
         this with
         {
             Sessions = [.. Sessions, new SessionInLog(Guid.NewGuid(), day, [.. sets.Where(HardSets.IsHard)])],
+        };
+
+    /// <summary>A session on the day with the effort the athlete reported for it.</summary>
+    public ALog WithRatedSession(DateOnly day, int? fatigue, int? difficulty, params LiftSet[] sets) =>
+        this with
+        {
+            Sessions =
+            [
+                .. Sessions,
+                new SessionInLog(Guid.NewGuid(), day, [.. sets.Where(HardSets.IsHard)])
+                {
+                    Effort = new EffortReported(new PerceivedEffortRatings
+                    {
+                        RecordedAt = DateTime.UnixEpoch, AccumulatedFatigue = fatigue, DifficultyRating = difficulty,
+                    }),
+                },
+            ],
         };
 
     /// <summary>A session of nothing but walking on the day, as a watch records a walk somewhere.</summary>
