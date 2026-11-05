@@ -6,7 +6,8 @@ import SwiftUI
 ///
 /// One axis for all three rows, so a measurement sits exactly under the part it belongs to and the
 /// part under the share of the whole it is: a gap in the bottom row reads straight up to the part
-/// and the number it cost. Tapping a part opens it. Hidden from VoiceOver in favour of the part
+/// and the number it cost. The cells lean at the mark's angle, so the card reads as Tempo's own
+/// figure. Tapping a part opens it. Hidden from VoiceOver in favour of the part
 /// rows beside it, which state the same figures in words.
 struct ScoreBreakdownChart: View {
     let score: TrainingScore
@@ -80,7 +81,7 @@ struct ScoreBreakdownChart: View {
             y: .value("Row", tier.rawValue),
             height: .ratio(tier == .whole ? 0.62 : 0.5))
             .foregroundStyle(isKnown ? Color(.tertiarySystemFill) : Color(.quaternarySystemFill))
-            .clipShape(.rect(cornerRadius: 2))
+            .clipShape(LeanedBar())
         if isKnown, share > 0 {
             BarMark(
                 xStart: .value("Start", from),
@@ -88,7 +89,7 @@ struct ScoreBreakdownChart: View {
                 y: .value("Row", tier.rawValue),
                 height: .ratio(tier == .whole ? 0.62 : 0.5))
                 .foregroundStyle(tier == .measure ? Tokens.accent.opacity(0.6) : Tokens.accent)
-                .clipShape(.rect(cornerRadius: 2))
+                .clipShape(LeanedBar())
         }
     }
 }

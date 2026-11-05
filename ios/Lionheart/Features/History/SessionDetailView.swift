@@ -59,7 +59,7 @@ struct SessionDetailView: View {
                 }
             case .unrecognised(let type, _):
                 Section {
-                    Text("This version of Lionheart cannot read a \(type.nonEmpty ?? "session") of this kind")
+                    Text("This version of Tempo cannot read a \(type.nonEmpty ?? "session") of this kind")
                         .foregroundStyle(Color(.secondaryLabel))
                 }
             }
@@ -277,7 +277,7 @@ struct SessionDetailView: View {
                     LabeledContent("Tags") { Text(freeTags.joined(separator: ", ")) }
                 }
             } header: {
-                Text("How Lionheart read it")
+                Text("How Tempo read it")
             } footer: {
                 Text("Facets come from a fixed vocabulary, so analyses can count them.")
             }

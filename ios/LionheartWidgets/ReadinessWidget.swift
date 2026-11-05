@@ -64,7 +64,7 @@ private struct ReadinessWidgetView: View {
             case .accessoryInline:
                 Text("Readiness \(readiness.score) · \(readiness.band)")
             default:
-                ReadinessGlanceView(readiness: readiness, now: entry.date)
+                ReadinessGlanceView(readiness: readiness, now: entry.date, showsMark: true)
             }
         } else {
             NoGlanceView(family: family)
@@ -94,7 +94,7 @@ struct NoGlanceView: View {
                 Text("Readiness")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text("Open Lionheart to read today.")
+                Text("Open Tempo to read today.")
                     .font(.footnote)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

@@ -561,7 +561,7 @@ next, and which comes first — the training-science stream's recommender, shown
 `GoingInStore` reads both, each with its own load state and remembered, and reads again when the
 surface opens more than ten minutes after the last read or on another day. The rating is a capacity
 ring tinted by band — green over his usual day, blue on it, orange and red under; never the accent,
-which is red here — over a sentence naming the part clearly holding it down and the parts not read.
+Brick, which would read as a warning — over a sentence naming the part clearly holding it down and the parts not read.
 The five parts sit under it as capacity bars, then injuries (orange where one touches a movement in
 this workout, and marked again on that movement's section), plans, recent muscles, and what is next
 with each due priority lift's aim and last time. `GoingInReading` decides what bears on this workout.
@@ -950,14 +950,32 @@ kilograms by the server and read in pounds here. A track's metres and yards read
 is a 400 — and only kilometres become miles. Entry forms keep their unit pickers, starting in pounds
 and miles. A fastest time at a race distance goes by its name (Mile, 5K, 10K); any other in miles.
 
-- One brand token — the accent in the asset catalog — applied once as `.tint` on `RootView`.
-  Everything below inherits it, and light and dark are then correct for free.
-- No colour literal in any view. Semantic system colours only.
+- The athlete sees **Tempo** (Tempo Training Systems, "keep moving forward."); everything internal —
+  types, targets, bundle identifiers, the server — keeps the Lionheart name, because changing those
+  breaks an installed app's Keychain and App Group.
+- The palette is accents and grounds, not a reskin: Brick is the accent in the asset catalog, applied
+  once as `.tint` on `RootView`, with Ink (Graphite or Chalk), Iron and Graphite beside it in
+  `Tokens`. Everything else is a semantic system colour, and light and dark are correct for free.
+- No colour literal in any view.
 - System text styles throughout, so Dynamic Type works with no `relativeTo:` anywhere. Figures that
-  change in place carry `.monospacedDigit()`.
+  change in place carry `.monospacedDigit()`. The one exception is the wordmark, a picture of the
+  name: SF Pro Heavy at the expanded width, tracked tight, at a fixed size.
+- The mark is one `Shape`, `ProgressionMark`: the opening, the loading indicator, Settings, Chat
+  and the widgets draw it, and `Scripts/render-brand-assets.sh` draws the icon and launch image from
+  it. The icon is an Icon Composer document (`Resources/AppIcon.icon`): Liquid Glass on iOS 26, and
+  flat pictures the asset compiler renders from it for iOS 18 — it ignores an `AppIcon.appiconset` of
+  the same name, so there is none.
+
+**The opening.** `UILaunchScreen` draws the mark on Graphite; `OpeningView` takes over on that exact
+frame, lifts the bars one after another into the lockup, settles the wordmark and tagline, and fades
+to the app in under a second. It is drawn *over* the root, which is already reading the device's
+last answers, so it never delays a signed-in launch, and it lets every touch through. Signed out, it
+ends exactly on sign-in's lockup (sign-in reports where it drew it), so only the form appears. Reduce
+Motion cross-fades instead. Sign-in is Graphite in both appearances, continuing the launch screen.
 - `List(.insetGrouped)` is the default screen.
 
-`Design/` holds only what stock SwiftUI has no answer for: `Tokens`, `ActiveWorkoutBar`,
+`Design/` holds only what stock SwiftUI has no answer for: `Tokens`; `Brand/`, with the mark's
+`ProgressionMark`, `BrandMark`, `Wordmark`, `BrandLockup`, `MarkLoadingIndicator` and `LeanedBar`; `ActiveWorkoutBar`,
 `Sparkline` (a stock `Chart` with every axis removed), `StatTile`, `SetRow`, `RestTimerBar` and
 `LoadStateRows` (the loading row and stale banner three tabs share), and `MovementLines` (a
 session's movements as log-book lines, figures aligned down one column, which Today and History share),

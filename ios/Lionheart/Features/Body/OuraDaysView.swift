@@ -72,7 +72,7 @@ struct OuraDaysView: View {
                 }
                 .chartYScale(domain: 0...100)
                 .chartForegroundStyleScale([
-                    "Readiness": Color.green,
+                    "Readiness": Tokens.accent,
                     "Sleep": Color.indigo,
                 ])
                 .frame(height: 170)

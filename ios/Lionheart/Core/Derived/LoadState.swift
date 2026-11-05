@@ -169,7 +169,7 @@ enum LoadFailure: Error, Equatable, Sendable {
         case .invalid(_, let detail):
             return .unavailable(detail ?? "The request was not accepted.")
         case .upstream(let detail):
-            return .unavailable(detail ?? "A service Lionheart depends on is not responding.")
+            return .unavailable(detail ?? "A service Tempo depends on is not responding.")
         case .server(let detail):
             return .unavailable(detail ?? "The server had a problem.")
         case .http(let status, let detail):
@@ -182,7 +182,7 @@ enum LoadFailure: Error, Equatable, Sendable {
     /// What the athlete reads.
     var message: String {
         switch self {
-        case .offline: "Lionheart is not reachable."
+        case .offline: "Tempo is not reachable."
         case .notFound: "Not found."
         case .refused(let reason): reason
         case .unavailable(let reason): reason

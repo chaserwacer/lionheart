@@ -44,7 +44,7 @@ enum HealthSyncFailure: Error, Equatable, Sendable {
     /// The short line the row leads with.
     var headline: String {
         switch self {
-        case .offline: "Lionheart is not reachable"
+        case .offline: "Tempo is not reachable"
         case .healthUnreadable: "Health could not be read"
         case .unavailable: "Sync failed"
         }

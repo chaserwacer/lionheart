@@ -29,7 +29,7 @@ struct DailyTrendChart: View {
             ForEach(points) { point in
                 PointMark(x: .value("Day", point.day.middayDate()), y: .value("Value", point.value))
                     .symbolSize(points.count > 120 ? 8 : 18)
-                    .foregroundStyle(line == nil ? Tokens.accent : Color(.tertiaryLabel))
+                    .foregroundStyle(line == nil ? Tokens.accent : Tokens.iron.opacity(0.5))
             }
             ForEach(line ?? points) { point in
                 LineMark(x: .value("Day", point.day.middayDate()), y: .value("Line", point.value))

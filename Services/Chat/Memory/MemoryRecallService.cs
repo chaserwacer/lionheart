@@ -34,7 +34,7 @@ public sealed class MemoryRecallService(ModelContext context, MemoryVectors vect
     }
 
     [Tool(Name = "SearchMemory",
-        Description = "Search what the athlete has told Lionheart in earlier chat sessions — his goals, injuries, preferences, commitments, decisions and facts about him — by meaning. Returns the current memories that best match the query, each with its kind and the date it was recorded, or nothing when none do. Use it when a question turns on something he may have said before that is not among the memories already in your instructions. It searches what he said, not his training data: for sessions, records and ring data use the other tools.")]
+        Description = "Search what the athlete has told Tempo in earlier chat sessions — his goals, injuries, preferences, commitments, decisions and facts about him — by meaning. Returns the current memories that best match the query, each with its kind and the date it was recorded, or nothing when none do. Use it when a question turns on something he may have said before that is not among the memories already in your instructions. It searches what he said, not his training data: for sessions, records and ring data use the other tools.")]
     public async Task<IReadOnlyList<RecalledMemory>> SearchMemoryForChatAsync(IdentityUser user, string query)
     {
         var current = await CurrentAsync(Guid.Parse(user.Id), CancellationToken.None);

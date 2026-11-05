@@ -42,7 +42,7 @@ enum QuickLogState: Equatable, Sendable {
             // A discriminator this client has not heard of. The entry may well have been written,
             // so saying "it failed" would be wrong — say that the answer was not understood.
             return .refused(.unavailable(
-                "Lionheart did not understand the server's answer (\(type.isEmpty ? "no type" : type))."))
+                "Tempo did not understand the server's answer (\(type.isEmpty ? "no type" : type))."))
         }
     }
 }

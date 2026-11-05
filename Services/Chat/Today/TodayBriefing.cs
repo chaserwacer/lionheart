@@ -64,7 +64,7 @@ public static class TodayBriefing
 
     private static string Opening(AthleteNow now) =>
         new StringBuilder()
-            .AppendLine(Invariant, $"{Heading} (written by Lionheart with this message; it is current and outranks any date or state earlier in the conversation)")
+            .AppendLine(Invariant, $"{Heading} (written by Tempo with this message; it is current and outranks any date or state earlier in the conversation)")
             .AppendLine(Invariant, $"Now: {now.Local:dddd d MMMM yyyy, HH:mm} ({Offset(now.Local)}). This week runs Monday {now.WeekStart:d MMMM} to Sunday {now.WeekStart.AddDays(6):d MMMM}.")
             .AppendLine(Units)
             .ToString();

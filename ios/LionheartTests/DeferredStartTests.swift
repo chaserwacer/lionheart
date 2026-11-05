@@ -67,7 +67,7 @@ struct DeferredStartTests {
         await store.syncNow()
 
         #expect(store.workout?.destination == .deferredStart(localId: Self.localId))
-        #expect(store.workout?.sync == .failed("Lionheart is not reachable."))
+        #expect(store.workout?.sync == .failed("Tempo is not reachable."))
         #expect(document.read()?.sets.count == 1)
         #expect(server.unplannedStarts.isEmpty)
     }

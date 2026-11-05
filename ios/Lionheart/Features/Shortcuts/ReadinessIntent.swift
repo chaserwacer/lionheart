@@ -10,7 +10,7 @@ import SwiftUI
 struct ReadinessIntent: AppIntent {
     static let title: LocalizedStringResource = "Readiness"
     static let description = IntentDescription(
-        "Oura's readiness for today against your baseline, as Lionheart read it.")
+        "Oura's readiness for today against your baseline, as Tempo read it.")
 
     /// How long a spoken question waits on the server before it is answered from the device.
     private static let patience: Duration = .seconds(4)
@@ -27,7 +27,7 @@ struct ReadinessIntent: AppIntent {
         }
 
         guard let readiness = file.read()?.readiness else {
-            return .result(dialog: "Lionheart has no readiness from Oura yet.")
+            return .result(dialog: "Tempo has no readiness from Oura yet.")
         }
         let lead = TodayGlance.isToday(readiness.day, at: now)
             ? "Readiness"

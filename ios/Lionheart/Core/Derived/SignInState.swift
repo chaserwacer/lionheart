@@ -44,7 +44,7 @@ enum SignInFailure: Equatable, Sendable {
         switch self {
         case .credentialsRejected: "That email and password did not match an account."
         case .accountNotReady(let reason): reason
-        case .offline: "Lionheart is not reachable. Check that the backend is running."
+        case .offline: "Tempo is not reachable. Check that the backend is running."
         case .unavailable(let reason): reason
         }
     }

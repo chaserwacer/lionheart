@@ -43,6 +43,7 @@ ios/
       ActiveWorkout/           the in-flight workout, disk-backed
     Features/<Area>/           screens and their store
     Design/                    only what stock SwiftUI has no answer for
+      Brand/                   Tempo's mark, wordmark, lockup and the views drawn from them
     Support/                   formatters, small utilities
   LionheartTests/
 ```
@@ -90,12 +91,14 @@ web app's custom look carried over. So **do not build a design system.** Use App
 
 - **Colour comes from the system.** `Color(.systemGroupedBackground)`,
   `.secondarySystemGroupedBackground`, `.label`, `.secondaryLabel`, `.separator`, and the semantic
-  `.red`/`.green`/`.orange` for state. One brand token — the accent — lives in the asset catalog and
-  is applied once as `.tint` in `RootView`. Light and dark are then correct for free, which is the
-  whole reason for the rule. Never a hex literal in a view.
+  `.red`/`.green`/`.orange` for state. The brand is Tempo's palette in the asset catalog, read through
+  `Tokens`: Brick is the accent, applied once as `.tint` in `RootView`; Ink, Iron and Graphite are for
+  the mark, a chart's second series and the brand's own grounds. Accents and grounds, never a reskin
+  of ordinary controls. Light and dark are then correct for free, which is the whole reason for the
+  rule. Never a hex literal in a view.
 - **Type comes from the system.** `.largeTitle`, `.headline`, `.body`, `.caption`, with `.bold()`
   where emphasis is wanted. No custom typeface, no tracking or letter-spacing, no gradient text, no
-  all-caps section labels. Figures that change in place — a rest clock, a running volume total, a
+  all-caps section labels — except `Wordmark`, the name drawn as a picture. Figures that change in place — a rest clock, a running volume total, a
   weight — carry `.monospacedDigit()` so they do not jitter. Every size is a text style, so Dynamic
   Type works without a `relativeTo:` anywhere.
 - **Stock containers, always**: `NavigationStack`, `TabView`/`Tab`, `List`, `Form`/`Section`,
@@ -106,7 +109,9 @@ web app's custom look carried over. So **do not build a design system.** Use App
 - **`List` with `.listStyle(.insetGrouped)` is the default screen.** It is what Apple Music, Fitness
   and Settings are made of, it gets separators, swipe actions, selection and Dynamic Type right, and
   it is the fastest way to a screen that looks like it belongs.
-- `Design/` therefore holds: `Tokens.swift` (the accent and the handful of spacing constants),
+- `Design/` therefore holds: `Tokens.swift` (the palette and the handful of spacing constants),
+  `Brand/` (`ProgressionMark`, the mark's one `Shape`, and `BrandMark`, `Wordmark`, `BrandLockup`,
+  `MarkLoadingIndicator`, `LeanedBar`),
   `StatTile.swift`, `SetRow.swift`, `RestTimerBar.swift`, `ActiveWorkoutBar.swift`, and
   `Sparkline.swift`, `MovementLines.swift`, `SummaryFigures.swift`, plus the shared chrome and load-state rows. If another file wants in, check
   first whether SwiftUI already has it.

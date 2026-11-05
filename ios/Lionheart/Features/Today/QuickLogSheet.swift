@@ -25,7 +25,7 @@ struct QuickLogSheet: View {
                         .textInputAutocapitalization(.sentences)
                         .disabled(store.quickLog.isInterpreting)
                 } footer: {
-                    Text("Loose is fine. The words are kept whatever Lionheart makes of them.")
+                    Text("Loose is fine. The words are kept whatever Tempo makes of them.")
                 }
 
                 if store.quickLog.hasOutcome {
@@ -81,7 +81,7 @@ struct QuickLogSheet: View {
 
         case .needsConfirmation(let references):
             Section {
-                Label("Lionheart needs to know which movement you meant", systemImage: "questionmark.circle")
+                Label("Tempo needs to know which movement you meant", systemImage: "questionmark.circle")
                 ForEach(references) { reference in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(reference.rawName).font(.subheadline.weight(.semibold))

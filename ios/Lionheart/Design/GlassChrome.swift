@@ -34,7 +34,7 @@ extension View {
     /// Floating chrome: a bar or control that sits over scrolling content, inset from the edges it
     /// floats above.
     ///
-    /// Untinted, because the one brand token in this app is the `.tint` applied on `RootView` and
+    /// Untinted, because the accent in this app is the `.tint` applied on `RootView` and
     /// tinted glass would make the chrome the loudest thing on the screen. The glyphs and controls
     /// inside it inherit the tint; the glass itself stays the system's.
     func glassChrome(in shape: some Shape = .capsule, interactive: Bool = false) -> some View {

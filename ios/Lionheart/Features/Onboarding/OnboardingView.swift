@@ -26,7 +26,7 @@ struct OnboardingView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Lionheart records what you did and reads it against what your body is doing. It needs a few things about you before it can log anything.")
+                    Text("Tempo records what you did and reads it against what your body is doing. It needs a few things about you before it can log anything.")
                         .font(.subheadline)
                         .foregroundStyle(Color(.secondaryLabel))
                 }
@@ -140,7 +140,7 @@ private struct SignOutButton: View {
 
     var body: some View {
         Button("Sign out") { isConfirming = true }
-            .confirmationDialog("Sign out of Lionheart?", isPresented: $isConfirming) {
+            .confirmationDialog("Sign out of Tempo?", isPresented: $isConfirming) {
                 Button("Sign out", role: .destructive) { Task { await auth.signOut() } }
             }
     }

@@ -13,12 +13,21 @@ struct ReadinessGlanceView: View {
     let now: Date
     /// Whether to draw the line under the figures; the snippet and the small widget do.
     var showsTrend = true
+    /// Whether to carry the mark beside the title, as a Home Screen widget does to say whose it is.
+    var showsMark = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+            HStack(alignment: .center, spacing: 6) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if showsMark {
+                    Spacer(minLength: 0)
+                    BrandMark().frame(height: 11)
+                }
+            }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("\(readiness.score)")
                     .font(.largeTitle.weight(.semibold).monospacedDigit())

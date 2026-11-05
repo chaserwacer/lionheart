@@ -42,7 +42,7 @@ enum OuraSyncFailure: Error, Equatable, Sendable {
     /// The short line the control leads with.
     var headline: String {
         switch self {
-        case .offline: "Lionheart is not reachable"
+        case .offline: "Tempo is not reachable"
         case .refused: "Sync refused"
         case .ouraFailed: "Oura sync failed"
         case .unavailable: "Sync failed"

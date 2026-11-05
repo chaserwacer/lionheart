@@ -44,7 +44,7 @@ struct ScoreInfoSheet: View {
     @ViewBuilder
     private var whole: some View {
         Section {
-            Text("Lionheart's own score for the seven days ending today — not Oura's activity score. It is earned by training, not by moving: 90 takes a committed week in every part at once, a new best included.")
+            Text("Tempo's own score for the seven days ending today — not Oura's activity score. It is earned by training, not by moving: 90 takes a committed week in every part at once, a new best included.")
         }
         Section("Four parts, by weight") {
             weight("Lifting", score.lifting.outOf, "Hard sets of push, pull and legs.")

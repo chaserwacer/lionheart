@@ -18,7 +18,7 @@ enum MemoryWords {
 
     /// Who said a quoted message, and when.
     static func quoteLine(_ quote: MemoryQuote) -> String {
-        let speaker = quote.byAthlete ? "You" : "Lionheart"
+        let speaker = quote.byAthlete ? "You" : "Tempo"
         guard let at = quote.at else { return speaker }
         return "\(speaker), \(day(at)) \(at.formatted(date: .omitted, time: .shortened))"
     }

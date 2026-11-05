@@ -90,7 +90,7 @@ struct FailureRestatementTests {
             (APIError.transport("offline"), LoadFailure.offline("offline")),
             (.notFound(detail: "gone"), .notFound),
             (.refused(detail: "already completed"), .refused("already completed")),
-            (.upstream(detail: nil), .unavailable("A service Lionheart depends on is not responding.")),
+            (.upstream(detail: nil), .unavailable("A service Tempo depends on is not responding.")),
             (.unauthenticated, .unavailable("You are not signed in.")),
         ])
     func anApiErrorBecomesItsMatchingLoadFailure(error: APIError, expected: LoadFailure) throws {

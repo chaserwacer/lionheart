@@ -192,7 +192,7 @@ struct ActiveWorkoutStoreTests {
 
         // The athlete's words, not URLSession's: the failure is restated into the feature's own
         // vocabulary at the boundary, so nothing downstream shows a transport description.
-        #expect(store.workout?.sync == .failed("Lionheart is not reachable."))
+        #expect(store.workout?.sync == .failed("Tempo is not reachable."))
         #expect(store.workout?.sets.count == 1)
         #expect(document.read()?.sets.count == 1)
     }

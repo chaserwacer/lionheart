@@ -42,7 +42,7 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Apple Health")
                 } footer: {
-                    Text("Lionheart reads the runs, rides, hikes and walks other apps write to Health — Strava's, a watch's — with their routes, heart rate, power and running form, and never writes there. Oura's and Strong's workouts are left out, since Lionheart reads those directly; rides and hikes set records, walks and indoor workouts do not. Syncs when the app opens and when History or Cardio is pulled to refresh.")
+                    Text("Tempo reads the runs, rides, hikes and walks other apps write to Health — Strava's, a watch's — with their routes, heart rate, power and running form, and never writes there. Oura's and Strong's workouts are left out, since Tempo reads those directly; rides and hikes set records, walks and indoor workouts do not. Syncs when the app opens and when History or Cardio is pulled to refresh.")
                 }
 
                 Section {
@@ -53,7 +53,7 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Widgets and Siri")
                 } footer: {
-                    Text("The Readiness and Today widgets show what Lionheart last read. It reads today once each morning, around 5:30, so the Lock Screen is current before the app is opened — unless Background App Refresh is off for Lionheart in the Settings app. Siri knows \u{201C}What\u{2019}s my readiness in Lionheart\u{201D} and \u{201C}Log training in Lionheart\u{201D}.")
+                    Text("The Readiness and Today widgets show what Tempo last read. It reads today once each morning, around 5:30, so the Lock Screen is current before the app is opened — unless Background App Refresh is off for Tempo in the Settings app. Siri knows \u{201C}What\u{2019}s my readiness in Tempo\u{201D} and \u{201C}Log training in Tempo\u{201D}.")
                 }
 
                 Section {
@@ -66,7 +66,7 @@ struct SettingsSheet: View {
                 if !auth.isSessionPersisted {
                     Section {
                         Label(
-                            "This device could not save your sign-in, so Lionheart will ask again next time it starts.",
+                            "This device could not save your sign-in, so Tempo will ask again next time it starts.",
                             systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
                     }
@@ -74,6 +74,10 @@ struct SettingsSheet: View {
 
                 Section {
                     Button("Sign out", role: .destructive) { isConfirmingSignOut = true }
+                }
+
+                Section {
+                    AboutRow()
                 }
             }
             .navigationTitle("Settings")
@@ -84,7 +88,7 @@ struct SettingsSheet: View {
                 }
             }
             .confirmationDialog(
-                "Sign out of Lionheart?",
+                "Sign out of Tempo?",
                 isPresented: $isConfirmingSignOut,
                 titleVisibility: .visible
             ) {
@@ -98,6 +102,42 @@ struct SettingsSheet: View {
                 Text(SignOutConsequence.of(activeWorkout.workout).message(undelivered: outbox.finished.count))
             }
         }
+    }
+}
+
+/// The app naming itself: the mark, the wordmark, the maker's line and the build.
+private struct AboutRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
+        layout {
+            BrandMark()
+                .frame(height: 30)
+            VStack(alignment: .leading, spacing: 2) {
+                Wordmark(size: 22)
+                Text("Tempo Training Systems")
+                    .font(.footnote)
+                    .foregroundStyle(Color(.secondaryLabel))
+            }
+            if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
+            Text(version)
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(Color(.secondaryLabel))
+        }
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Tempo Training Systems, version \(version)")
+    }
+
+    /// The marketing version and the build, as `project.yml` sets them.
+    private var version: String {
+        let info = Bundle.main.infoDictionary
+        let marketing = info?["CFBundleShortVersionString"] as? String ?? "–"
+        let build = info?["CFBundleVersion"] as? String ?? "–"
+        return "\(marketing) (\(build))"
     }
 }
 

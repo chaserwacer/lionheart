@@ -234,7 +234,7 @@ private struct BalanceTrendChart: View {
                     .foregroundStyle(by: .value("Segment", "Legs"))
             }
         }
-        .chartForegroundStyleScale(["Arms": Tokens.accent, "Trunk": Color(.systemGray), "Legs": Color.indigo])
+        .chartForegroundStyleScale(["Arms": Tokens.accent, "Trunk": Tokens.iron, "Legs": Tokens.ink])
         .chartYScale(domain: .automatic(includesZero: false))
         .frame(height: height)
         .padding(.vertical, 8)
