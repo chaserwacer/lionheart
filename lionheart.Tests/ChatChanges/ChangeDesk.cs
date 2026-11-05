@@ -79,7 +79,7 @@ public sealed class ChangeDesk : IDisposable
             new TrainingSessionService(context, Clock, detector, new PersonalRecordRebuild(context, detector)),
             new NonTrainingDayService(context, Clock),
             new FocusPinService(context, Clock, MovementPatternMap.Shipped),
-            new InjuryService(context),
+            new InjuryService(context, Clock),
             Clock);
     }
 

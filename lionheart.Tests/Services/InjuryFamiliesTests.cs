@@ -23,7 +23,7 @@ public sealed class InjuryFamiliesTests : IDisposable
     private async Task<Guid> InjureAsync(params PatternFamily[] families)
     {
         await using var context = _db.CreateContext();
-        return ResultAssert.Succeeded(await new InjuryService(context).CreateInjuryAsync(Athlete, new CreateInjuryRequest
+        return ResultAssert.Succeeded(await new InjuryService(context, TimeProvider.System).CreateInjuryAsync(Athlete, new CreateInjuryRequest
         {
             Name = "Left knee", InjuryDate = new DateTime(2026, 3, 1), Notes = string.Empty, Families = [.. families],
         })).InjuryID;
@@ -38,7 +38,7 @@ public sealed class InjuryFamiliesTests : IDisposable
     private async Task UpdateAsync(Guid injury, List<PatternFamily>? families)
     {
         await using var context = _db.CreateContext();
-        ResultAssert.Succeeded(await new InjuryService(context).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
+        ResultAssert.Succeeded(await new InjuryService(context, TimeProvider.System).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
         {
             InjuryID = injury, Name = "Left knee", Notes = "better", IsActive = true, Families = families,
         }));
@@ -81,7 +81,7 @@ public sealed class InjuryFamiliesTests : IDisposable
         var injury = await InjureAsync();
         await using (var context = _db.CreateContext())
         {
-            ResultAssert.Succeeded(await new InjuryService(context).CreateInjuryEventAsync(Athlete, new CreateInjuryEventRequest
+            ResultAssert.Succeeded(await new InjuryService(context, TimeProvider.System).CreateInjuryEventAsync(Athlete, new CreateInjuryEventRequest
             {
                 InjuryID = injury, Notes = string.Empty, PainLevel = 4, InjuryType = InjuryEventType.checkin, MovementIDs = [squat],
             }));

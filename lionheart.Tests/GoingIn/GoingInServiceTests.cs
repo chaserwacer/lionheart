@@ -39,7 +39,7 @@ public sealed class GoingInServiceTests : IDisposable
     {
         await using var context = _db.CreateContext();
         var facts = new TodayFactsService(
-            context, new NoCardio(), MovementPatternMap.Shipped, new FixedClock(Evening), NullLogger<TodayFactsService>.Instance);
+            context, new NoCardio(), MovementPatternMap.Shipped, new FixedClock(Evening, TimeZoneInfo.Utc), NullLogger<TodayFactsService>.Instance);
         var volume = new TrainingVolumeService(context, MovementPatternMap.Shipped, TimeProvider.System);
         return ResultAssert.Succeeded(await new GoingInService(context, facts, volume).GetAsync(Athlete, CancellationToken.None));
     }
@@ -47,7 +47,7 @@ public sealed class GoingInServiceTests : IDisposable
     private async Task<Guid> InjureAsync(string name, int pain, params Guid[] movements)
     {
         await using var context = _db.CreateContext();
-        var injuries = new InjuryService(context);
+        var injuries = new InjuryService(context, new FixedClock(Evening, TimeZoneInfo.Utc));
         var injury = ResultAssert.Succeeded(await injuries.CreateInjuryAsync(Athlete, new CreateInjuryRequest
         {
             Name = name, InjuryDate = new DateTime(2026, 3, 1), Notes = string.Empty,
@@ -80,7 +80,7 @@ public sealed class GoingInServiceTests : IDisposable
         var injury = await InjureAsync("Left knee", 3);
         await using (var context = _db.CreateContext())
         {
-            ResultAssert.Succeeded(await new InjuryService(context).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
+            ResultAssert.Succeeded(await new InjuryService(context, new FixedClock(Evening, TimeZoneInfo.Utc)).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
             {
                 InjuryID = injury, Name = "Left knee", Notes = string.Empty, IsActive = false,
             }));
@@ -102,12 +102,5 @@ public sealed class GoingInServiceTests : IDisposable
     {
         public Task<Result<CardioReport, Problem>> GetReportAsync(IdentityUser user, DayRange range, CancellationToken ct) =>
             Task.FromResult(Result<CardioReport, Problem>.Failure(new Problem.Unexpected("No cardio in this test.")));
-    }
-
-    private sealed class FixedClock(DateTimeOffset utc) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => utc;
-
-        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
     }
 }

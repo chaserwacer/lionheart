@@ -43,7 +43,8 @@ public sealed record ExpectationInputs(
 /// (<see cref="Progression"/>); sessions hold at the committed three. The adjusted target is the
 /// raw one prorated to the window's available days, less half a day for each day of everyday load
 /// far above his usual once there are two (<see cref="Progression.Prorated"/>); then a suggested
-/// deload asks each family for its share, and an active injury pauses the families it touches.
+/// deload asks each family for its share, and an injury open on the window's last day pauses the
+/// families it touches.
 /// The raw targets never bend for any of it, so the score stays comparable week to week. The
 /// blocks before are read as they were, days off included: a week away lowers what the body is
 /// used to, and the ramp back is meant to follow it.

@@ -20,7 +20,7 @@ public static class InjuryReads
                 injury.InjuryID,
                 injury.Name,
                 injury.InjuryDate,
-                injury.IsActive,
+                InjuryStanding.Of(injury.IsActive, injury.ResolvedOn),
                 injury.Families,
                 [.. injury.InjuryEvents
                     .SelectMany(check => check.MovementIDs.Select(movement => (Movement: movement, Day: DateOnly.FromDateTime(check.CreationTime))))

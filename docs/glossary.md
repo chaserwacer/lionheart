@@ -81,7 +81,7 @@ first and then in the code.
 | **Everyday load** | The movement the ring caught outside training — Oura's low, medium and high slots no session covered, in MET-minutes — judged against his own last 90 complete days. Fatigue, never training credit. |
 | **Far above usual** | An everyday-load day over his 90th percentile by a fifth: the band that leans the next session easier and, two or more in a week, eases the week's adjusted targets by half a day each. A day merely over the 90th percentile is above usual and costs the going-in rating a little. |
 | **Weekly advice** | The one piece of advice a calendar week carries — manage an injury, take a deload, hold a steep ramp, ease in after big everyday days, more cardio or more lifting, change a stalled priority, or keep building — chosen by fixed rules from the weeks before its Monday, so it reads the same all week. |
-| **Managed injury** | An active injury as the week manages around it: the families it pauses (named on it, or the families of movements its check-ins name), the movements to leave out, and its lead-up. |
+| **Managed injury** | An injury open on the day — dated on or before it and not yet resolved — as the week manages around it: the families it pauses (named on it, or the families of movements its check-ins name), the movements to leave out, and its lead-up. |
 | **Lead-up** | A family's weekly hard sets in the four weeks before an injury against the eight before those: the trend that preceded it. |
 | **Committed standard** | The figure a committed week reaches — 8 hard sets a family, 150 zone-2 minutes, 40 quality minutes — which the whole of a measurement's points still needs. |
 | **Week expectations** | What the seven days ending on a day ask, measurement by measurement — sessions, hard sets per family, zone-2 and quality minutes, each priority lift's next top set — with what was done, the raw target, the adjusted target and the reasons, beside the week's load, the injuries it manages and its weekly advice. The one answer the score, the adjusted score, weekly volume, next sessions and the chat read. |
@@ -157,7 +157,7 @@ first and then in the code.
 | **Percent of reference** | A segment's mass as a percentage of the analyser's own reference for the athlete's height and weight. The device's band, not a clinical norm. |
 | **Segmental balance** | Left against right for the arms and legs, and the arm–trunk–leg pattern, from the segmental lean panel. |
 | **System load** | Bodyweight plus the plate, for a movement whose weight is added to bodyweight — what a weighted dip is judged by. |
-| **Injury** | A tracked problem with a body part, the families it touches if he named them, and the events logged against it over time. |
+| **Injury** | A tracked problem with a body part, the families it touches if he named them, and the events logged against it over time. Active until he resolves it; the day it was resolved is kept, except on injuries resolved before that day was recorded. |
 
 ## Analysis
 
