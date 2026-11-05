@@ -35,6 +35,7 @@ using lionheart.Services.Oura;
 using lionheart.Services.Oura.Import;
 using lionheart.Services.Strong;
 using lionheart.Services.CoachedSheets;
+using lionheart.Services.Strava;
 using lionheart.Services.Chat.Memory;
 using lionheart.Services.Chat.Thread;
 using lionheart.Services.Chat.Today;
@@ -63,6 +64,11 @@ if (args is [StrongImportCommand.Verb, ..])
 if (args is [CoachedSheetImportCommand.Verb, ..])
 {
     return await CoachedSheetImportCommand.RunAsync(args, CancellationToken.None);
+}
+
+if (args is [StravaArchiveImportCommand.Verb, ..])
+{
+    return await StravaArchiveImportCommand.RunAsync(args, CancellationToken.None);
 }
 
 if (args is [RebuildRecordsCommand.Verb, ..])
