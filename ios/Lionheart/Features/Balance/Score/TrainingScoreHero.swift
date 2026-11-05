@@ -93,24 +93,3 @@ struct TrainingScoreHero: View {
         score.unknown.map(\.name).joined(separator: " and ").capitalisingFirst
     }
 }
-
-/// The score's parts as rows, each its points and its measurements in a line, opening the part —
-/// the words under Train's hero, and the score screen's card.
-struct TrainingScorePartsSection: View {
-    let score: TrainingScore
-
-    var body: some View {
-        Section {
-            ForEach(ScoreBreakdown.of(score)) { part in
-                NavigationLink(value: ScoreRoute.part(part.part)) {
-                    ScorePartRow(part: part)
-                }
-            }
-            NavigationLink(value: ScoreRoute.score) {
-                Text("Weeks")
-            }
-        } header: {
-            Text("Score parts")
-        }
-    }
-}

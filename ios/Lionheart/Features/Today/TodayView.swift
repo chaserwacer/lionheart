@@ -5,9 +5,9 @@ import SwiftUI
 /// Read top to bottom the way a morning is: the day's verdict first, as the tab's hero — on today
 /// how ready he is going in and what is next, on a past day that day's readiness; then Oura's
 /// readiness and the figures behind it, each against the athlete's own four-week baseline, folded
-/// to one line until asked for; then the training. Every
-/// decision on it — which day's recovery to show, which session is the last one, what counts as
-/// unusual — is a pure function in `Core/Derived/`; this file chooses words and containers.
+/// to one line until asked for; then the training. Every decision on it — which day's recovery to
+/// show, which session is the last one, what counts as unusual — is a pure function in
+/// `Core/Derived/`; this file chooses words and containers.
 ///
 /// The day steps back and forward from the toolbar, the way Health and Oura step through days. A
 /// past day is read for what happened on it; the questions about now — the next session, the one
@@ -239,7 +239,7 @@ struct TodayView: View {
     /// that has gone by can still be read for.
     @ViewBuilder
     private func hero(_ snapshot: TodaySnapshot, today: CalendarDay) -> some View {
-        if snapshot.day == today, let state = goingIn.state.value, state.rating.score != nil {
+        if let state = leadingGoingIn(snapshot, today: today) {
             GoingInHero(
                 state: state, next: goingIn.next.value, isStale: goingIn.state.isStale,
                 openDetail: { isGoingInExplained = true })
@@ -254,10 +254,15 @@ struct TodayView: View {
         }
     }
 
+    /// The going-in state when it leads the page: on today, once it has a score to give.
+    private func leadingGoingIn(_ snapshot: TodaySnapshot, today: CalendarDay) -> GoingInState? {
+        guard snapshot.day == today, let state = goingIn.state.value, state.rating.score != nil else { return nil }
+        return state
+    }
+
     /// Whether the hero is the day's readiness, so the recovery section does not repeat it.
     private func heroIsReadiness(_ snapshot: TodaySnapshot, today: CalendarDay) -> Bool {
-        let goingInLeads = snapshot.day == today && goingIn.state.value?.rating.score != nil
-        return !goingInLeads && snapshot.readiness != nil
+        leadingGoingIn(snapshot, today: today) == nil && snapshot.readiness != nil
     }
 
     /// Oura's verdict, then the readiness contributors that answer "how recovered am I", each Oura's
