@@ -125,6 +125,7 @@ private struct SignedInTabs: View {
                     library: container.movements,
                     history: container.history,
                     focus: container.focus,
+                    goingIn: container.goingIn,
                     apiBaseURL: container.configuration.baseURL,
                     activeWorkout: container.activeWorkout)
             } label: {

@@ -179,6 +179,51 @@ struct FocusTests {
         #expect(FocusReading.Phase.horizonOver.week == nil)
     }
 
+    @Test("A block is its horizon in weeks: each week gone by with its best, this week so far, the rest ahead")
+    func blockWeeks() throws {
+        // The horizon starts Mon 2 Nov; today, Fri 20 Nov, is in its third week.
+        let history = try Self.history([
+            ("2026-10-28", [(60, 5)]),
+            ("2026-11-03", [(40, 5)]),
+            ("2026-11-05", [(45, 5), (40, 8)]),
+            ("2026-11-19", [(50, 3)]),
+        ])
+
+        let block = try #require(BlockWeeks.of(Self.pin(), history: history, today: Self.today))
+
+        #expect(block.weeks.count == 8)
+        #expect(block.weeks[0] == .done(best: try #require(EstimatedOneRepMax.of(weight: 45, reps: 5))))
+        // A week with no set on the movement is nothing measured, not a week at zero.
+        #expect(block.weeks[1] == .done(best: nil))
+        #expect(block.weeks[2] == .current(best: try #require(EstimatedOneRepMax.of(weight: 50, reps: 3))))
+        #expect(block.weeks[3...].allSatisfy { $0 == .ahead })
+        // The session before the horizon is the pin's starting point, not one of its weeks.
+        #expect(block.peak == EstimatedOneRepMax.of(weight: 50, reps: 3))
+    }
+
+    @Test("A block not begun is every week ahead, and a horizon of part weeks ends on a short one")
+    func blockWeeksAtTheEdges() throws {
+        let history = try Self.history([("2026-11-03", [(40, 5)])])
+
+        let upcoming = try #require(BlockWeeks.of(
+            Self.pin(starts: Self.day(12, 1), ends: Self.day(12, 10)), history: history, today: Self.today))
+
+        #expect(upcoming.weeks == [.ahead, .ahead])
+        #expect(upcoming.peak == nil)
+        #expect(upcoming.heights == [nil, nil])
+    }
+
+    @Test("A block's bars run from the lightest week at a quarter to the heaviest at the top")
+    func blockHeights() {
+        let block = BlockWeeks(
+            weeks: [.done(best: 100), .done(best: nil), .done(best: 110), .current(best: 104), .ahead],
+            unit: .pounds)
+        let level = BlockWeeks(weeks: [.done(best: 90), .current(best: 90)], unit: .pounds)
+
+        #expect(block.heights == [0.25, nil, 1, 0.25 + 0.75 * 4 / 10, nil])
+        #expect(level.heights == [1, 1])
+    }
+
     @Test("A target is met by the first set at its load for its reps or more inside the horizon")
     func aTargetIsMet() throws {
         let history = try Self.history([

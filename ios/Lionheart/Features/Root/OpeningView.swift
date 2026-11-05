@@ -78,7 +78,7 @@ struct OpeningView: View {
             leaving = beat + 0.55
         } else {
             for bar in 0..<3 {
-                withAnimation(.spring(duration: 0.42, bounce: 0.14).delay(beat + Double(bar) * 0.05)) {
+                withAnimation(.brandRise(step: bar, after: beat)) {
                     barsRisen[bar] = true
                 }
             }

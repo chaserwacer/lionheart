@@ -36,8 +36,7 @@ struct TrainingScoreSummary: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             Text("\(score.value)")
-                .font(.largeTitle.weight(.semibold))
-                .monospacedDigit()
+                .font(.heroFigure(.title))
             VStack(alignment: .leading, spacing: 2) {
                 Text(lifting)
                 Text(cardioAndSessions)

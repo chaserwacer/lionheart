@@ -148,14 +148,18 @@ struct FocusReading: Equatable, Sendable, Identifiable {
         }
     }
 
-    private static func progress(
-        of pin: FocusPin, history: MovementHistory, inWindow: [MovementHistory.Session]
-    ) -> Progress? {
-        let unit: WeightUnit? = switch pin.target {
+    /// The unit a pin is read in: its target's, or the one the movement is most often logged in.
+    static func unit(of pin: FocusPin, history: MovementHistory) -> WeightUnit? {
+        switch pin.target {
         case .lift(_, let unit, _): unit
         case .none, .unrecognised: history.units.first
         }
-        guard let unit else { return nil }
+    }
+
+    private static func progress(
+        of pin: FocusPin, history: MovementHistory, inWindow: [MovementHistory.Session]
+    ) -> Progress? {
+        guard let unit = unit(of: pin, history: history) else { return nil }
 
         func point(_ session: MovementHistory.Session) -> MovementPoint? {
             MovementHistory.best(.estimatedOneRepMax, of: session.lifts(in: unit)).map {

@@ -2,12 +2,12 @@ import SwiftUI
 
 /// Let me do it.
 ///
-/// The tab opens with what to train next — the next lift and the next cardio, the one to do first on
-/// top, each with its reasons — and the training score beside it, where the week stands part by
-/// part, because those two are what every session on this tab is chosen by and moves. The start
-/// section sits directly under them: start a workout or log one already done. Then the week's volume
-/// across push, pull and legs; the priorities. Routines, bodyweight and the plan follow, there when
-/// wanted.
+/// The tab opens on its hero — where the week stands, as the training score and its partition, and
+/// what to train next in a line — because those two are what every session on this tab is chosen
+/// by and moves. The start section sits directly under it: start a workout or log one already done.
+/// Then what is next in full, each with its aims and reasons; the score part by part; the week's
+/// volume across push, pull and legs; the priorities. Routines, bodyweight and the plan follow,
+/// there when wanted.
 struct TrainView: View {
     let store: TrainStore
     let activeWorkout: ActiveWorkoutStore
@@ -53,10 +53,11 @@ struct TrainView: View {
     var body: some View {
         NavigationStack(path: $route) {
             List {
-                NextSessionsSection()
                 scoreSection
                 startSection
                 if !outbox.finished.isEmpty { finishedSection }
+                NextSessionsSection()
+                scorePartsSection
                 volumeSection
                 prioritiesSection
                 routinesSection
@@ -228,24 +229,29 @@ struct TrainView: View {
         }
     }
 
-    /// The score, part by part, with its weeks behind a link. Its shape while the first read is
-    /// out, so the start section below does not jump when it lands.
+    /// The tab's hero: the week's score and what is next. Its shape while the first read is out, so
+    /// the start section below does not jump when it lands.
     @ViewBuilder
     private var scoreSection: some View {
         switch balance.score {
         case .loading:
-            Section("Training score") { SkeletonRows(count: 3) }
+            HeroSection { SkeletonRows(count: 3) }
         case .unavailable(let failure):
             Section("Training score") {
                 Text(failure.message).font(.footnote).foregroundStyle(Color(.secondaryLabel))
             }
         case .loaded(let score), .stale(let score, _):
-            TrainingScoreCard(score: score, weeks: balance.weeks.value ?? []) { route.append(ScoreRoute.part($0)) }
-            Section {
-                NavigationLink(value: ScoreRoute.score) {
-                    Text("Weeks")
-                }
+            TrainingScoreHero(score: score, weeks: balance.weeks.value ?? [], next: balance.nextSessions.value) {
+                route.append(ScoreRoute.part($0))
             }
+        }
+    }
+
+    /// The score's parts in words, under the start section so starting stays near the top.
+    @ViewBuilder
+    private var scorePartsSection: some View {
+        if let score = balance.score.value {
+            TrainingScorePartsSection(score: score)
         }
     }
 

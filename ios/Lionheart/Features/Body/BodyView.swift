@@ -177,11 +177,11 @@ struct BodyView: View {
         }
     }
 
-    /// The latest verdict and the sync control. The figures behind the verdict are Today's; here it
-    /// heads the records it is drawn from.
+    /// The tab's hero: the latest verdict and the sync control. The figures behind the verdict are
+    /// Today's; here it heads the records it is drawn from.
     @ViewBuilder
     private func recoverySection(_ snapshot: BodySnapshot) -> some View {
-        Section("Recovery") {
+        HeroSection {
             if let recovery = snapshot.latestRecovery(today: today), let readiness = recovery.readiness {
                 RecoveryVerdictView(
                     readiness: readiness, figure: recovery.readinessFigure, shownDay: today, today: today)
@@ -321,7 +321,7 @@ struct BodyView: View {
     /// behind it. Six requests in parallel, and this is what stands in for all of them.
     @ViewBuilder
     private var loadingSections: some View {
-        Section("Recovery") {
+        HeroSection {
             SkeletonRows(count: 1)
             OuraSyncRow(store: ouraSync, today: today)
         }

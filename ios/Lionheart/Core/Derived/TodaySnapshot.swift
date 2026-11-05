@@ -53,6 +53,13 @@ struct TodaySnapshot: Equatable, Sendable {
         return (recovery?.figures ?? []).filter { !shown.contains($0.metric) }
     }
 
+    /// The recovery rows asking for attention, in reading order — what the folded contributors
+    /// and figures name on their one line, so folding them never hides the row worth seeing.
+    var unusualRecovery: [UnusualRecovery] {
+        contributors.filter(\.isUnusual).map { .contributor($0.contributor) }
+            + otherFigures.filter { $0.standing == .unfavourable }.map { .figure($0.metric) }
+    }
+
     /// How far back Today will reach for a reading when the ring has not filed today. A fortnight
     /// finds a ring left in a drawer for a few days; past it, a long gap reads as no data rather
     /// than as an old score passed off as current.
@@ -62,6 +69,13 @@ struct TodaySnapshot: Equatable, Sendable {
         recovery == nil && sessionsOnDay.isEmpty && lastCompleted == nil && nextPlanned == nil
             && inProgress == nil
     }
+}
+
+/// A recovery row outside his usual range in the worse direction: a readiness contributor, or a
+/// figure no contributor carries.
+enum UnusualRecovery: Equatable, Sendable {
+    case contributor(OuraContributor)
+    case figure(RecoveryMetric)
 }
 
 /// Oura's readiness score, with the day it belongs to.

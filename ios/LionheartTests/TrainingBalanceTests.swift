@@ -179,6 +179,33 @@ struct TrainingBalanceTests {
                 == ScoreTrend(median: 60, best: 72, weeks: 4))
     }
 
+    @Test("A target counts as met at or past its figure, and only this week's can be")
+    func targetsMet() throws {
+        let score = try Decoding.decode(TrainingScore.self, Self.scoreJSON(cardio: Self.measuredCardio))
+        // Zone 2 is past its 60; push, pull and legs are short of theirs, and so are the window's
+        // sessions. A past block reaching three sessions is a week nothing now can move.
+        let pastBlockMet = try Decoding.decode(
+            TrainingScore.self,
+            Self.scoreJSON(cardio: Self.measuredCardio)
+                .replacingOccurrences(of: #""2026-10-27"},"sessions":2"#, with: #""2026-10-27"},"sessions":3"#))
+
+        #expect(ScoreTargets.met(in: score) == ["cardio.Zone 2"])
+        #expect(ScoreTargets.met(in: pastBlockMet) == ["cardio.Zone 2"])
+    }
+
+    @Test("A target just hit is the one met now that was not before")
+    func targetJustHit() throws {
+        let before = try Decoding.decode(TrainingScore.self, Self.scoreJSON(cardio: Self.measuredCardio))
+        let after = try Decoding.decode(
+            TrainingScore.self,
+            Self.scoreJSON(cardio: Self.measuredCardio)
+                .replacingOccurrences(of: #""family":"legs","hardSets":7"#, with: #""family":"legs","hardSets":8"#))
+
+        #expect(ScoreTargets.newlyMet(from: before, to: after) == ["lifting.legs"])
+        #expect(ScoreTargets.newlyMet(from: after, to: before).isEmpty)
+        #expect(ScoreTargets.newlyMet(from: after, to: after).isEmpty)
+    }
+
     @Test("Points read to one place where a third of a part is not whole")
     func scorePoints() {
         #expect(ScorePoints.text(35) == "35")

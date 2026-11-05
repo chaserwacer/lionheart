@@ -290,7 +290,7 @@ private struct SessionOpening: View {
     var body: some View {
         let label = ThreadTranscript.openingLabel(at, now: Date())
         Text(label)
-            .font(.caption)
+            .font(.meta)
             .foregroundStyle(Color(.secondaryLabel))
             .frame(maxWidth: .infinity)
             .padding(.top, 6)
