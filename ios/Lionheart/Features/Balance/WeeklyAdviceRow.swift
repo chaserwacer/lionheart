@@ -21,19 +21,17 @@ struct WeeklyAdviceRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         } label: {
-            Label {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("This week")
-                        .font(.meta)
-                        .foregroundStyle(Color(.secondaryLabel))
-                    Text(advice.headline)
-                        .font(.headline)
-                        .foregroundStyle(Tokens.accent)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            } icon: {
-                Image(systemName: symbol)
+            // The symbol rides on the small label rather than beside the headline, so at the
+            // accessibility sizes the headline keeps the row's whole width.
+            VStack(alignment: .leading, spacing: 1) {
+                Label("This week", systemImage: symbol)
+                    .font(.meta)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .labelStyle(AdviceLabelStyle())
+                Text(advice.headline)
+                    .font(.headline)
                     .foregroundStyle(Tokens.accent)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("This week's advice")
@@ -41,6 +39,16 @@ struct WeeklyAdviceRow: View {
             .accessibilityHint(advice.reasons.isEmpty ? "" : "Shows why")
         }
         .tint(Color(.secondaryLabel))
+    }
+
+    /// The symbol in Brick beside the label's words.
+    private struct AdviceLabelStyle: LabelStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            HStack(spacing: 6) {
+                configuration.icon.foregroundStyle(Tokens.accent)
+                configuration.title
+            }
+        }
     }
 
     private var symbol: String {

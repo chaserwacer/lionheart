@@ -72,6 +72,8 @@ struct TrainingScoreHero: View {
                 : AnyLayout(HStackLayout(alignment: .lastTextBaseline, spacing: 12))
             layout {
                 HStack(alignment: .lastTextBaseline, spacing: 20) {
+                    // Ahead of the trend beside it: with the adjusted figure shown as well, the
+                    // figures would otherwise be the ones squeezed to an ellipsis.
                     HeroFigure(
                         label: "Score", figure: "\(score.value)", unit: "of \(score.outOf)",
                         value: Double(score.value))
@@ -83,6 +85,7 @@ struct TrainingScoreHero: View {
                             value: Double(adjusted.value))
                     }
                 }
+                .layoutPriority(1)
                 if !stacked { Spacer(minLength: 0) }
                 if let trend = ScoreTrend.of(weeks) {
                     VStack(alignment: stacked ? .leading : .trailing, spacing: 1) {

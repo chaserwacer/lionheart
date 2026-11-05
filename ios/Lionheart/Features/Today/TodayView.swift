@@ -84,7 +84,8 @@ struct TodayView: View {
                 async let today: Void = store.refresh()
                 async let movement: Void = habits.loadDay(day)
                 async let going: Void = goingIn.refresh()
-                _ = await (today, movement, going)
+                async let week: Void = balance.refresh()
+                _ = await (today, movement, going, week)
             }
             .navigationDestination(for: Route.self) { route in
                 destination(for: route)
