@@ -10,7 +10,10 @@ namespace lionheart.Tests.Support;
 /// </summary>
 public static class ResultAssert
 {
-    public static T Succeeded<T>(Result<T, Problem> result) =>
+    public static T Succeeded<T>(Result<T, Problem> result) => Succeeded<T, Problem>(result);
+
+    /// <summary>For a layer below the problem vocabulary, whose refusals are its own words.</summary>
+    public static T Succeeded<T, TProblem>(Result<T, TProblem> result) =>
         result.Match(
             value => value,
             problem => throw new XunitException($"Expected success, but the result refused: {problem}"));

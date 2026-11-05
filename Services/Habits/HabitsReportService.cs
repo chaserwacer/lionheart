@@ -142,6 +142,8 @@ public sealed class HabitsReportService : IHabitsReportService
                 EnduranceActivity.Hike => "hike",
                 EnduranceActivity.Walk => "walk",
                 EnduranceActivity.IndoorRun => "indoorRun",
+                EnduranceActivity.EBikeRide => "eBikeRide",
+                EnduranceActivity.Paddle => "paddle",
                 _ => throw new System.Diagnostics.UnreachableException(),
             }
         : session.Sets.OfType<DistanceTimeSet>().Any() ? "distanceAndTime"

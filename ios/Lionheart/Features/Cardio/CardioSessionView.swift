@@ -40,7 +40,7 @@ struct CardioSessionView: View {
             return "Left out of the cardio figures and the score: \(CardioWords.verdict(declinedBecause)). \(CardioWords.evidenceRule)"
         }
         return switch session.source {
-        case .loggedSession(_, _, isRecorded: true, _): "Imported from Apple Health. The curve is the ring's series; the workout's own page has the recording app's."
+        case .loggedSession(_, _, isRecorded: true, _): "Imported with its recording. The curve is the ring's series; the workout's own page has the recording app's."
         case .loggedSession: "Logged in Tempo; heart rate from the ring over the same time."
         case .ringWorkout(_, _, _, .detected): "Detected by the ring and counted because its heart rate showed training."
         case .ringWorkout(_, _, _, .entered): "Entered on the ring."

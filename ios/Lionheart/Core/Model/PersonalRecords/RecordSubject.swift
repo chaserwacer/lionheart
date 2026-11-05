@@ -72,13 +72,14 @@ extension SetCommand {
 
 extension EnduranceActivity {
     /// The subject a set of this activity competes on: a ride on riding, a hike on hiking. Indoors
-    /// the distance is the machine's estimate, and a walk is movement rather than an effort to rank,
-    /// so neither competes — the server's `RecordCandidates` rule.
+    /// the distance is the machine's estimate, an e-bike's is partly the motor's and a paddle's the
+    /// water's, and a walk is movement rather than an effort to rank, so none of them competes — the
+    /// server's `RecordCandidates` rule.
     var recordSubject: RecordSubject? {
         switch self {
         case .ride: .riding
         case .hike: .hiking
-        case .indoorRide, .walk, .indoorRun, .unrecognised: nil
+        case .indoorRide, .walk, .indoorRun, .eBikeRide, .paddle, .unrecognised: nil
         }
     }
 }

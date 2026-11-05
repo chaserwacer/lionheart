@@ -58,6 +58,18 @@ public class HealthWireTests
     }
 
     [Fact]
+    public void A_session_from_the_Strava_archive_goes_out_naming_its_activity()
+    {
+        var session = Some.CompletedSession(Guid.NewGuid()) with { Source = new SessionSource.StravaArchive(9_876_543_210) };
+
+        var source = JsonDocument.Parse(JsonSerializer.Serialize(TrainingSessionView.Of(session), Wire)).RootElement
+            .GetProperty("source");
+
+        Assert.Equal("stravaArchive", source.GetProperty("$type").GetString());
+        Assert.Equal(9_876_543_210, source.GetProperty("activityId").GetInt64());
+    }
+
+    [Fact]
     public void A_session_from_the_athletes_log_says_so()
     {
         var source = JsonDocument.Parse(JsonSerializer.Serialize(TrainingSessionView.Of(Some.CompletedSession(Guid.NewGuid())), Wire))

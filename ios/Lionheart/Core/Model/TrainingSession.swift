@@ -112,6 +112,18 @@ enum TrainingSession: Equatable, Sendable, Identifiable {
         case .planned, .skipped, .unrecognised: []
         }
     }
+
+    /// Whether a recorded workout's page stands behind the session: a device's recording of
+    /// something measured by distance. An archived gym session is imported but has no page —
+    /// Strava kept no route for it — and the server's `RecordedWorkoutService` refuses one.
+    var opensRecording: Bool {
+        envelope.source.isRecorded && sets.contains { entry in
+            switch entry {
+            case .trailRun, .endurance: true
+            case .lift, .distanceTime, .freeform, .unrecognised: false
+            }
+        }
+    }
 }
 
 extension TrainingSession: Decodable {

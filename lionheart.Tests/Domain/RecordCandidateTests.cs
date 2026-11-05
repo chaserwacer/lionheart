@@ -278,7 +278,9 @@ public class RecordCandidateTests
     [InlineData(EnduranceActivity.IndoorRide)]
     [InlineData(EnduranceActivity.IndoorRun)]
     [InlineData(EnduranceActivity.Walk)]
-    public void An_indoor_ride_or_run_and_a_walk_claim_nothing(EnduranceActivity activity) =>
+    [InlineData(EnduranceActivity.EBikeRide)]
+    [InlineData(EnduranceActivity.Paddle)]
+    public void An_indoor_ride_or_run_a_walk_an_e_bike_ride_and_a_paddle_claim_nothing(EnduranceActivity activity) =>
         Assert.Empty(From(Endurance(activity, 10, TimeSpan.FromMinutes(40))));
 
     [Fact]

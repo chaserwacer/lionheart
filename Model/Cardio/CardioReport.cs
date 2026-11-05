@@ -78,15 +78,15 @@ public abstract record CardioSessionSource
     /// <summary>
     /// A completed Lionheart session carrying trail-run, endurance or distance-and-time sets. Where the ring
     /// saw the same session, this is the record kept: the athlete's own log names it and measures
-    /// it. Its heart rate is the recording app's where it was imported from Apple Health with one,
-    /// and the ring's over the same clock time otherwise.
+    /// it. Its heart rate is the recording app's where it was imported — from Apple Health or the
+    /// Strava archive — with one, and the ring's over the same clock time otherwise.
     /// </summary>
     /// <param name="IsRecorded">
-    /// Imported from Apple Health, so a route and the recording app's own figures stand behind it
+    /// Imported from Apple Health or the Strava archive, so a route and the recording app's own figures stand behind it
     /// (<c>GET /api/training/sessions/{id}/recording</c>).
     /// </param>
     /// <param name="Activity">
-    /// What an endurance session was — a ride, a hike, a walk, an indoor run — or absent for a trail
+    /// What an endurance session was — a ride, a hike, a walk, an indoor run, an e-bike ride, a paddle — or absent for a trail
     /// run or a distance-and-time session, which <paramref name="IsTrailRun"/> tells apart.
     /// </param>
     public sealed record LoggedSession(Guid TrainingSessionId, bool IsTrailRun, bool IsRecorded, EnduranceActivity? Activity = null)
@@ -100,8 +100,11 @@ public enum HeartRateSource
     /// <summary>The ring's all-day series over the session's clock time.</summary>
     [JsonStringEnumMemberName("ring")] Ring,
 
-    /// <summary>The samples the app that recorded the workout wrote to Apple Health.</summary>
-    [JsonStringEnumMemberName("appleHealth")] AppleHealth,
+    /// <summary>
+    /// The samples the app that recorded the workout wrote — through Apple Health, or in the Strava
+    /// archive. The wire keeps the name it had when Health was the only way they arrived.
+    /// </summary>
+    [JsonStringEnumMemberName("appleHealth")] RecordingApp,
 }
 
 /// <summary>What the heart rate held across a session — the recording app's, or the ring's all-day series.</summary>

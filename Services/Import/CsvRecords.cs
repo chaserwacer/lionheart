@@ -1,15 +1,15 @@
 using System.Text;
 using lionheart.Functional;
 
-namespace lionheart.Services.Strong;
+namespace lionheart.Services.Import;
 
 /// <summary>One record of a CSV file and the line it starts on.</summary>
 internal sealed record CsvRecord(int Line, IReadOnlyList<string> Fields);
 
 /// <summary>
-/// Splits CSV text into records, the way RFC 4180 and Strong's export write it: comma-separated,
-/// a field in double quotes may hold commas and line breaks, and a doubled quote inside one is a
-/// quote.
+/// Splits CSV text into records, the way RFC 4180, Strong's export and Strava's archive write it:
+/// comma-separated, a field in double quotes may hold commas and line breaks, and a doubled quote
+/// inside one is a quote.
 /// </summary>
 /// <remarks>
 /// Written here rather than taken from the framework because the line a record starts on is how a
@@ -20,7 +20,7 @@ internal sealed record CsvRecord(int Line, IReadOnlyList<string> Fields);
 /// </remarks>
 internal static class CsvRecords
 {
-    public static IEnumerable<Result<CsvRecord, StrongExportDefect>> Read(string text)
+    public static IEnumerable<Result<CsvRecord, LineDefect>> Read(string text)
     {
         var fields = new List<string>();
         var field = new StringBuilder();
@@ -80,22 +80,22 @@ internal static class CsvRecords
 
         if (quoted)
         {
-            yield return Result<CsvRecord, StrongExportDefect>.Failure(
-                new StrongExportDefect(start, "opens a quote that is never closed"));
+            yield return Result<CsvRecord, LineDefect>.Failure(
+                new LineDefect(start, "opens a quote that is never closed"));
         }
         else if (begun || field.Length > 0)
         {
             yield return Ended();
         }
 
-        Result<CsvRecord, StrongExportDefect> Ended()
+        Result<CsvRecord, LineDefect> Ended()
         {
             fields.Add(field.ToString());
             var record = new CsvRecord(start, [.. fields]);
             fields.Clear();
             field.Clear();
             begun = false;
-            return Result<CsvRecord, StrongExportDefect>.Success(record);
+            return Result<CsvRecord, LineDefect>.Success(record);
         }
     }
 }

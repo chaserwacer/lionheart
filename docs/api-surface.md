@@ -57,9 +57,11 @@ routine deleted meanwhile still happened, and must land. A planned session is ad
 transition carries the origin over. Deleting a routine leaves its sessions naming it.
 
 **Session source.** Every session view carries `source`: `$type` `athleteLog` (entered in Lionheart,
-or imported from the athlete's own logs) or `appleHealth` with `workoutId` (the workout's Health
-UUID) and `recordedBy` (`name`, `bundleId` — the app that wrote it to Health). The server sets it;
-no request states it.
+or imported from the athlete's own logs), `appleHealth` with `workoutId` (the workout's Health
+UUID) and `recordedBy` (`name`, `bundleId` — the app that wrote it to Health), or `stravaArchive`
+with `activityId` (Strava's id, a 64-bit integer — imported from the athlete's Strava archive by
+`import-strava`). The server sets it; no request states it. An endurance set's `activity` is one of
+`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`, `eBikeRide`, `paddle`.
 
 **Set kind.** A lift set carries `kind` (int): `0` working, `1` warm-up, `2` drop, `3` failure. A lift
 sent without one is a working set, and a stored lift written before sets had a kind reads as one.
@@ -586,12 +588,13 @@ rate synced), `excluded` (ring workouts left out, counted by `category` — `end
 in the range that needed its heart rate to show training and did not, with that heart rate; the
 chat tool gets the counts only). A `ringWorkout` source carries `entry`: `entered` (the athlete's
 own, taken at its name) or `detected` (the ring's guess, here because its heart rate showed
-training). A `loggedSession` source carries `isRecorded` — imported from Apple Health, so
-`GET /api/training/sessions/{id}/recording` has its route — and `activity` for an endurance session
-(`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`; null for a trail run or a distance-and-time
-session, which `isTrailRun` tells apart); a `recorded` heart rate carries
-`source`: `ring` (the all-day series over the session's clock time) or `appleHealth` (the recording
-app's own samples, read ahead of the ring's for an imported run) and `bouts` (`WorkBout { start,
+training). A `loggedSession` source carries `isRecorded` — imported from Apple Health or the Strava
+archive, so `GET /api/training/sessions/{id}/recording` has its route — and `activity` for an
+endurance session (`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`, `eBikeRide`, `paddle`; null for
+a trail run or a distance-and-time session, which `isTrailRun` tells apart); a `recorded` heart rate
+carries `source`: `ring` (the all-day series over the session's clock time) or `appleHealth` (the
+recording app's own samples, read ahead of the ring's for an imported run — through Health or from
+the Strava archive; the name is the one it had when Health was the only way) and `bouts` (`WorkBout { start,
 minutes, averageBpm }`, the stretches held at zone 4 or above). Every session carries `modality`
 (`endurance`, `onFoot`, `game`, `unnamed`) and `qualityMinutes`, the minutes of its bouts the score
 credits.
@@ -625,8 +628,10 @@ is withdrawn, since placing it would replay the records. The same workout import
 at once answers `alreadyImported` to the second.
 
 `GET /api/training/sessions/{id}/recording` answers `RecordedWorkoutView` for a session imported
-from Health, and 404 for any other: `activity` (`run`, `ride`, `indoorRide`, `hike`, `walk`,
-`indoorRun`), `recordedBy`, `start`, `end`, the session's `distanceMeters`,
+from Health or the Strava archive with a recording, and 404 for any other (an archived gym session
+has none): `activity` (`run`, `ride`, `indoorRide`, `hike`, `walk`, `indoorRun`, `eBikeRide`,
+`paddle`), `source` (the session's own `source`, above — `appleHealth` naming the app that
+recorded it, or `stravaArchive`), `start`, `end`, the session's `distanceMeters`,
 `duration` and `climbMeters`; `movingTime`, `descentMeters` from the route (null without one, and
 `movingTime` null where the route's fixes do not span half the workout); `pace` and `movingPace` per
 kilometre; `heartRate` (the cardio report's `SessionHeartRate`, its `source` included),

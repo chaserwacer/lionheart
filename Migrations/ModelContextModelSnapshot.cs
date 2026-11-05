@@ -1364,6 +1364,19 @@ namespace lionheart.Migrations
                     b.ToTable("Routines", (string)null);
                 });
 
+            modelBuilder.Entity("lionheart.Model.Training.Sessions.DeletedStravaActivity", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ActivityId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("UserId", "ActivityId");
+
+                    b.ToTable("DeletedStravaActivities", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Training.Sessions.TrainingSession", b =>
                 {
                     b.Property<Guid>("TrainingSessionId")
@@ -2002,6 +2015,15 @@ namespace lionheart.Migrations
                 });
 
             modelBuilder.Entity("lionheart.Model.Training.Routines.Routine", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Training.Sessions.DeletedStravaActivity", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany()

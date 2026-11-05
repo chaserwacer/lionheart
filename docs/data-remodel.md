@@ -744,6 +744,83 @@ survive a no-op. Against the athlete's database copy of 2026-11-03 it reported a
 unchanged; after the import, 3,674 records, of which 3,158 were unchanged, 74 restated behind a 2023
 predecessor, 208 dropped and 442 new.
 
+### ✅ Strava archive import
+
+`dotnet run -- import-strava <strava-export-folder> --user <athlete-guid>` (`Services/Strava/`),
+packaged like the other history imports. The folder is the one Strava's "Download your data"
+archive unzips to; the import reads `activities.csv` and the files under `activities/` in place and
+nothing else — followers, messages, clubs, media and the rest are account data, not training. Gear,
+routes, segments and goals are left out too: nothing in the app reads them.
+
+Strava sent most of the athlete's runs to Apple Health, which the Health import already took. The
+archive is the rest — years of rides and runs from before Strava wrote to Health, the activities it
+never sent — and the routes Strava did not write there.
+
+- **What each activity becomes** (`StravaActivityKinds`). A run or trail run is a `TrailRunSet`; a
+  ride, mountain-bike or gravel ride a `ride`; a virtual ride or run an indoor ride or run; a hike or
+  walk its own activity; an e-bike ride `eBikeRide` and a kayak, canoe or paddle-board outing
+  `paddle` — two `EnduranceActivity` cases added for what the model had no case for, both competing
+  on no record (the motor covered part of an e-bike's distance, the water part of a boat's). Weight
+  training, whose sets Strava never knew, is a session of one `FreeformSet` saying what it was and
+  how long, its heart-rate average and peak in the notes; it has no recording, and the phone shows no
+  run page for it. Any other type is left out and counted by name.
+- **Measured as Health measures.** Strava's distance (the metres column; Strava writes some
+  columns twice), its moving time as the set's duration, its climb, else the route's, the athlete's
+  perceived exertion as the set's RPE; the period runs from the start for the elapsed time, as
+  Strava's own workout in Health does. Strava writes UTC, so a session is placed on its day in the
+  machine's zone as it applied on that date, and the run prints the zone. A name the athlete gave
+  (not Strava's "Morning Run"), the description and the private note go into the notes.
+- **Recording.** The activity's GPX (track points, elevation, a Garmin extension's heart rate,
+  cadence, power) or FIT file (`FitRecords`: the `record` message's time, position, altitude,
+  heart rate, cadence, power and speed), gzipped or not, becomes a `WorkoutRecording` held and
+  read exactly as a Health workout's — the recorded workout page, the cardio report, the chat
+  summary all read it. FIT is read by a small reader of one message rather than Garmin's SDK, a
+  generated profile of all of FIT for eight fields. A file that cannot be read is named in the
+  report and its activity decided on the summary row alone.
+- **Counted once** (`StravaActivityDecisions`). An activity lying at least half inside a session
+  the log holds is that session, by `SessionMatching` — Strava's copy in Health, the same workout a
+  watch or Garmin recorded, a logged lifting session for weight training — and activities are
+  decided oldest first against the log as this run grows it, so one Strava holds twice is taken once.
+  `SessionMatching` gained one case for the archive: a workout of no length, which Strava writes for
+  an activity whose clock it lost, lies inside a session when its moment does. An activity added
+  beside a held session it overlaps by less than half is listed in the report, since the athlete may
+  know they were one.
+- **Enriching what is held.** A held session's recording takes the archive's route, heart rate or
+  metrics only where it holds none of that part (`WorkoutRecording.Fill`); nothing held is
+  replaced. A session logged by hand has no recording and is left alone. Routes Strava wrote to
+  Health have no clock — every fix is stamped when Strava wrote it — so they give no moving time or
+  splits; the archive's route of the same activity has one. Those are kept as held and counted in
+  the report: replacing them is the athlete's decision.
+- **Re-runnable, and deletion stands.** A session's id is a v5 UUID of the athlete and the activity
+  id, so a second run adds nothing and fills nothing it filled before. Deleting an archived session
+  removes its recording and remembers the activity (`DeletedStravaActivities`, migration
+  `StravaArchiveImport`), so a later archive does not bring it back. Only a session the import made
+  is remembered that way: delete a session an activity *matched* — its Health copy, a run logged by
+  hand, or the import's session for the other copy of an activity uploaded twice — and the next run
+  adds the archive's copy as a session of its own. A deleted Health workout carries no time, so the
+  archive cannot recognise one either; the run says how many deleted Health workouts there are to
+  check.
+- **Limits of the shared rule, left as they are.** A held session lying wholly inside a longer
+  activity, but covering less than half of it, is not the same session, so both stand; the report
+  lists each such pair. A session with a moment rather than a span (the coached sheets' noon
+  sessions) matches nothing, as for the Health import. The Health import's rule that a ride or hike
+  replaces an imported walk it lies inside is not applied: the archive's hike matches the walk and
+  fills its recording (no activity in the athlete's archive is such a case). A part filled into a
+  Health session's recording is labelled as that session's, "via Apple Health".
+- **Records rebuilt**, as the coached-sheet import does: the archive reaches back a decade, so the
+  run replays every completed session through the detector in its transaction, and refuses while a
+  record is withdrawn. A run that adds nothing leaves the records alone. Sessions, recordings, fills
+  and records commit together.
+
+**Running it.** Apply the migration first (`dotnet ef database update`), from the checkout whose
+`Data/lionheart.db` is meant. **Against a worktree copy of the athlete's database (2026-11-04)**:
+283 activities; 134 added (85 rides, 25 runs, 21 weight-training sessions, 2 e-bike rides, a paddle),
+149 already held — all 136 of the Health import's Strava sessions among them, one matched by two
+activities that are the same ride uploaded twice — 66 held recordings
+filled (62 routes, 2 heart rates, 2 metrics), 48 clockless Health routes kept, no file unreadable, and
+two added activities partly overlapping a held one. Records went from 3,926 to 4,034, all on trail
+running and riding. A second run added and filled nothing.
+
 ### ✅ Logging round — set kinds, routines, previous performances, bodyweight, movement setup
 
 Backend half of the native logging round; the wire is in `docs/api-surface.md`.

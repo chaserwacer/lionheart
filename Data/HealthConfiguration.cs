@@ -10,9 +10,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace lionheart.Data;
 
 /// <summary>
-/// EF mapping for what Apple Health brings: the recording app's route, heart rate and other metrics
-/// beside the sessions its workouts become, the workouts whose sessions were deleted, and the days of
-/// figures Apple's devices measured.
+/// EF mapping for what Apple Health and the Strava archive bring: the recording app's route, heart
+/// rate and other metrics beside the sessions its workouts become, the workouts and activities whose
+/// sessions were deleted, and the days of figures Apple's devices measured.
 /// </summary>
 /// <remarks>
 /// <b>Stored column by column, not fix by fix.</b> A route is read and written whole and an hour of
@@ -48,6 +48,13 @@ public static class HealthConfiguration
         {
             deleted.ToTable("DeletedHealthWorkouts");
             deleted.HasKey(d => new { d.UserId, d.WorkoutId });
+            deleted.HasOne<LionheartUser>().WithMany().HasForeignKey(d => d.UserId);
+        });
+
+        modelBuilder.Entity<Model.Training.Sessions.DeletedStravaActivity>(deleted =>
+        {
+            deleted.ToTable("DeletedStravaActivities");
+            deleted.HasKey(d => new { d.UserId, d.ActivityId });
             deleted.HasOne<LionheartUser>().WithMany().HasForeignKey(d => d.UserId);
         });
 

@@ -3,7 +3,8 @@ using lionheart.Model.Oura.Readings;
 namespace lionheart.Model.Health;
 
 /// <summary>
-/// The heart rate the app that recorded a workout wrote to Apple Health across it, oldest first.
+/// The heart rate the app that recorded a workout wrote across it — to Apple Health, or in the
+/// Strava archive — oldest first.
 /// </summary>
 /// <remarks>
 /// Read as the athlete's heart rate for that workout ahead of the ring's all-day series, since it
@@ -22,7 +23,13 @@ public sealed record RecordedHeartRate(IReadOnlyList<HeartRateSample> Samples)
 
     public IReadOnlyList<HeartRateSample> Samples { get; init; } = Require.Present(Samples, nameof(Samples));
 
+    /// <summary>Above any human heart rate, so a reading past it is a sensor's mistake.</summary>
+    private const int Highest = 260;
+
     public static RecordedHeartRate None { get; } = new([]);
+
+    /// <summary>Whether a reading can be a heart rate: a sensor's zero or a unit slip cannot.</summary>
+    public static bool Admits(int bpm) => bpm is > 0 and <= Highest;
 
     public bool IsRecorded => Samples.Count > 0;
 

@@ -122,14 +122,14 @@ public sealed class CardioReportService : ICardioReportService
     }
 
     /// <summary>
-    /// The recording app's heart rate for each logged session imported from Apple Health — the
-    /// trace alone, so a year of runs does not read a year of routes.
+    /// The recording app's heart rate for each recorded session — imported from Apple Health or the
+    /// Strava archive — the trace alone, so a year of runs does not read a year of routes.
     /// </summary>
     private async Task<IReadOnlyDictionary<Guid, RecordedHeartRate>> RecordedHeartRateAsync(
         IEnumerable<CompletedTrainingSession> logged, CancellationToken ct)
     {
         var imported = logged
-            .Where(session => session.Source is SessionSource.AppleHealth)
+            .Where(session => session.Source.IsRecording)
             .Select(session => session.TrainingSessionId)
             .ToList();
 

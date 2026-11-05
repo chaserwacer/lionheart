@@ -1,7 +1,7 @@
 import Foundation
 
-/// A workout imported from Apple Health — a run, a ride, a hike, a walk — read for its own page
-/// (`GET /api/training/sessions/{id}/recording`).
+/// A recorded workout — a run, a ride, a hike, a walk, imported from Apple Health or the Strava
+/// archive — read for its own page (`GET /api/training/sessions/{id}/recording`).
 ///
 /// Every figure is the server's: the distance, time and climb are the session's own set, and the
 /// splits, moving time and descent are derived from the route there, so the page, the records and
@@ -10,8 +10,8 @@ import Foundation
 struct RecordedWorkout: Equatable, Sendable {
     let trainingSessionId: UUID
     let activity: RecordedActivity
-    /// The app that wrote the run to Health, as Health names it.
-    let recordedBy: String
+    /// Where it was imported from, and who recorded it.
+    let source: SessionSource
     let start: Date
     let end: Date
     let distanceMeters: Double
@@ -43,6 +43,9 @@ struct RecordedWorkout: Equatable, Sendable {
     }
 
     var elapsed: TimeInterval { end.timeIntervalSince(start) }
+
+    /// The app that recorded it, as the page names it; empty where the source does not say.
+    var recordedBy: String { source.recordedBy ?? "" }
 }
 
 /// What a recorded workout is: a run along a route, or an endurance activity.
@@ -179,11 +182,10 @@ extension RecordedWorkout: Decodable {
             throw DecodingError.dataCorrupted(.init(
                 codingPath: decoder.codingPath, debugDescription: "A workout needs its session and its clock time."))
         }
-        let recordedBy = container.lenient(Named.self, "recordedBy")
         self.init(
             trainingSessionId: id,
             activity: RecordedActivity(wire: container.lenient(String.self, "activity")),
-            recordedBy: recordedBy?.name ?? "",
+            source: container.lenient(SessionSource.self, "source") ?? .unrecognised(""),
             start: start,
             end: end,
             distanceMeters: container.lenient("distanceMeters", or: 0),
@@ -200,10 +202,6 @@ extension RecordedWorkout: Decodable {
             miles: container.lenientList(WorkoutSplit.self, "miles"),
             route: container.lenientList(RouteCoordinate.self, "route"),
             metrics: container.lenientList(MetricReadout.self, "metrics"))
-    }
-
-    private struct Named: Decodable {
-        let name: String
     }
 }
 

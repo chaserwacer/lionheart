@@ -86,7 +86,7 @@ public class QualityWorkTests
     private static readonly CardioSessionSource Run = new CardioSessionSource.LoggedSession(Guid.NewGuid(), true, true);
 
     private static SessionHeartRate Recorded(params WorkBout[] bouts) =>
-        new SessionHeartRate.Recorded(150, 180, 1, ZoneMinutes.None, HeartRateSource.AppleHealth) { Bouts = bouts };
+        new SessionHeartRate.Recorded(150, 180, 1, ZoneMinutes.None, HeartRateSource.RecordingApp) { Bouts = bouts };
 
     private static IReadOnlyList<WorkBout> Bouts(IReadOnlyList<HeartRateSample> samples) =>
         WorkBouts.Of(samples, samples[^1].At.AddSeconds(5), Maximum);

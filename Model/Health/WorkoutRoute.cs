@@ -1,9 +1,31 @@
+using lionheart.Functional;
+
 namespace lionheart.Model.Health;
 
 /// <summary>One fix of a recorded route: when, where, and how high where the device knew.</summary>
 /// <param name="Altitude">Metres above sea level, or absent where the fix carried no valid altitude.</param>
 public sealed record RoutePoint(DateTimeOffset At, double Latitude, double Longitude, double? Altitude)
 {
+    /// <summary>
+    /// A millionth of a degree, about 11 cm — finer than any phone's fix, and what keeps a stored
+    /// coordinate to ten characters rather than seventeen.
+    /// </summary>
+    private const int CoordinateDecimals = 6;
+
+    /// <summary>A tenth of a metre, finer than the altitude a phone reports.</summary>
+    private const int AltitudeDecimals = 1;
+
+    /// <summary>A fix as a device stated it, kept to the precision a fix has, or why it is no place on Earth.</summary>
+    public static Result<RoutePoint, string> Fix(DateTimeOffset at, double latitude, double longitude, double? altitude) =>
+        latitude is >= -90 and <= 90 && longitude is >= -180 and <= 180
+        && (altitude is null || double.IsFinite(altitude.Value))
+            ? Result<RoutePoint, string>.Success(new RoutePoint(
+                at,
+                Math.Round(latitude, CoordinateDecimals),
+                Math.Round(longitude, CoordinateDecimals),
+                altitude is { } metres ? Math.Round(metres, AltitudeDecimals) : null))
+            : Result<RoutePoint, string>.Failure($"The fix at {at:O} is not a place on Earth.");
+
     public DateTimeOffset At { get; init; } = At;
 
     public double Latitude { get; init; } = Latitude is >= -90 and <= 90
@@ -18,7 +40,8 @@ public sealed record RoutePoint(DateTimeOffset At, double Latitude, double Longi
 }
 
 /// <summary>
-/// The path a workout took, oldest fix first, as the app that recorded it wrote it to Apple Health.
+/// The path a workout took, oldest fix first, as the app that recorded it wrote it — to Apple Health,
+/// or in the Strava archive.
 /// </summary>
 /// <remarks>
 /// <b>This is the athlete's precise location</b> — a run that starts at his door says where he

@@ -84,7 +84,7 @@ struct RecordedWorkoutView: View {
                     .foregroundStyle(Color(.secondaryLabel))
             }
         } footer: {
-            Text("Recorded by \(run.recordedBy.nonEmpty ?? "an app") and imported from Apple Health, \(run.start.formatted(date: .omitted, time: .shortened))–\(run.end.formatted(date: .omitted, time: .shortened)).\(run.route.count >= 2 ? " The route is kept on this phone and your server only; the chat model is given the figures, never the route." : "")")
+            Text("Recorded by \(run.recordedBy.nonEmpty ?? "an app") and imported from \(run.source.importedFrom ?? "elsewhere"), \(run.start.formatted(date: .omitted, time: .shortened))–\(run.end.formatted(date: .omitted, time: .shortened)).\(run.route.count >= 2 ? " The route is kept on this phone and your server only; the chat model is given the figures, never the route." : "")")
         }
     }
 
@@ -238,7 +238,7 @@ struct RecordedWorkoutView: View {
                     samples: run.trace.samples, maxHeartRate: run.maxHeartRate, start: run.start, end: run.end)
                     .accessibilityLabel("Heart rate across the \(noun(run))")
             } else {
-                Text("No heart rate for this \(noun(run)): \(run.recordedBy.nonEmpty ?? "the app") wrote none to Health, and the ring's series has none over the same time.")
+                Text("No heart rate for this \(noun(run)): \(run.recordedBy.nonEmpty ?? "the app") recorded none, and the ring's series has none over the same time.")
                     .foregroundStyle(Color(.secondaryLabel))
             }
         } header: {
@@ -252,10 +252,10 @@ struct RecordedWorkoutView: View {
 
     private func heartRateSource(_ run: RecordedWorkout) -> String {
         switch run.trace.source {
-        case .appleHealth:
-            "From \(run.recordedBy.nonEmpty ?? "the recording app") via Apple Health. Bands are the five zones."
+        case .recordingApp:
+            "From \(run.recordedBy.nonEmpty ?? "the recording app") via \(run.source.importedFrom ?? "its import"). Bands are the five zones."
         case .ring:
-            "From the Oura ring's all-day series over the same time: \(run.recordedBy.nonEmpty ?? "the recording app") wrote no heart rate to Health. Bands are the five zones."
+            "From the Oura ring's all-day series over the same time: \(run.recordedBy.nonEmpty ?? "the recording app") recorded no heart rate. Bands are the five zones."
         case .unrecognised:
             "Bands are the five zones."
         }

@@ -117,8 +117,9 @@ public static class RecordCandidates
 
     /// <summary>
     /// A ride or a hike competes on its own subject, as a trail run does on trail running. An indoor
-    /// ride or run has the machine's distance rather than ground covered, and a walk is movement
-    /// rather than an effort to rank, so neither raises a candidate.
+    /// ride or run has the machine's distance rather than ground covered, an e-bike's is partly the
+    /// motor's, a paddle's partly the water's, and a walk is movement rather than an effort to rank,
+    /// so none of them raises a candidate.
     /// </summary>
     private static IEnumerable<RecordCandidate> FromEndurance(IEnumerable<SetEntry> sets) =>
         from set in sets.OfType<EnduranceSet>()
@@ -134,7 +135,8 @@ public static class RecordCandidates
     {
         EnduranceActivity.Ride => new RecordSubject.Riding(),
         EnduranceActivity.Hike => new RecordSubject.Hiking(),
-        EnduranceActivity.IndoorRide or EnduranceActivity.IndoorRun or EnduranceActivity.Walk => null,
+        EnduranceActivity.IndoorRide or EnduranceActivity.IndoorRun or EnduranceActivity.Walk
+            or EnduranceActivity.EBikeRide or EnduranceActivity.Paddle => null,
         _ => throw new System.Diagnostics.UnreachableException(),
     };
 

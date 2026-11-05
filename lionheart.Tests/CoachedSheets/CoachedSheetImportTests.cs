@@ -6,6 +6,7 @@ using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.CoachedSheets;
 using lionheart.Services.Import;
+using lionheart.Services.Training.PersonalRecords;
 using lionheart.Tests.Persistence;
 using lionheart.Tests.Support;
 using Microsoft.EntityFrameworkCore;

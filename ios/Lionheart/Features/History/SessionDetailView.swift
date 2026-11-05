@@ -137,21 +137,22 @@ struct SessionDetailView: View {
         }
     }
 
-    /// A workout imported from Apple Health opens onto its own page: the route, the splits, the
-    /// recording app's heart rate and whatever else it measured.
+    /// A workout imported from Apple Health or the Strava archive opens onto its own page: the
+    /// route, the splits, the recording app's heart rate and whatever else it measured. An archived
+    /// gym session has no page, and says only where it came from.
     @ViewBuilder
     private var recordingSection: some View {
-        switch session.envelope.source {
-        case .appleHealth(_, let recordedBy):
+        let source = session.envelope.source
+        if let importedFrom = source.importedFrom {
             Section {
-                NavigationLink(value: HistoryRoute.run(session.id)) {
-                    Text("Splits, heart rate and route")
+                if session.opensRecording {
+                    NavigationLink(value: HistoryRoute.run(session.id)) {
+                        Text("Splits, heart rate and route")
+                    }
                 }
             } footer: {
-                Text("Recorded by \(recordedBy.nonEmpty ?? "an app") and imported from Apple Health.")
+                Text("Recorded by \(source.recordedBy ?? "an app") and imported from \(importedFrom).")
             }
-        case .athleteLog, .unrecognised:
-            EmptyView()
         }
     }
 

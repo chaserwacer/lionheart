@@ -1,7 +1,7 @@
 using lionheart.Functional;
-using lionheart.Services.Strong;
+using lionheart.Services.Import;
 
-namespace lionheart.Tests.Strong;
+namespace lionheart.Tests.Import;
 
 /// <summary>Splitting CSV into records, keeping the line each began on.</summary>
 public class CsvRecordsTests
@@ -35,6 +35,6 @@ public class CsvRecordsTests
 
     private static CsvRecord Single(string text) => ResultOf(Assert.Single(CsvRecords.Read(text)));
 
-    private static CsvRecord ResultOf(Result<CsvRecord, StrongExportDefect> result) =>
+    private static CsvRecord ResultOf(Result<CsvRecord, LineDefect> result) =>
         result.Match(record => record, defect => throw new Xunit.Sdk.XunitException($"line {defect.Line} {defect.Reason}"));
 }

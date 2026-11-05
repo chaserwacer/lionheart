@@ -86,6 +86,35 @@ struct HealthWireTests {
         #expect(session.envelope.source.isRecorded)
     }
 
+    @Test("A session from the Strava archive says so, with Strava's activity id")
+    func anArchivedSessionNamesItsActivity() throws {
+        let json = Session.completed().replacingOccurrences(
+            of: #""provenance":0,"#,
+            with: #""provenance":0,"source":{"$type":"stravaArchive","activityId":9876543210},"#)
+
+        let source = try Decoding.decode(TrainingSession.self, json).envelope.source
+
+        #expect(source == .stravaArchive(activityId: 9_876_543_210))
+        #expect(source.isRecorded)
+        #expect(source.recordedBy == "Strava")
+        #expect(source.importedFrom == "your Strava archive")
+    }
+
+    @Test("An archived run opens onto its recording, and an archived gym session, which has none, does not")
+    func onlyAMeasuredArchivedSessionOpensARecording() throws {
+        let source = #""provenance":0,"source":{"$type":"stravaArchive","activityId":77},"#
+        let run = Session.completed(sets: #"""
+            [{"$type":"trailRun","source":{"$type":"formed"},"facets":[],"distance":8.15,"unit":3,
+              "duration":"00:43:49","elevationGainMeters":207,"rpe":null}]
+            """#).replacingOccurrences(of: #""provenance":0,"#, with: source)
+        let gym = Session.completed(sets: #"""
+            [{"$type":"freeform","source":{"$type":"texted","rawText":"Weight training, 1:10:00, recorded in Strava"},"facets":[]}]
+            """#).replacingOccurrences(of: #""provenance":0,"#, with: source)
+
+        #expect(try Decoding.decode(TrainingSession.self, run).opensRecording)
+        #expect(try !Decoding.decode(TrainingSession.self, gym).opensRecording)
+    }
+
     @Test("A session with no source read is the athlete's own log")
     func noSourceIsTheAthletesLog() throws {
         #expect(try Decoding.decode(TrainingSession.self, Session.completed()).envelope.source == .athleteLog)
@@ -103,7 +132,7 @@ struct HealthWireTests {
 
         let id = try #require(UUID(uuidString: Session.id))
         #expect(session.source == .loggedSession(trainingSessionId: id, isTrailRun: true, isRecorded: true, activity: nil))
-        #expect(session.heartRate == .recorded(averageBpm: 152, peakBpm: 171, coverage: 1, zones: nil, source: .appleHealth))
+        #expect(session.heartRate == .recorded(averageBpm: 152, peakBpm: 171, coverage: 1, zones: nil, source: .recordingApp))
     }
 
     @Test("An imported ride in the cardio report names itself a ride")
@@ -141,9 +170,24 @@ struct HealthWireTests {
         #expect(run.kilometres.last?.distanceMeters == 500)
         #expect(run.miles.count == 2)
         #expect(run.kilometres.first?.averageBpm == 148)
-        #expect(run.trace.source == .appleHealth)
+        #expect(run.trace.source == .recordingApp)
         #expect(run.trace.samples.map(\.bpm) == [140, 150])
         #expect(run.route == [RouteCoordinate(latitude: 46.5, longitude: 8.25), RouteCoordinate(latitude: 46.51, longitude: 8.25)])
+    }
+
+    @Test("An e-bike ride from the Strava archive reads as recorded in Strava, as a speed, competing on nothing")
+    func anArchivedRideNamesStrava() throws {
+        let json = Self.runJSON.replacingOccurrences(
+            of: Self.healthSource,
+            with: #""source":{"$type":"stravaArchive","activityId":1234},"activity":"eBikeRide","#)
+
+        let ride = try Decoding.decode(RecordedWorkout.self, json)
+
+        #expect(ride.source == .stravaArchive(activityId: 1234))
+        #expect(ride.recordedBy == "Strava")
+        #expect(ride.activity == .endurance(.eBikeRide))
+        #expect(ride.activity.readsAsSpeed)
+        #expect(EnduranceActivity.eBikeRide.recordSubject == nil)
     }
 
     @Test("A run with no activity named is a run, and one with no metrics has none")
@@ -175,8 +219,11 @@ struct HealthWireTests {
         #expect(try Decoding.decode(RecordedWorkout.self, json).kilometres.map(\.number) == [1, 3])
     }
 
+    static let healthSource =
+        #""source":{"$type":"appleHealth","workoutId":"8D0C3A52-6C1E-4D7B-9A43-2F7D1E6B5C90","recordedBy":{"name":"Strava","bundleId":"com.strava.stravaride"}},"#
+
     static let runJSON = """
-        {"trainingSessionId":"\(Session.id)","recordedBy":{"name":"Strava","bundleId":"com.strava.stravaride"},
+        {"trainingSessionId":"\(Session.id)",\(healthSource)
          "start":"2026-09-20T07:00:00+02:00","end":"2026-09-20T07:30:00+02:00",
          "distanceMeters":2500,"duration":"00:29:40","movingTime":"00:29:10.5000000","pace":"00:11:52",
          "movingPace":"00:11:40.2000000","climbMeters":24,"descentMeters":21,
