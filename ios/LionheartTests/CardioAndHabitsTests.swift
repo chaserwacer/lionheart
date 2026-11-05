@@ -56,7 +56,7 @@ struct CardioAndHabitsTests {
             return CardioSession(
                 source: .loggedSession(trainingSessionId: try! #require(UUID(uuidString: id)), isTrailRun: true, isRecorded: true, activity: nil),
                 start: start, end: start.addingTimeInterval(30 * 60), distanceMeters: metres,
-                heartRate: .recorded(averageBpm: 150, peakBpm: 170, coverage: coverage, zones: nil, source: .appleHealth))
+                heartRate: .recorded(averageBpm: 150, peakBpm: 170, coverage: coverage, zones: nil, source: .recordingApp))
         }
         let base = try Decoding.decode(CardioReport.self, Self.cardioJSON)
         let report = CardioReport(

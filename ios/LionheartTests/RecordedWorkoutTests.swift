@@ -82,7 +82,7 @@ struct RecordedWorkoutTests {
 
     private static func workout(_ activity: RecordedActivity, metrics: [MetricReadout]) -> RecordedWorkout {
         RecordedWorkout(
-            trainingSessionId: UUID(), activity: activity, recordedBy: "An app", start: start, end: start.addingTimeInterval(3600),
+            trainingSessionId: UUID(), activity: activity, source: .appleHealth(workoutId: UUID(), recordedBy: "An app"), start: start, end: start.addingTimeInterval(3600),
             distanceMeters: 10_000, duration: 3600, movingTime: nil, pace: 360, movingPace: nil, climbMeters: 0,
             descentMeters: nil, heartRate: .notRecorded, maxHeartRate: nil,
             trace: HeartRateTrace(source: .ring, samples: []), kilometres: [], miles: [], route: [], metrics: metrics)

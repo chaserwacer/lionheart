@@ -95,7 +95,7 @@ struct SetCommandWireTests {
     @Test("An endurance set of an activity this build does not know cannot be stated back")
     func anUnknownActivityHasNoCommand() throws {
         let entry = try Decoding.decode(SetEntry.self, """
-            {"$type":"endurance","activity":"paddle","distance":5,"unit":3,"duration":"00:40:00",
+            {"$type":"endurance","activity":"skate","distance":5,"unit":3,"duration":"00:40:00",
              "elevationGainMeters":0,"rpe":null,"source":{"$type":"formed"},"facets":[]}
             """)
 
