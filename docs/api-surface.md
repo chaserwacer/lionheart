@@ -407,8 +407,8 @@ injuries, so the rating and what the chat says about today cannot disagree.
   each `{ day, totalSleepSeconds, efficiency, sleepScore? }` (Oura's sleep scores two to one; .20);
   `load { hardSets, highIntensityMinutes?, zoneTwoMinutes?, hardSetsLast7, hardSetsChronic, everyday }`
   (since the start of yesterday: 100 less 1.5 a hard set, 1 a minute at zone 4 or above, 0.15 a
-  minute of zone 2, 0.5 a minute of cardio with no heart rate to zone, 50 per unit the last seven
-  days' hard sets run above 1.3 times `hardSetsChronic` — the mean of the four seven-day blocks
+  minute of zone 2, 0.5 a minute of cardio with no heart rate to zone, 30 per unit the last seven
+  days' hard sets run above 1.45 times `hardSetsChronic` — the mean of the four seven-day blocks
   before them, 0 with none read — and 0.03 per MET-minute of everyday load yesterday and today
   over his usual high; not scored, and its minutes absent, when cardio could not be read; .15).
   `everyday` is yesterday's and today's `EverydayDay`, below; `wellness { today? }` with `{ overall, mood, energy,

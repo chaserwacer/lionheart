@@ -125,8 +125,8 @@ struct GoingInSheet: View {
         } footer: {
             Text("""
                 Since the start of yesterday: 100, less 1.5 a hard set, 1 a minute at zone 4 or above, \
-                0.15 a minute of zone 2 and 0.5 a minute of cardio with no heart rate to zone, 50 for each \
-                unit the last 7 days' hard sets run above 1.3 times the four weeks before them, and 0.03 a \
+                0.15 a minute of zone 2 and 0.5 a minute of cardio with no heart rate to zone, 30 for each \
+                unit the last 7 days' hard sets run above 1.45 times the four weeks before them, and 0.03 a \
                 MET-minute of everyday load — movement outside training — over the top of your ordinary \
                 days. Not scored when the cardio could not be read.
                 """)
