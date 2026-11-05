@@ -64,7 +64,7 @@ public sealed class TodayBriefingService(
                 new ToolInvocation("briefing", tool, JsonSerializer.Serialize(new { from = Iso(today), to = Iso(today) })),
                 user, allowedToolNames: null, ct)
             .MatchAsync(
-                outcome => outcome.Content is "null" ? string.Empty : outcome.Content,
+                answer => answer.Outcome.Content is "null" ? string.Empty : answer.Outcome.Content,
                 problem =>
                 {
                     _logger.LogWarning("The briefing could not read {Tool}: {Problem}", tool, problem.Description);

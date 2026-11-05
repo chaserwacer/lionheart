@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Identity;
 using Model.Chat.Completion;
 using Model.Chat.Tools;
 using Model.Tools;
+using lionheart.Model.Chat.Changes;
+using lionheart.Model.Chat.Tools;
 
 namespace Services.Chat
 {
@@ -75,15 +77,15 @@ namespace Services.Chat
                         ChatTurnRequest.Conversation(
                             exchange.SystemPrompt,
                             exchange.Messages,
-                            _toolRegistry.GetAllToolDefinitions(),
+                            _toolRegistry.ToolDefinitions(request.Tools),
                             request.MaxOutputTokens) with { Briefing = request.Briefing },
                         text => request.Observer.Observe(new ExchangeProgress.Wrote(text)),
                         cancellationToken)
-                    .BindAsync(turn => ActOnAsync(user, request.Observer, exchange, turn, cancellationToken));
+                    .BindAsync(turn => ActOnAsync(user, request, exchange, turn, cancellationToken));
 
         private async Task<Result<Loop<Exchange, ChatCompletionResponse>, Problem>> ActOnAsync(
             IdentityUser user,
-            IExchangeObserver observer,
+            ChatCompletionRequest request,
             Exchange exchange,
             ModelTurn turn,
             CancellationToken cancellationToken)
@@ -95,12 +97,12 @@ namespace Services.Chat
                         new Loop<Exchange, ChatCompletionResponse>.Done(exchange.Concluded(answered)));
 
                 case ModelTurn.RequestedTools requested:
-                    observer.Observe(new ExchangeProgress.Consulting(
+                    request.Observer.Observe(new ExchangeProgress.Consulting(
                         [.. requested.Calls.Select(call => call.ToolName).Distinct(StringComparer.Ordinal)]));
-                    var outcomes = await RunToolsAsync(user, requested, cancellationToken);
+                    var answers = await RunToolsAsync(user, request.Tools, requested, cancellationToken);
                     return Result<Loop<Exchange, ChatCompletionResponse>, Problem>.Success(
                         new Loop<Exchange, ChatCompletionResponse>.Continue(
-                            exchange.After(requested, outcomes)));
+                            exchange.After(requested, answers)));
 
                 default:
                     throw new UnreachableException();
@@ -112,23 +114,29 @@ namespace Services.Chat
         /// not end the exchange, it answers with its reason instead, which is the model's only cue
         /// to retry with different arguments or answer without it.
         /// </summary>
-        private async Task<IReadOnlyList<ToolOutcome>> RunToolsAsync(
+        /// <remarks>
+        /// A tool the exchange was not offered is refused here too, whatever the model asks for, so a
+        /// conversation with nowhere to show a proposal cannot be talked into making one.
+        /// </remarks>
+        private async Task<IReadOnlyList<ToolAnswer>> RunToolsAsync(
             IdentityUser user,
+            ToolAccess access,
             ModelTurn.RequestedTools requested,
             CancellationToken cancellationToken)
         {
-            var outcomes = new List<ToolOutcome>(requested.Calls.Count);
+            var allowed = _toolRegistry.ToolNames(access);
+            var answers = new List<ToolAnswer>(requested.Calls.Count);
 
             foreach (var call in requested.Calls)
             {
-                outcomes.Add(await _toolCallExecutor
-                    .ExecuteToolCallAsync(call, user, allowedToolNames: null, cancellationToken)
+                answers.Add(await _toolCallExecutor
+                    .ExecuteToolCallAsync(call, user, allowed, cancellationToken)
                     .MatchAsync(
-                        produced => produced,
-                        refused => ToolOutcome.Refused(call.CallId, DescribeToolFailure(refused))));
+                        answer => answer,
+                        refused => new ToolAnswer.Read(ToolOutcome.Refused(call.CallId, DescribeToolFailure(refused)))));
             }
 
-            return outcomes;
+            return answers;
         }
 
         /// <summary>
@@ -218,28 +226,31 @@ namespace Services.Chat
             string SystemPrompt,
             IReadOnlyList<ModelMessage> Messages,
             IReadOnlyList<LHChatMessage> Generated,
+            IReadOnlyList<ProposalDraft> Proposals,
             int Rounds)
         {
             public static Exchange Opening(Guid conversationId, ChatPrompt prompt) =>
-                new(conversationId, prompt.SystemPrompt, prompt.History, [], 0);
+                new(conversationId, prompt.SystemPrompt, prompt.History, [], [], 0);
 
             /// <summary>
             /// The next round's state: the model's request for tools and the results answering it
-            /// are appended to the conversation, and the results alone are kept for persistence.
+            /// are appended to the conversation, the results alone are kept for persistence, and any
+            /// proposal among them is kept to become a card.
             /// </summary>
-            public Exchange After(ModelTurn.RequestedTools requested, IReadOnlyList<ToolOutcome> outcomes) =>
+            public Exchange After(ModelTurn.RequestedTools requested, IReadOnlyList<ToolAnswer> answers) =>
                 this with
                 {
                     Messages =
                     [
                         .. Messages,
                         new ModelMessage.AssistantActed(requested.Turn),
-                        new ModelMessage.ToolsAnswered(outcomes),
+                        new ModelMessage.ToolsAnswered([.. answers.Select(answer => answer.Outcome)]),
                     ],
                     // A failed call is told to the model in this exchange and then forgotten. It is
                     // not stored, because stored messages are replayed as history on later turns,
                     // where "that tool failed" is noise about a call the athlete never saw.
-                    Generated = [.. Generated, .. outcomes.Where(o => !o.Failed).Select(Persisted)],
+                    Generated = [.. Generated, .. answers.Select(answer => answer.Outcome).Where(o => !o.Failed).Select(Persisted)],
+                    Proposals = [.. Proposals, .. answers.OfType<ToolAnswer.Proposed>().Select(proposed => proposed.Proposal)],
                     Rounds = Rounds + 1,
                 };
 
@@ -259,6 +270,7 @@ namespace Services.Chat
                 {
                     CompletionGeneratedMessages = [.. Generated, message],
                     ModelFinalChatMessageID = message.ChatMessageItemID,
+                    Proposals = Proposals,
                 };
             }
 

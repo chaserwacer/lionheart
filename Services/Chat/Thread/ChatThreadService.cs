@@ -3,6 +3,9 @@ using System.Globalization;
 using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Chat;
+using lionheart.Model.Chat.Changes;
+using lionheart.Model.Chat.Tools;
+using lionheart.Services.Chat.Changes;
 using lionheart.Model.Chat.Thread;
 using lionheart.Services.Chat.Memory;
 using lionheart.Services.Chat.Today;
@@ -79,9 +82,12 @@ public sealed class ChatThreadService(
             .Include(conversation => conversation.ModelMessages)
             .AsSplitQuery()
             .ToListAsync(ct);
+        var proposals = await _context.ProposalViewsAsync(shown, ct);
 
         return Result<ChatThreadPage, Problem>.Success(new ChatThreadPage(
-            [.. conversations.OrderBy(conversation => conversation.CreatedAt).Select(ThreadSessionView.Of)],
+            [.. conversations
+                .OrderBy(conversation => conversation.CreatedAt)
+                .Select(conversation => ThreadSessionView.Of(conversation, proposals[conversation.ChatConversationID]))],
             HasEarlier: sessions.Count > PageSize));
     }
 
@@ -199,13 +205,21 @@ public sealed class ChatThreadService(
 
     /// <remarks>
     /// The briefing is read once per exchange, before the athlete's words are staged, and goes with
-    /// every round of it: the session's prompt stays frozen while the briefing is always now.
+    /// every round of it: the session's prompt stays frozen while the briefing is always now. Where
+    /// the changes the model proposed stand goes with it, for the same reason.
+    /// <para>
+    /// The thread is offered the proposing tools because the phone draws a card for each proposal;
+    /// the proposals the exchange makes are staged with its messages, so a failed exchange leaves no
+    /// card behind either.
+    /// </para>
     /// </remarks>
     private async Task<Result<LHChatConversation, Problem>> AnswerAsync(
         Asked asked, LHChatConversation session, IExchangeObserver observer, CancellationToken ct)
     {
-        var briefing = await _briefing.ForAsync(asked.User, ct);
         var now = _clock.GetUtcNow().UtcDateTime;
+        var briefing = Briefed(
+            await _briefing.ForAsync(asked.User, ct),
+            ProposalsNote.Render(await _context.ProposalsToTellAsync(asked.UserId, session.ChatConversationID, now, ct)));
         var message = new LHUserChatMessage
         {
             ChatMessageItemID = Guid.CreateVersion7(_clock.GetUtcNow()),
@@ -226,20 +240,28 @@ public sealed class ChatThreadService(
                     MaxOutputTokens = ChatCompletionRequest.ExchangeOutputTokens,
                     Briefing = briefing,
                     Observer = observer,
+                    Tools = ToolAccess.ReadAndPropose,
                 },
                 ct)
             .MapAsync(response =>
             {
+                var answeredAt = _clock.GetUtcNow().UtcDateTime;
                 _context.StageChatMessages(response.CompletionGeneratedMessages);
-                session.LastUpdate = _clock.GetUtcNow().UtcDateTime;
+                _context.ChangeProposals.AddRange(response.Proposals.Select(draft =>
+                    ChangeProposal.Open(draft, asked.UserId, session.ChatConversationID, answeredAt)));
+                session.LastUpdate = answeredAt;
                 return session;
             });
     }
 
+    private static string Briefed(string briefing, string proposals) =>
+        proposals.Length == 0 ? briefing : $"{briefing.TrimEnd()}\n\n{proposals}";
+
     private async Task<ThreadSessionView> CommitAsync(LHChatConversation session, CancellationToken ct)
     {
         await _context.SaveChangesAsync(ct);
-        return ThreadSessionView.Of(session);
+        var proposals = await _context.ProposalViewsAsync([session.ChatConversationID], ct);
+        return ThreadSessionView.Of(session, proposals[session.ChatConversationID]);
     }
 
     /// <summary>A message on its way in: who sent it, as an identity and as an athlete, and what it says.</summary>

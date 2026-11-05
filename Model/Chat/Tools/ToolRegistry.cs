@@ -3,6 +3,8 @@ using lionheart.Services.Llm;
 using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Model.Tools;
+using lionheart.Model.Chat.Changes;
+using lionheart.Model.Chat.Tools;
 
 namespace Model.Chat.Tools
 {
@@ -26,13 +28,24 @@ namespace Model.Chat.Tools
 
         public IEnumerable<ToolDescriptor> GetAllTools() => _tools.Values;
 
-        /// <summary>Every tool, as the model is offered them, in name order.</summary>
+        /// <summary>The tools an exchange with this access is offered, as the model reads them, in name order.</summary>
         /// <remarks>
         /// Ordered because tools are the first thing a prompt cache sees: a list whose order moved
         /// between two requests would miss the cache for everything after it.
         /// </remarks>
-        public IReadOnlyList<ToolDefinition> GetAllToolDefinitions() =>
-            [.. _tools.Values.Select(td => td.Definition).OrderBy(definition => definition.Name, StringComparer.Ordinal)];
+        public IReadOnlyList<ToolDefinition> ToolDefinitions(ToolAccess access) =>
+            [.. Offered(access).Select(td => td.Definition).OrderBy(definition => definition.Name, StringComparer.Ordinal)];
+
+        /// <summary>The names of the tools an exchange with this access may run: the executor refuses any other.</summary>
+        public ISet<string> ToolNames(ToolAccess access) =>
+            Offered(access).Select(td => td.ToolName).ToHashSet(StringComparer.Ordinal);
+
+        private IEnumerable<ToolDescriptor> Offered(ToolAccess access) => access switch
+        {
+            ToolAccess.ReadAndPropose => _tools.Values,
+            ToolAccess.Read => _tools.Values.Where(td => !td.ProposesChange),
+            _ => throw new System.Diagnostics.UnreachableException(),
+        };
     }
 
     /// <summary>
@@ -67,14 +80,20 @@ namespace Model.Chat.Tools
                             toolProvider,
                             method,
                             definition,
-                            RequiresAuthorization(method))));
+                            RequiresAuthorization(method),
+                            ProposesChange(method))));
                 }
             }
             var tools = toolDescriptors.ToDictionary(t => t.ToolName, StringComparer.Ordinal);
             return new ToolRegistry(tools);
         }
+        /// <summary>A tool proposes a change when what it returns is a proposal: it writes nothing itself.</summary>
+        private static bool ProposesChange(MethodInfo method) =>
+            method.ReturnType == typeof(Task<Result<ProposalDraft, Problem>>);
+
         /// <summary>
         /// Determines if a method requires authorization(an identity user) based on its parameters.
+        /// </summary>
         private static bool RequiresAuthorization(MethodInfo method)
         {
             var methodParams = method.GetParameters();
@@ -93,12 +112,12 @@ namespace Model.Chat.Tools
     /// Descriptor for a chat tool: what the model is told about it, and what the executor needs to
     /// invoke it.
     /// </summary>
+    /// <param name="ProposesChange">Whether it answers with a proposal for the athlete rather than data to read.</param>
     public sealed record ToolDescriptor(
         string ToolName,
         Type ServiceType,
         MethodInfo MethodInfo,
         ToolDefinition Definition,
-        bool RequireAuthorization = false
-
-    );
+        bool RequireAuthorization = false,
+        bool ProposesChange = false);
 }

@@ -348,6 +348,7 @@ namespace lionheart.Services.Profile
             recorded workouts: Apple Health runs, rides, hikes and walks over 28 days counted above, with the latest of each; each one's splits, heart rate, power and running form -> GetRecordedWorkouts(dateRange). No route or location is available, by design.
             injuries: active ones in the TODAY note; history and pain events -> GetUserInjuries(filters).
             body: the latest bodyweight and body-composition scan above; every scan's full sheet -> GetBodyCompositionScans().
+            changes, in the thread only: planning, changing or removing a session, marking or freeing a non-training day, pinning a priority lift, logging an injury or a check-in -> the Propose tools, each a card he confirms before anything is written; GetPlannedDays and FindMovements give the ids they need.
             """;
 
         /// <summary>

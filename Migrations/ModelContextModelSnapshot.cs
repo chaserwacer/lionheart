@@ -333,6 +333,43 @@ namespace lionheart.Migrations
                     b.ToTable("BodyCompositionScans", (string)null);
                 });
 
+            modelBuilder.Entity("lionheart.Model.Chat.Changes.ChangeProposal", b =>
+                {
+                    b.Property<Guid>("ChangeProposalId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Answer")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Change")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ChatConversationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ProposedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ChangeProposalId");
+
+                    b.HasIndex("ChatConversationId");
+
+                    b.HasIndex("UserId", "ProposedAt");
+
+                    b.ToTable("ChangeProposals", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>
                 {
                     b.Property<Guid>("ChatConversationID")
@@ -1667,6 +1704,21 @@ namespace lionheart.Migrations
 
             modelBuilder.Entity("lionheart.Model.BodyMeasurements.Composition.BodyCompositionScan", b =>
                 {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Chat.Changes.ChangeProposal", b =>
+                {
+                    b.HasOne("lionheart.Model.Chat.LHChatConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ChatConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")

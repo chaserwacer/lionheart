@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using lionheart.Model.Chat;
+using lionheart.Model.Chat.Changes;
+using lionheart.Model.Chat.Tools;
 
 namespace Model.Chat.Completion
 {
@@ -8,8 +10,8 @@ namespace Model.Chat.Completion
     /// how much room the answer gets.
     /// </summary>
     /// <remarks>
-    /// Tools and provider settings are not here. The tools on offer are the whole registry, and
-    /// which model serves the call is configuration, so neither is a per-request choice.
+    /// Provider settings are not here: which model serves the call is configuration, not a
+    /// per-request choice. Which tools are on offer is, because only the thread can show a proposal.
     /// </remarks>
     public record ChatCompletionRequest
     {
@@ -34,6 +36,9 @@ namespace Model.Chat.Completion
 
         /// <summary>Told the answer's text as it is written, and each round of tools as it is run.</summary>
         public IExchangeObserver Observer { get; init; } = ExchangeObserver.Unwatched;
+
+        /// <summary>The tools on offer: reading only, unless the caller can put a proposal in front of the athlete.</summary>
+        public ToolAccess Tools { get; init; } = ToolAccess.Read;
     }
 
     /// <summary>
@@ -44,5 +49,8 @@ namespace Model.Chat.Completion
     {
         public required List<LHChatMessage> CompletionGeneratedMessages { get; set; }
         public required Guid ModelFinalChatMessageID { get; set; }
+
+        /// <summary>The changes the model proposed on the way, for the caller to store with the session as cards.</summary>
+        public IReadOnlyList<ProposalDraft> Proposals { get; init; } = [];
     }
 }

@@ -17,6 +17,7 @@ using lionheart.Model.Training.Availability;
 using lionheart.Model.BodyMeasurements;
 using lionheart.Model.Chat.Memory;
 using lionheart.Model.Chat.Thread;
+using lionheart.Model.Chat.Changes;
 using lionheart.Model.BodyMeasurements.Composition;
 using lionheart.Model.Health;
 using Programs = lionheart.Model.Training.Programs;
@@ -48,6 +49,7 @@ namespace lionheart.Data
         public DbSet<AthleteContextCard> AthleteContextCards { get; set; }
         public DbSet<ChatThreadSession> ChatThreadSessions { get; set; }
         public DbSet<ChatMemory> ChatMemories { get; set; }
+        public DbSet<ChangeProposal> ChangeProposals { get; set; }
 
         // Training domain — design in docs/data-remodel.md
         public DbSet<Sessions.TrainingSession> Sessions { get; set; }

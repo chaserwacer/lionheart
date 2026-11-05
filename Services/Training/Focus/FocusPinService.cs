@@ -120,15 +120,7 @@ public sealed class FocusPinService : IFocusPinService
 
         if (movementBase is null) return Result<Guid, Problem>.Failure(new Problem.NotFound("Movement not found."));
 
-        return (role, _map.StandingOf(movementBase)) switch
-        {
-            (FocusRole.Priority priority, ClassificationStanding.Classified { Classification: var trains })
-                when trains.Family != priority.Family =>
-                Result<Guid, Problem>.Failure(new Problem.Invalid(
-                    nameof(PinFocusRequest.Priority),
-                    $"{movementBase.Name} trains {PatternWords.Of(trains.Family)}, not {PatternWords.Of(priority.Family)}.")),
-            _ => Result<Guid, Problem>.Success(movementDataId),
-        };
+        return role.Admits(movementBase.Name, _map.StandingOf(movementBase)).Map(_ => movementDataId);
     }
 
     /// <summary>The family's pinned priorities, let go in favour of the new one; nothing for an emphasis.</summary>
