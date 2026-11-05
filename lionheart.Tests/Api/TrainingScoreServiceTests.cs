@@ -151,7 +151,7 @@ public class TrainingScoreServiceTests : IDisposable
         await PlantBenchSessionAsync(Sunday.AddDays(-2), sets: 3);
         await using (var context = _athletes.CreateContext())
         {
-            ResultAssert.Succeeded(await new InjuryService(context).CreateInjuryAsync(_athletes.Owner, new CreateInjuryRequest
+            ResultAssert.Succeeded(await new InjuryService(context, Clock).CreateInjuryAsync(_athletes.Owner, new CreateInjuryRequest
             {
                 Name = "Left shoulder", InjuryDate = Sunday.AddDays(-10).ToDateTime(TimeOnly.MinValue), Notes = "", Families = [PatternFamily.Push],
             }));

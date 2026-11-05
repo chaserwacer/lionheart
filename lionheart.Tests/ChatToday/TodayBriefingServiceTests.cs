@@ -111,7 +111,7 @@ public sealed class TodayBriefingServiceTests : IDisposable
         Guid injury;
         await using (var context = _db.CreateContext())
         {
-            injury = ResultAssert.Succeeded(await new InjuryService(context).CreateInjuryAsync(Athlete, new CreateInjuryRequest
+            injury = ResultAssert.Succeeded(await new InjuryService(context, new ZonedClock(Evening, Zone)).CreateInjuryAsync(Athlete, new CreateInjuryRequest
             {
                 Name = "Right knee tendinopathy", InjuryDate = new DateTime(2026, 3, 2), Notes = string.Empty,
             })).InjuryID;
@@ -120,7 +120,7 @@ public sealed class TodayBriefingServiceTests : IDisposable
 
         await using (var context = _db.CreateContext())
         {
-            ResultAssert.Succeeded(await new InjuryService(context).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
+            ResultAssert.Succeeded(await new InjuryService(context, new ZonedClock(Evening, Zone)).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
             {
                 InjuryID = injury, Name = "Right knee tendinopathy", Notes = string.Empty, IsActive = false,
             }));

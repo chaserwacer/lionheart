@@ -3,13 +3,13 @@ using lionheart.Model.Training.Patterns;
 namespace lionheart.Model.Training.Expectations;
 
 /// <summary>
-/// An active injury as the week manages around it: the families whose targets pause, the movements
+/// An injury open on the day as the week manages around it: the families whose targets pause, the movements
 /// to leave out, and the trend in the weeks that led up to it.
 /// </summary>
 /// <remarks>
 /// The families are the ones the athlete named on the injury, joined by the families of every
 /// movement its check-ins name, so an injury logged with no families still acts once a check-in
-/// says what hurt. While it is active each family's target pauses — asked nothing, so the adjusted
+/// says what hurt. While it is open each family's target pauses — asked nothing, so the adjusted
 /// score holds nothing against it — and the advice is to hold that family's volume rather than
 /// build it; once he resolves it the target grows back from the four weeks before at the usual
 /// ten per cent, which after weeks of holding is the gentle ramp back.

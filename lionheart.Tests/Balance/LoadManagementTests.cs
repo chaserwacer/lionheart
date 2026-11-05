@@ -49,8 +49,8 @@ public class LoadManagementTests
 
     private static TrainingScore Score(ExpectationInputs inputs, DateOnly day) => TrainingScoreAnalysis.Score(inputs, day);
 
-    private static InjuryRecord AShoulder(DateOnly since, bool active = true, PatternFamily[]? families = null, Guid[]? movements = null) =>
-        new(Guid.NewGuid(), "the shoulder", since, active, families ?? [PatternFamily.Push],
+    private static InjuryRecord AShoulder(DateOnly since, InjuryStanding? standing = null, PatternFamily[]? families = null, Guid[]? movements = null) =>
+        new(Guid.NewGuid(), "the shoulder", since, standing ?? new InjuryStanding.Active(), families ?? [PatternFamily.Push],
             [.. (movements ?? []).Select(movement => new NamedMovement(movement, since))], 3);
 
     private static FamilyExpectation Family(TrainingScore score, PatternFamily family) =>
@@ -132,9 +132,18 @@ public class LoadManagementTests
     }
 
     [Fact]
-    public void A_resolved_injury_and_one_dated_after_the_window_manage_nothing()
+    public void An_injury_resolved_on_a_day_still_pauses_its_family_through_the_day_before()
     {
-        var inputs = Inputs(SteadyWeeks()) with { Injuries = [AShoulder(Monday, active: false), AShoulder(Thursday.AddDays(1))] };
+        var inputs = Inputs(SteadyWeeks()) with { Injuries = [AShoulder(Monday.AddDays(-21), new InjuryStanding.Resolved(Monday))] };
+
+        Assert.True(Family(Score(inputs, Monday.AddDays(-1)), PatternFamily.Push).Paused);
+        Assert.False(Family(Score(inputs, Monday), PatternFamily.Push).Paused);
+    }
+
+    [Fact]
+    public void An_injury_resolved_before_its_day_was_kept_and_one_dated_after_the_window_manage_nothing()
+    {
+        var inputs = Inputs(SteadyWeeks()) with { Injuries = [AShoulder(Monday, new InjuryStanding.ResolvedUndated()), AShoulder(Thursday.AddDays(1))] };
 
         Assert.Empty(Score(inputs, Thursday).Expectations.Injuries);
     }
@@ -241,6 +250,14 @@ public class LoadManagementTests
     }
 
     [Fact]
+    public void An_injury_resolved_mid_week_keeps_the_advice_it_gave_on_the_monday()
+    {
+        var inputs = Inputs(ASteepBuild()) with { Injuries = [AShoulder(Monday.AddDays(-7), new InjuryStanding.Resolved(Monday.AddDays(2)))] };
+
+        Assert.IsType<WeeklyAdvice.ManageInjury>(Score(inputs, Thursday).Expectations.Advice);
+    }
+
+    [Fact]
     public void An_injury_dated_after_the_monday_waits_for_next_weeks_advice()
     {
         var inputs = Inputs(ASteepBuild()) with { Injuries = [AShoulder(Monday.AddDays(1))] };
@@ -252,7 +269,7 @@ public class LoadManagementTests
     public void A_check_in_naming_a_movement_mid_week_pauses_its_family_at_once_but_waits_for_next_weeks_advice()
     {
         var injury = new InjuryRecord(
-            Guid.NewGuid(), "the knee", Monday.AddDays(-14), true, [], [new NamedMovement(Squat, Monday.AddDays(2))], 4);
+            Guid.NewGuid(), "the knee", Monday.AddDays(-14), new InjuryStanding.Active(), [], [new NamedMovement(Squat, Monday.AddDays(2))], 4);
         var inputs = Inputs(SteadyWeeks()) with { Injuries = [injury] };
 
         var score = Score(inputs, Thursday);

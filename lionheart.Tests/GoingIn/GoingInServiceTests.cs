@@ -47,7 +47,7 @@ public sealed class GoingInServiceTests : IDisposable
     private async Task<Guid> InjureAsync(string name, int pain, params Guid[] movements)
     {
         await using var context = _db.CreateContext();
-        var injuries = new InjuryService(context);
+        var injuries = new InjuryService(context, new FixedClock(Evening));
         var injury = ResultAssert.Succeeded(await injuries.CreateInjuryAsync(Athlete, new CreateInjuryRequest
         {
             Name = name, InjuryDate = new DateTime(2026, 3, 1), Notes = string.Empty,
@@ -80,7 +80,7 @@ public sealed class GoingInServiceTests : IDisposable
         var injury = await InjureAsync("Left knee", 3);
         await using (var context = _db.CreateContext())
         {
-            ResultAssert.Succeeded(await new InjuryService(context).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
+            ResultAssert.Succeeded(await new InjuryService(context, new FixedClock(Evening)).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
             {
                 InjuryID = injury, Name = "Left knee", Notes = string.Empty, IsActive = false,
             }));

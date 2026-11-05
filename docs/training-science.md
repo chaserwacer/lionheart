@@ -317,8 +317,11 @@ that family's volume near its four-week average rather than build it; once it is
 target grows back from the four weeks before at the usual 10 %, which after weeks of holding is the
 gentle ramp back. Each managed injury carries its **lead-up** — a family's weekly hard sets in the
 four weeks before it against the eight before those — so the trend that preceded it is in view
-("Push volume rose 40 % in the 4 weeks before it"). Only whether an injury is active is stored,
-not when it resolved, so a resolved injury pauses nothing even in the weeks it was active.
+("Push volume rose 40 % in the 4 weeks before it"). Resolving an injury keeps the day it was
+resolved, on his clock, so the weeks it covered stay paused and their adjusted scores do not move:
+an injury pauses on every day from its own date until the day before it was resolved. Injuries
+resolved before that day was kept have nothing to go on and pause nothing, even in the weeks they
+were active.
 
 ### One piece of advice a week
 
@@ -333,8 +336,9 @@ furthest behind. It reads only what was settled by the Monday — an injury date
 check-in naming a movement after it, waits for next week's advice, though its pause applies at
 once — so training through the week never flips it. It is read live rather than stored, so a few
 things can still move it: last week's data arriving late (the ring's Sunday, a run imported on
-Tuesday), an injury entered later but dated on or before the Monday, and resolving an injury, since
-only whether it is active is stored.
+Tuesday) and an injury entered later but dated on or before the Monday. Resolving an injury does
+not: it was still open on the Monday, so the week keeps its advice and the next week reads it as
+resolved.
 
 ### Calibration
 
@@ -374,6 +378,8 @@ the steep-build signal that fires; the tiredness signals take over as ratings ac
 12. **Injury pauses are adjusted only.** The raw score still counts a paused family against its
     target; pausing it there too would take its points out of reach, as an unknown part's are.
 13. **Advice order.** Injury, deload, ramp, everyday, balance, stall, keep building.
+14. **A week reads an injury as it stood on the week's last day.** One resolved on a Wednesday
+    lifts that week's pause; pausing for any day of the week it was open would keep it.
 
 ## Sources
 

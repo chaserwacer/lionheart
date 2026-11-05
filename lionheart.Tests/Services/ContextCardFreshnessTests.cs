@@ -72,7 +72,7 @@ public sealed class ContextCardFreshnessTests : IDisposable
     private async Task<Guid> CreateInjuryAsync(string name)
     {
         using var context = _db.CreateContext();
-        var created = ResultAssert.Succeeded(await new InjuryService(context).CreateInjuryAsync(Athlete, new CreateInjuryRequest
+        var created = ResultAssert.Succeeded(await new InjuryService(context, TimeProvider.System).CreateInjuryAsync(Athlete, new CreateInjuryRequest
         {
             Name = name, InjuryDate = new DateTime(2026, 3, 2), Notes = string.Empty,
         }));

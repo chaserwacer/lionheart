@@ -728,6 +728,9 @@ namespace lionheart.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateOnly?>("ResolvedOn")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("UserID")
                         .HasColumnType("TEXT");
 
