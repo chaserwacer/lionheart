@@ -1,6 +1,7 @@
 using lionheart.Model.Cardio;
 using lionheart.Model.Training.Balance;
 using lionheart.Model.Training.GoingIn;
+using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Patterns;
 using lionheart.Services.Chat.Today;
 using lionheart.Services.Training.GoingIn;
@@ -38,11 +39,12 @@ public sealed class GoingInAnalysisTests
         CardioDays? cardio = null,
         LoadFact? load = null,
         WellnessFact? wellness = null,
-        IReadOnlyList<PlannedFact>? planned = null) =>
+        IReadOnlyList<PlannedFact>? planned = null,
+        EverydayLoad? everyday = null) =>
         new(Evening,
             sessions ?? [],
             cardio ?? new CardioDays.Read([], null),
-            load ?? new LoadFact(10, 10, 2, 2),
+            load ?? Load(10, 10),
             nights ?? [],
             baseline ?? new NightBaseline(70, 45, 40),
             readiness,
@@ -50,12 +52,32 @@ public sealed class GoingInAnalysisTests
             wellness,
             [],
             planned ?? [],
-            []);
+            [],
+            everyday ?? EverydayLoad.None);
+
+    private static LoadFact Load(int hardSets, double chronic) =>
+        new(new LoadRatio.Compared(hardSets, chronic), new LoadRatio.Compared(2, 2));
 
     private static GoingInState Of(TodayFacts facts, IReadOnlyList<MuscleVolume>? muscles = null) =>
         GoingInAnalysis.Of(facts, muscles ?? [], []);
 
     private static int ScoreOf(PartScore part) => Assert.IsType<PartScore.Scored>(part).Score;
+
+    [Fact]
+    public void Everyday_load_costs_the_load_part_only_for_what_ran_over_his_usual_high()
+    {
+        // Yesterday 100 MET-minutes over his high: 3 points. Today at his usual: nothing.
+        var everyday = new EverydayLoad(
+        [
+            new EverydayDay(Yesterday, 900, new EverydayStanding.Judged(600, 800, EverydayBand.FarAbove)),
+            new EverydayDay(Today, 600, new EverydayStanding.Judged(600, 800, EverydayBand.Usual)),
+        ]);
+
+        var state = Of(Facts(everyday: everyday));
+
+        Assert.Equal(97, ScoreOf(state.Load.Score));
+        Assert.Equal(2, state.Load.Everyday.Count);
+    }
 
     [Fact]
     public void A_usual_night_scores_its_autonomic_part_at_the_usual_seventy_five()
@@ -121,10 +143,10 @@ public sealed class GoingInAnalysisTests
     }
 
     [Fact]
-    public void A_week_well_above_the_months_weekly_mean_costs_load()
+    public void A_week_well_above_the_four_weeks_before_costs_load()
     {
         // 26 over a mean of 10 is 2.6, 1.3 over the allowance: 100 - 65.
-        var state = Of(Facts(load: new LoadFact(26, 10, 4, 2)));
+        var state = Of(Facts(load: Load(26, 10)));
 
         Assert.Equal(35, ScoreOf(state.Load.Score));
     }
@@ -195,7 +217,7 @@ public sealed class GoingInAnalysisTests
     [Fact]
     public void The_rating_is_the_weighted_mean_of_the_scored_parts_and_their_shares_sum_to_one()
     {
-        var state = Of(Facts(nights: [Night(Today)], readiness: Readiness(85), load: new LoadFact(10, 10, 2, 2)));
+        var state = Of(Facts(nights: [Night(Today)], readiness: Readiness(85), load: Load(10, 10)));
 
         // readiness 85 × .30, autonomic 75 × .25, sleep 80 × .20, load 100 × .15, over .90.
         var rated = Assert.IsType<GoingInRating.Rated>(state.Rating);

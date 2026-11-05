@@ -8,6 +8,9 @@ namespace lionheart.Model.Training.Patterns;
 /// </summary>
 public static class PatternWords
 {
+    /// <summary>"push and legs": families named together mid-sentence.</summary>
+    public static string Listed(IEnumerable<PatternFamily> families) => string.Join(" and ", families.Select(Of));
+
     public static string Of(PatternFamily family) => family switch
     {
         PatternFamily.Push => "push",

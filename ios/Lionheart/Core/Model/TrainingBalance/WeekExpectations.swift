@@ -14,6 +14,10 @@ struct WeekExpectations: Equatable, Sendable {
     let families: [FamilyExpectation]
     let cardio: CardioExpectations
     let priorities: [PriorityAim]
+    /// The active injuries the week manages around.
+    let injuries: [ManagedInjury]
+    /// The calendar week's one piece of advice; absent from a server that predates it.
+    let advice: WeeklyAdvice?
 }
 
 /// One measurement's expectation for the week.
@@ -21,12 +25,13 @@ struct Expectation: Equatable, Sendable {
     let done: Double
     /// The target the training score reads, whatever days were available.
     let raw: WeeklyTarget
-    /// `raw` prorated to the window's available days; the same as it when every day was.
+    /// `raw` fitted to the week — the days available, everyday load far above usual, a suggested
+    /// deload, an injury; the same as it when none of that applies.
     let adjusted: WeeklyTarget
-    /// Why the raw target is what it is, then what the days changed.
+    /// Why the raw target is what it is, then what changed the adjusted one.
     let reasons: [String]
 
-    /// Whether the days marked off lowered the target.
+    /// Whether the week's adjustments lowered the target.
     var isLowered: Bool { adjusted.target < raw.target }
 
     /// Whether the week asks for anything: not when every day of it was marked off.
@@ -37,6 +42,8 @@ struct FamilyExpectation: Equatable, Sendable, Identifiable {
     let family: PatternFamily
     let sets: Expectation
     let lastTrained: CalendarDay?
+    /// An active injury pauses the family: its adjusted target asks nothing.
+    let isPaused: Bool
 
     var id: String { family.wire }
 }
@@ -104,7 +111,9 @@ extension WeekExpectations: Decodable {
             families: container.lenientList(FamilyExpectation.self, "families"),
             cardio: container.lenient(CardioExpectations.self, "cardio")
                 ?? CardioExpectations(measure: .unrecognised(""), zones: []),
-            priorities: container.lenientList(PriorityAim.self, "priorities"))
+            priorities: container.lenientList(PriorityAim.self, "priorities"),
+            injuries: container.lenientList(ManagedInjury.self, "injuries"),
+            advice: container.lenient(WeeklyAdvice.self, "advice"))
     }
 }
 
@@ -133,7 +142,8 @@ extension FamilyExpectation: Decodable {
         self.init(
             family: PatternFamily(wire: container.lenient("family", or: "")),
             sets: sets,
-            lastTrained: container.day("lastTrained"))
+            lastTrained: container.day("lastTrained"),
+            isPaused: container.lenient("paused", or: false))
     }
 }
 

@@ -5,6 +5,7 @@ using lionheart.Model.Training.Availability;
 using lionheart.Model.Training.Expectations;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.GoingIn;
+using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Score;
@@ -21,7 +22,8 @@ namespace lionheart.Services.Training.Expectations;
 /// <remarks>
 /// Pure, so each signal is a test. One rule, kept to two outcomes so it can be read at a glance:
 /// <list type="bullet">
-/// <item>Hold last time's set when today's going-in rating is under his usual day (under 65), when
+/// <item>Hold last time's set when a deload is suggested for the week or an injury pauses the family,
+/// when today's going-in rating is under his usual day (under 65), when
 /// the last top set was at RPE 9.5 or more, when he rated the last session of the lift 5 of 5 for
 /// difficulty, or when the latest session of the week was rated 4 of 5 or more for accumulated
 /// fatigue.</item>
@@ -41,15 +43,16 @@ public static class LiftAimAnalysis
 
     public static PriorityAim Of(
         TrainingLog log, PatternFamily family, PriorityLift.Chosen lift, DateOnly day, GoingInRating goingIn,
-        AvailabilityCalendar week)
+        AvailabilityCalendar week, IReadOnlyList<string> weekHolds)
     {
-        var (aim, reasons) = AimOf(log, lift, day, goingIn, week);
+        var (aim, reasons) = AimOf(log, lift, day, goingIn, week, weekHolds);
         return new PriorityAim(
             family, lift.MovementDataId, lift.Name, aim, Frequency(log, lift, week), [.. reasons, .. TargetReasons(lift, aim)]);
     }
 
     private static (LiftAim Aim, IReadOnlyList<string> Reasons) AimOf(
-        TrainingLog log, PriorityLift.Chosen lift, DateOnly day, GoingInRating goingIn, AvailabilityCalendar week)
+        TrainingLog log, PriorityLift.Chosen lift, DateOnly day, GoingInRating goingIn, AvailabilityCalendar week,
+        IReadOnlyList<string> weekHolds)
     {
         if (lift.Series is not [.., var last])
             return (new LiftAim.Establish(), ["Nothing in the last twelve weeks to build on: work up to a top set of five."]);
@@ -57,7 +60,7 @@ public static class LiftAimAnalysis
         var unit = PriorityAnalysis.UnitOf(log, lift.MovementDataId, day);
         var onSystemLoad = PriorityAnalysis.OnSystemLoad(log, lift.MovementDataId, unit);
         var lastTime = LastTime(log, lift.MovementDataId, last);
-        var holds = HoldReasons(goingIn, lastTime, LatestFatigue(log, week)).ToList();
+        var holds = weekHolds.Concat(HoldReasons(goingIn, lastTime, LatestFatigue(log, week))).ToList();
 
         if (holds.Count > 0)
             return (new LiftAim.Hold(last.Load, last.Reps, unit, last.EstimatedOneRepMax, onSystemLoad), holds);
@@ -96,6 +99,13 @@ public static class LiftAimAnalysis
         log.Between(week.Range.From, week.Range.To)
             .Select(session => session.Effort is EffortReported reported ? reported.Ratings.AccumulatedFatigue : null)
             .LastOrDefault(fatigue => fatigue is not null);
+
+    /// <summary>What the week itself holds the lift for: a suggested deload, or an injury pausing its family.</summary>
+    public static IReadOnlyList<string> WeekHolds(Deload deload, ManagedInjury? pausedBy) =>
+    [
+        .. pausedBy is { } injury ? [$"{injury.Name} is being managed: hold the weight rather than build it."] : Array.Empty<string>(),
+        .. deload is Deload.Suggested ? ["Deload week suggested: hold the top set and do fewer sets."] : Array.Empty<string>(),
+    ];
 
     private static IEnumerable<string> HoldReasons(GoingInRating goingIn, LastSession lastTime, int? fatigue)
     {
@@ -154,7 +164,7 @@ public static class LiftAimAnalysis
         var raw = Progression.Fixed(standard);
         var adjusted = Progression.Prorated(raw, standard, week.AvailableDays);
         return new PriorityFrequency.Asked(new Expectation(
-            sessions, raw, adjusted, [$"Pinned for {pinned.Pin.SessionsPerWeek} session{(pinned.Pin.SessionsPerWeek is 1 ? "" : "s")} a week.", .. ExpectationReasons.Adjusted(raw, adjusted, week)]));
+            sessions, raw, adjusted, [$"Pinned for {pinned.Pin.SessionsPerWeek} session{(pinned.Pin.SessionsPerWeek is 1 ? "" : "s")} a week.", .. ExpectationReasons.Adjusted(raw, adjusted, week, EverydayWeek.None)]));
     }
 
     private static double Step(WeightUnit unit) => unit switch

@@ -3,6 +3,8 @@ using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Score;
+using lionheart.Model.InjuryManagement;
+using lionheart.Services;
 using lionheart.Services.Cardio;
 using lionheart.Services.Training.Patterns;
 using lionheart.Services.Chat.Today;
@@ -37,7 +39,7 @@ public class TrainingScoreServiceTests : IDisposable
         var goingIn = new GoingInService(
             context,
             new TodayFactsService(context, cardio, MovementPatternMap.Shipped, clock ?? Clock, NullLogger<TodayFactsService>.Instance),
-            new TrainingVolumeService(context, MovementPatternMap.Shipped));
+            new TrainingVolumeService(context, MovementPatternMap.Shipped, clock ?? Clock));
         return await act(new TrainingScoreService(context, cardio, MovementPatternMap.Shipped, goingIn, clock ?? Clock));
     }
 
@@ -141,5 +143,26 @@ public class TrainingScoreServiceTests : IDisposable
         Assert.Equal(
             $"next: pull and legs (never trained); {Sunday:yyyy-MM-dd} already has hard sets logged, so this is the session after it",
             digest.UpNext);
+    }
+
+    [Fact]
+    public async Task An_injury_logged_with_its_family_pauses_that_family_in_the_score_and_the_chat_digest()
+    {
+        await PlantBenchSessionAsync(Sunday.AddDays(-2), sets: 3);
+        await using (var context = _athletes.CreateContext())
+        {
+            ResultAssert.Succeeded(await new InjuryService(context).CreateInjuryAsync(_athletes.Owner, new CreateInjuryRequest
+            {
+                Name = "Left shoulder", InjuryDate = Sunday.AddDays(-10).ToDateTime(TimeOnly.MinValue), Notes = "", Families = [PatternFamily.Push],
+            }));
+        }
+
+        var score = ResultAssert.Succeeded(await ScoreAsync(service => service.GetScoreAsync(_athletes.Owner, Sunday, default)));
+        var digest = Assert.IsType<TrainingScoreDigest>(await ScoreAsync(service =>
+            service.GetTrainingScoreForChatAsync(_athletes.Owner, new DayRange(Sunday, Sunday))));
+
+        Assert.True(score.Expectations.Families.Single(family => family.Family == PatternFamily.Push).Paused);
+        Assert.StartsWith($"Left shoulder since {Sunday.AddDays(-10):yyyy-MM-dd}, pausing push", digest.Injuries);
+        Assert.StartsWith("Hold push while Left shoulder settles", digest.Advice[(digest.Advice.IndexOf(": ") + 2)..]);
     }
 }

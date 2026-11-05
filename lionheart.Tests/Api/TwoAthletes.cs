@@ -143,7 +143,7 @@ public sealed class TwoAthletes : IDisposable
     public async Task<T> VolumeAsync<T>(Func<ITrainingVolumeService, Task<T>> act)
     {
         using var context = CreateContext();
-        return await act(new TrainingVolumeService(context, MovementPatternMap.Shipped));
+        return await act(new TrainingVolumeService(context, MovementPatternMap.Shipped, TimeProvider.System));
     }
 
     public async Task<T> BodyCompositionAsync<T>(Func<IBodyCompositionService, Task<T>> act)

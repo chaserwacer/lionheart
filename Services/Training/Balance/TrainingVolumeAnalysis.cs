@@ -31,7 +31,10 @@ public static class TrainingVolumeAnalysis
                 family.Family,
                 family.HardSets,
                 (int)expected.Single(expectation => expectation.Family == family.Family).Sets.Adjusted.Target,
-                family.LastTrained))
+                family.LastTrained)
+            {
+                Paused = expected.Single(expectation => expectation.Family == family.Family).Paused,
+            })
         ];
 
         return new TrainingVolume(
@@ -40,7 +43,14 @@ public static class TrainingVolumeAnalysis
             [.. Enum.GetValues<MovementPattern>().Select(pattern => Pattern(pattern, inWindow, history))],
             [.. MuscleGroups.All.Select(muscle => Muscle(muscle, inWindow, history))],
             Unplaced(log, window.From, endingOn),
-            UpNextOf(families, trainedToday: inWindow.Any(placed => placed.Day == endingOn), readiness));
+            UpNextOf(Unpaused(families, expected), trainedToday: inWindow.Any(placed => placed.Day == endingOn), readiness));
+    }
+
+    /// <summary>The families no injury pauses; every family when an injury pauses all three, so there is still an order to read.</summary>
+    private static IReadOnlyList<FamilyVolume> Unpaused(IReadOnlyList<FamilyVolume> families, IReadOnlyList<FamilyExpectation> expected)
+    {
+        var open = families.Where(family => !expected.Any(expectation => expectation.Family == family.Family && expectation.Paused)).ToList();
+        return open.Count > 0 ? open : families;
     }
 
     /// <summary>Every hard set between two days whose movement is classified, oldest first.</summary>
@@ -108,6 +118,7 @@ public static class TrainingVolumeAnalysis
     /// The families trained longest ago — never before any other — named together when they were
     /// last trained on the same day.
     /// </summary>
+    /// <param name="families">The families that may be up next: every one but those an injury pauses.</param>
     public static UpNext UpNextOf(IReadOnlyList<FamilyVolume> families, bool trainedToday, ReadinessNote readiness)
     {
         if (families.All(family => family.LastTrained is null)) return new UpNext.NothingLogged();

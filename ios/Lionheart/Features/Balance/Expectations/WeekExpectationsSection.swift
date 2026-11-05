@@ -21,6 +21,9 @@ struct WeekExpectationsSection: View {
                 ForEach(ExpectationLines.of(expectations)) { line in
                     ExpectationRow(line: line)
                 }
+                ForEach(expectations.injuries) { injury in
+                    ManagedInjuryRow(injury: injury)
+                }
                 ForEach(expectations.priorities) { priority in
                     PriorityAimRow(priority: priority)
                 }
@@ -108,8 +111,8 @@ private struct ExpectationRow: View {
                     Text(figure)
                         .font(.subheadline.monospacedDigit())
                         .foregroundStyle(Color(.label))
-                    if line.expectation.isLowered {
-                        Text("\(MeasurementText.plain(line.expectation.raw.target)) with every day")
+                    if line.expectation.isLowered && !line.isPaused {
+                        Text("\(MeasurementText.plain(line.expectation.raw.target)) unadjusted")
                             .font(.caption.monospacedDigit())
                     }
                 }
@@ -145,8 +148,44 @@ private struct ExpectationRow: View {
     }
 
     private var figure: String {
+        if line.isPaused { return "paused · \(MeasurementText.plain(line.expectation.done))\(unit)" }
         guard line.expectation.asksAnything else { return "nothing asked" }
         return "\(MeasurementText.plain(line.expectation.done)) of \(MeasurementText.plain(line.expectation.adjusted.target))\(unit)"
+    }
+}
+
+/// An injury the week manages around: the families it pauses, and the lead-up under a disclosure.
+private struct ManagedInjuryRow: View {
+    let injury: ManagedInjury
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        let leadUp = injury.leadUp.compactMap(LoadWords.leadUp)
+        DisclosureGroup(isExpanded: $isExpanded) {
+            ForEach(leadUp, id: \.self) { line in
+                Text(line)
+                    .font(.subheadline)
+                    .foregroundStyle(Color(.secondaryLabel))
+            }
+            Text("Hold what you have been doing while it is managed; the targets ramp back 10 % a week once it is resolved.")
+                .font(.subheadline)
+                .foregroundStyle(Color(.secondaryLabel))
+        } label: {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(injury.name)
+                    Text(LoadWords.paused(injury))
+                        .font(.caption)
+                        .foregroundStyle(Color(.secondaryLabel))
+                }
+            } icon: {
+                Image(systemName: "bandage")
+                    .foregroundStyle(.orange)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityHint("Shows the weeks that led up to it")
+        }
     }
 }
 

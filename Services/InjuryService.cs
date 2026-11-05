@@ -39,6 +39,7 @@ namespace lionheart.Services
                 Notes = request.Notes,
                 InjuryDate = DateOnly.FromDateTime(request.InjuryDate),
                 IsActive = true,
+                Families = [.. (request.Families ?? []).Distinct()],
                 InjuryEvents = new()
             };
             _context.Injuries.Add(injury);
@@ -56,6 +57,7 @@ namespace lionheart.Services
             injury.Name = request.Name;
             injury.Notes = request.Notes;
             injury.IsActive = request.IsActive;
+            if (request.Families is { } families) injury.Families = [.. families.Distinct()];
             await _context.StageRecentStateInvalidationAsync(userId);
             await _context.SaveChangesAsync();
             return Result<InjuryDTO, Problem>.Success(injury.ToDTO());

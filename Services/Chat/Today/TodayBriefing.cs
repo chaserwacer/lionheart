@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using lionheart.Model;
 using lionheart.Model.Cardio;
+using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Patterns;
 
 namespace lionheart.Services.Chat.Today;
@@ -39,6 +40,7 @@ public static class TodayBriefing
             .AppendLine(Invariant, $"Trained today: {Day(facts, now.Today, detailed: true, nothing: "nothing logged yet")}")
             .AppendLine(Invariant, $"Yesterday ({now.Yesterday:dddd d MMMM}): {Day(facts, now.Yesterday, detailed: true, nothing: "no training logged")}")
             .AppendLine(Load(facts.Load))
+            .AppendLine(Everyday(facts))
             .AppendLine(Zones(facts.Cardio))
             .AppendLine(Nights(facts))
             .AppendLine(Readiness(facts.Readiness, facts.Means))
@@ -161,12 +163,49 @@ public static class TodayBriefing
 
     private static string Load(LoadFact load) =>
         string.Create(Invariant,
-            $"Load: {load.HardSetsLast7} hard sets in {load.SessionsLast7} sessions over the last 7 days, against a 28-day weekly mean of {load.HardSetsWeeklyMean28:0} hard sets in {load.SessionsWeeklyMean28:0.#} sessions{Ratio(load)}.");
+            $"Load: {load.HardSets.Acute:0} hard sets in {load.Sessions.Acute:0} sessions over the last 7 days, against {Usual(load)}{Ratio(load.HardSets)}.");
 
-    private static string Ratio(LoadFact load) =>
-        load.HardSetsWeeklyMean28 > 0
-            ? string.Create(Invariant, $" (acute:chronic {load.HardSetsLast7 / load.HardSetsWeeklyMean28:0.00})")
+    private static string Usual(LoadFact load) => (load.HardSets, load.Sessions) switch
+    {
+        (LoadRatio.Compared sets, LoadRatio.Compared sessions) =>
+            string.Create(Invariant, $"a weekly mean of {sets.Chronic:0} hard sets in {sessions.Chronic:0.#} sessions over the four weeks before"),
+        _ => "nothing in the four weeks before",
+    };
+
+    private static string Ratio(LoadRatio ratio) =>
+        ratio is LoadRatio.Compared { Chronic: > 0 } compared
+            ? string.Create(Invariant, $" (acute:chronic {compared.Ratio:0.00})")
             : "";
+
+    /// <summary>
+    /// Yesterday's and today's movement outside training against his usual day: fatigue that earns
+    /// no credit, so the model weighs a day on his feet without counting it as training.
+    /// </summary>
+    private static string Everyday(TodayFacts facts)
+    {
+        var days = facts.Everyday.Between(facts.Now.Yesterday, facts.Now.Today)
+            .Select(day => $"{(day.Day == facts.Now.Today ? "today so far" : "yesterday")} {EverydayFigure(day)}")
+            .ToList();
+        return days.Count is 0
+            ? "Everyday load (movement outside training, fatigue but never training credit): not read from the ring."
+            : $"Everyday load (movement outside training, fatigue but never training credit): {string.Join("; ", days)}.";
+    }
+
+    private static string EverydayFigure(EverydayDay day) => day.Standing switch
+    {
+        EverydayStanding.Judged judged => string.Create(Invariant,
+            $"{day.MetMinutes:0} MET-min, {day.Ratio:0.0}x his usual day ({BandWords(judged.Band)})"),
+        EverydayStanding.Unjudged => string.Create(Invariant, $"{day.MetMinutes:0} MET-min (too few days yet to know his usual)"),
+        _ => throw new UnreachableException(),
+    };
+
+    private static string BandWords(EverydayBand band) => band switch
+    {
+        EverydayBand.FarAbove => "far above usual",
+        EverydayBand.Above => "above usual",
+        EverydayBand.Usual => "usual",
+        _ => throw new UnreachableException(),
+    };
 
     /// <summary>The zones in beats per minute, as the cardio report and the score draw them, so a target can be given in bpm.</summary>
     private static string Zones(CardioDays cardio) => cardio switch

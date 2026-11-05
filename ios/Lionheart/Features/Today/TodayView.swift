@@ -42,6 +42,8 @@ struct TodayView: View {
     @AppStorage("lh.today.recoveryExpanded") private var isRecoveryExpanded = false
     /// Bound so a tap on the training score's partition can push the part it lands on.
     @State private var path = NavigationPath()
+    /// The week's score, read for its advice, which today's hero carries as Train's does.
+    @Environment(TrainingBalanceStore.self) private var balance
     /// Where a pushed figure, night or session zooms out of: the row it was opened from.
     @Namespace private var zoom
 
@@ -82,7 +84,8 @@ struct TodayView: View {
                 async let today: Void = store.refresh()
                 async let movement: Void = habits.loadDay(day)
                 async let going: Void = goingIn.refresh()
-                _ = await (today, movement, going)
+                async let week: Void = balance.refresh()
+                _ = await (today, movement, going, week)
             }
             .navigationDestination(for: Route.self) { route in
                 destination(for: route)
@@ -123,8 +126,11 @@ struct TodayView: View {
             // A first load leaves the strip to the `.task(id:)` below, which reads it already.
             let isReturn = store.state.value != nil
             async let going: Void = goingIn.refreshIfStale()
+            // The week's score carries the advice the hero shows, so it is read with the hero
+            // rather than when its own section further down scrolls into view.
+            async let week: Void = balance.refreshIfNeeded()
             if await store.refreshIfDue(), isReturn { await habits.loadDay(day) }
-            await going
+            _ = await (going, week)
         }
         .task(id: day) { await habits.loadDayIfNeeded(day) }
     }
@@ -239,9 +245,10 @@ struct TodayView: View {
     /// that has gone by can still be read for.
     @ViewBuilder
     private func hero(_ snapshot: TodaySnapshot, today: CalendarDay) -> some View {
+        let advice = snapshot.day == today ? balance.score.value?.expectations?.advice : nil
         if let state = leadingGoingIn(snapshot, today: today) {
             GoingInHero(
-                state: state, next: goingIn.next.value, isStale: goingIn.state.isStale,
+                state: state, next: goingIn.next.value, advice: advice, isStale: goingIn.state.isStale,
                 openDetail: { isGoingInExplained = true })
         } else if let recovery = snapshot.recovery, let readiness = recovery.readiness {
             HeroSection {
@@ -250,6 +257,9 @@ struct TodayView: View {
                         readiness: readiness, figure: recovery.readinessFigure, shownDay: snapshot.day, today: today)
                 }
                 .matchedTransitionSource(id: Route.trend(.readiness, endingOn: recovery.day), in: zoom)
+                if let advice {
+                    WeeklyAdviceRow(advice: advice)
+                }
             }
         }
     }

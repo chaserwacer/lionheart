@@ -3,7 +3,9 @@ using lionheart.Functional;
 using lionheart.Model.Training.Balance;
 using lionheart.Services.Training.Patterns;
 using lionheart.Services.Training.Availability;
+using lionheart.Services.Chat.Today;
 using lionheart.Services.Training.Expectations;
+using lionheart.Services.Training.Load;
 using Microsoft.AspNetCore.Identity;
 
 namespace lionheart.Services.Training.Balance;
@@ -24,10 +26,13 @@ public sealed class TrainingVolumeService : ITrainingVolumeService
     private readonly ModelContext _context;
     private readonly MovementPatternMap _map;
 
-    public TrainingVolumeService(ModelContext context, MovementPatternMap map)
+    private readonly TimeProvider _clock;
+
+    public TrainingVolumeService(ModelContext context, MovementPatternMap map, TimeProvider clock)
     {
         _context = context;
         _map = map;
+        _clock = clock;
     }
 
     public Task<Result<TrainingVolume, Problem>> GetVolumeAsync(IdentityUser user, DateOnly endingOn, CancellationToken ct) =>
@@ -40,6 +45,11 @@ public sealed class TrainingVolumeService : ITrainingVolumeService
                     log,
                     endingOn,
                     await _context.ReadinessOnAsync(userId, endingOn, ct),
-                    WeekExpectationsAnalysis.Families(log, await _context.AvailabilityAsync(userId, window, ct), window));
+                    WeekExpectationsAnalysis.Families(
+                        log,
+                        await _context.AvailabilityAsync(userId, window, ct),
+                        await _context.EverydayAsync(userId, window, AthleteNow.Of(_clock).Today, ct),
+                        await _context.InjuryRecordsAsync(userId, ct),
+                        endingOn));
             });
 }

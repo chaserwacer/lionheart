@@ -1,6 +1,7 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
 using lionheart.Model.Training.Availability;
+using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Score;
 
@@ -19,13 +20,19 @@ namespace lionheart.Model.Training.Expectations;
 /// <param name="Availability">The window's days, open, planned or non-training.</param>
 /// <param name="Sessions">Completed sessions against the week's sessions.</param>
 /// <param name="Priorities">Each family's priority lift with its next top set, for the families that have one.</param>
+/// <param name="Load">The window's load against his usual: the lifting and any deload suggested, the cardio's ramp, the everyday load.</param>
+/// <param name="Injuries">The active injuries the week manages around, with the families they pause.</param>
+/// <param name="Advice">The calendar week's one piece of advice, read from the weeks before its Monday.</param>
 public sealed record WeekExpectations(
     DayRange Window,
     AvailabilityCalendar Availability,
     Expectation Sessions,
     IReadOnlyList<FamilyExpectation> Families,
     CardioExpectations Cardio,
-    IReadOnlyList<PriorityAim> Priorities);
+    IReadOnlyList<PriorityAim> Priorities,
+    WeekLoad Load,
+    IReadOnlyList<ManagedInjury> Injuries,
+    WeeklyAdvice Advice);
 
 /// <summary>One measurement's expectation for the week.</summary>
 /// <param name="Done">What the window holds so far.</param>
@@ -38,7 +45,14 @@ public sealed record WeekExpectations(
 public sealed record Expectation(double Done, WeeklyTarget Raw, WeeklyTarget Adjusted, IReadOnlyList<string> Reasons);
 
 /// <summary>Push, pull or legs: hard sets over the window against the week's target.</summary>
-public sealed record FamilyExpectation(PatternFamily Family, Expectation Sets, DateOnly? LastTrained);
+public sealed record FamilyExpectation(PatternFamily Family, Expectation Sets, DateOnly? LastTrained)
+{
+    /// <summary>
+    /// Whether an active injury pauses the family: its adjusted target asks nothing, and the next
+    /// session leaves it out.
+    /// </summary>
+    public bool Paused { get; init; }
+}
 
 /// <summary>Zone-2 and quality minutes against the week's targets, or why the minutes cannot be read.</summary>
 /// <param name="Zones">Each band's expectation; empty when the measure is unknown.</param>

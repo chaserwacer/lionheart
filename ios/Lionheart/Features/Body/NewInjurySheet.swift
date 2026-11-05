@@ -12,6 +12,7 @@ struct NewInjurySheet: View {
     @State private var name = ""
     @State private var startedOn = Date()
     @State private var notes = ""
+    @State private var families: Set<PatternFamily> = []
     @State private var isSaving = false
     @State private var refusal: LoadFailure?
     @FocusState private var isNameFocused: Bool
@@ -24,6 +25,19 @@ struct NewInjurySheet: View {
                         .focused($isNameFocused)
                         .textInputAutocapitalization(.sentences)
                     DatePicker("Started", selection: $startedOn, in: ...Date(), displayedComponents: .date)
+                }
+                Section {
+                    ForEach(PatternFamily.judged, id: \.self) { family in
+                        Toggle(family.name, isOn: Binding(
+                            get: { families.contains(family) },
+                            set: { isOn in
+                                if isOn { families.insert(family) } else { families.remove(family) }
+                            }))
+                    }
+                } header: {
+                    Text("Training it touches")
+                } footer: {
+                    Text("While it is active, these families' targets pause and Up next passes them over. A check-in that names a movement adds its family.")
                 }
                 Section("Notes") {
                     TextField("Notes", text: $notes, prompt: Text("Mechanism, location, what aggravates it"), axis: .vertical)
@@ -58,7 +72,7 @@ struct NewInjurySheet: View {
     private var draft: InjuryDraft? {
         let today = CalendarDay(Date())
         return try? InjuryDraft.make(
-            name: name, startedOn: CalendarDay(startedOn), notes: notes, today: today)
+            name: name, startedOn: CalendarDay(startedOn), notes: notes, families: families, today: today)
     }
 
     private func save() {

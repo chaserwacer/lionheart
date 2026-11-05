@@ -76,6 +76,7 @@ struct InjuryActionTests {
             notes: "",
             injuryDate: CalendarDay(year: 2026, month: 9, day: 14),
             isActive: isActive,
+            families: [],
             events: [])
     }
 }

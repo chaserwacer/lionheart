@@ -12,6 +12,8 @@ struct VolumeRow: View {
     let target: Int?
     let lastTrained: CalendarDay?
     var today: CalendarDay = CalendarDay(Date())
+    /// A family an injury pauses: its sets with no target to read them against.
+    var isPaused = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -25,7 +27,7 @@ struct VolumeRow: View {
                     .monospacedDigit()
                     .foregroundStyle(Color(.secondaryLabel))
             }
-            if let target {
+            if let target, !isPaused {
                 TargetBar(value: sets, target: Double(target))
             }
         }
@@ -37,6 +39,7 @@ struct VolumeRow: View {
 
     private var figure: String {
         let measured = Formatting.measure(sets)
+        if isPaused { return "\(measured) · paused" }
         guard let target else { return measured }
         return "\(measured) of \(target)"
     }

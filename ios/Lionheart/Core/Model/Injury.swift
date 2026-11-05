@@ -1,12 +1,14 @@
 import Foundation
 
-/// A tracked problem, and the events logged against it over time.
+/// A tracked problem, the families it touches, and the events logged against it over time.
 struct Injury: Equatable, Sendable, Identifiable {
     let injuryId: UUID
     let name: String
     let notes: String
     let injuryDate: CalendarDay
     let isActive: Bool
+    /// The families the athlete said it touches, which pause while it is active; empty when not said.
+    let families: [PatternFamily]
     let events: [InjuryEvent]
 
     var id: UUID { injuryId }
@@ -56,6 +58,7 @@ extension Injury: Decodable {
             notes: container.lenient("notes", or: ""),
             injuryDate: container.day("injuryDate") ?? CalendarDay(Date()),
             isActive: container.lenient("isActive", or: false),
+            families: container.lenientList(String.self, "families").map(PatternFamily.init(wire:)),
             events: container.lenientList(InjuryEvent.self, "injuryEvents"))
     }
 }
