@@ -183,21 +183,27 @@ public static class TodayBriefing
     /// </summary>
     private static string Everyday(TodayFacts facts)
     {
-        var days = new[] { (facts.Now.Yesterday, "yesterday"), (facts.Now.Today, "today so far") }
-            .Select(day => (Read: facts.Everyday.Between(day.Item1, day.Item1).FirstOrDefault(), Label: day.Item2))
-            .Where(day => day.Read is not null)
-            .Select(day => $"{day.Label} {EverydayDay(day.Read!)}")
+        var days = facts.Everyday.Between(facts.Now.Yesterday, facts.Now.Today)
+            .Select(day => $"{(day.Day == facts.Now.Today ? "today so far" : "yesterday")} {EverydayFigure(day)}")
             .ToList();
         return days.Count is 0
             ? "Everyday load (movement outside training, fatigue but never training credit): not read from the ring."
             : $"Everyday load (movement outside training, fatigue but never training credit): {string.Join("; ", days)}.";
     }
 
-    private static string EverydayDay(Model.Training.Load.EverydayDay day) => day.Standing switch
+    private static string EverydayFigure(EverydayDay day) => day.Standing switch
     {
         EverydayStanding.Judged judged => string.Create(Invariant,
-            $"{day.MetMinutes:0} MET-min, {day.Ratio:0.0}x his usual day ({judged.Band switch { EverydayBand.FarAbove => "far above usual", EverydayBand.Above => "above usual", _ => "usual" }})"),
+            $"{day.MetMinutes:0} MET-min, {day.Ratio:0.0}x his usual day ({BandWords(judged.Band)})"),
         EverydayStanding.Unjudged => string.Create(Invariant, $"{day.MetMinutes:0} MET-min (too few days yet to know his usual)"),
+        _ => throw new UnreachableException(),
+    };
+
+    private static string BandWords(EverydayBand band) => band switch
+    {
+        EverydayBand.FarAbove => "far above usual",
+        EverydayBand.Above => "above usual",
+        EverydayBand.Usual => "usual",
         _ => throw new UnreachableException(),
     };
 

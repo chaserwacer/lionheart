@@ -188,9 +188,12 @@ reads could. `TodaySnapshot.reading` does the picking, purely.
 Today opens on its hero (`GoingInHero`): the going-in rating — the server's, read through the same
 `GoingInStore` as the logging surface's header, so the morning's verdict is one reading everywhere —
 with its band, the sentence naming the part holding it down, the five parts as leaning bars (only
-that part coloured, orange), and what is up next in a line, the session to do first in Brick. A tap
-opens the parts and the method. A past day cannot be rated going in, so its hero is that day's
-readiness; so is today's before the rating has a score to give. Oura's readiness verdict and its
+that part coloured, orange), what is up next in a line, the session to do first in Brick, and the
+week's one piece of advice (`WeeklyAdviceRow`) — its headline in Brick, which means this week, and
+the server's reasons folded under it. A tap opens the parts and the method. A past day cannot be
+rated going in, so its hero is that day's readiness; so is today's before the rating has a score to
+give, and it still carries the advice. The advice comes on the week's training score, which Today
+reads with its hero rather than waiting for the score's own section to scroll into view. Oura's readiness verdict and its
 trend follow in the recovery section, and the six contributors and the figures no contributor
 carries fold behind one line, which names by name any row outside his usual range in the worse
 direction (`TodaySnapshot.unusualRecovery`) so folding never hides the row worth seeing. Whether
@@ -704,8 +707,11 @@ the server proves nothing and leaves the id to be asked about again.
 ## Train: the score, what it is time for, the week's volume and priorities
 
 Train leads with its hero (`TrainingScoreHero`): the **training score** against the weeks before
-it, its partition, and what is up next in a line, because those are what every session on the tab
-is chosen by and moves. The partition's fills rise from nothing as it appears and spring to a new
+it, its partition, what is up next in a line and the week's advice, because those are what every
+session on the tab is chosen by and moves. The advice is chosen by the server from the weeks before
+the Monday, so it is the same row all week and the same words the chat is given; the expectations
+below list each injury the week manages around, with the lead-up under it, and a family it pauses
+reads "paused" in the expectations and in weekly volume rather than a target of nothing. The partition's fills rise from nothing as it appears and spring to a new
 figure when the score changes — the opening's motion; with Reduce Motion they are simply there — and a read that
 takes a measurement this week to its target (`ScoreTargets`) is felt as a success haptic. The
 figures sit in one row, so a second figure for the same week goes beside the score. **Start

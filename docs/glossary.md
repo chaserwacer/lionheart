@@ -193,7 +193,7 @@ first and then in the code.
 | **Wordmark** | "tempo" set lowercase in SF Pro Heavy, expanded and tightly tracked — the one place a fixed type size is allowed. |
 | **Tagline** | "keep moving forward." — lowercase, monospaced, with its full stop. |
 | **Palette** | Graphite (the dark ground), Chalk (the light ground), Brick (the one accent, and the mark's last bar), Iron (second series and quiet bars) and Ink (the mark's first two bars: Graphite on light, Chalk on dark). Read through `Tokens`. |
-| **Hero** | A tab's first section, on Graphite in both appearances, carrying its one most important answer: Today the going-in rating and what is next, Train the week's score and what is next, History each running priority as its block, Body readiness. One per tab (`HeroSection`). |
+| **Hero** | A tab's first section, on Graphite in both appearances, carrying its one most important answer: Today the going-in rating, what is next and the week's advice, Train the week's score, what is next and the week's advice, History each running priority as its block, Body readiness. One per tab (`HeroSection`). |
 | **Brick discipline** | Brick means this week, or the one thing to act on — the score itself, this week's bar, the session to do first. History and context are Iron; everything else is a semantic system colour. |
 | **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement, the movements the athlete added. The one piece of state the device owns. |
 | **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
