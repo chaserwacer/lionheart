@@ -57,7 +57,4 @@ public sealed record AvailabilityCalendar(DayRange Range, IReadOnlyList<DayAvail
         [.. Enumerable.Range(0, range.Days)
             .Select(range.From.AddDays)
             .Select(day => Days.FirstOrDefault(known => known.Day == day) ?? new DayAvailability.Open(day))]);
-
-    /// <summary>Every day of the range open: nothing marked, nothing planned.</summary>
-    public static AvailabilityCalendar AllOpen(DayRange range) => new AvailabilityCalendar(range, []).Within(range);
 }

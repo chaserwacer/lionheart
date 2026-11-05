@@ -26,14 +26,6 @@ enum NonTrainingSchedule: Equatable, Sendable {
         case .oneDay, .unrecognised: false
         }
     }
-
-    /// The first day it covers; `nil` for a schedule this build cannot read.
-    var first: CalendarDay? {
-        switch self {
-        case .oneDay(let day), .everyWeek(let day), .everyWeekUntil(let day, _): day
-        case .unrecognised: nil
-        }
-    }
 }
 
 /// How a non-training day is asked for: the day, whether its weekday repeats, and a note.

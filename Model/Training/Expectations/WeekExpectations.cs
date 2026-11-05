@@ -35,12 +35,7 @@ public sealed record WeekExpectations(
 /// the same as it when every day was available.
 /// </param>
 /// <param name="Reasons">Why the raw target is what it is, then what the days changed, in words.</param>
-public sealed record Expectation(double Done, WeeklyTarget Raw, WeeklyTarget Adjusted, IReadOnlyList<string> Reasons)
-{
-    /// <summary>Whether the adjusted target asks for anything: not when no day was available.</summary>
-    [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsExpected => Adjusted.Committed > 0;
-}
+public sealed record Expectation(double Done, WeeklyTarget Raw, WeeklyTarget Adjusted, IReadOnlyList<string> Reasons);
 
 /// <summary>Push, pull or legs: hard sets over the window against the week's target.</summary>
 public sealed record FamilyExpectation(PatternFamily Family, Expectation Sets, DateOnly? LastTrained);

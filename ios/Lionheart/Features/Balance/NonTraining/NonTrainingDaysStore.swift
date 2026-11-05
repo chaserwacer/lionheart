@@ -22,6 +22,7 @@ final class NonTrainingDaysStore {
     private let api: AvailabilityAPI
     private let now: @Sendable () -> Date
     private var whenChanged: [@MainActor () async -> Void] = []
+    private var load: Task<Void, Never>?
 
     init(api: AvailabilityAPI, now: @escaping @Sendable () -> Date = { Date() }) {
         self.api = api
@@ -39,7 +40,15 @@ final class NonTrainingDaysStore {
         whenChanged.append(action)
     }
 
+    /// Reads the calendar and the statements again, replacing any read already running.
     func refresh() async {
+        load?.cancel()
+        let task = Task { await self.reload() }
+        load = task
+        await task.value
+    }
+
+    private func reload() async {
         let api = api
         let range = range
         async let calendarRead = Self.read { try await api.availability(range) }
@@ -50,6 +59,8 @@ final class NonTrainingDaysStore {
     }
 
     func reset() {
+        load?.cancel()
+        load = nil
         calendar = .loading
         marked = .loading
         action = .idle
