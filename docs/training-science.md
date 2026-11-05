@@ -243,6 +243,10 @@ once the rise is more than the measure's noise: six hard sets, thirty cardio min
 Cardio minutes are not judged under an hour a week before: from almost nothing a week of cardio is
 a start, and holding it back would only keep him off cardio. Running is judged from nothing,
 because a first week of miles is exactly the injury risk a ramp guards (Nielsen et al. 2014).
+The going-in rating's load part allows more: it costs nothing until the week's hard sets reach
+1.45 times the usual, then 30 points per unit of ratio. A steep week is a reason to hold next
+week's targets, not on its own a reason to feel less ready this morning; 1.45 is where the coupled
+ratio the rating used before reached 1.3, so its reading did not tighten when the ratio changed.
 
 ### A spike is not built on
 

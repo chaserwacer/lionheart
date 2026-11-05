@@ -185,9 +185,20 @@ public static class GoingInAnalysis
                - 1.0 * cardio.Sum(session => session.ZoneFourPlus ?? 0)
                - 0.15 * cardio.Sum(session => session.ZoneTwo ?? 0)
                - UnzonedMinuteCost * cardio.Where(IsUnzoned).Sum(session => session.Minutes)
-               - 50 * Math.Max(0, ratio - LoadRatio.SteepRatio)
+               - LoadRatioCost * Math.Max(0, ratio - LoadRatioAllowance)
                - EverydayCost(EverydaySinceYesterday(facts, yesterday));
     }
+
+    /// <summary>
+    /// The week's hard-set ratio the load part allows before it costs anything. Higher than the
+    /// ramp's steep 1.3 because this part is about today's legs, not the injury risk a ramp guards:
+    /// a week that reads steep holds next week's targets but does not, on its own, make him less
+    /// ready this morning. 1.45 on the uncoupled ratio is where the earlier coupled ratio reached 1.3.
+    /// </summary>
+    public const double LoadRatioAllowance = 1.45;
+
+    /// <summary>Points per unit of ratio over the allowance; about what the coupled ratio's 50 came to over the usual range.</summary>
+    public const double LoadRatioCost = 30;
 
     /// <summary>
     /// What a MET-minute of everyday load over his usual high (the 90th percentile of his days)

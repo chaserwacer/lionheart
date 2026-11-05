@@ -145,10 +145,19 @@ public sealed class GoingInAnalysisTests
     [Fact]
     public void A_week_well_above_the_four_weeks_before_costs_load()
     {
-        // 26 over a mean of 10 is 2.6, 1.3 over the allowance: 100 - 65.
-        var state = Of(Facts(load: Load(26, 10)));
+        // 49 over a mean of 20 is 2.45, one over the allowance: 100 - 30.
+        var state = Of(Facts(load: Load(49, 20)));
 
-        Assert.Equal(35, ScoreOf(state.Load.Score));
+        Assert.Equal(70, ScoreOf(state.Load.Score));
+    }
+
+    [Fact]
+    public void A_steep_week_short_of_the_allowance_costs_no_load()
+    {
+        // 14 over 10 is 1.4: steep for the ramp, still inside what this morning's readiness allows.
+        var state = Of(Facts(load: Load(14, 10)));
+
+        Assert.Equal(100, ScoreOf(state.Load.Score));
     }
 
     [Fact]

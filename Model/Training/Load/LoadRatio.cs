@@ -52,7 +52,7 @@ public abstract record LoadRatio
 
     /// <summary>
     /// The ratio at which a week reads steep: the top of the 0.8–1.3 band Gabbett (2016) found
-    /// injury risk lowest in, and the going-in rating's allowance.
+    /// injury risk lowest in.
     /// </summary>
     public const double SteepRatio = 1.3;
 
