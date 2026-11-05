@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Train's hero: where the week stands and what to do about it — the score against the weeks before
-/// it, the partition of what went into it, and what is up next — on Graphite.
+/// it, the partition of what went into it, what is up next and the week's advice — on Graphite.
 ///
 /// The parts in words, each opening its screen, follow in a section of their own
 /// (`TrainingScorePartsSection`), so the hero stays one glance tall. The partition's bars rise to
@@ -46,6 +46,9 @@ struct TrainingScoreHero: View {
             .sensoryFeedback(.success, trigger: targetsHit)
             if let next {
                 NextUpLine(next: next)
+            }
+            if let advice = score.expectations?.advice {
+                WeeklyAdviceRow(advice: advice)
             }
         }
     }

@@ -14,9 +14,9 @@ public static class ExpectationReasons
     public static string Grown(WeeklyTarget target, string unit) => target.Growth switch
     {
         TargetGrowth.HeldAfterSteepWeek held =>
-            $"Held at {Figure(target.Target)} {unit}: last week's {Figure(held.LastWeek.Acute)} was {Ratio(held.LastWeek)} the 4 weeks before it, so this week does not build on it.",
+            $"Held at {Figure(target.Target)} {unit}, the week before's own target: it held {Figure(held.LastWeek.Acute)}, {Ratio(held.LastWeek)} the 4 weeks before it, so this week does not build on it.",
         TargetGrowth.LoweredAfterSpike lowered =>
-            $"Lowered to {Figure(target.Target)} {unit}, the usual of the 4 weeks before last: last week's {Figure(lowered.LastWeek.Acute)} was {Ratio(lowered.LastWeek)} it.",
+            $"Lowered to {Figure(target.Target)} {unit}: the week before held {Figure(lowered.LastWeek.Acute)}, {Ratio(lowered.LastWeek)} the 4 weeks before it, a spike this week does not build on.",
         TargetGrowth.Ramped => Ramped(target, unit),
         _ => throw new System.Diagnostics.UnreachableException(),
     };

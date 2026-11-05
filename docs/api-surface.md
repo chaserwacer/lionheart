@@ -372,7 +372,7 @@ still calls the old route.
 ### Weekly volume — `GET /api/training/volume/{day}`
 
 `TrainingVolume` for the seven days ending on `{day}`: `families` (push, pull, legs:
-`{ family, hardSets, target, lastTrained? }`, `target` the family's adjusted expectation for the
+`{ family, hardSets, target, lastTrained?, paused }`, `paused` when an injury pauses it, `target` the family's adjusted expectation for the
 week — the score's own target, prorated to the days not marked non-training; see
 [Week expectations](#week-expectations)), `patterns` (all nine: `{ pattern, hardSets, target?,
 lastTrained? }`, `target` 4 for the seven compound patterns and absent for isolation and other),
@@ -503,7 +503,7 @@ window's available days less half a day for each day of everyday load far above 
 are two (each figure times `days / 7`, rounded up to its step; `chronic` unchanged), then lowered to
 60 % for a suggested deload or paused (every figure 0) for an injury; `reasons` plain lines — the
 raw basis ("4-week average 5.5 hard sets, +10 %: 7.", "Committed 8 hard sets: …", "Floor 4 …",
-"Held at 120 min: last week's 190 was 1.6× the 4 weeks before it, …", "Committed 3 sessions a
+"Held at 120 min, the week before's own target: it held 190, 1.4× the 4 weeks before it, …", "Committed 3 sessions a
 week.") then what changed the adjusted target ("Lowered to 5: 2 of 7 days marked non-training
 (travel); 2 days far above your usual activity.", "Deload week suggested: 5 hard sets is the plan,
 …", "Paused while the shoulder is managed: hold it near 6 hard sets a week, …"). The raw targets
@@ -527,7 +527,7 @@ they were, days off included, so a week away lowers the ramp the way the body's 
   where there was one. A pinned lift target in the same unit is stated after: met by the aim, or how
   far. `frequency` `$type` `pinned { sessions: Expectation }` (the pin's sessions a week, prorated) or
   `notPinned { sessions }`, sessions counting the window's sessions that trained the lift. A
-  suggested deload holds every aim.
+  suggested deload holds every aim, and an injury pausing its family holds that family's.
 - `load` — `WeekLoad { lifting, cardio, everyday }`, the window against the four seven-day blocks
   before it. A `LoadRatio` is `$type` `compared { acute, chronic, ratio }` (`ratio` 0 when `chronic`
   is 0) or `nothingBefore { acute }`; a `RampStanding` is `unjudged | within | steep | spike` (1.3 and

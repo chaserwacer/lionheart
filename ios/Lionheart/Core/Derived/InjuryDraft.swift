@@ -8,11 +8,14 @@ struct InjuryDraft: Equatable, Sendable {
     let name: String
     let startedOn: CalendarDay
     let notes: String
+    /// The judged families it touches, in push, pull, legs order; empty when not said.
+    let families: [PatternFamily]
 
-    private init(name: String, startedOn: CalendarDay, notes: String) {
+    private init(name: String, startedOn: CalendarDay, notes: String, families: [PatternFamily]) {
         self.name = name
         self.startedOn = startedOn
         self.notes = notes
+        self.families = families
     }
 
     /// Why the form cannot be sent yet.
@@ -22,11 +25,13 @@ struct InjuryDraft: Equatable, Sendable {
     }
 
     static func make(
-        name: String, startedOn: CalendarDay, notes: String, today: CalendarDay
+        name: String, startedOn: CalendarDay, notes: String, families: Set<PatternFamily> = [], today: CalendarDay
     ) throws(Problem) -> InjuryDraft {
         guard let name = name.nonEmpty else { throw .unnamed }
         guard startedOn <= today else { throw .startsInTheFuture }
-        return InjuryDraft(name: name, startedOn: startedOn, notes: notes.nonEmpty ?? "")
+        return InjuryDraft(
+            name: name, startedOn: startedOn, notes: notes.nonEmpty ?? "",
+            families: PatternFamily.judged.filter(families.contains))
     }
 }
 

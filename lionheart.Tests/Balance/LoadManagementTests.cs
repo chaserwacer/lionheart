@@ -6,6 +6,7 @@ using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Next;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Score;
+using lionheart.Services.Training.Balance;
 using lionheart.Services.Training.Expectations;
 using lionheart.Services.Training.Load;
 using lionheart.Services.Training.Next;
@@ -103,6 +104,20 @@ public class LoadManagementTests
         Assert.Equal("Paused while the shoulder is managed: hold it near 6 hard sets a week, your 4-week average, rather than building on it.", push.Sets.Reasons[^1]);
         Assert.Equal(0, score.Adjusted.Parts.Single(part => part.Part == ScorePart.Lifting).OutOf - 2 * ScoreRules.LiftingPoints / 3.0, precision: 6);
         Assert.NotEqual(0, push.Sets.Raw.Committed);
+    }
+
+    [Fact]
+    public void An_injury_holds_the_priority_of_the_family_it_pauses_and_weekly_volume_says_it_is_paused()
+    {
+        var inputs = Inputs(SteadyWeeks()) with { Injuries = [AShoulder(Monday)] };
+
+        var score = Score(inputs, Thursday);
+        var push = Assert.Single(score.Expectations.Priorities, priority => priority.Family == PatternFamily.Push);
+        var volume = TrainingVolumeAnalysis.Build(inputs.Log, Thursday, new ReadinessNote.NotRead(), score.Expectations.Families);
+
+        Assert.IsType<LiftAim.Hold>(push.Aim);
+        Assert.Contains("the shoulder is being managed: hold the weight rather than build it.", push.Reasons);
+        Assert.True(volume.Families.Single(family => family.Family == PatternFamily.Push).Paused);
     }
 
     [Fact]

@@ -31,7 +31,10 @@ public static class TrainingVolumeAnalysis
                 family.Family,
                 family.HardSets,
                 (int)expected.Single(expectation => expectation.Family == family.Family).Sets.Adjusted.Target,
-                family.LastTrained))
+                family.LastTrained)
+            {
+                Paused = expected.Single(expectation => expectation.Family == family.Family).Paused,
+            })
         ];
 
         return new TrainingVolume(

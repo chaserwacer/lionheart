@@ -14,7 +14,7 @@ struct TrainingBalanceTests {
         let volume = try Decoding.decode(TrainingVolume.self, Self.volumeJSON)
 
         #expect(volume.window == DayRange(from: CalendarDay(year: 2026, month: 10, day: 28), to: CalendarDay(year: 2026, month: 11, day: 3)))
-        #expect(volume.family(.pull) == FamilyVolume(family: .pull, hardSets: 3, target: 8, lastTrained: CalendarDay(year: 2026, month: 10, day: 28)))
+        #expect(volume.family(.pull) == FamilyVolume(family: .pull, hardSets: 3, target: 8, lastTrained: CalendarDay(year: 2026, month: 10, day: 28), isPaused: false))
         #expect(volume.patterns.first { $0.pattern == .isolation }?.target == nil)
         #expect(volume.muscles.first { $0.muscle == .upperBack }?.sets == 1.5)
         #expect(volume.unplaced.map(\.name) == ["Cable Mystery"])

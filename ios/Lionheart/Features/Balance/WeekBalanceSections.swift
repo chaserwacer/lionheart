@@ -27,7 +27,7 @@ struct WeekBalanceSections: View {
             ForEach(week.volume.families) { family in
                 VolumeRow(
                     label: family.family.name, sets: Double(family.hardSets), target: family.target,
-                    lastTrained: family.lastTrained)
+                    lastTrained: family.lastTrained, isPaused: family.isPaused)
             }
             ForEach(week.volume.patterns.filter { $0.target != nil }) { pattern in
                 LabeledContent(pattern.pattern.name) {

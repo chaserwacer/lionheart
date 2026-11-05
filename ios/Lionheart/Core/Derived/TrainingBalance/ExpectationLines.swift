@@ -11,6 +11,8 @@ struct ExpectationLine: Equatable, Sendable, Identifiable {
 
     let measure: Measure
     let expectation: Expectation
+    /// A family an active injury pauses: it asks nothing this week, on purpose.
+    var isPaused = false
 
     var id: String {
         switch measure {
@@ -29,7 +31,7 @@ enum ExpectationLines {
     /// parts read in. Cardio drops out when the week's heart rate could not be read.
     static func of(_ expectations: WeekExpectations) -> [ExpectationLine] {
         [ExpectationLine(measure: .sessions, expectation: expectations.sessions)]
-            + expectations.families.map { ExpectationLine(measure: .hardSets($0.family), expectation: $0.sets) }
+            + expectations.families.map { ExpectationLine(measure: .hardSets($0.family), expectation: $0.sets, isPaused: $0.isPaused) }
             + expectations.cardio.zones.map { ExpectationLine(measure: .minutes($0.band), expectation: $0.minutes) }
     }
 }

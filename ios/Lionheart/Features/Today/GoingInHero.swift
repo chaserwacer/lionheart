@@ -10,6 +10,8 @@ import SwiftUI
 struct GoingInHero: View {
     let state: GoingInState
     let next: NextSessions?
+    /// The week's one piece of advice, under what is next, once the week's score has been read.
+    let advice: WeeklyAdvice?
     /// Whether the read is an older answer recalled with no signal, or a failed refresh.
     let isStale: Bool
     let openDetail: () -> Void
@@ -24,6 +26,9 @@ struct GoingInHero: View {
             .accessibilityHint("Shows the parts and how they are weighed")
             if let next {
                 NextUpLine(next: next)
+            }
+            if let advice {
+                WeeklyAdviceRow(advice: advice)
             }
         }
     }

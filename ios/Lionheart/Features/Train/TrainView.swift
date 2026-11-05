@@ -220,7 +220,7 @@ struct TrainView: View {
                 ForEach(volume.families) { family in
                     VolumeRow(
                         label: family.family.name, sets: Double(family.hardSets), target: family.target,
-                        lastTrained: family.lastTrained)
+                        lastTrained: family.lastTrained, isPaused: family.isPaused)
                 }
                 NavigationLink(value: ScoreRoute.volume) {
                     LabeledContent("Patterns and muscle groups") {

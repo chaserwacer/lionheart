@@ -64,7 +64,9 @@ public static class WeekExpectationsAnalysis
             Families(inputs.Log, sets, days, window, load.Everyday, load.Lifting.Deload, injuries),
             Cardio(inputs.CardioOf, days, window, load.Everyday),
             [.. priorities.Select(priority => priority.Lift is PriorityLift.Chosen chosen
-                    ? LiftAimAnalysis.Of(inputs.Log, priority.Family, chosen, endingOn, inputs.GoingInOn(endingOn), days, load.Lifting.Deload)
+                    ? LiftAimAnalysis.Of(
+                        inputs.Log, priority.Family, chosen, endingOn, inputs.GoingInOn(endingOn), days,
+                        LiftAimAnalysis.WeekHolds(load.Lifting.Deload, injuries.FirstOrDefault(injury => injury.Families.Contains(priority.Family))))
                     : null)
                 .OfType<PriorityAim>()],
             load,

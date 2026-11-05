@@ -58,7 +58,8 @@ struct GoingInState: Equatable, Sendable {
         let sleepScore: OuraScore?
     }
 
-    /// The training since the start of yesterday, and the week against the month.
+    /// The training since the start of yesterday, the week against the four before it, and the
+    /// everyday load since yesterday.
     struct LoadPart: Equatable, Sendable {
         let score: PartScore
         let hardSets: Int
@@ -66,7 +67,10 @@ struct GoingInState: Equatable, Sendable {
         let highIntensityMinutes: Double?
         let zoneTwoMinutes: Double?
         let hardSetsLast7: Int
-        let hardSetsWeeklyMean28: Double
+        /// The mean weekly hard sets of the four seven-day blocks before the last seven days.
+        let hardSetsChronic: Double
+        /// Yesterday's and today's everyday load, where the ring read them.
+        let everyday: [EverydayDay]
     }
 
     struct WellnessPart: Equatable, Sendable {
@@ -164,7 +168,7 @@ extension GoingInState: Decodable {
                 ?? SleepPart(score: .notScored, lastNight: nil, nightBefore: nil),
             load: container.lenient(LoadPart.self, "load")
                 ?? LoadPart(score: .notScored, hardSets: 0, highIntensityMinutes: nil, zoneTwoMinutes: nil,
-                            hardSetsLast7: 0, hardSetsWeeklyMean28: 0),
+                            hardSetsLast7: 0, hardSetsChronic: 0, everyday: []),
             wellness: container.lenient(WellnessPart.self, "wellness") ?? WellnessPart(score: .notScored, today: nil),
             injuries: container.lenientList(InjuryNote.self, "injuries"),
             plannedToday: container.lenientList(PlannedNote.self, "plannedToday").map(\.movements),
@@ -279,7 +283,8 @@ extension GoingInState.LoadPart: Decodable {
             highIntensityMinutes: container.lenient(Double.self, "highIntensityMinutes"),
             zoneTwoMinutes: container.lenient(Double.self, "zoneTwoMinutes"),
             hardSetsLast7: container.lenient("hardSetsLast7", or: 0),
-            hardSetsWeeklyMean28: container.lenient("hardSetsWeeklyMean28", or: 0))
+            hardSetsChronic: container.lenient("hardSetsChronic", or: 0),
+            everyday: container.lenientList(EverydayDay.self, "everyday"))
     }
 }
 

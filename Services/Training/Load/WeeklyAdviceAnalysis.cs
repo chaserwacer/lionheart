@@ -106,7 +106,7 @@ public static class WeeklyAdviceAnalysis
                 minutes,
                 "Hold your cardio this week",
                 [
-                    $"Last week's cardio, {Figure(minutes.Acute)} min, was {ExpectationReasons.Ratio(minutes)} the 4 weeks before it ({Figure(minutes.Chronic)} min a week).",
+                    $"Last week's cardio, {Figure(Math.Round(minutes.Acute))} min, was {ExpectationReasons.Ratio(minutes)} the 4 weeks before it ({Figure(Math.Round(minutes.Chronic))} min a week).",
                     "Keep this week's cardio near last week's rather than adding to it; this week's targets do not build on the spike.",
                 ]);
 
@@ -194,9 +194,9 @@ public static class WeeklyAdviceAnalysis
 
         if (cardioOf(lastWeek) is not CardioMeasure.Measured measured) yield break;
         var zone2 = BandTarget(cardioOf, lastWeek, ScoreRules.Zone2, block => block.Zone2Minutes);
-        yield return (Share(measured.Zone2Minutes, zone2), $"zone 2, {Figure(measured.Zone2Minutes)} of {Figure(zone2)} min");
+        yield return (Share(measured.Zone2Minutes, zone2), $"zone 2, {Figure(Math.Round(measured.Zone2Minutes))} of {Figure(zone2)} min");
         var quality = BandTarget(cardioOf, lastWeek, ScoreRules.Quality, block => block.QualityMinutes);
-        yield return (Share(measured.QualityMinutes, quality), $"quality, {Figure(measured.QualityMinutes)} of {Figure(quality)} min");
+        yield return (Share(measured.QualityMinutes, quality), $"quality, {Figure(Math.Round(measured.QualityMinutes))} of {Figure(quality)} min");
     }
 
     private static double LiftingShare(HardSetCounts sets, DayRange week) =>

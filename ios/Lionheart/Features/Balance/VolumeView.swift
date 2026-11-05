@@ -12,7 +12,7 @@ struct VolumeView: View {
                 ForEach(volume.families) { family in
                     VolumeRow(
                         label: family.family.name, sets: Double(family.hardSets), target: family.target,
-                        lastTrained: family.lastTrained, today: today)
+                        lastTrained: family.lastTrained, today: today, isPaused: family.isPaused)
                 }
             } header: {
                 Text("Families")

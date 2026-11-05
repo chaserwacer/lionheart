@@ -23,6 +23,8 @@ struct FamilyVolume: Equatable, Sendable, Identifiable {
     let target: Int
     /// The last day a hard set of the family was logged, over the whole log; `nil` when never.
     let lastTrained: CalendarDay?
+    /// An active injury pauses the family: its target of nothing is on purpose.
+    let isPaused: Bool
 
     var id: String { family.wire }
 }
@@ -105,7 +107,8 @@ extension FamilyVolume: Decodable {
             family: PatternFamily(wire: container.lenient("family", or: "")),
             hardSets: container.lenient("hardSets", or: 0),
             target: container.lenient("target", or: 0),
-            lastTrained: container.day("lastTrained"))
+            lastTrained: container.day("lastTrained"),
+            isPaused: container.lenient("paused", or: false))
     }
 }
 
