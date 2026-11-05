@@ -44,4 +44,11 @@ public sealed class ProposalsNoteTests
             ],
             note.Split('\n'));
     }
+
+    [Fact]
+    public void A_line_that_ends_its_own_sentence_is_not_given_a_second_full_stop()
+    {
+        Assert.Equal("Plan a run: Note: with friends.", new ProposalSummary("Plan a run", ["Note: with friends."]).Spoken);
+        Assert.Equal("Plan a run: Easy run.", new ProposalSummary("Plan a run", ["Easy run"]).Spoken);
+    }
 }

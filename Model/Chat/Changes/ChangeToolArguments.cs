@@ -21,7 +21,7 @@ public sealed record PlannedSessionArguments
     [Description("What the session is, in words, one line each, for anything that is not a lift with numbers: \"Easy run, 4-5 miles, conversational\", \"Zone 2 ride, 60 minutes\", \"4 x 4 minute intervals at zone 4-5\". Short and specific.")]
     public IReadOnlyList<string>? Freeform { get; init; }
 
-    [Description("A note for the athlete on why or how, in a sentence: who it is with, what it is for. Optional.")]
+    [Description("The session's name on Train and Today, a few words: \"Group run with friends\", \"Legs before travel\". Optional; without it the session is named by its day.")]
     public string? Notes { get; init; }
 }
 

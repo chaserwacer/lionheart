@@ -50,7 +50,7 @@ public sealed class ChatChangeTools(ChangeDrafter drafter) : IChatChangeTools
         Description = "Plan a training session on a day, so Train, Today, availability and the TODAY note know about it." +
             " Use it when he says what he will do on a day (\"I'm running with friends on Wednesday\") or agrees to a session you suggested." +
             " Plan it to fit the week, not only to record what he said: read the week and what is up next in the TODAY note first (GetNextSessions for more), and for a lift day prescribe the due family's priority lift at its aim." +
-            " Lifts need movementDataIds (FindMovements); give anything else, such as a run, as freeform lines, and who or what it is for as the note." +
+            " Lifts need movementDataIds (FindMovements); give anything else, such as a run, as freeform lines, and name the session in a few words as its note." +
             " One session per call." + Proposal)]
     public Task<Result<ProposalDraft, Problem>> ProposePlanSessionAsync(IdentityUser user, PlannedSessionArguments arguments) =>
         _drafter.PlanSessionAsync(user, arguments, CancellationToken.None);

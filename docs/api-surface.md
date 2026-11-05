@@ -696,8 +696,9 @@ said in the old one rather than its transcript.
 | DELETE | `/api/chat/memories/{id}` | — | 204; the memory and every earlier version of it are gone |
 
 - **`ThreadSessionView`** — `sessionId`, `openedAt`, `messages[]`: the athlete's and the model's turns
-  in order, each the same `LHChatMessageDTO` a conversation carries (`role` 0 athlete, 1 model). Tool
-  results are not turns and are not sent.
+  in order, each the same `LHChatMessageDTO` a conversation carries (`role` 0 athlete, 1 model); and
+  `proposals[]`: the `ChangeProposalView` of every change proposed in the session, oldest first (see
+  "Proposed changes" below). Tool results are not turns and are not sent.
 - **`MemoryView`** — `memoryId`, `kind` (int: `0` goal, `1` injury, `2` preference, `3` commitment,
   `4` decision, `5` fact), `text`, `recordedAt`, `source` (int: `0` distilled from the chat, `1`
   written by the athlete), `quotes[]` (`messageId`, `byAthlete`, `said` — clipped to 280 characters,
@@ -722,6 +723,33 @@ said in the old one rather than its transcript.
   neither list them nor accept their ids.
 - The chat model reaches memory through the `SearchMemory` tool, offered to standalone
   conversations too.
+
+### Proposed changes — `/api/chat/proposals`
+
+The thread can change the athlete's data, but only by proposing: the model's `Propose…` tools write
+nothing, they draft a change that is stored with the session as a **proposal** and drawn as a card.
+Only the athlete's confirmation writes it, through the service the page that makes the same change
+uses, in one transaction with the settled answer. Standalone conversations, which the web app also
+speaks to, are not offered the proposing tools.
+
+| Verb | Route | Body | Answers |
+|---|---|---|---|
+| POST | `/api/chat/proposals/{id}/confirm` | — | the settled `ChangeProposalView`: `confirmed`, or `refused` with the service's reason when the write was refused (still 200 — he said yes, nothing was written). 404 for another athlete's or an unknown id, 409 when already answered |
+| POST | `/api/chat/proposals/{id}/decline` | — | the settled `ChangeProposalView`, `declined`; nothing is written. 404, 409 as above |
+
+- **`ChangeProposalView`** — `changeProposalId`, `proposedAt`, `area` (`"plan"`, `"availability"`,
+  `"focus"`, `"injuries"`: which screens read again once it is written), `title`, `lines[]` (what it
+  sets or replaces, rendered by the server from the change itself in the athlete's units), and
+  `answer`, by `$type`: `waiting`; `confirmed` `{ at }`; `declined` `{ at }`; `refused` `{ at, reason }`.
+  The change itself never crosses the wire, so a client can confirm only what it was shown.
+- **What can be proposed:** planning a session on a day (stored as `AiAssisted`); changing or removing
+  a planned session Tempo planned (one the athlete planned is his to change on Train); marking a
+  non-training day once or weekly, or freeing one; pinning a priority lift, which lets the family's
+  current priority go; logging an injury or a check-in on one.
+- A proposal's state goes with every later message as part of the briefing — this session's proposals
+  and any card still waiting from the last fortnight — so the model knows what landed and what he
+  declined. A failed exchange stores no proposal. The stream has no event of its own for a proposal:
+  it arrives in `done`'s session, and `tools` names the `Propose…` tool while it runs.
 
 ### What the model is given — `GET /api/profile/context-card`
 

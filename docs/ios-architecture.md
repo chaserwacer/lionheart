@@ -971,6 +971,18 @@ them, the only sign of the cut.
   on iOS 26 was left past the end of the transcript, blank, when the rows were long answers.
 - **The context sheet leads with the briefing**, exactly as the next message will carry it, then
   the two standing tiers with their as-of instants.
+- **A change Tempo proposes is a card, not a turn** (`ProposalCard`, `docs/api-surface.md` →
+  Proposed changes). Each session carries its proposals; `ThreadTranscript.rows` places each one
+  after the turns stored before it, which puts it straight under the answer that proposed it. The
+  card shows the server's title and lines and nothing the client composed, and while it waits it
+  offers Not now and Confirm; once answered it says what became of it — confirmed, not now, or not
+  saved with the service's reason. One answer is out at a time (`ProposalAnswering`), naming its
+  card, so every other card holds its buttons. The settled card replaces the waiting one in place;
+  a 409 or 404 means it was answered elsewhere or is gone, so the refusal is stated and the thread
+  read again. A confirmation tells `ThreadStore.onChangeConfirmed` listeners the change's area,
+  and `AppContainer` reads again the screens that area feeds — Today always, Train, History, the
+  availability calendar, the priorities, the going-in state and Body only once opened. While a
+  `Propose…` tool runs the waiting row says it is drafting a change rather than reading.
 
 ## Outside the app: widgets, Shortcuts and the morning wake
 

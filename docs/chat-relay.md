@@ -86,6 +86,11 @@ under the thread's lock, so a chat message waits behind an unanswered `extract`.
    to be needed.
 4. Repeat until the reply comes back.
 
+A `Propose…` tool call is answered like any other: its result tells you what was put on a card, and
+nothing is written. The card is answered from the app's Chat tab, or with
+`POST /api/chat/proposals/{id}/confirm` or `/decline`; the next message's request then says, after the
+briefing, where each proposal of the session stands.
+
 To cross the memory gap without waiting three hours, move the newest session's `LastUpdate` back
 four hours in the copied database. The next message then consolidates that session (an `extract`
 request) and opens a new one with the memories recalled.

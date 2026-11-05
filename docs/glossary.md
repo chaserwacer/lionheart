@@ -163,13 +163,16 @@ first and then in the code.
 | **Interpretation** | Turning raw text into domain records: parse, resolve, commit. Versioned and re-runnable. |
 | **Utterance** | How an entry was logged — texted, with the raw words kept, or formed through the UI. |
 | **Athlete context card** | The standing per-user summary handed to the model, so a conversation starts knowing the athlete instead of re-reading everything. |
-| **Briefing** | The TODAY note each chat message goes with: the date and time on the athlete's clock, his training today and yesterday, his last two nights, readiness, injuries, the days ahead he has marked non-training, the week so far and the score. It is read fresh for every message, is never stored, and decides what "today" means. |
+| **Briefing** | The TODAY note each chat message goes with: the date and time on the athlete's clock, his training today and yesterday, his last two nights, readiness, injuries, the days ahead he has marked non-training, the week so far and the score; in the thread, where the changes the model proposed stand. It is read fresh for every message, is never stored, and decides what "today" means. |
 | **Relay** | The development-only chat provider in which whoever is testing plays the model by answering request files (`docs/chat-relay.md`). |
 | **Streamed answer** | A thread reply sent to the app as it is written, as server-sent events: its text piece by piece, each round of tools as it runs, then the stored session. The exchange finishes and is stored even if the connection drops. |
 | **Thread** | The athlete's one continuing chat with Lionheart, read back as a single transcript. Beside it, a **conversation** is a standalone chat he starts and names; nothing said in one is remembered. |
 | **Thread session** | The run of thread messages the model actually reads: it ends after three hours idle or once its transcript passes about 60k tokens, and its system prompt is frozen when it opens. |
 | **Memory** | What the athlete told the thread, distilled when a session ends: a dated goal, injury, preference, commitment, decision or fact, traced to the messages it came from. The context card is what his data shows; memory is what he said. |
 | **Consolidation** | Distilling an ended thread session into memory: one structured model call that remembers, revises or retires. |
+| **Proposed change** | A change to the athlete's data the chat model put to him in the thread — a session planned, changed or removed, a non-training day marked or freed, a priority lift pinned, an injury or a check-in logged — written only when he confirms it, through the service the page uses. Waiting, then confirmed, declined, or refused (he said yes and the service would not write it, with its reason). Short form: **proposal**. |
+| **Proposing tool** | A chat tool named `Propose…` that drafts a proposed change instead of reading: it writes nothing, and is offered only in the thread, where a card can be answered. |
+| **Proposal card** | A proposed change as the Chat transcript draws it, after the answer that proposed it: its title, what it sets or replaces, and Confirm or Not now until it is answered. |
 | **Supersede** | How a memory changes: a revision writes a new current version and keeps the old one, dated, as its history. |
 | **Quick log** | The one-field path: type what you did in plain words and let interpretation do the rest. |
 

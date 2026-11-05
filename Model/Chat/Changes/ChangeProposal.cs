@@ -83,7 +83,10 @@ public sealed record ProposalDraft(Guid ChangeProposalId, ProposedChange Change,
 public sealed record ProposalSummary(string Title, IReadOnlyList<string> Lines)
 {
     /// <summary>The summary as one passage, for the model and for VoiceOver.</summary>
-    public string Spoken => Lines.Count == 0 ? $"{Title}." : $"{Title}: {string.Join("; ", Lines)}.";
+    public string Spoken => Sentence(Lines.Count == 0 ? Title : $"{Title}: {string.Join("; ", Lines)}");
+
+    /// <summary>A note the model wrote often ends in its own full stop, which a second would only double.</summary>
+    private static string Sentence(string text) => text.EndsWith('.') ? text : $"{text}.";
 }
 
 /// <summary>Where a proposal stands: waiting for the athlete, or answered one of three ways.</summary>
