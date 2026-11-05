@@ -37,6 +37,11 @@ public sealed record NearSession(StravaActivity Activity, Guid HeldSessionId, do
 /// it writes to Health with the moment it wrote it) where the archive's has one. Kept, since a held
 /// part is never replaced; counted, so the choice is visible.
 /// </param>
+/// <param name="DeletedHealthWorkouts">
+/// Health workouts whose sessions the athlete deleted. A deleted workout is remembered by its Health
+/// id alone, with no time, so an archived activity that was one of them is not recognised and is
+/// added as a session of its own; the count says whether there is anything to check.
+/// </param>
 public sealed record StravaArchiveImportReport(
     int ActivitiesInArchive,
     IReadOnlyList<AddedActivity> Added,
@@ -47,4 +52,5 @@ public sealed record StravaArchiveImportReport(
     IReadOnlyList<UnreadableFile> UnreadableFiles,
     IReadOnlyList<NearSession> NearSessions,
     int ClocklessRoutesKept,
+    int DeletedHealthWorkouts,
     RecordsOutcome Records);

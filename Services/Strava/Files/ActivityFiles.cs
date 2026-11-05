@@ -18,7 +18,7 @@ internal static class ActivityFiles
     {
         if (file.Length is 0) return Result<ActivityTrack, string>.Success(ActivityTrack.None);
 
-        var root = Path.GetFullPath(archive) + Path.DirectorySeparatorChar;
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(archive)) + Path.DirectorySeparatorChar;
         var path = Path.GetFullPath(Path.Combine(root, file));
         if (!path.StartsWith(root, StringComparison.Ordinal))
             return Result<ActivityTrack, string>.Failure("The file's path leads outside the archive.");

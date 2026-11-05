@@ -63,7 +63,7 @@ public static class WorkoutFacts
     {
         var lines = new List<string>
         {
-            $"{Capitalised(Noun(workout.Activity))} {workout.Start:yyyy-MM-dd HH:mm} ({Provenance(workout.Source)}): "
+            $"{Capitalised(Noun(workout.Activity))} {workout.Start:yyyy-MM-dd HH:mm} ({RecordedAndImported(workout.Source)}): "
             + $"{Imperial.Miles(workout.DistanceMeters)} in {Clock(workout.Duration)}"
             + (workout.MovingTime is { } moving ? $", moving {Clock(moving)}" : string.Empty)
             + (workout.Pace is { } pace ? $", {Rate(workout.Activity, Imperial.PerMile(pace))}" : string.Empty)
@@ -164,7 +164,7 @@ public static class WorkoutFacts
         _ => throw new System.Diagnostics.UnreachableException(),
     };
 
-    private static string Provenance(SessionSource source) => source switch
+    private static string RecordedAndImported(SessionSource source) => source switch
     {
         SessionSource.AppleHealth health => $"recorded by {health.RecordedBy.Name}, imported from Apple Health",
         SessionSource.StravaArchive => "recorded in Strava, imported from the Strava archive",

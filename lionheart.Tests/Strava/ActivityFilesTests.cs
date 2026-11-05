@@ -82,6 +82,14 @@ public class ActivityFilesTests
     }
 
     [Fact]
+    public void An_archive_named_with_a_trailing_separator_reads_its_files_the_same()
+    {
+        using var archive = new ArchiveFolder().With("activities/1.gpx", Gpx(Start, meters: 300));
+
+        ResultAssert.Succeeded(ActivityFiles.Read(archive.Path + Path.DirectorySeparatorChar, "activities/1.gpx"));
+    }
+
+    [Fact]
     public void An_activity_with_no_file_has_no_track_and_that_is_no_fault() =>
         Assert.Same(ActivityTrack.None, ResultAssert.Succeeded(ActivityFiles.Read(Path.GetTempPath(), string.Empty)));
 

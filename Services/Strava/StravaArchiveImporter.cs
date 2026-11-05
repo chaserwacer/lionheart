@@ -106,7 +106,7 @@ public sealed class StravaArchiveImporter
         var fills = await FillAsync(plan, ct);
         if (plan.AddedCount > 0) await _context.StageRecentStateInvalidationAsync(userId, ct);
 
-        return new StagedArchive(plan, fills);
+        return new StagedArchive(plan, fills, await _context.DeletedHealthWorkouts.CountAsync(deleted => deleted.UserId == userId, ct));
     }
 
     /// <summary>
@@ -115,40 +115,31 @@ public sealed class StravaArchiveImporter
     /// </summary>
     private async Task<ArchiveFills> FillAsync(ArchivePlan plan, CancellationToken ct)
     {
-        var targets = plan.Outcomes
-            .Select(outcome => (outcome.Activity, outcome.Track, Held: HeldSession(outcome.Decision)))
-            .Where(target => target.Held is not null)
-            .ToList();
-
-        var ids = targets.Select(target => target.Held!.Value).Distinct().ToList();
+        var logged = plan.Log.Logged.ToDictionary(session => session.TrainingSessionId);
+        var candidates = plan.Outcomes.Select(FillTarget.Of).OfType<FillTarget>().ToList();
+        var ids = candidates.Select(target => target.Held).Distinct().ToList();
         var recordings = await _context.WorkoutRecordings
             .Where(recording => ids.Contains(recording.TrainingSessionId))
             .ToDictionaryAsync(recording => recording.TrainingSessionId, ct);
-        var logged = plan.Log.Logged.ToDictionary(session => session.TrainingSessionId);
 
-        var enriched = targets
-            .Where(target => recordings.ContainsKey(target.Held!.Value))
-            .Select(target => new EnrichedSession(
-                target.Activity,
-                target.Held!.Value,
-                recordings[target.Held.Value].Fill(target.Track.Route, target.Track.HeartRate, target.Track.Metrics)))
-            .Where(session => session.Fill.Any)
+        // A session added by this run has its recording staged rather than held, and was filled from its own file.
+        var targets = candidates
+            .Where(target => recordings.ContainsKey(target.Held) && logged.ContainsKey(target.Held))
+            .Select(target => (Target: target, Recording: recordings[target.Held], Session: logged[target.Held]))
             .ToList();
 
-        var clockless = targets
-            .Where(target => recordings.ContainsKey(target.Held!.Value) && logged.ContainsKey(target.Held.Value))
-            .Count(target => KeepsClocklessRoute(recordings[target.Held!.Value], logged[target.Held.Value], target.Track));
+        // Counted before filling, since a fill can give a held recording the route it was missing.
+        var clockless = targets.Count(held => KeepsClocklessRoute(held.Recording, held.Session, held.Target.Track));
+
+        var enriched = new List<EnrichedSession>();
+        foreach (var (target, recording, _) in targets)
+        {
+            var fill = recording.Fill(target.Track.Route, target.Track.HeartRate, target.Track.Metrics);
+            if (fill.Any) enriched.Add(new EnrichedSession(target.Activity, target.Held, fill));
+        }
 
         return new ArchiveFills(enriched, clockless);
     }
-
-    /// <summary>The held session an activity already is, where it is one with a recording to fill; a lifting session has none.</summary>
-    private static Guid? HeldSession(StravaActivityDecision decision) => decision switch
-    {
-        StravaActivityDecision.AlreadyImported imported => imported.TrainingSessionId,
-        StravaActivityDecision.Matched { Match: SessionMatch.LoggedRun run } => run.TrainingSessionId,
-        _ => null,
-    };
 
     private static bool KeepsClocklessRoute(WorkoutRecording held, CompletedTrainingSession session, ActivityTrack track) =>
         SessionMatching.Span(session.Period) is { } span
@@ -214,9 +205,25 @@ public sealed class StravaArchiveImporter
                 .Take(1);
     }
 
+    /// <summary>An activity that is a held session with a recording to fill: one an earlier run imported, or a cardio session it matched.</summary>
+    private sealed record FillTarget(StravaActivity Activity, ActivityTrack Track, Guid Held)
+    {
+        /// <remarks>A lifting session it lies inside has no recording, so it is no target.</remarks>
+        public static FillTarget? Of(ActivityOutcome outcome) => outcome.Decision switch
+        {
+            StravaActivityDecision.AlreadyImported imported => new FillTarget(outcome.Activity, outcome.Track, imported.TrainingSessionId),
+            StravaActivityDecision.Matched { Match: SessionMatch.LoggedRun run } => new FillTarget(outcome.Activity, outcome.Track, run.TrainingSessionId),
+            _ => null,
+        };
+    }
+
     private sealed record ArchiveFills(IReadOnlyList<EnrichedSession> Enriched, int ClocklessRoutesKept);
 
-    private sealed record StagedArchive(ArchivePlan Plan, ArchiveFills Fills)
+    /// <param name="DeletedHealthWorkouts">
+    /// Health workouts whose sessions the athlete deleted. One carries no time, so the archive cannot
+    /// tell which activity it was; the report says how many there are, to be checked by hand.
+    /// </param>
+    private sealed record StagedArchive(ArchivePlan Plan, ArchiveFills Fills, int DeletedHealthWorkouts)
     {
         public StravaArchiveImportReport Report(RecordsOutcome records)
         {
@@ -247,6 +254,7 @@ public sealed class StravaArchiveImporter
                 Plan.Unreadable,
                 Plan.Near,
                 Fills.ClocklessRoutesKept,
+                DeletedHealthWorkouts,
                 records);
         }
 

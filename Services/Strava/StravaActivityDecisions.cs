@@ -27,7 +27,7 @@ public abstract record StravaActivityDecision
     public sealed record LeftOut(StravaExclusion Reason) : StravaActivityDecision;
 }
 
-/// <summary>Why an archived activity did not become a session and is in the log as none.</summary>
+/// <summary>Why an archived activity became no session.</summary>
 public enum StravaExclusion
 {
     /// <summary>Its session was imported once and the athlete deleted it.</summary>

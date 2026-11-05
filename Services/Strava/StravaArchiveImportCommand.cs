@@ -81,6 +81,10 @@ internal static class StravaArchiveImportCommand
                 Console.WriteLine($"  {near.Activity.Start:yyyy-MM-dd HH:mm}Z {near.Activity.Type} ({near.Activity.Id}): {near.Share:P1} inside session {near.HeldSessionId}");
         }
 
+        if (report.DeletedHealthWorkouts > 0)
+            Console.WriteLine($"\n{report.DeletedHealthWorkouts} Health workouts were deleted from the log. A deleted workout keeps no time, "
+                              + "so an archived copy of one is not recognised: check the sessions added on those days.");
+
         Console.WriteLine(report.Records switch
         {
             RecordsOutcome.Rebuilt rebuilt => $"\nRecords rebuilt over the whole history. {RebuildRecordsCommand.Summary(rebuilt.Report)}",

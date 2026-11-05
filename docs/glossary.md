@@ -79,8 +79,8 @@ first and then in the code.
 | **Training score** | Lionheart's own 0–100 for the seven days ending on a day: lifting volume, cardio, priority progress and consistency, each read as measurements against targets. Not Oura's activity score. A part with no data is unknown: named, and its points out of reach rather than counted as zero. |
 | **Session source** | Where a session came from: the athlete's log — entered in Lionheart, or imported from his own logs — Apple Health, with the workout's Health id and the app that recorded it, or the Strava archive, with the activity's Strava id. Orthogonal to provenance. |
 | **Strava archive** | The folder Strava's "Download your data" export unzips to: `activities.csv`, one summary row per activity, and `activities/`, each activity's GPX or FIT file. What `import-strava` reads; its account and social files are not training and stay out. |
-| **Archived activity** | One activity of the Strava archive: its summary row and, where it has one, its file. It becomes a session of its own, or is a session the log already holds. |
-| **Deleted Strava activity** | An archived activity whose imported session the athlete deleted, remembered so no later run of the import brings it back. |
+| **Strava activity** | One activity of the Strava archive: its summary row and, where it has one, its file. It becomes a session of its own, or is a session the log already holds. |
+| **Deleted Strava activity** | A Strava activity whose imported session the athlete deleted, remembered so no later run of the import brings it back. |
 | **E-bike ride** | A ride on an electric bike: training, and never a riding record, since the motor covered part of the distance. |
 | **Paddle** | A kayak, canoe or board outing: training, competing on no record. |
 | **Health workout** | A workout another app wrote to Apple Health, read by the phone and offered to the server, which decides whether it becomes training. |

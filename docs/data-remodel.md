@@ -792,7 +792,8 @@ never sent — and the routes Strava did not write there.
   removes its recording and remembers the activity (`DeletedStravaActivities`, migration
   `StravaArchiveImport`), so a later archive does not bring it back. A deleted Health workout carries
   no time, so the archive cannot recognise one; an archived activity whose Health copy was deleted
-  would come back as a session of its own.
+  would come back as a session of its own, and the run says how many deleted Health workouts there
+  are to check.
 - **Records rebuilt**, as the coached-sheet import does: the archive reaches back a decade, so the
   run replays every completed session through the detector in its transaction, and refuses while a
   record is withdrawn. A run that adds nothing leaves the records alone. Sessions, recordings, fills

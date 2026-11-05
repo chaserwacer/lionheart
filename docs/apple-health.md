@@ -70,8 +70,9 @@ Where it came from is a domain fact on the session, `SessionSource`: `AthleteLog
 Lionheart, or imported from his own logs — Strong, the coached sheets), `AppleHealth` (the
 workout's Health UUID and the app that recorded it), or `StravaArchive` (an activity from the
 archive Strava exports, imported by `import-strava` — see `docs/data-remodel.md`, "Strava archive
-import"). An archived activity's recording is held and read exactly as a Health workout's. It is orthogonal to `Provenance`, which says who
-authored the content: an imported workout is the athlete's own training, so it is `Provenance.User`.
+import"). The source is orthogonal to `Provenance`, which says who authored the content: an imported
+workout is the athlete's own training, so it is `Provenance.User`. An archived activity's recording
+is held and read exactly as a Health workout's.
 
 What the session does not hold — the route, the app's heart rate and its other metrics — sits beside
 it in `WorkoutRecordings`, keyed by the session's id. Separate because a route is thousands of fixes
