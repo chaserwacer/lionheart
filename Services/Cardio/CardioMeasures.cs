@@ -1,4 +1,5 @@
 using lionheart.Model.Cardio;
+using lionheart.Model.Training.Sets;
 
 namespace lionheart.Services.Cardio;
 
@@ -41,6 +42,18 @@ public static class CardioMeasures
             quality.Sum(session => session.QualityMinutes),
             quality.Count,
             sessions.Count,
-            heartRateDays);
+            heartRateDays)
+        {
+            Minutes = sessions.Sum(session => session.Minutes),
+            RunningMeters = sessions.Where(IsRun).Sum(session => session.DistanceMeters ?? 0),
+        };
     }
+
+    /// <summary>A run, logged or the ring's: what the running ramp is judged on.</summary>
+    public static bool IsRun(CardioSession session) => session.Source switch
+    {
+        CardioSessionSource.LoggedSession logged => logged.IsTrailRun || logged.Activity is EnduranceActivity.IndoorRun,
+        CardioSessionSource.RingWorkout ring => ring.Activity is "running" or "treadmill",
+        _ => throw new System.Diagnostics.UnreachableException(),
+    };
 }

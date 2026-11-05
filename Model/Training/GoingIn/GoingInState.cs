@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Patterns;
 
 namespace lionheart.Model.Training.GoingIn;
@@ -110,17 +111,20 @@ public sealed record SleepPart(PartScore Score, NightNote? LastNight, NightNote?
 /// <param name="SleepScore">Oura's 0–100 rating of the night.</param>
 public sealed record NightNote(DateOnly Day, int TotalSleepSeconds, int Efficiency, int? SleepScore);
 
-/// <summary>The training since the start of yesterday, and the week against his month.</summary>
+/// <summary>The training since the start of yesterday, the week against the four before it, and the everyday load since yesterday.</summary>
 /// <param name="HardSets">Hard sets in sessions completed yesterday or today.</param>
 /// <param name="HighIntensityMinutes">Minutes at zone 4 or above in cardio since yesterday; absent when the cardio could not be read.</param>
 /// <param name="ZoneTwoMinutes">Minutes in zone 2 in cardio since yesterday; absent when the cardio could not be read.</param>
+/// <param name="HardSetsChronic">The mean weekly hard sets of the four seven-day blocks before the last seven days; zero with none read.</param>
+/// <param name="Everyday">Yesterday's and today's everyday load, where the ring read them: only what runs over his usual high costs.</param>
 public sealed record LoadPart(
     PartScore Score,
     int HardSets,
     double? HighIntensityMinutes,
     double? ZoneTwoMinutes,
     int HardSetsLast7,
-    double HardSetsWeeklyMean28);
+    double HardSetsChronic,
+    IReadOnlyList<EverydayDay> Everyday);
 
 /// <summary>How he rated himself today, when he has.</summary>
 public sealed record WellnessPart(PartScore Score, WellnessNote? Today);

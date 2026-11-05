@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using lionheart.Model.Request;
 using lionheart.Model.Training;
+using lionheart.Model.Training.Patterns;
 
 namespace lionheart.Model.InjuryManagement
 {
@@ -25,6 +26,12 @@ namespace lionheart.Model.InjuryManagement
 
         public bool IsActive { get; set; } = false;
 
+        /// <summary>
+        /// The families the athlete says the injury touches. Empty is "not said": the movements its
+        /// check-ins name still say which families it touches, and an injury with neither pauses nothing.
+        /// </summary>
+        public List<PatternFamily> Families { get; set; } = new();
+
         public List<InjuryEvent> InjuryEvents { get; set; } = new();
 
         public InjuryDTO ToDTO()
@@ -36,6 +43,7 @@ namespace lionheart.Model.InjuryManagement
                 Notes = Notes,
                 InjuryDate = InjuryDate,
                 IsActive = IsActive,
+                Families = Families,
                 InjuryEvents = InjuryEvents.Select(e => e.ToDTO()).ToList()
             };
         }
@@ -101,6 +109,8 @@ namespace lionheart.Model.InjuryManagement
         [Required]
         public required bool IsActive { get; set; }
 
+        /// <summary>The families the injury touches; absent leaves them as they were.</summary>
+        public List<PatternFamily>? Families { get; set; }
     }
     public class InjuryDTO
     {
@@ -114,6 +124,8 @@ namespace lionheart.Model.InjuryManagement
         public required DateOnly InjuryDate { get; set; }
         [Required]
         public required bool IsActive { get; set; }
+        [Required]
+        public required List<PatternFamily> Families { get; set; } = new();
         [Required]
         public required List<InjuryEventDTO> InjuryEvents { get; set; } = new();
     }
@@ -143,6 +155,9 @@ namespace lionheart.Model.InjuryManagement
         public DateTime InjuryDate { get; set; }
         [Required(AllowEmptyStrings = true)]
         public string Notes { get; set; } = string.Empty;
+
+        /// <summary>The families the injury touches; empty when not said.</summary>
+        public List<PatternFamily> Families { get; set; } = new();
     }
 
     public class CreateInjuryEventRequest

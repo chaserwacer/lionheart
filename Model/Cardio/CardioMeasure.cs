@@ -20,7 +20,14 @@ public abstract record CardioMeasure
     /// <param name="QualitySessions">The sessions those minutes came from.</param>
     /// <param name="HeartRateDays">Days of the window with any heart rate from the ring, out of seven.</param>
     public sealed record Measured(
-        double Zone2Minutes, double QualityMinutes, int QualitySessions, int Sessions, int HeartRateDays) : CardioMeasure;
+        double Zone2Minutes, double QualityMinutes, int QualitySessions, int Sessions, int HeartRateDays) : CardioMeasure
+    {
+        /// <summary>Every cardio session's minutes, whatever its zones: the figure its ramp is judged on.</summary>
+        public double Minutes { get; init; }
+
+        /// <summary>The distance of the window's runs in meters — logged runs, indoor runs and the ring's runs.</summary>
+        public double RunningMeters { get; init; }
+    }
 
     public sealed record Unknown(CardioUnknownReason Reason) : CardioMeasure;
 }

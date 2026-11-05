@@ -40,7 +40,7 @@ public sealed class GoingInServiceTests : IDisposable
         await using var context = _db.CreateContext();
         var facts = new TodayFactsService(
             context, new NoCardio(), MovementPatternMap.Shipped, new FixedClock(Evening), NullLogger<TodayFactsService>.Instance);
-        var volume = new TrainingVolumeService(context, MovementPatternMap.Shipped);
+        var volume = new TrainingVolumeService(context, MovementPatternMap.Shipped, TimeProvider.System);
         return ResultAssert.Succeeded(await new GoingInService(context, facts, volume).GetAsync(Athlete, CancellationToken.None));
     }
 

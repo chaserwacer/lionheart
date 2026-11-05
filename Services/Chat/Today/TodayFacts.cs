@@ -1,4 +1,5 @@
 using lionheart.Model.Cardio;
+using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Patterns;
 
 namespace lionheart.Services.Chat.Today;
@@ -8,6 +9,7 @@ namespace lionheart.Services.Chat.Today;
 /// <param name="Cardio">The cardio report over the same days, or that it could not be read.</param>
 /// <param name="Nights">Main sleeps filed under today and yesterday, the newest first; absent when not synced.</param>
 /// <param name="NonTraining">The days from today through the next six he has marked non-training, oldest first.</param>
+/// <param name="Everyday">Yesterday's and today's everyday load against his usual day, where the ring read them.</param>
 public sealed record TodayFacts(
     AthleteNow Now,
     IReadOnlyList<SessionFact> Sessions,
@@ -20,7 +22,8 @@ public sealed record TodayFacts(
     WellnessFact? Wellness,
     IReadOnlyList<InjuryFact> Injuries,
     IReadOnlyList<PlannedFact> Planned,
-    IReadOnlyList<NonTrainingFact> NonTraining)
+    IReadOnlyList<NonTrainingFact> NonTraining,
+    EverydayLoad Everyday)
 {
     /// <summary>
     /// What the score tool answers for the seven days ending today, verbatim; empty when it had
@@ -83,8 +86,8 @@ public sealed record CardioFact(
     double? ZoneTwo,
     double? ZoneFourPlus);
 
-/// <summary>Hard sets and sessions in the last seven days against the weekly mean of the last 28.</summary>
-public sealed record LoadFact(int HardSetsLast7, double HardSetsWeeklyMean28, int SessionsLast7, double SessionsWeeklyMean28);
+/// <summary>Hard sets and sessions in the last seven days against the four seven-day blocks before them.</summary>
+public sealed record LoadFact(LoadRatio HardSets, LoadRatio Sessions);
 
 /// <summary>One night, filed by Oura under the day he woke.</summary>
 public sealed record NightFact(

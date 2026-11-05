@@ -668,6 +668,10 @@ namespace lionheart.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Families")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateOnly>("InjuryDate")
                         .HasColumnType("TEXT");
 

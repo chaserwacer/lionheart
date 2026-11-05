@@ -205,6 +205,10 @@ namespace lionheart.Data
                 .HasKey(i => i.InjuryID);
 
             modelBuilder.Entity<Injury>()
+                .Property(i => i.Families)
+                .HasJsonConversion();
+
+            modelBuilder.Entity<Injury>()
                 .HasOne<LionheartUser>()
                 .WithMany(u => u.Injuries)
                 .HasForeignKey(i => i.UserID);

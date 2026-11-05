@@ -1,4 +1,5 @@
 using lionheart.Model.Training.Balance;
+using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Training.Balance;
@@ -20,9 +21,8 @@ public class TrainingVolumeAnalysisTests
     {
         var built = log.Build();
         var day = endingOn ?? Wednesday;
-        var window = VolumeTargets.WindowEndingOn(day);
         return TrainingVolumeAnalysis.Build(
-            built, day, NoReadiness, WeekExpectationsAnalysis.Families(built, Scoring.EveryDayOpen.Within(window), window));
+            built, day, NoReadiness, WeekExpectationsAnalysis.Families(built, Scoring.EveryDayOpen, EverydayLoad.None, [], day));
     }
 
     private static FamilyVolume Family(TrainingVolume volume, PatternFamily family) =>

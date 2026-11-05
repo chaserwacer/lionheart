@@ -1,5 +1,6 @@
 using lionheart.Model.Cardio;
 using lionheart.Model.Training.Patterns;
+using lionheart.Model.Training.Load;
 using lionheart.Services.Chat.Today;
 
 namespace lionheart.Tests.ChatToday;
@@ -29,7 +30,7 @@ public sealed class TodayBriefingTests
         new(now ?? Evening,
             sessions ?? [],
             new CardioDays.Read(cardio ?? [], max),
-            new LoadFact(20, 16, 3, 2.5),
+            new LoadFact(new LoadRatio.Compared(20, 16), new LoadRatio.Compared(3, 2.5)),
             nights ?? [],
             new NightBaseline(70, 45, 40),
             readiness,
@@ -37,7 +38,8 @@ public sealed class TodayBriefingTests
             null,
             injuries ?? [],
             [],
-            nonTraining ?? []) { Score = score };
+            nonTraining ?? [],
+            EverydayLoad.None) { Score = score };
 
     private static SessionFact Lifting(DateOnly day, int hour, params (string Movement, PatternFamily Family, int Sets)[] lifts) =>
         new(day,

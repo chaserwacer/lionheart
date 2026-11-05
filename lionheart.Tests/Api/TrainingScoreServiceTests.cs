@@ -37,7 +37,7 @@ public class TrainingScoreServiceTests : IDisposable
         var goingIn = new GoingInService(
             context,
             new TodayFactsService(context, cardio, MovementPatternMap.Shipped, clock ?? Clock, NullLogger<TodayFactsService>.Instance),
-            new TrainingVolumeService(context, MovementPatternMap.Shipped));
+            new TrainingVolumeService(context, MovementPatternMap.Shipped, clock ?? Clock));
         return await act(new TrainingScoreService(context, cardio, MovementPatternMap.Shipped, goingIn, clock ?? Clock));
     }
 

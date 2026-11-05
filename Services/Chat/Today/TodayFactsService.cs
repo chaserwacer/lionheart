@@ -10,7 +10,12 @@ using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Cardio;
 using lionheart.Services.Training.Availability;
+using lionheart.Model.Training.Balance;
+using lionheart.Model.Training.Load;
+using lionheart.Model.Training.Score;
 using lionheart.Services.Training.Balance;
+using lionheart.Services.Training.Expectations;
+using lionheart.Services.Training.Load;
 using lionheart.Services.Training.Patterns;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -81,7 +86,8 @@ public sealed class TodayFactsService(
             await WellnessAsync(userId, today, ct),
             await InjuriesAsync(userId, ct),
             await PlannedAsync(userId, log, today, ct),
-            await NonTrainingAsync(userId, today, ct));
+            await NonTrainingAsync(userId, today, ct),
+            await _context.EverydayAsync(userId, new DayRange(now.Yesterday, today), today, ct));
     }
 
     // ---- Training ----
@@ -126,15 +132,14 @@ public sealed class TodayFactsService(
 
     private static string TopSet(LiftSet set) => $"{Imperial.Weight(set.Weight, set.Unit)} × {set.Reps}";
 
+    /// <summary>The last seven days against the four blocks before them: the one definition of load (<see cref="LoadRatio"/>).</summary>
     private static LoadFact Load(TrainingLog log, DateOnly today)
     {
-        var week = log.Between(today.AddDays(-6), today).ToList();
-        var month = log.Between(today.AddDays(-27), today).ToList();
+        var week = VolumeTargets.WindowEndingOn(today);
+        int Sessions(DayRange block) => log.Between(block.From, block.To).Count();
         return new LoadFact(
-            week.Sum(session => session.HardSets.Count),
-            month.Sum(session => session.HardSets.Count) / 4.0,
-            week.Count,
-            month.Count / 4.0);
+            LoadAnalysis.HardSetRatio(HardSetCounts.Of(log), week),
+            LoadRatio.Of(Sessions(week), WeekExpectationsAnalysis.Before(week).Take(Progression.ChronicWeeks).Select(block => (double?)Sessions(block))));
     }
 
     /// <summary>

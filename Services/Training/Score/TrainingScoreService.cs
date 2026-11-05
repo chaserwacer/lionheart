@@ -11,6 +11,7 @@ using lionheart.Services.Training.Patterns;
 using lionheart.Services.Training.Availability;
 using lionheart.Services.Training.Expectations;
 using lionheart.Services.Training.GoingIn;
+using lionheart.Services.Training.Load;
 using lionheart.Services.Chat.Today;
 using lionheart.Model.Training.GoingIn;
 using Microsoft.AspNetCore.Identity;
@@ -35,10 +36,11 @@ public interface ITrainingScoreService
 public sealed class TrainingScoreService : ITrainingScoreService
 {
     /// <summary>
-    /// The most weeks one call scores: 48, which with the four weeks before the first that its
-    /// targets grow from keeps the cardio read inside one report.
+    /// The most weeks one call scores: 46, which with what the first one reaches back to — the five
+    /// weeks before the week ending the Sunday before it, for its advice — keeps the cardio read
+    /// inside one report.
     /// </summary>
-    public const int MostWeeks = 48;
+    public const int MostWeeks = 46;
 
     private const int ChatWeeks = 12;
 
@@ -102,9 +104,9 @@ public sealed class TrainingScoreService : ITrainingScoreService
             : InputsAsync(user, Span(endings), ct)
                 .MapAsync(IReadOnlyList<TrainingScore> (inputs) => [.. endings.Select(inputs.Score)]);
 
-    /// <summary>The days the windows ending on the days given cover, and the four weeks their targets grow from.</summary>
+    /// <summary>The days the windows ending on the days given cover, and every block before them their expectations read.</summary>
     private static DayRange Span(IReadOnlyList<DateOnly> endings) =>
-        new(WeekExpectationsAnalysis.Before(VolumeTargets.WindowEndingOn(endings.Min())).Min(block => block.From), endings.Max());
+        new(WeekExpectationsAnalysis.Reach(endings.Min()), endings.Max());
 
     private Task<Result<ScoreInputs, Problem>> InputsAsync(IdentityUser user, DayRange span, CancellationToken ct) =>
         _context.AthleteIdAsync(user, ct)
@@ -116,7 +118,11 @@ public sealed class TrainingScoreService : ITrainingScoreService
                         await _context.PinsOfAsync(userId, ct),
                         cardio.For,
                         await _context.AvailabilityAsync(userId, span, ct),
-                        new Dictionary<DateOnly, GoingInRating>()))));
+                        new Dictionary<DateOnly, GoingInRating>())
+                    {
+                        Everyday = await _context.EverydayAsync(userId, span, AthleteNow.Of(_clock).Today, ct),
+                        Injuries = await _context.InjuryRecordsAsync(userId, ct),
+                    })));
 
     /// <summary>
     /// The going-in rating beside the inputs when the window ends on the athlete's today — the only
