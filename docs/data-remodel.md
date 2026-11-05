@@ -790,10 +790,19 @@ never sent — and the routes Strava did not write there.
 - **Re-runnable, and deletion stands.** A session's id is a v5 UUID of the athlete and the activity
   id, so a second run adds nothing and fills nothing it filled before. Deleting an archived session
   removes its recording and remembers the activity (`DeletedStravaActivities`, migration
-  `StravaArchiveImport`), so a later archive does not bring it back. A deleted Health workout carries
-  no time, so the archive cannot recognise one; an archived activity whose Health copy was deleted
-  would come back as a session of its own, and the run says how many deleted Health workouts there
-  are to check.
+  `StravaArchiveImport`), so a later archive does not bring it back. Only a session the import made
+  is remembered that way: delete a session an activity *matched* — its Health copy, a run logged by
+  hand, or the import's session for the other copy of an activity uploaded twice — and the next run
+  adds the archive's copy as a session of its own. A deleted Health workout carries no time, so the
+  archive cannot recognise one either; the run says how many deleted Health workouts there are to
+  check.
+- **Limits of the shared rule, left as they are.** A held session lying wholly inside a longer
+  activity, but covering less than half of it, is not the same session, so both stand; the report
+  lists each such pair. A session with a moment rather than a span (the coached sheets' noon
+  sessions) matches nothing, as for the Health import. The Health import's rule that a ride or hike
+  replaces an imported walk it lies inside is not applied: the archive's hike matches the walk and
+  fills its recording (no activity in the athlete's archive is such a case). A part filled into a
+  Health session's recording is labelled as that session's, "via Apple Health".
 - **Records rebuilt**, as the coached-sheet import does: the archive reaches back a decade, so the
   run replays every completed session through the detector in its transaction, and refuses while a
   record is withdrawn. A run that adds nothing leaves the records alone. Sessions, recordings, fills

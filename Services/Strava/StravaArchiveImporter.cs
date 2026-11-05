@@ -118,11 +118,15 @@ public sealed class StravaArchiveImporter
         var logged = plan.Log.Logged.ToDictionary(session => session.TrainingSessionId);
         var candidates = plan.Outcomes.Select(FillTarget.Of).OfType<FillTarget>().ToList();
         var ids = candidates.Select(target => target.Held).Distinct().ToList();
-        var recordings = await _context.WorkoutRecordings
-            .Where(recording => ids.Contains(recording.TrainingSessionId))
-            .ToDictionaryAsync(recording => recording.TrainingSessionId, ct);
 
-        // A session added by this run has its recording staged rather than held, and was filled from its own file.
+        // A session this run added is filled too — another copy of its activity may carry what its
+        // own file lacked — through the recording staged beside it, which the database does not hold yet.
+        var recordings = (await _context.WorkoutRecordings
+                .Where(recording => ids.Contains(recording.TrainingSessionId))
+                .ToListAsync(ct))
+            .Concat(plan.Outcomes.Select(outcome => outcome.Decision).OfType<StravaActivityDecision.Added>().Select(added => added.Recording))
+            .ToDictionary(recording => recording.TrainingSessionId);
+
         var targets = candidates
             .Where(target => recordings.ContainsKey(target.Held) && logged.ContainsKey(target.Held))
             .Select(target => (Target: target, Recording: recordings[target.Held], Session: logged[target.Held]))
@@ -153,12 +157,14 @@ public sealed class StravaArchiveImporter
     {
         await _context.SaveChangesAsync(ct);
 
-        var records = staged.Plan.AddedCount == 0
-            ? Result<RecordsOutcome, Problem>.Success(new RecordsOutcome.Untouched())
-            : await _records.ReplayAsync(userId, ct).MapAsync(RecordsOutcome (report) => new RecordsOutcome.Rebuilt(report));
-
-        return records.Map(outcome => staged.Report(outcome));
+        return await RecordsAsync(userId, staged.Plan.AddedCount, ct).MapAsync(staged.Report);
     }
+
+    /// <summary>The records rebuilt over the whole history, or left alone by a run that added nothing.</summary>
+    private Task<Result<RecordsOutcome, Problem>> RecordsAsync(Guid userId, int added, CancellationToken ct) =>
+        added == 0
+            ? Task.FromResult(Result<RecordsOutcome, Problem>.Success(new RecordsOutcome.Untouched()))
+            : _records.ReplayAsync(userId, ct).MapAsync(RecordsOutcome (report) => new RecordsOutcome.Rebuilt(report));
 
     // ---- The values carried between steps ----
 

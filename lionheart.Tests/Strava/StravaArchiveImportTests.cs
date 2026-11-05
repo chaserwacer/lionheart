@@ -141,6 +141,21 @@ public class StravaArchiveImportTests : IDisposable
     }
 
     [Fact]
+    public async Task A_second_copy_fills_the_session_the_first_added_in_the_same_run_so_a_rerun_fills_nothing()
+    {
+        using var archive = new ArchiveFolder(Row(5001, RunStart), Row(5002, RunStart.AddMinutes(1), file: "activities/5002.gpx"))
+            .With("activities/5002.gpx", Gpx(RunStart.AddMinutes(1), meters: 5000));
+
+        var first = ResultAssert.Succeeded(await ImportAsync(archive));
+        var again = ResultAssert.Succeeded(await ImportAsync(archive));
+
+        Assert.Equal(StravaSessions.SessionIdFor(5001, _athletes.OwnerId), Assert.Single(first.Enriched).TrainingSessionId);
+        Assert.Empty(again.Enriched);
+        await using var context = _athletes.CreateContext();
+        Assert.NotEmpty((await context.WorkoutRecordings.AsNoTracking().SingleAsync()).Route.Points);
+    }
+
+    [Fact]
     public async Task An_activity_whose_session_the_athlete_deleted_is_not_imported_again()
     {
         using var archive = new ArchiveFolder(Row(5001, RunStart, file: "activities/5001.gpx"))
