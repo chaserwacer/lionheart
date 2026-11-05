@@ -25,6 +25,7 @@ first and then in the code.
 | **Not-performed row** | A row the set log holds that the athlete did not lift as written — a weight the spreadsheet computed, a placeholder, a row his own note contradicts. Left out of the session and named in its notes; the decisions file listing them stays with the spreadsheets, outside this repository. |
 | **Rpe** | Rate of perceived exertion for a set. Rated or unrated — never a nullable number. |
 | **Perceived effort ratings** | The athlete's own read on a session, as a cluster, not loose fields. |
+| **Effort scale** | One of the four things a session's effort is rated on — accumulated fatigue, difficulty, engagement, outside factors — each 1 to 5 or left unrated. |
 | **Training program** | A block of training with a title and dates. Planned, active or completed. |
 | **Membership** | Whether a session stands alone or belongs to a program. A fill-state, not a nullable key. |
 | **Provenance** | Whether a record came from the athlete or was assisted by the model. Orthogonal to lifecycle. |
@@ -191,7 +192,7 @@ first and then in the code.
 | **Workout destination** | Where a workout's sets are going to land: an active session already on the server, a deferred start whose session the server has not opened yet, or a `POST /completed` that carries the whole thing at the end. |
 | **Deferred start** | A live workout started with no connection. Logged like any other; its session is opened on the server by the first push that reaches it. |
 | **Server copy** | What the server already holds of a workout the device sent without hearing back, recognised by the workout's start instant (and, for a completed one, its set count), so a repeated start or delivery never makes a second session. |
-| **Finished workout** | A workout the athlete finished that the server has not taken yet, held in the outbox with its end and effort: waiting, or refused with the server's reason. |
+| **Finished workout** | A workout the athlete finished that the server has not taken yet, held in the outbox with its end (the workout carries its effort): waiting, or refused with the server's reason. |
 | **Outbox** | Where finished workouts wait for the server, one file each, delivered oldest first whenever it answers. |
 | **Account custody** | Whose the work held on the device is, kept through a sign-out the server forces so the same athlete signing back in finds it. |
 | **Sync state** | Whether what has been logged has reached the server: synced, pending, failed, or refused. Only the last two are worth saying out loud. |

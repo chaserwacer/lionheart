@@ -241,6 +241,23 @@ struct ActiveWorkoutDocumentTests {
         #expect(!restored.canDrop(AWorkout.squat))
     }
 
+    @Test("A version 5 document, written before ratings rode with the workout, reads unrated")
+    func aVersionFiveDocumentReadsUnrated() throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data(#"""
+            {"version":5,"destination":{"kind":"liveSession","sessionId":"11111111-1111-1111-1111-111111111111"},
+             "startedAt":1772645400,"sync":{"kind":"synced"},"sets":[],"rest":{"idle":{}},
+             "prescriptions":[],"addedMovementDataIds":[],"notes":""}
+            """#.utf8)
+            .write(to: directory.appending(path: "active-workout.json"))
+
+        let restored = try #require(ActiveWorkoutDocument(directoryURL: directory).read())
+
+        #expect(restored.destination == .liveSession(AWorkout.session))
+        #expect(restored.effort == .unrated)
+    }
+
     @Test("Writing twice leaves the second workout, not both")
     func aWriteReplacesWhatWasThere() {
         let document = Self.aDocument()
@@ -405,6 +422,26 @@ struct ActiveWorkoutValueTests {
         let workout = AWorkout.live().working(on: AWorkout.bench)
 
         #expect(workout.working(on: nil).currentMovementDataId == nil)
+    }
+
+    @Test("Ratings given mid-session are kept through every other change to the workout")
+    func ratingsSurviveOtherChanges() {
+        // `working(on:)` rebuilds the whole value rather than going through `with`, so a member it
+        // forgets is silently reset; every change the surface makes between sets is run here.
+        let effort = PerceivedEffortRequest(
+            accumulatedFatigue: nil, difficultyRating: 4, engagementRating: 5, externalVariablesRating: nil)
+        let rated = AWorkout.live().rating(effort)
+
+        let after = rated
+            .adding(AWorkout.squat)
+            .appending(AWorkout.lift(AWorkout.bench), restingFor: 90)
+            .working(on: nil)
+            .resting(.idle)
+            .noting("a note")
+            .marking(.synced)
+            .opened(as: AWorkout.session)
+
+        #expect(after.effort == effort)
     }
 
     @Test("A workout of this build's version is readable, a later one is not")

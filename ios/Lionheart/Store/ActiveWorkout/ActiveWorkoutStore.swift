@@ -302,6 +302,15 @@ final class ActiveWorkoutStore {
         adopt(workout.noting(notes))
     }
 
+    /// Records how the athlete rates the session so far.
+    ///
+    /// Persisted like a set, so a relaunch mid-workout keeps it. Nothing is pushed: the server
+    /// takes effort only with the completion, which reads it from the workout.
+    func rate(_ effort: PerceivedEffortRequest) {
+        guard let workout, workout.effort != effort else { return }
+        adopt(workout.rating(effort))
+    }
+
     /// Moves the start of a workout being written down afterwards.
     ///
     /// Refused for a live session, whose start is the server's: the period sent to `/complete` is
@@ -513,8 +522,9 @@ final class ActiveWorkoutStore {
     /// is completed, a workout logged after the fact is one `POST /completed`, and a deferred start
     /// is whichever of those the server's state calls for. What this method adds is the device's
     /// side: nothing is cleared until the server has the workout or the outbox holds it on disk.
+    /// The effort sent is the one the workout holds (`rate`).
     @discardableResult
-    func complete(effort: PerceivedEffortRequest?, endingAt end: Date) async -> FinishOutcome {
+    func complete(endingAt end: Date) async -> FinishOutcome {
         guard workout != nil, !isHandingOver else { return .notFinished }
         finish = .finishing
         isHandingOver = true
@@ -532,7 +542,7 @@ final class ActiveWorkoutStore {
         do {
             try await Deadline.waiting(atMost: patience.handOver, expiring: Self.outOfPatience) {
                 [delivery] in
-                try await delivery.deliver(workout, endingAt: end, effort: effort, mayHaveLanded: false)
+                try await delivery.deliver(workout, endingAt: end, mayHaveLanded: false)
             }
         } catch is CancellationError {
             finish = .idle
@@ -544,7 +554,7 @@ final class ActiveWorkoutStore {
             let failure = (try? LoadFailure.from(error)) ?? .unavailable(String(describing: error))
             if case .offline = failure {
                 onServerUnanswered()
-                return holdForDelivery(FinishedWorkout(workout: workout, endedAt: end, effort: effort))
+                return holdForDelivery(FinishedWorkout(workout: workout, endedAt: end))
             }
             finish = .refused(failure)
             if case .refused = failure { mark(.refused(failure.message)) }

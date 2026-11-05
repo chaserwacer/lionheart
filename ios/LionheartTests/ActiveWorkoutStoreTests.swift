@@ -246,8 +246,7 @@ struct ActiveWorkoutStoreTests {
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        let finished = await store.complete(
-            effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+        let finished = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
 
         #expect(finished == .delivered)
         #expect(server.pushedSets.last == [.freeform(text: "a set")])
@@ -263,8 +262,7 @@ struct ActiveWorkoutStoreTests {
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        let finished = await store.complete(
-            effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+        let finished = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
 
         #expect(finished == .notFinished)
         #expect(store.workout?.sets.count == 1)
@@ -280,7 +278,7 @@ struct ActiveWorkoutStoreTests {
         store.log(.freeform(text: "a set"), restingFor: nil)
         let end = AWorkout.start.addingTimeInterval(3600)
 
-        let finished = await store.complete(effort: nil, endingAt: end)
+        let finished = await store.complete(endingAt: end)
 
         #expect(finished == .heldForDelivery)
         // Not completed over sets the server never got.
@@ -300,8 +298,7 @@ struct ActiveWorkoutStoreTests {
         store.begin(destination: .afterTheFact, startedAt: AWorkout.start)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        let finished = await store.complete(
-            effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+        let finished = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
 
         #expect(finished == .delivered)
         #expect(server.pushedSets.isEmpty)
@@ -315,7 +312,7 @@ struct ActiveWorkoutStoreTests {
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
         store.note("felt strong")
 
-        _ = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+        _ = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
 
         #expect(server.notes == ["felt strong"])
     }
@@ -326,11 +323,75 @@ struct ActiveWorkoutStoreTests {
         // store must not turn "did not rate it" into "rated it with nothing".
         let (store, _, server) = Self.aStore()
         store.begin(destination: .afterTheFact, startedAt: AWorkout.start)
+        store.rate(Self.rated)
+        store.rate(.unrated)
 
-        _ = await store.complete(
-            effort: .unrated, endingAt: AWorkout.start.addingTimeInterval(3600))
+        _ = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
 
         #expect(server.efforts == [nil])
+    }
+
+    // MARK: - Rating the session as it goes
+
+    private static let rated = PerceivedEffortRequest(
+        accumulatedFatigue: 2, difficultyRating: 4, engagementRating: nil, externalVariablesRating: 3)
+
+    @Test("Ratings given mid-session are on disk, and leave nothing waiting for the server")
+    func ratingsArePersistedNotPushed() {
+        let (store, document, _) = Self.aStore()
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+
+        store.rate(Self.rated)
+
+        #expect(store.workout?.effort == Self.rated)
+        #expect(document.read()?.effort == Self.rated)
+        // The server takes effort only with the completion, so the set list it holds is still
+        // the whole truth and there is nothing to send.
+        #expect(store.workout?.sync == .synced)
+    }
+
+    @Test("Ratings given mid-session survive a relaunch")
+    func ratingsSurviveARelaunch() async {
+        let (store, document, _) = Self.aStore()
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+        store.rate(Self.rated)
+
+        let relaunched = ActiveWorkoutStore(
+            document: document, sessions: ARecordingServer(), outbox: anOutbox(sending: ARecordingServer()).0)
+        await relaunched.restore()
+
+        #expect(relaunched.workout?.effort == Self.rated)
+    }
+
+    @Test("Finishing sends the ratings the workout holds, whichever route it lands by")
+    func finishingSendsTheHeldRatings() async {
+        let (live, _, liveServer) = Self.aStore()
+        live.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+        live.rate(Self.rated)
+        let (retro, _, retroServer) = Self.aStore()
+        retro.begin(destination: .afterTheFact, startedAt: AWorkout.start)
+        retro.rate(Self.rated)
+
+        _ = await live.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
+        _ = await retro.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
+
+        #expect(liveServer.efforts == [Self.rated])
+        #expect(retroServer.efforts == [Self.rated])
+    }
+
+    @Test("A finish set down for delivery keeps its ratings, and they go out with it")
+    func aHeldFinishKeepsItsRatings() async throws {
+        let (store, _, server, outbox) = Self.aStoreWithOutbox()
+        server.failPushes = APIError.transport("The network is not reachable.")
+        store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
+        store.rate(Self.rated)
+        _ = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
+        #expect(try #require(outbox.finished.first).workout.effort == Self.rated)
+
+        server.failPushes = nil
+        await outbox.deliver()
+
+        #expect(server.efforts == [Self.rated])
     }
 
     // MARK: - Discarding and signing out
@@ -375,7 +436,7 @@ struct ActiveWorkoutStoreTests {
         server.sessionOnServer = ARecordingServer.aCompletedSession(id: AWorkout.session)
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
 
-        let landed = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+        let landed = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
 
         #expect(landed == .delivered)
         #expect(store.workout == nil)
@@ -393,7 +454,7 @@ struct ActiveWorkoutStoreTests {
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        let landed = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+        let landed = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
 
         #expect(landed == .heldForDelivery)
         #expect(outbox.finished.map(\.workout.destination) == [.liveSession(AWorkout.session)])
@@ -405,7 +466,7 @@ struct ActiveWorkoutStoreTests {
         server.failCompletion = APIError.refused(detail: "A completed session cannot be completed.")
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
 
-        _ = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600))
+        _ = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600))
 
         // The server answered, so delivering it again later cannot help; the athlete is told now.
         #expect(outbox.finished.isEmpty)

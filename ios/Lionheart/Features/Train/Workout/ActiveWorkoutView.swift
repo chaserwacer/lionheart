@@ -35,6 +35,7 @@ struct ActiveWorkoutView: View {
     @State private var draft: SetDraft?
     @State private var isAdding = false
     @State private var isFinishPresented = false
+    @State private var isEffortShown = false
     @State private var isGoingInShown = false
     @State private var isDiscardAsked = false
     @State private var editing: LoggedSet?
@@ -94,6 +95,9 @@ struct ActiveWorkoutView: View {
             FinishWorkoutSheet(
                 store: store, library: library, bodyweight: bodyweight, routines: routines,
                 finished: finished)
+        }
+        .sheet(isPresented: $isEffortShown) {
+            SessionEffortSheet(store: store)
         }
         .sheet(item: $movementSheet) { sheet in
             switch sheet {
@@ -203,6 +207,10 @@ struct ActiveWorkoutView: View {
             Menu("More", systemImage: "ellipsis.circle") {
                 Button("Finish workout", systemImage: "flag.checkered") { isFinishPresented = true }
                     .disabled(store.workout == nil)
+                // Also the row at the foot of the list; here so it is one menu away however far
+                // down the athlete has scrolled.
+                Button("How it's going", systemImage: "slider.horizontal.3") { isEffortShown = true }
+                    .disabled(store.workout == nil)
                 if store.workout?.sync.isWorthPushing == true {
                     Button("Sync now", systemImage: "arrow.triangle.2.circlepath") {
                         Task { await store.syncNow() }
@@ -280,6 +288,7 @@ struct ActiveWorkoutView: View {
                 emptySection
             }
             noteSection(workout)
+            SessionEffortRow(effort: workout.effort) { isEffortShown = true }
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)

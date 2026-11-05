@@ -342,7 +342,7 @@ there; an unplanned workout has none, so picking a movement records it in
 logging loses nothing. A pick with nothing logged on it can be removed; one with a set cannot,
 because the set is the record; `ActiveWorkout.canDrop(_:)` is that rule, stated once. Picking a
 movement the workout already holds moves the athlete to it without moving its section. Version 3 of
-the document added the list; version 4 added the deferred start and the plan a workout came from; version 5 added the routine and a kind on every lift. A version 2 document whose current movement no set or target names
+the document added the list; version 4 added the deferred start and the plan a workout came from; version 5 added the routine and a kind on every lift; version 6 added the effort ratings. A version 2 document whose current movement no set or target names
 restores with that movement added: usually a pick not yet logged on, occasionally a movement whose
 only set was deleted, which comes back as an empty section the athlete can remove.
 
@@ -539,7 +539,7 @@ bodyweight never reads as a leap.
 
 The toolbar holds Close, Add and the More menu. Add is what the surface is used for between sets, so
 it has the primary place; Finish happens once a session and lives in More, opening the same finish
-sheet it always did, beside Sync now and Discard. Add opens `AddWorkSheet` at half height with
+sheet it always did, beside How it's going, Sync now and Discard. Add opens `AddWorkSheet` at half height with
 search always showing, and grows to full height as soon as anything is typed: the families' priority
 lifts (from the priority report), recent movements, distance and time, a set in words, then the
 catalogue. Distance and time (`CardioWork`) is the domain's cardio with no movement — an outdoor run,
@@ -569,6 +569,19 @@ At the first set of work the header folds to one line: by then he knows how he c
 sheet takes the rating apart, part by part, with each part's figures and the rule the server applied,
 so the arithmetic can be redone from the screen. A workout written down afterwards shows no header;
 today's state says nothing about another day.
+
+### Rating the session as it goes
+
+The four effort ratings — accumulated fatigue, difficulty, engagement, outside factors, each 1 to
+5 or left alone — and the notes can be given whenever the athlete likes, from "How it's going": a
+row at the foot of the logging surface, out of the way of the sets, and the same entry in More.
+They belong to the workout (`ActiveWorkout.effort`), so they are written to the document as they
+are picked and survive a relaunch, and the finish sheet opens on them and writes back to the same
+place — finishing never asks twice, and "Not yet" keeps what was changed. Nothing is pushed for
+them: the server takes effort only with the completion, which reads it from the workout, so a
+finish set down in the outbox carries it too. The API is unchanged. A completed session's effort
+cannot be edited afterwards on either client: `POST /{id}/revise` leaves it as it was and no route
+restates it.
 
 ### Fewer taps per set
 

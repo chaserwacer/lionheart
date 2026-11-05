@@ -164,7 +164,7 @@ struct RestAlarmLifecycleTests {
         store.startRest(90)
         await Self.settle()
 
-        #expect(await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600)) == .delivered)
+        #expect(await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600)) == .delivered)
         await Self.settle()
 
         #expect(centre.pending == .some(nil))

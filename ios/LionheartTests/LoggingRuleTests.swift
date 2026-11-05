@@ -486,7 +486,7 @@ struct OutboxLandingTests {
     private static func aFinishedWorkout() -> FinishedWorkout {
         FinishedWorkout(
             workout: ActiveWorkout(destination: .afterTheFact, startedAt: AWorkout.start, sets: [AWorkout.words()]),
-            endedAt: AWorkout.start.addingTimeInterval(3000), effort: nil)
+            endedAt: AWorkout.start.addingTimeInterval(3000))
     }
 
     @Test("A workout landing from the outbox has last time read again")
