@@ -64,6 +64,22 @@ public sealed class GoingInAnalysisTests
     private static int ScoreOf(PartScore part) => Assert.IsType<PartScore.Scored>(part).Score;
 
     [Fact]
+    public void Everyday_load_costs_the_load_part_only_for_what_ran_over_his_usual_high()
+    {
+        // Yesterday 100 MET-minutes over his high: 3 points. Today at his usual: nothing.
+        var everyday = new EverydayLoad(
+        [
+            new EverydayDay(Yesterday, 900, new EverydayStanding.Judged(600, 800, EverydayBand.FarAbove)),
+            new EverydayDay(Today, 600, new EverydayStanding.Judged(600, 800, EverydayBand.Usual)),
+        ]);
+
+        var state = Of(Facts(everyday: everyday));
+
+        Assert.Equal(97, ScoreOf(state.Load.Score));
+        Assert.Equal(2, state.Load.Everyday.Count);
+    }
+
+    [Fact]
     public void A_usual_night_scores_its_autonomic_part_at_the_usual_seventy_five()
     {
         var state = Of(Facts(nights: [Night(Today)]));

@@ -26,7 +26,8 @@ public sealed class TodayBriefingTests
         IReadOnlyList<InjuryFact>? injuries = null,
         MaxHeartRate? max = null,
         string score = "",
-        IReadOnlyList<NonTrainingFact>? nonTraining = null) =>
+        IReadOnlyList<NonTrainingFact>? nonTraining = null,
+        EverydayLoad? everyday = null) =>
         new(now ?? Evening,
             sessions ?? [],
             new CardioDays.Read(cardio ?? [], max),
@@ -39,7 +40,7 @@ public sealed class TodayBriefingTests
             injuries ?? [],
             [],
             nonTraining ?? [],
-            EverydayLoad.None) { Score = score };
+            everyday ?? EverydayLoad.None) { Score = score };
 
     private static SessionFact Lifting(DateOnly day, int hour, params (string Movement, PatternFamily Family, int Sets)[] lifts) =>
         new(day,
@@ -49,6 +50,17 @@ public sealed class TodayBriefingTests
             HasCardioSets: false,
             Difficulty: 3,
             Fatigue: null);
+
+    [Fact]
+    public void Yesterdays_everyday_load_is_stated_against_his_usual_as_fatigue_that_earns_no_credit()
+    {
+        var briefing = TodayBriefing.Render(Facts(everyday: new EverydayLoad(
+            [new EverydayDay(Evening.Yesterday, 1200, new EverydayStanding.Judged(500, 800, EverydayBand.FarAbove))])));
+
+        Assert.Contains(
+            "Everyday load (movement outside training, fatigue but never training credit): yesterday 1200 MET-min, 2.4x his usual day (far above usual).",
+            briefing);
+    }
 
     [Fact]
     public void The_days_marked_non_training_ahead_are_stated_with_his_notes()
