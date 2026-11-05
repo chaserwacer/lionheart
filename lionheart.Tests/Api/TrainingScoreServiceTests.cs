@@ -30,15 +30,15 @@ public class TrainingScoreServiceTests : IDisposable
 
     public void Dispose() => _athletes.Dispose();
 
-    private async Task<T> ScoreAsync<T>(Func<TrainingScoreService, Task<T>> act)
+    private async Task<T> ScoreAsync<T>(Func<TrainingScoreService, Task<T>> act, TimeProvider? clock = null)
     {
         using var context = _athletes.CreateContext();
         var cardio = new CardioReportService(context);
         var goingIn = new GoingInService(
             context,
-            new TodayFactsService(context, cardio, MovementPatternMap.Shipped, Clock, NullLogger<TodayFactsService>.Instance),
+            new TodayFactsService(context, cardio, MovementPatternMap.Shipped, clock ?? Clock, NullLogger<TodayFactsService>.Instance),
             new TrainingVolumeService(context, MovementPatternMap.Shipped));
-        return await act(new TrainingScoreService(context, cardio, MovementPatternMap.Shipped, goingIn, Clock));
+        return await act(new TrainingScoreService(context, cardio, MovementPatternMap.Shipped, goingIn, clock ?? Clock));
     }
 
     private async Task PlantBenchSessionAsync(DateOnly day, int sets)
@@ -94,6 +94,7 @@ public class TrainingScoreServiceTests : IDisposable
         Assert.StartsWith("next: pull and legs (never trained)", digest.UpNext);
         Assert.Contains($"no hard sets logged on {Sunday.AddDays(2):yyyy-MM-dd}", digest.UpNext);
         Assert.Equal(12, digest.Weeks.Split(", ").Length);
+        Assert.StartsWith("push: Bench Press (Barbell) top set 5 x 190 lb", digest.Aims);
         // About four characters a token: a whole briefing stays within a few hundred tokens.
         Assert.InRange(System.Text.Json.JsonSerializer.Serialize(digest).Length, 1, 2400);
     }
@@ -114,6 +115,19 @@ public class TrainingScoreServiceTests : IDisposable
         Assert.Equal(6, score.Adjusted.AvailableDays);
         Assert.True(score.Adjusted.Value >= score.Value);
         Assert.Contains($"6 of 7 days available (non-training {Sunday.AddDays(-3):yyyy-MM-dd} travel)", digest.Adjusted);
+    }
+
+    [Fact]
+    public async Task Todays_window_is_scored_through_the_going_in_rating_and_aims_its_priority()
+    {
+        await PlantBenchSessionAsync(Sunday.AddDays(-2), sets: 4);
+        var onTheSunday = new FixedClock(new DateTimeOffset(Sunday.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero));
+
+        var score = ResultAssert.Succeeded(await ScoreAsync(service => service.GetScoreAsync(_athletes.Owner, Sunday, default), onTheSunday));
+
+        var push = Assert.Single(score.Expectations.Priorities);
+        Assert.IsType<Model.Training.Expectations.LiftAim.Beat>(push.Aim);
+        Assert.NotEmpty(push.Reasons);
     }
 
     [Fact]

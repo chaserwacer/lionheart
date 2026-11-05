@@ -130,8 +130,9 @@ with what was done and a reason: the score, weekly volume, next sessions and the
 so no screen's target disagrees with another's.
 
 - **Days available.** The athlete marks days non-training — travel, a busy day — once or every week.
-  A session planned on a day speaks for that day, over a weekday marked off every week; a single date
-  marked off speaks over a session planned on it.
+  A day he trained on was available, whatever marked it, so marking a day off and training anyway
+  never lowers a target. A session planned on a day speaks for that day, over a weekday marked off
+  every week; a single date marked off speaks over a session planned on it.
 - **Adjusted target.** Each raw target, its committed figure and its floor, times the share of the
   seven days available, **rounded up** to its step. Rounding up keeps it plain rather than generous:
   one day off rarely lowers anything (three sessions over six days is still three), and a share of a

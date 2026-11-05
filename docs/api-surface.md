@@ -330,15 +330,19 @@ NonTrainingDayView {
   note, markedAt
 }
 AvailabilityCalendar { range, availableDays, days: [
-  { "$type": "open", day } | { "$type": "planned", day } | { "$type": "nonTraining", day, nonTrainingDayId, note, repeats }
+  { "$type": "open", day } | { "$type": "planned", day } | { "$type": "trained", day }
+  | { "$type": "nonTraining", day, nonTrainingDayId, note, repeats }
 ] }
 ```
 
 A weekly schedule covers the weekday of its first day from that day on, so marking Sundays off
 leaves the Sundays already scored as they were. `Until` on a single day, `Until` before `Day`, an
 unknown `Repeat`, or a note past 200 characters is a 400 naming the field (`Until`, `Repeat`,
-`Note`). The more particular statement names a day: a date marked off, then a session planned on
-it (a planned session speaks for the day), then a weekday marked off every week, then open.
+`Note`), and so is a request with no `Day` (`Day`). A day a session was completed on — walks aside —
+is `trained`, and available, whatever marked it: marking a day off and training on it anyway would
+otherwise lower the targets and keep the work. Otherwise the more particular statement names a
+day: a date marked off, then a session planned on it (a planned session speaks for the day), then
+a weekday marked off every week, then open.
 
 ## Movement patterns and volume
 
@@ -452,7 +456,7 @@ it could — so the client draws the server's arithmetic rather than re-deriving
 
 - `adjusted` — `AdjustedScore { value, outOf, availableDays, parts: [{ part, points?, outOf }] }`:
   the same arithmetic against each measurement's adjusted target (its raw target prorated to the
-  window's days not marked non-training, rounded up to its step), every consistency block against
+  window's available days — not marked non-training, or trained — rounded up to its step), every consistency block against
   its own days. It equals the score when no day of the four blocks was marked off. A measurement
   whose block has every day marked off asks for nothing: its points come out of `outOf`, as an
   unknown part's do, rather than being handed out.

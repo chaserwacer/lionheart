@@ -63,6 +63,32 @@ public sealed class NonTrainingDayServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_day_trained_reads_as_trained_though_it_was_marked_off()
+    {
+        ResultAssert.Succeeded(await MarkAsync(new MarkNonTrainingDayRequest(Sunday, Note: "travel")));
+        var bench = await _athletes.PlantMovementAsync(_athletes.OwnerId, "Bench Press");
+        // An evening west of Greenwich, already Monday in UTC: the session is the athlete's Sunday.
+        await _athletes.PlantAsync(context => context.Sessions.Add(TrainingHistory.Lifts(
+            _athletes.OwnerId, new DateTimeOffset(Sunday.ToDateTime(new TimeOnly(21, 0)), TimeSpan.FromHours(-5)), bench, (135, 5))));
+
+        var calendar = ResultAssert.Succeeded(await DaysAsync(service =>
+            service.GetAvailabilityAsync(_athletes.Owner, new DayRange(Sunday.AddDays(-1), Sunday.AddDays(1)), default)));
+
+        Assert.Equal(
+            [new DayAvailability.Open(Sunday.AddDays(-1)), new DayAvailability.Trained(Sunday), new DayAvailability.Open(Sunday.AddDays(1))],
+            calendar.Days);
+    }
+
+    [Fact]
+    public async Task A_request_without_its_day_is_refused_naming_day_and_writes_nothing()
+    {
+        var problem = ResultAssert.Failed(await MarkAsync(new MarkNonTrainingDayRequest(null, NonTrainingRepeat.Weekly)));
+
+        Assert.Equal("Day", Assert.Single(Assert.IsType<Problem.Invalid>(problem).Fields).Field);
+        Assert.Equal(0, await StoredAsync());
+    }
+
+    [Fact]
     public async Task Removing_a_weekly_day_frees_every_day_it_covered()
     {
         var marked = ResultAssert.Succeeded(await MarkAsync(new MarkNonTrainingDayRequest(Sunday, NonTrainingRepeat.Weekly)));

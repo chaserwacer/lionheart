@@ -3,15 +3,22 @@ using lionheart.Model.Analysis;
 
 namespace lionheart.Model.Training.Availability;
 
-/// <summary>What a day is for training: nothing said about it, a session planned, or marked non-training.</summary>
+/// <summary>
+/// What a day is for training: nothing said about it, a session planned, a session trained, or
+/// marked non-training.
+/// </summary>
 /// <remarks>
-/// The more particular statement wins: a date marked off beats a session planned on it, and a
-/// session planned on a date beats a weekday marked off every week — planning a Sunday session is
-/// a decision about that Sunday, and marking that one date off is a decision about the plan.
+/// A day trained was available, whatever was said about it: otherwise marking a day off and
+/// training on it anyway would lower the week's targets and keep the work, which is a game, not an
+/// adjustment. Among the statements the more particular wins: a date marked off beats a session
+/// planned on it, and a session planned on a date beats a weekday marked off every week — planning
+/// a Sunday session is a decision about that Sunday, and marking that one date off is a decision
+/// about the plan.
 /// </remarks>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(Open), "open")]
 [JsonDerivedType(typeof(Planned), "planned")]
+[JsonDerivedType(typeof(Trained), "trained")]
 [JsonDerivedType(typeof(NonTraining), "nonTraining")]
 public abstract record DayAvailability
 {
@@ -30,6 +37,12 @@ public abstract record DayAvailability
 
     /// <summary>A planned session is dated for the day, so the day is spoken for training.</summary>
     public sealed record Planned(DateOnly Day) : DayAvailability
+    {
+        public override DateOnly Day { get; } = Day;
+    }
+
+    /// <summary>A session was completed on the day, so it was a training day.</summary>
+    public sealed record Trained(DateOnly Day) : DayAvailability
     {
         public override DateOnly Day { get; } = Day;
     }

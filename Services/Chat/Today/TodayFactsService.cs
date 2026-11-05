@@ -31,10 +31,11 @@ public interface ITodayFacts
 /// <remarks>
 /// Not cached, unlike the context card, because the questions it answers ("did I train today", "how
 /// did I sleep") are exactly the ones a cached copy gets wrong an hour after the athlete logs a
-/// session or the ring syncs a night. It is not cheap — the training log and a week of cardio — but
-/// for one athlete it is a few hundred milliseconds against a model call of tens of seconds. The
-/// score and what is up next are the briefing's own reads (<see cref="TodayBriefingService"/>), not
-/// facts: the going-in rating reads these facts, and the score reads the going-in rating.
+/// session or the ring syncs a night. It is not cheap — the training log and a week of cardio — and a
+/// message reads it three times (the briefing, then the score's and next session's going-in
+/// ratings), still well under a second against a model call of tens of seconds. The score and what
+/// is up next are the briefing's own reads (<see cref="TodayBriefingService"/>), not facts: the
+/// going-in rating reads these facts, and the score reads the going-in rating.
 /// </remarks>
 public sealed class TodayFactsService(
     ModelContext context,

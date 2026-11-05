@@ -102,6 +102,24 @@ public class WeekExpectationsAnalysisTests
     }
 
     [Fact]
+    public void Each_earlier_consistency_block_is_read_against_its_own_days()
+    {
+        // One session in the block before this week, four of whose days were marked off: two
+        // sessions are asked of it rather than three.
+        var log = Catalogue.WithSession(Sunday.AddDays(-1), Sets(4, Bench)).WithSession(Sunday.AddDays(-9), Sets(4, Row)).Build();
+        var off = Scoring.Off(Sunday.AddDays(-13), Sunday.AddDays(-12), Sunday.AddDays(-11), Sunday.AddDays(-10));
+
+        var raw = Scoring.Score(log, [], Every(SomeCardio), Sunday);
+        var adjusted = Scoring.Score(log, [], Every(SomeCardio), Sunday, off);
+
+        Assert.Equal(raw.Value, adjusted.Value);
+        var consistency = (Raw: raw.Adjusted.Parts.Single(part => part.Part == ScorePart.Consistency),
+            Adjusted: adjusted.Adjusted.Parts.Single(part => part.Part == ScorePart.Consistency));
+        Assert.True(consistency.Adjusted.Points > consistency.Raw.Points);
+        Assert.Equal(7, adjusted.Adjusted.AvailableDays);
+    }
+
+    [Fact]
     public void Proration_rounds_each_figure_up_to_its_step_and_leaves_a_full_week_alone()
     {
         var target = new WeeklyTarget(110, 150, 60, 100);

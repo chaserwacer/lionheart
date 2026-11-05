@@ -78,8 +78,8 @@ first and then in the code.
 | **Adjusted target** | The raw target prorated to the window's available days and rounded up to its step; the raw target itself when every day was available. |
 | **Adjusted score** | The training score's arithmetic read against the adjusted targets, shown beside the score so a constrained week reads for what its days allowed. Equal to the score when nothing was marked off. |
 | **Non-training day** | A day the athlete has said he will not train — travel, a busy day — once, or its weekday every week from it, optionally until a day, with an optional note. |
-| **Availability** | Each day as training reads it: open, planned (a session is planned on it, so it is spoken for) or non-training. A date marked off beats a planned session, which beats a weekday marked off every week. |
-| **Available days** | The days of a window not marked non-training: what the adjusted targets prorate to. |
+| **Availability** | Each day as training reads it: open, planned (a session is planned on it, so it is spoken for), trained (a session was completed on it) or non-training. A day trained is available whatever marked it; otherwise a date marked off beats a planned session, which beats a weekday marked off every week. |
+| **Available days** | The days of a window not marked non-training, a day trained always among them: what the adjusted targets prorate to. |
 | **Priority aim** | A priority lift's next top set — a step on last time's best set, a hold of it, or a first top set to establish one — with the pin's frequency and the reasons. |
 | **Hold** | A priority aim at last time's set again, because the going-in rating, a hard last top set or session, or the week's fatigue asked for it. |
 | **Next sessions** | What to train next: the next lift (the family due, its priority's next top set), the next cardio (zone 2 minutes or an interval structure), and which first, each with its reasons. |

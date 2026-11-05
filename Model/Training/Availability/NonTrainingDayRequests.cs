@@ -22,22 +22,30 @@ public enum NonTrainingRepeat
 /// so nothing past the request sees a null.
 /// </remarks>
 public sealed record MarkNonTrainingDayRequest(
-    DateOnly Day,
+    DateOnly? Day,
     NonTrainingRepeat Repeat = NonTrainingRepeat.Once,
     DateOnly? Until = null,
     string? Note = null)
 {
+    /// <remarks>
+    /// The day crosses as an optional value so a request that leaves it out is refused naming it,
+    /// rather than bound to the first day of year one, where a weekly repeat would cover that weekday
+    /// across all history.
+    /// </remarks>
     public Result<NonTrainingSchedule, Problem> ToSchedule() =>
-        Stated.ClosedEnum(Repeat, nameof(Repeat))
+        (Day is { } day
+            ? Result<DateOnly, Problem>.Success(day)
+            : Result<DateOnly, Problem>.Failure(new Problem.Invalid(nameof(Day), "A non-training day names its day.")))
+        .Bind(day => Stated.ClosedEnum(Repeat, nameof(Repeat))
             .Bind(repeat => (repeat, Until) switch
             {
-                (NonTrainingRepeat.Once, null) => Result<NonTrainingSchedule, Problem>.Success(new NonTrainingSchedule.OneDay(Day)),
+                (NonTrainingRepeat.Once, null) => Result<NonTrainingSchedule, Problem>.Success(new NonTrainingSchedule.OneDay(day)),
                 (NonTrainingRepeat.Once, _) => Result<NonTrainingSchedule, Problem>.Failure(
                     new Problem.Invalid(nameof(Until), "Only a weekly repeat has a last day.")),
-                (NonTrainingRepeat.Weekly, null) => Result<NonTrainingSchedule, Problem>.Success(new NonTrainingSchedule.EveryWeek(Day)),
-                (NonTrainingRepeat.Weekly, { } until) => NonTrainingSchedule.EveryWeekUntil.Of(Day, until),
+                (NonTrainingRepeat.Weekly, null) => Result<NonTrainingSchedule, Problem>.Success(new NonTrainingSchedule.EveryWeek(day)),
+                (NonTrainingRepeat.Weekly, { } until) => NonTrainingSchedule.EveryWeekUntil.Of(day, until),
                 _ => throw new System.Diagnostics.UnreachableException(),
-            });
+            }));
 
     public Result<string, Problem> ToNote()
     {

@@ -21,11 +21,13 @@ namespace lionheart.Model.Training.Score;
 /// The adjusted score and the days behind it, with every adjusted target, or that it is the score
 /// itself when nothing was marked non-training.
 /// </param>
+/// <param name="Aims">Each family's priority lift with its next top set and the reasons for it.</param>
 public sealed record TrainingScoreDigest(
     string Window,
     string Score,
     IReadOnlyList<string> Parts,
     string Adjusted,
+    string Aims,
     string UpNext,
     string UnderTarget,
     string Weeks)
@@ -37,6 +39,7 @@ public sealed record TrainingScoreDigest(
             : $"{score.Value} of {score.OutOf} that could be read; unknown: {string.Join(", ", score.Unknown.Select(Word))}",
         [Lifting(score.Lifting), Cardio(score.Cardio), Progress(score.Progress), Consistency(score.Consistency)],
         AdjustedLine(score),
+        string.Join("; ", score.Expectations.Priorities.Select(priority => $"{PatternWords.Of(priority.Family)}: {Expectations.PriorityAimWords.Line(priority)}")),
         UpNextLine(volume.UpNext, score.Window.To),
         UnderTargetLine(volume),
         string.Join(", ", weeks.Select(week => $"{week.Window.To:yyyy-MM-dd} {week.Value}/{week.OutOf}")));

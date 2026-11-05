@@ -85,6 +85,17 @@ public sealed record LoggedMovement(Guid MovementDataId, string Name, Classifica
 
 public sealed record BodyweightOnDay(DateOnly Day, Bodyweight Bodyweight);
 
+/// <summary>Which completed sessions count as training.</summary>
+public static class TrainedSessions
+{
+    /// <summary>
+    /// Nothing but walking: a watch's record of getting somewhere, which is in the log but is not a
+    /// training session.
+    /// </summary>
+    public static bool OnlyWalking(IReadOnlyList<SetEntry> sets) =>
+        sets.Count > 0 && sets.All(set => set is EnduranceSet { Activity: EnduranceActivity.Walk });
+}
+
 /// <summary>Which lifts are hard sets.</summary>
 public static class HardSets
 {

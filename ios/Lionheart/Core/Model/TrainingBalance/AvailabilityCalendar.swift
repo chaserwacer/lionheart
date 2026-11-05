@@ -18,26 +18,28 @@ struct AvailabilityCalendar: Equatable, Sendable {
 
 /// What a day is for training.
 ///
-/// The server decides which statement names a day: a date marked off, then a planned session, then a
-/// weekday marked off every week.
+/// The server decides: a day trained was available whatever marked it, and otherwise a date marked off
+/// names it, then a planned session, then a weekday marked off every week.
 enum DayAvailability: Equatable, Sendable {
     case open(CalendarDay)
     /// A session is planned on the day, so it is spoken for training.
     case planned(CalendarDay)
+    /// A session was completed on the day, so it was a training day.
+    case trained(CalendarDay)
     /// Marked non-training by the statement named; `repeats` when that statement is a weekly one.
     case nonTraining(CalendarDay, nonTrainingDayId: UUID, note: String, repeats: Bool)
     case unrecognised(CalendarDay, String)
 
     var day: CalendarDay {
         switch self {
-        case .open(let day), .planned(let day), .nonTraining(let day, _, _, _), .unrecognised(let day, _): day
+        case .open(let day), .planned(let day), .trained(let day), .nonTraining(let day, _, _, _), .unrecognised(let day, _): day
         }
     }
 
     var isNonTraining: Bool {
         switch self {
         case .nonTraining: true
-        case .open, .planned, .unrecognised: false
+        case .open, .planned, .trained, .unrecognised: false
         }
     }
 }
@@ -72,6 +74,8 @@ extension DayAvailability: Decodable {
             self = .open(day)
         case "planned":
             self = .planned(day)
+        case "trained":
+            self = .trained(day)
         case "nonTraining":
             guard let id = container.lenient(UUID.self, "nonTrainingDayId") else {
                 self = .unrecognised(day, type)

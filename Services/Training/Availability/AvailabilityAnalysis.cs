@@ -3,13 +3,15 @@ using lionheart.Model.Training.Availability;
 
 namespace lionheart.Services.Training.Availability;
 
-/// <summary>Each day of a range read from the athlete's non-training days and his planned sessions.</summary>
+/// <summary>Each day of a range read from the athlete's non-training days and his planned and trained sessions.</summary>
 /// <remarks>Pure, so the precedence between the statements is tested without a database.</remarks>
 public static class AvailabilityAnalysis
 {
+    /// <param name="trained">The days a session was completed on, walks aside.</param>
     public static AvailabilityCalendar Of(
-        IReadOnlyList<NonTrainingDay> marked, IReadOnlySet<DateOnly> planned, DayRange range) =>
-        new(range, [.. Enumerable.Range(0, range.Days).Select(range.From.AddDays).Select(day => DayOf(marked, planned, day))]);
+        IReadOnlyList<NonTrainingDay> marked, IReadOnlySet<DateOnly> planned, IReadOnlySet<DateOnly> trained, DayRange range) =>
+        new(range, [.. Enumerable.Range(0, range.Days).Select(range.From.AddDays)
+            .Select(day => trained.Contains(day) ? new DayAvailability.Trained(day) : DayOf(marked, planned, day))]);
 
     /// <summary>
     /// A date marked off, else a planned session, else a weekday marked off, else open. Where two

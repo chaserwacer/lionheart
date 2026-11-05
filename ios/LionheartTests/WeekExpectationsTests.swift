@@ -64,6 +64,14 @@ struct WeekExpectationsTests {
         #expect(marked.map(\.schedule) == [.unrecognised("monthly")])
     }
 
+    @Test("A day trained decodes as trained and counts as available")
+    func trainedDayDecodes() throws {
+        let day = try Decoding.decode(DayAvailability.self, #"{"$type":"trained","day":"2026-11-03"}"#)
+
+        #expect(day == .trained(Self.tuesday))
+        #expect(!day.isNonTraining)
+    }
+
     @Test("Each of the three schedules decodes with its days")
     func schedulesDecode() throws {
         let marked = try Decoding.list(NonTrainingDay.self, #"""

@@ -20,12 +20,14 @@ public class AvailabilityAnalysisTests
     private static NonTrainingDay Marked(NonTrainingSchedule schedule, string note = "", int minute = 0) =>
         NonTrainingDay.Mark(Guid.NewGuid(), Guid.NewGuid(), schedule, note, DateTime.UnixEpoch.AddMinutes(minute));
 
+    private static readonly IReadOnlySet<DateOnly> None = new HashSet<DateOnly>();
+
     private static DayAvailability On(AvailabilityCalendar calendar, DateOnly day) => calendar.Days.Single(entry => entry.Day == day);
 
     [Fact]
     public void A_weekly_day_covers_its_weekday_from_its_first_day_on_and_not_before()
     {
-        var calendar = AvailabilityAnalysis.Of([Marked(new NonTrainingSchedule.EveryWeek(Sunday))], new HashSet<DateOnly>(), Fortnight);
+        var calendar = AvailabilityAnalysis.Of([Marked(new NonTrainingSchedule.EveryWeek(Sunday))], None, None, Fortnight);
 
         Assert.Equal([Sunday], calendar.Unavailable.Select(day => day.Day));
         Assert.Equal(13, calendar.AvailableDays);
@@ -36,7 +38,7 @@ public class AvailabilityAnalysisTests
     {
         var until = ResultAssert.Succeeded(NonTrainingSchedule.EveryWeekUntil.Of(Sunday.AddDays(-7), Sunday.AddDays(-1)));
 
-        var calendar = AvailabilityAnalysis.Of([Marked(until)], new HashSet<DateOnly>(), Fortnight);
+        var calendar = AvailabilityAnalysis.Of([Marked(until)], None, None, Fortnight);
 
         Assert.Equal([Sunday.AddDays(-7)], calendar.Unavailable.Select(day => day.Day));
     }
@@ -45,7 +47,7 @@ public class AvailabilityAnalysisTests
     public void A_planned_session_frees_a_weekday_marked_off_every_week()
     {
         var calendar = AvailabilityAnalysis.Of(
-            [Marked(new NonTrainingSchedule.EveryWeek(Sunday.AddDays(-7)))], new HashSet<DateOnly> { Sunday }, Fortnight);
+            [Marked(new NonTrainingSchedule.EveryWeek(Sunday.AddDays(-7)))], new HashSet<DateOnly> { Sunday }, None, Fortnight);
 
         Assert.IsType<DayAvailability.Planned>(On(calendar, Sunday));
         Assert.IsType<DayAvailability.NonTraining>(On(calendar, Sunday.AddDays(-7)));
@@ -55,7 +57,7 @@ public class AvailabilityAnalysisTests
     public void A_date_marked_off_outranks_a_session_planned_on_it()
     {
         var calendar = AvailabilityAnalysis.Of(
-            [Marked(new NonTrainingSchedule.OneDay(Sunday), "travel")], new HashSet<DateOnly> { Sunday }, Fortnight);
+            [Marked(new NonTrainingSchedule.OneDay(Sunday), "travel")], new HashSet<DateOnly> { Sunday }, None, Fortnight);
 
         Assert.Equal(new DayAvailability.NonTraining(Sunday, calendar.Unavailable[0].NonTrainingDayId, "travel", false), On(calendar, Sunday));
     }
@@ -66,10 +68,24 @@ public class AvailabilityAnalysisTests
         var date = Marked(new NonTrainingSchedule.OneDay(Sunday), "wedding", minute: 5);
 
         var calendar = AvailabilityAnalysis.Of(
-            [Marked(new NonTrainingSchedule.EveryWeek(Sunday.AddDays(-7)), minute: 0), date], new HashSet<DateOnly>(), Fortnight);
+            [Marked(new NonTrainingSchedule.EveryWeek(Sunday.AddDays(-7)), minute: 0), date], None, None, Fortnight);
 
         var sunday = Assert.IsType<DayAvailability.NonTraining>(On(calendar, Sunday));
         Assert.Equal((date.NonTrainingDayId, "wedding", false), (sunday.NonTrainingDayId, sunday.Note, sunday.Repeats));
+    }
+
+    [Fact]
+    public void A_day_trained_was_available_whatever_marked_it_off()
+    {
+        var calendar = AvailabilityAnalysis.Of(
+            [Marked(new NonTrainingSchedule.OneDay(Sunday)), Marked(new NonTrainingSchedule.EveryWeek(Sunday.AddDays(-7)))],
+            None,
+            new HashSet<DateOnly> { Sunday, Sunday.AddDays(-7) },
+            Fortnight);
+
+        Assert.IsType<DayAvailability.Trained>(On(calendar, Sunday));
+        Assert.IsType<DayAvailability.Trained>(On(calendar, Sunday.AddDays(-7)));
+        Assert.Equal(14, calendar.AvailableDays);
     }
 
     [Theory]

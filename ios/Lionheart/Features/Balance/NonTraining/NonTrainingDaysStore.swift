@@ -80,17 +80,21 @@ final class NonTrainingDaysStore {
         action = .idle
     }
 
+    /// The write, then a re-read either way — a refusal here means the calendar was out of date —
+    /// with the action running until the re-read lands, so the calendar takes no tap read against
+    /// the days before it.
     private func write(_ change: () async throws -> Void) async {
         guard !action.isRunning else { return }
         action = .running
+        let outcome: ActionState
         do {
             try await change()
-            action = .idle
+            outcome = .idle
         } catch {
-            action = ActionState.refusal(from: error)
+            outcome = ActionState.refusal(from: error)
         }
-        // Read again either way: a refusal here means the calendar was out of date.
         await refresh()
+        action = outcome
         for listener in whenChanged { await listener() }
     }
 

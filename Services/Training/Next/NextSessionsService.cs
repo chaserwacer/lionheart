@@ -77,7 +77,7 @@ public sealed class NextSessionsService : INextSessionsService
         "next lift: " + next.Lift switch
         {
             NextLift.Train train => string.Join(" and ", train.Families.Select(PatternWords.Of))
-                                    + string.Concat(train.Priorities.Select(priority => $"; {priority.Name} {Aim(priority.Aim)} ({string.Join(" ", priority.Reasons)})")),
+                                    + string.Concat(train.Priorities.Select(priority => $"; {PriorityAimWords.Line(priority)}")),
             NextLift.NothingLogged => "nothing classified logged",
             _ => throw new System.Diagnostics.UnreachableException(),
         } + $" — {string.Join(" ", next.Lift.Reasons)}",
@@ -89,26 +89,6 @@ public sealed class NextSessionsService : INextSessionsService
             _ => throw new System.Diagnostics.UnreachableException(),
         } + $" — {string.Join(" ", next.Cardio.Reasons)}",
     ];
-
-    /// <summary>"top set 5 x 230 lb (e1RM 268; 12-week best 270)", with pounds beside kilograms.</summary>
-    private static string Aim(LiftAim aim) => aim switch
-    {
-        LiftAim.Beat beat => string.Create(
-            CultureInfo.InvariantCulture,
-            $"top set {beat.Reps} x {Weight(beat.Load, beat.Unit)}{(beat.OnSystemLoad ? " system load" : "")} (e1RM {beat.EstimatedOneRepMax:0}; 12-week best {beat.BestToBeat:0})"),
-        LiftAim.Hold hold => string.Create(
-            CultureInfo.InvariantCulture,
-            $"hold top set {hold.Reps} x {Weight(hold.Load, hold.Unit)}{(hold.OnSystemLoad ? " system load" : "")} (e1RM {hold.EstimatedOneRepMax:0})"),
-        LiftAim.Establish => "work up to a top set of 5 to set an estimate",
-        _ => throw new System.Diagnostics.UnreachableException(),
-    };
-
-    private static string Weight(double load, WeightUnit unit) => unit switch
-    {
-        WeightUnit.Pounds => string.Create(CultureInfo.InvariantCulture, $"{load:0.#} lb"),
-        WeightUnit.Kilograms => string.Create(CultureInfo.InvariantCulture, $"{load:0.#} kg ({load * 2.20462:0} lb)"),
-        _ => throw new System.Diagnostics.UnreachableException(),
-    };
 
     /// <summary>The day's readiness, and the main sleep filed under it against the nights before.</summary>
     private async Task<RecoveryRead> RecoveryAsync(Guid userId, DateOnly day, CancellationToken ct)
