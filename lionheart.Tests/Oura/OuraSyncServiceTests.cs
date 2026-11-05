@@ -79,17 +79,17 @@ public class OuraSyncServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task The_activity_and_sleep_period_collections_are_asked_for_one_day_past_the_range()
+    public async Task The_collections_that_omit_their_last_day_are_asked_for_one_day_past_the_range()
     {
-        // Oura omits the last day from these two when asked for an end_date of exactly that day —
-        // for sleep periods, the night just woken from. The workaround is applied to those
-        // collections alone, so a test has to show both halves of that.
+        // Oura omits the last day from these when asked for an end_date of exactly that day — for
+        // sleep periods, the night just woken from; for workouts, the one just finished. The
+        // workaround is applied to those collections alone, so a test has to show both halves.
         _api.AnswersEverythingElseEmpty();
 
         await Sync();
 
-        Assert.Contains("end_date=2026-08-01", UriFor("daily_activity"));
-        Assert.Contains("end_date=2026-08-01", UriFor("sleep"));
+        Assert.All(["daily_activity", "sleep", "workout", "session", "tag"],
+            collection => Assert.Contains("end_date=2026-08-01", UriFor(collection)));
         Assert.Contains("end_date=2026-07-31", UriFor("daily_readiness"));
         Assert.Contains("end_date=2026-07-31", UriFor("daily_sleep"));
         Assert.Contains("start_date=2026-07-25", UriFor("daily_activity"));
