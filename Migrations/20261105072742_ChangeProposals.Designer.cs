@@ -13,7 +13,7 @@ using lionheart.Model.Training.Sessions;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(ModelContext))]
-    [Migration("20261105072121_ChangeProposals")]
+    [Migration("20261105072742_ChangeProposals")]
     partial class ChangeProposals
     {
         /// <inheritdoc />

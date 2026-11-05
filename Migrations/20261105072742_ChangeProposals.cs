@@ -41,24 +41,6 @@ namespace lionheart.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "DeletedStravaActivities",
-                columns: table => new
-                {
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ActivityId = table.Column<long>(type: "INTEGER", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_DeletedStravaActivities", x => new { x.UserId, x.ActivityId });
-                    table.ForeignKey(
-                        name: "FK_DeletedStravaActivities_LionheartUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "LionheartUsers",
-                        principalColumn: "UserID",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_ChangeProposals_ChatConversationId",
                 table: "ChangeProposals",
@@ -75,9 +57,6 @@ namespace lionheart.Migrations
         {
             migrationBuilder.DropTable(
                 name: "ChangeProposals");
-
-            migrationBuilder.DropTable(
-                name: "DeletedStravaActivities");
         }
     }
 }
