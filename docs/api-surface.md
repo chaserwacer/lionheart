@@ -285,7 +285,9 @@ pin's life — a different movement is a different focus.
 
 **Readings, not states.** Whether a horizon has begun or passed, and whether the target was met,
 are read by the client against today and the training log, the way a planned session is read as
-missed. None of them is stored, so none of them can disagree with the log.
+missed. None of them is stored, so none of them can disagree with the log. A priority pin's
+sessions a week and lift target also reach the week expectations' priority aim (its `frequency` and
+its reasons), read the same way.
 
 **Priorities.** A pin with `Priority` is that family's priority lift for its horizon; without one it
 is for emphasis. Pinning a priority lets the family's pinned priority go in the same commit, unpinned
@@ -307,6 +309,36 @@ within 5 % of the prior best, or `below`), each with `unit` and `onSystemLoad`. 
 setup adds to bodyweight, with bodyweight on a day the newest on or before it and the first weighing
 standing in before any. `series` is `SessionBest { day, estimatedOneRepMax, load, reps }` for each
 session of the last twelve weeks and the window.
+
+## Non-training days — `/api/training/non-training-days`, `/api/training/availability`
+
+A **non-training day** is a day the athlete has said he will not train — travel, a busy day — once,
+or its weekday every week from it, optionally until a day, with an optional note. The days a week
+has left prorate its adjusted expectations. Chat tools that mark days call the same service.
+
+| Verb | Route | Body | Answers |
+|---|---|---|---|
+| GET | `/non-training-days` | — | every one marked, `NonTrainingDayView[]`, the latest-starting first |
+| POST | `/non-training-days` | `Day`, `Repeat` (`once` \| `weekly`, default `once`), `Until?`, `Note?` | 201 with the view; 409 if the same schedule already stands |
+| DELETE | `/non-training-days/{id}` | — | 204; a weekly one frees every day it covered; 404 if not the athlete's |
+| GET | `/availability?from=&to=` | — | `AvailabilityCalendar` for the range, at most 371 days |
+
+```
+NonTrainingDayView {
+  nonTrainingDayId,
+  schedule: { "$type": "oneDay", day } | { "$type": "everyWeek", from } | { "$type": "everyWeekUntil", from, until },
+  note, markedAt
+}
+AvailabilityCalendar { range, availableDays, days: [
+  { "$type": "open", day } | { "$type": "planned", day } | { "$type": "nonTraining", day, nonTrainingDayId, note, repeats }
+] }
+```
+
+A weekly schedule covers the weekday of its first day from that day on, so marking Sundays off
+leaves the Sundays already scored as they were. `Until` on a single day, `Until` before `Day`, an
+unknown `Repeat`, or a note past 200 characters is a 400 naming the field (`Until`, `Repeat`,
+`Note`). The more particular statement names a day: a date marked off, then a session planned on
+it (a planned session speaks for the day), then a weekday marked off every week, then open.
 
 ## Movement patterns and volume
 
@@ -334,11 +366,14 @@ still calls the old route.
 ### Weekly volume — `GET /api/training/volume/{day}`
 
 `TrainingVolume` for the seven days ending on `{day}`: `families` (push, pull, legs:
-`{ family, hardSets, target: 8, lastTrained? }`), `patterns` (all nine: `{ pattern, hardSets, target?,
+`{ family, hardSets, target, lastTrained? }`, `target` the family's adjusted expectation for the
+week — the score's own target, prorated to the days not marked non-training; see
+[Week expectations](#week-expectations)), `patterns` (all nine: `{ pattern, hardSets, target?,
 lastTrained? }`, `target` 4 for the seven compound patterns and absent for isolation and other),
 `muscles` (all sixteen: `{ muscle, direct, indirect, sets, target: 4, lastTrained? }`, `sets` being
 `direct + indirect / 2`), `unplaced` (`{ movementDataId, name, hardSets }` for movements nothing
-classifies) and `upNext`. A hard set is a working, drop or failure lift; `lastTrained` looks back
+classifies) and `upNext`. The pattern and muscle targets are informational — the four direct sets
+that buy most of the dose — and no score reads them, so they cannot disagree with one. A hard set is a working, drop or failure lift; `lastTrained` looks back
 over the whole log. `upNext` is `$type` `nothingLogged` or `train`
 `{ families, lastTrained?, trainedToday, readiness }`, `families` the one to three trained longest
 ago, together when last trained the same day; `readiness` is `notRead`, `usual { score }` or
@@ -415,14 +450,52 @@ it could — so the client draws the server's arithmetic rather than re-deriving
   three seven-day blocks before it, newest first, each out of a quarter against `target` 3. A session
   of nothing but walking is not counted.
 
+- `adjusted` — `AdjustedScore { value, outOf, availableDays, parts: [{ part, points?, outOf }] }`:
+  the same arithmetic against each measurement's adjusted target (its raw target prorated to the
+  window's days not marked non-training, rounded up to its step), every consistency block against
+  its own days. It equals the score when no day of the four blocks was marked off. A measurement
+  whose block has every day marked off asks for nothing: its points come out of `outOf`, as an
+  unknown part's do, rather than being handed out.
+- `expectations` — `WeekExpectations`, below: every target both scores read, with the reasons.
+
 `value` is the points the known parts earned; `outOf` is 100 less the weight of any part in
 `unknown`. A part with no data is named rather than measured as zero, and its points are out of
 reach, so a week with the ring off never outscores the same week with it worn and no cardio.
 `WeeklyScore { window, value, outOf, unknown, liftingPoints, cardioPoints?, progressPoints,
 consistencyPoints }`. Chat reads the score through the `GetTrainingScore` tool as a
-`TrainingScoreDigest`: a few lines of the same measurements, what is up next ("next: legs (last
-trained …)", then separately whether the window's last day already has hard sets), what is under
-target, and up to twelve weeks — a few hundred tokens.
+`TrainingScoreDigest`: a few lines of the same measurements, the adjusted score with the days
+marked off and every adjusted target (or that it is the score itself), what is up next ("next: legs
+(last trained …)", then separately whether the window's last day already has hard sets), what is
+under target, and up to twelve weeks — a few hundred tokens.
+
+### Week expectations
+
+`WeekExpectations { window, availability, sessions, families, cardio, priorities }` — one answer
+for what the seven days ask, which the score, the adjusted score, weekly volume, what's next and the
+chat all read. Each measurement is an `Expectation { done, raw, adjusted, reasons }`: `raw` the
+`WeeklyTarget` the score reads, `adjusted` the same prorated to the window's available days (each
+figure times `availableDays / 7`, rounded up to its step; `chronic` unchanged), `reasons` plain
+lines — the raw basis ("4-week average 5.5 hard sets, +10 %: 7.", "Committed 8 hard sets: …",
+"Floor 4 …", "Committed 3 sessions a week.") then, when days were marked off, "Lowered to 5: 2 of 7
+days marked non-training (travel)." The four weeks before are read as they were, days off included,
+so a week away lowers the ramp the way the body's tolerance falls.
+
+- `availability` — `AvailabilityCalendar { range, days, availableDays }`, below.
+- `sessions` — trained sessions in the window against the committed 3.
+- `families` — `{ family, sets: Expectation, lastTrained? }` for push, pull and legs.
+- `cardio` — `{ measure, zones: [{ band, minutes: Expectation }] }`, `zones` empty when the measure
+  is unknown.
+- `priorities` — `PriorityAim { family, movementDataId, name, aim, frequency, reasons }` for each
+  family with a priority lift. `aim` `$type` `beat { load, reps, unit, estimatedOneRepMax,
+  bestToBeat, onSystemLoad }` (one step on last time's best set: 5 lb / 2.5 kg, or a rep on system
+  load), `hold { load, reps, unit, estimatedOneRepMax, onSystemLoad }` (last time's set again) or
+  `establish`. It holds when the going-in rating — read only for a window ending on the athlete's
+  today — is under 65, the last top set was RPE 9.5 or more, the last session of the lift was rated
+  5 of 5 for difficulty, or the window's latest session was rated 4 of 5 or more for accumulated
+  fatigue; otherwise it steps, naming an easy last session (RPE 8 or under, difficulty 3 or under)
+  where there was one. A pinned lift target in the same unit is stated after: met by the aim, or how
+  far. `frequency` `$type` `pinned { sessions: Expectation }` (the pin's sessions a week, prorated) or
+  `notPinned { sessions }`, sessions counting the window's sessions that trained the lift.
 
 ## What's next — `GET /api/training/next/{day}`
 
@@ -432,14 +505,14 @@ from, with no weights in them.
 
 - `first { session: lift | cardio, reasons }` — which of the two to do next.
 - `lift` `$type` `train { families, lastTrained?, priorities, reasons }` (the families trained
-  longest ago, as weekly volume's `upNext`) or `nothingLogged { reasons }`. `priorities` —
-  `PriorityAim { family, movementDataId, name, aim }` for each due family with a priority lift; `aim`
-  `$type` `beat { load, reps, unit, estimatedOneRepMax, bestToBeat, onSystemLoad }` (the last
-  session's best set plus 5 lb / 2.5 kg, or one more rep on system load; `unit` the numeric
-  `WeightUnit` as in sets; `bestToBeat` the best estimate of the twelve weeks and the window) or
-  `establish` (nothing to build on).
+  longest ago, as weekly volume's `upNext`) or `nothingLogged { reasons }`. `priorities` — the week
+  expectations' `PriorityAim` for each due family with a priority lift (`aim` `beat`, `hold` or
+  `establish`, `frequency`, `reasons`; `unit` the numeric `WeightUnit` as in sets; `bestToBeat` the
+  best estimate of the twelve weeks and the window).
 - `cardio` `$type` `zone2 { minutes, reasons }` or `quality { bouts, boutMinutes, recoveryMinutes,
-  workMinutes, reasons }`.
+  workMinutes, reasons }`, sized against the week's adjusted expectations.
+- When `{day}` itself is marked non-training, `first.reasons` opens with it ("Today is marked
+  non-training (travel): this is for your next training day.").
 - `recovery { readiness, sleepMinutes?, hrv?, usualHrv?, hrvSpread? }` — `readiness` the
   `ReadinessNote` of weekly volume; the night's main sleep and HRV against the 28 nights before.
 

@@ -338,6 +338,10 @@ everything else about it.
 | Movement classification | What a movement trains is a `MovementClassification` — pattern, primary and secondary muscle groups from closed vocabularies — on the **base**, so every variation shares it. Only the athlete's statement is stored (`MovementBases.Classification`, JSON); the shipped `movement-patterns.json` answers for a base without one and is read live, so a correction reaches every unclassified base without a re-seed. The `MuscleGroups` table, which hung each group off a single base, is dropped (2026-11-03) |
 | Weekly volume and the score | Counted in hard sets — working, drop and failure lifts — whole toward primary muscles and half toward secondary ones (Pelland 2026). Read over the seven days ending on a day rather than a calendar week, so nothing empties on a Monday; a week view asks for the seven days ending on its Sunday. Derived on the server and never stored (2026-11-03) |
 | Priority lifts | A focus pin carries a `FocusRole` — `Emphasis`, or `Priority(push \| pull \| legs)` — fixed for its life. A family has one pinned priority at a time; a new one unpins the last in the same commit (2026-11-03) |
+| Week expectations | One server answer for what a scoring window asks — sessions, hard sets per family, zone-2 and quality minutes, each priority lift's next top set — each with what was done, the raw target, the adjusted target and the reasons. The score, the adjusted score, weekly volume, next sessions and the chat digest read it; the raw score's arithmetic is unchanged. Weekly volume's family target is the adjusted one; its pattern and muscle targets stay informational (2026-11-04) |
+| Non-training days | A `NonTrainingDay` aggregate per athlete — `OneDay`, `EveryWeek(from)` or `EveryWeekUntil(from, until)`, with a note — marked, listed and removed whole; never revised. JSON schedule column. A day reads as a date marked off, else a planned session (it speaks for the day), else a weekday marked off, else open. Chat tools that mark days call the same service (2026-11-04) |
+| Adjusted score | Beside the score, never in place of it: each raw target prorated to the window's available days, rounded up to its step; the four blocks before a target are read as they were. A measurement whose days are all marked off takes its points out of reach (2026-11-04) |
+| Priority aim | Step on last time's best set, or hold it when today's going-in rating is under 65, the last top set was RPE 9.5+, the last session of the lift was rated 5/5 difficulty, or the week's latest session was rated 4/5+ accumulated fatigue. A pin's target and sessions a week are stated beside it. Session effort now reaches the training log (2026-11-04) |
 
 ## Status & roadmap — source of truth
 
@@ -801,6 +805,19 @@ Backend half of the native logging round; the wire is in `docs/api-surface.md`.
   after a backup, and as soon as this lands: until it runs, the three renamed push-up bases read
   unclassified, and an import would create clean-named movements beside the old ones for the tidy
   to merge.
+
+### ✅ Week expectations, non-training days, the adjusted score
+
+- **Expectations** (`Model/Training/Expectations/`, `Services/Training/Expectations/`):
+  `WeekExpectationsAnalysis` and `LiftAimAnalysis` are pure; `TrainingScoreAnalysis` now scores
+  from the expectations, raw and adjusted. `TrainingScore` gains `adjusted` and `expectations`.
+- **Availability** (`Model/Training/Availability/`, `Services/Training/Availability/`,
+  `/api/training/non-training-days`, `/api/training/availability`). Migration `NonTrainingDays`
+  adds the one table. Applied to a worktree copy of the database only.
+- **The briefing's facts no longer run the chat tools.** `TodayFactsService` reads the facts;
+  `TodayBriefingService` adds the score and next-session lines. The going-in rating reads the facts
+  and the score reads the going-in rating (for today's priority aims), so the facts reading the
+  score would recurse.
 
 ### Traps — non-obvious failures already paid for
 

@@ -73,6 +73,15 @@ first and then in the code.
 | **Quality minutes** | The score's intensity band: work-bout minutes in an endurance session (run, ride, row, machine) holding at least ten of them. Walks, hikes and games earn none. |
 | **Weekly target** | What a volume measurement is read against this week: the mean of the four weeks before plus 10 %, between a floor and the committed standard. Half its points are paid against it, half against the standard. |
 | **Committed standard** | The figure a committed week reaches — 8 hard sets a family, 150 zone-2 minutes, 40 quality minutes — which the whole of a measurement's points still needs. |
+| **Week expectations** | What the seven days ending on a day ask, measurement by measurement — sessions, hard sets per family, zone-2 and quality minutes, each priority lift's next top set — with what was done, the raw target, the adjusted target and the reasons. The one answer the score, the adjusted score, weekly volume, next sessions and the chat read. |
+| **Raw target** | A measurement's weekly target as the training score reads it, whatever days were available. |
+| **Adjusted target** | The raw target prorated to the window's available days and rounded up to its step; the raw target itself when every day was available. |
+| **Adjusted score** | The training score's arithmetic read against the adjusted targets, shown beside the score so a constrained week reads for what its days allowed. Equal to the score when nothing was marked off. |
+| **Non-training day** | A day the athlete has said he will not train — travel, a busy day — once, or its weekday every week from it, optionally until a day, with an optional note. |
+| **Availability** | Each day as training reads it: open, planned (a session is planned on it, so it is spoken for) or non-training. A date marked off beats a planned session, which beats a weekday marked off every week. |
+| **Available days** | The days of a window not marked non-training: what the adjusted targets prorate to. |
+| **Priority aim** | A priority lift's next top set — a step on last time's best set, a hold of it, or a first top set to establish one — with the pin's frequency and the reasons. |
+| **Hold** | A priority aim at last time's set again, because the going-in rating, a hard last top set or session, or the week's fatigue asked for it. |
 | **Next sessions** | What to train next: the next lift (the family due, its priority's next top set), the next cardio (zone 2 minutes or an interval structure), and which first, each with its reasons. |
 | **Score partition** | The training score drawn as three rows on one 100-point axis — the score, its parts, every measurement — each cell as wide as the points it can earn and filled with what it earned. |
 | **Heartbeats per mile** | A run's average heart rate times its minutes per kilometre: what a kilometre cost the heart. Roughly level across easy and steady paces, so it falls as the aerobic base grows. |
@@ -147,7 +156,7 @@ first and then in the code.
 | **Interpretation** | Turning raw text into domain records: parse, resolve, commit. Versioned and re-runnable. |
 | **Utterance** | How an entry was logged — texted, with the raw words kept, or formed through the UI. |
 | **Athlete context card** | The standing per-user summary handed to the model, so a conversation starts knowing the athlete instead of re-reading everything. |
-| **Briefing** | The TODAY note each chat message goes with: the date and time on the athlete's clock, his training today and yesterday, his last two nights, readiness, injuries, the week so far and the score. It is read fresh for every message, is never stored, and decides what "today" means. |
+| **Briefing** | The TODAY note each chat message goes with: the date and time on the athlete's clock, his training today and yesterday, his last two nights, readiness, injuries, the days ahead he has marked non-training, the week so far and the score. It is read fresh for every message, is never stored, and decides what "today" means. |
 | **Relay** | The development-only chat provider in which whoever is testing plays the model by answering request files (`docs/chat-relay.md`). |
 | **Streamed answer** | A thread reply sent to the app as it is written, as server-sent events: its text piece by piece, each round of tools as it runs, then the stored session. The exchange finishes and is stored even if the connection drops. |
 | **Thread** | The athlete's one continuing chat with Lionheart, read back as a single transcript. Beside it, a **conversation** is a standalone chat he starts and names; nothing said in one is remembered. |
