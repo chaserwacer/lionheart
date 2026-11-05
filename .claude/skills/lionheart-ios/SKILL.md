@@ -98,7 +98,11 @@ web app's custom look carried over. So **do not build a design system.** Use App
   rule. Never a hex literal in a view.
 - **Type comes from the system.** `.largeTitle`, `.headline`, `.body`, `.caption`, with `.bold()`
   where emphasis is wanted. No custom typeface, no tracking or letter-spacing, no gradient text, no
-  all-caps section labels — except `Wordmark`, the name drawn as a picture. Figures that change in place — a rest clock, a running volume total, a
+    all-caps section labels — except `Wordmark`, the name drawn as a picture. The brand's two voices
+  are the one other exception, and both are system fonts at text styles in
+  `Design/Brand/BrandType.swift`: `.heroFigure()` for a hero card's figure (heavy, expanded width)
+  and `.meta` for the small label saying what it covers (caption, monospaced). Use them only
+  through those modifiers, never as ad hoc fonts. Figures that change in place — a rest clock, a running volume total, a
   weight — carry `.monospacedDigit()` so they do not jitter. Every size is a text style, so Dynamic
   Type works without a `relativeTo:` anywhere.
 - **Stock containers, always**: `NavigationStack`, `TabView`/`Tab`, `List`, `Form`/`Section`,
@@ -110,8 +114,8 @@ web app's custom look carried over. So **do not build a design system.** Use App
   and Settings are made of, it gets separators, swipe actions, selection and Dynamic Type right, and
   it is the fastest way to a screen that looks like it belongs.
 - `Design/` therefore holds: `Tokens.swift` (the palette and the handful of spacing constants),
-  `Brand/` (`ProgressionMark`, the mark's one `Shape`, and `BrandMark`, `Wordmark`, `BrandLockup`,
-  `MarkLoadingIndicator`, `LeanedBar`),
+    `Brand/` (`ProgressionMark`, the mark's one `Shape`, and `BrandMark`, `Wordmark`, `BrandLockup`,
+  `MarkLoadingIndicator`, `LeanedBar`, `LeaningBars`, `BrandType`, `HeroSection`, `HeroFigure`),
   `StatTile.swift`, `SetRow.swift`, `RestTimerBar.swift`, `ActiveWorkoutBar.swift`, and
   `Sparkline.swift`, `MovementLines.swift`, `SummaryFigures.swift`, plus the shared chrome and load-state rows. If another file wants in, check
   first whether SwiftUI already has it.

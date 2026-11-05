@@ -49,7 +49,7 @@ struct GoingInSheet: View {
             .accessibilityElement(children: .combine)
         } footer: {
             Text("""
-                Lionheart's own rating, not Oura's. Each part is scored 0–100 with your usual day near \
+                Tempo's own rating, not Oura's. Each part is scored 0–100 with your usual day near \
                 75, and the rating is their weighted mean: readiness 30 %, HRV and heart rate 25 %, \
                 sleep 20 %, load 15 %, wellness 10 %. A part that cannot be read is left out and the \
                 others carry its weight. With none of readiness, HRV and heart rate or sleep scored \

@@ -25,11 +25,11 @@ struct RecoveryVerdictView: View {
         layout {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.subheadline)
+                    .font(.meta)
                     .foregroundStyle(Color(.secondaryLabel))
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(readiness.score.description)
-                        .font(.largeTitle.weight(.semibold).monospacedDigit())
+                        .font(.heroFigure())
                         // Rolls to the next day's score as the day steps, rather than cutting.
                         .contentTransition(.numericText(value: readiness.score.value))
                         .animation(reduceMotion ? nil : .snappy, value: readiness.score.value)
@@ -39,7 +39,7 @@ struct RecoveryVerdictView: View {
                 }
                 if let comparison {
                     Text(comparison)
-                        .font(.subheadline.monospacedDigit())
+                        .font(.meta)
                         .foregroundStyle(Color(.secondaryLabel))
                 }
             }

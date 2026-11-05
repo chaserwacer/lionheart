@@ -2,11 +2,11 @@ import Charts
 import SwiftUI
 
 /// A weekly count as quiet bars — sets for load, sessions for consistency — with its four-week
-/// average drawn through them in the accent.
+/// average drawn through them in ink.
 ///
-/// The bars are grey because a single week is noise next to the trend, and the line is the one
-/// thing on the chart in colour. Weeks with no training stay on the axis as empty slots, so a
-/// fortnight off reads as one.
+/// The weeks gone by are Iron because a single week is noise next to the trend; the newest week,
+/// the one still being trained, is Brick, the one thing on the chart to act on. Weeks with no
+/// training stay on the axis as empty slots, so a fortnight off reads as one.
 ///
 /// With its axes it is a chart to read week by week: pressing and dragging scrubs across the weeks,
 /// marking the one under the finger with its count and the average there, a tick at each new week.
@@ -52,7 +52,7 @@ struct WeeklyLoadChart: View {
                 BarMark(
                     x: .value("Week", week.start.middayDate(), unit: .weekOfYear),
                     y: .value(counting.label, counting.of(week)))
-                .foregroundStyle(Tokens.iron.opacity(week.id == selected?.id ? 1 : 0.38))
+                .foregroundStyle(fill(of: week, selected: selected))
             }
             ForEach(average) { load in
                 LineMark(
@@ -60,7 +60,7 @@ struct WeeklyLoadChart: View {
                     y: .value("Four-week average", load.value))
                 .interpolationMethod(.monotone)
                 .lineStyle(StrokeStyle(lineWidth: 2))
-                .foregroundStyle(Tokens.accent)
+                .foregroundStyle(Tokens.ink)
             }
             if let selected {
                 RuleMark(x: .value("Week", selected.start.middayDate(), unit: .weekOfYear))
@@ -93,6 +93,12 @@ struct WeeklyLoadChart: View {
         .accessibilityChartDescriptor(WeeklyLoadDescriptor(weeks: weeks, counting: counting))
     }
 
+    /// The newest week in Brick, the rest in Iron, the pressed one at full strength.
+    private func fill(of week: TrainingWeek, selected: TrainingWeek?) -> Color {
+        if week.id == weeks.last?.id { return Tokens.accent }
+        return Tokens.iron.opacity(week.id == selected?.id ? 1 : 0.38)
+    }
+
     /// The week a pressed date falls in.
     private func week(at date: Date?) -> TrainingWeek? {
         guard let date else { return nil }
@@ -108,7 +114,7 @@ struct WeeklyLoadChart: View {
                 .fontWeight(.semibold)
             if let mean {
                 Text("avg \(Formatting.measure(mean.value))")
-                    .foregroundStyle(Tokens.accent)
+                    .foregroundStyle(Color(.secondaryLabel))
             }
         }
         .font(.caption.monospacedDigit())

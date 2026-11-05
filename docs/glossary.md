@@ -50,6 +50,7 @@ first and then in the code.
 | **Estimated one-rep max** | A single rep implied by a set, by Epley. Derived from the stored weight and reps on the way out, never stored. |
 | **Established records** | Every record a movement or a window of time set, whatever became of each since — standing, beaten or withdrawn. What marks the sets that set a record. |
 | **Focus pin** | A movement the athlete has pinned to emphasise over a horizon, at a number of sessions a week, perhaps toward a target. Pinned or unpinned; an unpinned pin is kept as history. |
+| **Block** | A pin's horizon read as its weeks (`BlockWeeks`): each week gone by with the movement's best estimated single in it, this week so far, and the weeks still ahead. History's hero draws it as leaning bars. |
 | **Focus terms** | What a focus pin asks for: its horizon, its sessions a week and its target. Revised whole, and only while the pin is pinned. |
 | **Focus horizon** | The days a focus pin covers, first and last included. Whether it has begun or passed is read against today, never stored. |
 | **Focus target** | No target, or a lift target — a weight in its unit for a rep count. Whether it was met is read against the training log, never stored. |
@@ -183,6 +184,8 @@ first and then in the code.
 | **Wordmark** | "tempo" set lowercase in SF Pro Heavy, expanded and tightly tracked — the one place a fixed type size is allowed. |
 | **Tagline** | "keep moving forward." — lowercase, monospaced, with its full stop. |
 | **Palette** | Graphite (the dark ground), Chalk (the light ground), Brick (the one accent, and the mark's last bar), Iron (second series and quiet bars) and Ink (the mark's first two bars: Graphite on light, Chalk on dark). Read through `Tokens`. |
+| **Hero** | A tab's first section, on Graphite in both appearances, carrying its one most important answer: Today the going-in rating and what is next, Train the week's score and what is next, History each running priority as its block, Body readiness. One per tab (`HeroSection`). |
+| **Brick discipline** | Brick means this week, or the one thing to act on — the score itself, this week's bar, the session to do first. History and context are Iron; everything else is a semantic system colour. |
 | **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement, the movements the athlete added. The one piece of state the device owns. |
 | **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |

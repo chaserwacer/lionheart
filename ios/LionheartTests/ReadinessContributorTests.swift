@@ -88,6 +88,28 @@ struct ReadinessContributorTests {
 
     // MARK: - Fixtures
 
+    @Test("A contributor asks for attention when its score or its measurement is outside his usual range the worse way")
+    func unusualContributors() throws {
+        let usual = try #require(MetricBaseline.of(Array(repeating: 70, count: 12) + [72, 68]))
+        func oura(_ contributor: OuraContributor, _ score: Int) -> OuraContributorReading {
+            OuraContributorReading(contributor: contributor, score: OuraScore(score), baseline: usual)
+        }
+        let lowScore = ReadinessContributorReading(contributor: .hrvBalance, oura: oura(.hrvBalance, 40), basis: nil)
+        let usualScore = ReadinessContributorReading(contributor: .sleepBalance, oura: oura(.sleepBalance, 71), basis: nil)
+        // Higher is better for every score, so one well above his band is not a reason to look.
+        let highScore = ReadinessContributorReading(contributor: .previousNight, oura: oura(.previousNight, 95), basis: nil)
+        let lowMeasurement = ReadinessContributorReading(
+            contributor: .restingHeartRate, oura: nil,
+            basis: .measured(MetricReading(metric: .hrv, day: Self.today, value: 40, baseline: usual, recent: [])))
+        let nothingRead = ReadinessContributorReading(contributor: .bodyTemperature, oura: nil, basis: nil)
+
+        #expect(lowScore.isUnusual)
+        #expect(!usualScore.isUnusual)
+        #expect(!highScore.isUnusual)
+        #expect(lowMeasurement.isUnusual)
+        #expect(!nothingRead.isUnusual)
+    }
+
     private static func scored(_ date: CalendarDay, hrvBalance: Int) -> OuraDay {
         let plain = ARecovery.day(date)
         return OuraDay(

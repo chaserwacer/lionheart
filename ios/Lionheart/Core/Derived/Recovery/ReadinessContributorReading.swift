@@ -34,6 +34,14 @@ struct ReadinessContributorReading: Equatable, Sendable, Identifiable {
         }
     }
 
+    /// Whether the row asks for attention: Oura's score, or the measurement under it, outside his
+    /// usual range in the worse direction — the row's orange.
+    var isUnusual: Bool {
+        if oura?.standing == .unfavourable { return true }
+        if case .measured(let figure) = basis { return figure.standing == .unfavourable }
+        return false
+    }
+
     /// The measurement behind a contributor.
     enum Basis: Equatable, Sendable {
         /// A recovery figure against his own 28 days before, which opens its trend.
