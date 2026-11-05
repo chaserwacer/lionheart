@@ -21,13 +21,14 @@ public sealed class ChangeProposal
 {
     private ChangeProposal(
         Guid changeProposalId, Guid userId, Guid chatConversationId, DateTime proposedAt,
-        ProposedChange change, ProposalSummary summary, ProposalAnswer answer)
+        ProposedChange change, ChangeArea area, ProposalSummary summary, ProposalAnswer answer)
     {
         ChangeProposalId = changeProposalId;
         UserId = userId;
         ChatConversationId = chatConversationId;
         ProposedAt = proposedAt;
         Change = change;
+        Area = area;
         Summary = summary;
         Answer = answer;
     }
@@ -43,13 +44,19 @@ public sealed class ChangeProposal
 
     public ProposedChange Change { get; private init; }
 
+    /// <summary>
+    /// The change's area, kept beside it so the thread reads its cards without reading the change:
+    /// a stored change that no longer deserializes then costs only its own confirmation.
+    /// </summary>
+    public ChangeArea Area { get; private init; }
+
     public ProposalSummary Summary { get; private init; }
 
     public ProposalAnswer Answer { get; private set; }
 
     /// <summary>A proposal as an exchange drafted it, now part of the session it was made in.</summary>
     public static ChangeProposal Open(ProposalDraft draft, Guid userId, Guid chatConversationId, DateTime proposedAt) =>
-        new(draft.ChangeProposalId, userId, chatConversationId, proposedAt, draft.Change, draft.Summary,
+        new(draft.ChangeProposalId, userId, chatConversationId, proposedAt, draft.Change, draft.Change.Area, draft.Summary,
             new ProposalAnswer.Waiting());
 
     /// <summary>

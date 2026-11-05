@@ -14,30 +14,41 @@ internal static class ChangeProposalReads
     {
         /// <summary>The proposals made in these sessions, by session, oldest first.</summary>
         public async Task<ILookup<Guid, ChangeProposalView>> ProposalViewsAsync(IReadOnlyCollection<Guid> conversationIds, CancellationToken ct) =>
-            (await context.ChangeProposals
-                .AsNoTracking()
-                .Where(proposal => conversationIds.Contains(proposal.ChatConversationId))
-                .OrderBy(proposal => proposal.ProposedAt)
+            (await Cards(context.ChangeProposals.Where(proposal => conversationIds.Contains(proposal.ChatConversationId)))
                 .ToListAsync(ct))
-            .ToLookup(proposal => proposal.ChatConversationId, ChangeProposalView.Of);
+            .ToLookup(card => card.ChatConversationId, card => card.View);
 
         /// <summary>
         /// What the model hears about with a message: everything proposed in this session, and his
         /// cards from earlier sessions of the last fortnight that still wait for an answer.
         /// </summary>
-        public async Task<IReadOnlyList<ChangeProposal>> ProposalsToTellAsync(
+        public async Task<IReadOnlyList<ChangeProposalView>> ProposalsToTellAsync(
             Guid userId, Guid conversationId, DateTime now, CancellationToken ct)
         {
             var since = now - WaitingRemembered;
-            var recent = await context.ChangeProposals
-                .AsNoTracking()
-                .Where(proposal => proposal.UserId == userId
-                                   && (proposal.ChatConversationId == conversationId || proposal.ProposedAt >= since))
+            var recent = await Cards(context.ChangeProposals.Where(proposal =>
+                    proposal.UserId == userId
+                    && (proposal.ChatConversationId == conversationId || proposal.ProposedAt >= since)))
                 .ToListAsync(ct);
 
             // The answer is a JSON column, so which earlier ones still wait is read here.
-            return [.. recent.Where(proposal =>
-                proposal.ChatConversationId == conversationId || proposal.Answer is ProposalAnswer.Waiting)];
+            return [.. recent
+                .Where(card => card.ChatConversationId == conversationId || card.View.Answer is ProposalAnswer.Waiting)
+                .Select(card => card.View)];
         }
     }
+
+    /// <summary>
+    /// Proposals as cards, oldest first, read without the change itself, so a stored change that no
+    /// longer deserializes cannot take the thread down with it.
+    /// </summary>
+    private static IQueryable<Card> Cards(IQueryable<ChangeProposal> proposals) =>
+        proposals
+            .AsNoTracking()
+            .OrderBy(proposal => proposal.ProposedAt)
+            .Select(proposal => new Card(
+                proposal.ChatConversationId,
+                ChangeProposalView.Of(proposal.ChangeProposalId, proposal.ProposedAt, proposal.Area, proposal.Summary, proposal.Answer)));
+
+    private sealed record Card(Guid ChatConversationId, ChangeProposalView View);
 }

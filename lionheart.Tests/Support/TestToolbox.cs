@@ -69,7 +69,7 @@ public sealed class TestTools : ITestTools
             ? Result<ProposalDraft, Problem>.Failure(new Problem.Invalid("phrase", "Say what to change."))
             : Result<ProposalDraft, Problem>.Success(new ProposalDraft(
                 Guid.NewGuid(),
-                new ProposedChange.RemovePlan(Guid.NewGuid()),
+                new ProposedChange.RemovePlan(Guid.NewGuid(), new PlanAsDrafted(new DateOnly(2026, 1, 7), [], "")),
                 new ProposalSummary(phrase, ["one line"]))));
     }
 }

@@ -137,13 +137,22 @@ final class ThreadStore {
             let settled = try await call(proposal.changeProposalId)
             transcript = transcript.editing { $0.with(settled) }
             proposalAnswer = .idle
-            if case .confirmed = settled.answer {
-                for action in whenConfirmed { await action(settled.area) }
-            }
+            await announceIfConfirmed(settled)
         } catch {
             proposalAnswer = ProposalAnswering.refusal(from: error)
-            if proposalAnswer.revealsOutdatedCard { await reload() }
+            guard proposalAnswer.revealsOutdatedCard else { return }
+            // Answered already: perhaps by this very tap, whose response was lost. If the read
+            // shows it confirmed, the screens that show the change still have to read again.
+            await reload()
+            if let reread = transcript.value?.proposal(proposal.changeProposalId) {
+                await announceIfConfirmed(reread)
+            }
         }
+    }
+
+    private func announceIfConfirmed(_ proposal: ChangeProposal) async {
+        guard case .confirmed = proposal.answer else { return }
+        for action in whenConfirmed { await action(proposal.area) }
     }
 
     private func reload() async {

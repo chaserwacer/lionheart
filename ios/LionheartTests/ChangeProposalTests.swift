@@ -106,6 +106,14 @@ struct ChangeProposalTests {
         #expect(answered.sessions.first?.proposals.count == 1)
     }
 
+    @Test("A card is found by its id in whichever session holds it")
+    func aCardIsFoundByItsId() throws {
+        let thread = try Self.thread(proposals: [Self.proposal()])
+
+        #expect(thread.proposal(UUID(uuidString: Self.proposalId)!)?.title == "Plan a session on Wed 11 Nov")
+        #expect(thread.proposal(UUID()) == nil)
+    }
+
     @Test("A round of tools that proposes reads as drafting, not reading")
     func proposingToolsReadAsDrafting() {
         #expect(ReplyProgress.isProposing(["GetPlannedDays", "ProposePlanSession"]))

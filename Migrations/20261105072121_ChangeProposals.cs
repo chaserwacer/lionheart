@@ -20,6 +20,7 @@ namespace lionheart.Migrations
                     ChatConversationId = table.Column<Guid>(type: "TEXT", nullable: false),
                     ProposedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     Change = table.Column<string>(type: "TEXT", nullable: false),
+                    Area = table.Column<string>(type: "TEXT", maxLength: 16, nullable: false),
                     Summary = table.Column<string>(type: "TEXT", nullable: false),
                     Answer = table.Column<string>(type: "TEXT", nullable: false)
                 },
@@ -34,6 +35,24 @@ namespace lionheart.Migrations
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_ChangeProposals_LionheartUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "LionheartUsers",
+                        principalColumn: "UserID",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DeletedStravaActivities",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ActivityId = table.Column<long>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DeletedStravaActivities", x => new { x.UserId, x.ActivityId });
+                    table.ForeignKey(
+                        name: "FK_DeletedStravaActivities_LionheartUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "LionheartUsers",
                         principalColumn: "UserID",
@@ -56,6 +75,9 @@ namespace lionheart.Migrations
         {
             migrationBuilder.DropTable(
                 name: "ChangeProposals");
+
+            migrationBuilder.DropTable(
+                name: "DeletedStravaActivities");
         }
     }
 }

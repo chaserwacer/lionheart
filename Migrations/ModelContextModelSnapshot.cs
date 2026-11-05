@@ -344,6 +344,11 @@ namespace lionheart.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Area")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Change")
                         .IsRequired()
                         .HasColumnType("TEXT");

@@ -63,7 +63,7 @@ struct ProposalCard: View {
                 if isAnswering {
                     ProgressView()
                 } else {
-                    Button("Not now", action: onDecline)
+                    Button("Decline", action: onDecline)
                         .buttonStyle(.bordered)
                     Button("Confirm", action: onConfirm)
                         .buttonStyle(.borderedProminent)
@@ -76,7 +76,7 @@ struct ProposalCard: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.green)
         case .declined:
-            Label("Not now — nothing changed", systemImage: "xmark.circle")
+            Label("Declined — nothing changed", systemImage: "xmark.circle")
                 .font(.footnote)
                 .foregroundStyle(Color(.secondaryLabel))
         case .refused(_, let reason):

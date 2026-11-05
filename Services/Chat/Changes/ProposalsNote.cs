@@ -16,13 +16,13 @@ namespace lionheart.Services.Chat.Changes;
 /// </remarks>
 public static class ProposalsNote
 {
-    public static string Render(IReadOnlyList<ChangeProposal> proposals)
+    public static string Render(IReadOnlyList<ChangeProposalView> proposals)
     {
         if (proposals.Count == 0) return string.Empty;
 
         var text = new StringBuilder("CHANGES YOU PROPOSED (as of this message; the athlete answers each on its card)");
         foreach (var proposal in proposals.OrderBy(p => p.ProposedAt))
-            text.AppendLine().Append(System.Globalization.CultureInfo.InvariantCulture, $"- {proposal.Summary.Spoken} {Standing(proposal.Answer)}");
+            text.AppendLine().Append(System.Globalization.CultureInfo.InvariantCulture, $"- {proposal.Spoken} {Standing(proposal.Answer)}");
         return text.ToString();
     }
 

@@ -43,8 +43,12 @@ public sealed class ChangeDesk : IDisposable
     public async Task<T> ProposalsAsync<T>(Func<IChangeProposalService, Task<T>> act)
     {
         await using var context = Athletes.CreateContext();
-        return await act(new ChangeProposalService(context, Writer(context), Clock));
+        return await act(Proposals(context));
     }
+
+    /// <summary>The proposal service over a context the test holds, to see what that context saves.</summary>
+    public static IChangeProposalService Proposals(ModelContext context) =>
+        new ChangeProposalService(context, Writer(context), Clock);
 
     /// <summary>A draft as an exchange in one of the owner's thread sessions would have stored it.</summary>
     public async Task<Guid> StoreAsync(ProposalDraft draft)
@@ -75,7 +79,8 @@ public sealed class ChangeDesk : IDisposable
             new TrainingSessionService(context, Clock, detector, new PersonalRecordRebuild(context, detector)),
             new NonTrainingDayService(context, Clock),
             new FocusPinService(context, Clock, MovementPatternMap.Shipped),
-            new InjuryService(context));
+            new InjuryService(context),
+            Clock);
     }
 
     private async Task<Guid> ConversationAsync()

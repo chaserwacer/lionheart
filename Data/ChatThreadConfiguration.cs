@@ -71,6 +71,7 @@ public static class ChatThreadConfiguration
                 .OnDelete(DeleteBehavior.Cascade);
 
             proposal.Property(p => p.Change).HasJsonConversion();
+            proposal.Property(p => p.Area).HasConversion<string>().HasMaxLength(16);
             proposal.Property(p => p.Summary).HasJsonConversion();
 
             // The answer moves once, from waiting; as a concurrency token, a second confirmation racing

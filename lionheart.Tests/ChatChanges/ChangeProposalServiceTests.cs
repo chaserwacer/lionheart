@@ -194,6 +194,83 @@ public sealed class ChangeProposalServiceTests : IDisposable
         Assert.IsType<ProposalAnswer.Waiting>(stored.Answer);
     }
 
+    [Fact]
+    public async Task A_plan_for_a_day_that_has_passed_by_the_time_it_is_confirmed_is_refused()
+    {
+        var proposalId = await _desk.StoreAsync(new ProposalDraft(
+            Guid.NewGuid(),
+            new ProposedChange.PlanSession(new PlanSessionRequest(ChangeDesk.Today.AddDays(-1), [new FreeformPrescriptionCommand("Easy run")], "", null)),
+            new ProposalSummary("Plan a session on Tue 3 Nov", ["Easy run"])));
+
+        var answer = ResultAssert.Succeeded(await ConfirmAsync(proposalId)).Answer;
+
+        Assert.Contains("today or a later day", Assert.IsType<ProposalAnswer.Refused>(answer).Reason);
+        Assert.Equal(0, await _desk.SessionsStoredAsync());
+    }
+
+    [Fact]
+    public async Task A_change_to_a_plan_edited_on_Train_since_the_card_was_drawn_is_refused_and_his_edit_kept()
+    {
+        var planned = ResultAssert.Succeeded(await _desk.Athletes.SessionsAsync(service => service.PlanAssistedAsync(
+            _desk.Athletes.Owner, new PlanSessionRequest(NextWednesday, [new FreeformPrescriptionCommand("Easy run")], "", null), default)));
+        var proposalId = await _desk.ProposeAsync(drafter => drafter.RevisePlanAsync(_desk.Athletes.Owner, new PlanChangeArguments
+        {
+            TrainingSessionId = planned.TrainingSessionId,
+            Plan = new PlannedSessionArguments { Day = NextWednesday, Freeform = ["Tempo run"] },
+        }, default));
+        ResultAssert.Succeeded(await _desk.Athletes.SessionsAsync(service => service.UpdateNotesAsync(
+            _desk.Athletes.Owner, planned.TrainingSessionId, new SessionNotesRequest("his own edit"), default)));
+
+        var answer = ResultAssert.Succeeded(await ConfirmAsync(proposalId)).Answer;
+
+        Assert.IsType<ProposalAnswer.Refused>(answer);
+        var kept = Assert.IsType<PlannedTrainingSession>(Assert.Single(await _desk.ReadAsync(context => context.Sessions.ToListAsync())));
+        Assert.Equal(("his own edit", new FreeformPrescription("Easy run")), (kept.Notes, Assert.Single(kept.Prescriptions)));
+    }
+
+    [Fact]
+    public async Task A_priority_whose_family_changed_lead_since_the_card_was_drawn_is_refused()
+    {
+        var dip = await _desk.Athletes.PlantMovementAsync(_desk.Athletes.OwnerId, "Dip");
+        var bench = await _desk.Athletes.PlantMovementAsync(_desk.Athletes.OwnerId, "Bench Press");
+        var proposalId = await _desk.ProposeAsync(drafter => drafter.PinPriorityLiftAsync(_desk.Athletes.Owner,
+            new PriorityLiftArguments { Family = "push", MovementDataId = bench, Ends = ChangeDesk.Today.AddDays(42), SessionsPerWeek = 2 },
+            default));
+        ResultAssert.Succeeded(await _desk.Athletes.FocusAsync(ChangeDesk.Clock, service => service.PinAsync(_desk.Athletes.Owner,
+            new PinFocusRequest(dip, ChangeDesk.Today, ChangeDesk.Today.AddDays(28), 2, null, PatternFamily.Push), default)));
+
+        var answer = ResultAssert.Succeeded(await ConfirmAsync(proposalId)).Answer;
+
+        Assert.Contains("push priority changed", Assert.IsType<ProposalAnswer.Refused>(answer).Reason);
+        Assert.Equal(dip, Assert.Single(await _desk.ReadAsync(context => context.FocusPins.ToListAsync())).MovementDataId);
+    }
+
+    /// <summary>
+    /// A service may stage part of a write before it refuses, trusting the context to be thrown
+    /// away; the refusal is saved through that same context, so whatever was staged must not ride
+    /// along with it.
+    /// </summary>
+    [Fact]
+    public async Task A_refused_write_saves_the_refusal_and_nothing_it_had_staged()
+    {
+        var proposalId = await _desk.StoreAsync(new ProposalDraft(
+            Guid.NewGuid(),
+            new ProposedChange.PlanSession(new PlanSessionRequest(ChangeDesk.Today.AddDays(-1), [], "", null)),
+            new ProposalSummary("Plan a session on Tue 3 Nov", [])));
+
+        await using (var context = _desk.Athletes.CreateContext())
+        {
+            context.NonTrainingDays.Add(NonTrainingDay.Mark(
+                Guid.NewGuid(), _desk.Athletes.OwnerId, new NonTrainingSchedule.OneDay(NextWednesday), "half staged", ChangeDesk.Now.UtcDateTime));
+            var answer = ResultAssert.Succeeded(await ChangeDesk.Proposals(context).ConfirmAsync(_desk.Athletes.Owner, proposalId, default)).Answer;
+            Assert.IsType<ProposalAnswer.Refused>(answer);
+        }
+
+        Assert.Equal(0, await _desk.ReadAsync(context => context.NonTrainingDays.CountAsync()));
+        Assert.IsType<ProposalAnswer.Refused>(
+            Assert.Single(await _desk.ReadAsync(context => context.ChangeProposals.AsNoTracking().ToListAsync())).Answer);
+    }
+
     /// <summary>
     /// Two taps racing both pass the guard; the answer being a concurrency token is what stops the
     /// second from settling, and so from keeping a second write.

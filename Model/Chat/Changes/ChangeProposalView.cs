@@ -12,11 +12,13 @@ public sealed record ChangeProposalView(
     IReadOnlyList<string> Lines,
     ProposalAnswer Answer)
 {
-    public static ChangeProposalView Of(ChangeProposal proposal) => new(
-        proposal.ChangeProposalId,
-        proposal.ProposedAt,
-        proposal.Change.Area,
-        proposal.Summary.Title,
-        proposal.Summary.Lines,
-        proposal.Answer);
+    public static ChangeProposalView Of(ChangeProposal proposal) =>
+        Of(proposal.ChangeProposalId, proposal.ProposedAt, proposal.Area, proposal.Summary, proposal.Answer);
+
+    public static ChangeProposalView Of(
+        Guid changeProposalId, DateTime proposedAt, ChangeArea area, ProposalSummary summary, ProposalAnswer answer) =>
+        new(changeProposalId, proposedAt, area, summary.Title, summary.Lines, answer);
+
+    /// <summary>What the card says, as one passage.</summary>
+    public string Spoken => new ProposalSummary(Title, Lines).Spoken;
 }

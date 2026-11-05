@@ -734,7 +734,7 @@ speaks to, are not offered the proposing tools.
 
 | Verb | Route | Body | Answers |
 |---|---|---|---|
-| POST | `/api/chat/proposals/{id}/confirm` | — | the settled `ChangeProposalView`: `confirmed`, or `refused` with the service's reason when the write was refused (still 200 — he said yes, nothing was written). 404 for another athlete's or an unknown id, 409 when already answered |
+| POST | `/api/chat/proposals/{id}/confirm` | — | the settled `ChangeProposalView`: `confirmed`, or `refused` with the reason when the write was refused (still 200 — he said yes, nothing was written): by the service, because a planned day has passed, or because what the card replaces — the planned session, the family's priority — changed after it was drawn. 404 for another athlete's or an unknown id, 409 when already answered |
 | POST | `/api/chat/proposals/{id}/decline` | — | the settled `ChangeProposalView`, `declined`; nothing is written. 404, 409 as above |
 
 - **`ChangeProposalView`** — `changeProposalId`, `proposedAt`, `area` (`"plan"`, `"availability"`,
@@ -757,9 +757,10 @@ speaks to, are not offered the proposing tools.
 history), `recentStateText` and `recentStateAsOf` (the last four weeks of runs and body), and
 `todayText` — the **briefing** exactly as the next chat message would carry it: the date and time on
 the athlete's clock, today's and yesterday's training, load, heart-rate zones, the last two nights,
-readiness, wellness, active injuries, the week so far and the training score. The briefing is read
-fresh on every call and every message and is never stored, so it carries no as-of beyond the time it
-states. Instants are UTC; the briefing's own text is in the athlete's local time.
+readiness, wellness, active injuries, the week so far and the training score. In the thread a
+message also carries where the session's proposals stand, after the briefing; that note is not part
+of `todayText`. The briefing is read fresh on every call and every message and is never stored, so it
+carries no as-of beyond the time it states. Instants are UTC; the briefing's own text is in the athlete's local time.
 
 ## Interpretation engine — `/api/interpretation`
 

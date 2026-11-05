@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using lionheart.Model.InjuryManagement;
 using lionheart.Model.Training.Availability;
 using lionheart.Model.Training.Focus;
+using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sessions;
 
 namespace lionheart.Model.Chat.Changes;
@@ -16,6 +17,11 @@ namespace lionheart.Model.Chat.Changes;
 /// value, and nothing the model writes in prose can widen what a confirmation does. Each case carries
 /// the request its service takes; a change to a planned session names the session as well, because
 /// those routes take it apart from the body.
+/// <para>
+/// A change that replaces or lets go of something also carries what the card said it would replace —
+/// the plan as drafted, the priorities pinned — so a confirmation after that thing has changed on a
+/// page is refused rather than writing over something the athlete was never shown.
+/// </para>
 /// </remarks>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(PlanSession), "planSession")]
@@ -39,12 +45,12 @@ public abstract record ProposedChange
         public override ChangeArea Area => ChangeArea.Plan;
     }
 
-    public sealed record RevisePlan(Guid TrainingSessionId, RevisePlanRequest Plan) : ProposedChange
+    public sealed record RevisePlan(Guid TrainingSessionId, RevisePlanRequest Plan, PlanAsDrafted Replaces) : ProposedChange
     {
         public override ChangeArea Area => ChangeArea.Plan;
     }
 
-    public sealed record RemovePlan(Guid TrainingSessionId) : ProposedChange
+    public sealed record RemovePlan(Guid TrainingSessionId, PlanAsDrafted Removes) : ProposedChange
     {
         public override ChangeArea Area => ChangeArea.Plan;
     }
@@ -59,7 +65,8 @@ public abstract record ProposedChange
         public override ChangeArea Area => ChangeArea.Availability;
     }
 
-    public sealed record PinPriorityLift(PinFocusRequest Request) : ProposedChange
+    /// <param name="LetsGo">The family's pinned priorities when the card was drawn, which pinning this lets go.</param>
+    public sealed record PinPriorityLift(PatternFamily Family, PinFocusRequest Request, IReadOnlyList<Guid> LetsGo) : ProposedChange
     {
         public override ChangeArea Area => ChangeArea.Focus;
     }
@@ -73,6 +80,16 @@ public abstract record ProposedChange
     {
         public override ChangeArea Area => ChangeArea.Injuries;
     }
+}
+
+/// <summary>A planned session as the card that changes or removes it showed it.</summary>
+public sealed record PlanAsDrafted(DateOnly PlannedFor, IReadOnlyList<SetPrescription> Prescriptions, string Notes)
+{
+    public static PlanAsDrafted Of(PlannedTrainingSession planned) => new(planned.PlannedFor, planned.Prescriptions, planned.Notes);
+
+    /// <summary>Whether the session still reads as the card showed it.</summary>
+    public bool Matches(PlannedTrainingSession planned) =>
+        planned.PlannedFor == PlannedFor && planned.Notes == Notes && planned.Prescriptions.SequenceEqual(Prescriptions);
 }
 
 /// <summary>The part of the app a confirmed change lands in, and so which screens read again.</summary>

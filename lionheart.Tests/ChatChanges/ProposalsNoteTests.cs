@@ -8,14 +8,8 @@ public sealed class ProposalsNoteTests
 {
     private static readonly DateTime At = new(2026, 11, 4, 17, 0, 0, DateTimeKind.Utc);
 
-    private static ChangeProposal Proposed(string title, int minutes, ProposalAnswer? answer = null)
-    {
-        var proposal = ChangeProposal.Open(
-            new ProposalDraft(Guid.NewGuid(), new ProposedChange.RemovePlan(Guid.NewGuid()), new ProposalSummary(title, [])),
-            Guid.NewGuid(), Guid.NewGuid(), At.AddMinutes(minutes));
-        if (answer is not null) proposal.Settle(answer);
-        return proposal;
-    }
+    private static ChangeProposalView Proposed(string title, int minutes, ProposalAnswer? answer = null) =>
+        new(Guid.NewGuid(), At.AddMinutes(minutes), ChangeArea.Plan, title, [], answer ?? new ProposalAnswer.Waiting());
 
     [Fact]
     public void Nothing_proposed_says_nothing()

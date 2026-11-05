@@ -15,7 +15,7 @@ public sealed record PlannedSessionArguments
     [Description("The day the session is for, yyyy-MM-dd, on the athlete's calendar. Today or later.")]
     public DateOnly? Day { get; init; }
 
-    [Description("Lifts to prescribe, in the order they are trained. Each needs the movementDataId of one of the athlete's own movements (FindMovements).")]
+    [Description("Lifts to prescribe, in the order they are trained, each the same set repeated: list a movement again for different sets, such as a top set then back-off sets. Each needs the movementDataId of one of the athlete's own movements (FindMovements).")]
     public IReadOnlyList<PlannedLift>? Lifts { get; init; }
 
     [Description("What the session is, in words, one line each, for anything that is not a lift with numbers: \"Easy run, 4-5 miles, conversational\", \"Zone 2 ride, 60 minutes\", \"4 x 4 minute intervals at zone 4-5\". Short and specific.")]
@@ -26,6 +26,7 @@ public sealed record PlannedSessionArguments
 }
 
 /// <summary>One lift on a planned session: the same set prescribed a number of times.</summary>
+/// <remarks>A top set and back-off sets are two entries for the same movement.</remarks>
 public sealed record PlannedLift
 {
     [Description("The movement's movementDataId.")]

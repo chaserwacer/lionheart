@@ -45,14 +45,14 @@ public sealed class ChangeDrafter(ModelContext context, TimeProvider clock, Move
                 .Bind(NotBeforeToday)
                 .BindAsync(plan => PrescribedAsync(user, plan.Prescriptions, before.Prescriptions, ct)
                     .MapAsync(prescribed => Drafted(
-                        new ProposedChange.RevisePlan(before.TrainingSessionId, plan.ToReviseRequest()),
+                        new ProposedChange.RevisePlan(before.TrainingSessionId, plan.ToReviseRequest(), PlanAsDrafted.Of(before)),
                         ChangeSummaries.RevisePlan(before, plan.ToReviseRequest(), prescribed.Prescriptions, prescribed.Names)))));
 
     public Task<Result<ProposalDraft, Problem>> RemovePlanAsync(IdentityUser user, Guid trainingSessionId, CancellationToken ct) =>
         _context.PlannedByTempoAsync(Guid.Parse(user.Id), trainingSessionId, ct)
             .BindAsync(planned => PrescribedAsync(user, [], planned.Prescriptions, ct)
                 .MapAsync(prescribed => Drafted(
-                    new ProposedChange.RemovePlan(planned.TrainingSessionId),
+                    new ProposedChange.RemovePlan(planned.TrainingSessionId, PlanAsDrafted.Of(planned)),
                     ChangeSummaries.RemovePlan(planned, prescribed.Names))));
 
     public Task<Result<ProposalDraft, Problem>> MarkNonTrainingDayAsync(IdentityUser user, NonTrainingDayArguments arguments, CancellationToken ct) =>
@@ -98,10 +98,7 @@ public sealed class ChangeDrafter(ModelContext context, TimeProvider clock, Move
     // ---- Checks against his data ----
 
     private Result<StatedPlan, Problem> NotBeforeToday(StatedPlan plan) =>
-        plan.Day >= AthleteNow.Of(_clock).Today
-            ? Result<StatedPlan, Problem>.Success(plan)
-            : Result<StatedPlan, Problem>.Failure(new Problem.Invalid(
-                nameof(PlannedSessionArguments.Day), "A session is planned for today or a later day; the TODAY note has the date."));
+        TempoPlans.NotBeforeToday(plan.Day, _clock).Map(_ => plan);
 
     /// <summary>
     /// The new prescriptions as the session will hold them, and the names of every movement either
@@ -171,14 +168,12 @@ public sealed class ChangeDrafter(ModelContext context, TimeProvider clock, Move
     private async Task<ProposalDraft> PinDraftAsync(IdentityUser user, StatedPin pin, CancellationToken ct)
     {
         var userId = Guid.Parse(user.Id);
-        var leading = (await _context.FocusPins.AsNoTracking().Where(other => other.UserId == userId).ToListAsync(ct))
-            .FirstOrDefault(other => other.IsPinned && other.Role.IsPriorityFor(pin.Family));
-        var superseded = leading is null
-            ? null
-            : (await _context.MovementNamesAsync(userId, [leading.MovementDataId], ct)).NameOf(leading.MovementDataId);
+        var leading = await _context.PinnedPrioritiesAsync(userId, pin.Family, ct);
+        var names = await _context.MovementNamesAsync(userId, leading.Select(other => other.MovementDataId), ct);
+        var superseded = leading.Count == 0 ? null : string.Join(" and ", leading.Select(other => names.NameOf(other.MovementDataId)));
 
         return Drafted(
-            new ProposedChange.PinPriorityLift(pin.Request),
+            new ProposedChange.PinPriorityLift(pin.Family, pin.Request, [.. leading.Select(l => l.FocusPinId)]),
             ChangeSummaries.PinPriorityLift(pin.Family, pin.Lift, pin.Terms, superseded));
     }
 

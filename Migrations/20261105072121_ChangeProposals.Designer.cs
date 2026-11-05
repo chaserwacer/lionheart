@@ -13,7 +13,7 @@ using lionheart.Model.Training.Sessions;
 namespace lionheart.Migrations
 {
     [DbContext(typeof(ModelContext))]
-    [Migration("20261105052800_ChangeProposals")]
+    [Migration("20261105072121_ChangeProposals")]
     partial class ChangeProposals
     {
         /// <inheritdoc />
@@ -345,6 +345,11 @@ namespace lionheart.Migrations
                     b.Property<string>("Answer")
                         .IsConcurrencyToken()
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Area")
+                        .IsRequired()
+                        .HasMaxLength(16)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Change")

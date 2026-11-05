@@ -172,7 +172,7 @@ first and then in the code.
 | **Consolidation** | Distilling an ended thread session into memory: one structured model call that remembers, revises or retires. |
 | **Proposed change** | A change to the athlete's data the chat model put to him in the thread — a session planned, changed or removed, a non-training day marked or freed, a priority lift pinned, an injury or a check-in logged — written only when he confirms it, through the service the page uses. Waiting, then confirmed, declined, or refused (he said yes and the service would not write it, with its reason). Short form: **proposal**. |
 | **Proposing tool** | A chat tool named `Propose…` that drafts a proposed change instead of reading: it writes nothing, and is offered only in the thread, where a card can be answered. |
-| **Proposal card** | A proposed change as the Chat transcript draws it, after the answer that proposed it: its title, what it sets or replaces, and Confirm or Not now until it is answered. |
+| **Proposal card** | A proposed change as the Chat transcript draws it, after the answer that proposed it: its title, what it sets or replaces, and Confirm or Decline until it is answered. |
 | **Supersede** | How a memory changes: a revision writes a new current version and keeps the old one, dated, as its history. |
 | **Quick log** | The one-field path: type what you did in plain words and let interpretation do the rest. |
 

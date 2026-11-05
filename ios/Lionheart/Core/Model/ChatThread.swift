@@ -70,6 +70,11 @@ struct ChatThread: Equatable, Sendable {
             hasEarlier: earlier.hasEarlier)
     }
 
+    /// The proposal with this id, in whichever session holds it.
+    func proposal(_ changeProposalId: UUID) -> ChangeProposal? {
+        sessions.lazy.flatMap(\.proposals).first { $0.changeProposalId == changeProposalId }
+    }
+
     /// The thread with a proposal as its answer left it, in whichever session holds it.
     func with(_ proposal: ChangeProposal) -> ChatThread {
         ChatThread(
