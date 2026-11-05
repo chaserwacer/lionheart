@@ -20,6 +20,14 @@ public sealed class ValidateModelAttribute : ActionFilterAttribute
     {
         if (!context.ModelState.IsValid)
         {
+            // A refused request is otherwise invisible on the server; the phone may only say it failed.
+            context.HttpContext.RequestServices.GetRequiredService<ILogger<ValidateModelAttribute>>().LogWarning(
+                "{Method} {Path} refused as malformed: {Errors}",
+                context.HttpContext.Request.Method,
+                context.HttpContext.Request.Path,
+                string.Join("; ", context.ModelState
+                    .Where(entry => entry.Value is { Errors.Count: > 0 })
+                    .Select(entry => $"{entry.Key}: {string.Join(", ", entry.Value!.Errors.Select(error => error.ErrorMessage))}")));
             context.Result = new BadRequestObjectResult(context.ModelState);
         }
     }
