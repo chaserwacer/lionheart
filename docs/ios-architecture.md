@@ -855,7 +855,10 @@ side:
   rate against the zones, footed with whose it is, a run's form, and each metric the app wrote —
   power, cadence, speed, running form — drawn against its mean (`MetricTraceChart`, thinned to a few
   hundred points by `MetricTrace`). It shares the cardio session's chart and zone grid, which moved to `Design/` for
-  the second caller.
+  the second caller. A session imported from the Strava archive opens the same page, its source
+  (`RecordedWorkout.source`) naming Strava and the archive where a Health workout names its app and
+  Health; an archived gym session has no recording, so its detail names the source without the link
+  (`TrainingSession.opensRecording`).
 
 ## Chat: one thread, with memory
 

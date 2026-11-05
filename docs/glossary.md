@@ -13,7 +13,7 @@ first and then in the code.
 | **Active session** | A session in progress: it has a start instant and the sets logged so far. |
 | **Completed session** | A session that happened: its sets, the period it occupied, the effort reported, and its decoration. |
 | **Skipped session** | A planned session the athlete did not do. Terminal, and kept — the skip is data. |
-| **Set entry** | One performed set. Per-modality shapes: lift, distance-time, trail run, endurance (a ride, hike, walk or indoor run, by its activity), freeform. |
+| **Set entry** | One performed set. Per-modality shapes: lift, distance-time, trail run, endurance (a ride, hike, walk, indoor run, e-bike ride or paddle, by its activity), freeform. |
 | **Freeform set** | A set the parser could not break down. Keeps its raw words and its facets, and can be upgraded later. The words are never lost. |
 | **Prescription** | A target set on a planned session — the intended reps, weight, distance or duration. |
 | **Movement data** | The identity of a thing you do: a movement base plus equipment plus a modifier. Records hang off it. |
@@ -77,13 +77,18 @@ first and then in the code.
 | **Score partition** | The training score drawn as three rows on one 100-point axis — the score, its parts, every measurement — each cell as wide as the points it can earn and filled with what it earned. |
 | **Heartbeats per mile** | A run's average heart rate times its minutes per kilometre: what a kilometre cost the heart. Roughly level across easy and steady paces, so it falls as the aerobic base grows. |
 | **Training score** | Lionheart's own 0–100 for the seven days ending on a day: lifting volume, cardio, priority progress and consistency, each read as measurements against targets. Not Oura's activity score. A part with no data is unknown: named, and its points out of reach rather than counted as zero. |
-| **Session source** | Where a session came from: the athlete's log — entered in Lionheart, or imported from his own logs — or Apple Health, with the workout's Health id and the app that recorded it. Orthogonal to provenance. |
+| **Session source** | Where a session came from: the athlete's log — entered in Lionheart, or imported from his own logs — Apple Health, with the workout's Health id and the app that recorded it, or the Strava archive, with the activity's Strava id. Orthogonal to provenance. |
+| **Strava archive** | The folder Strava's "Download your data" export unzips to: `activities.csv`, one summary row per activity, and `activities/`, each activity's GPX or FIT file. What `import-strava` reads; its account and social files are not training and stay out. |
+| **Archived activity** | One activity of the Strava archive: its summary row and, where it has one, its file. It becomes a session of its own, or is a session the log already holds. |
+| **Deleted Strava activity** | An archived activity whose imported session the athlete deleted, remembered so no later run of the import brings it back. |
+| **E-bike ride** | A ride on an electric bike: training, and never a riding record, since the motor covered part of the distance. |
+| **Paddle** | A kayak, canoe or board outing: training, competing on no record. |
 | **Health workout** | A workout another app wrote to Apple Health, read by the phone and offered to the server, which decides whether it becomes training. |
-| **Workout recording** | What the app that recorded an imported run captured beyond the session: its route and its own heart rate. Kept beside the session, never in it. |
-| **Recorded run** | A run imported from Apple Health read for its page: the session's figures, the route's moving time, descent and splits, and the heart rate labelled with whose it is. |
+| **Workout recording** | What the app that recorded an imported run captured beyond the session: its route, its own heart rate and its other metrics, from Apple Health or the Strava archive's file. Kept beside the session, never in it; a later import fills a part it holds none of and never replaces one. |
+| **Recorded run** | A run imported from Apple Health or the Strava archive read for its page: the session's figures, the route's moving time, descent and splits, and the heart rate labelled with whose it is. |
 | **Split** | One kilometre or mile of a recorded run, or what is left after the last whole one: its time, moving pace, climb, descent and average heart rate. |
 | **Moving time** | A route's time in motion: its fix-to-fix legs faster than a slow shuffle. Stops, and a paused recording, are left out. |
-| **Heart-rate source** | Whose samples a session's heart rate was read from: the ring's all-day series, or the recording app's own, through Apple Health. |
+| **Heart-rate source** | Whose samples a session's heart rate was read from: the ring's all-day series, or the recording app's own, through Apple Health or from the Strava archive. |
 | **Health sync** | Offering the runs Apple Health gained since the kept anchor to the server, a page at a time; the anchor moves on once a page is answered. |
 | **Health measure** | A figure one of Apple's own devices measured and wrote to Health — the watch's VO2max, resting heart rate, HRV (SDNN), respiratory rate and walking heart rate; the phone's walking speed, step length, double support, asymmetry, steadiness and six-minute walk — kept as one day's mean, extremes and count per figure and device. Another app's copy in Health is not one. |
 | **Measuring device** | Which of Apple's devices took a health measure: the Apple Watch or the iPhone. A day measured by both keeps both. |

@@ -62,9 +62,15 @@ The subjects that name no movement are stored in the records' movement-id column
 `Guid.Empty` for trail running, the next two ids up for riding and hiking — so the domain never sees
 a nullable id; the wire sends `movementDataId` absent and a `subject` kind beside it.
 
+An e-bike ride and a paddle — activities only the Strava archive brings, since Health has no case
+for either — compete on nothing too: the motor covered part of an e-bike's distance and the water
+part of a boat's.
+
 Where it came from is a domain fact on the session, `SessionSource`: `AthleteLog` (entered in
-Lionheart, or imported from his own logs — Strong, the coached sheets) or `AppleHealth` (the
-workout's Health UUID and the app that recorded it). It is orthogonal to `Provenance`, which says who
+Lionheart, or imported from his own logs — Strong, the coached sheets), `AppleHealth` (the
+workout's Health UUID and the app that recorded it), or `StravaArchive` (an activity from the
+archive Strava exports, imported by `import-strava` — see `docs/data-remodel.md`, "Strava archive
+import"). An archived activity's recording is held and read exactly as a Health workout's. It is orthogonal to `Provenance`, which says who
 authored the content: an imported workout is the athlete's own training, so it is `Provenance.User`.
 
 What the session does not hold — the route, the app's heart rate and its other metrics — sits beside
