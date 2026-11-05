@@ -82,3 +82,17 @@ public sealed record RecordRebuildReport(int Before, int After, int Unchanged, i
         public sealed record Missing(Guid PersonalRecordId) : Predecessor;
     }
 }
+
+/// <summary>What happened to the athlete's records on an import run.</summary>
+/// <remarks>
+/// Two cases because a run that adds no session leaves the records alone rather than rebuilding
+/// them to the same answer, and a zeroed comparison would claim the athlete has no records.
+/// </remarks>
+public abstract record RecordsOutcome
+{
+    private protected RecordsOutcome() { }
+
+    public sealed record Untouched : RecordsOutcome;
+
+    public sealed record Rebuilt(RecordRebuildReport Report) : RecordsOutcome;
+}

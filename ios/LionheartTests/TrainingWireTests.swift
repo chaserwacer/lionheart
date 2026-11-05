@@ -95,7 +95,7 @@ struct SetCommandWireTests {
     @Test("An endurance set of an activity this build does not know cannot be stated back")
     func anUnknownActivityHasNoCommand() throws {
         let entry = try Decoding.decode(SetEntry.self, """
-            {"$type":"endurance","activity":"paddle","distance":5,"unit":3,"duration":"00:40:00",
+            {"$type":"endurance","activity":"skate","distance":5,"unit":3,"duration":"00:40:00",
              "elevationGainMeters":0,"rpe":null,"source":{"$type":"formed"},"facets":[]}
             """)
 
@@ -214,6 +214,20 @@ struct SessionRequestWireTests {
         let end = Self.evening.addingTimeInterval(3600)
 
         #expect(PeriodRequest.interval(from: Self.evening, to: end).end == end)
+    }
+
+    @Test("Rating one scale leaves the others as they were, and clearing it unrates only that one")
+    func ratingOneScaleKeepsTheOthers() {
+        let effort = PerceivedEffortRequest.unrated
+            .rating(.difficulty, 4)
+            .rating(.externalVariables, 2)
+
+        #expect(effort == PerceivedEffortRequest(
+            accumulatedFatigue: nil, difficultyRating: 4, engagementRating: nil, externalVariablesRating: 2))
+        #expect(EffortScale.allCases.map { effort[$0] } == [nil, 4, nil, 2])
+        #expect(effort.ratedScales == [.difficulty, .externalVariables])
+        #expect(effort.rating(.difficulty, nil)[.difficulty] == nil)
+        #expect(effort.rating(.difficulty, nil)[.externalVariables] == 2)
     }
 
     @Test("An effort with every rating left alone is empty, which means not reported")

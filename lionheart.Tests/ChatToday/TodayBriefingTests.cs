@@ -1,5 +1,6 @@
 using lionheart.Model.Cardio;
 using lionheart.Model.Training.Patterns;
+using lionheart.Model.Training.Load;
 using lionheart.Services.Chat.Today;
 
 namespace lionheart.Tests.ChatToday;
@@ -24,11 +25,13 @@ public sealed class TodayBriefingTests
         ReadinessFact? readiness = null,
         IReadOnlyList<InjuryFact>? injuries = null,
         MaxHeartRate? max = null,
-        string score = "") =>
+        string score = "",
+        IReadOnlyList<NonTrainingFact>? nonTraining = null,
+        EverydayLoad? everyday = null) =>
         new(now ?? Evening,
             sessions ?? [],
             new CardioDays.Read(cardio ?? [], max),
-            new LoadFact(20, 16, 3, 2.5),
+            new LoadFact(new LoadRatio.Compared(20, 16), new LoadRatio.Compared(3, 2.5)),
             nights ?? [],
             new NightBaseline(70, 45, 40),
             readiness,
@@ -36,7 +39,8 @@ public sealed class TodayBriefingTests
             null,
             injuries ?? [],
             [],
-            score);
+            nonTraining ?? [],
+            everyday ?? EverydayLoad.None) { Score = score };
 
     private static SessionFact Lifting(DateOnly day, int hour, params (string Movement, PatternFamily Family, int Sets)[] lifts) =>
         new(day,
@@ -46,6 +50,29 @@ public sealed class TodayBriefingTests
             HasCardioSets: false,
             Difficulty: 3,
             Fatigue: null);
+
+    [Fact]
+    public void Yesterdays_everyday_load_is_stated_against_his_usual_as_fatigue_that_earns_no_credit()
+    {
+        var briefing = TodayBriefing.Render(Facts(everyday: new EverydayLoad(
+            [new EverydayDay(Evening.Yesterday, 1200, new EverydayStanding.Judged(500, 800, EverydayBand.FarAbove))])));
+
+        Assert.Contains(
+            "Everyday load (movement outside training, fatigue but never training credit): yesterday 1200 MET-min, 2.4x his usual day (far above usual).",
+            briefing);
+    }
+
+    [Fact]
+    public void The_days_marked_non_training_ahead_are_stated_with_his_notes()
+    {
+        var briefing = TodayBriefing.Render(Facts(nonTraining:
+        [
+            new NonTrainingFact(Evening.Today, "travel"),
+            new NonTrainingFact(Evening.Today.AddDays(5), ""),
+        ]));
+
+        Assert.Contains("Marked non-training (he has said he will not train): today (travel), Sun 15 Mar.", briefing);
+    }
 
     [Fact]
     public void Now_is_stated_on_the_athletes_clock_with_its_offset_not_in_utc()

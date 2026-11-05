@@ -108,22 +108,3 @@ struct PeriodRequest: Encodable, Sendable {
         end < start ? PeriodRequest(start: start, end: nil) : PeriodRequest(start: start, end: end)
     }
 }
-
-/// Perceived effort as the athlete may state it.
-///
-/// Every rating is optional because rating some and skipping the rest is normal. `recordedAt` is
-/// absent on purpose: when the ratings were written down is the server's bookkeeping, not a fact
-/// the client is authorized to assert. An instance with nothing in it means the same thing as
-/// sending none at all, which the server settles rather than the client.
-struct PerceivedEffortRequest: Codable, Sendable, Equatable {
-    let accumulatedFatigue: Int?
-    let difficultyRating: Int?
-    let engagementRating: Int?
-    let externalVariablesRating: Int?
-
-    static let unrated = PerceivedEffortRequest(
-        accumulatedFatigue: nil, difficultyRating: nil,
-        engagementRating: nil, externalVariablesRating: nil)
-
-    var isEmpty: Bool { self == .unrated }
-}

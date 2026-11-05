@@ -20,6 +20,16 @@ public sealed record PlanSessionRequest(
     string Notes,
     Guid? TrainingProgramId);
 
+/// <summary>
+/// Planned → Planned: restates a plan whole — its day, its prescriptions and its notes — for the
+/// reason <see cref="ReviseSessionRequest"/> restates a completed session. The program and the
+/// provenance stay as they were.
+/// </summary>
+public sealed record RevisePlanRequest(
+    DateOnly PlannedFor,
+    IReadOnlyList<SetPrescriptionCommand> Prescriptions,
+    string Notes);
+
 /// <summary>Starts a session that was never planned — the athlete simply began training.</summary>
 /// <remarks>
 /// A <see cref="RoutineId"/> that is not one of the athlete's routines is dropped rather than

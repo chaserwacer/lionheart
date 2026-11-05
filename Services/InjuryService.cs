@@ -3,6 +3,7 @@ using lionheart.Model.InjuryManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using lionheart.Data;
+using lionheart.Services.Chat.Today;
 using lionheart.Services.Profile;
 using Model.Chat.Tools;
 
@@ -23,10 +24,12 @@ namespace lionheart.Services
     public class InjuryService : IInjuryService
     {
         private readonly ModelContext _context;
+        private readonly TimeProvider _clock;
 
-        public InjuryService(ModelContext context)
+        public InjuryService(ModelContext context, TimeProvider clock)
         {
             _context = context;
+            _clock = clock;
         }
 
         public async Task<Result<InjuryDTO, Problem>> CreateInjuryAsync(IdentityUser user, CreateInjuryRequest request)
@@ -38,7 +41,7 @@ namespace lionheart.Services
                 Name = request.Name,
                 Notes = request.Notes,
                 InjuryDate = DateOnly.FromDateTime(request.InjuryDate),
-                IsActive = true,
+                Families = [.. (request.Families ?? []).Distinct()],
                 InjuryEvents = new()
             };
             _context.Injuries.Add(injury);
@@ -55,7 +58,9 @@ namespace lionheart.Services
             if (injury is null) return Result<InjuryDTO, Problem>.Failure(new Problem.NotFound("Injury not found"));
             injury.Name = request.Name;
             injury.Notes = request.Notes;
-            injury.IsActive = request.IsActive;
+            if (request.IsActive) injury.Reopen();
+            else injury.Resolve(AthleteNow.Of(_clock).Today);
+            if (request.Families is { } families) injury.Families = [.. families.Distinct()];
             await _context.StageRecentStateInvalidationAsync(userId);
             await _context.SaveChangesAsync();
             return Result<InjuryDTO, Problem>.Success(injury.ToDTO());

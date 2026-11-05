@@ -29,8 +29,8 @@ public static class TrainingLogReader
                 session.Date,
                 [.. session.Sets.OfType<LiftSet>().Where(HardSets.IsHard)])
             {
-                OnlyWalking = session.Sets.Count > 0
-                              && session.Sets.All(set => set is EnduranceSet { Activity: EnduranceActivity.Walk }),
+                OnlyWalking = TrainedSessions.OnlyWalking(session.Sets),
+                Effort = session.Effort,
             })
             .ToList();
 

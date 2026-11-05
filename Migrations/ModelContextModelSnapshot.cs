@@ -333,6 +333,48 @@ namespace lionheart.Migrations
                     b.ToTable("BodyCompositionScans", (string)null);
                 });
 
+            modelBuilder.Entity("lionheart.Model.Chat.Changes.ChangeProposal", b =>
+                {
+                    b.Property<Guid>("ChangeProposalId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Answer")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Area")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Change")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ChatConversationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ProposedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ChangeProposalId");
+
+                    b.HasIndex("ChatConversationId");
+
+                    b.HasIndex("UserId", "ProposedAt");
+
+                    b.ToTable("ChangeProposals", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>
                 {
                     b.Property<Guid>("ChatConversationID")
@@ -668,6 +710,10 @@ namespace lionheart.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Families")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateOnly>("InjuryDate")
                         .HasColumnType("TEXT");
 
@@ -680,6 +726,9 @@ namespace lionheart.Migrations
 
                     b.Property<string>("Notes")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("ResolvedOn")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserID")
@@ -1091,6 +1140,34 @@ namespace lionheart.Migrations
                     b.ToTable("AthleteContextCards");
                 });
 
+            modelBuilder.Entity("lionheart.Model.Training.Availability.NonTrainingDay", b =>
+                {
+                    b.Property<Guid>("NonTrainingDayId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("MarkedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Schedule")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("NonTrainingDayId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("NonTrainingDays", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Training.Equipment", b =>
                 {
                     b.Property<Guid>("EquipmentID")
@@ -1334,6 +1411,19 @@ namespace lionheart.Migrations
                     b.HasIndex("UserId", "CreatedAt");
 
                     b.ToTable("Routines", (string)null);
+                });
+
+            modelBuilder.Entity("lionheart.Model.Training.Sessions.DeletedStravaActivity", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ActivityId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("UserId", "ActivityId");
+
+                    b.ToTable("DeletedStravaActivities", (string)null);
                 });
 
             modelBuilder.Entity("lionheart.Model.Training.Sessions.TrainingSession", b =>
@@ -1633,6 +1723,21 @@ namespace lionheart.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("lionheart.Model.Chat.Changes.ChangeProposal", b =>
+                {
+                    b.HasOne("lionheart.Model.Chat.LHChatConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ChatConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("lionheart.Model.Chat.LHChatConversation", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
@@ -1881,6 +1986,15 @@ namespace lionheart.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("lionheart.Model.Training.Availability.NonTrainingDay", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("lionheart.Model.Training.Equipment", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
@@ -1965,6 +2079,15 @@ namespace lionheart.Migrations
                 });
 
             modelBuilder.Entity("lionheart.Model.Training.Routines.Routine", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Training.Sessions.DeletedStravaActivity", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany()

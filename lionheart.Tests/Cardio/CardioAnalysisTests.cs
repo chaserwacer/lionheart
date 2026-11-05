@@ -263,7 +263,7 @@ public class CardioAnalysisTests
             recorded: new Dictionary<Guid, RecordedHeartRate> { [run.TrainingSessionId] = strap });
 
         var heartRate = Assert.IsType<SessionHeartRate.Recorded>(Assert.Single(report.Sessions).HeartRate);
-        Assert.Equal((160, HeartRateSource.AppleHealth), (heartRate.AverageBpm, heartRate.Source));
+        Assert.Equal((160, HeartRateSource.RecordingApp), (heartRate.AverageBpm, heartRate.Source));
     }
 
     [Fact]

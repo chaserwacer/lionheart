@@ -64,8 +64,8 @@ struct WorkoutDelivery: Sendable {
 
     // MARK: - Delivering
 
-    /// Hands a finished workout to the server. Running it for a workout already delivered does
-    /// nothing.
+    /// Hands a finished workout to the server, with the effort it holds. Running it for a workout
+    /// already delivered does nothing.
     ///
     /// - Parameter mayHaveLanded: whether an earlier attempt could have reached the server without
     ///   its answer. A workout logged afterwards has no id to ask after, so only then is the server
@@ -73,11 +73,10 @@ struct WorkoutDelivery: Sendable {
     func deliver(
         _ workout: ActiveWorkout,
         endingAt end: Date,
-        effort: PerceivedEffortRequest?,
         mayHaveLanded: Bool
     ) async throws {
         let period = PeriodRequest.interval(from: workout.startedAt, to: end)
-        let effort = effort?.isEmpty == true ? nil : effort
+        let effort = workout.effort.isEmpty ? nil : workout.effort
 
         switch workout.destination {
         case .liveSession(let id):

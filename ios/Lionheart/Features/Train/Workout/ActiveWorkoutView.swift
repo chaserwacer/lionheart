@@ -35,6 +35,7 @@ struct ActiveWorkoutView: View {
     @State private var draft: SetDraft?
     @State private var isAdding = false
     @State private var isFinishPresented = false
+    @State private var isEffortShown = false
     @State private var isGoingInShown = false
     @State private var isDiscardAsked = false
     @State private var editing: LoggedSet?
@@ -42,21 +43,9 @@ struct ActiveWorkoutView: View {
     /// because a dialog per set is a dialog whose owner SwiftUI picks.
     @State private var deleting: LoggedSet?
     /// The movement sheet asked for from a section's menu: its warm-up ramp, or its setup.
-    @State private var movementSheet: MovementSheet?
+    @State private var movementSheet: WorkoutMovementSheet?
     /// A movement's page pushed over the surface — its history and records, mid-workout.
     @State private var route: [HistoryRoute] = []
-
-    private enum MovementSheet: Identifiable {
-        case warmUp(movementDataId: UUID, working: Double, unit: WeightUnit)
-        case setup(movementDataId: UUID)
-
-        var id: String {
-            switch self {
-            case .warmUp(let id, _, _): "warm-up \(id)"
-            case .setup(let id): "setup \(id)"
-            }
-        }
-    }
 
     /// How long a rest to start after a set. The athlete's own preference, so it lives with the
     /// view and is handed to the store when a set is logged — the store does not read preferences.
@@ -106,6 +95,9 @@ struct ActiveWorkoutView: View {
             FinishWorkoutSheet(
                 store: store, library: library, bodyweight: bodyweight, routines: routines,
                 finished: finished)
+        }
+        .sheet(isPresented: $isEffortShown) {
+            SessionEffortSheet(store: store)
         }
         .sheet(item: $movementSheet) { sheet in
             switch sheet {
@@ -215,6 +207,10 @@ struct ActiveWorkoutView: View {
             Menu("More", systemImage: "ellipsis.circle") {
                 Button("Finish workout", systemImage: "flag.checkered") { isFinishPresented = true }
                     .disabled(store.workout == nil)
+                // Also the row at the foot of the list; here so it is one menu away however far
+                // down the athlete has scrolled.
+                Button("How it's going", systemImage: "slider.horizontal.3") { isEffortShown = true }
+                    .disabled(store.workout == nil)
                 if store.workout?.sync.isWorthPushing == true {
                     Button("Sync now", systemImage: "arrow.triangle.2.circlepath") {
                         Task { await store.syncNow() }
@@ -255,7 +251,7 @@ struct ActiveWorkoutView: View {
     }
 
     /// The entry row's identity in the list, wherever it is open, for scrolling to it.
-    private static let entryRow = "entry-row"
+    static let entryRow = "entry-row"
 
     /// What the entry row is open on — a movement, or a shape with none — so opening it on
     /// something else can be noticed. Logging another set on the same movement is not a change.
@@ -266,21 +262,33 @@ struct ActiveWorkoutView: View {
     private func list(_ workout: ActiveWorkout, reading: WorkoutReading, header: GoingInReading?) -> some View {
         List {
             if let header { goingInSection(header) }
-            if workout.sync.needsSaying { syncSection(workout.sync) }
+            if workout.sync.needsSaying {
+                WorkoutSyncSection(sync: workout.sync) { Task { await store.syncNow() } }
+            }
             if !reading.totals.isEmpty { totalsSection(reading.totals) }
 
             ForEach(reading.movements) { movement in
-                movementSection(movement, in: workout, header: header)
+                WorkoutMovementSection(
+                    movement: movement, workout: workout, header: header,
+                    library: library, bodyweight: bodyweight,
+                    draft: $draft, movementSheet: $movementSheet, route: $route,
+                    rowActions: rowActions,
+                    open: { open($0) },
+                    log: { log($0, on: $1) },
+                    drop: { store.drop($0) })
             }
 
             if !reading.unattached.isEmpty || !reading.looseTargets.isEmpty || isOpenOnUnattached {
-                otherSection(reading)
+                OtherWorkSection(
+                    reading: reading, library: library, draft: $draft, rowActions: rowActions,
+                    log: { log($0, on: nil) })
             }
 
             if reading.movements.isEmpty, reading.unattached.isEmpty, !isOpenOnUnattached {
                 emptySection
             }
             noteSection(workout)
+            SessionEffortRow(effort: workout.effort) { isEffortShown = true }
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)
@@ -344,34 +352,7 @@ struct ActiveWorkoutView: View {
         store.resizeRest(to: duration)
     }
 
-    @ViewBuilder
-    private func syncSection(_ sync: WorkoutSyncState) -> some View {
-        Section {
-            switch sync {
-            case .synced, .pending:
-                EmptyView()
-            case .failed(let reason):
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("Not synced yet", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Your sets are saved on this phone. \(reason)")
-                        .font(.footnote)
-                        .foregroundStyle(Color(.secondaryLabel))
-                    Button("Try again") { Task { await store.syncNow() } }
-                        .font(.footnote)
-                }
-            case .refused(let reason):
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("The server will not take these sets", systemImage: "exclamationmark.triangle.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.orange)
-                    Text(reason)
-                        .font(.footnote)
-                        .foregroundStyle(Color(.secondaryLabel))
-                }
-            }
-        }
-    }
+    // MARK: - Sections of its own
 
     private func totalsSection(_ totals: WorkoutTotals) -> some View {
         Section {
@@ -388,213 +369,6 @@ struct ActiveWorkoutView: View {
                 }
             }
         }
-    }
-
-    @ViewBuilder
-    private func movementSection(
-        _ movement: WorkoutReading.MovementSets, in workout: ActiveWorkout, header: GoingInReading?
-    ) -> some View {
-        Section {
-            // Where an active injury names this movement, said on the movement itself: the header
-            // has scrolled away by the time the athlete reaches the third lift.
-            ForEach(header?.injuries(touching: movement.movementDataId) ?? []) { injury in
-                Text([injury.name, injury.lastPain.map { "pain \($0)/10" }].compactMap { $0 }.joined(separator: " · "))
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.orange)
-                    .accessibilityLabel("Active injury touches this movement: \(injury.name)")
-            }
-            if let setup = library.movement(movement.movementDataId)?.setup, setup.hasNotes {
-                Text(setup.notes)
-                    .font(.footnote)
-                    .foregroundStyle(Color(.secondaryLabel))
-                    .lineLimit(4)
-                    .onTapGesture { movementSheet = .setup(movementDataId: movement.movementDataId) }
-                    .accessibilityLabel("Setup notes: \(setup.notes)")
-            }
-            if let previous = library.previous[movement.movementDataId] {
-                lastTimeRow(previous)
-            }
-
-            ForEach(movement.sets) { numbered in
-                loggedSetRow(
-                    numbered.logged,
-                    number: numbered.number,
-                    target: numbered.target,
-                    earlier: movement.sets.prefix { $0.id != numbered.id }.map(\.logged.command),
-                    records: library.records(for: numbered.logged.command))
-            }
-
-            if let target = movement.nextTarget {
-                LabeledContent("Next target", value: Formatting.target(target))
-                    .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
-            }
-
-            if isOpen(on: movement.movementDataId), let open = Binding($draft) {
-                SetEntryForm(
-                    draft: open,
-                    guide: SetGuide.of(
-                        open.wrappedValue, in: workout,
-                        previous: library.previous[movement.movementDataId],
-                        movement: library.movement(movement.movementDataId),
-                        bodyweight: bodyweight.series)
-                ) { command in
-                    log(command, on: movement.movementDataId)
-                }
-                .id(Self.entryRow)
-            } else {
-                Button {
-                    open(movement.movementDataId)
-                } label: {
-                    Label(movement.sets.isEmpty ? "Log the first set" : "Add a set", systemImage: "plus")
-                }
-                .labelStyle(.titleOnly)
-            }
-        } header: {
-            HStack {
-                Text(library.title(of: movement.movementDataId))
-                Spacer()
-                switch movement.progress {
-                case .unplanned:
-                    EmptyView()
-                case .within(let logged, let planned):
-                    Text("\(logged) of \(planned)")
-                        .monospacedDigit()
-                        .accessibilityLabel("\(logged) of \(planned) planned sets")
-                case .beyond(let planned, let extra):
-                    Text("\(planned) of \(planned) +\(extra)")
-                        .monospacedDigit()
-                        .accessibilityLabel("All \(planned) planned sets, and \(extra) more")
-                }
-                movementMenu(movement, in: workout)
-            }
-        }
-    }
-
-    /// Last time on this movement, as one line: the day and every set, warm-ups marked.
-    private func lastTimeRow(_ previous: PreviousPerformance) -> some View {
-        let sets = previous.sets.compactMap { entry -> String? in
-            guard let text = Formatting.lastTime(entry) else { return nil }
-            return entry.kind.isWork ? text : "W \(text)"
-        }
-        return LabeledContent {
-            Text(sets.joined(separator: ", "))
-                .font(.footnote.monospacedDigit())
-                .multilineTextAlignment(.trailing)
-        } label: {
-            Text("Last · \(Formatting.dayInline(previous.date))")
-                .font(.footnote)
-        }
-        .foregroundStyle(Color(.secondaryLabel))
-        .accessibilityElement(children: .combine)
-    }
-
-    /// What can be done to a movement as a whole: warm up to it, keep notes on it, or take it out
-    /// of a workout it was added to by mistake.
-    private func movementMenu(_ movement: WorkoutReading.MovementSets, in workout: ActiveWorkout) -> some View {
-        Menu {
-            if let target = warmUpTarget(for: movement.movementDataId, in: workout) {
-                Button("Warm-up sets") {
-                    movementSheet = .warmUp(
-                        movementDataId: movement.movementDataId, working: target.weight, unit: target.unit)
-                }
-            }
-            Button("Setup and notes") {
-                movementSheet = .setup(movementDataId: movement.movementDataId)
-            }
-            Button("History and records") {
-                route.append(.movement(movement.movementDataId))
-            }
-            // The picker lists near-identical movements side by side, so a wrong pick is ordinary.
-            // No confirmation: nothing is logged on it, and adding it back is a pick.
-            if workout.canDrop(movement.movementDataId) {
-                // The draft is left as it is. The entry row reads it through a force-unwrapped
-                // binding, so clearing it in the update that removes this section crashes; once the
-                // section is gone nothing shows it, and the next `open` replaces it.
-                Button("Remove from workout", role: .destructive) { store.drop(movement.movementDataId) }
-            }
-        } label: {
-            Image(systemName: "ellipsis.circle")
-                .accessibilityLabel("\(library.title(of: movement.movementDataId)) options")
-        }
-        .textCase(nil)
-    }
-
-    /// The weight a warm-up ramp builds to: the entry row's, where it is open on this movement with a
-    /// weight in it, else what the next working set would open with.
-    private func warmUpTarget(
-        for movementDataId: UUID, in workout: ActiveWorkout
-    ) -> (weight: Double, unit: WeightUnit)? {
-        if let draft, draft.movementDataId == movementDataId, draft.modality == .lift,
-           let weight = SetDraft.number(draft.weight), weight > 0 {
-            return (weight, draft.weightUnit)
-        }
-        guard case .lift(let next) = SetDefaults.nextSet(
-            on: movementDataId, in: workout, previous: library.previous[movementDataId]),
-              next.weight > 0
-        else { return nil }
-        return (next.weight, next.unit)
-    }
-
-    private func loading(of movementDataId: UUID, in unit: WeightUnit) -> WarmUpRamp.Loading {
-        let movement = library.movement(movementDataId)
-        if movement?.setup.addsToBodyweight == true { return .addedToBodyweight }
-        if movement?.isBarbell == true, let plates = PlateSet.for(unit) { return .barbell(plates) }
-        return .other
-    }
-
-    /// Logs one step of the ramp as a warm-up. No rest is started: the rest that matters is the one
-    /// after the work, and a two-minute clock after a set of ten with the empty bar is noise.
-    private func logWarmUp(_ step: WarmUpRamp.Step, on movementDataId: UUID, unit: WeightUnit) {
-        store.log(
-            .lift(SetCommand.Lift(
-                movementDataId: movementDataId, reps: step.reps, weight: step.weight, unit: unit,
-                rpe: .unrated, kind: .warmUp)),
-            restingFor: nil)
-        Haptics.setLogged()
-        library.noteUsed(movementDataId)
-        // The entry row moves on to the work, which a warm-up never seeds.
-        if draft?.movementDataId == movementDataId { open(movementDataId) }
-    }
-
-    /// Cardio and sets in words — the work no movement owns — with the entry row when it is open on
-    /// one, under a header naming what is being logged.
-    @ViewBuilder
-    private func otherSection(_ reading: WorkoutReading) -> some View {
-        Section {
-            ForEach(Array(reading.unattached.enumerated()), id: \.element.id) { index, set in
-                loggedSetRow(set, number: index + 1, target: nil, earlier: [], records: library.records(for: set.command))
-            }
-            ForEach(Array(reading.looseTargets.enumerated()), id: \.offset) { _, target in
-                Label(Formatting.target(target), systemImage: "target")
-                    .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
-                    .labelStyle(.titleOnly)
-            }
-            if isOpenOnUnattached, let open = Binding($draft) {
-                SetEntryForm(draft: open) { command in
-                    log(command, on: nil)
-                }
-                .id(Self.entryRow)
-            }
-        } header: {
-            HStack {
-                Text(unattachedTitle)
-                Spacer()
-                if isOpenOnUnattached {
-                    Button("Done") { draft = nil }
-                        .font(.footnote)
-                        .textCase(nil)
-                }
-            }
-        }
-    }
-
-    /// "Run", "Ride", "In words" while the row is open on one; "Other work" otherwise.
-    private var unattachedTitle: String {
-        guard isOpenOnUnattached, let draft else { return "Other work" }
-        if draft.modality == .freeform { return "In words" }
-        return CardioWork(draft)?.title ?? "Other work"
     }
 
     /// An unplanned workout before anything is in it: where Add and Finish are, said once.
@@ -617,74 +391,46 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    // MARK: - A set already logged
+    // MARK: - Warming up
 
-    /// One logged set, with the three things that can be done to it.
-    ///
-    /// A tap still opens the edit sheet, because that is the gesture that was already here and the
-    /// one the athlete will try first. The long press reaches the same sheet in a named way and adds
-    /// the two actions a sheet is overkill for: logging the same set again — three sets of five at
-    /// the same weight is the commonest thing in a gym — and deleting it.
-    private func loggedSetRow(
-        _ logged: LoggedSet, number: Int, target: SetPrescription?, earlier: [SetCommand],
-        records: SubjectRecords?
-    ) -> some View {
-        SetRow(
-            number: number,
-            command: logged.command,
-            target: target,
-            record: SetRecordOutcome.of(logged.command, after: earlier, against: records))
-            .contentShape(.rect)
-            .onTapGesture { editing = logged }
-            .contextMenu {
-                Button {
-                    editing = logged
-                } label: {
-                    Label("Edit set", systemImage: "square.and.pencil")
-                }
-                Button {
-                    repeatSet(logged)
-                } label: {
-                    Label("Log it again", systemImage: "plus.square.on.square")
-                }
-                Button(role: .destructive) {
-                    deleting = logged
-                } label: {
-                    Label("Delete set", systemImage: "trash")
-                }
-            }
-            .swipeActions(edge: .leading) {
-                Button {
-                    editing = logged
-                } label: {
-                    Label("Edit", systemImage: "square.and.pencil")
-                }
-                .tint(Tokens.accent)
-            }
-            .swipeActions(edge: .trailing) {
-                Button(role: .destructive) {
-                    deleting = logged
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
+    private func loading(of movementDataId: UUID, in unit: WeightUnit) -> WarmUpRamp.Loading {
+        let movement = library.movement(movementDataId)
+        if movement?.setup.addsToBodyweight == true { return .addedToBodyweight }
+        if movement?.isBarbell == true, let plates = PlateSet.for(unit) { return .barbell(plates) }
+        return .other
     }
 
-    /// Logs the same set again, exactly as the Log button would.
+    /// Logs one step of the ramp as a warm-up. No rest is started: the rest that matters is the one
+    /// after the work, and a two-minute clock after a set of ten with the empty bar is noise.
+    private func logWarmUp(_ step: WarmUpRamp.Step, on movementDataId: UUID, unit: WeightUnit) {
+        store.log(
+            .lift(SetCommand.Lift(
+                movementDataId: movementDataId, reps: step.reps, weight: step.weight, unit: unit,
+                rpe: .unrated, kind: .warmUp)),
+            restingFor: nil)
+        Haptics.setLogged()
+        library.noteUsed(movementDataId)
+        // The entry row moves on to the work, which a warm-up never seeds.
+        if draft?.movementDataId == movementDataId { open(movementDataId) }
+    }
+
+    // MARK: - A set already logged
+
+    /// What the logged set rows ask of the surface, which owns the edit sheet, the delete
+    /// confirmation and the entry row.
     ///
-    /// The command carries its own movement, so this lands under the right header wherever the row
-    /// was pressed, and the rest clock and the haptic are the same because this *is* a set being
-    /// logged — a quieter version of it would make the athlete check whether it worked.
-    private func repeatSet(_ logged: LoggedSet) {
-        log(logged.command, on: logged.command.movementDataId)
+    /// Logging a set again goes through `log` exactly as the Log button does: the command carries
+    /// its own movement, so it lands under the right header wherever the row was pressed, and the
+    /// rest clock and the haptic are the same because this *is* a set being logged — a quieter
+    /// version of it would make the athlete check whether it worked.
+    private var rowActions: LoggedSetRow.Actions {
+        LoggedSetRow.Actions(
+            edit: { editing = $0 },
+            logAgain: { log($0.command, on: $0.command.movementDataId) },
+            delete: { deleting = $0 })
     }
 
     // MARK: - Doing
-
-    /// Whether the entry row is open on this movement.
-    private func isOpen(on movementDataId: UUID) -> Bool {
-        draft?.movementDataId == movementDataId
-    }
 
     /// Whether the entry row is open on something no movement owns.
     private var isOpenOnUnattached: Bool {

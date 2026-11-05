@@ -153,15 +153,16 @@ enum SessionHeartRate: Equatable, Sendable {
 enum HeartRateSource: Equatable, Sendable {
     /// The ring's all-day series over the session's clock time.
     case ring
-    /// The samples the app that recorded the workout wrote to Apple Health.
-    case appleHealth
+    /// The samples the app that recorded the workout wrote — to Apple Health, or in the Strava
+    /// archive. The wire keeps the name it had when Health was the only way they arrived.
+    case recordingApp
     case unrecognised(String)
 
     /// A reading with no source is the ring's: until runs came from Health, every one was.
     init(wire: String?) {
         switch wire {
         case nil, "ring": self = .ring
-        case "appleHealth": self = .appleHealth
+        case "appleHealth": self = .recordingApp
         case .some(let other): self = .unrecognised(other)
         }
     }

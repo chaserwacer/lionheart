@@ -14,13 +14,13 @@ namespace lionheart.Services.Health.Recordings;
 
 public interface IRecordedWorkoutService
 {
-    /// <summary>One imported workout read whole, or not found for a session that is not one of the athlete's imported workouts.</summary>
+    /// <summary>One recorded workout read whole, or not found for a session that is not one of the athlete's recorded workouts.</summary>
     Task<Result<RecordedWorkoutView, Problem>> GetAsync(IdentityUser user, Guid trainingSessionId, CancellationToken ct);
 }
 
 /// <summary>
-/// Reads the workouts imported from Apple Health back — runs, rides, hikes, walks: for each one's
-/// own page, and as summaries for the chat model.
+/// Reads the recorded workouts back — runs, rides, hikes, walks, imported from Apple Health or the
+/// Strava archive: for each one's own page, and as summaries for the chat model.
 /// </summary>
 /// <remarks>
 /// The heart rate is the recording app's where it wrote any, and otherwise the ring's all-day
@@ -48,14 +48,14 @@ public sealed class RecordedWorkoutService : IRecordedWorkoutService
                 .MapAsync(report => ReadoutAsync(workout, report.MaxHeartRate, ct)));
 
     [Tool(Name = "GetRecordedWorkouts",
-        Description = "The athlete's workouts imported from Apple Health (recorded by an app such as Strava or a watch) in a range of days, oldest first, one block of text per workout: what it was (run, ride, indoor ride, hike, walk, indoor run), start, recording app, distance, time, moving time, pace per mile (speed in mph for a ride), climb and descent in feet; heart rate (average, peak, how much of it the trace covers, minutes in the five zones and Edwards load) and whose it is — the recording app's, or the Oura ring's all-day series where the app wrote none; the app's own averages where it wrote them (power, cadence, speed, ground contact time, vertical oscillation, stride length) and the one-minute heart-rate recovery; and splits per mile. Every figure is already in the units he reads (miles, feet, pounds). No route or location is ever given. At most 92 days per call — a longer range returns its most recent 92 days.")]
+        Description = "The athlete's recorded workouts — imported from Apple Health (recorded by an app such as Strava or a watch) or from his Strava archive — in a range of days, oldest first, one block of text per workout: what it was (run, ride, indoor ride, hike, walk, indoor run, e-bike ride, paddle), start, recording app and where it was imported from, distance, time, moving time, pace per mile (speed in mph for a ride), climb and descent in feet; heart rate (average, peak, how much of it the trace covers, minutes in the five zones and Edwards load) and whose it is — the recording app's, or the Oura ring's all-day series where the app wrote none; the app's own averages where it wrote them (power, cadence, speed, ground contact time, vertical oscillation, stride length) and the one-minute heart-rate recovery; and splits per mile. Every figure is already in the units he reads (miles, feet, pounds). No route or location is ever given. At most 92 days per call — a longer range returns its most recent 92 days.")]
     public async Task<IReadOnlyList<string>> GetRecordedWorkoutsForChatAsync(IdentityUser user, DayRange range) =>
         await WorkoutsInAsync(user, Recent(range), CancellationToken.None)
             .MatchAsync(workouts => workouts.Select(WorkoutFacts.Summary).ToList(), _ => []);
 
     // ---- Reads ----
 
-    private sealed record ImportedWorkout(CompletedTrainingSession Session, SessionSource.AppleHealth Source, WorkoutRecording Recording);
+    private sealed record ImportedWorkout(CompletedTrainingSession Session, WorkoutRecording Recording);
 
     private async Task<Result<ImportedWorkout, Problem>> OwnedWorkoutAsync(Guid userId, Guid trainingSessionId, CancellationToken ct)
     {
@@ -67,9 +67,9 @@ public sealed class RecordedWorkoutService : IRecordedWorkoutService
             : await _context.WorkoutRecordings.AsNoTracking()
                 .FirstOrDefaultAsync(held => held.TrainingSessionId == trainingSessionId, ct);
 
-        return session is { Source: SessionSource.AppleHealth source } && recording is not null
-            ? Result<ImportedWorkout, Problem>.Success(new ImportedWorkout(session, source, recording))
-            : Result<ImportedWorkout, Problem>.Failure(new Problem.NotFound("No workout imported from Apple Health with that id."));
+        return session is not null && session.Source.IsRecording && recording is not null
+            ? Result<ImportedWorkout, Problem>.Success(new ImportedWorkout(session, recording))
+            : Result<ImportedWorkout, Problem>.Failure(new Problem.NotFound("No recorded workout with that id."));
     }
 
     private Task<Result<IReadOnlyList<RecordedWorkoutView>, Problem>> WorkoutsInAsync(
@@ -96,7 +96,7 @@ public sealed class RecordedWorkoutService : IRecordedWorkoutService
         var sessions = (await _context.Sessions.OfType<CompletedTrainingSession>()
                 .AsNoTracking()
                 .Where(session => session.UserId == userId
-                                  && EF.Property<Guid?>(session, RemodelConfiguration.HealthWorkoutIdColumn) != null
+                                  && _context.WorkoutRecordings.Any(recording => recording.TrainingSessionId == session.TrainingSessionId)
                                   && EF.Property<DateTime>(session, "StartTime") >= from
                                   && EF.Property<DateTime>(session, "StartTime") <= to)
                 .ToListAsync(ct))
@@ -112,20 +112,19 @@ public sealed class RecordedWorkoutService : IRecordedWorkoutService
         return
         [
             .. sessions
-                .Where(session => session is { Source: SessionSource.AppleHealth } && recordings.ContainsKey(session.TrainingSessionId))
-                .Select(session => new ImportedWorkout(
-                    session, (SessionSource.AppleHealth)session.Source, recordings[session.TrainingSessionId]))
+                .Where(session => session.Source.IsRecording && recordings.ContainsKey(session.TrainingSessionId))
+                .Select(session => new ImportedWorkout(session, recordings[session.TrainingSessionId]))
         ];
     }
 
     private async Task<RecordedWorkoutView> ReadoutAsync(ImportedWorkout workout, MaxHeartRate? maximum, CancellationToken ct) =>
-        WorkoutReadouts.Of(workout.Session, workout.Source, workout.Recording, await HeartRateAsync(workout, ct), maximum);
+        WorkoutReadouts.Of(workout.Session, workout.Recording, await HeartRateAsync(workout, ct), maximum);
 
     /// <summary>The recording app's heart rate, or the ring's series over the workout's clock time where it wrote none.</summary>
     private async Task<WorkoutHeartRate> HeartRateAsync(ImportedWorkout workout, CancellationToken ct)
     {
         if (workout.Recording.HeartRate.IsRecorded)
-            return new WorkoutHeartRate(workout.Recording.HeartRate.Samples, HeartRateSource.AppleHealth);
+            return new WorkoutHeartRate(workout.Recording.HeartRate.Samples, HeartRateSource.RecordingApp);
 
         var (start, end) = SessionMatching.Span(workout.Session.Period) ?? (workout.Session.Period.StartTime, workout.Session.Period.StartTime);
         return new WorkoutHeartRate(

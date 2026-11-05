@@ -1,4 +1,5 @@
 using lionheart.Model.Training.Balance;
+using lionheart.Model.Training.Expectations;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
 
@@ -7,6 +8,9 @@ namespace lionheart.Services.Training.Balance;
 /// <summary>A hard set placed by what its movement trains, on the day it was performed.</summary>
 public sealed record PlacedSet(DateOnly Day, LiftSet Set, MovementClassification Trains);
 
+/// <summary>A family's hard sets over a window and the last day it was trained, before any target is set against them.</summary>
+public sealed record FamilyCount(PatternFamily Family, int HardSets, DateOnly? LastTrained);
+
 /// <summary>
 /// Weekly volume as a function of the log: hard sets counted by family, pattern and muscle, the
 /// last day each was trained, and what is up next.
@@ -14,12 +18,24 @@ public sealed record PlacedSet(DateOnly Day, LiftSet Set, MovementClassification
 /// <remarks>Pure, so every counting rule is tested without a database.</remarks>
 public static class TrainingVolumeAnalysis
 {
-    public static TrainingVolume Build(TrainingLog log, DateOnly endingOn, ReadinessNote readiness)
+    /// <param name="expected">The week's family expectations, whose adjusted targets the families are read against.</param>
+    public static TrainingVolume Build(
+        TrainingLog log, DateOnly endingOn, ReadinessNote readiness, IReadOnlyList<FamilyExpectation> expected)
     {
         var window = VolumeTargets.WindowEndingOn(endingOn);
         var history = Placed(log, DateOnly.MinValue, endingOn).ToList();
         var inWindow = history.Where(placed => placed.Day >= window.From).ToList();
-        var families = Families(inWindow, history);
+        IReadOnlyList<FamilyVolume> families =
+        [
+            .. Families(inWindow, history).Select(family => new FamilyVolume(
+                family.Family,
+                family.HardSets,
+                (int)expected.Single(expectation => expectation.Family == family.Family).Sets.Adjusted.Target,
+                family.LastTrained)
+            {
+                Paused = expected.Single(expectation => expectation.Family == family.Family).Paused,
+            })
+        ];
 
         return new TrainingVolume(
             window,
@@ -27,7 +43,14 @@ public static class TrainingVolumeAnalysis
             [.. Enum.GetValues<MovementPattern>().Select(pattern => Pattern(pattern, inWindow, history))],
             [.. MuscleGroups.All.Select(muscle => Muscle(muscle, inWindow, history))],
             Unplaced(log, window.From, endingOn),
-            UpNextOf(families, trainedToday: inWindow.Any(placed => placed.Day == endingOn), readiness));
+            UpNextOf(Unpaused(families, expected), trainedToday: inWindow.Any(placed => placed.Day == endingOn), readiness));
+    }
+
+    /// <summary>The families no injury pauses; every family when an injury pauses all three, so there is still an order to read.</summary>
+    private static IReadOnlyList<FamilyVolume> Unpaused(IReadOnlyList<FamilyVolume> families, IReadOnlyList<FamilyExpectation> expected)
+    {
+        var open = families.Where(family => !expected.Any(expectation => expectation.Family == family.Family && expectation.Paused)).ToList();
+        return open.Count > 0 ? open : families;
     }
 
     /// <summary>Every hard set between two days whose movement is classified, oldest first.</summary>
@@ -38,12 +61,11 @@ public static class TrainingVolumeAnalysis
                 : Array.Empty<PlacedSet>()));
 
     /// <summary>Push, pull and legs, each set counted once toward its movement's family.</summary>
-    public static IReadOnlyList<FamilyVolume> Families(IReadOnlyList<PlacedSet> inWindow, IReadOnlyList<PlacedSet> history) =>
+    public static IReadOnlyList<FamilyCount> Families(IReadOnlyList<PlacedSet> inWindow, IReadOnlyList<PlacedSet> history) =>
     [
-        .. MovementPatterns.Judged.Select(family => new FamilyVolume(
+        .. MovementPatterns.Judged.Select(family => new FamilyCount(
             family,
             inWindow.Count(placed => placed.Trains.Family == family),
-            VolumeTargets.Family,
             LastTrained(family, history)))
     ];
 
@@ -96,6 +118,7 @@ public static class TrainingVolumeAnalysis
     /// The families trained longest ago — never before any other — named together when they were
     /// last trained on the same day.
     /// </summary>
+    /// <param name="families">The families that may be up next: every one but those an injury pauses.</param>
     public static UpNext UpNextOf(IReadOnlyList<FamilyVolume> families, bool trainedToday, ReadinessNote readiness)
     {
         if (families.All(family => family.LastTrained is null)) return new UpNext.NothingLogged();

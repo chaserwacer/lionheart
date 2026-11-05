@@ -57,11 +57,13 @@ private struct CreateInjuryRequest: Encodable, Sendable {
     let name: String
     let injuryDate: String
     let notes: String
+    let families: [String]
 
     init(_ draft: InjuryDraft) {
         name = draft.name
         injuryDate = "\(draft.startedOn.wire)T00:00:00"
         notes = draft.notes
+        families = draft.families.map(\.wire)
     }
 }
 

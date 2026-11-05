@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using lionheart.Functional;
 using Model.Chat.Tools;
 using lionheart.Services.Chat;
+using lionheart.Services.Chat.Changes;
 using Services.Chat;
 using Model.Tools;
 using lionheart.Services.Training;
@@ -19,6 +20,7 @@ using lionheart.Services.Interpretation;
 using lionheart.Services.Contexts;
 using lionheart.Services.Training.Focus;
 using lionheart.Services.Training.GoingIn;
+using lionheart.Services.Training.Availability;
 using lionheart.Services.Training.Patterns;
 using lionheart.Services.Training.Balance;
 using lionheart.Services.Training.Next;
@@ -35,6 +37,7 @@ using lionheart.Services.Oura;
 using lionheart.Services.Oura.Import;
 using lionheart.Services.Strong;
 using lionheart.Services.CoachedSheets;
+using lionheart.Services.Strava;
 using lionheart.Services.Chat.Memory;
 using lionheart.Services.Chat.Thread;
 using lionheart.Services.Chat.Today;
@@ -63,6 +66,11 @@ if (args is [StrongImportCommand.Verb, ..])
 if (args is [CoachedSheetImportCommand.Verb, ..])
 {
     return await CoachedSheetImportCommand.RunAsync(args, CancellationToken.None);
+}
+
+if (args is [StravaArchiveImportCommand.Verb, ..])
+{
+    return await StravaArchiveImportCommand.RunAsync(args, CancellationToken.None);
 }
 
 if (args is [RebuildRecordsCommand.Verb, ..])
@@ -165,13 +173,18 @@ builder.Services.AddTransient<IChatCompletionService, ChatCompletionService>();
 builder.Services.AddTransient<IChatConversationService, ChatConversationService>();
 builder.Services.AddTransient<ChatSystemPrompt>();
 builder.Services.AddTransient<ITodayBriefing, TodayBriefingService>();
-builder.Services.AddTransient<ITodayFacts, TodayBriefingService>();
+builder.Services.AddTransient<ITodayFacts, TodayFactsService>();
 builder.Services.AddTransient<IChatThreadService, ChatThreadService>();
 builder.Services.AddTransient<ISessionConsolidator, SessionConsolidator>();
 builder.Services.AddTransient<IChatMemoryService, ChatMemoryService>();
 builder.Services.AddTransient<IMemoryRecallService, MemoryRecallService>();
 builder.Services.AddTransient<MemoryVectors>();
 builder.Services.AddSingleton<ChatThreadGate>();
+builder.Services.AddTransient<IChatChangeTools, ChatChangeTools>();
+builder.Services.AddTransient<IChatPlanLookups, ChatPlanLookups>();
+builder.Services.AddTransient<ChangeDrafter>();
+builder.Services.AddTransient<ChangeWriter>();
+builder.Services.AddTransient<IChangeProposalService, ChangeProposalService>();
 builder.Services.AddTransient<IAthleteContextCardService, AthleteContextCardService>();
 builder.Services.AddTransient<IEmbeddingGenerator, OpenAiCompatibleEmbeddingGenerator>();
 builder.Services.AddTransient<IInterpretationParser, InterpretationParser>();
@@ -189,6 +202,7 @@ builder.Services.AddTransient<IHealthBodyweightImportService, HealthBodyweightIm
 builder.Services.AddTransient<IHealthBirthDateService, HealthBirthDateService>();
 builder.Services.AddTransient<ITrainingProgramService, TrainingProgramService>();
 builder.Services.AddTransient<IFocusPinService, FocusPinService>();
+builder.Services.AddTransient<INonTrainingDayService, NonTrainingDayService>();
 builder.Services.AddSingleton(_ => MovementPatternMap.Shipped);
 builder.Services.AddTransient<IMovementClassificationService, MovementClassificationService>();
 builder.Services.AddTransient<ITrainingVolumeService, TrainingVolumeService>();

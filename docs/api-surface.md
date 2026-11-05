@@ -57,9 +57,11 @@ routine deleted meanwhile still happened, and must land. A planned session is ad
 transition carries the origin over. Deleting a routine leaves its sessions naming it.
 
 **Session source.** Every session view carries `source`: `$type` `athleteLog` (entered in Lionheart,
-or imported from the athlete's own logs) or `appleHealth` with `workoutId` (the workout's Health
-UUID) and `recordedBy` (`name`, `bundleId` — the app that wrote it to Health). The server sets it;
-no request states it.
+or imported from the athlete's own logs), `appleHealth` with `workoutId` (the workout's Health
+UUID) and `recordedBy` (`name`, `bundleId` — the app that wrote it to Health), or `stravaArchive`
+with `activityId` (Strava's id, a 64-bit integer — imported from the athlete's Strava archive by
+`import-strava`). The server sets it; no request states it. An endurance set's `activity` is one of
+`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`, `eBikeRide`, `paddle`.
 
 **Set kind.** A lift set carries `kind` (int): `0` working, `1` warm-up, `2` drop, `3` failure. A lift
 sent without one is a working set, and a stored lift written before sets had a kind reads as one.
@@ -285,7 +287,9 @@ pin's life — a different movement is a different focus.
 
 **Readings, not states.** Whether a horizon has begun or passed, and whether the target was met,
 are read by the client against today and the training log, the way a planned session is read as
-missed. None of them is stored, so none of them can disagree with the log.
+missed. None of them is stored, so none of them can disagree with the log. A priority pin's
+sessions a week and lift target also reach the week expectations' priority aim (its `frequency` and
+its reasons), read the same way.
 
 **Priorities.** A pin with `Priority` is that family's priority lift for its horizon; without one it
 is for emphasis. Pinning a priority lets the family's pinned priority go in the same commit, unpinned
@@ -307,6 +311,40 @@ within 5 % of the prior best, or `below`), each with `unit` and `onSystemLoad`. 
 setup adds to bodyweight, with bodyweight on a day the newest on or before it and the first weighing
 standing in before any. `series` is `SessionBest { day, estimatedOneRepMax, load, reps }` for each
 session of the last twelve weeks and the window.
+
+## Non-training days — `/api/training/non-training-days`, `/api/training/availability`
+
+A **non-training day** is a day the athlete has said he will not train — travel, a busy day — once,
+or its weekday every week from it, optionally until a day, with an optional note. The days a week
+has left prorate its adjusted expectations. Chat tools that mark days call the same service.
+
+| Verb | Route | Body | Answers |
+|---|---|---|---|
+| GET | `/non-training-days` | — | every one marked, `NonTrainingDayView[]`, the latest-starting first |
+| POST | `/non-training-days` | `Day`, `Repeat` (`once` \| `weekly`, default `once`), `Until?`, `Note?` | 201 with the view; 409 if the same schedule already stands |
+| DELETE | `/non-training-days/{id}` | — | 204; a weekly one frees every day it covered; 404 if not the athlete's |
+| GET | `/availability?from=&to=` | — | `AvailabilityCalendar` for the range, at most 371 days |
+
+```
+NonTrainingDayView {
+  nonTrainingDayId,
+  schedule: { "$type": "oneDay", day } | { "$type": "everyWeek", from } | { "$type": "everyWeekUntil", from, until },
+  note, markedAt
+}
+AvailabilityCalendar { range, availableDays, days: [
+  { "$type": "open", day } | { "$type": "planned", day } | { "$type": "trained", day }
+  | { "$type": "nonTraining", day, nonTrainingDayId, note, repeats }
+] }
+```
+
+A weekly schedule covers the weekday of its first day from that day on, so marking Sundays off
+leaves the Sundays already scored as they were. `Until` on a single day, `Until` before `Day`, an
+unknown `Repeat`, or a note past 200 characters is a 400 naming the field (`Until`, `Repeat`,
+`Note`), and so is a request with no `Day` (`Day`). A day a session was completed on — walks aside —
+is `trained`, and available, whatever marked it: marking a day off and training on it anyway would
+otherwise lower the targets and keep the work. Otherwise the more particular statement names a
+day: a date marked off, then a session planned on it (a planned session speaks for the day), then
+a weekday marked off every week, then open.
 
 ## Movement patterns and volume
 
@@ -334,11 +372,14 @@ still calls the old route.
 ### Weekly volume — `GET /api/training/volume/{day}`
 
 `TrainingVolume` for the seven days ending on `{day}`: `families` (push, pull, legs:
-`{ family, hardSets, target: 8, lastTrained? }`), `patterns` (all nine: `{ pattern, hardSets, target?,
+`{ family, hardSets, target, lastTrained?, paused }`, `paused` when an injury pauses it, `target` the family's adjusted expectation for the
+week — the score's own target, prorated to the days not marked non-training; see
+[Week expectations](#week-expectations)), `patterns` (all nine: `{ pattern, hardSets, target?,
 lastTrained? }`, `target` 4 for the seven compound patterns and absent for isolation and other),
 `muscles` (all sixteen: `{ muscle, direct, indirect, sets, target: 4, lastTrained? }`, `sets` being
 `direct + indirect / 2`), `unplaced` (`{ movementDataId, name, hardSets }` for movements nothing
-classifies) and `upNext`. A hard set is a working, drop or failure lift; `lastTrained` looks back
+classifies) and `upNext`. The pattern and muscle targets are informational — the four direct sets
+that buy most of the dose — and no score reads them, so they cannot disagree with one. A hard set is a working, drop or failure lift; `lastTrained` looks back
 over the whole log. `upNext` is `$type` `nothingLogged` or `train`
 `{ families, lastTrained?, trainedToday, readiness }`, `families` the one to three trained longest
 ago, together when last trained the same day; `readiness` is `notRead`, `usual { score }` or
@@ -364,23 +405,34 @@ injuries, so the rating and what the chat says about today cannot disagree.
   (last night against the nights before the last two, at least 14; ±1.25 per per cent of HRV and ∓8
   per beat of lowest heart rate from 75, halves averaged; .25); `sleep { lastNight?, nightBefore? }`,
   each `{ day, totalSleepSeconds, efficiency, sleepScore? }` (Oura's sleep scores two to one; .20);
-  `load { hardSets, highIntensityMinutes?, zoneTwoMinutes?, hardSetsLast7, hardSetsWeeklyMean28 }`
+  `load { hardSets, highIntensityMinutes?, zoneTwoMinutes?, hardSetsLast7, hardSetsChronic, everyday }`
   (since the start of yesterday: 100 less 1.5 a hard set, 1 a minute at zone 4 or above, 0.15 a
-  minute of zone 2, 0.5 a minute of cardio with no heart rate to zone, and 50 per unit the week runs
-  above 1.3 times the month's weekly mean; not scored, and its minutes absent, when cardio could not
-  be read; .15); `wellness { today? }` with `{ overall, mood, energy,
+  minute of zone 2, 0.5 a minute of cardio with no heart rate to zone, 30 per unit the last seven
+  days' hard sets run above 1.45 times `hardSetsChronic` — the mean of the four seven-day blocks
+  before them, 0 with none read — and 0.03 per MET-minute of everyday load yesterday and today
+  over his usual high; not scored, and its minutes absent, when cardio could not be read; .15).
+  `everyday` is yesterday's and today's `EverydayDay`, below; `wellness { today? }` with `{ overall, mood, energy,
   stress, motivation }` when rated today (`overall` 1–5 onto 0–100; .10).
 - `injuries` — active ones, `{ injuryId, name, lastPain?, movementDataIds }`, the movements every
   check-in has named. `plannedToday` — `{ movements }` per planned session dated today, by name.
   `recentMuscles` — `{ muscle, lastTrained }` for each muscle group last trained as a primary mover
   yesterday or today.
 
+## Injuries — `/api/injury`
+
+`InjuryDTO { injuryID, name, notes, injuryDate, isActive, families, injuryEvents }`. `families` —
+the `PatternFamily` values (`push`, `pull`, `legs`) the athlete says the injury touches; empty when
+not said. `POST /api/injury/create` takes an optional `families` (absent is none); `PUT
+/api/injury/update` an optional one, absent leaving them as they were. While an injury is active,
+its families — these, and the family of every movement a check-in names — pause in the week
+expectations (`ManagedInjury`, below).
+
 ## Training score — `/api/training/score`
 
 | Verb | Route | Answers |
 |---|---|---|
 | GET | `/{day}` | `TrainingScore` for the seven days ending on `{day}` |
-| GET | `/weeks?from=&to=` | `WeeklyScore[]`, one per Sunday in the range, oldest first; more than 48 Sundays is a 400 on `To` |
+| GET | `/weeks?from=&to=` | `WeeklyScore[]`, one per Sunday in the range, oldest first; more than 46 Sundays is a 400 on `To` |
 
 `TrainingScore { window, value, outOf, unknown: [part], lifting, cardio, progress, consistency }`. Each part
 carries `points` and `outOf` and the measurements it was read from:
@@ -389,7 +441,11 @@ Each volume measurement — a family's hard sets, zone-2 minutes, quality minute
 `WeeklyTarget { target, committed, floor, chronic? }`: `chronic` the mean weekly figure of the four
 seven-day blocks before the window that could be read (absent when none could, and `target` is then
 `committed`), `target` that plus 10 %, rounded up to its step and held between `floor` and
-`committed` (8 / 4 sets a family, 150 / 60 zone-2 minutes, 40 / 10 quality minutes). It pays half
+`committed` (8 / 4 sets a family, 150 / 60 zone-2 minutes, 40 / 10 quality minutes). `growth`
+says how: `$type` `ramped`, `heldAfterSteepWeek { lastWeek }` (the newest block ran 1.3–1.5 times
+the four before it, so the target is that block's own target, not grown again) or
+`loweredAfterSpike { lastWeek }` (1.5 times or more: the usual of those four, no ramp), `lastWeek`
+`{ acute, chronic, ratio }`; held or lowered only where it is lower than the ramp would ask. It pays half
 `sqrt(min(1, measured / target))` and half `sqrt(min(1, measured / committed))` of its points:
 concave, because the first half of a target buys most of what the whole would, and only the
 committed standard pays in full. Design: `docs/training-science.md`. Every
@@ -399,7 +455,8 @@ it could — so the client draws the server's arithmetic rather than re-deriving
 - `lifting` (35): `families` — `Scored<FamilyTarget { family, hardSets, target: WeeklyTarget,
   lastTrained? }>`, each `outOf` a third.
 - `cardio` (25): `points` null when unknown; `measure` `$type` `measured { zone2Minutes,
-  qualityMinutes, qualitySessions, sessions, heartRateDays }` or `unknown { reason: noHeartRate |
+  qualityMinutes, qualitySessions, sessions, heartRateDays, minutes, runningMeters }` (`minutes`
+  every session's, `runningMeters` the runs' distance — logged, indoor and the ring's) or `unknown { reason: noHeartRate |
   noMaximumHeartRate | sessionsUnrecorded }`; `zones` — `Scored<ZoneTarget { band: zone2 | quality,
   minutes, target: WeeklyTarget }>`, zone 2 out of 15 and quality out of 10, empty when unknown.
   Quality minutes are work bouts — two minutes or more at zone 4–5, 80 % of maximum and above — in
@@ -415,14 +472,88 @@ it could — so the client draws the server's arithmetic rather than re-deriving
   three seven-day blocks before it, newest first, each out of a quarter against `target` 3. A session
   of nothing but walking is not counted.
 
+- `adjusted` — `AdjustedScore { value, outOf, availableDays, parts: [{ part, points?, outOf }] }`:
+  the same arithmetic against each measurement's adjusted target (its raw target prorated to the
+  window's available days — not marked non-training, or trained — rounded up to its step), every consistency block against
+  its own days. It equals the score when no day of the four blocks was marked off. A measurement
+  whose block has every day marked off asks for nothing: its points come out of `outOf`, as an
+  unknown part's do, rather than being handed out.
+- `expectations` — `WeekExpectations`, below: every target both scores read, with the reasons.
+
 `value` is the points the known parts earned; `outOf` is 100 less the weight of any part in
 `unknown`. A part with no data is named rather than measured as zero, and its points are out of
 reach, so a week with the ring off never outscores the same week with it worn and no cardio.
 `WeeklyScore { window, value, outOf, unknown, liftingPoints, cardioPoints?, progressPoints,
 consistencyPoints }`. Chat reads the score through the `GetTrainingScore` tool as a
-`TrainingScoreDigest`: a few lines of the same measurements, what is up next ("next: legs (last
-trained …)", then separately whether the window's last day already has hard sets), what is under
-target, and up to twelve weeks — a few hundred tokens.
+`TrainingScoreDigest`: a few lines of the same measurements, the adjusted score with the days
+marked off and every adjusted target (or that it is the score itself), what is up next ("next: legs
+(last trained …)", then separately whether the window's last day already has hard sets), what is
+under target, up to twelve weeks, and three lines the TODAY briefing carries with it: `advice`
+(the week's advice word for word), `load` (hard sets, deload, cardio and running ramps, everyday days
+far above usual) and `injuries` (each managed injury, the families it pauses and its lead-up) — a
+few hundred tokens.
+
+### Week expectations
+
+`WeekExpectations { window, availability, sessions, families, cardio, priorities, load, injuries,
+advice }` — one answer for what the seven days ask, which the score, the adjusted score, weekly
+volume, what's next and the chat all read. Each measurement is an `Expectation { done, raw,
+adjusted, reasons }`: `raw` the `WeeklyTarget` the score reads, `adjusted` the same prorated to the
+window's available days less half a day for each day of everyday load far above usual once there
+are two (each figure times `days / 7`, rounded up to its step; `chronic` unchanged), then lowered to
+60 % for a suggested deload (`target` and `committed` both) or paused (every figure 0) for an injury; `reasons` plain lines — the
+raw basis ("4-week average 5.5 hard sets, +10 %: 7.", "Committed 8 hard sets: …", "Floor 4 …",
+"Held at 120 min, the week before's own target: it held 190, 1.4× the 4 weeks before it, …", "Committed 3 sessions a
+week.") then what changed the adjusted target ("Lowered to 5: 2 of 7 days marked non-training
+(travel); 2 days far above your usual activity.", "Deload week suggested: 5 hard sets is the plan,
+…", "Paused while the shoulder is managed: hold it near 6 hard sets a week, …"). The raw targets
+never bend for days off, everyday load, a deload or an injury. The four weeks before are read as
+they were, days off included, so a week away lowers the ramp the way the body's tolerance falls.
+
+- `availability` — `AvailabilityCalendar { range, days, availableDays }`, below.
+- `sessions` — trained sessions in the window against the committed 3.
+- `families` — `{ family, sets: Expectation, lastTrained?, paused }` for push, pull and legs;
+  `paused` when an active injury touches the family, which up next then passes over.
+- `cardio` — `{ measure, zones: [{ band, minutes: Expectation }] }`, `zones` empty when the measure
+  is unknown.
+- `priorities` — `PriorityAim { family, movementDataId, name, aim, frequency, reasons }` for each
+  family with a priority lift. `aim` `$type` `beat { load, reps, unit, estimatedOneRepMax,
+  bestToBeat, onSystemLoad }` (one step on last time's best set: 5 lb / 2.5 kg, or a rep on system
+  load), `hold { load, reps, unit, estimatedOneRepMax, onSystemLoad }` (last time's set again) or
+  `establish`. It holds when the going-in rating — read only for a window ending on the athlete's
+  today — is under 65, the last top set was RPE 9.5 or more, the last session of the lift was rated
+  5 of 5 for difficulty, or the window's latest session was rated 4 of 5 or more for accumulated
+  fatigue; otherwise it steps, naming an easy last session (RPE 8 or under, difficulty 3 or under)
+  where there was one. A pinned lift target in the same unit is stated after: met by the aim, or how
+  far. `frequency` `$type` `pinned { sessions: Expectation }` (the pin's sessions a week, prorated) or
+  `notPinned { sessions }`, sessions counting the window's sessions that trained the lift. A
+  suggested deload holds every aim, and an injury pausing its family holds that family's.
+- `load` — `WeekLoad { lifting, cardio, everyday }`, the window against the four seven-day blocks
+  before it. A `LoadRatio` is `$type` `compared { acute, chronic, ratio }` (`ratio` 0 when `chronic`
+  is 0) or `nothingBefore { acute }`; a `RampStanding` is `unjudged | within | steep | spike` (1.3 and
+  1.5 times, once the rise passes the measure's noise: 6 hard sets, 30 minutes, 3 miles; cardio
+  minutes are unjudged under an hour a week before).
+  - `lifting { hardSets: LoadRatio, ramp, deload }` — every hard set, classified or not. `deload`
+    `$type` `notSuggested { buildingWeeks, reasons }` or `suggested { weekStarting, buildingWeeks,
+    ceiling, soFar, following, reasons }` for the calendar week holding the window's last day,
+    decided from the weeks before its Monday: four building weeks of a steep build or climbing
+    fatigue, or six of any. `ceiling` is 70 % of his usual week's hard sets; `following` is `soFar`
+    (the hard sets from the Monday) within it. Only ever a suggestion.
+  - `cardio` `$type` `read { minutes: LoadRamp, runningMeters: LoadRamp }` (`LoadRamp { ratio,
+    standing }`) or `unread`.
+  - `everyday { days, easedDays }` — the window's `EverydayDay { day, metMinutes, standing }`,
+    `standing` `$type` `judged { usual, high, band: usual | above | farAbove }` (his median and 90th
+    percentile of the 90 complete days before; far above is over the 90th percentile by a fifth)
+    or `unjudged`; `easedDays` half a day per far-above day once there are two.
+- `injuries` — `ManagedInjury { injuryId, name, since, families, movements, lastPain?, preceding }`
+  for each active injury dated on or before the window's last day; `preceding` — `FamilyTrend {
+  family, recent, earlier, change }` per family, the mean weekly hard sets of the four weeks before
+  the injury against the eight before those, `change` the rise as a share.
+- `advice` — `WeeklyAdvice { weekStarting, headline, reasons }` for the calendar week, chosen from
+  the weeks before its Monday so it reads the same all week: `$type` `manageInjury { injury,
+  families }`, `takeDeload { buildingWeeks }`, `easeRamp { measure: running | cardioMinutes,
+  lastWeek { acute, chronic, ratio } }`, `easeAfterEverydayLoad { farAboveDays }`, `emphasiseCardio`, `emphasiseLifting`,
+  `priorityStalled { family, lift }` or `keepBuilding`, the first that holds in that order.
 
 ## What's next — `GET /api/training/next/{day}`
 
@@ -432,14 +563,19 @@ from, with no weights in them.
 
 - `first { session: lift | cardio, reasons }` — which of the two to do next.
 - `lift` `$type` `train { families, lastTrained?, priorities, reasons }` (the families trained
-  longest ago, as weekly volume's `upNext`) or `nothingLogged { reasons }`. `priorities` —
-  `PriorityAim { family, movementDataId, name, aim }` for each due family with a priority lift; `aim`
-  `$type` `beat { load, reps, unit, estimatedOneRepMax, bestToBeat, onSystemLoad }` (the last
-  session's best set plus 5 lb / 2.5 kg, or one more rep on system load; `unit` the numeric
-  `WeightUnit` as in sets; `bestToBeat` the best estimate of the twelve weeks and the window) or
-  `establish` (nothing to build on).
+  longest ago, as weekly volume's `upNext`) or `nothingLogged { reasons }`. `priorities` — the week
+  expectations' `PriorityAim` for each due family with a priority lift (`aim` `beat`, `hold` or
+  `establish`, `frequency`, `reasons`; `unit` the numeric `WeightUnit` as in sets; `bestToBeat` the
+  best estimate of the twelve weeks and the window).
 - `cardio` `$type` `zone2 { minutes, reasons }` or `quality { bouts, boutMinutes, recoveryMinutes,
-  workMinutes, reasons }`.
+  workMinutes, reasons }`, sized against the week's adjusted expectations. A day of everyday load
+  far above usual yesterday or today, or a week whose cardio minutes are already a spike, turns
+  intervals into zone 2 of at most 45 minutes, as low recovery does (30); running already steep this
+  week asks for a ride or a row.
+- `lift.reasons` name the families an injury pauses and the movements its check-ins name, to be
+  left out, and a suggested deload.
+- When `{day}` itself is marked non-training, `first.reasons` opens with it ("Today is marked
+  non-training (travel): this is for your next training day.").
 - `recovery { readiness, sleepMinutes?, hrv?, usualHrv?, hrvSpread? }` — `readiness` the
   `ReadinessNote` of weekly volume; the night's main sleep and HRV against the 28 nights before.
 
@@ -509,12 +645,13 @@ rate synced), `excluded` (ring workouts left out, counted by `category` — `end
 in the range that needed its heart rate to show training and did not, with that heart rate; the
 chat tool gets the counts only). A `ringWorkout` source carries `entry`: `entered` (the athlete's
 own, taken at its name) or `detected` (the ring's guess, here because its heart rate showed
-training). A `loggedSession` source carries `isRecorded` — imported from Apple Health, so
-`GET /api/training/sessions/{id}/recording` has its route — and `activity` for an endurance session
-(`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`; null for a trail run or a distance-and-time
-session, which `isTrailRun` tells apart); a `recorded` heart rate carries
-`source`: `ring` (the all-day series over the session's clock time) or `appleHealth` (the recording
-app's own samples, read ahead of the ring's for an imported run) and `bouts` (`WorkBout { start,
+training). A `loggedSession` source carries `isRecorded` — imported from Apple Health or the Strava
+archive, so `GET /api/training/sessions/{id}/recording` has its route — and `activity` for an
+endurance session (`ride`, `indoorRide`, `hike`, `walk`, `indoorRun`, `eBikeRide`, `paddle`; null for
+a trail run or a distance-and-time session, which `isTrailRun` tells apart); a `recorded` heart rate
+carries `source`: `ring` (the all-day series over the session's clock time) or `appleHealth` (the
+recording app's own samples, read ahead of the ring's for an imported run — through Health or from
+the Strava archive; the name is the one it had when Health was the only way) and `bouts` (`WorkBout { start,
 minutes, averageBpm }`, the stretches held at zone 4 or above). Every session carries `modality`
 (`endurance`, `onFoot`, `game`, `unnamed`) and `qualityMinutes`, the minutes of its bouts the score
 credits.
@@ -548,8 +685,10 @@ is withdrawn, since placing it would replay the records. The same workout import
 at once answers `alreadyImported` to the second.
 
 `GET /api/training/sessions/{id}/recording` answers `RecordedWorkoutView` for a session imported
-from Health, and 404 for any other: `activity` (`run`, `ride`, `indoorRide`, `hike`, `walk`,
-`indoorRun`), `recordedBy`, `start`, `end`, the session's `distanceMeters`,
+from Health or the Strava archive with a recording, and 404 for any other (an archived gym session
+has none): `activity` (`run`, `ride`, `indoorRide`, `hike`, `walk`, `indoorRun`, `eBikeRide`,
+`paddle`), `source` (the session's own `source`, above — `appleHealth` naming the app that
+recorded it, or `stravaArchive`), `start`, `end`, the session's `distanceMeters`,
 `duration` and `climbMeters`; `movingTime`, `descentMeters` from the route (null without one, and
 `movingTime` null where the route's fixes do not span half the workout); `pace` and `movingPace` per
 kilometre; `heartRate` (the cardio report's `SessionHeartRate`, its `source` included),
@@ -614,8 +753,9 @@ said in the old one rather than its transcript.
 | DELETE | `/api/chat/memories/{id}` | — | 204; the memory and every earlier version of it are gone |
 
 - **`ThreadSessionView`** — `sessionId`, `openedAt`, `messages[]`: the athlete's and the model's turns
-  in order, each the same `LHChatMessageDTO` a conversation carries (`role` 0 athlete, 1 model). Tool
-  results are not turns and are not sent.
+  in order, each the same `LHChatMessageDTO` a conversation carries (`role` 0 athlete, 1 model); and
+  `proposals[]`: the `ChangeProposalView` of every change proposed in the session, oldest first (see
+  "Proposed changes" below). Tool results are not turns and are not sent.
 - **`MemoryView`** — `memoryId`, `kind` (int: `0` goal, `1` injury, `2` preference, `3` commitment,
   `4` decision, `5` fact), `text`, `recordedAt`, `source` (int: `0` distilled from the chat, `1`
   written by the athlete), `quotes[]` (`messageId`, `byAthlete`, `said` — clipped to 280 characters,
@@ -641,15 +781,43 @@ said in the old one rather than its transcript.
 - The chat model reaches memory through the `SearchMemory` tool, offered to standalone
   conversations too.
 
+### Proposed changes — `/api/chat/proposals`
+
+The thread can change the athlete's data, but only by proposing: the model's `Propose…` tools write
+nothing, they draft a change that is stored with the session as a **proposal** and drawn as a card.
+Only the athlete's confirmation writes it, through the service the page that makes the same change
+uses, in one transaction with the settled answer. Standalone conversations, which the web app also
+speaks to, are not offered the proposing tools.
+
+| Verb | Route | Body | Answers |
+|---|---|---|---|
+| POST | `/api/chat/proposals/{id}/confirm` | — | the settled `ChangeProposalView`: `confirmed`, or `refused` with the reason when the write was refused (still 200 — he said yes, nothing was written): by the service, because a planned day has passed, or because what the card replaces — the planned session, the family's priority — changed after it was drawn. 404 for another athlete's or an unknown id, 409 when already answered |
+| POST | `/api/chat/proposals/{id}/decline` | — | the settled `ChangeProposalView`, `declined`; nothing is written. 404, 409 as above |
+
+- **`ChangeProposalView`** — `changeProposalId`, `proposedAt`, `area` (`"plan"`, `"availability"`,
+  `"focus"`, `"injuries"`: which screens read again once it is written), `title`, `lines[]` (what it
+  sets or replaces, rendered by the server from the change itself in the athlete's units), and
+  `answer`, by `$type`: `waiting`; `confirmed` `{ at }`; `declined` `{ at }`; `refused` `{ at, reason }`.
+  The change itself never crosses the wire, so a client can confirm only what it was shown.
+- **What can be proposed:** planning a session on a day (stored as `AiAssisted`); changing or removing
+  a planned session Tempo planned (one the athlete planned is his to change on Train); marking a
+  non-training day once or weekly, or freeing one; pinning a priority lift, which lets the family's
+  current priority go; logging an injury or a check-in on one.
+- A proposal's state goes with every later message as part of the briefing — this session's proposals
+  and any card still waiting from the last fortnight — so the model knows what landed and what he
+  declined. A failed exchange stores no proposal. The stream has no event of its own for a proposal:
+  it arrives in `done`'s session, and `tools` names the `Propose…` tool while it runs.
+
 ### What the model is given — `GET /api/profile/context-card`
 
 `AthleteContextCardView`: `stableProfileText` and `stableProfileAsOf` (identity, baselines, injury
 history), `recentStateText` and `recentStateAsOf` (the last four weeks of runs and body), and
 `todayText` — the **briefing** exactly as the next chat message would carry it: the date and time on
 the athlete's clock, today's and yesterday's training, load, heart-rate zones, the last two nights,
-readiness, wellness, active injuries, the week so far and the training score. The briefing is read
-fresh on every call and every message and is never stored, so it carries no as-of beyond the time it
-states. Instants are UTC; the briefing's own text is in the athlete's local time.
+readiness, wellness, active injuries, the week so far and the training score. In the thread a
+message also carries where the session's proposals stand, after the briefing; that note is not part
+of `todayText`. The briefing is read fresh on every call and every message and is never stored, so it
+carries no as-of beyond the time it states. Instants are UTC; the briefing's own text is in the athlete's local time.
 
 ## Interpretation engine — `/api/interpretation`
 

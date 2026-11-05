@@ -1,5 +1,6 @@
 using lionheart.Model.Training.Balance;
 using lionheart.Model.Training.GoingIn;
+using lionheart.Model.Training.Load;
 using lionheart.Services.Chat.Today;
 
 namespace lionheart.Services.Training.GoingIn;
@@ -19,8 +20,10 @@ namespace lionheart.Services.Training.GoingIn;
 /// <item>Sleep is Oura's sleep score for last night and the night before, two to one.</item>
 /// <item>Load starts at 100 and loses 1.5 per hard set since yesterday, 1 per minute at zone 4 or
 /// above, 0.15 per minute of zone 2, 0.5 per minute of a cardio session with no heart rate to
-/// zone, and 50 per unit the week's hard sets run above 1.3 times his four-week weekly mean. It is
-/// not scored when the cardio could not be read: training it cannot see is not training not done.</item>
+/// zone, 50 per unit the week's hard sets run above 1.3 times the four weeks before them
+/// (<see cref="LoadRatio"/>), and 0.03 per MET-minute of everyday load yesterday and today over
+/// his usual high. It is not scored when the cardio could not be read: training it cannot see is
+/// not training not done.</item>
 /// <item>Wellness is today's 1–5 overall rating on the same scale; absent when not rated today.</item>
 /// </list>
 /// The rating is the parts' weighted mean over those that could be scored. It is made only when at
@@ -40,8 +43,6 @@ public static class GoingInAnalysis
     /// <summary>The fewest nights a baseline is read from; fewer and a night is compared with noise.</summary>
     public const int FewestBaselineNights = 14;
 
-    /// <summary>The week's hard sets over his weekly mean above which load starts to cost.</summary>
-    public const double LoadRatioAllowance = 1.3;
 
     public static GoingInState Of(
         TodayFacts facts, IReadOnlyList<MuscleVolume> muscles, IReadOnlyList<InjuryNote> injuries)
@@ -90,8 +91,9 @@ public static class GoingInAnalysis
                 SinceYesterday(facts, yesterday).Sum(session => session.HardSets),
                 facts.Cardio is CardioDays.Read ? CardioSinceYesterday(facts, yesterday).Sum(c => c.ZoneFourPlus ?? 0) : null,
                 facts.Cardio is CardioDays.Read ? CardioSinceYesterday(facts, yesterday).Sum(c => c.ZoneTwo ?? 0) : null,
-                facts.Load.HardSetsLast7,
-                facts.Load.HardSetsWeeklyMean28),
+                (int)facts.Load.HardSets.Acute,
+                facts.Load.HardSets is LoadRatio.Compared compared ? compared.Chronic : 0,
+                EverydaySinceYesterday(facts, yesterday)),
             new WellnessPart(
                 Scored(Part.Wellness),
                 wellness is null
@@ -176,17 +178,40 @@ public static class GoingInAnalysis
 
         var hardSets = SinceYesterday(facts, yesterday).Sum(session => session.HardSets);
         var cardio = CardioSinceYesterday(facts, yesterday).ToList();
-        var ratio = facts.Load.HardSetsWeeklyMean28 > 0
-            ? facts.Load.HardSetsLast7 / facts.Load.HardSetsWeeklyMean28
-            : 0;
+        var ratio = facts.Load.HardSets is LoadRatio.Compared compared ? compared.Ratio : 0;
 
         return 100
                - 1.5 * hardSets
                - 1.0 * cardio.Sum(session => session.ZoneFourPlus ?? 0)
                - 0.15 * cardio.Sum(session => session.ZoneTwo ?? 0)
                - UnzonedMinuteCost * cardio.Where(IsUnzoned).Sum(session => session.Minutes)
-               - 50 * Math.Max(0, ratio - LoadRatioAllowance);
+               - LoadRatioCost * Math.Max(0, ratio - LoadRatioAllowance)
+               - EverydayCost(EverydaySinceYesterday(facts, yesterday));
     }
+
+    /// <summary>
+    /// The week's hard-set ratio the load part allows before it costs anything. Higher than the
+    /// ramp's steep 1.3 because this part is about today's legs, not the injury risk a ramp guards:
+    /// a week that reads steep holds next week's targets but does not, on its own, make him less
+    /// ready this morning. 1.45 on the uncoupled ratio is where the earlier coupled ratio reached 1.3.
+    /// </summary>
+    public const double LoadRatioAllowance = 1.45;
+
+    /// <summary>Points per unit of ratio over the allowance; about what the coupled ratio's 50 came to over the usual range.</summary>
+    public const double LoadRatioCost = 30;
+
+    /// <summary>
+    /// What a MET-minute of everyday load over his usual high (the 90th percentile of his days)
+    /// costs: about a fifth of what a zone-2 minute's six or so MET-minutes do, so an ordinary active
+    /// day costs nothing and a day far above it costs the part points in single figures.
+    /// </summary>
+    public const double EverydayMetMinuteCost = 0.03;
+
+    private static double EverydayCost(IReadOnlyList<EverydayDay> days) =>
+        EverydayMetMinuteCost * days.Sum(day => day.Standing is EverydayStanding.Judged judged ? Math.Max(0, day.MetMinutes - judged.High) : 0);
+
+    private static IReadOnlyList<EverydayDay> EverydaySinceYesterday(TodayFacts facts, DateOnly yesterday) =>
+        facts.Everyday.Between(yesterday, facts.Now.Today);
 
     /// <summary>
     /// What a minute of cardio with no heart rate to zone costs: between zone 2 and zone 4, since

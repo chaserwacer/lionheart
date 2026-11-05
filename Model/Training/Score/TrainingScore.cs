@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using lionheart.Model.Analysis;
 using lionheart.Model.Training.Balance;
 using lionheart.Model.Cardio;
+using lionheart.Model.Training.Expectations;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.Patterns;
 
@@ -23,6 +24,8 @@ namespace lionheart.Model.Training.Score;
 /// <param name="Value">The points the known parts earned, out of 100.</param>
 /// <param name="OutOf">The points that could be read: 100, less the weight of any part unknown.</param>
 /// <param name="Unknown">The parts whose data is missing; empty for a whole score.</param>
+/// <param name="Adjusted">The same arithmetic against the targets fitted to the days available.</param>
+/// <param name="Expectations">Every target both scores read, with what was done and why each target is what it is.</param>
 public sealed record TrainingScore(
     DayRange Window,
     int Value,
@@ -31,7 +34,28 @@ public sealed record TrainingScore(
     LiftingPart Lifting,
     CardioPart Cardio,
     ProgressPart Progress,
-    ConsistencyPart Consistency);
+    ConsistencyPart Consistency,
+    AdjustedScore Adjusted,
+    WeekExpectations Expectations);
+
+/// <summary>
+/// The training score read against the adjusted expectations: every volume and session target
+/// prorated to the days the athlete had, the rest of the arithmetic unchanged.
+/// </summary>
+/// <remarks>
+/// A second number beside the score rather than in place of it, so a week of travel can be seen
+/// for what was done in the days left without the score itself bending. It equals the score when
+/// no day of the window or the three blocks before it was marked non-training. Kept plain rather
+/// than generous: each target is the share of the week left, rounded up, and only the committed
+/// figure, prorated alike, pays whole. A measurement with every day of its block marked off asks
+/// for nothing, so its points are out of reach rather than handed out — the rule an unknown part
+/// follows.
+/// </remarks>
+/// <param name="AvailableDays">The days of the window not marked non-training.</param>
+public sealed record AdjustedScore(int Value, int OutOf, int AvailableDays, IReadOnlyList<AdjustedPart> Parts);
+
+/// <summary>One part's points against the adjusted expectations; absent points when the part is unknown.</summary>
+public sealed record AdjustedPart(ScorePart Part, double? Points, double OutOf);
 
 /// <summary>The four parts of the score, by name.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<ScorePart>))]
@@ -139,6 +163,9 @@ public static class ScoreRules
     /// does not stop earns the whole part, and a fourth session earns its points in volume instead.
     /// </summary>
     public const int SessionsPerWeek = 3;
+
+    /// <summary>The sessions standard: three a week, every week, in whole sessions.</summary>
+    public static readonly Standard Sessions = new(SessionsPerWeek, SessionsPerWeek, 1);
 
     public const int ConsistencyBlocks = 4;
 

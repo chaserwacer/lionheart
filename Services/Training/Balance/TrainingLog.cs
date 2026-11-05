@@ -1,4 +1,5 @@
 using lionheart.Model.BodyMeasurements;
+using lionheart.Model.Training;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
 
@@ -72,6 +73,9 @@ public sealed record SessionInLog(Guid TrainingSessionId, DateOnly Day, IReadOnl
     /// </summary>
     public bool OnlyWalking { get; init; }
 
+    /// <summary>How hard the athlete said the session was and how tired he came to it, when he said.</summary>
+    public EffortState Effort { get; init; } = new EffortNotReported();
+
     /// <summary>Whether the session counts as one trained: anything but a session of only walking.</summary>
     public bool Trained => !OnlyWalking;
 }
@@ -80,6 +84,17 @@ public sealed record SessionInLog(Guid TrainingSessionId, DateOnly Day, IReadOnl
 public sealed record LoggedMovement(Guid MovementDataId, string Name, ClassificationStanding Classification, bool AddsToBodyweight);
 
 public sealed record BodyweightOnDay(DateOnly Day, Bodyweight Bodyweight);
+
+/// <summary>Which completed sessions count as training.</summary>
+public static class TrainedSessions
+{
+    /// <summary>
+    /// Nothing but walking: a watch's record of getting somewhere, which is in the log but is not a
+    /// training session.
+    /// </summary>
+    public static bool OnlyWalking(IReadOnlyList<SetEntry> sets) =>
+        sets.Count > 0 && sets.All(set => set is EnduranceSet { Activity: EnduranceActivity.Walk });
+}
 
 /// <summary>Which lifts are hard sets.</summary>
 public static class HardSets

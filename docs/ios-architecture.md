@@ -183,6 +183,22 @@ wide session window — 90 days back, 45 forward — gives the last completed se
 one and anything in progress, so the cards cannot disagree with each other the way three separate
 reads could. `TodaySnapshot.reading` does the picking, purely.
 
+### The hero: going in, and what is next
+
+Today opens on its hero (`GoingInHero`): the going-in rating — the server's, read through the same
+`GoingInStore` as the logging surface's header, so the morning's verdict is one reading everywhere —
+with its band, the sentence naming the part holding it down, the five parts as leaning bars (only
+that part coloured, orange), what is up next in a line, the session to do first in Brick, and the
+week's one piece of advice (`WeeklyAdviceRow`) — its headline in Brick, which means this week, and
+the server's reasons folded under it. A tap opens the parts and the method. A past day cannot be
+rated going in, so its hero is that day's readiness; so is today's before the rating has a score to
+give, and it still carries the advice. The advice comes on the week's training score, which Today
+reads with its hero rather than waiting for the score's own section to scroll into view. Oura's readiness verdict and its
+trend follow in the recovery section, and the six contributors and the figures no contributor
+carries fold behind one line, which names by name any row outside his usual range in the worse
+direction (`TodaySnapshot.unusualRecovery`) so folding never hides the row worth seeing. Whether
+they are open is remembered (`lh.today.recoveryExpanded`).
+
 ### Any day, not only today
 
 The day steps back and forward from the toolbar, and a calendar jumps further. The selection is
@@ -196,7 +212,7 @@ under another day's title would be wrong, not old. The server already serves eve
 
 ### Recovery against his own baseline
 
-The screen leads with readiness as the verdict and then a table of recovery figures — HRV, lowest
+The recovery section leads with readiness as Oura's verdict and then a table of recovery figures — HRV, lowest
 heart rate, time asleep, breathing from the night's main sleep; sleep score, temperature, steps from
 the day — each with its deviation from the 28 days before and a sparkline of them. The baseline
 excludes the day itself, needs seven readings, and a figure outside one standard deviation in the
@@ -342,7 +358,7 @@ there; an unplanned workout has none, so picking a movement records it in
 logging loses nothing. A pick with nothing logged on it can be removed; one with a set cannot,
 because the set is the record; `ActiveWorkout.canDrop(_:)` is that rule, stated once. Picking a
 movement the workout already holds moves the athlete to it without moving its section. Version 3 of
-the document added the list; version 4 added the deferred start and the plan a workout came from; version 5 added the routine and a kind on every lift. A version 2 document whose current movement no set or target names
+the document added the list; version 4 added the deferred start and the plan a workout came from; version 5 added the routine and a kind on every lift; version 6 added the effort ratings. A version 2 document whose current movement no set or target names
 restores with that movement added: usually a pick not yet logged on, occasionally a movement whose
 only set was deleted, which comes back as an empty section the athlete can remove.
 
@@ -539,7 +555,7 @@ bodyweight never reads as a leap.
 
 The toolbar holds Close, Add and the More menu. Add is what the surface is used for between sets, so
 it has the primary place; Finish happens once a session and lives in More, opening the same finish
-sheet it always did, beside Sync now and Discard. Add opens `AddWorkSheet` at half height with
+sheet it always did, beside How it's going, Sync now and Discard. Add opens `AddWorkSheet` at half height with
 search always showing, and grows to full height as soon as anything is typed: the families' priority
 lifts (from the priority report), recent movements, distance and time, a set in words, then the
 catalogue. Distance and time (`CardioWork`) is the domain's cardio with no movement — an outdoor run,
@@ -569,6 +585,19 @@ At the first set of work the header folds to one line: by then he knows how he c
 sheet takes the rating apart, part by part, with each part's figures and the rule the server applied,
 so the arithmetic can be redone from the screen. A workout written down afterwards shows no header;
 today's state says nothing about another day.
+
+### Rating the session as it goes
+
+The four effort ratings — accumulated fatigue, difficulty, engagement, outside factors, each 1 to
+5 or left alone — and the notes can be given whenever the athlete likes, from "How it's going": a
+row at the foot of the logging surface, out of the way of the sets, and the same entry in More.
+They belong to the workout (`ActiveWorkout.effort`), so they are written to the document as they
+are picked and survive a relaunch, and the finish sheet opens on them and writes back to the same
+place — finishing never asks twice, and "Not yet" keeps what was changed. Nothing is pushed for
+them: the server takes effort only with the completion, which reads it from the workout, so a
+finish set down in the outbox carries it too. The API is unchanged. A completed session's effort
+cannot be edited afterwards on either client: `POST /{id}/revise` leaves it as it was and no route
+restates it.
 
 ### Fewer taps per set
 
@@ -656,7 +685,13 @@ belongs to the session's work on a movement and is said under that movement, not
 estimated single before the horizon against the best inside it, the heaviest load at the target's
 reps against the target: each a reading of the log (`FocusReading`), so a session logged late can
 never leave a stored "met" disagreeing with it. The server stores only the pin, its role and whether
-it is still pinned. History's Priorities row opens the screen described under Train.
+it is still pinned. **A running pin is History's hero** (`PriorityBlockRow`): its week of the horizon, the best
+estimated single since the pin, and the horizon as its block (`BlockWeeks`) — each week's best as a
+leaning bar, the weeks gone in Iron, this week in Brick, the weeks to come as outlines — drawn from
+the lightest measured week at a quarter height to the heaviest at the top, so a few pounds between
+weeks read as a step. A week with nothing on the movement is a stub, not a zero. The hero's last row
+opens the priorities screen described under Train, which is otherwise reached from the readings
+below the hero only when no pin is running; with none, the sessions per week are the hero.
 
 ### Naming every movement
 
@@ -671,10 +706,20 @@ the server proves nothing and leaves the id to be asked about again.
 
 ## Train: the score, what it is time for, the week's volume and priorities
 
-Train leads with the **training score**, part by part, because it is the reading every session on
-the tab moves; **Start workout** and **Log a past workout** sit directly under it, and a Start
-button in the toolbar keeps starting one tap away whatever is on screen. Then what it is time for.
-Routines, bodyweight and the plan follow; they stay, below the reading of the week.
+Train leads with its hero (`TrainingScoreHero`): the **training score** against the weeks before
+it, its partition, what is up next in a line and the week's advice, because those are what every
+session on the tab is chosen by and moves. The advice is chosen by the server from the weeks before
+the Monday, so it is the same row all week and the same words the chat is given; the expectations
+below list each injury the week manages around, with the lead-up under it, and a family it pauses
+reads "paused" in the expectations and in weekly volume rather than a target of nothing. The partition's fills rise from nothing as it appears and spring to a new
+figure when the score changes — the opening's motion; with Reduce Motion they are simply there — and a read that
+takes a measurement this week to its target (`ScoreTargets`) is felt as a success haptic. The
+figures sit in one row, so a second figure for the same week goes beside the score. **Start
+workout** and **Log a past workout** sit directly under the hero, and a Start button in the toolbar
+keeps starting one tap away whatever is on screen. Then what is next in full, opening on lifting
+against cardio this week as two leaning bars of the share of each part's points, the one to do first
+in Brick, with the server's reason under them; then the score's parts in words. Routines,
+bodyweight and the plan follow; they stay, below the reading of the week.
 
 **Everything on the week is the server's reading.** Weekly volume (`GET /api/training/volume/{day}`),
 the priorities (`/api/training/priorities/{day}`), the training score and its weeks are derived on
@@ -724,6 +769,25 @@ has an info sheet (`ScoreInfoSheet`) stating the method with the targets the ser
 Today shows the score in one line. A part with no data says unknown, never zero, is drawn as an
 empty track, and a week read with one is drawn pale.
 
+**The week's expectations** sit under the card (`WeekExpectationsSection`): the adjusted score
+with the days it was read against, then sessions, push, pull and legs, zone 2 and quality — each
+done against its adjusted target, the full target beside it when days marked off lowered it, and
+the server's reasons under a disclosure — then each priority lift's next top set (step, hold or a
+first top set) with its pinned frequency and reasons. Every figure is the score's `expectations`,
+so the volume rows, what's next and this section read the same targets; the client derives only
+which rows to list (`ExpectationLines`). The volume rows read each family against its adjusted
+target. An info sheet (`ExpectationsInfoSheet`) states the method.
+
+**Non-training days** are marked from a calendar button in Train's toolbar, or from the
+expectations section (`NonTrainingDaysSheet`): the stock `MultiDatePicker` shows the days the
+server reads as non-training as selected, so a tap marks a day once — with the note typed above —
+or frees it; freeing a day a weekly statement covers asks first, since it frees every week's
+(`NonTrainingMarking` names the one change a tap made). A weekday is marked every week from a
+starting day, optionally until one, and the statements are listed to swipe away.
+`NonTrainingDaysStore` reads the calendar four weeks back and four months ahead when the sheet
+opens, re-reads after each write, and has the container refresh the week's balance, since every
+target moves with the days.
+
 **What a movement trains** is shown and edited on its page (`ClassificationSection`), stated for the
 base so every variation shares it. A judgement call from the shipped map is shown in orange with its
 reason until he confirms or corrects it.
@@ -758,8 +822,8 @@ them, and withdraws one when the athlete says the set was not real. Three rules 
 
 ## Body: the scores, cardio, daily movement and body composition
 
-Body leads with the latest readiness, last night and the night before, then the latest day's scores, then three
-questions with screens of their own.
+Body leads with the latest readiness as its hero, with the Oura sync under it, then last night and the night
+before, then the latest day's scores, then three questions with screens of their own.
 
 - **Scores and contributors.** A day's readiness, sleep, activity and resilience are drawn as an
   instrument: each of Oura's components on a 0–100 `RangeGauge` against the band he usually sits in
@@ -855,7 +919,10 @@ side:
   rate against the zones, footed with whose it is, a run's form, and each metric the app wrote —
   power, cadence, speed, running form — drawn against its mean (`MetricTraceChart`, thinned to a few
   hundred points by `MetricTrace`). It shares the cardio session's chart and zone grid, which moved to `Design/` for
-  the second caller.
+  the second caller. A session imported from the Strava archive opens the same page, its source
+  (`RecordedWorkout.source`) naming Strava and the archive where a Health workout names its app and
+  Health; an archived gym session has no recording, so its detail names the source without the link
+  (`TrainingSession.opensRecording`).
 
 ## Chat: one thread, with memory
 
@@ -908,8 +975,22 @@ them, the only sign of the cut.
   their tab bar as it is.
 - **Not lazy.** The thread's stack draws every row of the page: a `LazyVStack` opened at its bottom
   on iOS 26 was left past the end of the transcript, blank, when the rows were long answers.
-- **The context sheet leads with the briefing**, exactly as the next message will carry it, then
-  the two standing tiers with their as-of instants.
+- **The context sheet leads with the briefing**, exactly as the next message will carry it (less the
+  note of where the session's proposals stand, which goes after it), then the two standing tiers with
+  their as-of instants.
+- **A change Tempo proposes is a card, not a turn** (`ProposalCard`, `docs/api-surface.md` →
+  Proposed changes). Each session carries its proposals; `ThreadTranscript.rows` places each one
+  after the turns stored before it, which puts it straight under the answer that proposed it. The
+  card shows the server's title and lines and nothing the client composed, and while it waits it
+  offers Decline and Confirm; once answered it says what became of it — confirmed, declined, or not
+  saved with the reason. Decline is final, which the word says. One answer is out at a time (`ProposalAnswering`), naming its
+  card, so every other card holds its buttons. The settled card replaces the waiting one in place;
+  a 409 or 404 means it was answered elsewhere or is gone, so the refusal is stated and the thread
+  read again — and if that read shows the card confirmed, it counts as a confirmation here. A
+  confirmation tells `ThreadStore.onChangeConfirmed` listeners the change's area,
+  and `AppContainer` reads again the screens that area feeds — Today always, Train, History, the
+  availability calendar, the priorities, the going-in state and Body only once opened. While a
+  `Propose…` tool runs the waiting row says it is drafting a change rather than reading.
 
 ## Outside the app: widgets, Shortcuts and the morning wake
 
@@ -960,6 +1041,17 @@ and miles. A fastest time at a race distance goes by its name (Mile, 5K, 10K); a
 - System text styles throughout, so Dynamic Type works with no `relativeTo:` anywhere. Figures that
   change in place carry `.monospacedDigit()`. The one exception is the wordmark, a picture of the
   name: SF Pro Heavy at the expanded width, tracked tight, at a fixed size.
+- The brand reaches the pages in two voices, both system fonts at text styles (`BrandType`): a
+  hero's figure in the wordmark's heavy expanded SF Pro (`.heroFigure()`), and the small label
+  saying what a figure covers — "7 days to today", "week 5 of 12" — in the tagline's monospaced
+  caption (`.meta`). Everything else is the plain styles.
+- **One hero per tab** (`HeroSection`): the first section, on Graphite in both appearances — lifted
+  a step on a dark page (`Tokens.heroGround`), where Graphite sits just under the grouped cards —
+  with its rows in the dark scheme. Still a `Section` of ordinary rows. A sheet it opens is hung on
+  a row, since one hung on a section never presents, and takes the page's appearance back.
+- **Brick discipline.** Brick means this week or the one thing to act on: the score itself, this
+  week's bar, the session to do first, a pin's current week. History and context are Iron; a part
+  under a whole is ink. A wall of Brick is the failure this rule exists to prevent.
 - The mark is one `Shape`, `ProgressionMark`: the opening, the loading indicator, Settings, Chat
   and the widgets draw it, and `Scripts/render-brand-assets.sh` draws the icon and launch image from
   it. The icon is an Icon Composer document (`Resources/AppIcon.icon`): Liquid Glass on iOS 26, and
@@ -975,7 +1067,9 @@ Motion cross-fades instead. Sign-in is Graphite in both appearances, continuing 
 - `List(.insetGrouped)` is the default screen.
 
 `Design/` holds only what stock SwiftUI has no answer for: `Tokens`; `Brand/`, with the mark's
-`ProgressionMark`, `BrandMark`, `Wordmark`, `BrandLockup`, `MarkLoadingIndicator` and `LeanedBar`; `ActiveWorkoutBar`,
+`ProgressionMark`, `BrandMark`, `Wordmark`, `BrandLockup`, `MarkLoadingIndicator`, `LeanedBar` and
+`LeaningBars` (upright bars at the mark's lean, rising as the opening's do), and the pages' brand —
+`BrandType`, `HeroSection` and `HeroFigure`; `ActiveWorkoutBar`,
 `Sparkline` (a stock `Chart` with every axis removed), `StatTile`, `SetRow`, `RestTimerBar` and
 `LoadStateRows` (the loading row and stale banner three tabs share), and `MovementLines` (a
 session's movements as log-book lines, figures aligned down one column, which Today and History share),
@@ -991,7 +1085,7 @@ cardio session's and a recorded run's).
 Colour carries a verdict in one way only: orange marks a recovery figure, or a readiness band,
 that asks for attention. Oura's other bands read in the secondary label colour — a traffic light's
 yellow does not read as text on a light background — and the accent is kept for what can be tapped
-and for the one line on a chart the eye should follow.
+and for what is this week or to act on.
 
 A note on the plist: the app supplies its own `Info.plist`, so `INFOPLIST_KEY_*` build settings do
 not reach it. `UILaunchScreen` has to be declared there explicitly or the app runs letterboxed in

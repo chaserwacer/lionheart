@@ -84,6 +84,16 @@ struct ThreadView: View {
             } message: {
                 if let refusal = thread.earlier.refusal { Text(refusal.message) }
             }
+            .alert(
+                "The change could not be answered",
+                isPresented: Binding(
+                    get: { thread.proposalAnswer.refusal != nil },
+                    set: { if !$0 { thread.dismissProposalRefusal() } })
+            ) {
+                Button("OK") { thread.dismissProposalRefusal() }
+            } message: {
+                if let refusal = thread.proposalAnswer.refusal { Text(refusal.message) }
+            }
         }
         .task { await thread.refresh() }
         .task { await chat.refreshContextCard() }
@@ -122,6 +132,13 @@ struct ThreadView: View {
                                 turn: turn,
                                 revealsOnArrival: turn.id == thread.arrivedReply,
                                 onRevealed: { thread.settle(reply: turn.id) })
+                        case .proposal(let proposal):
+                            ProposalCard(
+                                proposal: proposal,
+                                isAnswering: thread.proposalAnswer.answeringId == proposal.id,
+                                isHeld: thread.proposalAnswer.answeringId.map { $0 != proposal.id } ?? false,
+                                onConfirm: { Task { await thread.confirm(proposal) } },
+                                onDecline: { Task { await thread.decline(proposal) } })
                         }
                     }
                     arriving
@@ -290,7 +307,7 @@ private struct SessionOpening: View {
     var body: some View {
         let label = ThreadTranscript.openingLabel(at, now: Date())
         Text(label)
-            .font(.caption)
+            .font(.meta)
             .foregroundStyle(Color(.secondaryLabel))
             .frame(maxWidth: .infinity)
             .padding(.top, 6)

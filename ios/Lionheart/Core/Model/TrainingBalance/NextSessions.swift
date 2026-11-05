@@ -31,7 +31,8 @@ struct FirstChoice: Equatable, Sendable {
 }
 
 enum NextLift: Equatable, Sendable {
-    /// The families due, trained longest ago, and each one's priority lift with its next top set.
+    /// The families due, trained longest ago, and each one's priority lift with its next top set —
+    /// the week expectations' aim.
     case train(families: [PatternFamily], lastTrained: CalendarDay?, priorities: [PriorityAim], reasons: [String])
     case nothingLogged(reasons: [String])
     case unrecognised(String)
@@ -42,24 +43,6 @@ enum NextLift: Equatable, Sendable {
         case .unrecognised: []
         }
     }
-}
-
-/// A due family's priority lift and its next top set.
-struct PriorityAim: Equatable, Sendable, Identifiable {
-    let family: PatternFamily
-    let movementDataId: UUID
-    let name: String
-    let aim: LiftAim
-
-    var id: UUID { movementDataId }
-}
-
-enum LiftAim: Equatable, Sendable {
-    /// The last session's best set one step on; `load` is the system load where `onSystemLoad`.
-    case beat(load: Double, reps: Int, unit: WeightUnit, estimatedOneRepMax: Double, bestToBeat: Double, onSystemLoad: Bool)
-    /// Nothing in the last twelve weeks to build on.
-    case establish
-    case unrecognised(String)
 }
 
 enum NextCardio: Equatable, Sendable {
@@ -127,42 +110,6 @@ extension NextLift: Decodable {
                 reasons: reasons)
         case "nothingLogged":
             self = .nothingLogged(reasons: reasons)
-        default:
-            self = .unrecognised(type)
-        }
-    }
-}
-
-extension PriorityAim: Decodable {
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: WireKey.self)
-        guard let id = container.lenient(UUID.self, "movementDataId") else {
-            throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath, debugDescription: "A priority aim needs its movement."))
-        }
-        self.init(
-            family: PatternFamily(wire: container.lenient("family", or: "")),
-            movementDataId: id,
-            name: container.lenient("name", or: ""),
-            aim: container.lenient(LiftAim.self, "aim") ?? .unrecognised(""))
-    }
-}
-
-extension LiftAim: Decodable {
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: WireKey.self)
-        let type = container.wireType
-        switch type {
-        case "beat":
-            self = .beat(
-                load: container.lenient("load", or: 0),
-                reps: container.lenient("reps", or: 0),
-                unit: WeightUnit(wire: container.lenient(Int.self, "unit")),
-                estimatedOneRepMax: container.lenient("estimatedOneRepMax", or: 0),
-                bestToBeat: container.lenient("bestToBeat", or: 0),
-                onSystemLoad: container.lenient("onSystemLoad", or: false))
-        case "establish":
-            self = .establish
         default:
             self = .unrecognised(type)
         }

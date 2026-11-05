@@ -28,13 +28,24 @@ final class ThreadStore {
     /// is said while an answer is being written: the athlete hears it when it is whole.
     private(set) var answered: ChatMessage?
 
+    /// Where the athlete's answer to a proposal card stands.
+    private(set) var proposalAnswer: ProposalAnswering = .idle
+
     private let api: ChatThreadAPI
+    private let proposals: ChangeProposalAPI
+    private var whenConfirmed: [@MainActor (ChangeArea) async -> Void] = []
 
     private var load: Task<Void, Never>?
     private var reply: Task<Void, Never>?
 
-    init(api: ChatThreadAPI) {
+    init(api: ChatThreadAPI, proposals: ChangeProposalAPI) {
         self.api = api
+        self.proposals = proposals
+    }
+
+    /// Runs after a confirmed change is written, for the screens that show what it changed.
+    func onChangeConfirmed(_ action: @escaping @MainActor (ChangeArea) async -> Void) {
+        whenConfirmed.append(action)
     }
 
     func refresh() async {
@@ -55,6 +66,7 @@ final class ThreadStore {
         earlier = .idle
         arrivedReply = nil
         answered = nil
+        proposalAnswer = .idle
     }
 
     /// The arrived answer has been set down, so it is shown whole from now on, even when its bubble
@@ -83,6 +95,21 @@ final class ThreadStore {
         earlier = .idle
     }
 
+    /// Confirms a proposal: the server writes the change and settles the card, and the screens that
+    /// show what it changed read again.
+    func confirm(_ proposal: ChangeProposal) async {
+        await answer(proposal) { [proposals] id in try await proposals.confirm(id) }
+    }
+
+    /// Declines a proposal; nothing is written.
+    func decline(_ proposal: ChangeProposal) async {
+        await answer(proposal) { [proposals] id in try await proposals.decline(id) }
+    }
+
+    func dismissProposalRefusal() {
+        proposalAnswer = .idle
+    }
+
     /// Sends one message and follows the exchange to its end.
     ///
     /// The words go on screen before the request leaves, and a refusal hands them back to the
@@ -98,6 +125,35 @@ final class ThreadStore {
     }
 
     // MARK: -
+
+    /// Sends one answer and puts the settled card in the thread. A card answered elsewhere, or gone,
+    /// is stated and the thread read again, so it stops offering an answer the server will refuse.
+    private func answer(
+        _ proposal: ChangeProposal, with call: @escaping @Sendable (UUID) async throws -> ChangeProposal
+    ) async {
+        guard proposalAnswer.answeringId == nil, proposal.answer.isWaiting else { return }
+        proposalAnswer = .answering(proposal.changeProposalId)
+        do {
+            let settled = try await call(proposal.changeProposalId)
+            transcript = transcript.editing { $0.with(settled) }
+            proposalAnswer = .idle
+            await announceIfConfirmed(settled)
+        } catch {
+            proposalAnswer = ProposalAnswering.refusal(from: error)
+            guard proposalAnswer.revealsOutdatedCard else { return }
+            // Answered already: perhaps by this very tap, whose response was lost. If the read
+            // shows it confirmed, the screens that show the change still have to read again.
+            await reload()
+            if let reread = transcript.value?.proposal(proposal.changeProposalId) {
+                await announceIfConfirmed(reread)
+            }
+        }
+    }
+
+    private func announceIfConfirmed(_ proposal: ChangeProposal) async {
+        guard case .confirmed = proposal.answer else { return }
+        for action in whenConfirmed { await action(proposal.area) }
+    }
 
     private func reload() async {
         do {

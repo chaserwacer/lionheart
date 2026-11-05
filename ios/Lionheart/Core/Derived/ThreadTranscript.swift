@@ -37,28 +37,42 @@ enum ThreadExchange: Equatable, Sendable {
     }
 }
 
-/// One row of the thread as it is drawn: a session's opening, or a turn.
+/// One row of the thread as it is drawn: a session's opening, a turn, or a change Tempo proposed.
 enum ThreadRow: Equatable, Sendable, Identifiable {
     case opened(sessionId: UUID, at: Date)
     case turn(ChatTurn)
+    case proposal(ChangeProposal)
 
     var id: String {
         switch self {
         case .opened(let sessionId, _): "opened-\(sessionId.uuidString)"
         case .turn(let turn): turn.id.uuidString
+        case .proposal(let proposal): "proposal-\(proposal.changeProposalId.uuidString)"
         }
     }
 }
 
 /// The thread laid out for the screen.
 enum ThreadTranscript {
-    /// Every session's opening followed by its turns, oldest first, then the athlete's unsaved turn.
+    /// Every session's opening followed by its turns and its proposals, oldest first, then the
+    /// athlete's unsaved turn.
     static func rows(_ thread: ChatThread, tail: ChatTurn?) -> [ThreadRow] {
         let kept = thread.sessions.flatMap { session in
-            [ThreadRow.opened(sessionId: session.sessionId, at: session.openedAt)]
-                + session.transcript.map { ThreadRow.turn(.said($0)) }
+            [ThreadRow.opened(sessionId: session.sessionId, at: session.openedAt)] + interleaved(session)
         }
         return kept + (tail.map { [ThreadRow.turn($0)] } ?? [])
+    }
+
+    /// A session's turns with each proposal after the turns that came before it — the answer that
+    /// proposed it is stored a moment before the proposal is, so the card follows the words about it.
+    private static func interleaved(_ session: ThreadSession) -> [ThreadRow] {
+        let proposals = session.proposals.sorted { $0.proposedAt < $1.proposedAt }
+        let merged = session.transcript.reduce(into: (rows: [ThreadRow](), waiting: proposals[...])) { merged, message in
+            let due = merged.waiting.prefix { proposal in message.createdAt.map { proposal.proposedAt < $0 } ?? false }
+            merged.rows += due.map(ThreadRow.proposal) + [.turn(.said(message))]
+            merged.waiting = merged.waiting.dropFirst(due.count)
+        }
+        return merged.rows + merged.waiting.map(ThreadRow.proposal)
     }
 
     /// The stored answer to `words`, once the thread holds one: the model's turn straight after the

@@ -16,6 +16,16 @@ public interface ITrainingSessionService
 {
     Task<Result<TrainingSessionView, Problem>> PlanAsync(IdentityUser user, PlanSessionRequest request, CancellationToken ct);
 
+    /// <summary>
+    /// Plans a session the chat model proposed and the athlete confirmed, so it carries
+    /// <see cref="Provenance.AiAssisted"/>. Never reachable from a route: a client able to choose
+    /// the provenance could author an assisted session.
+    /// </summary>
+    Task<Result<TrainingSessionView, Problem>> PlanAssistedAsync(IdentityUser user, PlanSessionRequest request, CancellationToken ct);
+
+    /// <summary>Restates a planned session whole: its day, its prescriptions and its notes.</summary>
+    Task<Result<TrainingSessionView, Problem>> RevisePlanAsync(IdentityUser user, Guid sessionId, RevisePlanRequest request, CancellationToken ct);
+
     Task<Result<TrainingSessionView, Problem>> StartUnplannedAsync(IdentityUser user, StartUnplannedSessionRequest request, CancellationToken ct);
 
     Task<Result<TrainingSessionView, Problem>> LogCompletedAsync(IdentityUser user, LogCompletedSessionRequest request, CancellationToken ct);
@@ -64,11 +74,27 @@ public sealed class TrainingSessionService : ITrainingSessionService
 
     public Task<Result<TrainingSessionView, Problem>> PlanAsync(
         IdentityUser user, PlanSessionRequest request, CancellationToken ct) =>
+        PlanAsync(user, request, Provenance.User, ct);
+
+    public Task<Result<TrainingSessionView, Problem>> PlanAssistedAsync(
+        IdentityUser user, PlanSessionRequest request, CancellationToken ct) =>
+        PlanAsync(user, request, Provenance.AiAssisted, ct);
+
+    public Task<Result<TrainingSessionView, Problem>> RevisePlanAsync(
+        IdentityUser user, Guid sessionId, RevisePlanRequest request, CancellationToken ct) =>
+        OwnedAsync(user, sessionId, ct)
+            .BindAsync(session => request.Prescriptions
+                .Traverse(prescription => prescription.ToPrescription())
+                .Bind(prescriptions => Replanned(session, request, prescriptions))
+                .BindAsync(replanned => ReplaceAsync(session, replanned, ct)));
+
+    private Task<Result<TrainingSessionView, Problem>> PlanAsync(
+        IdentityUser user, PlanSessionRequest request, Provenance provenance, CancellationToken ct) =>
         _context.AthleteIdAsync(user, ct)
             .BindAsync(userId => MembershipAsync(userId, request.TrainingProgramId, ct)
                 .BindAsync(membership => request.Prescriptions
                     .Traverse(prescription => prescription.ToPrescription())
-                    .Map(prescriptions => NewPlanned(userId, request, membership, prescriptions)))
+                    .Map(prescriptions => NewPlanned(userId, request, membership, prescriptions, provenance)))
                 .BindAsync(session => AddAsync(session, ct)));
 
     public Task<Result<TrainingSessionView, Problem>> StartUnplannedAsync(
@@ -218,13 +244,14 @@ public sealed class TrainingSessionService : ITrainingSessionService
         Guid userId,
         PlanSessionRequest request,
         ProgramMembership membership,
-        IReadOnlyList<SetPrescription> prescriptions) =>
+        IReadOnlyList<SetPrescription> prescriptions,
+        Provenance provenance) =>
         new(request.PlannedFor, prescriptions)
         {
             TrainingSessionId = NextId(),
             UserId = userId,
             Notes = request.Notes,
-            Provenance = Provenance.User,
+            Provenance = provenance,
             Membership = membership,
             // Planning names no routine; a routine's sessions are started or logged from it.
             Origin = new RoutineOrigin.AdHoc(),
@@ -336,6 +363,13 @@ public sealed class TrainingSessionService : ITrainingSessionService
         session is PlannedTrainingSession planned
             ? Result<TrainingSession, Problem>.Success(planned with { Prescriptions = prescriptions })
             : Refusal(session, "given prescriptions", "planned");
+
+    private static Result<TrainingSession, Problem> Replanned(
+        TrainingSession session, RevisePlanRequest request, IReadOnlyList<SetPrescription> prescriptions) =>
+        session is PlannedTrainingSession planned
+            ? Result<TrainingSession, Problem>.Success(
+                planned with { PlannedFor = request.PlannedFor, Prescriptions = prescriptions, Notes = request.Notes })
+            : Refusal(session, "replanned", "planned");
 
     private static Result<TrainingSession, Problem> Refusal(
         TrainingSession session, string action, string from) =>
@@ -464,7 +498,7 @@ public sealed class TrainingSessionService : ITrainingSessionService
     {
         _context.Sessions.Remove(session);
         await _context.StageProjectionRemovalAsync(session.TrainingSessionId, ct);
-        await _context.StageHealthImportRemovalAsync(session, ct);
+        await _context.StageImportedSessionRemovalAsync(session, ct);
         await _context.SaveChangesAsync(ct);
 
         return Result<Unit, Problem>.Success(Unit.Value);

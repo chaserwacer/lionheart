@@ -15,8 +15,33 @@ struct TrainingScore: Equatable, Sendable {
     let cardio: CardioPart
     let progress: ProgressPart
     let consistency: ConsistencyPart
+    /// The same arithmetic against the targets fitted to the days available; `nil` from a server
+    /// that predates it.
+    let adjusted: AdjustedScore?
+    /// Every target both scores read, with the reasons; `nil` from a server that predates them.
+    let expectations: WeekExpectations?
 
     var isPartial: Bool { !unknown.isEmpty }
+}
+
+/// The training score read against the adjusted expectations — the server's `AdjustedScore`.
+///
+/// A second number beside the score, never in place of it: every volume and session target prorated
+/// to the days not marked non-training, the rest of the arithmetic the same. It equals the score when
+/// nothing was marked.
+struct AdjustedScore: Equatable, Sendable {
+    let value: Int
+    let outOf: Int
+    /// The days of the window not marked non-training.
+    let availableDays: Int
+    let parts: [AdjustedPart]
+}
+
+/// One part's points against the adjusted expectations; `points` is `nil` for a part that is unknown.
+struct AdjustedPart: Equatable, Sendable {
+    let part: ScorePart
+    let points: Double?
+    let outOf: Double
 }
 
 enum ScorePart: Hashable, Sendable {
@@ -195,7 +220,34 @@ extension TrainingScore: Decodable {
                 ?? CardioPart(points: nil, outOf: 0, measure: .unrecognised(""), zones: []),
             progress: container.lenient(ProgressPart.self, "progress") ?? ProgressPart(points: 0, outOf: 0, families: []),
             consistency: container.lenient(ConsistencyPart.self, "consistency")
-                ?? ConsistencyPart(points: 0, outOf: 0, blocks: [], target: 0))
+                ?? ConsistencyPart(points: 0, outOf: 0, blocks: [], target: 0),
+            adjusted: container.lenient(AdjustedScore.self, "adjusted"),
+            expectations: container.lenient(WeekExpectations.self, "expectations"))
+    }
+}
+
+extension AdjustedScore: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        guard let value = container.lenient(Int.self, "value") else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: decoder.codingPath, debugDescription: "An adjusted score needs its value."))
+        }
+        self.init(
+            value: value,
+            outOf: container.lenient("outOf", or: 100),
+            availableDays: container.lenient("availableDays", or: 7),
+            parts: container.lenientList(AdjustedPart.self, "parts"))
+    }
+}
+
+extension AdjustedPart: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: WireKey.self)
+        self.init(
+            part: ScorePart(wire: container.lenient("part", or: "")),
+            points: container.lenient(Double.self, "points"),
+            outOf: container.lenient("outOf", or: 0))
     }
 }
 

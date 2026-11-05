@@ -1,7 +1,9 @@
 using lionheart.Model.Training.Balance;
+using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Training.Balance;
+using lionheart.Services.Training.Expectations;
 using static lionheart.Tests.Balance.ALog;
 
 namespace lionheart.Tests.Balance;
@@ -15,8 +17,13 @@ public class TrainingVolumeAnalysisTests
     private static readonly DateOnly Wednesday = new(2026, 11, 4);
     private static readonly ReadinessNote NoReadiness = new ReadinessNote.NotRead();
 
-    private static TrainingVolume Volume(ALog log, DateOnly? endingOn = null) =>
-        TrainingVolumeAnalysis.Build(log.Build(), endingOn ?? Wednesday, NoReadiness);
+    private static TrainingVolume Volume(ALog log, DateOnly? endingOn = null)
+    {
+        var built = log.Build();
+        var day = endingOn ?? Wednesday;
+        return TrainingVolumeAnalysis.Build(
+            built, day, NoReadiness, WeekExpectationsAnalysis.Families(built, Scoring.EveryDayOpen, EverydayLoad.None, [], day));
+    }
 
     private static FamilyVolume Family(TrainingVolume volume, PatternFamily family) =>
         volume.Families.Single(entry => entry.Family == family);

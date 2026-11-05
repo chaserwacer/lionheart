@@ -371,6 +371,14 @@ progress, never does — and no more than three hours of it are unaccounted for 
 summary is weekdays, weekends and all days, for the range and for the equal span before it, so each
 figure is read against his own previous span rather than a norm.
 
+**Everyday load** (inside the week expectations, the going-in rating and the briefing; design in
+`docs/training-science.md` §6). Read from the same five-minute classification: every low, medium
+and high slot no training session covered, weighted 0.75, 3.5 and 7 MET-minutes a minute — what
+Oura's own daily MET-minute totals over each band's time come to — and judged against the 90
+complete days before it (the ring off no more than three hours). Ring workouts that could be cardio
+sessions count as training here without their heart rate being read; detected housework, games and
+short walks stay everyday load.
+
 ## Tests
 
 `lionheart.Tests/Oura/`. The fixtures under `Oura/Archive/` are **invented payloads in the exact

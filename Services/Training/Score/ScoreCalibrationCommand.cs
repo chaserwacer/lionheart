@@ -1,12 +1,15 @@
 using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
+using lionheart.Model.Training.Load;
 using lionheart.Model.Training.Score;
 using lionheart.Model.Training.Sessions;
 using lionheart.Services.Cardio;
+using lionheart.Services.Training.Load;
 using lionheart.Services.Training.Patterns;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -26,7 +29,7 @@ internal static class ScoreCalibrationCommand
     public const string Verb = "score-calibration";
 
     private const string Usage =
-        "usage: dotnet run -- score-calibration --user <athlete-guid> [--weeks <from> <to> | --sessions <from> <to> | --next <day>]";
+        "usage: dotnet run -- score-calibration --user <athlete-guid> [--weeks <from> <to> | --sessions <from> <to> | --next <day> | --load <from> <to> | --everyday <from> <to>]";
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {
@@ -39,7 +42,13 @@ internal static class ScoreCalibrationCommand
         using var host = Host.CreateApplicationBuilder().AddLionheartDatabase().Build();
         using var scope = host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ModelContext>();
-        var service = new TrainingScoreService(context, new CardioReportService(context), MovementPatternMap.Shipped);
+        var map = MovementPatternMap.Shipped;
+        var cardio = new CardioReportService(context);
+        var goingIn = new GoingIn.GoingInService(
+            context,
+            new Chat.Today.TodayFactsService(context, cardio, map, TimeProvider.System, NullLogger<Chat.Today.TodayFactsService>.Instance),
+            new Balance.TrainingVolumeService(context, map, TimeProvider.System));
+        var service = new TrainingScoreService(context, cardio, map, goingIn, TimeProvider.System);
         var identity = new IdentityUser { Id = userId.ToString() };
 
         if (args is [_, _, _, "--sessions", var from, var to])
@@ -60,6 +69,32 @@ internal static class ScoreCalibrationCommand
                     return 0;
                 },
                 Refuse);
+        }
+
+        if (args is [_, _, _, "--load", var loadFrom, var loadTo])
+        {
+            // Each Sunday, then the Monday after it, so the deload and the advice the next week
+            // would have been offered are printed beside the week they were read from.
+            foreach (var sunday in TrainingScoreService.Sundays(new DayRange(DateOnly.Parse(loadFrom), DateOnly.Parse(loadTo))))
+            {
+                var week = await service.GetScoreAsync(identity, sunday, ct);
+                var next = await service.GetScoreAsync(identity, sunday.AddDays(1), ct);
+                Console.WriteLine(week.Match(
+                    scored => next.Match(following => LoadLine(scored, following), problem => $"{sunday:yyyy-MM-dd} next refused: {problem.Description}"),
+                    problem => $"{sunday:yyyy-MM-dd} refused: {problem.Description}"));
+            }
+            return 0;
+        }
+
+        if (args is [_, _, _, "--everyday", var everydayFrom, var everydayTo])
+        {
+            var range = new DayRange(DateOnly.Parse(everydayFrom), DateOnly.Parse(everydayTo));
+            var everyday = await context.EverydayAsync(userId, range, DateOnly.FromDateTime(DateTime.Today), ct);
+            foreach (var day in everyday.Days) Console.WriteLine(EverydayLine(day));
+            var judged = everyday.Days.Where(day => day.Standing is EverydayStanding.Judged).ToList();
+            Console.WriteLine(
+                $"days {everyday.Days.Count}: above {judged.Count(day => day.IsAbove && !day.IsFarAbove)}, far above {judged.Count(day => day.IsFarAbove)}");
+            return 0;
         }
 
         if (args is [_, _, _, "--weeks", var weeksFrom, var weeksTo])
@@ -152,6 +187,39 @@ internal static class ScoreCalibrationCommand
             ? $"cardio {score.Cardio.Measure}"
             : string.Join("  ", score.Cardio.Zones.Select(zone => $"{zone.Of.Band} {zone.Of.Minutes:0}/{zone.Of.Target.Target:0}")))
         + $"  lift {score.Lifting.Points:0.0} cardio {score.Cardio.Points?.ToString("0.0") ?? "?"} progress {score.Progress.Points:0.0} consistency {score.Consistency.Points:0.0}";
+
+    /// <summary>
+    /// One week's load and the next week's offer: hard sets against the four before, the cardio and
+    /// running ramps, far-above everyday days, then the Monday's deload and advice.
+    /// </summary>
+    private static string LoadLine(TrainingScore week, TrainingScore monday)
+    {
+        var load = week.Expectations.Load;
+        var cardio = load.Cardio switch
+        {
+            CardioLoad.Read read => $"cardio {Ratio(read.Minutes.Ratio)} {read.Minutes.Standing}  run {Ratio(read.RunningMeters.Ratio, 1609.344)}mi {read.RunningMeters.Standing}",
+            _ => "cardio unread",
+        };
+        var deload = monday.Expectations.Load.Lifting.Deload switch
+        {
+            Deload.Suggested suggested => $"DELOAD after {suggested.BuildingWeeks}",
+            var other => $"building {other.BuildingWeeks}",
+        };
+        return $"{week.Window.To:yyyy-MM-dd} sets {Ratio(load.Lifting.HardSets)} {load.Lifting.Ramp}  {cardio}"
+               + $"  far-above days {load.Everyday.FarAboveDays}  next: {deload} | {monday.Expectations.Advice.Headline}";
+    }
+
+    private static string Ratio(LoadRatio ratio, double unit = 1) => ratio switch
+    {
+        LoadRatio.Compared compared => $"{compared.Acute / unit:0.#}/{compared.Chronic / unit:0.#}={compared.Ratio:0.00}",
+        _ => $"{ratio.Acute / unit:0.#}/-",
+    };
+
+    private static string EverydayLine(EverydayDay day) =>
+        $"{day.Day:yyyy-MM-dd} {day.Day.DayOfWeek,-9} {day.MetMinutes,6:0} MET-min  "
+        + (day.Standing is EverydayStanding.Judged judged
+            ? $"usual {judged.Usual,5:0} high {judged.High,5:0}  {day.Ratio:0.00}x  {judged.Band}"
+            : "unjudged");
 
     private static int DescribeSessions(Model.Cardio.CardioReport report)
     {

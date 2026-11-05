@@ -32,7 +32,11 @@ public sealed record TrainingVolume(
 /// <see cref="VolumeTargets.AccessoryShare"/> of the day's hard sets — so face pulls finishing a push
 /// day do not make it a pull day, and an arms day trains both families it works.
 /// </param>
-public sealed record FamilyVolume(PatternFamily Family, int HardSets, int Target, DateOnly? LastTrained);
+public sealed record FamilyVolume(PatternFamily Family, int HardSets, int Target, DateOnly? LastTrained)
+{
+    /// <summary>Whether an active injury pauses the family, so its target of nothing is on purpose.</summary>
+    public bool Paused { get; init; }
+}
 
 /// <summary>One movement pattern's hard sets over the window.</summary>
 /// <param name="Target">Absent for isolation and other work, which is counted toward muscles rather than judged as a pattern.</param>

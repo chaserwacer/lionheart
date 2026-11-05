@@ -27,7 +27,7 @@ struct WeekBalanceSections: View {
             ForEach(week.volume.families) { family in
                 VolumeRow(
                     label: family.family.name, sets: Double(family.hardSets), target: family.target,
-                    lastTrained: family.lastTrained)
+                    lastTrained: family.lastTrained, isPaused: family.isPaused)
             }
             ForEach(week.volume.patterns.filter { $0.target != nil }) { pattern in
                 LabeledContent(pattern.pattern.name) {
@@ -42,7 +42,7 @@ struct WeekBalanceSections: View {
         } header: {
             Text("Hard sets")
         } footer: {
-            Text("Working, drop and failure sets over the seven days to \(Formatting.date(week.volume.window.to)); warm-ups never count. Target 8 a family, 4 a compound pattern.")
+            Text("Working, drop and failure sets over the seven days to \(Formatting.date(week.volume.window.to)); warm-ups never count. Each family against the week's expectation, 4 a compound pattern.")
         }
         Section {
             TrainingScoreSummary(score: week.score)

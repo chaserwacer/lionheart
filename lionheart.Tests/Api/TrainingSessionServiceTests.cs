@@ -289,6 +289,49 @@ public class TrainingSessionServiceTests : IDisposable
         await AssertUnchangedAsync(sessionId, state);
     }
 
+    // ---- Replanning, and a plan the chat proposed ----
+
+    [Fact]
+    public async Task Replanning_restates_the_day_prescriptions_and_notes_and_keeps_who_planned_it()
+    {
+        var planned = await SessionInAsync(Lifecycle.Planned);
+
+        var replanned = Assert.IsType<PlannedSessionView>(ResultAssert.Succeeded(await _athletes.SessionsAsync(service =>
+            service.RevisePlanAsync(
+                _athletes.Owner,
+                planned,
+                new RevisePlanRequest(PlannedFor.AddDays(2), [new FreeformPrescriptionCommand("easy run")], "moved"),
+                default))));
+
+        Assert.Equal((planned, PlannedFor.AddDays(2), "moved", Provenance.User),
+            (replanned.TrainingSessionId, replanned.PlannedFor, replanned.Notes, replanned.Provenance));
+        Assert.Equal("easy run", Assert.IsType<FreeformPrescription>(Assert.Single(replanned.Prescriptions)).Text);
+    }
+
+    [Theory]
+    [InlineData(Lifecycle.Active)]
+    [InlineData(Lifecycle.Completed)]
+    [InlineData(Lifecycle.Skipped)]
+    public async Task Only_a_planned_session_can_be_replanned(string state)
+    {
+        var sessionId = await SessionInAsync(state);
+
+        var refusal = ResultAssert.Failed(await _athletes.SessionsAsync(service =>
+            service.RevisePlanAsync(_athletes.Owner, sessionId, new RevisePlanRequest(PlannedFor, [], ""), default)));
+
+        Assert.IsType<Problem.Conflict>(refusal);
+        await AssertUnchangedAsync(sessionId, state);
+    }
+
+    [Fact]
+    public async Task A_plan_the_chat_proposed_is_stamped_as_assisted()
+    {
+        var planned = ResultAssert.Succeeded(await _athletes.SessionsAsync(service => service.PlanAssistedAsync(
+            _athletes.Owner, new PlanSessionRequest(PlannedFor, [new FreeformPrescriptionCommand("easy run")], "", null), default)));
+
+        Assert.Equal(Provenance.AiAssisted, (await LoadAsync(planned.TrainingSessionId)).Provenance);
+    }
+
     // ---- Notes ----
 
     [Theory]

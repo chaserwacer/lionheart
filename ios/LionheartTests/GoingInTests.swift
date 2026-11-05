@@ -21,7 +21,7 @@ struct GoingInTests {
          "sleep":{"score":{"$type":"notScored"},"lastNight":null,
            "nightBefore":{"day":"2026-03-09","totalSleepSeconds":25200,"efficiency":88,"sleepScore":73}},
          "load":{"score":{"$type":"scored","score":64,"share":0.3333},"hardSets":16,"highIntensityMinutes":null,
-           "zoneTwoMinutes":null,"hardSetsLast7":20,"hardSetsWeeklyMean28":14.25},
+           "zoneTwoMinutes":null,"hardSetsLast7":20,"hardSetsChronic":14.25},
          "wellness":{"score":{"$type":"notScored"},"today":null},
          "injuries":[{"injuryId":"\(knee)","name":"Knee","lastPain":3,
            "movementDataIds":["\(AWorkout.squat.uuidString)"]}],

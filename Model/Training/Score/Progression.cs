@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using lionheart.Model.Training.Load;
+
 namespace lionheart.Model.Training.Score;
 
 /// <summary>
@@ -11,7 +14,38 @@ namespace lionheart.Model.Training.Score;
 /// The mean weekly figure of the four seven-day blocks before the window, over the blocks that could
 /// be read; absent when none could, and the target is then the committed standard.
 /// </param>
-public sealed record WeeklyTarget(double Target, double Committed, double Floor, double? Chronic);
+public sealed record WeeklyTarget(double Target, double Committed, double Floor, double? Chronic)
+{
+    /// <summary>How the target came from the chronic figure: the ramp, or held or lowered after a spike.</summary>
+    public TargetGrowth Growth { get; init; } = new TargetGrowth.Ramped();
+}
+
+/// <summary>
+/// Whether a target grew by the ramp, or was held back because the last week ran far above the
+/// four before it.
+/// </summary>
+/// <remarks>
+/// A spike lifts the chronic figure the target grows from, so without this the week after a spike
+/// would be asked for more on the strength of the spike itself. Held and lowered are two cases
+/// because they answer two sizes of spike, and the reason says which.
+/// </remarks>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(Ramped), "ramped")]
+[JsonDerivedType(typeof(HeldAfterSteepWeek), "heldAfterSteepWeek")]
+[JsonDerivedType(typeof(LoweredAfterSpike), "loweredAfterSpike")]
+public abstract record TargetGrowth
+{
+    private protected TargetGrowth() { }
+
+    /// <summary>The chronic figure plus the ramp, between the floor and the committed standard.</summary>
+    public sealed record Ramped : TargetGrowth;
+
+    /// <summary>The last week ran 1.3 to 1.5 times the four before it: last week's own target, not grown again.</summary>
+    public sealed record HeldAfterSteepWeek(LoadRatio.Compared LastWeek) : TargetGrowth;
+
+    /// <summary>The last week ran 1.5 times the four before it or more: back to the usual of those four, without the ramp.</summary>
+    public sealed record LoweredAfterSpike(LoadRatio.Compared LastWeek) : TargetGrowth;
+}
 
 /// <summary>A measurement's standard: the committed figure, the floor, and the step targets round up to.</summary>
 public sealed record Standard(double Committed, double Floor, double Step);
@@ -47,18 +81,71 @@ public static class Progression
     /// <summary>The share of a measurement's points read against this week's target; the rest against the committed standard.</summary>
     public const double TargetShare = 0.5;
 
-    /// <summary>This week's target from the weekly figures of the blocks before, the unread ones absent.</summary>
+    /// <summary>
+    /// This week's target from the weekly figures of the blocks before, newest first, the unread
+    /// ones absent: the first four are the chronic load; a fifth lets the newest be judged against
+    /// the four before it, so a spike last week is not built on.
+    /// </summary>
     public static WeeklyTarget Of(Standard standard, IReadOnlyList<double?> before)
     {
-        var read = before.OfType<double>().ToList();
+        var read = before.Take(ChronicWeeks).OfType<double>().ToList();
         if (read.Count is 0) return new WeeklyTarget(standard.Committed, standard.Committed, standard.Floor, null);
 
         var chronic = read.Average();
-        // The epsilon absorbs floating-point excess: 100 × 1.1 is 110.00000000000001, which would
-        // otherwise round up a whole step to 115.
-        var grown = Math.Ceiling(chronic * (1 + Ramp) / standard.Step - 1e-9) * standard.Step;
-        return new WeeklyTarget(Math.Clamp(grown, standard.Floor, standard.Committed), standard.Committed, standard.Floor, chronic);
+        var ramped = Bounded(Grown(chronic, standard), standard);
+        var target = new WeeklyTarget(ramped, standard.Committed, standard.Floor, chronic);
+        if (before is not [{ } lastWeek, ..]
+            || LoadRatio.Of(lastWeek, before.Skip(1).Take(ChronicWeeks)) is not LoadRatio.Compared ratio)
+            return target;
+
+        return ratio.Standing(SpikeLeastIncrease(standard)) switch
+        {
+            RampStanding.Steep when Bounded(Grown(ratio.Chronic, standard), standard) is var held && held < ramped =>
+                target with { Target = held, Growth = new TargetGrowth.HeldAfterSteepWeek(ratio) },
+            RampStanding.Spike when Bounded(Stepped(ratio.Chronic, standard), standard) is var lowered && lowered < ramped =>
+                target with { Target = lowered, Growth = new TargetGrowth.LoweredAfterSpike(ratio) },
+            _ => target,
+        };
     }
+
+    /// <summary>
+    /// The least rise in a week that can read as a spike: half the floor — two hard sets, half an
+    /// hour of zone 2, five quality minutes — so a small week rising to a slightly less small one
+    /// is noise, not load.
+    /// </summary>
+    public static double SpikeLeastIncrease(Standard standard) => standard.Floor / 2;
+
+    private static double Grown(double chronic, Standard standard) => Stepped(chronic * (1 + Ramp), standard);
+
+    // The epsilon absorbs floating-point excess: 100 × 1.1 is 110.00000000000001, which would
+    // otherwise round up a whole step to 115.
+    private static double Stepped(double figure, Standard standard) =>
+        Math.Ceiling(figure / standard.Step - 1e-9) * standard.Step;
+
+    private static double Bounded(double target, Standard standard) => Math.Clamp(target, standard.Floor, standard.Committed);
+
+    /// <summary>A standard that does not grow: its committed figure is the target every week.</summary>
+    public static WeeklyTarget Fixed(Standard standard) =>
+        new(standard.Committed, standard.Committed, standard.Floor, null);
+
+    /// <summary>
+    /// A target fitted to the days of the week the athlete had: every figure scaled by the share of
+    /// the seven days available and rounded up to its step, so a short week still asks for its
+    /// share and never less. The chronic figure is what it grew from, and stays.
+    /// </summary>
+    /// <param name="availableDays">Whole days, less half a day for each day of everyday load far above his usual.</param>
+    public static WeeklyTarget Prorated(WeeklyTarget target, Standard standard, double availableDays)
+    {
+        // Max, because a whole week marked off rounds -1e-9 up to negative zero, which prints "-0".
+        double Fit(double figure) =>
+            Math.Max(0, Math.Ceiling(figure * availableDays / WeekDays / standard.Step - 1e-9) * standard.Step);
+
+        return availableDays >= WeekDays
+            ? target
+            : target with { Target = Fit(target.Target), Committed = Fit(target.Committed), Floor = Fit(target.Floor) };
+    }
+
+    public const int WeekDays = 7;
 
     /// <summary>
     /// A measurement's share of its points: half on this week's target, half on the committed

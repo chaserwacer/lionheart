@@ -49,7 +49,7 @@ public class TrainingScoreAnalysisTests
     [Fact]
     public void A_week_meeting_every_target_with_new_bests_scores_a_hundred()
     {
-        var score = TrainingScoreAnalysis.Score(AnExcellentMonth().Build(), [], Every(FullCardio), Sunday);
+        var score = Scoring.Score(AnExcellentMonth().Build(), [], Every(FullCardio), Sunday);
 
         Assert.Equal(100, score.Value);
         Assert.Empty(score.Unknown);
@@ -62,7 +62,7 @@ public class TrainingScoreAnalysisTests
         var log = Catalogue.WithSession(Sunday, Sets(8, Bench)).WithSession(Sunday.AddDays(-2), Sets(2, Squat));
         var someCardio = new CardioMeasure.Measured(ScoreRules.Zone2.Committed / 4.0, 0, 0, 1, 7);
 
-        var score = TrainingScoreAnalysis.Score(log.Build(), [], Every(someCardio), Sunday);
+        var score = Scoring.Score(log.Build(), [], Every(someCardio), Sunday);
 
         // Nothing lifted before, so every family's target is the floor of four.
         var third = ScoreRules.LiftingPoints / 3.0;
@@ -88,7 +88,7 @@ public class TrainingScoreAnalysisTests
     [Fact]
     public void Unknown_cardio_has_no_bands_to_score()
     {
-        var score = TrainingScoreAnalysis.Score(Catalogue.WithSession(Sunday, Sets(4, Bench)).Build(), [], Every(NoHeartRate), Sunday);
+        var score = Scoring.Score(Catalogue.WithSession(Sunday, Sets(4, Bench)).Build(), [], Every(NoHeartRate), Sunday);
 
         Assert.Empty(score.Cardio.Zones);
     }
@@ -98,7 +98,7 @@ public class TrainingScoreAnalysisTests
     {
         var log = Catalogue.WithSession(Sunday, Sets(24, Bench));
 
-        var lifting = TrainingScoreAnalysis.Score(log.Build(), [], Every(FullCardio), Sunday).Lifting;
+        var lifting = Scoring.Score(log.Build(), [], Every(FullCardio), Sunday).Lifting;
 
         Assert.Equal(ScoreRules.LiftingPoints / 3.0, lifting.Points, precision: 6);
     }
@@ -106,7 +106,7 @@ public class TrainingScoreAnalysisTests
     [Fact]
     public void Unknown_cardio_is_named_and_its_points_are_out_of_reach_rather_than_zeroed()
     {
-        var score = TrainingScoreAnalysis.Score(Catalogue.WithSession(Sunday, Sets(4, Bench)).Build(), [], Every(NoHeartRate), Sunday);
+        var score = Scoring.Score(Catalogue.WithSession(Sunday, Sets(4, Bench)).Build(), [], Every(NoHeartRate), Sunday);
 
         Assert.Null(score.Cardio.Points);
         Assert.Equal([ScorePart.Cardio], score.Unknown);
@@ -118,8 +118,8 @@ public class TrainingScoreAnalysisTests
     [Fact]
     public void Taking_the_ring_off_never_scores_more_than_the_same_week_with_no_cardio_measured()
     {
-        var worn = TrainingScoreAnalysis.Score(AnExcellentMonth().Build(), [], Every(NoCardio), Sunday);
-        var off = TrainingScoreAnalysis.Score(AnExcellentMonth().Build(), [], Every(NoHeartRate), Sunday);
+        var worn = Scoring.Score(AnExcellentMonth().Build(), [], Every(NoCardio), Sunday);
+        var off = Scoring.Score(AnExcellentMonth().Build(), [], Every(NoHeartRate), Sunday);
 
         Assert.Equal(worn.Value, off.Value);
         Assert.Equal((100, 75), (worn.OutOf, off.OutOf));
@@ -138,7 +138,7 @@ public class TrainingScoreAnalysisTests
                 .WithSession(Sunday.AddDays(-week - 5), Sets(8, Squat, 300, 5));
         }
 
-        var score = TrainingScoreAnalysis.Score(held.Build(), [], Every(FullCardio), Sunday);
+        var score = Scoring.Score(held.Build(), [], Every(FullCardio), Sunday);
 
         Assert.Equal(80 + ScoreRules.ProgressPoints * ScoreRules.HeldShare, score.Value);
         Assert.True(score.Value < 90);
@@ -157,7 +157,7 @@ public class TrainingScoreAnalysisTests
     [Fact]
     public void Zero_measured_cardio_is_zero_points_not_unknown()
     {
-        var score = TrainingScoreAnalysis.Score(AnExcellentMonth().Build(), [], Every(NoCardio), Sunday);
+        var score = Scoring.Score(AnExcellentMonth().Build(), [], Every(NoCardio), Sunday);
 
         Assert.Equal(0, score.Cardio.Points);
         Assert.Equal(75, score.Value);
@@ -214,7 +214,7 @@ public class TrainingScoreAnalysisTests
         var start = new DateTimeOffset(2026, 11, 5, 18, 0, 0, TimeSpan.FromHours(-5));
         var run = new CardioSession(
             new CardioSessionSource.LoggedSession(Guid.NewGuid(), true, true), start, start.AddMinutes(40), 8000,
-            new SessionHeartRate.Recorded(150, 175, 1, new ZoneMinutes(0, 0, 30, 10, 0, 0), HeartRateSource.AppleHealth));
+            new SessionHeartRate.Recorded(150, 175, 1, new ZoneMinutes(0, 0, 30, 10, 0, 0), HeartRateSource.RecordingApp));
 
         var measured = Assert.IsType<CardioMeasure.Measured>(CardioMeasures.Of([run], [], MaxHeartRate.Estimate(22, null), heartRateDays: 0));
 
@@ -227,7 +227,7 @@ public class TrainingScoreAnalysisTests
         var start = new DateTimeOffset(2026, 11, 5, 18, 0, 0, TimeSpan.FromHours(-5));
         var run = new CardioSession(
             new CardioSessionSource.LoggedSession(Guid.NewGuid(), true, true), start, start.AddMinutes(30), 6000,
-            new SessionHeartRate.Recorded(150, 175, 1, new ZoneMinutes(0, 0, 30, 0, 0, 0), HeartRateSource.AppleHealth));
+            new SessionHeartRate.Recorded(150, 175, 1, new ZoneMinutes(0, 0, 30, 0, 0, 0), HeartRateSource.RecordingApp));
         var walk = new CardioSession(
             new CardioSessionSource.RingWorkout(Guid.NewGuid(), "walking", WorkoutCategory.Walk, RingEntry.Detected),
             start.AddDays(1), start.AddDays(1).AddMinutes(60), null, new SessionHeartRate.NotRecorded());
@@ -283,12 +283,12 @@ public class TrainingScoreAnalysisTests
         var window = new DayRange(Sunday.AddDays(-6), Sunday);
         var comeback = new CardioMeasure.Measured(ScoreRules.Zone2.Floor, ScoreRules.Quality.Floor, 1, 2, 7);
 
-        var score = TrainingScoreAnalysis.Score(log.Build(), [], range => range == window ? comeback : NoCardio, Sunday);
+        var score = Scoring.Score(log.Build(), [], range => range == window ? comeback : NoCardio, Sunday);
 
         Assert.All(score.Lifting.Families, family => Assert.Equal(4, family.Of.Target.Target));
         Assert.All(score.Cardio.Zones, zone => Assert.Equal(zone.Of.Minutes, zone.Of.Target.Target));
         Assert.InRange(score.Value, 50, 75);
-        Assert.Equal(100, TrainingScoreAnalysis.Score(AnExcellentMonth().Build(), [], Every(FullCardio), Sunday).Value);
+        Assert.Equal(100, Scoring.Score(AnExcellentMonth().Build(), [], Every(FullCardio), Sunday).Value);
     }
 
     [Fact]
@@ -297,7 +297,7 @@ public class TrainingScoreAnalysisTests
         var log = Catalogue;
         foreach (var week in new[] { 7, 14, 21, 28 }) log = log.WithSession(Sunday.AddDays(-week), Sets(5, Bench));
 
-        var push = TrainingScoreAnalysis.Score(log.Build(), [], Every(FullCardio), Sunday).Lifting.Families[0].Of;
+        var push = Scoring.Score(log.Build(), [], Every(FullCardio), Sunday).Lifting.Families[0].Of;
 
         Assert.Equal((6d, (double?)5), (push.Target.Target, push.Target.Chronic));
     }
@@ -307,7 +307,7 @@ public class TrainingScoreAnalysisTests
     {
         var log = Catalogue.WithWalk(Sunday).WithWalk(Sunday.AddDays(-1)).WithSession(Sunday.AddDays(-2), Sets(3, Bench));
 
-        var score = TrainingScoreAnalysis.Score(log.Build(), [], Every(FullCardio), Sunday);
+        var score = Scoring.Score(log.Build(), [], Every(FullCardio), Sunday);
 
         Assert.Equal(1, score.Consistency.Blocks[0].Of.Sessions);
     }

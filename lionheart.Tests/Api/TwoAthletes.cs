@@ -7,6 +7,7 @@ using lionheart.Services.Cardio;
 using lionheart.Services.Health.Import;
 using lionheart.Services.Health.Recordings;
 using lionheart.Services.Contexts;
+using lionheart.Services.Training.Availability;
 using lionheart.Services.Training.Balance;
 using lionheart.Services.Training.Focus;
 using lionheart.Services.Training.Patterns;
@@ -103,6 +104,12 @@ public sealed class TwoAthletes : IDisposable
         return await act(new FocusPinService(context, clock, MovementPatternMap.Shipped));
     }
 
+    public async Task<T> NonTrainingDaysAsync<T>(TimeProvider clock, Func<INonTrainingDayService, Task<T>> act)
+    {
+        using var context = CreateContext();
+        return await act(new NonTrainingDayService(context, clock));
+    }
+
     public async Task<T> ContextsAsync<T>(Func<IContextService, Task<T>> act)
     {
         using var context = CreateContext();
@@ -136,7 +143,7 @@ public sealed class TwoAthletes : IDisposable
     public async Task<T> VolumeAsync<T>(Func<ITrainingVolumeService, Task<T>> act)
     {
         using var context = CreateContext();
-        return await act(new TrainingVolumeService(context, MovementPatternMap.Shipped));
+        return await act(new TrainingVolumeService(context, MovementPatternMap.Shipped, TimeProvider.System));
     }
 
     public async Task<T> BodyCompositionAsync<T>(Func<IBodyCompositionService, Task<T>> act)

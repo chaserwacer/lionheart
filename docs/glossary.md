@@ -13,7 +13,7 @@ first and then in the code.
 | **Active session** | A session in progress: it has a start instant and the sets logged so far. |
 | **Completed session** | A session that happened: its sets, the period it occupied, the effort reported, and its decoration. |
 | **Skipped session** | A planned session the athlete did not do. Terminal, and kept — the skip is data. |
-| **Set entry** | One performed set. Per-modality shapes: lift, distance-time, trail run, endurance (a ride, hike, walk or indoor run, by its activity), freeform. |
+| **Set entry** | One performed set. Per-modality shapes: lift, distance-time, trail run, endurance (a ride, hike, walk, indoor run, e-bike ride or paddle, by its activity), freeform. |
 | **Freeform set** | A set the parser could not break down. Keeps its raw words and its facets, and can be upgraded later. The words are never lost. |
 | **Prescription** | A target set on a planned session — the intended reps, weight, distance or duration. |
 | **Movement data** | The identity of a thing you do: a movement base plus equipment plus a modifier. Records hang off it. |
@@ -25,6 +25,7 @@ first and then in the code.
 | **Not-performed row** | A row the set log holds that the athlete did not lift as written — a weight the spreadsheet computed, a placeholder, a row his own note contradicts. Left out of the session and named in its notes; the decisions file listing them stays with the spreadsheets, outside this repository. |
 | **Rpe** | Rate of perceived exertion for a set. Rated or unrated — never a nullable number. |
 | **Perceived effort ratings** | The athlete's own read on a session, as a cluster, not loose fields. |
+| **Effort scale** | One of the four things a session's effort is rated on — accumulated fatigue, difficulty, engagement, outside factors — each 1 to 5 or left unrated. |
 | **Training program** | A block of training with a title and dates. Planned, active or completed. |
 | **Membership** | Whether a session stands alone or belongs to a program. A fill-state, not a nullable key. |
 | **Provenance** | Whether a record came from the athlete or was assisted by the model. Orthogonal to lifecycle. |
@@ -49,6 +50,7 @@ first and then in the code.
 | **Estimated one-rep max** | A single rep implied by a set, by Epley. Derived from the stored weight and reps on the way out, never stored. |
 | **Established records** | Every record a movement or a window of time set, whatever became of each since — standing, beaten or withdrawn. What marks the sets that set a record. |
 | **Focus pin** | A movement the athlete has pinned to emphasise over a horizon, at a number of sessions a week, perhaps toward a target. Pinned or unpinned; an unpinned pin is kept as history. |
+| **Block** | A pin's horizon read as its weeks (`BlockWeeks`): each week gone by with the movement's best estimated single in it, this week so far, and the weeks still ahead. History's hero draws it as leaning bars. |
 | **Focus terms** | What a focus pin asks for: its horizon, its sessions a week and its target. Revised whole, and only while the pin is pinned. |
 | **Focus horizon** | The days a focus pin covers, first and last included. Whether it has begun or passed is read against today, never stored. |
 | **Focus target** | No target, or a lift target — a weight in its unit for a rep count. Whether it was met is read against the training log, never stored. |
@@ -64,26 +66,49 @@ first and then in the code.
 | **Weekly volume** | Hard sets over the seven days ending on a day, by family, pattern and muscle group, each against a weekly target, with the last day each was trained. |
 | **Training balance** | Where the week's training stands across the body: weekly volume and up next, the priorities, and the training score. The name of the folders, store and routes that read them. |
 | **Up next** | The family or families trained longest ago, named together when last trained the same day, with the day's readiness beside it where it is unusual. A recommendation, never an instruction. |
-| **Going-in rating** | Lionheart's own 0–100 rating of how ready the athlete is for a session now, his usual day near 75: the weighted mean of five parts — Oura's readiness, last night's HRV and lowest heart rate against his nights, the last two nights' sleep scores, the load since yesterday, and wellness rated today — over those that could be read. Not Oura's readiness, which is one of its parts. |
+| **Going-in rating** | Lionheart's own 0–100 rating of how ready the athlete is for a session now, his usual day near 75: the weighted mean of five parts — Oura's readiness, last night's HRV and lowest heart rate against his nights, the last two nights' sleep scores, the load since yesterday (training, the week's load ratio, and everyday load over his usual), and wellness rated today — over those that could be read. Not Oura's readiness, which is one of its parts. |
 | **Going-in state** | The going-in rating with its parts and their figures, and what is worth knowing before the first set: active injuries and the movements they touch, today's plans, the muscles trained since yesterday. |
 | **Ring entry** | How a ring workout came to be on the record: `entered` by the athlete, or `detected` — proposed by the ring from movement and approved. A detected workout's name is a guess. |
 | **Declined workout** | A ring workout that needed its heart rate to show training — a detected one, or one nobody named — and did not: listed in the cardio report with that heart rate, and counted nowhere. |
 | **Training evidence** | The rule that admits a ring's guess as a cardio session: half its time read, 20 minutes at zone 2 or above or 10 at zone 3 or above, and zone 2 or above for half the time read. A game or dance the ring guessed is never admitted. |
 | **Work bout** | A stretch of a session with heart rate held at zone 4 or above (80 % of maximum) for two minutes or more; a dip of half a minute does not end it, a gap of a minute in the samples does. |
 | **Quality minutes** | The score's intensity band: work-bout minutes in an endurance session (run, ride, row, machine) holding at least ten of them. Walks, hikes and games earn none. |
-| **Weekly target** | What a volume measurement is read against this week: the mean of the four weeks before plus 10 %, between a floor and the committed standard. Half its points are paid against it, half against the standard. |
+| **Weekly target** | What a volume measurement is read against this week: the mean of the four weeks before plus 10 %, between a floor and the committed standard — held at last week's own target after a steep week, or lowered to the usual of the four before it after a spike. Half its points are paid against it, half against the standard. |
+| **Load ratio** | A week's figure over the mean weekly figure of the four seven-day blocks before it (acute:chronic, uncoupled): the one definition of load the targets, the going-in rating, the ramps and the deload all read. |
+| **Ramp standing** | How steeply a week rose over the four before it: within, steep (1.3 times or more), a spike (1.5 times or more, or a real amount after four weeks of nothing), or unjudged — nothing before, or too little for a rise to mean anything. A rise under the measure's noise (six hard sets, thirty minutes, three miles) is within. |
+| **Building week** | A week that met every family's target and held at least 0.9 times the hard sets of the four weeks before it: load kept up, not a lighter week. |
+| **Deload** | A lighter week — 60 % of each family's target, the same weights — suggested for a calendar week after four building weeks of a steep build or climbing fatigue, or six of any. Only ever suggested, never applied: it lowers the week's adjusted targets so following it reads as the plan, and a week within 70 % of his usual hard sets reads as following it. |
+| **Everyday load** | The movement the ring caught outside training — Oura's low, medium and high slots no session covered, in MET-minutes — judged against his own last 90 complete days. Fatigue, never training credit. |
+| **Far above usual** | An everyday-load day over his 90th percentile by a fifth: the band that leans the next session easier and, two or more in a week, eases the week's adjusted targets by half a day each. A day merely over the 90th percentile is above usual and costs the going-in rating a little. |
+| **Weekly advice** | The one piece of advice a calendar week carries — manage an injury, take a deload, hold a steep ramp, ease in after big everyday days, more cardio or more lifting, change a stalled priority, or keep building — chosen by fixed rules from the weeks before its Monday, so it reads the same all week. |
+| **Managed injury** | An injury open on the day — dated on or before it and not yet resolved — as the week manages around it: the families it pauses (named on it, or the families of movements its check-ins name), the movements to leave out, and its lead-up. |
+| **Lead-up** | A family's weekly hard sets in the four weeks before an injury against the eight before those: the trend that preceded it. |
 | **Committed standard** | The figure a committed week reaches — 8 hard sets a family, 150 zone-2 minutes, 40 quality minutes — which the whole of a measurement's points still needs. |
+| **Week expectations** | What the seven days ending on a day ask, measurement by measurement — sessions, hard sets per family, zone-2 and quality minutes, each priority lift's next top set — with what was done, the raw target, the adjusted target and the reasons, beside the week's load, the injuries it manages and its weekly advice. The one answer the score, the adjusted score, weekly volume, next sessions and the chat read. |
+| **Raw target** | A measurement's weekly target as the training score reads it, whatever days were available. |
+| **Adjusted target** | The raw target prorated to the window's available days — less half a day for each day far above his usual activity, once there are two — and rounded up to its step; then a suggested deload's share, or nothing for a family an injury pauses. The raw target itself when none of that applies. |
+| **Adjusted score** | The training score's arithmetic read against the adjusted targets, shown beside the score so a constrained week reads for what its days allowed. Equal to the score when nothing was marked off. |
+| **Non-training day** | A day the athlete has said he will not train — travel, a busy day — once, or its weekday every week from it, optionally until a day, with an optional note. |
+| **Availability** | Each day as training reads it: open, planned (a session is planned on it, so it is spoken for), trained (a session was completed on it) or non-training. A day trained is available whatever marked it; otherwise a date marked off beats a planned session, which beats a weekday marked off every week. |
+| **Available days** | The days of a window not marked non-training, a day trained always among them: what the adjusted targets prorate to. |
+| **Priority aim** | A priority lift's next top set — a step on last time's best set, a hold of it, or a first top set to establish one — with the pin's frequency and the reasons. |
+| **Hold** | A priority aim at last time's set again, because the going-in rating, a hard last top set or session, or the week's fatigue asked for it. |
 | **Next sessions** | What to train next: the next lift (the family due, its priority's next top set), the next cardio (zone 2 minutes or an interval structure), and which first, each with its reasons. |
 | **Score partition** | The training score drawn as three rows on one 100-point axis — the score, its parts, every measurement — each cell as wide as the points it can earn and filled with what it earned. |
 | **Heartbeats per mile** | A run's average heart rate times its minutes per kilometre: what a kilometre cost the heart. Roughly level across easy and steady paces, so it falls as the aerobic base grows. |
 | **Training score** | Lionheart's own 0–100 for the seven days ending on a day: lifting volume, cardio, priority progress and consistency, each read as measurements against targets. Not Oura's activity score. A part with no data is unknown: named, and its points out of reach rather than counted as zero. |
-| **Session source** | Where a session came from: the athlete's log — entered in Lionheart, or imported from his own logs — or Apple Health, with the workout's Health id and the app that recorded it. Orthogonal to provenance. |
+| **Session source** | Where a session came from: the athlete's log — entered in Lionheart, or imported from his own logs — Apple Health, with the workout's Health id and the app that recorded it, or the Strava archive, with the activity's Strava id. Orthogonal to provenance. |
+| **Strava archive** | The folder Strava's "Download your data" export unzips to: `activities.csv`, one summary row per activity, and `activities/`, each activity's GPX or FIT file. What `import-strava` reads; its account and social files are not training and stay out. |
+| **Strava activity** | One activity of the Strava archive: its summary row and, where it has one, its file. It becomes a session of its own, or is a session the log already holds. |
+| **Deleted Strava activity** | A Strava activity whose imported session the athlete deleted, remembered so no later run of the import brings it back. |
+| **E-bike ride** | A ride on an electric bike: training, and never a riding record, since the motor covered part of the distance. |
+| **Paddle** | A kayak, canoe or board outing: training, competing on no record. |
 | **Health workout** | A workout another app wrote to Apple Health, read by the phone and offered to the server, which decides whether it becomes training. |
-| **Workout recording** | What the app that recorded an imported run captured beyond the session: its route and its own heart rate. Kept beside the session, never in it. |
-| **Recorded run** | A run imported from Apple Health read for its page: the session's figures, the route's moving time, descent and splits, and the heart rate labelled with whose it is. |
+| **Workout recording** | What the app that recorded an imported run captured beyond the session: its route, its own heart rate and its other metrics, from Apple Health or the Strava archive's file. Kept beside the session, never in it; a later import fills a part it holds none of and never replaces one. |
+| **Recorded run** | A run imported from Apple Health or the Strava archive read for its page: the session's figures, the route's moving time, descent and splits, and the heart rate labelled with whose it is. |
 | **Split** | One kilometre or mile of a recorded run, or what is left after the last whole one: its time, moving pace, climb, descent and average heart rate. |
 | **Moving time** | A route's time in motion: its fix-to-fix legs faster than a slow shuffle. Stops, and a paused recording, are left out. |
-| **Heart-rate source** | Whose samples a session's heart rate was read from: the ring's all-day series, or the recording app's own, through Apple Health. |
+| **Heart-rate source** | Whose samples a session's heart rate was read from: the ring's all-day series, or the recording app's own, through Apple Health or from the Strava archive. |
 | **Health sync** | Offering the runs Apple Health gained since the kept anchor to the server, a page at a time; the anchor moves on once a page is answered. |
 | **Health measure** | A figure one of Apple's own devices measured and wrote to Health — the watch's VO2max, resting heart rate, HRV (SDNN), respiratory rate and walking heart rate; the phone's walking speed, step length, double support, asymmetry, steadiness and six-minute walk — kept as one day's mean, extremes and count per figure and device. Another app's copy in Health is not one. |
 | **Measuring device** | Which of Apple's devices took a health measure: the Apple Watch or the iPhone. A day measured by both keeps both. |
@@ -132,7 +157,7 @@ first and then in the code.
 | **Percent of reference** | A segment's mass as a percentage of the analyser's own reference for the athlete's height and weight. The device's band, not a clinical norm. |
 | **Segmental balance** | Left against right for the arms and legs, and the arm–trunk–leg pattern, from the segmental lean panel. |
 | **System load** | Bodyweight plus the plate, for a movement whose weight is added to bodyweight — what a weighted dip is judged by. |
-| **Injury** | A tracked problem with a body part, and the events logged against it over time. |
+| **Injury** | A tracked problem with a body part, the families it touches if he named them, and the events logged against it over time. Active until he resolves it; the day it was resolved is kept, except on injuries resolved before that day was recorded. |
 
 ## Analysis
 
@@ -147,13 +172,16 @@ first and then in the code.
 | **Interpretation** | Turning raw text into domain records: parse, resolve, commit. Versioned and re-runnable. |
 | **Utterance** | How an entry was logged — texted, with the raw words kept, or formed through the UI. |
 | **Athlete context card** | The standing per-user summary handed to the model, so a conversation starts knowing the athlete instead of re-reading everything. |
-| **Briefing** | The TODAY note each chat message goes with: the date and time on the athlete's clock, his training today and yesterday, his last two nights, readiness, injuries, the week so far and the score. It is read fresh for every message, is never stored, and decides what "today" means. |
+| **Briefing** | The TODAY note each chat message goes with: the date and time on the athlete's clock, his training today and yesterday, his last two nights, readiness, injuries, the days ahead he has marked non-training, the week so far and the score; in the thread, where the changes the model proposed stand. It is read fresh for every message, is never stored, and decides what "today" means. |
 | **Relay** | The development-only chat provider in which whoever is testing plays the model by answering request files (`docs/chat-relay.md`). |
 | **Streamed answer** | A thread reply sent to the app as it is written, as server-sent events: its text piece by piece, each round of tools as it runs, then the stored session. The exchange finishes and is stored even if the connection drops. |
 | **Thread** | The athlete's one continuing chat with Lionheart, read back as a single transcript. Beside it, a **conversation** is a standalone chat he starts and names; nothing said in one is remembered. |
 | **Thread session** | The run of thread messages the model actually reads: it ends after three hours idle or once its transcript passes about 60k tokens, and its system prompt is frozen when it opens. |
 | **Memory** | What the athlete told the thread, distilled when a session ends: a dated goal, injury, preference, commitment, decision or fact, traced to the messages it came from. The context card is what his data shows; memory is what he said. |
 | **Consolidation** | Distilling an ended thread session into memory: one structured model call that remembers, revises or retires. |
+| **Proposed change** | A change to the athlete's data the chat model put to him in the thread — a session planned, changed or removed, a non-training day marked or freed, a priority lift pinned, an injury or a check-in logged — written only when he confirms it, through the service the page uses. Waiting, then confirmed, declined, or refused (he said yes and the service would not write it, with its reason). Short form: **proposal**. |
+| **Proposing tool** | A chat tool named `Propose…` that drafts a proposed change instead of reading: it writes nothing, and is offered only in the thread, where a card can be answered. |
+| **Proposal card** | A proposed change as the Chat transcript draws it, after the answer that proposed it: its title, what it sets or replaces, and Confirm or Decline until it is answered. |
 | **Supersede** | How a memory changes: a revision writes a new current version and keeps the old one, dated, as its history. |
 | **Quick log** | The one-field path: type what you did in plain words and let interpretation do the rest. |
 
@@ -168,6 +196,8 @@ first and then in the code.
 | **Wordmark** | "tempo" set lowercase in SF Pro Heavy, expanded and tightly tracked — the one place a fixed type size is allowed. |
 | **Tagline** | "keep moving forward." — lowercase, monospaced, with its full stop. |
 | **Palette** | Graphite (the dark ground), Chalk (the light ground), Brick (the one accent, and the mark's last bar), Iron (second series and quiet bars) and Ink (the mark's first two bars: Graphite on light, Chalk on dark). Read through `Tokens`. |
+| **Hero** | A tab's first section, on Graphite in both appearances, carrying its one most important answer: Today the going-in rating, what is next and the week's advice, Train the week's score, what is next and the week's advice, History each running priority as its block, Body readiness. One per tab (`HeroSection`). |
+| **Brick discipline** | Brick means this week, or the one thing to act on — the score itself, this week's bar, the session to do first. History and context are Iron; everything else is a semantic system colour. |
 | **Active workout** | The in-flight session as the device holds it: the sets logged so far, the rest clock, the current movement, the movements the athlete added. The one piece of state the device owns. |
 | **Added movement** | A movement the athlete chose for the workout in flight. It has a section on the logging surface before any set is logged on it, which is how an unplanned workout logs its first lift. |
 | **Workout bar** | The persistent accessory above the tab bar while a workout is active — this app's now-playing bar. |
@@ -191,7 +221,7 @@ first and then in the code.
 | **Workout destination** | Where a workout's sets are going to land: an active session already on the server, a deferred start whose session the server has not opened yet, or a `POST /completed` that carries the whole thing at the end. |
 | **Deferred start** | A live workout started with no connection. Logged like any other; its session is opened on the server by the first push that reaches it. |
 | **Server copy** | What the server already holds of a workout the device sent without hearing back, recognised by the workout's start instant (and, for a completed one, its set count), so a repeated start or delivery never makes a second session. |
-| **Finished workout** | A workout the athlete finished that the server has not taken yet, held in the outbox with its end and effort: waiting, or refused with the server's reason. |
+| **Finished workout** | A workout the athlete finished that the server has not taken yet, held in the outbox with its end (the workout carries its effort): waiting, or refused with the server's reason. |
 | **Outbox** | Where finished workouts wait for the server, one file each, delivered oldest first whenever it answers. |
 | **Account custody** | Whose the work held on the device is, kept through a sign-out the server forces so the same athlete signing back in finds it. |
 | **Sync state** | Whether what has been logged has reached the server: synced, pending, failed, or refused. Only the last two are worth saying out loud. |

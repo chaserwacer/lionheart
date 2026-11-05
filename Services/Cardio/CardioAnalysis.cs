@@ -191,7 +191,7 @@ public static class CardioAnalysis
                     new CardioSessionSource.LoggedSession(
                         session.TrainingSessionId,
                         session.Sets.OfType<TrailRunSet>().Any(),
-                        session.Source is SessionSource.AppleHealth,
+                        session.Source.IsRecording,
                         session.Sets.EnduranceActivity),
                     span.Start,
                     span.End,
@@ -294,15 +294,15 @@ public static class CardioAnalysis
     // ---- Heart rate across a session ----
 
     /// <summary>
-    /// The samples a session's heart rate is read from: the recording app's, for a run imported
-    /// from Apple Health with any, and otherwise the ring's series over its clock time.
+    /// The samples a session's heart rate is read from: the recording app's, for a recorded workout
+    /// with any, and otherwise the ring's series over its clock time.
     /// </summary>
     private static (IReadOnlyList<HeartRateSample> Samples, HeartRateSource Source) HeartRateRead(
         CardioInputs inputs, GatheredSession session) =>
         session.Source is CardioSessionSource.LoggedSession logged
         && inputs.RecordedHeartRate.TryGetValue(logged.TrainingSessionId, out var recorded)
         && recorded.IsRecorded
-            ? ([.. recorded.Samples.Where(sample => sample.At >= session.Start && sample.At < session.End)], HeartRateSource.AppleHealth)
+            ? ([.. recorded.Samples.Where(sample => sample.At >= session.Start && sample.At < session.End)], HeartRateSource.RecordingApp)
             : (Samples(inputs.HeartRate, session), HeartRateSource.Ring);
 
     /// <summary>

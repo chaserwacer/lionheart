@@ -49,7 +49,7 @@ struct GoingInSheet: View {
             .accessibilityElement(children: .combine)
         } footer: {
             Text("""
-                Lionheart's own rating, not Oura's. Each part is scored 0–100 with your usual day near \
+                Tempo's own rating, not Oura's. Each part is scored 0–100 with your usual day near \
                 75, and the rating is their weighted mean: readiness 30 %, HRV and heart rate 25 %, \
                 sleep 20 %, load 15 %, wellness 10 %. A part that cannot be read is left out and the \
                 others carry its weight. With none of readiness, HRV and heart rate or sleep scored \
@@ -116,15 +116,19 @@ struct GoingInSheet: View {
             figure("Zone 2", state.load.zoneTwoMinutes.map(Formatting.minutes) ?? "Not read")
             figure(
                 "Hard sets, 7 days",
-                "\(state.load.hardSetsLast7) against \(Formatting.measure((state.load.hardSetsWeeklyMean28 * 10).rounded() / 10)) a week")
+                "\(state.load.hardSetsLast7) against \(Formatting.measure((state.load.hardSetsChronic * 10).rounded() / 10)) a week")
+            ForEach(state.load.everyday, id: \.day) { day in
+                figure(LoadWords.everydayLabel(day, today: CalendarDay(state.asOf)), LoadWords.everydayFigure(day))
+            }
         } header: {
             partHeader(.load, state.load.score)
         } footer: {
             Text("""
                 Since the start of yesterday: 100, less 1.5 a hard set, 1 a minute at zone 4 or above, \
-                0.15 a minute of zone 2 and 0.5 a minute of cardio with no heart rate to zone, and 50 for \
-                each unit the last 7 days' hard sets run above 1.3 times your four-week weekly mean. Not \
-                scored when the cardio could not be read.
+                0.15 a minute of zone 2 and 0.5 a minute of cardio with no heart rate to zone, 30 for each \
+                unit the last 7 days' hard sets run above 1.45 times the four weeks before them, and 0.03 a \
+                MET-minute of everyday load — movement outside training — over the top of your ordinary \
+                days. Not scored when the cardio could not be read.
                 """)
         }
     }

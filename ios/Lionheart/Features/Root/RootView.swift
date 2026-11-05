@@ -125,6 +125,7 @@ private struct SignedInTabs: View {
                     library: container.movements,
                     history: container.history,
                     focus: container.focus,
+                    goingIn: container.goingIn,
                     apiBaseURL: container.configuration.baseURL,
                     activeWorkout: container.activeWorkout)
             } label: {
@@ -170,6 +171,8 @@ private struct SignedInTabs: View {
         .minimizingTabBarOnScroll()
         // Read by the score on Today, the priorities and the classification sheet, wherever they open.
         .environment(container.balance)
+        // Read by the non-training days sheet, which Train opens from its toolbar and its expectations.
+        .environment(container.nonTrainingDays)
         // Coming back to the app is when the ring's night has usually reached Oura, so a store
         // that is behind syncs then — at most once per `OuraSyncPlan.automaticRetryInterval`. A run
         // recorded since has usually reached Health too, so that syncs on the same return, at most

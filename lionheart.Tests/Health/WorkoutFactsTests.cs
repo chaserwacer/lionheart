@@ -12,7 +12,7 @@ public class WorkoutFactsTests
     [Fact]
     public void A_window_with_no_imported_workout_says_so()
     {
-        Assert.Equal("Workouts from Apple Health: none in the last 28 days.", WorkoutFacts.Recent([], days: 28));
+        Assert.Equal("Recorded workouts: none in the last 28 days.", WorkoutFacts.Recent([], days: 28));
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public class WorkoutFactsTests
         ];
 
         Assert.Equal(
-            "Workouts from Apple Health in the last 28 days: 2 runs 9.32 mi, 1 ride 27.96 mi; "
+            "Recorded workouts in the last 28 days: 2 runs 9.32 mi, 1 ride 27.96 mi; "
             + "latest run 2026-10-07, 6.21 mi in 50:00, pace 8:03/mi, climb 459 ft; "
             + "latest ride 2026-10-05, 27.96 mi in 1:30:00, speed 18.6 mph, climb 984 ft.",
             WorkoutFacts.Recent(runs, days: 28));

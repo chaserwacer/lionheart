@@ -5,10 +5,12 @@ import SwiftUI
 /// The training log is the screen, because that is the question, read as a diary: weeks newest
 /// first, each headed by its sessions and opening onto the week's lifting, cardio and body; each row
 /// a day, a log-book entry of what was lifted, opening onto everything else the day held. A run of
-/// weeks with nothing logged is said once, between the weeks either side of it. Above it, the three readings of the log that answer the athlete's goals:
-/// what he has pinned to emphasise, how consistently he trains, and the ways into a movement,
-/// the records and the trends. They are destinations above the log rather than a segmented control
-/// fighting the search field for the top of the screen, and they step aside while searching.
+/// weeks with nothing logged is said once, between the weeks either side of it. Above it, the
+/// readings of the log that answer the athlete's goals: the tab's hero — each pin being worked on as
+/// its block of weeks, or, with none running, how consistently he trains — then the rest of those,
+/// and the ways into a movement, the records and the trends. They are destinations above the log
+/// rather than a segmented control fighting the search field for the top of the screen, and they
+/// step aside while searching.
 ///
 /// The log is filtered by movement with search tokens: typing suggests movements, and choosing one
 /// keeps the sessions that performed it — by identity, so a paused squat does not bring in the
@@ -204,9 +206,14 @@ struct HistoryView: View {
                 ForEach(log.weeks) { week in weekSection(week) }
             }
         } else {
-            focusSection(snapshot)
-            consistencySection(snapshot)
-            readingsSection(snapshot)
+            let pins = currentPins(snapshot)
+            if pins.isEmpty {
+                consistencySection(snapshot, isHero: true)
+            } else {
+                focusSection(pins, snapshot: snapshot)
+                consistencySection(snapshot, isHero: false)
+            }
+            readingsSection(snapshot, listsPriorities: pins.isEmpty)
             if snapshot.log.isEmpty {
                 nothingLoggedYet
             } else {
@@ -220,54 +227,73 @@ struct HistoryView: View {
         }
     }
 
-    /// The pins being worked on, each a line of how it is going, opening the movement it emphasises.
-    /// Nothing at all when nothing is pinned — the focus list is still one row away below.
-    @ViewBuilder
-    private func focusSection(_ snapshot: HistorySnapshot) -> some View {
+    /// The pins being worked on, read against the log.
+    private func currentPins(_ snapshot: HistorySnapshot) -> [FocusReading] {
         let today = CalendarDay(Date())
-        let current = (focus.state.value ?? [])
+        return (focus.state.value ?? [])
             .map { FocusReading.of($0, history: snapshot.history(of: $0.movementDataId, today: today), today: today) }
             .arrangedForReading().current
+    }
 
-        if !current.isEmpty {
-            Section {
-                ForEach(current) { reading in
-                    NavigationLink(value: HistoryRoute.movement(reading.pin.movementDataId)) {
-                        FocusSummaryRow(reading: reading, name: snapshot.catalogue.name(for: reading.pin.movementDataId))
-                    }
+    /// The tab's hero: each pin being worked on as its block, opening the movement it emphasises,
+    /// and the whole list of priorities under them.
+    private func focusSection(_ pins: [FocusReading], snapshot: HistorySnapshot) -> some View {
+        let today = CalendarDay(Date())
+        return HeroSection {
+            ForEach(pins) { reading in
+                NavigationLink(value: HistoryRoute.movement(reading.pin.movementDataId)) {
+                    PriorityBlockRow(
+                        reading: reading,
+                        block: BlockWeeks.of(
+                            reading.pin, history: snapshot.history(of: reading.pin.movementDataId, today: today),
+                            today: today),
+                        name: snapshot.catalogue.name(for: reading.pin.movementDataId))
                 }
-            } header: {
-                Text("Priorities")
+            }
+            NavigationLink(value: HistoryRoute.focus) {
+                Text("All priorities")
             }
         }
     }
 
     /// Sessions a week over the last four months, with this week, the four-week average and the
     /// weeks that held a session. It opens the training calendar.
+    ///
+    /// With nothing pinned it is the tab's hero.
     @ViewBuilder
-    private func consistencySection(_ snapshot: HistorySnapshot) -> some View {
+    private func consistencySection(_ snapshot: HistorySnapshot, isHero: Bool) -> some View {
         let window = snapshot.consistency.window(lastWeeks: Self.consistencyWeeksShown)
 
         if !window.weeks.isEmpty {
-            Section {
-                NavigationLink(value: HistoryRoute.consistency) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        SummaryFigures(figures: [
-                            ("This week", Formatting.count(window.weeks.last?.sessionCount ?? 0, "session")),
-                            ("4-week average", Formatting.rate(window.average.last?.value ?? 0)),
-                            ("Weeks trained", "\(window.weeksTrained) of \(window.weeks.count)"),
-                        ])
-                        if window.sessions > 0 {
-                            WeeklyLoadChart(
-                                weeks: window.weeks, average: window.average, counting: .sessions, showsAxes: false)
-                                .frame(height: consistencyChartHeight)
-                        }
+            let link = NavigationLink(value: HistoryRoute.consistency) {
+                VStack(alignment: .leading, spacing: 8) {
+                    if isHero {
+                        Text("Sessions per week")
+                            .font(.meta)
+                            .foregroundStyle(Color(.secondaryLabel))
                     }
-                    .padding(.vertical, 4)
+                    SummaryFigures(figures: [
+                        ("This week", Formatting.count(window.weeks.last?.sessionCount ?? 0, "session")),
+                        ("4-week average", Formatting.rate(window.average.last?.value ?? 0)),
+                        ("Weeks trained", "\(window.weeksTrained) of \(window.weeks.count)"),
+                    ])
+                    if window.sessions > 0 {
+                        WeeklyLoadChart(
+                            weeks: window.weeks, average: window.average, counting: .sessions, showsAxes: false)
+                            .frame(height: consistencyChartHeight)
+                    }
                 }
-                .matchedTransitionSource(id: HistoryRoute.consistency, in: zoom)
-            } header: {
-                Text("Sessions per week")
+                .padding(.vertical, 4)
+            }
+            .matchedTransitionSource(id: HistoryRoute.consistency, in: zoom)
+            if isHero {
+                HeroSection { link }
+            } else {
+                Section {
+                    link
+                } header: {
+                    Text("Sessions per week")
+                }
             }
         }
     }
@@ -275,13 +301,16 @@ struct HistoryView: View {
     /// Four months: long enough to see a block and a gap, short enough that a week is a bar.
     private static let consistencyWeeksShown = 16
 
-    /// The ways into the log by something other than date.
-    private func readingsSection(_ snapshot: HistorySnapshot) -> some View {
+    /// The ways into the log by something other than date. The priorities are reached from the
+    /// hero while a pin is running, so they are listed here only when none is.
+    private func readingsSection(_ snapshot: HistorySnapshot, listsPriorities: Bool) -> some View {
         Section {
-            NavigationLink(value: HistoryRoute.focus) {
-                LabeledContent("Priorities") {
-                    let pinned = (focus.state.value ?? []).filter(\.isPinned).count
-                    Text(pinned == 0 ? "None pinned" : "\(pinned) pinned").monospacedDigit()
+            if listsPriorities {
+                NavigationLink(value: HistoryRoute.focus) {
+                    LabeledContent("Priorities") {
+                        let pinned = (focus.state.value ?? []).filter(\.isPinned).count
+                        Text(pinned == 0 ? "None pinned" : "\(pinned) pinned").monospacedDigit()
+                    }
                 }
             }
             NavigationLink(value: HistoryRoute.movements) {

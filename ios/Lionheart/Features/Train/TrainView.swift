@@ -2,12 +2,12 @@ import SwiftUI
 
 /// Let me do it.
 ///
-/// The tab opens with what to train next — the next lift and the next cardio, the one to do first on
-/// top, each with its reasons — and the training score beside it, where the week stands part by
-/// part, because those two are what every session on this tab is chosen by and moves. The start
-/// section sits directly under them: start a workout or log one already done. Then the week's volume
-/// across push, pull and legs; the priorities. Routines, bodyweight and the plan follow, there when
-/// wanted.
+/// The tab opens on its hero — where the week stands, as the training score and its partition, and
+/// what to train next in a line — because those two are what every session on this tab is chosen
+/// by and moves. The start section sits directly under it: start a workout or log one already done.
+/// Then what is next in full, each with its aims and reasons; the score part by part; the week's
+/// volume across push, pull and legs; the priorities. Routines, bodyweight and the plan follow,
+/// there when wanted.
 struct TrainView: View {
     let store: TrainStore
     let activeWorkout: ActiveWorkoutStore
@@ -32,6 +32,7 @@ struct TrainView: View {
     @State private var editingRoutine: RoutineEditing?
     @State private var isSaveFromSessionAsked = false
     @State private var deletingRoutine: Routine?
+    @State private var isNonTrainingAsked = false
     @Environment(TrainingBalanceStore.self) private var balance
 
     /// A transition waiting on the athlete's confirmation. Hung on the `List` rather than on a row,
@@ -53,10 +54,12 @@ struct TrainView: View {
     var body: some View {
         NavigationStack(path: $route) {
             List {
-                NextSessionsSection()
                 scoreSection
                 startSection
                 if !outbox.finished.isEmpty { finishedSection }
+                NextSessionsSection()
+                scorePartsSection
+                expectationsSection
                 volumeSection
                 prioritiesSection
                 routinesSection
@@ -78,6 +81,9 @@ struct TrainView: View {
             // The score leads the tab, so starting stays one tap away above it rather than a scroll
             // below it.
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Non-training days", systemImage: "calendar") { isNonTrainingAsked = true }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     if activeWorkout.workout != nil {
                         Button("Continue", action: openWorkout)
@@ -146,6 +152,9 @@ struct TrainView: View {
         } message: { _ in
             Text("Sessions trained from it keep their sets. Comparisons with it stop.")
         }
+        .sheet(isPresented: $isNonTrainingAsked) {
+            NonTrainingDaysSheet()
+        }
         .sheet(isPresented: $isPastWorkoutAsked) {
             LogPastWorkoutSheet(store: store, openWorkout: openWorkout)
         }
@@ -211,7 +220,7 @@ struct TrainView: View {
                 ForEach(volume.families) { family in
                     VolumeRow(
                         label: family.family.name, sets: Double(family.hardSets), target: family.target,
-                        lastTrained: family.lastTrained)
+                        lastTrained: family.lastTrained, isPaused: family.isPaused)
                 }
                 NavigationLink(value: ScoreRoute.volume) {
                     LabeledContent("Patterns and muscle groups") {
@@ -223,29 +232,43 @@ struct TrainView: View {
             } header: {
                 Text("Last 7 days")
             } footer: {
-                Text("Hard sets — working, drop and failure sets, never warm-ups — against 8 a family.")
+                Text("Hard sets — working, drop and failure sets, never warm-ups — against this week's expectation for each family.")
             }
         }
     }
 
-    /// The score, part by part, with its weeks behind a link. Its shape while the first read is
-    /// out, so the start section below does not jump when it lands.
+    /// The tab's hero: the week's score and what is next. Its shape while the first read is out, so
+    /// the start section below does not jump when it lands.
     @ViewBuilder
     private var scoreSection: some View {
         switch balance.score {
         case .loading:
-            Section("Training score") { SkeletonRows(count: 3) }
+            HeroSection { SkeletonRows(count: 3) }
         case .unavailable(let failure):
             Section("Training score") {
                 Text(failure.message).font(.footnote).foregroundStyle(Color(.secondaryLabel))
             }
         case .loaded(let score), .stale(let score, _):
-            TrainingScoreCard(score: score, weeks: balance.weeks.value ?? []) { route.append(ScoreRoute.part($0)) }
-            Section {
-                NavigationLink(value: ScoreRoute.score) {
-                    Text("Weeks")
-                }
+            TrainingScoreHero(score: score, weeks: balance.weeks.value ?? [], next: balance.nextSessions.value) {
+                route.append(ScoreRoute.part($0))
             }
+        }
+    }
+
+    /// The score's parts in words, under the start section so starting stays near the top.
+    @ViewBuilder
+    private var scorePartsSection: some View {
+        if let score = balance.score.value {
+            TrainingScorePartsSection(score: score)
+        }
+    }
+
+    /// The week's expectations under the score's parts: the adjusted score, each target with its
+    /// reasons, and the lift aims.
+    @ViewBuilder
+    private var expectationsSection: some View {
+        if let score = balance.score.value {
+            WeekExpectationsSection(score: score) { isNonTrainingAsked = true }
         }
     }
 

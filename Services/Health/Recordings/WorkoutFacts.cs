@@ -22,14 +22,14 @@ namespace lionheart.Services.Health.Recordings;
 public static class WorkoutFacts
 {
     /// <summary>
-    /// The context card's line: how many of each workout came from Health over the window, how far
-    /// they went, and the latest of each — read off the sessions alone, so building the card reads
-    /// no route.
+    /// The context card's line: how many of each recorded workout — from Health or the Strava
+    /// archive — the window holds, how far they went, and the latest of each, read off the sessions
+    /// alone, so building the card reads no route.
     /// </summary>
     /// <param name="workouts">The imported workouts in the window, any order.</param>
     public static string Recent(IReadOnlyList<CompletedTrainingSession> workouts, int days)
     {
-        if (workouts.Count is 0) return $"Workouts from Apple Health: none in the last {days} days.";
+        if (workouts.Count is 0) return $"Recorded workouts: none in the last {days} days.";
 
         var byActivity = workouts
             .GroupBy(WorkoutReadouts.ActivityOf)
@@ -40,7 +40,7 @@ public static class WorkoutFacts
             $"{Counted(group.Count(), group.Key)} {Imperial.Miles(group.Sum(workout => Measured(workout).Meters))}");
         var latest = byActivity.Select(group => Latest(group.Key, group.MaxBy(workout => workout.Period.StartTimeUtc)!));
 
-        return $"Workouts from Apple Health in the last {days} days: {string.Join(", ", counts)}; {string.Join("; ", latest)}.";
+        return $"Recorded workouts in the last {days} days: {string.Join(", ", counts)}; {string.Join("; ", latest)}.";
     }
 
     private static string Latest(RecordedActivity activity, CompletedTrainingSession workout)
@@ -63,7 +63,7 @@ public static class WorkoutFacts
     {
         var lines = new List<string>
         {
-            $"{Capitalised(Noun(workout.Activity))} {workout.Start:yyyy-MM-dd HH:mm} (recorded by {workout.RecordedBy.Name}, imported from Apple Health): "
+            $"{Capitalised(Noun(workout.Activity))} {workout.Start:yyyy-MM-dd HH:mm} ({RecordedAndImported(workout.Source)}): "
             + $"{Imperial.Miles(workout.DistanceMeters)} in {Clock(workout.Duration)}"
             + (workout.MovingTime is { } moving ? $", moving {Clock(moving)}" : string.Empty)
             + (workout.Pace is { } pace ? $", {Rate(workout.Activity, Imperial.PerMile(pace))}" : string.Empty)
@@ -127,6 +127,8 @@ public static class WorkoutFacts
         RecordedActivity.Hike => "hike",
         RecordedActivity.Walk => "walk",
         RecordedActivity.IndoorRun => "indoor run",
+        RecordedActivity.EBikeRide => "e-bike ride",
+        RecordedActivity.Paddle => "paddle",
         _ => throw new System.Diagnostics.UnreachableException(),
     };
 
@@ -136,7 +138,7 @@ public static class WorkoutFacts
 
     /// <summary>A ride's speed in mph, anything else's pace per mile, from the time per mile.</summary>
     private static string Rate(RecordedActivity activity, TimeSpan perMile) =>
-        activity is RecordedActivity.Ride or RecordedActivity.IndoorRide
+        activity is RecordedActivity.Ride or RecordedActivity.IndoorRide or RecordedActivity.EBikeRide or RecordedActivity.Paddle
             ? $"speed {Imperial.Speed(perMile)}"
             : $"pace {Imperial.Pace(perMile)}";
 
@@ -157,9 +159,30 @@ public static class WorkoutFacts
 
     private static string Whose(HeartRateSource source, RecordedWorkoutView workout) => source switch
     {
-        HeartRateSource.AppleHealth => $"from {workout.RecordedBy.Name} via Apple Health",
+        HeartRateSource.RecordingApp => $"from {Recorder(workout.Source)}{Route(workout.Source)}",
         HeartRateSource.Ring => "from the Oura ring's all-day series; the recording app wrote none",
         _ => throw new System.Diagnostics.UnreachableException(),
+    };
+
+    private static string RecordedAndImported(SessionSource source) => source switch
+    {
+        SessionSource.AppleHealth health => $"recorded by {health.RecordedBy.Name}, imported from Apple Health",
+        SessionSource.StravaArchive => "recorded in Strava, imported from the Strava archive",
+        _ => throw new System.Diagnostics.UnreachableException("Only a recorded workout has a readout."),
+    };
+
+    private static string Recorder(SessionSource source) => source switch
+    {
+        SessionSource.AppleHealth health => health.RecordedBy.Name,
+        SessionSource.StravaArchive => "Strava",
+        _ => throw new System.Diagnostics.UnreachableException("Only a recorded workout has a readout."),
+    };
+
+    private static string Route(SessionSource source) => source switch
+    {
+        SessionSource.AppleHealth => " via Apple Health",
+        SessionSource.StravaArchive => " in the Strava archive",
+        _ => throw new System.Diagnostics.UnreachableException("Only a recorded workout has a readout."),
     };
 
     private static string Split(RecordedActivity activity, Split split) =>

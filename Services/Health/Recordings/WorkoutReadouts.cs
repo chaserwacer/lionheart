@@ -25,7 +25,6 @@ public static class WorkoutReadouts
     /// <param name="maximum">The maximum the cardio report draws zones from, or nothing without one.</param>
     public static RecordedWorkoutView Of(
         CompletedTrainingSession session,
-        SessionSource.AppleHealth source,
         WorkoutRecording recording,
         WorkoutHeartRate heartRate,
         MaxHeartRate? maximum)
@@ -39,7 +38,7 @@ public static class WorkoutReadouts
 
         return new RecordedWorkoutView(
             session.TrainingSessionId,
-            source.RecordedBy,
+            session.Source,
             start,
             end,
             stated.Meters,
@@ -82,6 +81,8 @@ public static class WorkoutReadouts
             EnduranceActivity.Hike => RecordedActivity.Hike,
             EnduranceActivity.Walk => RecordedActivity.Walk,
             EnduranceActivity.IndoorRun => RecordedActivity.IndoorRun,
+            EnduranceActivity.EBikeRide => RecordedActivity.EBikeRide,
+            EnduranceActivity.Paddle => RecordedActivity.Paddle,
             _ => throw new System.Diagnostics.UnreachableException(),
         };
 

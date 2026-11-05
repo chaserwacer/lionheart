@@ -2,10 +2,12 @@ import SwiftUI
 
 /// How am I, and what did I do — today, or any day before it.
 ///
-/// Read top to bottom the way a morning is: the day's verdict first, large; the figures behind it
-/// as a table, each against the athlete's own four-week baseline; then the training. Every
-/// decision on it — which day's recovery to show, which session is the last one, what counts as
-/// unusual — is a pure function in `Core/Derived/`; this file chooses words and containers.
+/// Read top to bottom the way a morning is: the day's verdict first, as the tab's hero — on today
+/// how ready he is going in and what is next, on a past day that day's readiness; then Oura's
+/// readiness and the figures behind it, each against the athlete's own four-week baseline, folded
+/// to one line until asked for; then the training. Every decision on it — which day's recovery to
+/// show, which session is the last one, what counts as unusual — is a pure function in
+/// `Core/Derived/`; this file chooses words and containers.
 ///
 /// The day steps back and forward from the toolbar, the way Health and Oura step through days. A
 /// past day is read for what happened on it; the questions about now — the next session, the one
@@ -21,6 +23,9 @@ struct TodayView: View {
     /// The whole log, which a movement's page opened from a training line reads.
     let history: HistoryStore
     let focus: FocusStore
+    /// Today's going-in rating and what is next, which the hero leads with. The logging surface's
+    /// header reads the same store, so the two never disagree.
+    let goingIn: GoingInStore
     /// Passed through to Settings, which states it. Carried rather than re-read from the bundle
     /// so there is one place configuration is resolved.
     let apiBaseURL: URL
@@ -31,8 +36,14 @@ struct TodayView: View {
     @State private var isSettingsPresented = false
     @State private var isDayPickerPresented = false
     @State private var isRecoveryExplained = false
+    @State private var isGoingInExplained = false
+    /// Whether the readiness contributors and the figures behind them are open. Remembered, as a
+    /// view preference: an athlete who reads them every morning should not have to ask each time.
+    @AppStorage("lh.today.recoveryExpanded") private var isRecoveryExpanded = false
     /// Bound so a tap on the training score's partition can push the part it lands on.
     @State private var path = NavigationPath()
+    /// The week's score, read for its advice, which today's hero carries as Train's does.
+    @Environment(TrainingBalanceStore.self) private var balance
     /// Where a pushed figure, night or session zooms out of: the row it was opened from.
     @Namespace private var zoom
 
@@ -72,7 +83,9 @@ struct TodayView: View {
             .refreshable {
                 async let today: Void = store.refresh()
                 async let movement: Void = habits.loadDay(day)
-                _ = await (today, movement)
+                async let going: Void = goingIn.refresh()
+                async let week: Void = balance.refresh()
+                _ = await (today, movement, going, week)
             }
             .navigationDestination(for: Route.self) { route in
                 destination(for: route)
@@ -93,6 +106,11 @@ struct TodayView: View {
             .sheet(isPresented: $isRecoveryExplained) {
                 RecoveryExplanationSheet()
             }
+            .sheet(isPresented: $isGoingInExplained) {
+                if let state = goingIn.state.value {
+                    GoingInSheet(state: state)
+                }
+            }
             .sheet(isPresented: $isDayPickerPresented) {
                 DayPickerSheet(day: day, today: today) { chosen in
                     Task { await store.show(DaySelection.of(chosen, today: today)) }
@@ -107,7 +125,12 @@ struct TodayView: View {
         .task {
             // A first load leaves the strip to the `.task(id:)` below, which reads it already.
             let isReturn = store.state.value != nil
+            async let going: Void = goingIn.refreshIfStale()
+            // The week's score carries the advice the hero shows, so it is read with the hero
+            // rather than when its own section further down scrolls into view.
+            async let week: Void = balance.refreshIfNeeded()
             if await store.refreshIfDue(), isReturn { await habits.loadDay(day) }
+            _ = await (going, week)
         }
         .task(id: day) { await habits.loadDayIfNeeded(day) }
     }
@@ -197,6 +220,7 @@ struct TodayView: View {
         }
 
         let isToday = snapshot.day == today
+        hero(snapshot, today: today)
         recoverySection(snapshot, today: today)
         bodyDaySection(snapshot)
         // Under the figures it qualifies, so the verdict leads, and in a section of its own so the
@@ -216,33 +240,74 @@ struct TodayView: View {
         }
     }
 
-    /// The verdict, then the readiness contributors that answer "how recovered am I", each Oura's
-    /// score beside the measurement it rests on, then the figures no contributor carries.
+    /// The tab's hero. On today, the going-in rating once it has been read; on a past day — or
+    /// before the rating has a score to give — the day's readiness, which is the verdict a day
+    /// that has gone by can still be read for.
+    @ViewBuilder
+    private func hero(_ snapshot: TodaySnapshot, today: CalendarDay) -> some View {
+        let advice = snapshot.day == today ? balance.score.value?.expectations?.advice : nil
+        if let state = leadingGoingIn(snapshot, today: today) {
+            GoingInHero(
+                state: state, next: goingIn.next.value, advice: advice, isStale: goingIn.state.isStale,
+                openDetail: { isGoingInExplained = true })
+        } else if let recovery = snapshot.recovery, let readiness = recovery.readiness {
+            HeroSection {
+                NavigationLink(value: Route.trend(.readiness, endingOn: recovery.day)) {
+                    RecoveryVerdictView(
+                        readiness: readiness, figure: recovery.readinessFigure, shownDay: snapshot.day, today: today)
+                }
+                .matchedTransitionSource(id: Route.trend(.readiness, endingOn: recovery.day), in: zoom)
+                if let advice {
+                    WeeklyAdviceRow(advice: advice)
+                }
+            }
+        }
+    }
+
+    /// The going-in state when it leads the page: on today, once it has a score to give.
+    private func leadingGoingIn(_ snapshot: TodaySnapshot, today: CalendarDay) -> GoingInState? {
+        guard snapshot.day == today, let state = goingIn.state.value, state.rating.score != nil else { return nil }
+        return state
+    }
+
+    /// Whether the hero is the day's readiness, so the recovery section does not repeat it.
+    private func heroIsReadiness(_ snapshot: TodaySnapshot, today: CalendarDay) -> Bool {
+        leadingGoingIn(snapshot, today: today) == nil && snapshot.readiness != nil
+    }
+
+    /// Oura's verdict, then the readiness contributors that answer "how recovered am I", each Oura's
+    /// score beside the measurement it rests on, then the figures no contributor carries — the two
+    /// folded behind one line naming any that ask for attention, so the page opens on the hero.
     @ViewBuilder
     private func recoverySection(_ snapshot: TodaySnapshot, today: CalendarDay) -> some View {
         let day = snapshot.day
         Section {
             if let recovery = snapshot.recovery {
-                if let readiness = recovery.readiness {
+                if let readiness = recovery.readiness, !heroIsReadiness(snapshot, today: today) {
                     NavigationLink(value: Route.trend(.readiness, endingOn: recovery.day)) {
                         RecoveryVerdictView(
                             readiness: readiness, figure: recovery.readinessFigure, shownDay: day, today: today)
                     }
                     .matchedTransitionSource(id: Route.trend(.readiness, endingOn: recovery.day), in: zoom)
                 }
-                ForEach(snapshot.contributors) { reading in
-                    if let route = route(for: reading, on: recovery.day) {
-                        NavigationLink(value: route) { ReadinessContributorRow(reading: reading) }
-                            .matchedTransitionSource(id: route, in: zoom)
-                    } else {
-                        ReadinessContributorRow(reading: reading)
-                    }
+                if !snapshot.contributors.isEmpty || !snapshot.otherFigures.isEmpty {
+                    recoveryFold(snapshot)
                 }
-                ForEach(snapshot.otherFigures) { figure in
-                    NavigationLink(value: Route.trend(figure.metric, endingOn: recovery.day)) {
-                        RecoveryFigureRow(reading: figure)
+                if isRecoveryExpanded {
+                    ForEach(snapshot.contributors) { reading in
+                        if let route = route(for: reading, on: recovery.day) {
+                            NavigationLink(value: route) { ReadinessContributorRow(reading: reading) }
+                                .matchedTransitionSource(id: route, in: zoom)
+                        } else {
+                            ReadinessContributorRow(reading: reading)
+                        }
                     }
-                    .matchedTransitionSource(id: Route.trend(figure.metric, endingOn: recovery.day), in: zoom)
+                    ForEach(snapshot.otherFigures) { figure in
+                        NavigationLink(value: Route.trend(figure.metric, endingOn: recovery.day)) {
+                            RecoveryFigureRow(reading: figure)
+                        }
+                        .matchedTransitionSource(id: Route.trend(figure.metric, endingOn: recovery.day), in: zoom)
+                    }
                 }
             } else {
                 Text(day == today ? "No Oura data in the last two weeks." : "No Oura data for this day.")
@@ -252,7 +317,7 @@ struct TodayView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Recovery")
                 Spacer()
-                if !snapshot.contributors.isEmpty {
+                if isRecoveryExpanded, !snapshot.contributors.isEmpty {
                     Text("Oura")
                         .accessibilityHidden(true)
                 }
@@ -260,10 +325,40 @@ struct TodayView: View {
                     .labelStyle(.iconOnly)
             }
         } footer: {
-            if let recovery = snapshot.recovery, !recovery.figures.isEmpty {
+            if isRecoveryExpanded, let recovery = snapshot.recovery, !recovery.figures.isEmpty {
                 Text(footer(for: recovery, shownDay: day, today: today))
             }
         }
+    }
+
+    /// The line the contributors and figures fold behind: how many there are, and by name the ones
+    /// outside his usual range in the worse direction, so folding never hides the row worth seeing.
+    private func recoveryFold(_ snapshot: TodaySnapshot) -> some View {
+        let unusual = snapshot.unusualRecovery.map(\.name)
+        let count = snapshot.contributors.count + snapshot.otherFigures.count
+        return Button {
+            withAnimation(.snappy) { isRecoveryExpanded.toggle() }
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Contributors and figures")
+                        .font(.subheadline)
+                        .foregroundStyle(Color(.label))
+                    Text(unusual.isEmpty ? "\(count) rows, all within your usual range" : "Outside your usual: \(unusual.joined(separator: ", "))")
+                        .font(.footnote)
+                        .foregroundStyle(unusual.isEmpty ? Color(.secondaryLabel) : Color.orange)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.down")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Color(.tertiaryLabel))
+                    .rotationEffect(.degrees(isRecoveryExpanded ? 180 : 0))
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(isRecoveryExpanded ? "Shown" : "Hidden")
+        .accessibilityHint(isRecoveryExpanded ? "Hides the rows" : "Shows the rows")
     }
 
     /// Where a contributor row opens: the measurement's own trend, or the night for the recovery
@@ -406,7 +501,8 @@ struct TodayView: View {
     /// arrive under — so the rows appear in place rather than pushing a spinner off the screen.
     @ViewBuilder
     private func loadingRows(isToday: Bool) -> some View {
-        Section("Recovery") { SkeletonRows(count: 3) }
+        HeroSection { SkeletonRows(count: 2) }
+        Section("Recovery") { SkeletonRows(count: 1) }
         if isToday {
             Section {
                 OuraSyncRow(store: ouraSync, today: store.today)
@@ -429,6 +525,16 @@ struct TodayView: View {
             }
         }
         .listRowBackground(Color.clear)
+    }
+}
+
+private extension UnusualRecovery {
+    /// The row's own name, as its label reads.
+    var name: String {
+        switch self {
+        case .contributor(let contributor): contributor.name
+        case .figure(let metric): Formatting.metricName(metric)
+        }
     }
 }
 

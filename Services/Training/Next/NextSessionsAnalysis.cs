@@ -1,6 +1,8 @@
 using System.Globalization;
 using lionheart.Model.Cardio;
+using lionheart.Model.Training.Availability;
 using lionheart.Model.Training.Balance;
+using lionheart.Model.Training.Expectations;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.Next;
 using lionheart.Model.Training.Patterns;
@@ -8,18 +10,22 @@ using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Score;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Training.Balance;
+using lionheart.Model.Training.Load;
+using lionheart.Services.Training.Expectations;
 using lionheart.Services.Training.Focus;
+using lionheart.Services.Training.Load;
 
 namespace lionheart.Services.Training.Next;
 
 /// <summary>Everything the recommendation is read from, already read.</summary>
-/// <param name="Priorities">Each family's priority lift over the window ending on the day.</param>
-/// <param name="Score">The score of the seven days ending on the day: the week's measurements and their targets.</param>
+/// <param name="Score">
+/// The score of the seven days ending on the day: the week's measurements, its expectations and each
+/// priority lift's next top set.
+/// </param>
 /// <param name="RecentCardio">The cardio sessions of the two weeks ending on the day, as the cardio report counted them.</param>
 public sealed record NextInputs(
     DateOnly Day,
     TrainingLog Log,
-    IReadOnlyList<FamilyPriority> Priorities,
     TrainingScore Score,
     IReadOnlyList<CardioSession> RecentCardio,
     RecoveryRead Recovery);
@@ -33,10 +39,15 @@ public sealed record NextInputs(
 /// <c>docs/training-science.md</c>:
 /// <list type="bullet">
 /// <item>The lift is the family trained longest ago (the volume screen's up-next), with its
-/// priority lift one step past its last session's best set.</item>
+/// priority lift's next top set from the week's expectations.</item>
 /// <item>The cardio is a quality session when the week's quality target is unmet, none was done in
 /// the last two days, and recovery is not low; otherwise zone 2. Hard sessions are spaced 48 hours
 /// apart, the easy days between them easy (Seiler 2010).</item>
+/// <item>A day of everyday load far above his usual yesterday or today, or a week whose cardio is
+/// already a spike, leans the cardio easier the way low recovery does; a family an injury pauses
+/// is passed over, and the movements its check-ins name are named to leave out.</item>
+/// <item>Targets are the week's adjusted expectations, so a week with days marked off asks the
+/// next session for the share those days leave; a day itself marked off is said first.</item>
 /// <item>First: low recovery goes to easy aerobic work; one kind already done today goes to the
 /// other; hard intervals wait 24–48 hours after legs and legs wait after intervals, the
 /// interference the concurrent-training literature measures (Doma and Deakin 2013; Wilson et al.
@@ -54,13 +65,26 @@ public static class NextSessionsAnalysis
     /// <summary>The fewest nights a usual HRV is drawn from.</summary>
     public const int FewestHrvNights = 14;
 
+    /// <summary>Zone 2 on a low-recovery day.</summary>
+    public const int LowRecoveryMinutes = 30;
+
+    /// <summary>The most zone 2 asked after a day far above his usual activity, or in a week already a spike.</summary>
+    public const int EasedMinutes = 45;
+
     public static NextSessions Of(NextInputs inputs)
     {
         var recovery = RecoveryNotes(inputs.Recovery);
         var lift = Lift(inputs);
         var cardio = Cardio(inputs, recovery);
-        return new NextSessions(inputs.Day, First(inputs, lift, cardio, recovery), lift, cardio, inputs.Recovery);
+        var first = First(inputs, lift, cardio, recovery);
+        return new NextSessions(inputs.Day, first with { Reasons = [.. DayOff(inputs), .. first.Reasons] }, lift, cardio, inputs.Recovery);
     }
+
+    /// <summary>That the day is marked non-training, when it is, so the rest reads as the next training day's.</summary>
+    private static IReadOnlyList<string> DayOff(NextInputs inputs) =>
+        inputs.Score.Expectations.Availability.Days.LastOrDefault() is DayAvailability.NonTraining off && off.Day == inputs.Day
+            ? [$"Today is marked non-training{(off.Note.Length > 0 ? $" ({off.Note})" : "")}: this is for your next training day."]
+            : [];
 
     // ---- Recovery ----
 
@@ -81,73 +105,72 @@ public static class NextSessionsAnalysis
 
     private static NextLift Lift(NextInputs inputs)
     {
-        var volume = TrainingVolumeAnalysis.Build(inputs.Log, inputs.Day, inputs.Recovery.Readiness);
+        var volume = TrainingVolumeAnalysis.Build(inputs.Log, inputs.Day, inputs.Recovery.Readiness, inputs.Score.Expectations.Families);
         if (volume.UpNext is not UpNext.Train due)
             return new NextLift.NothingLogged(["No classified lifting in the log yet."]);
 
         var reasons = new List<string>
         {
             due.LastTrained is { } last
-                ? $"{Sentence(Families(due.Families))} last trained {Ago(inputs.Day, last)}"
+                ? $"{Sentence(PatternWords.Listed(due.Families))} last trained {Ago(inputs.Day, last)}"
                   + (Others(due.Families, volume) is { Length: > 0 } others ? $"; {others} since." : ".")
-                : $"{Sentence(Families(due.Families))} not trained yet.",
+                : $"{Sentence(PatternWords.Listed(due.Families))} not trained yet.",
         };
-        foreach (var family in inputs.Score.Lifting.Families.Where(family => due.Families.Contains(family.Of.Family)))
-            reasons.Add(Invariant($"{Sentence(PatternWords.Of(family.Of.Family))} {family.Of.HardSets} of {family.Of.Target.Target:0} hard sets this week")
-                        + (family.Of.HardSets >= family.Of.Target.Target ? ", target met." : "."));
+        foreach (var family in inputs.Score.Expectations.Families.Where(family => due.Families.Contains(family.Family)))
+            reasons.Add(Invariant($"{Sentence(PatternWords.Of(family.Family))} {family.Sets.Done:0} of {family.Sets.Adjusted.Target:0} hard sets this week")
+                        + (family.Sets.Done >= family.Sets.Adjusted.Target ? ", target met." : "."));
         if (due.TrainedToday) reasons.Add("Today already has hard sets, so this is the session after it.");
+        reasons.AddRange(Injuries(inputs));
+        if (inputs.Score.Expectations.Load.Lifting.Deload is Deload.Suggested)
+            reasons.Add($"Deload week suggested: about {LoadAnalysis.DeloadShare * 100:0} % of your usual sets, the same weights.");
 
         return new NextLift.Train(
             due.Families,
             due.LastTrained,
-            [
-                .. inputs.Priorities
-                    .Where(priority => due.Families.Contains(priority.Family))
-                    .Select(priority => priority.Lift is PriorityLift.Chosen chosen
-                        ? new PriorityAim(priority.Family, chosen.MovementDataId, chosen.Name, AimOf(inputs.Log, chosen, inputs.Day))
-                        : null)
-                    .OfType<PriorityAim>()
-            ],
+            [.. inputs.Score.Expectations.Priorities.Where(priority => due.Families.Contains(priority.Family))],
             reasons);
+    }
+
+    /// <summary>What each injury being managed takes out of the next session: its families, and the movements its check-ins name.</summary>
+    private static IEnumerable<string> Injuries(NextInputs inputs)
+    {
+        foreach (var injury in inputs.Score.Expectations.Injuries)
+        {
+            if (injury.Families.Count > 0)
+                yield return $"{Sentence(PatternWords.Listed(injury.Families))} paused while {injury.Name} is managed.";
+            if (injury.Movements.Count > 0)
+                yield return $"Leave out {string.Join(", ", injury.Movements.Select(inputs.Log.NameOf))} while {injury.Name} is managed.";
+        }
+    }
+
+    /// <summary>
+    /// What leans the next cardio easier besides recovery: a day of everyday load far above his
+    /// usual yesterday or today, or a week whose cardio is already a spike over the four before.
+    /// </summary>
+    public static IReadOnlyList<string> EaseNotes(NextInputs inputs)
+    {
+        var notes = new List<string>();
+        var big = inputs.Score.Expectations.Load.Everyday.Days
+            .Where(day => day.Day >= inputs.Day.AddDays(-1) && day.IsFarAbove)
+            .MaxBy(day => day.Ratio);
+        if (big is not null)
+            notes.Add(Invariant($"{Sentence(Ago(inputs.Day, big.Day))} was far above your usual activity ({big.Ratio:0.0}× your usual day): keep it easy."));
+        if (inputs.Score.Expectations.Load.Cardio is CardioLoad.Read { Minutes: { Standing: RampStanding.Spike, Ratio: LoadRatio.Compared minutes } })
+            notes.Add($"This week's cardio is already {ExpectationReasons.Ratio(minutes)} the 4 weeks before: no intervals on top of it.");
+        return notes;
     }
 
     /// <summary>The families trained since the due ones, in words, or empty.</summary>
     private static string Others(IReadOnlyList<PatternFamily> due, TrainingVolume volume) =>
-        Families([.. volume.Families.Where(family => !due.Contains(family.Family) && family.LastTrained is not null).Select(family => family.Family)]);
-
-    /// <summary>
-    /// The priority's next top set: its last session's best set one step on — five pounds or 2.5
-    /// kilograms, or a rep where the load is bodyweight — against the best a new best must pass.
-    /// </summary>
-    /// <remarks>
-    /// The unit and whether the load is bodyweight's come from the log rather than the window's
-    /// progress, because the family due was, by being due, usually not trained in the window.
-    /// </remarks>
-    public static LiftAim AimOf(TrainingLog log, PriorityLift.Chosen lift, DateOnly day)
-    {
-        if (lift.Series is not [.., var last]) return new LiftAim.Establish();
-
-        var unit = PriorityAnalysis.UnitOf(log, lift.MovementDataId, day);
-        var onSystemLoad = PriorityAnalysis.OnSystemLoad(log, lift.MovementDataId, unit);
-        var (load, reps) = onSystemLoad ? (last.Load, last.Reps + 1) : (last.Load + Step(unit), last.Reps);
-        return new LiftAim.Beat(
-            load, reps, unit, new LiftPerformance(load, unit, reps).EstimatedOneRepMax,
-            lift.Series.Max(best => best.EstimatedOneRepMax), onSystemLoad);
-    }
-
-    private static double Step(WeightUnit unit) => unit switch
-    {
-        WeightUnit.Pounds => 5,
-        WeightUnit.Kilograms => 2.5,
-        _ => throw new System.Diagnostics.UnreachableException(),
-    };
+        PatternWords.Listed([.. volume.Families.Where(family => !due.Contains(family.Family) && family.LastTrained is not null).Select(family => family.Family)]);
 
     // ---- The cardio ----
 
     private static NextCardio Cardio(NextInputs inputs, IReadOnlyList<string> recovery)
     {
-        var zone2 = Band(inputs.Score, ZoneBand.Zone2, ScoreRules.Zone2);
-        var quality = Band(inputs.Score, ZoneBand.Quality, ScoreRules.Quality);
+        var ease = EaseNotes(inputs);
+        var zone2 = Band(inputs.Score.Expectations, ZoneBand.Zone2, ScoreRules.Zone2);
+        var quality = Band(inputs.Score.Expectations, ZoneBand.Quality, ScoreRules.Quality);
         var lastQuality = inputs.RecentCardio
             .Where(session => session.QualityMinutes > 0)
             .Select(session => (DateOnly?)LocalDay(session.Start))
@@ -161,7 +184,9 @@ public static class NextSessionsAnalysis
         var spaced = lastQuality is not { } lastDay || inputs.Day.DayNumber - lastDay.DayNumber >= QualitySpacingDays;
         var legsToday = LegsLast(inputs.Score) == inputs.Day;
         var read = inputs.Score.Cardio.Points is not null;
-        if (qualityLeft > 0 && spaced && recovery.Count is 0 && !legsToday && read)
+        if (inputs.Score.Expectations.Load.Cardio is CardioLoad.Read { RunningMeters: { Standing: RampStanding.Steep or RampStanding.Spike, Ratio: LoadRatio.Compared running } })
+            reasons.Add($"Running this week is {ExpectationReasons.Ratio(running)} the 4 weeks before: make it a ride or a row rather than a run.");
+        if (qualityLeft > 0 && spaced && recovery.Count is 0 && ease.Count is 0 && !legsToday && read)
         {
             var firstBack = quality.Target.Chronic is not > 0;
             var (bouts, boutMinutes, rest) = Structure(firstBack ? QualityWork.LeastSessionMinutes : qualityLeft);
@@ -176,13 +201,14 @@ public static class NextSessionsAnalysis
         if (qualityLeft > 0 && !spaced && lastQuality is { } recent)
             reasons.Add($"Quality session {Ago(inputs.Day, recent)}: keep 48 hours between hard sessions.");
         if (recovery.Count > 0) reasons.Add("Recovery reads low: easy aerobic work, no intervals.");
+        reasons.AddRange(ease);
         if (qualityLeft > 0 && legsToday) reasons.Add("Legs today: intervals wait 24–48 hours after legs.");
         if (qualityLeft > 0 && !read) reasons.Add("With the week's heart rate unread, nothing says intervals are owed: keep it aerobic.");
 
         var left = zone2.Target.Target - zone2.Minutes;
         var minutes = recovery.Count > 0
-            ? 30
-            : (int)Math.Clamp(Math.Ceiling(left / 5) * 5, 30, 75);
+            ? LowRecoveryMinutes
+            : (int)Math.Clamp(Math.Ceiling(left / 5) * 5, LowRecoveryMinutes, ease.Count > 0 ? EasedMinutes : 75);
         return new NextCardio.Zone2(minutes, reasons);
     }
 
@@ -197,9 +223,12 @@ public static class NextSessionsAnalysis
     private static readonly IReadOnlyList<(int Bouts, int BoutMinutes, int RecoveryMinutes)> Structures =
         [(5, 2, 2), (4, 4, 3), (3, 8, 2), (4, 8, 2)];
 
-    /// <summary>A band's minutes and target this week; with cardio unknown, nothing against the floor.</summary>
-    private static ZoneTarget Band(TrainingScore score, ZoneBand band, Standard standard) =>
-        score.Cardio.Zones.Select(zone => zone.Of).FirstOrDefault(zone => zone.Band == band)
+    /// <summary>A band's minutes and adjusted target this week; with cardio unknown, nothing against the floor.</summary>
+    private static ZoneTarget Band(WeekExpectations expectations, ZoneBand band, Standard standard) =>
+        expectations.Cardio.Zones
+            .Where(zone => zone.Band == band)
+            .Select(zone => new ZoneTarget(band, zone.Minutes.Done, zone.Minutes.Adjusted))
+            .FirstOrDefault()
         ?? new ZoneTarget(band, 0, new WeeklyTarget(standard.Floor, standard.Committed, standard.Floor, null));
 
     private static DateOnly? LegsLast(TrainingScore score) =>
@@ -254,9 +283,6 @@ public static class NextSessionsAnalysis
     private static double Share(double points, int outOf) => outOf > 0 ? points / outOf : 0;
 
     // ---- Words ----
-
-    private static string Families(IReadOnlyList<PatternFamily> families) =>
-        string.Join(" and ", families.Select(PatternWords.Of));
 
     private static string Sentence(string words) =>
         words.Length is 0 ? words : char.ToUpperInvariant(words[0]) + words[1..];

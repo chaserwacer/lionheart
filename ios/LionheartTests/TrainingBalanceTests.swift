@@ -14,7 +14,7 @@ struct TrainingBalanceTests {
         let volume = try Decoding.decode(TrainingVolume.self, Self.volumeJSON)
 
         #expect(volume.window == DayRange(from: CalendarDay(year: 2026, month: 10, day: 28), to: CalendarDay(year: 2026, month: 11, day: 3)))
-        #expect(volume.family(.pull) == FamilyVolume(family: .pull, hardSets: 3, target: 8, lastTrained: CalendarDay(year: 2026, month: 10, day: 28)))
+        #expect(volume.family(.pull) == FamilyVolume(family: .pull, hardSets: 3, target: 8, lastTrained: CalendarDay(year: 2026, month: 10, day: 28), isPaused: false))
         #expect(volume.patterns.first { $0.pattern == .isolation }?.target == nil)
         #expect(volume.muscles.first { $0.muscle == .upperBack }?.sets == 1.5)
         #expect(volume.unplaced.map(\.name) == ["Cable Mystery"])
@@ -177,6 +177,33 @@ struct TrainingBalanceTests {
         #expect(ScoreTrend.of([week(40, 7), week(60, 14), week(50, 21)]) == nil)
         #expect(ScoreTrend.of([week(40, 7), week(60, 14), week(50, 21), week(72, 28)])
                 == ScoreTrend(median: 60, best: 72, weeks: 4))
+    }
+
+    @Test("A target counts as met at or past its figure, and only this week's can be")
+    func targetsMet() throws {
+        let score = try Decoding.decode(TrainingScore.self, Self.scoreJSON(cardio: Self.measuredCardio))
+        // Zone 2 is past its 60; push, pull and legs are short of theirs, and so are the window's
+        // sessions. A past block reaching three sessions is a week nothing now can move.
+        let pastBlockMet = try Decoding.decode(
+            TrainingScore.self,
+            Self.scoreJSON(cardio: Self.measuredCardio)
+                .replacingOccurrences(of: #""2026-10-27"},"sessions":2"#, with: #""2026-10-27"},"sessions":3"#))
+
+        #expect(ScoreTargets.met(in: score) == ["cardio.Zone 2"])
+        #expect(ScoreTargets.met(in: pastBlockMet) == ["cardio.Zone 2"])
+    }
+
+    @Test("A target just hit is the one met now that was not before")
+    func targetJustHit() throws {
+        let before = try Decoding.decode(TrainingScore.self, Self.scoreJSON(cardio: Self.measuredCardio))
+        let after = try Decoding.decode(
+            TrainingScore.self,
+            Self.scoreJSON(cardio: Self.measuredCardio)
+                .replacingOccurrences(of: #""family":"legs","hardSets":7"#, with: #""family":"legs","hardSets":8"#))
+
+        #expect(ScoreTargets.newlyMet(from: before, to: after) == ["lifting.legs"])
+        #expect(ScoreTargets.newlyMet(from: after, to: before).isEmpty)
+        #expect(ScoreTargets.newlyMet(from: after, to: after).isEmpty)
     }
 
     @Test("Points read to one place where a third of a part is not whole")

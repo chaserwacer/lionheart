@@ -321,10 +321,10 @@ public class HealthWorkoutImportServiceTests : IDisposable
         Assert.Equal(2500, run.DistanceMeters, precision: 6);
         Assert.Equal(3, run.Kilometres.Count);
         Assert.Equal(2, run.Miles.Count);
-        Assert.Equal(HeartRateSource.AppleHealth, run.Trace.Source);
+        Assert.Equal(HeartRateSource.RecordingApp, run.Trace.Source);
         var heartRate = Assert.IsType<SessionHeartRate.Recorded>(run.HeartRate);
-        Assert.Equal((152, HeartRateSource.AppleHealth), (heartRate.AverageBpm, heartRate.Source));
-        Assert.Equal(AHealthRun.StravaName, run.RecordedBy.Name);
+        Assert.Equal((152, HeartRateSource.RecordingApp), (heartRate.AverageBpm, heartRate.Source));
+        Assert.Equal(AHealthRun.StravaName, Assert.IsType<SessionSource.AppleHealth>(run.Source).RecordedBy.Name);
     }
 
     [Fact]

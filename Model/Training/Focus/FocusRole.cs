@@ -40,4 +40,20 @@ public abstract record FocusRole
     }
 
     public bool IsPriorityFor(PatternFamily family) => this is Priority priority && priority.Family == family;
+
+    /// <summary>
+    /// Whether a movement can stand for this role: a priority's lift has to train its family. An
+    /// unclassified movement is taken at the athlete's word, and an emphasis stands for no family.
+    /// </summary>
+    /// <param name="movementName">How the refusal names the movement.</param>
+    public Result<FocusRole, Problem> Admits(string movementName, ClassificationStanding standing) =>
+        (this, standing) switch
+        {
+            (Priority priority, ClassificationStanding.Classified { Classification: var trains })
+                when trains.Family != priority.Family =>
+                Result<FocusRole, Problem>.Failure(new Problem.Invalid(
+                    nameof(PinFocusRequest.Priority),
+                    $"{movementName} trains {PatternWords.Of(trains.Family)}, not {PatternWords.Of(priority.Family)}.")),
+            _ => Result<FocusRole, Problem>.Success(this),
+        };
 }

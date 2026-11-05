@@ -13,9 +13,11 @@ using lionheart.Model.Contexts;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Routines;
+using lionheart.Model.Training.Availability;
 using lionheart.Model.BodyMeasurements;
 using lionheart.Model.Chat.Memory;
 using lionheart.Model.Chat.Thread;
+using lionheart.Model.Chat.Changes;
 using lionheart.Model.BodyMeasurements.Composition;
 using lionheart.Model.Health;
 using Programs = lionheart.Model.Training.Programs;
@@ -47,6 +49,7 @@ namespace lionheart.Data
         public DbSet<AthleteContextCard> AthleteContextCards { get; set; }
         public DbSet<ChatThreadSession> ChatThreadSessions { get; set; }
         public DbSet<ChatMemory> ChatMemories { get; set; }
+        public DbSet<ChangeProposal> ChangeProposals { get; set; }
 
         // Training domain — design in docs/data-remodel.md
         public DbSet<Sessions.TrainingSession> Sessions { get; set; }
@@ -56,11 +59,13 @@ namespace lionheart.Data
         public DbSet<FacetValue> FacetValues { get; set; }
         public DbSet<FocusPin> FocusPins { get; set; }
         public DbSet<Routine> Routines { get; set; }
+        public DbSet<NonTrainingDay> NonTrainingDays { get; set; }
         public DbSet<BodyweightMeasurement> BodyweightMeasurements { get; set; }
         public DbSet<BodyCompositionScan> BodyCompositionScans { get; set; }
         public DbSet<WorkoutRecording> WorkoutRecordings { get; set; }
         public DbSet<Model.Health.Measurements.HealthDailyMeasure> HealthDailyMeasures { get; set; }
         public DbSet<DeletedHealthWorkout> DeletedHealthWorkouts { get; set; }
+        public DbSet<Sessions.DeletedStravaActivity> DeletedStravaActivities { get; set; }
 
         // Oura — design in docs/oura-integration.md. One table per collection: eight documents that
         // describe a calendar day, four that describe events within one, and the all-day heart-rate
@@ -200,6 +205,10 @@ namespace lionheart.Data
             // Injury
             modelBuilder.Entity<Injury>()
                 .HasKey(i => i.InjuryID);
+
+            modelBuilder.Entity<Injury>()
+                .Property(i => i.Families)
+                .HasJsonConversion();
 
             modelBuilder.Entity<Injury>()
                 .HasOne<LionheartUser>()
