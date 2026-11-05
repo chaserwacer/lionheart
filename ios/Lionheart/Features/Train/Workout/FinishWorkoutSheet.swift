@@ -2,9 +2,10 @@ import SwiftUI
 
 /// Finishing a workout: what it came to, how it felt, and the one button that hands it over.
 ///
-/// It is the last chance to say anything about the session, so the effort ratings and the notes
-/// live here rather than on the logging surface — a screen the athlete is on for an hour should not
-/// be carrying a form they fill in once.
+/// It is the last chance to say anything about the session. The effort ratings and the notes may
+/// already have been given during it, from the logging surface's "How it's going", and they open
+/// here as given, so finishing never asks twice. A rating changed here is written to the workout
+/// straight away and the notes when the sheet closes, so "Not yet" keeps both.
 ///
 /// Every rating may be left alone. The server treats an effort with nothing in it as effort not
 /// reported, which is a different fact from effort rated low, and the sheet does not nag.
@@ -16,19 +17,8 @@ struct FinishWorkoutSheet: View {
     /// Receives the readout of the finished workout, built before it is handed over.
     let finished: (WorkoutSummary) -> Void
 
-    /// The scale the self-reported ratings use.
-    ///
-    /// One to five, matching `WellnessState`'s four component scores, which is the only other thing
-    /// in Lionheart the athlete rates about themselves. The server stores these as plain integers
-    /// and validates no range, so the scale is the client's to be consistent about.
-    private static let scale = 1...5
-
     @Environment(\.dismiss) private var dismiss
 
-    @State private var fatigue: Int?
-    @State private var difficulty: Int?
-    @State private var engagement: Int?
-    @State private var externalVariables: Int?
     @State private var notes: String
     @State private var endedAt: Date
     @State private var startedAt: Date
@@ -66,8 +56,10 @@ struct FinishWorkoutSheet: View {
                 if let workout = store.workout {
                     summarySection(workout)
                     timeSection(workout)
+                    // Inside, because the ratings are the workout's: drawn after it has gone, on
+                    // the way out from a finish, they would flash back to unrated.
+                    effortSection
                 }
-                effortSection
                 notesSection
                 if case .refused(let failure) = store.finish { refusalSection(failure) }
             }
@@ -82,6 +74,8 @@ struct FinishWorkoutSheet: View {
                 }
             }
         }
+        // After a finish the workout is gone and this changes nothing.
+        .onDisappear { store.note(notes) }
     }
 
     // MARK: - Sections
@@ -141,10 +135,7 @@ struct FinishWorkoutSheet: View {
 
     private var effortSection: some View {
         Section {
-            rating("Accumulated fatigue", selection: $fatigue)
-            rating("Difficulty", selection: $difficulty)
-            rating("Engagement", selection: $engagement)
-            rating("Outside factors", selection: $externalVariables)
+            EffortRatingRows(store: store)
         } header: {
             Text("How it felt")
         } footer: {
@@ -171,17 +162,6 @@ struct FinishWorkoutSheet: View {
                 Text("Your sets are still saved on this phone. Nothing has been lost.")
                     .font(.footnote)
                     .foregroundStyle(Color(.secondaryLabel))
-            }
-        }
-    }
-
-    /// One rating row. A `Picker` in a `Form` renders as Apple's own value row, which gets Dynamic
-    /// Type and VoiceOver right and makes "not rated" an option rather than a thing to undo.
-    private func rating(_ label: String, selection: Binding<Int?>) -> some View {
-        Picker(label, selection: selection) {
-            Text("Not rated").tag(Int?.none)
-            ForEach(Self.scale, id: \.self) { value in
-                Text("\(value)").tag(Int?.some(value))
             }
         }
     }
@@ -225,13 +205,7 @@ struct FinishWorkoutSheet: View {
             bodyweight: bodyweight.series,
             lastRoutineSession: workout.routine.flatMap { routines.routine($0.routineId)?.lastSession })
 
-        let effort = PerceivedEffortRequest(
-            accumulatedFatigue: fatigue,
-            difficultyRating: difficulty,
-            engagementRating: engagement,
-            externalVariablesRating: externalVariables)
-
-        switch await store.complete(effort: effort, endingAt: endedAt) {
+        switch await store.complete(endingAt: endedAt) {
         case .delivered:
             Haptics.achievement()
             finished(summary.completed(as: workout.destination.sessionId))

@@ -214,7 +214,7 @@ struct DeferredStartTests {
         Self.beginDeferred(store)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        async let outcome = store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+        async let outcome = store.complete(endingAt: AWorkout.start.addingTimeInterval(3000))
         try? await Task.sleep(for: .milliseconds(50))
         // What the app does the moment any request is answered after a spell of none.
         await store.serverReturned()
@@ -234,7 +234,7 @@ struct DeferredStartTests {
         Self.beginDeferred(store)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+        let outcome = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3000))
 
         #expect(outcome == .heldForDelivery)
         #expect(store.workout == nil)
@@ -268,7 +268,7 @@ struct DeferredStartTests {
         store.begin(destination: .deferredStart(localId: Self.localId), startedAt: AWorkout.start, routine: Self.upper)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        _ = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+        _ = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3000))
 
         #expect(server.loggedRoutines == [Self.upper.routineId])
     }
@@ -279,7 +279,7 @@ struct DeferredStartTests {
         Self.beginDeferred(store)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+        let outcome = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3000))
 
         // One request carrying everything, rather than opening a session only to complete it.
         #expect(outcome == .delivered)
@@ -297,7 +297,7 @@ struct DeferredStartTests {
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+        let outcome = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3000))
 
         // The sets are real whatever became of the session they were logged against.
         #expect(outcome == .delivered)
@@ -318,7 +318,7 @@ struct DeferredStartTests {
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
         store.log(.freeform(text: "a set"), restingFor: nil)
 
-        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+        let outcome = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3000))
 
         #expect(outcome == .delivered)
         #expect(server.logged.isEmpty)
@@ -336,7 +336,7 @@ struct DeferredStartTests {
         let clock = ContinuousClock()
         let began = clock.now
 
-        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+        let outcome = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3000))
 
         // The opening was cancelled before it was answered, and the finish found nothing on the
         // server, so the workout landed whole.
@@ -359,7 +359,7 @@ struct DeferredStartTests {
         let clock = ContinuousClock()
         let began = clock.now
 
-        let outcome = await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3000))
+        let outcome = await store.complete(endingAt: AWorkout.start.addingTimeInterval(3000))
 
         #expect(clock.now - began < .seconds(5))
         #expect(outcome == .heldForDelivery)
@@ -404,7 +404,7 @@ struct WorkoutOutboxTests {
     private static func aFinished(
         _ workout: ActiveWorkout = AWorkout.retro(sets: [AWorkout.words()])
     ) -> FinishedWorkout {
-        FinishedWorkout(workout: workout, endedAt: AWorkout.start.addingTimeInterval(3600), effort: nil)
+        FinishedWorkout(workout: workout, endedAt: AWorkout.start.addingTimeInterval(3600))
     }
 
     @Test("A finished workout set down survives a relaunch")
@@ -418,6 +418,25 @@ struct WorkoutOutboxTests {
         let relaunched = WorkoutOutbox(document: document, sessions: server)
         await relaunched.restore()
         #expect(relaunched.finished == [finished])
+    }
+
+    @Test("A finish set down before the workout held its ratings keeps them")
+    func anOlderFinishKeepsItsRatings() throws {
+        // An earlier build kept the effort beside a version 5 workout. A phone that updates with a
+        // finish still waiting must deliver the ratings the athlete gave it.
+        let json = #"""
+            {"id":"77777777-7777-7777-7777-777777777777","endedAt":1772649000,
+             "delivery":{"kind":"waiting"},
+             "effort":{"accumulatedFatigue":2,"difficultyRating":null,"engagementRating":4,"externalVariablesRating":null},
+             "workout":{"version":5,"destination":{"kind":"afterTheFact"},"startedAt":1772645400,
+                        "sync":{"kind":"synced"},"sets":[],"rest":{"idle":{}},"prescriptions":[],
+                        "addedMovementDataIds":[],"notes":""}}
+            """#
+
+        let finished = try JSONDecoder().decode(FinishedWorkout.self, from: Data(json.utf8))
+
+        #expect(finished.workout.effort == PerceivedEffortRequest(
+            accumulatedFatigue: 2, difficultyRating: nil, engagementRating: 4, externalVariablesRating: nil))
     }
 
     @Test("Delivered, it is gone from the device")

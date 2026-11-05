@@ -4,13 +4,13 @@ import Foundation
 ///
 /// Finishing is the athlete's act and it happens where they are, which is often where there is no
 /// signal. So a finish that cannot reach the server is not refused: the workout is set down here,
-/// with the end and the effort the athlete gave it, and delivered when the server answers. Until
-/// then this is the only copy, which is why it is a document on disk and not a request in memory.
+/// with the end the athlete gave it — and the effort, which the workout itself holds — and
+/// delivered when the server answers. Until then this is the only copy, which is why it is a
+/// document on disk and not a request in memory.
 struct FinishedWorkout: Equatable, Sendable, Identifiable {
     let id: UUID
     let workout: ActiveWorkout
     let endedAt: Date
-    let effort: PerceivedEffortRequest?
     let delivery: Delivery
 
     /// Where handing it over stands.
@@ -26,18 +26,16 @@ struct FinishedWorkout: Equatable, Sendable, Identifiable {
         id: UUID = UUID(),
         workout: ActiveWorkout,
         endedAt: Date,
-        effort: PerceivedEffortRequest?,
         delivery: Delivery = .waiting
     ) {
         self.id = id
         self.workout = workout
         self.endedAt = endedAt
-        self.effort = effort
         self.delivery = delivery
     }
 
     func refused(_ reason: String) -> FinishedWorkout {
-        FinishedWorkout(id: id, workout: workout, endedAt: endedAt, effort: effort, delivery: .refused(reason))
+        FinishedWorkout(id: id, workout: workout, endedAt: endedAt, delivery: .refused(reason))
     }
 
     /// Whether delivering it again could plausibly land it.
@@ -51,7 +49,10 @@ struct FinishedWorkout: Equatable, Sendable, Identifiable {
 
 extension FinishedWorkout: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, workout, endedAt, effort, delivery
+        case id, workout, endedAt, delivery
+        /// Where a finish set down before the workout held its effort kept it: beside the workout,
+        /// which was unrated. Read, never written again.
+        case effort
     }
 
     /// The workout itself is decoded strictly, since it is the athlete's work; everything about the
@@ -60,9 +61,13 @@ extension FinishedWorkout: Codable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
-        workout = try container.decode(ActiveWorkout.self, forKey: .workout)
+        let workout = try container.decode(ActiveWorkout.self, forKey: .workout)
+        if let heldApart = try? container.decodeIfPresent(PerceivedEffortRequest.self, forKey: .effort) {
+            self.workout = workout.rating(heldApart)
+        } else {
+            self.workout = workout
+        }
         endedAt = try container.decode(Date.self, forKey: .endedAt)
-        effort = try? container.decodeIfPresent(PerceivedEffortRequest.self, forKey: .effort)
         delivery = (try? container.decode(Delivery.self, forKey: .delivery)) ?? .waiting
     }
 
@@ -71,7 +76,6 @@ extension FinishedWorkout: Codable {
         try container.encode(id, forKey: .id)
         try container.encode(workout, forKey: .workout)
         try container.encode(endedAt, forKey: .endedAt)
-        try container.encodeIfPresent(effort, forKey: .effort)
         try container.encode(delivery, forKey: .delivery)
     }
 }

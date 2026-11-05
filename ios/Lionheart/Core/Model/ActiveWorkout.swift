@@ -107,8 +107,9 @@ struct ActiveWorkout: Equatable, Sendable {
     ///     workout.
     /// 4 — a live workout whose session is not open on the server yet (a deferred start), and the
     ///     planned session a workout was started from.
-    /// 5 — this one: the routine a workout was started from, and a kind on every lift.
-    static let currentVersion = 5
+    /// 5 — the routine a workout was started from, and a kind on every lift.
+    /// 6 — this one: the effort ratings, given while the session is going.
+    static let currentVersion = 6
 
     let version: Int
     let destination: WorkoutDestination
@@ -145,6 +146,10 @@ struct ActiveWorkout: Equatable, Sendable {
     /// what this keeps is the rest of what the routine says — how many working sets each movement
     /// gets, and which routine the finished session belongs to.
     let routine: WorkoutRoutine?
+    /// How the athlete rates the session so far: given whenever they like while it is going, and
+    /// sent when it is completed, so the finish sheet opens on whatever is here rather than asking
+    /// again. Unrated until they say otherwise.
+    let effort: PerceivedEffortRequest
 
     init(
         destination: WorkoutDestination,
@@ -158,6 +163,7 @@ struct ActiveWorkout: Equatable, Sendable {
         notes: String = "",
         plannedSessionId: UUID? = nil,
         routine: WorkoutRoutine? = nil,
+        effort: PerceivedEffortRequest = .unrated,
         version: Int = Self.currentVersion
     ) {
         self.version = version
@@ -172,6 +178,7 @@ struct ActiveWorkout: Equatable, Sendable {
         self.notes = notes
         self.plannedSessionId = plannedSessionId
         self.routine = routine
+        self.effort = effort
     }
 
     /// How long the session has been running at `now`. Never negative, so a device clock that moved
@@ -238,6 +245,7 @@ struct ActiveWorkout: Equatable, Sendable {
             notes: notes,
             plannedSessionId: plannedSessionId,
             routine: routine,
+            effort: effort,
             version: version)
     }
 
@@ -295,6 +303,10 @@ struct ActiveWorkout: Equatable, Sendable {
         with(notes: notes)
     }
 
+    func rating(_ effort: PerceivedEffortRequest) -> ActiveWorkout {
+        with(effort: effort)
+    }
+
     /// The workout with a different start.
     ///
     /// Only meaningful for one being written down afterwards, where the athlete states when it
@@ -331,7 +343,8 @@ struct ActiveWorkout: Equatable, Sendable {
         sets: [LoggedSet]? = nil,
         rest: RestClock? = nil,
         addedMovementDataIds: [UUID]? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        effort: PerceivedEffortRequest? = nil
     ) -> ActiveWorkout {
         ActiveWorkout(
             destination: destination ?? self.destination,
@@ -345,6 +358,7 @@ struct ActiveWorkout: Equatable, Sendable {
             notes: notes ?? self.notes,
             plannedSessionId: plannedSessionId,
             routine: routine,
+            effort: effort ?? self.effort,
             version: version)
     }
 }
@@ -442,6 +456,7 @@ extension ActiveWorkout: Codable {
         case notes
         case plannedSessionId
         case routine
+        case effort
         /// Version 1's single session id, read so a workout started under the foundation build is
         /// not thrown away on the first launch of this one.
         case sessionId
@@ -479,6 +494,7 @@ extension ActiveWorkout: Codable {
         notes = (try? container.decode(String.self, forKey: .notes)) ?? ""
         plannedSessionId = try? container.decode(UUID.self, forKey: .plannedSessionId)
         routine = try? container.decode(WorkoutRoutine.self, forKey: .routine)
+        effort = (try? container.decode(PerceivedEffortRequest.self, forKey: .effort)) ?? .unrated
     }
 
     /// What a document written before version 3 had added, recovered from the one trace it kept.
@@ -519,5 +535,6 @@ extension ActiveWorkout: Codable {
         try container.encode(notes, forKey: .notes)
         try container.encodeIfPresent(plannedSessionId, forKey: .plannedSessionId)
         try container.encodeIfPresent(routine, forKey: .routine)
+        try container.encode(effort, forKey: .effort)
     }
 }

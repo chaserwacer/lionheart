@@ -104,7 +104,6 @@ final class WorkoutOutbox {
                 try await delivery.deliver(
                     waiting.workout,
                     endingAt: waiting.endedAt,
-                    effort: waiting.effort,
                     mayHaveLanded: true)
             } catch is CancellationError {
                 return landed

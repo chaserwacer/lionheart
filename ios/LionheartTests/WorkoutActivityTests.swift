@@ -241,7 +241,7 @@ struct WorkoutActivityLifecycleTests {
         store.begin(destination: .liveSession(AWorkout.session), startedAt: AWorkout.start)
         await Self.settle()
 
-        #expect(await store.complete(effort: nil, endingAt: AWorkout.start.addingTimeInterval(3600)) == .delivered)
+        #expect(await store.complete(endingAt: AWorkout.start.addingTimeInterval(3600)) == .delivered)
         await Self.settle()
 
         #expect(lockScreen.last == .some(nil))
