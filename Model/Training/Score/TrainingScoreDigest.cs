@@ -17,10 +17,15 @@ namespace lionheart.Model.Training.Score;
 /// full score with its twelve-week series, sixteen muscles and nine patterns runs to thousands. The
 /// lines keep every measurement the score was read from and name only what is under target.
 /// </remarks>
+/// <param name="Adjusted">
+/// The adjusted score and the days behind it, with every adjusted target, or that it is the score
+/// itself when nothing was marked non-training.
+/// </param>
 public sealed record TrainingScoreDigest(
     string Window,
     string Score,
     IReadOnlyList<string> Parts,
+    string Adjusted,
     string UpNext,
     string UnderTarget,
     string Weeks)
@@ -31,9 +36,32 @@ public sealed record TrainingScoreDigest(
             ? $"{score.Value} of 100"
             : $"{score.Value} of {score.OutOf} that could be read; unknown: {string.Join(", ", score.Unknown.Select(Word))}",
         [Lifting(score.Lifting), Cardio(score.Cardio), Progress(score.Progress), Consistency(score.Consistency)],
+        AdjustedLine(score),
         UpNextLine(volume.UpNext, score.Window.To),
         UnderTargetLine(volume),
         string.Join(", ", weeks.Select(week => $"{week.Window.To:yyyy-MM-dd} {week.Value}/{week.OutOf}")));
+
+    /// <summary>
+    /// "adjusted 84 of 100; 5 of 7 days available (non-training 2026-11-03 travel, …); adjusted
+    /// targets: push 3/6 hard sets, …", or that it is the score when the days asked for nothing less.
+    /// </summary>
+    private static string AdjustedLine(TrainingScore score)
+    {
+        var expected = score.Expectations;
+        var off = expected.Availability.Unavailable;
+        var same = score.Adjusted.Value == score.Value && score.Adjusted.OutOf == score.OutOf;
+        if (off.Count is 0 && same) return "adjusted: the same as the score, no day marked non-training";
+
+        var targets = expected.Families
+            .Select(family => $"{PatternWords.Of(family.Family)} {Points(family.Sets.Done)}/{Points(family.Sets.Adjusted.Target)} hard sets")
+            .Concat(expected.Cardio.Zones.Select(zone => $"{BandWords(zone.Band)} {Points(zone.Minutes.Done)}/{Points(zone.Minutes.Adjusted.Target)} min"))
+            .Append($"sessions {Points(expected.Sessions.Done)}/{Points(expected.Sessions.Adjusted.Target)}");
+        var days = off.Count is 0
+            ? "every day of this week available, days marked off in the weeks before"
+            : $"{expected.Availability.AvailableDays} of {expected.Availability.Days.Count} days available (non-training "
+              + string.Join(", ", off.Select(day => $"{day.Day:yyyy-MM-dd}{(day.Note.Length > 0 ? $" {day.Note}" : "")}")) + ")";
+        return $"adjusted {score.Adjusted.Value} of {score.Adjusted.OutOf} (every target prorated to the days available); {days}; adjusted targets: {string.Join(", ", targets)}";
+    }
 
     private static string Lifting(LiftingPart part) =>
         $"lifting {Points(part.Points)}/{part.OutOf}: "

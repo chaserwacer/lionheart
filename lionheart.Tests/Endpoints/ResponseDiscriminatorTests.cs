@@ -138,11 +138,11 @@ public class ResponseDiscriminatorTests
             .WithSession(new DateOnly(2026, 10, 20), Balance.ALog.Set(Balance.ALog.Bench, 200, 5))
             .WithSession(new DateOnly(2026, 11, 2), Balance.ALog.Set(Balance.ALog.Bench, 210, 5))
             .Build();
-        var score = lionheart.Services.Training.Score.TrainingScoreAnalysis.Score(
+        var score = lionheart.Tests.Balance.Scoring.Score(
             log, [], _ => new Model.Cardio.CardioMeasure.Unknown(Model.Cardio.CardioUnknownReason.NoHeartRate),
             new DateOnly(2026, 11, 3));
         var volume = lionheart.Services.Training.Balance.TrainingVolumeAnalysis.Build(
-            log, new DateOnly(2026, 11, 3), new Model.Training.Balance.ReadinessNote.Low(58, 63, 87));
+            log, new DateOnly(2026, 11, 3), new Model.Training.Balance.ReadinessNote.Low(58, 63, 87), score.Expectations.Families);
 
         var scoreBody = JsonDocument.Parse(await WriteAsync(Endpoint.ToActionResult(
             Result<Model.Training.Score.TrainingScore, Problem>.Success(score)))).RootElement;
@@ -203,9 +203,11 @@ public class ResponseDiscriminatorTests
             new Model.Training.Next.FirstChoice(Model.Training.Next.NextKind.Cardio, ["cardio is further behind"]),
             new Model.Training.Next.NextLift.Train(
                 [Model.Training.Patterns.PatternFamily.Legs], new DateOnly(2026, 10, 30),
-                [new Model.Training.Next.PriorityAim(
+                [new Model.Training.Expectations.PriorityAim(
                     Model.Training.Patterns.PatternFamily.Legs, Guid.NewGuid(), "Squat",
-                    new Model.Training.Next.LiftAim.Beat(305, 5, Model.Training.Sets.WeightUnit.Pounds, 355.8, 350, false))],
+                    new Model.Training.Expectations.LiftAim.Beat(305, 5, Model.Training.Sets.WeightUnit.Pounds, 355.8, 350, false),
+                    new Model.Training.Expectations.PriorityFrequency.NotPinned(1),
+                    ["nothing says hold"])],
                 ["legs trained longest ago"]),
             new Model.Training.Next.NextCardio.Quality(4, 4, 3, ["quality unmet"]),
             Model.Training.Next.RecoveryRead.NotRead);

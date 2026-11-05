@@ -5,6 +5,10 @@ using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Score;
 using lionheart.Services.Cardio;
 using lionheart.Services.Training.Patterns;
+using lionheart.Services.Chat.Today;
+using lionheart.Services.Training.Balance;
+using lionheart.Services.Training.GoingIn;
+using Microsoft.Extensions.Logging.Abstractions;
 using lionheart.Services.Training.Score;
 using lionheart.Tests.Support;
 
@@ -19,6 +23,9 @@ public class TrainingScoreServiceTests : IDisposable
     private static readonly DateOnly Sunday = new(2026, 11, 8);
     private static readonly TimeSpan Eastern = TimeSpan.FromHours(-5);
 
+    /// <summary>A Wednesday evening ten days after the Sunday, so no window scored here ends on today.</summary>
+    private static readonly FixedClock Clock = new(new DateTimeOffset(2026, 11, 18, 20, 0, 0, Eastern));
+
     private readonly TwoAthletes _athletes = new();
 
     public void Dispose() => _athletes.Dispose();
@@ -26,7 +33,12 @@ public class TrainingScoreServiceTests : IDisposable
     private async Task<T> ScoreAsync<T>(Func<TrainingScoreService, Task<T>> act)
     {
         using var context = _athletes.CreateContext();
-        return await act(new TrainingScoreService(context, new CardioReportService(context), MovementPatternMap.Shipped));
+        var cardio = new CardioReportService(context);
+        var goingIn = new GoingInService(
+            context,
+            new TodayFactsService(context, cardio, MovementPatternMap.Shipped, Clock, NullLogger<TodayFactsService>.Instance),
+            new TrainingVolumeService(context, MovementPatternMap.Shipped));
+        return await act(new TrainingScoreService(context, cardio, MovementPatternMap.Shipped, goingIn, Clock));
     }
 
     private async Task PlantBenchSessionAsync(DateOnly day, int sets)

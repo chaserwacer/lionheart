@@ -24,7 +24,8 @@ public sealed class TodayBriefingTests
         ReadinessFact? readiness = null,
         IReadOnlyList<InjuryFact>? injuries = null,
         MaxHeartRate? max = null,
-        string score = "") =>
+        string score = "",
+        IReadOnlyList<NonTrainingFact>? nonTraining = null) =>
         new(now ?? Evening,
             sessions ?? [],
             new CardioDays.Read(cardio ?? [], max),
@@ -36,7 +37,7 @@ public sealed class TodayBriefingTests
             null,
             injuries ?? [],
             [],
-            score);
+            nonTraining ?? []) { Score = score };
 
     private static SessionFact Lifting(DateOnly day, int hour, params (string Movement, PatternFamily Family, int Sets)[] lifts) =>
         new(day,

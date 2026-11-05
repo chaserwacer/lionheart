@@ -60,6 +60,28 @@ public static class Progression
         return new WeeklyTarget(Math.Clamp(grown, standard.Floor, standard.Committed), standard.Committed, standard.Floor, chronic);
     }
 
+    /// <summary>A standard that does not grow: its committed figure is the target every week.</summary>
+    public static WeeklyTarget Fixed(Standard standard) =>
+        new(standard.Committed, standard.Committed, standard.Floor, null);
+
+    /// <summary>
+    /// A target fitted to the days of the week the athlete had: every figure scaled by the share of
+    /// the seven days available and rounded up to its step, so a short week still asks for its
+    /// share and never less. The chronic figure is what it grew from, and stays.
+    /// </summary>
+    public static WeeklyTarget Prorated(WeeklyTarget target, Standard standard, int availableDays)
+    {
+        // Max, because a whole week marked off rounds -1e-9 up to negative zero, which prints "-0".
+        double Fit(double figure) =>
+            Math.Max(0, Math.Ceiling(figure * availableDays / WeekDays / standard.Step - 1e-9) * standard.Step);
+
+        return availableDays >= WeekDays
+            ? target
+            : target with { Target = Fit(target.Target), Committed = Fit(target.Committed), Floor = Fit(target.Floor) };
+    }
+
+    public const int WeekDays = 7;
+
     /// <summary>
     /// A measurement's share of its points: half on this week's target, half on the committed
     /// standard, each the square root of the fraction reached, capped at the whole.

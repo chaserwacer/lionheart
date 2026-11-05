@@ -1,6 +1,7 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Cardio;
 using lionheart.Model.Training.Balance;
+using lionheart.Model.Training.Expectations;
 using lionheart.Model.Training.Next;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
@@ -39,8 +40,7 @@ public class NextSessionsAnalysisTests
         return NextSessionsAnalysis.Of(new NextInputs(
             Today,
             built,
-            PriorityAnalysis.Read(built, [], Today),
-            TrainingScoreAnalysis.Score(built, [], CardioOf, Today),
+            Scoring.Score(built, [], CardioOf, Today),
             cardio ?? [],
             recovery ?? Rested));
     }
@@ -189,8 +189,7 @@ public class NextSessionsAnalysisTests
         var next = NextSessionsAnalysis.Of(new NextInputs(
             Today,
             built,
-            PriorityAnalysis.Read(built, [], Today),
-            TrainingScoreAnalysis.Score(built, [], _ => new CardioMeasure.Unknown(CardioUnknownReason.NoHeartRate), Today),
+            Scoring.Score(built, [], _ => new CardioMeasure.Unknown(CardioUnknownReason.NoHeartRate), Today),
             [],
             Rested));
 

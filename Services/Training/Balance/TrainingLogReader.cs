@@ -31,6 +31,7 @@ public static class TrainingLogReader
             {
                 OnlyWalking = session.Sets.Count > 0
                               && session.Sets.All(set => set is EnduranceSet { Activity: EnduranceActivity.Walk }),
+                Effort = session.Effort,
             })
             .ToList();
 

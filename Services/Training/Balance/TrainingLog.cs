@@ -1,4 +1,5 @@
 using lionheart.Model.BodyMeasurements;
+using lionheart.Model.Training;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
 
@@ -71,6 +72,9 @@ public sealed record SessionInLog(Guid TrainingSessionId, DateOnly Day, IReadOnl
     /// training session.
     /// </summary>
     public bool OnlyWalking { get; init; }
+
+    /// <summary>How hard the athlete said the session was and how tired he came to it, when he said.</summary>
+    public EffortState Effort { get; init; } = new EffortNotReported();
 
     /// <summary>Whether the session counts as one trained: anything but a session of only walking.</summary>
     public bool Trained => !OnlyWalking;

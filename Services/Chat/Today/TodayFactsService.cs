@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json;
 using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model;
@@ -10,47 +9,39 @@ using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sessions;
 using lionheart.Model.Training.Sets;
 using lionheart.Services.Cardio;
-using lionheart.Services.Llm;
+using lionheart.Services.Training.Availability;
 using lionheart.Services.Training.Balance;
 using lionheart.Services.Training.Patterns;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Model.Tools;
 
 namespace lionheart.Services.Chat.Today;
-
-/// <summary>The briefing a chat message is sent with.</summary>
-public interface ITodayBriefing
-{
-    /// <summary>
-    /// The athlete's day as of now. Total: when the facts cannot be read it still states the date
-    /// and time, which is the one thing a briefing must never leave the model to guess.
-    /// </summary>
-    Task<string> ForAsync(IdentityUser user, CancellationToken ct);
-}
 
 /// <summary>The facts the briefing renders, for a reader that judges them rather than states them.</summary>
 public interface ITodayFacts
 {
     /// <summary>The athlete's day as of now. Throws only where the database cannot be read.</summary>
     Task<TodayFacts> ReadAsync(IdentityUser user, CancellationToken ct);
+
+    /// <summary>The athlete's day as of the moment given, so a reader that has read the clock reads the facts at the same moment.</summary>
+    Task<TodayFacts> ReadAsync(IdentityUser user, AthleteNow now, CancellationToken ct);
 }
 
 /// <summary>Reads the facts <see cref="TodayBriefing"/> renders, fresh for every message.</summary>
 /// <remarks>
 /// Not cached, unlike the context card, because the questions it answers ("did I train today", "how
 /// did I sleep") are exactly the ones a cached copy gets wrong an hour after the athlete logs a
-/// session or the ring syncs a night. It is not cheap — the training log, a week of cardio, and the
-/// score, which reads both again — but for one athlete it is a few hundred milliseconds against a
-/// model call of tens of seconds.
+/// session or the ring syncs a night. It is not cheap — the training log and a week of cardio — but
+/// for one athlete it is a few hundred milliseconds against a model call of tens of seconds. The
+/// score and what is up next are the briefing's own reads (<see cref="TodayBriefingService"/>), not
+/// facts: the going-in rating reads these facts, and the score reads the going-in rating.
 /// </remarks>
-public sealed class TodayBriefingService(
+public sealed class TodayFactsService(
     ModelContext context,
     ICardioReportService cardio,
-    ChatToolCallExecutor tools,
     MovementPatternMap map,
     TimeProvider clock,
-    ILogger<TodayBriefingService> logger) : ITodayBriefing, ITodayFacts
+    ILogger<TodayFactsService> logger) : ITodayFacts
 {
     /// <summary>The nights the sleep baseline is drawn from.</summary>
     private const int BaselineNights = 60;
@@ -61,34 +52,15 @@ public sealed class TodayBriefingService(
 
     private readonly ModelContext _context = context;
     private readonly ICardioReportService _cardio = cardio;
-    private readonly ChatToolCallExecutor _tools = tools;
     private readonly MovementPatternMap _map = map;
     private readonly TimeProvider _clock = clock;
     private readonly ILogger _logger = logger;
 
-    /// <remarks>
-    /// The catch-all is the briefing's contract, the same one the context card keeps: it is context,
-    /// and a message whose context cannot be read is still answered, with the tools.
-    /// </remarks>
-    public async Task<string> ForAsync(IdentityUser user, CancellationToken ct)
-    {
-        var now = AthleteNow.Of(_clock);
-        try
-        {
-            return TodayBriefing.Render(await ReadAsync(user, Guid.Parse(user.Id), now, ct));
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            _logger.LogWarning(exception, "Today's briefing could not be read; the message goes with the clock alone.");
-            return TodayBriefing.ClockOnly(now);
-        }
-    }
+    public Task<TodayFacts> ReadAsync(IdentityUser user, CancellationToken ct) => ReadAsync(user, AthleteNow.Of(_clock), ct);
 
-    public Task<TodayFacts> ReadAsync(IdentityUser user, CancellationToken ct) =>
-        ReadAsync(user, Guid.Parse(user.Id), AthleteNow.Of(_clock), ct);
-
-    private async Task<TodayFacts> ReadAsync(IdentityUser user, Guid userId, AthleteNow now, CancellationToken ct)
+    public async Task<TodayFacts> ReadAsync(IdentityUser user, AthleteNow now, CancellationToken ct)
     {
+        var userId = Guid.Parse(user.Id);
         var today = now.Today;
         var from = now.WeekStart < now.Yesterday ? now.WeekStart : now.Yesterday;
 
@@ -108,10 +80,7 @@ public sealed class TodayBriefingService(
             await WellnessAsync(userId, today, ct),
             await InjuriesAsync(userId, ct),
             await PlannedAsync(userId, log, today, ct),
-            await ToolAsync(user, "GetTrainingScore", today, ct))
-        {
-            Next = await ToolAsync(user, "GetNextSessions", today, ct),
-        };
+            await NonTrainingAsync(userId, today, ct));
     }
 
     // ---- Training ----
@@ -214,23 +183,10 @@ public sealed class TodayBriefingService(
                 plan.PlannedFor,
                 [.. plan.Prescriptions.OfType<LiftPrescription>().Select(lift => log.NameOf(lift.MovementDataId)).Distinct()]))];
 
-    /// <summary>
-    /// The score, or what is up next, as its tool states it, run through the tool itself, so the
-    /// briefing and the tool can never describe one day two ways, whatever shape the answer takes.
-    /// </summary>
-    private Task<string> ToolAsync(IdentityUser user, string tool, DateOnly today, CancellationToken ct) =>
-        _tools.ExecuteToolCallAsync(
-                new ToolInvocation("briefing", tool, JsonSerializer.Serialize(new { from = Iso(today), to = Iso(today) })),
-                user, allowedToolNames: null, ct)
-            .MatchAsync(
-                outcome => outcome.Content is "null" ? string.Empty : outcome.Content,
-                problem =>
-                {
-                    _logger.LogWarning("The briefing could not read {Tool}: {Problem}", tool, problem.Description);
-                    return string.Empty;
-                });
-
-    private static string Iso(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    private async Task<IReadOnlyList<NonTrainingFact>> NonTrainingAsync(Guid userId, DateOnly today, CancellationToken ct) =>
+        [.. (await _context.AvailabilityAsync(userId, new DayRange(today, today.AddDays(6)), ct))
+            .Unavailable
+            .Select(day => new NonTrainingFact(day.Day, day.Note))];
 
     // ---- Recovery ----
 

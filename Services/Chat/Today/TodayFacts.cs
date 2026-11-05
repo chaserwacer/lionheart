@@ -7,7 +7,7 @@ namespace lionheart.Services.Chat.Today;
 /// <param name="Sessions">Completed sessions from the earlier of the week's Monday and yesterday, oldest first.</param>
 /// <param name="Cardio">The cardio report over the same days, or that it could not be read.</param>
 /// <param name="Nights">Main sleeps filed under today and yesterday, the newest first; absent when not synced.</param>
-/// <param name="Score">What the score tool answers for the seven days ending today, verbatim; empty when it had nothing.</param>
+/// <param name="NonTraining">The days from today through the next six he has marked non-training, oldest first.</param>
 public sealed record TodayFacts(
     AthleteNow Now,
     IReadOnlyList<SessionFact> Sessions,
@@ -20,9 +20,15 @@ public sealed record TodayFacts(
     WellnessFact? Wellness,
     IReadOnlyList<InjuryFact> Injuries,
     IReadOnlyList<PlannedFact> Planned,
-    string Score)
+    IReadOnlyList<NonTrainingFact> NonTraining)
 {
-    /// <summary>What the next-sessions tool answers for today, verbatim; empty when it had nothing.</summary>
+    /// <summary>
+    /// What the score tool answers for the seven days ending today, verbatim; empty when it had
+    /// nothing, and empty on the facts a reader other than the briefing asks for.
+    /// </summary>
+    public string Score { get; init; } = "";
+
+    /// <summary>What the next-sessions tool answers for today, verbatim; empty as <see cref="Score"/> is.</summary>
     public string Next { get; init; } = "";
 }
 
@@ -111,3 +117,6 @@ public sealed record WellnessFact(DateOnly Date, double Overall, int Mood, int E
 public sealed record InjuryFact(string Name, int? LastPain);
 
 public sealed record PlannedFact(DateOnly Day, IReadOnlyList<string> Movements);
+
+/// <summary>A day he has said he will not train, with what he said about it.</summary>
+public sealed record NonTrainingFact(DateOnly Day, string Note);
