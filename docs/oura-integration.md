@@ -256,13 +256,16 @@ Things a reader should know before trusting the pull:
   secret and a token store for one user who already has a working credential. The trigger for
   revisiting is a real 401 from a real sync, which the client already names. Do not migrate
   pre-emptively.
-- **The activity and sleep-period collections need an end date a day past the last day wanted**,
-  or they omit that last day. Activity's was found by hand by the earlier integration. Sleep's
-  showed as last night missing from a store whose daily sleep and readiness for the same morning
-  were present: the night was filed only by the next day's sync, so Today and Body read the night
-  before as the latest. The daily collections, `daily_sleep` included, answer for the end date
-  itself. The shift is applied only to those two collections so the workaround stays attached to
-  the quirk it documents.
+- **The activity, sleep-period, workout, session and tag collections need an end date a day past
+  the last day wanted**, or they omit that last day. Activity's was found by hand by the earlier
+  integration. Sleep's showed as last night missing from a store whose daily sleep and readiness
+  for the same morning were present: the night was filed only by the next day's sync, so Today and
+  Body read the night before as the latest. Workouts showed the same way, as a ride confirmed in
+  Oura's app that the day's syncs never stored; a sync of one day alone returned no workouts,
+  sessions or tags for a day that had them, and the same sync a day longer returned them. The
+  daily collections, `daily_sleep` included, answer for the end date itself. The shift is applied
+  only to the collections shown to need it so the workaround stays attached to the quirk it
+  documents.
 - **VO2max, cardiovascular age and heart rate have not run live.** They were added after the first
   live sync. Their mapping follows Oura's published schema; the first sync that includes them is
   the check, and its `rejected` count per collection is the number to read. They run last, and a

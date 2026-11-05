@@ -111,11 +111,11 @@ public sealed class OuraSyncService : IOuraSyncService
     /// </remarks>
     private IReadOnlyList<Func<CancellationToken, Task<Result<OuraCollectionTally, Problem>>>> Steps(SyncRun run) =>
     [
-        // The activity and sleep-period collections answer an end_date of their own last day with
-        // that day missing, so each is asked for one day more. Applied only to those two, so the
-        // workaround stays attached to the quirk it exists for rather than looking like a
-        // convention. For sleep the missing day is this morning's: without it, last night stays
-        // unstored until the next day's sync, and every screen reads the night before as the latest.
+        // Daily activity, sleep periods, workouts, sessions and tags answer an end_date of their own
+        // last day with that day missing, so each is asked for one day more. Applied only to those,
+        // so the workaround stays attached to the quirk it exists for rather than looking like a
+        // convention. The missing day is today's: without it, last night's sleep and the workout
+        // just finished stay unstored until the next day's sync.
         ct => CollectAsync<WireDailyActivity, OuraDailyActivity, DailyActivityReading>(
             run, "daily_activity", endDayShift: 1, wire => wire.ToDocument(run.UserId), _context.OuraDailyActivity, ct),
         ct => CollectAsync<WireDailyReadiness, OuraDailyReadiness, DailyReadinessReading>(
@@ -132,11 +132,11 @@ public sealed class OuraSyncService : IOuraSyncService
         ct => CollectAsync<WireSleep, OuraSleepPeriod, SleepPeriodReading>(
             run, "sleep", endDayShift: 1, wire => wire.ToDocument(run.UserId), _context.OuraSleepPeriods, ct),
         ct => CollectAsync<WireWorkout, OuraWorkout, WorkoutReading>(
-            run, "workout", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraWorkouts, ct),
+            run, "workout", endDayShift: 1, wire => wire.ToDocument(run.UserId), _context.OuraWorkouts, ct),
         ct => CollectAsync<WireSession, OuraSession, SessionReading>(
-            run, "session", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraSessions, ct),
+            run, "session", endDayShift: 1, wire => wire.ToDocument(run.UserId), _context.OuraSessions, ct),
         ct => CollectAsync<WireTag, OuraTag, TagReading>(
-            run, "tag", endDayShift: 0, wire => wire.ToDocument(run.UserId), _context.OuraTags, ct),
+            run, "tag", endDayShift: 1, wire => wire.ToDocument(run.UserId), _context.OuraTags, ct),
 
         // Mapped from Oura's published schema with no recorded payload to check it against, so a
         // refusal of the whole route — a scope the credential lacks, a page that does not parse —
