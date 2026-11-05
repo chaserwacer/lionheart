@@ -65,10 +65,10 @@ public static class WeeklyAdviceAnalysis
                 monday,
                 injury.Name,
                 injury.Families,
-                $"Hold {Families(injury.Families)} while {injury.Name} settles",
+                $"Hold {PatternWords.Listed(injury.Families)} while {injury.Name} settles",
                 [
                     .. injury.Preceding.Where(trend => trend.Earlier > 0 && Math.Abs(trend.Change) >= 0.1).Select(Lead),
-                    $"{Sentence(Families(injury.Families))} target{(injury.Families.Count is 1 ? " is" : "s are")} paused while it is managed; train {(injury.Families.Count is 1 ? "it" : "them")} at what you have been doing, not more.",
+                    $"{Sentence(PatternWords.Listed(injury.Families))} target{(injury.Families.Count is 1 ? " is" : "s are")} paused while it is managed; train {(injury.Families.Count is 1 ? "it" : "them")} at what you have been doing, not more.",
                     "Once it is resolved, the targets grow back 10 % a week from what you did meanwhile.",
                 ])
             : null;
@@ -219,11 +219,9 @@ public static class WeeklyAdviceAnalysis
     private static string Lead(FamilyTrend trend) =>
         $"{Sentence(PatternWords.Of(trend.Family))} volume {(trend.Change > 0 ? "rose" : "fell")} {Math.Abs(trend.Change) * 100:0} % in the {InjuryManagement.RecentWeeks} weeks before it: {Figure(trend.Recent)} hard sets a week against {Figure(trend.Earlier)} in the {InjuryManagement.EarlierWeeks} before.";
 
-    private static string Families(IReadOnlyList<PatternFamily> families) => string.Join(" and ", families.Select(PatternWords.Of));
-
     private static string Sentence(string words) => words.Length is 0 ? words : char.ToUpperInvariant(words[0]) + words[1..];
 
     private static string Percent(double share) => $"{share * 100:0} %";
 
-    private static string Figure(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+    private static string Figure(double value) => ExpectationReasons.Figure(value);
 }

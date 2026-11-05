@@ -233,7 +233,7 @@ nothing logs. Code: `Services/Training/Load/`.
 
 A week's **load ratio** is its figure over the mean weekly figure of the four seven-day blocks
 before it — the acute:chronic ratio, *uncoupled*, the chronic blocks excluding the week. A coupled
-ratio (the week inside its own 28-day mean, which the going-in rating used to read) counts a spike
+ratio (the week inside its own 28-day mean) counts a spike
 against itself and understates it; the uncoupled form avoids the mathematical coupling Windt and
 Gabbett (2019) and Impellizzeri et al. (2020) describe. The chronic figure is the very one the
 targets grow from, so the targets, the going-in rating's load part, the cardio and running ramps

@@ -199,5 +199,5 @@ public static class LoadAnalysis
     /// <summary>The four seven-day blocks before a block, newest first: the chronic load it is read against.</summary>
     private static IEnumerable<DayRange> ChronicBlocks(DayRange block) => WeekExpectationsAnalysis.Before(block).Take(Progression.ChronicWeeks);
 
-    private static string Figure(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+    private static string Figure(double value) => ExpectationReasons.Figure(value);
 }

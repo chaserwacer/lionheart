@@ -63,8 +63,6 @@ public sealed record EverydayLoad(IReadOnlyList<EverydayDay> Days)
 {
     public static readonly EverydayLoad None = new([]);
 
-    public EverydayDay? On(DateOnly day) => Days.FirstOrDefault(known => known.Day == day);
-
     public IReadOnlyList<EverydayDay> Between(DateOnly from, DateOnly to) =>
         [.. Days.Where(day => day.Day >= from && day.Day <= to)];
 }

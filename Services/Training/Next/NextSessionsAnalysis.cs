@@ -43,6 +43,9 @@ public sealed record NextInputs(
 /// <item>The cardio is a quality session when the week's quality target is unmet, none was done in
 /// the last two days, and recovery is not low; otherwise zone 2. Hard sessions are spaced 48 hours
 /// apart, the easy days between them easy (Seiler 2010).</item>
+/// <item>A day of everyday load far above his usual yesterday or today, or a week whose cardio is
+/// already a spike, leans the cardio easier the way low recovery does; a family an injury pauses
+/// is passed over, and the movements its check-ins name are named to leave out.</item>
 /// <item>Targets are the week's adjusted expectations, so a week with days marked off asks the
 /// next session for the share those days leave; a day itself marked off is said first.</item>
 /// <item>First: low recovery goes to easy aerobic work; one kind already done today goes to the
@@ -109,9 +112,9 @@ public static class NextSessionsAnalysis
         var reasons = new List<string>
         {
             due.LastTrained is { } last
-                ? $"{Sentence(Families(due.Families))} last trained {Ago(inputs.Day, last)}"
+                ? $"{Sentence(PatternWords.Listed(due.Families))} last trained {Ago(inputs.Day, last)}"
                   + (Others(due.Families, volume) is { Length: > 0 } others ? $"; {others} since." : ".")
-                : $"{Sentence(Families(due.Families))} not trained yet.",
+                : $"{Sentence(PatternWords.Listed(due.Families))} not trained yet.",
         };
         foreach (var family in inputs.Score.Expectations.Families.Where(family => due.Families.Contains(family.Family)))
             reasons.Add(Invariant($"{Sentence(PatternWords.Of(family.Family))} {family.Sets.Done:0} of {family.Sets.Adjusted.Target:0} hard sets this week")
@@ -134,7 +137,7 @@ public static class NextSessionsAnalysis
         foreach (var injury in inputs.Score.Expectations.Injuries)
         {
             if (injury.Families.Count > 0)
-                yield return $"{Sentence(Families(injury.Families))} paused while {injury.Name} is managed.";
+                yield return $"{Sentence(PatternWords.Listed(injury.Families))} paused while {injury.Name} is managed.";
             if (injury.Movements.Count > 0)
                 yield return $"Leave out {string.Join(", ", injury.Movements.Select(inputs.Log.NameOf))} while {injury.Name} is managed.";
         }
@@ -159,7 +162,7 @@ public static class NextSessionsAnalysis
 
     /// <summary>The families trained since the due ones, in words, or empty.</summary>
     private static string Others(IReadOnlyList<PatternFamily> due, TrainingVolume volume) =>
-        Families([.. volume.Families.Where(family => !due.Contains(family.Family) && family.LastTrained is not null).Select(family => family.Family)]);
+        PatternWords.Listed([.. volume.Families.Where(family => !due.Contains(family.Family) && family.LastTrained is not null).Select(family => family.Family)]);
 
     // ---- The cardio ----
 
@@ -280,9 +283,6 @@ public static class NextSessionsAnalysis
     private static double Share(double points, int outOf) => outOf > 0 ? points / outOf : 0;
 
     // ---- Words ----
-
-    private static string Families(IReadOnlyList<PatternFamily> families) =>
-        string.Join(" and ", families.Select(PatternWords.Of));
 
     private static string Sentence(string words) =>
         words.Length is 0 ? words : char.ToUpperInvariant(words[0]) + words[1..];
