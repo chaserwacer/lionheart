@@ -724,6 +724,25 @@ has an info sheet (`ScoreInfoSheet`) stating the method with the targets the ser
 Today shows the score in one line. A part with no data says unknown, never zero, is drawn as an
 empty track, and a week read with one is drawn pale.
 
+**The week's expectations** sit under the card (`WeekExpectationsSection`): the adjusted score
+with the days it was read against, then sessions, push, pull and legs, zone 2 and quality — each
+done against its adjusted target, the full target beside it when days marked off lowered it, and
+the server's reasons under a disclosure — then each priority lift's next top set (step, hold or a
+first top set) with its pinned frequency and reasons. Every figure is the score's `expectations`,
+so the volume rows, what's next and this section read the same targets; the client derives only
+which rows to list (`ExpectationLines`). The volume rows read each family against its adjusted
+target. An info sheet (`ExpectationsInfoSheet`) states the method.
+
+**Non-training days** are marked from a calendar button in Train's toolbar, or from the
+expectations section (`NonTrainingDaysSheet`): the stock `MultiDatePicker` shows the days the
+server reads as non-training as selected, so a tap marks a day once — with the note typed above —
+or frees it; freeing a day a weekly statement covers asks first, since it frees every week's
+(`NonTrainingMarking` names the one change a tap made). A weekday is marked every week from a
+starting day, optionally until one, and the statements are listed to swipe away.
+`NonTrainingDaysStore` reads the calendar four weeks back and four months ahead when the sheet
+opens, re-reads after each write, and has the container refresh the week's balance, since every
+target moves with the days.
+
 **What a movement trains** is shown and edited on its page (`ClassificationSection`), stated for the
 base so every variation shares it. A judgement call from the shipped map is shown in orange with its
 reason until he confirms or corrects it.

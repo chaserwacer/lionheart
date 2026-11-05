@@ -110,6 +110,8 @@ enum GoingInWords {
         // On system load the figure is bodyweight and plate together, so it is said as such.
         case .beat(let load, let reps, let unit, _, _, let onSystemLoad):
             "Beat \(Formatting.weight(load, unit))\(onSystemLoad ? " system" : "") × \(reps)"
+        case .hold(let load, let reps, let unit, _, let onSystemLoad):
+            "Hold \(Formatting.weight(load, unit))\(onSystemLoad ? " system" : "") × \(reps)"
         case .establish: "Set a mark"
         case .unrecognised: ""
         }

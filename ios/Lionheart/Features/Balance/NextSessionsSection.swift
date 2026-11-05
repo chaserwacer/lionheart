@@ -54,7 +54,7 @@ private struct LiftRow: View {
                 kind: "Lift",
                 title: PatternFamily.listed(families).capitalisingFirst,
                 details: priorities.map(aim),
-                reasons: reasons,
+                reasons: reasons + priorities.flatMap(\.reasons),
                 isFirst: isFirst)
         case .nothingLogged(let reasons):
             NextRow(kind: "Lift", title: "Nothing classified yet", details: [], reasons: reasons, isFirst: isFirst)
@@ -69,6 +69,9 @@ private struct LiftRow: View {
         case .beat(let load, let reps, let unit, let estimate, let best, let onSystemLoad):
             let set = "\(reps) × \(Formatting.weight(load, unit))\(onSystemLoad ? " system load" : "")"
             return "\(priority.name) \(set) · e1RM \(Formatting.measure(estimate.rounded())) against \(Formatting.measure(best.rounded()))"
+        case .hold(let load, let reps, let unit, let estimate, let onSystemLoad):
+            let set = "\(reps) × \(Formatting.weight(load, unit))\(onSystemLoad ? " system load" : "")"
+            return "\(priority.name) hold \(set) · e1RM \(Formatting.measure(estimate.rounded()))"
         case .establish:
             return "\(priority.name): work up to a top set of 5"
         case .unrecognised:

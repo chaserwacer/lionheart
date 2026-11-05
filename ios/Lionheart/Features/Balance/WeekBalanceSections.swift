@@ -42,7 +42,7 @@ struct WeekBalanceSections: View {
         } header: {
             Text("Hard sets")
         } footer: {
-            Text("Working, drop and failure sets over the seven days to \(Formatting.date(week.volume.window.to)); warm-ups never count. Target 8 a family, 4 a compound pattern.")
+            Text("Working, drop and failure sets over the seven days to \(Formatting.date(week.volume.window.to)); warm-ups never count. Each family against the week's expectation, 4 a compound pattern.")
         }
         Section {
             TrainingScoreSummary(score: week.score)
