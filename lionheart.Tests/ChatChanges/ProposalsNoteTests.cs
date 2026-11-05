@@ -1,0 +1,47 @@
+using lionheart.Model.Chat.Changes;
+using lionheart.Services.Chat.Changes;
+
+namespace lionheart.Tests.ChatChanges;
+
+/// <summary>What the model is told about its proposals with a message: each one, and how it stands.</summary>
+public sealed class ProposalsNoteTests
+{
+    private static readonly DateTime At = new(2026, 11, 4, 17, 0, 0, DateTimeKind.Utc);
+
+    private static ChangeProposal Proposed(string title, int minutes, ProposalAnswer? answer = null)
+    {
+        var proposal = ChangeProposal.Open(
+            new ProposalDraft(Guid.NewGuid(), new ProposedChange.RemovePlan(Guid.NewGuid()), new ProposalSummary(title, [])),
+            Guid.NewGuid(), Guid.NewGuid(), At.AddMinutes(minutes));
+        if (answer is not null) proposal.Settle(answer);
+        return proposal;
+    }
+
+    [Fact]
+    public void Nothing_proposed_says_nothing()
+    {
+        Assert.Equal(string.Empty, ProposalsNote.Render([]));
+    }
+
+    [Fact]
+    public void Each_proposal_is_told_with_how_it_stands_oldest_first()
+    {
+        var note = ProposalsNote.Render(
+        [
+            Proposed("Refused one", 3, new ProposalAnswer.Refused(At, "That day is already marked non-training.")),
+            Proposed("Waiting one", 0),
+            Proposed("Confirmed one", 1, new ProposalAnswer.Confirmed(At)),
+            Proposed("Declined one", 2, new ProposalAnswer.Declined(At)),
+        ]);
+
+        Assert.Equal(
+            [
+                "CHANGES YOU PROPOSED (as of this message; the athlete answers each on its card)",
+                "- Waiting one. Waiting for his answer.",
+                "- Confirmed one. He confirmed it, and it is written.",
+                "- Declined one. He declined it; nothing was written.",
+                "- Refused one. He confirmed it, but it could not be written: That day is already marked non-training.",
+            ],
+            note.Split('\n'));
+    }
+}
