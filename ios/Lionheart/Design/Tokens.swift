@@ -26,6 +26,11 @@ enum Tokens {
     /// The brand's own ground — the launch screen, the opening and sign-in — in both appearances.
     static let graphite = Color(.graphite)
 
+    /// The ground of a tab's hero: Graphite on a light page; on a dark one a Graphite lifted a step
+    /// above the grouped cards, since Graphite itself sits just under them there and the hero would
+    /// read as one more card.
+    static let heroGround = Color(.heroGround)
+
     /// Inset for content that sits inside a card rather than a `List` row.
     static let cardPadding: CGFloat = 16
 

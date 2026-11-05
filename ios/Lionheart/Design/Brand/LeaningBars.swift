@@ -5,7 +5,7 @@ import SwiftUI
 /// own figures.
 ///
 /// Colour says which bar is which, never decoration: the one bar that is now — this week, the part
-/// to act on — in Brick; what came before in Iron; what is still ahead as an empty track. The bars
+/// to act on — in Brick; what came before in Iron; what is still ahead as an outline. The bars
 /// rise from the baseline in turn when they appear and spring to new heights when a figure changes,
 /// the opening's gesture; with Reduce Motion they are simply there. A custom view because Charts
 /// draws a bar as a rectangle, and the lean is the point.
@@ -22,7 +22,7 @@ struct LeaningBars: View {
         case before
         /// The one bar that is now.
         case now
-        /// Not reached yet: a track with nothing in it.
+        /// Not reached yet: an outline with nothing in it.
         case ahead
         /// Reached, with nothing to measure — a week with no session on the lift.
         case empty
@@ -53,8 +53,9 @@ struct LeaningBars: View {
     private func column(_ bar: Bar) -> some View {
         switch bar.role {
         case .ahead:
+            // An outline, so the weeks to come mark their places without outweighing the ones done.
             LeanedColumn(rise: 1)
-                .fill(Color(.quaternarySystemFill))
+                .stroke(Color(.quaternaryLabel), lineWidth: 1)
         case .empty:
             LeanedColumn(rise: hasRisen ? Self.floor : 0)
                 .fill(Color(.tertiarySystemFill))

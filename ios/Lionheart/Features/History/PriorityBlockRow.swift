@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A pinned lift as History's hero carries it: where the horizon stands, the best estimated single
 /// since the pin, and the block itself — each week's best as a leaning bar, the weeks gone in Iron,
-/// this week in Brick, the weeks to come as empty tracks — so three weeks building and one back read
+/// this week in Brick, the weeks to come as outlines — so three weeks building and one back read
 /// as the mark drawn from his own training.
 struct PriorityBlockRow: View {
     let reading: FocusReading
@@ -13,17 +13,20 @@ struct PriorityBlockRow: View {
     @ScaledMetric(relativeTo: .largeTitle) private var barsHeight: CGFloat = 46
 
     var body: some View {
+        let stacked = dynamicTypeSize.isAccessibilitySize
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+            let heading = stacked
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+            heading {
                 Text(name)
                     .font(.headline)
-                    .lineLimit(2)
-                Spacer(minLength: 8)
+                if !stacked { Spacer(minLength: 8) }
                 Text(FocusWords.phase(reading.phase))
                     .font(.meta)
                     .foregroundStyle(Color(.secondaryLabel))
             }
-            let layout = dynamicTypeSize.isAccessibilitySize
+            let layout = stacked
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
                 : AnyLayout(HStackLayout(alignment: .bottom, spacing: 16))
             layout {

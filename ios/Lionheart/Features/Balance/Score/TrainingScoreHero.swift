@@ -19,6 +19,8 @@ struct TrainingScoreHero: View {
     /// Counts the reads that hit a target, for the haptic.
     @State private var targetsHit = 0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// The page's appearance, read outside the hero's forced dark one.
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HeroSection {
@@ -32,17 +34,20 @@ struct TrainingScoreHero: View {
                 }
             }
             .padding(.vertical, 6)
+            // On the row: a sheet hung on the section never presents. It takes the page's
+            // appearance back from the hero's dark one.
+            .sheet(isPresented: $isInfoShown) {
+                ScoreInfoSheet(part: nil, score: score)
+                    .environment(\.colorScheme, colorScheme)
+            }
+            .onChange(of: score) { previous, current in
+                if !ScoreTargets.newlyMet(from: previous, to: current).isEmpty { targetsHit += 1 }
+            }
+            .sensoryFeedback(.success, trigger: targetsHit)
             if let next {
                 NextUpLine(next: next)
             }
         }
-        .sheet(isPresented: $isInfoShown) {
-            ScoreInfoSheet(part: nil, score: score)
-        }
-        .onChange(of: score) { previous, current in
-            if !ScoreTargets.newlyMet(from: previous, to: current).isEmpty { targetsHit += 1 }
-        }
-        .sensoryFeedback(.success, trigger: targetsHit)
     }
 
     /// What the figures cover and the method; the score; its context — beside the figures, or under

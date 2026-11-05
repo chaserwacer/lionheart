@@ -92,7 +92,7 @@ private struct GoingInPartsStrip: View {
                         .font(.caption2)
                         .foregroundStyle(Color(.secondaryLabel))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.6)
+                        .minimumScaleFactor(0.5)
                 }
                 .frame(maxWidth: .infinity)
             }

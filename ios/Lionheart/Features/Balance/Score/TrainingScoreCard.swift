@@ -24,6 +24,10 @@ struct TrainingScoreCard: View {
                 ScoreBreakdownChart(score: score, parts: parts, onSelect: onSelect)
             }
             .padding(.vertical, 4)
+            // On the row: a sheet hung on the section never presents.
+            .sheet(isPresented: $isInfoShown) {
+                ScoreInfoSheet(part: nil, score: score)
+            }
             ForEach(parts) { part in
                 NavigationLink(value: ScoreRoute.part(part.part)) {
                     ScorePartRow(part: part)
@@ -40,9 +44,6 @@ struct TrainingScoreCard: View {
             if score.isPartial {
                 Text("\(unknownNames) unknown this week: its points are out of reach, not zero, so the score reads out of \(score.outOf).")
             }
-        }
-        .sheet(isPresented: $isInfoShown) {
-            ScoreInfoSheet(part: nil, score: score)
         }
     }
 
