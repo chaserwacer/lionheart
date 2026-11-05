@@ -117,6 +117,6 @@ public static class WeekExpectationsAnalysis
         double done, WeeklyTarget raw, Standard standard, AvailabilityCalendar days, string basis)
     {
         var adjusted = Progression.Prorated(raw, standard, days.AvailableDays);
-        return new Expectation(done, raw, adjusted, [basis, .. ExpectationReasons.Adjusted(adjusted, days)]);
+        return new Expectation(done, raw, adjusted, [basis, .. ExpectationReasons.Adjusted(raw, adjusted, days)]);
     }
 }

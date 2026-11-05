@@ -71,6 +71,7 @@ public class WeekExpectationsAnalysisTests
         Assert.Equal("Lowered to 5: 2 of 7 days marked non-training (travel).", push.Reasons[^1]);
         // Three sessions over five days is 2.1, and a share of a session is still a session asked.
         Assert.Equal(3d, expected.Sessions.Adjusted.Target);
+        Assert.Equal("Still 3 with 2 of 7 days marked non-training (travel): the days left hold it.", expected.Sessions.Reasons[^1]);
         Assert.Equal(5, expected.Availability.AvailableDays);
     }
 

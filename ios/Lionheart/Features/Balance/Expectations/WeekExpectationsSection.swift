@@ -92,6 +92,7 @@ private struct ExpectationRow: View {
     let line: ExpectationLine
 
     @State private var isExpanded = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
@@ -102,7 +103,8 @@ private struct ExpectationRow: View {
             }
         } label: {
             LabeledContent {
-                VStack(alignment: .trailing, spacing: 2) {
+                // At the accessibility sizes the figure wraps under the name, where it reads from the left.
+                VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
                     Text(figure)
                         .font(.subheadline.monospacedDigit())
                         .foregroundStyle(Color(.label))
@@ -176,7 +178,8 @@ private struct PriorityAimRow: View {
     private var frequency: String? {
         switch priority.frequency {
         case .pinned(let sessions):
-            "\(MeasurementText.plain(sessions.done)) of \(MeasurementText.plain(sessions.adjusted.target)) sessions this week"
+            "\(MeasurementText.plain(sessions.done)) of \(MeasurementText.plain(sessions.adjusted.target)) "
+                + (sessions.adjusted.target == 1 ? "session" : "sessions") + " this week"
         case .notPinned(let sessions):
             sessions == 1 ? "1 session this week" : "\(sessions) sessions this week"
         case .unrecognised:

@@ -50,15 +50,15 @@ public abstract record LiftAim
 
 /// <summary>How often the week asks for a priority lift: what its pin says, or nothing beyond training it.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
-[JsonDerivedType(typeof(Pinned), "pinned")]
-[JsonDerivedType(typeof(NotPinned), "notPinned")]
+[JsonDerivedType(typeof(Asked), "pinned")]
+[JsonDerivedType(typeof(NotAsked), "notPinned")]
 public abstract record PriorityFrequency
 {
     private protected PriorityFrequency() { }
 
     /// <summary>The pin's sessions a week, against the sessions in the window that trained the lift.</summary>
-    public sealed record Pinned(Expectation Sessions) : PriorityFrequency;
+    public sealed record Asked(Expectation Sessions) : PriorityFrequency;
 
     /// <summary>No pin asks a frequency; the sessions in the window that trained the lift.</summary>
-    public sealed record NotPinned(int Sessions) : PriorityFrequency;
+    public sealed record NotAsked(int Sessions) : PriorityFrequency;
 }

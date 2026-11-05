@@ -137,7 +137,7 @@ public class LiftAimAnalysisTests
 
         var aim = PushAim(BenchedThreeDaysAgo(), pins: [BenchPinned(new FocusTarget.None(), sessionsPerWeek: 3)], days: off);
 
-        var sessions = Assert.IsType<PriorityFrequency.Pinned>(aim.Frequency).Sessions;
+        var sessions = Assert.IsType<PriorityFrequency.Asked>(aim.Frequency).Sessions;
         Assert.Equal((1d, 3d, 2d), (sessions.Done, sessions.Raw.Target, sessions.Adjusted.Target));
         Assert.Equal("Pinned for 3 sessions a week.", sessions.Reasons[0]);
     }
@@ -145,6 +145,6 @@ public class LiftAimAnalysisTests
     [Fact]
     public void An_unpinned_priority_counts_its_sessions_with_nothing_asked()
     {
-        Assert.Equal(new PriorityFrequency.NotPinned(1), PushAim(BenchedThreeDaysAgo()).Frequency);
+        Assert.Equal(new PriorityFrequency.NotAsked(1), PushAim(BenchedThreeDaysAgo()).Frequency);
     }
 }

@@ -148,13 +148,13 @@ public static class LiftAimAnalysis
     {
         var sessions = log.Between(week.Range.From, week.Range.To)
             .Count(session => session.HardSets.Any(set => set.MovementDataId == lift.MovementDataId));
-        if (lift.Choice is not PriorityChoice.ByPin pinned) return new PriorityFrequency.NotPinned(sessions);
+        if (lift.Choice is not PriorityChoice.ByPin pinned) return new PriorityFrequency.NotAsked(sessions);
 
         var standard = new Standard(pinned.Pin.SessionsPerWeek, pinned.Pin.SessionsPerWeek, 1);
         var raw = Progression.Fixed(standard);
         var adjusted = Progression.Prorated(raw, standard, week.AvailableDays);
-        return new PriorityFrequency.Pinned(new Expectation(
-            sessions, raw, adjusted, [$"Pinned for {pinned.Pin.SessionsPerWeek} session{(pinned.Pin.SessionsPerWeek is 1 ? "" : "s")} a week.", .. ExpectationReasons.Adjusted(adjusted, week)]));
+        return new PriorityFrequency.Asked(new Expectation(
+            sessions, raw, adjusted, [$"Pinned for {pinned.Pin.SessionsPerWeek} session{(pinned.Pin.SessionsPerWeek is 1 ? "" : "s")} a week.", .. ExpectationReasons.Adjusted(raw, adjusted, week)]));
     }
 
     private static double Step(WeightUnit unit) => unit switch

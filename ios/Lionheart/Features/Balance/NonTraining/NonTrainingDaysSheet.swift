@@ -90,11 +90,16 @@ struct NonTrainingDaysSheet: View {
     }
 
     /// The selected days are the server's non-training days; a change to them is read as one tap.
+    ///
+    /// Both sides read the store's calendar when they run rather than one captured with the binding:
+    /// the picker can keep a binding from an earlier render, and a tap read against the calendar
+    /// before the last write would name no change at all.
     private func selection(in calendar: AvailabilityCalendar) -> Binding<Set<DateComponents>> {
-        let before = NonTrainingMarking.marked(in: calendar)
-        return Binding(
-            get: { Set(before.map(Self.components)) },
+        Binding(
+            get: { Set(NonTrainingMarking.marked(in: store.calendar.value ?? calendar).map(Self.components)) },
             set: { picked in
+                let calendar = store.calendar.value ?? calendar
+                let before = NonTrainingMarking.marked(in: calendar)
                 let after = Set(picked.compactMap(Self.day))
                 switch NonTrainingMarking.change(from: before, to: after, in: calendar) {
                 case .mark(let day)?:

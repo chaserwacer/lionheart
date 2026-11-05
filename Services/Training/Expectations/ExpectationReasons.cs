@@ -21,15 +21,20 @@ public static class ExpectationReasons
     /// <summary>A standard that does not grow.</summary>
     public static string Committed(WeeklyTarget target, string unit) => $"Committed {Figure(target.Committed)} {unit} a week.";
 
-    /// <summary>What the window's days did to the target: nothing when every day was available.</summary>
-    public static IReadOnlyList<string> Adjusted(WeeklyTarget adjusted, AvailabilityCalendar days)
+    /// <summary>
+    /// What the window's days did to the target: nothing when every day was available, and that it
+    /// held when rounding up kept it where it was.
+    /// </summary>
+    public static IReadOnlyList<string> Adjusted(WeeklyTarget raw, WeeklyTarget adjusted, AvailabilityCalendar days)
     {
         var off = days.Days.Count - days.AvailableDays;
+        var marked = $"{off} of {days.Days.Count} days marked non-training{Notes(days)}";
         return off switch
         {
             0 => [],
             _ when days.AvailableDays is 0 => [$"Nothing asked: all {days.Days.Count} days marked non-training."],
-            _ => [$"Lowered to {Figure(adjusted.Target)}: {off} of {days.Days.Count} days marked non-training{Notes(days)}."],
+            _ when adjusted.Target < raw.Target => [$"Lowered to {Figure(adjusted.Target)}: {marked}."],
+            _ => [$"Still {Figure(adjusted.Target)} with {marked}: the days left hold it."],
         };
     }
 

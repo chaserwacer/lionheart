@@ -243,7 +243,7 @@ public class ResponseDiscriminatorTests
                 [new Model.Training.Expectations.PriorityAim(
                     Model.Training.Patterns.PatternFamily.Legs, Guid.NewGuid(), "Squat",
                     new Model.Training.Expectations.LiftAim.Beat(305, 5, Model.Training.Sets.WeightUnit.Pounds, 355.8, 350, false),
-                    new Model.Training.Expectations.PriorityFrequency.NotPinned(1),
+                    new Model.Training.Expectations.PriorityFrequency.NotAsked(1),
                     ["nothing says hold"])],
                 ["legs trained longest ago"]),
             new Model.Training.Next.NextCardio.Quality(4, 4, 3, ["quality unmet"]),
