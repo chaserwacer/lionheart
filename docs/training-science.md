@@ -257,7 +257,7 @@ target, since this is the progression model rather than a circumstance.
 
 A deload — a planned lighter week, volume cut by about a third to a half with intensity held — is
 how accumulation blocks close; the practitioner consensus puts one every four to eight weeks
-(Bell et al. 2023). A **building week** met its families' raw targets and held at least 0.9 times
+(Bell et al. 2023). A **building week** met every family's raw target and held at least 0.9 times
 the hard sets of the four weeks before it. A deload is suggested for a calendar week when, before
 its Monday:
 
@@ -267,8 +267,9 @@ its Monday:
 - six building weeks in a row, whatever else.
 
 Deloads are only ever suggested, never applied (settled with the athlete): nothing is planned or
-changed for him. The suggestion makes each family's adjusted target 60 % of what it was and holds
-every priority aim, so if he follows it the week's expectations read the deload as doing the plan.
+changed for him. The suggestion makes each family's adjusted target — and its committed figure,
+which half the points are paid against — 60 % of what it was, and holds every priority aim, so if
+he follows it the week's expectations, and the adjusted score, read the deload as doing the plan.
 A week within 70 % of his usual hard sets (the mean of the four weeks before the Monday) reads as
 **following** it; over that, as training through it — fine, it was a suggestion. The raw targets
 and the score do not bend: a deload week scores lower raw and the adjusted score says it was the
@@ -297,11 +298,11 @@ evidence is strong:
 - two or more days far above usual in a week ease its adjusted targets by half a day each, with the
   reason ("Lowered to 7: 3 days far above your usual activity."); one big day eases nothing.
 
-Calibrated against his history: over the last year about one day in ten is above his usual (by
-construction), and far above came to eight days, none two in the same week — so ordinary active
-days move nothing and the week easing has never fired on a normal week. A three-day festival on his
-feet would land in it. A factor of a half rather than a fifth (tried first) caught two days in a
-year and would have missed exactly that festival.
+The thresholds were set with `score-calibration --everyday` (below) so that far above is about
+the top 2 % of a year of days — a handful, rarely two in one week — leaving ordinary active days
+moving nothing, while a day on his feet from morning to night, the case he named, still lands in
+it. A factor of a half rather than a fifth (tried first) left so few days far above that such a day
+would have been missed.
 
 ### Injuries ripple
 
@@ -324,18 +325,21 @@ last week's running, then cardio minutes, steep or a spike (hold it); two or mor
 load far above usual last week (ease in); last week's lifting at 90 % of its targets or more with
 cardio at half or less (more cardio), or the reverse; a priority lift trained in each of the last
 four weeks without a new best (change one thing); otherwise keep building, naming what fell
-furthest behind. It reads only what was settled by the Monday — an injury dated after it waits for
-next week's advice, though its pause applies at once — so it does not flip through the week.
+furthest behind. It reads only what was settled by the Monday — an injury dated after it, or a
+check-in naming a movement after it, waits for next week's advice, though its pause applies at
+once — so training through the week never flips it. It is read live rather than stored, so a few
+things can still move it: last week's data arriving late (the ring's Sunday, a run imported on
+Tuesday), an injury entered later but dated on or before the Monday, and resolving an injury, since
+only whether it is active is stored.
 
 ### Calibration
 
 `score-calibration --user <id> --load <from> <to>` prints each week's load ratios, cardio and
 running ramps and far-above days, beside the deload and advice the next Monday would have been
-offered; `--everyday <from> <to>` prints each day's everyday load against his usual. Against his
-history: his lifting comes in blocks after lay-offs rather than long unbroken builds, so a deload
-would have been suggested four times in three years, each after a fast four-week return, and once
-followed; steady training never reached six building weeks. The advice most weeks is keep building
-or more cardio, which is what the weeks were.
+offered; `--everyday <from> <to>` prints each day's everyday load against his usual. Read against
+the history, the deload rule fires rarely — a handful of times over years, after fast returns to
+training rather than in steady weeks — and because effort ratings are only now being given, it is
+the steep-build signal that fires; the tiredness signals take over as ratings accumulate.
 
 ## Decisions he may want to change
 

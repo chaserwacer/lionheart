@@ -39,7 +39,7 @@ namespace lionheart.Services
                 Notes = request.Notes,
                 InjuryDate = DateOnly.FromDateTime(request.InjuryDate),
                 IsActive = true,
-                Families = [.. request.Families.Distinct()],
+                Families = [.. (request.Families ?? []).Distinct()],
                 InjuryEvents = new()
             };
             _context.Injuries.Add(injury);

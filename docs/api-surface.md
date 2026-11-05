@@ -501,7 +501,7 @@ volume, what's next and the chat all read. Each measurement is an `Expectation {
 adjusted, reasons }`: `raw` the `WeeklyTarget` the score reads, `adjusted` the same prorated to the
 window's available days less half a day for each day of everyday load far above usual once there
 are two (each figure times `days / 7`, rounded up to its step; `chronic` unchanged), then lowered to
-60 % for a suggested deload or paused (every figure 0) for an injury; `reasons` plain lines — the
+60 % for a suggested deload (`target` and `committed` both) or paused (every figure 0) for an injury; `reasons` plain lines — the
 raw basis ("4-week average 5.5 hard sets, +10 %: 7.", "Committed 8 hard sets: …", "Floor 4 …",
 "Held at 120 min, the week before's own target: it held 190, 1.4× the 4 weeks before it, …", "Committed 3 sessions a
 week.") then what changed the adjusted target ("Lowered to 5: 2 of 7 days marked non-training

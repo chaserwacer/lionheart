@@ -44,7 +44,11 @@ public static class EverydayLoadAnalysis
     /// <summary>The percentile of his days above which a day is above his usual.</summary>
     public const double HighPercentile = 0.9;
 
-    /// <summary>How far over that a day must be to be far above: half again.</summary>
+    /// <summary>
+    /// How far over that a day must be to be far above: a fifth again — about the top 2 % of an
+    /// active person's days, where a day on his feet from morning to night lands. Half again was
+    /// tried and missed exactly that day.
+    /// </summary>
     public const double FarAboveFactor = 1.2;
 
     public const double LowMetMinutesPerMinute = 0.75;

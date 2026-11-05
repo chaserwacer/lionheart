@@ -143,8 +143,7 @@ public static class WeekExpectationsAnalysis
         [
             .. counts.Select(family =>
             {
-                var raw = Progression.Of(
-                    ScoreRules.FamilySets, [.. Before(window).Select(block => (double?)sets.Of(family.Family, block))]);
+                var raw = FamilyTarget(sets, family.Family, window);
                 var expected = Expect(family.HardSets, raw, ScoreRules.FamilySets, days, everyday, ExpectationReasons.Grown(raw, "hard sets"));
                 var pausedBy = injuries.FirstOrDefault(injury => injury.Families.Contains(family.Family));
                 return new FamilyExpectation(
@@ -167,7 +166,11 @@ public static class WeekExpectationsAnalysis
         Reasons = [.. expected.Reasons, ExpectationReasons.Paused(injury, expected.Raw)],
     };
 
-    /// <summary>A suggested deload asks its share of the adjusted target, rounded up to a whole set.</summary>
+    /// <summary>
+    /// A suggested deload asks its share of the adjusted target, rounded up to a whole set, as both
+    /// the target and the committed figure: the half of the points paid against the committed figure
+    /// would otherwise still ask for a building week, and doing the deload has to pay in full.
+    /// </summary>
     private static Expectation Deloaded(Expectation expected)
     {
         var deload = Math.Ceiling(LoadAnalysis.DeloadShare * expected.Adjusted.Target - 1e-9);
@@ -175,7 +178,7 @@ public static class WeekExpectationsAnalysis
             ? expected
             : expected with
             {
-                Adjusted = expected.Adjusted with { Target = deload },
+                Adjusted = expected.Adjusted with { Target = deload, Committed = deload, Floor = Math.Min(expected.Adjusted.Floor, deload) },
                 Reasons = [.. expected.Reasons, ExpectationReasons.Deloaded(expected.Adjusted, deload)],
             };
     }
@@ -186,10 +189,9 @@ public static class WeekExpectationsAnalysis
         var measure = cardioOf(window);
         if (measure is not CardioMeasure.Measured measured) return new CardioExpectations(measure, []);
 
-        var earlier = Before(window).Select(cardioOf).Select(block => block as CardioMeasure.Measured).ToList();
         ZoneExpectation Band(ZoneBand band, double minutes, Standard standard, Func<CardioMeasure.Measured, double> figure)
         {
-            var raw = Progression.Of(standard, [.. earlier.Select(block => block is null ? (double?)null : figure(block))]);
+            var raw = BandTarget(cardioOf, window, standard, figure);
             return new ZoneExpectation(band, Expect(minutes, raw, standard, days, everyday, ExpectationReasons.Grown(raw, "min")));
         }
 
@@ -200,6 +202,17 @@ public static class WeekExpectationsAnalysis
                 Band(ZoneBand.Quality, measured.QualityMinutes, ScoreRules.Quality, block => block.QualityMinutes),
             ]);
     }
+
+    /// <summary>A family's raw target for a window: grown from the hard sets of the blocks before it.</summary>
+    public static WeeklyTarget FamilyTarget(HardSetCounts sets, PatternFamily family, DayRange window) =>
+        Progression.Of(ScoreRules.FamilySets, [.. Before(window).Select(block => (double?)sets.Of(family, block))]);
+
+    /// <summary>A cardio band's raw target for a window: grown from the blocks before it whose cardio could be read.</summary>
+    public static WeeklyTarget BandTarget(
+        Func<DayRange, CardioMeasure> cardioOf, DayRange window, Standard standard, Func<CardioMeasure.Measured, double> figure) =>
+        Progression.Of(standard, [.. Before(window)
+            .Select(cardioOf)
+            .Select(block => block is CardioMeasure.Measured measured ? figure(measured) : (double?)null)]);
 
     private static Expectation Expect(
         double done, WeeklyTarget raw, Standard standard, AvailabilityCalendar days, EverydayWeek everyday, string basis)

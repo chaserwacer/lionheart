@@ -23,7 +23,7 @@ namespace lionheart.Services.Training.Load;
 /// </para>
 /// <para>
 /// A deload is suggested for a calendar week after a run of building weeks before its Monday. A
-/// building week met its families' raw targets and held at least 0.9 times the hard sets of the
+/// building week met each family's raw target and held at least 0.9 times the hard sets of the
 /// four weeks before it — the load kept up, not a lighter week. Four in a row that strained him
 /// — a steep build, its hard sets 1.3 times the four weeks before on average, or tiredness
 /// climbing: last week's fatigue or difficulty rated 4 of 5 or more on average, or fatigue up a
@@ -115,10 +115,10 @@ public static class LoadAnalysis
 
     // ---- Deload ----
 
-    /// <summary>A building week's figures: what its families did against their raw targets, and its hard sets against the four before.</summary>
-    private sealed record WeekRead(DayRange Window, int FamilySets, double FamilyTarget, LoadRatio HardSets)
+    /// <summary>A week's figures as a building week is judged: whether every family met its raw target, and its hard sets against the four before.</summary>
+    private sealed record WeekRead(DayRange Window, bool EveryFamilyMet, LoadRatio HardSets)
     {
-        public bool Building => FamilySets >= FamilyTarget && HardSets is LoadRatio.Compared { Ratio: >= BuildingRatio };
+        public bool Building => EveryFamilyMet && HardSets is LoadRatio.Compared { Ratio: >= BuildingRatio };
     }
 
     /// <summary>Whether the calendar week of the day is offered a deload, decided from the weeks before its Monday.</summary>
@@ -143,7 +143,7 @@ public static class LoadAnalysis
             ceiling,
             soFar,
             [
-                $"{run.Count} building weeks in a row: each met its targets and held your usual hard sets or more.",
+                $"{run.Count} building weeks in a row: each met every family's target and held your usual hard sets or more.",
                 .. strain,
                 $"A deload is a suggestion: {DeloadShare * 100:0} % of each family's target, the same weights — {Figure(ceiling)} hard sets at most.",
                 soFar <= ceiling
@@ -154,10 +154,7 @@ public static class LoadAnalysis
 
     private static WeekRead Read(HardSetCounts sets, DayRange window) => new(
         window,
-        MovementPatterns.Judged.Sum(family => sets.Of(family, window)),
-        MovementPatterns.Judged.Sum(family => Progression.Of(
-            ScoreRules.FamilySets,
-            [.. WeekExpectationsAnalysis.Before(window).Select(block => (double?)sets.Of(family, block))]).Target),
+        MovementPatterns.Judged.All(family => sets.Of(family, window) >= WeekExpectationsAnalysis.FamilyTarget(sets, family, window).Target),
         HardSetRatio(sets, window));
 
     /// <summary>

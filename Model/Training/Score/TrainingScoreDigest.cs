@@ -220,8 +220,10 @@ public sealed record TrainingScoreDigest(
 
     private static string UnderTargetLine(TrainingVolume volume)
     {
+        var paused = volume.Families.Where(family => family.Paused).Select(family => family.Family).ToHashSet();
         var patterns = volume.Patterns
             .Where(pattern => pattern.Target is { } target && pattern.HardSets < target)
+            .Where(pattern => MovementPatterns.FamilyOf(pattern.Pattern) is not { } family || !paused.Contains(family))
             .Select(pattern => $"{PatternWords.Of(pattern.Pattern)} {pattern.HardSets}/{pattern.Target}");
         var muscles = volume.Muscles
             .Where(muscle => muscle.Sets < muscle.Target)

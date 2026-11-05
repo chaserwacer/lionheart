@@ -89,7 +89,7 @@ public sealed class InjuryFamiliesTests : IDisposable
 
         var read = await ReadAsync();
 
-        Assert.Equal([squat], read.Movements);
+        Assert.Equal([squat], read.Movements.Select(named => named.MovementDataId));
         Assert.Equal(4, read.LastPain);
     }
 }

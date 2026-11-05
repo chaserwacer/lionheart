@@ -178,8 +178,8 @@ public static class WeeklyAdviceAnalysis
             monday,
             "Keep building",
             behind is { Share: < 1 } furthest
-                ? [$"Furthest behind last week: {furthest.Words}.", "This week's targets grow 10 % from the last four weeks; close that gap first."]
-                : ["Last week met every target.", "This week's targets grow 10 % from the last four weeks."]);
+                ? [$"Furthest behind last week: {furthest.Words}.", "This week's targets grow from the last four weeks; close that gap first."]
+                : ["Last week met every target.", "This week's targets grow from the last four weeks."]);
     }
 
     /// <summary>Each family's and band's share of last week's raw target, in words.</summary>
@@ -207,13 +207,11 @@ public static class WeeklyAdviceAnalysis
          + Share(measured.QualityMinutes, BandTarget(cardioOf, week, ScoreRules.Quality, block => block.QualityMinutes))) / 2;
 
     private static double FamilyTarget(HardSetCounts sets, PatternFamily family, DayRange week) =>
-        Progression.Of(ScoreRules.FamilySets, [.. WeekExpectationsAnalysis.Before(week).Select(block => (double?)sets.Of(family, block))]).Target;
+        WeekExpectationsAnalysis.FamilyTarget(sets, family, week).Target;
 
     private static double BandTarget(
         Func<DayRange, CardioMeasure> cardioOf, DayRange week, Standard standard, Func<CardioMeasure.Measured, double> figure) =>
-        Progression.Of(standard, [.. WeekExpectationsAnalysis.Before(week)
-            .Select(cardioOf)
-            .Select(block => block is CardioMeasure.Measured measured ? figure(measured) : (double?)null)]).Target;
+        WeekExpectationsAnalysis.BandTarget(cardioOf, week, standard, figure).Target;
 
     private static double Share(double done, double target) => target > 0 ? Math.Min(1, done / target) : 1;
 

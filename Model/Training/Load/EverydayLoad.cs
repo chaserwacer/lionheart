@@ -52,7 +52,7 @@ public enum EverydayBand
     [JsonStringEnumMemberName("above")] Above,
 
     /// <summary>
-    /// Far above: over his 90th percentile by half again. The band whose days ease the week and
+    /// Far above: over his 90th percentile by a fifth again. The band whose days ease the week and
     /// lean the next session easier.
     /// </summary>
     [JsonStringEnumMemberName("farAbove")] FarAbove,

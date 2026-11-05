@@ -50,7 +50,8 @@ public class LoadManagementTests
     private static TrainingScore Score(ExpectationInputs inputs, DateOnly day) => TrainingScoreAnalysis.Score(inputs, day);
 
     private static InjuryRecord AShoulder(DateOnly since, bool active = true, PatternFamily[]? families = null, Guid[]? movements = null) =>
-        new(Guid.NewGuid(), "the shoulder", since, active, families ?? [PatternFamily.Push], movements ?? [], 3);
+        new(Guid.NewGuid(), "the shoulder", since, active, families ?? [PatternFamily.Push],
+            [.. (movements ?? []).Select(movement => new NamedMovement(movement, since))], 3);
 
     private static FamilyExpectation Family(TrainingScore score, PatternFamily family) =>
         score.Expectations.Families.Single(expected => expected.Family == family);
@@ -245,6 +246,33 @@ public class LoadManagementTests
         var inputs = Inputs(ASteepBuild()) with { Injuries = [AShoulder(Monday.AddDays(1))] };
 
         Assert.IsType<WeeklyAdvice.TakeDeload>(Score(inputs, Thursday).Expectations.Advice);
+    }
+
+    [Fact]
+    public void A_check_in_naming_a_movement_mid_week_pauses_its_family_at_once_but_waits_for_next_weeks_advice()
+    {
+        var injury = new InjuryRecord(
+            Guid.NewGuid(), "the knee", Monday.AddDays(-14), true, [], [new NamedMovement(Squat, Monday.AddDays(2))], 4);
+        var inputs = Inputs(SteadyWeeks()) with { Injuries = [injury] };
+
+        var score = Score(inputs, Thursday);
+
+        Assert.True(Family(score, PatternFamily.Legs).Paused);
+        Assert.IsNotType<WeeklyAdvice.ManageInjury>(score.Expectations.Advice);
+    }
+
+    [Fact]
+    public void A_followed_deload_pays_its_families_in_full_in_the_adjusted_score()
+    {
+        var log = ASteepBuild()
+            .WithSession(Monday, Sets(4, Bench))
+            .WithSession(Monday.AddDays(1), Sets(4, Row))
+            .WithSession(Monday.AddDays(2), Sets(4, Squat));
+
+        var lifting = Score(Inputs(log), Monday.AddDays(6)).Adjusted.Parts.Single(part => part.Part == ScorePart.Lifting);
+
+        // Fifteen-set weeks ask the committed 8, a deload 5; four sets of five is 0.89 of each family's slice.
+        Assert.Equal(lifting.OutOf * Math.Sqrt(4.0 / 5), lifting.Points!.Value, precision: 6);
     }
 
     [Fact]
