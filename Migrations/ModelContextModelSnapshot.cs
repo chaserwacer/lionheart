@@ -1091,6 +1091,34 @@ namespace lionheart.Migrations
                     b.ToTable("AthleteContextCards");
                 });
 
+            modelBuilder.Entity("lionheart.Model.Training.Availability.NonTrainingDay", b =>
+                {
+                    b.Property<Guid>("NonTrainingDayId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("MarkedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Schedule")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("NonTrainingDayId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("NonTrainingDays", (string)null);
+                });
+
             modelBuilder.Entity("lionheart.Model.Training.Equipment", b =>
                 {
                     b.Property<Guid>("EquipmentID")
@@ -1873,6 +1901,15 @@ namespace lionheart.Migrations
                 });
 
             modelBuilder.Entity("lionheart.Model.Oura.OuraWorkout", b =>
+                {
+                    b.HasOne("lionheart.Model.User.LionheartUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("lionheart.Model.Training.Availability.NonTrainingDay", b =>
                 {
                     b.HasOne("lionheart.Model.User.LionheartUser", null)
                         .WithMany()

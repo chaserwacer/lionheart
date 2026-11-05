@@ -13,6 +13,7 @@ using lionheart.Model.Contexts;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Routines;
+using lionheart.Model.Training.Availability;
 using lionheart.Model.BodyMeasurements;
 using lionheart.Model.Chat.Memory;
 using lionheart.Model.Chat.Thread;
@@ -56,6 +57,7 @@ namespace lionheart.Data
         public DbSet<FacetValue> FacetValues { get; set; }
         public DbSet<FocusPin> FocusPins { get; set; }
         public DbSet<Routine> Routines { get; set; }
+        public DbSet<NonTrainingDay> NonTrainingDays { get; set; }
         public DbSet<BodyweightMeasurement> BodyweightMeasurements { get; set; }
         public DbSet<BodyCompositionScan> BodyCompositionScans { get; set; }
         public DbSet<WorkoutRecording> WorkoutRecordings { get; set; }

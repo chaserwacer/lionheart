@@ -1,6 +1,7 @@
 using lionheart.Model.Analysis;
 using lionheart.Model.Contexts;
 using lionheart.Model.Training;
+using lionheart.Model.Training.Availability;
 using lionheart.Model.Training.Focus;
 using lionheart.Model.Training.PersonalRecords;
 using lionheart.Model.Training.Routines;
@@ -53,6 +54,23 @@ public static class RemodelConfiguration
         ConfigurePersonalRecords(modelBuilder);
         ConfigureFocusPins(modelBuilder);
         ConfigureRoutines(modelBuilder);
+        ConfigureNonTrainingDays(modelBuilder);
+    }
+
+    private static void ConfigureNonTrainingDays(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<NonTrainingDay>(day =>
+        {
+            day.ToTable("NonTrainingDays");
+            day.HasKey(d => d.NonTrainingDayId);
+            day.HasOne<LionheartUser>().WithMany().HasForeignKey(d => d.UserId);
+            day.HasIndex(d => d.UserId);
+
+            // JSON for the reason a pin's terms are: three cases, read whole, and never queried in
+            // SQL — a weekly schedule covers days no column could list.
+            day.Property(d => d.Schedule).HasJsonConversion();
+            day.Property(d => d.Note).HasMaxLength(NonTrainingDay.MostNoteLength);
+        });
     }
 
     private static void ConfigureFocusPins(ModelBuilder modelBuilder)

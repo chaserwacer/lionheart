@@ -51,6 +51,11 @@ public static class TodayBriefing
             text.AppendLine(Invariant, $"Planned: {string.Join("; ", facts.Planned.Select(plan => $"{On(plan.Day, "ddd d MMM")} {string.Join(", ", plan.Movements)}"))}.");
         }
 
+        if (facts.NonTraining.Count > 0)
+        {
+            text.AppendLine(Invariant, $"Marked non-training (he has said he will not train): {string.Join(", ", facts.NonTraining.Select(day => NonTrainingDay(day, now.Today)))}.");
+        }
+
         text.Append("Training score, seven days ending today (exactly what GetTrainingScore returns; call it only for other windows): ")
             .Append(string.IsNullOrWhiteSpace(facts.Score) ? "not available." : facts.Score.Trim());
 
@@ -247,6 +252,10 @@ public static class TodayBriefing
         $"UTC{(local.Offset < TimeSpan.Zero ? "-" : "+")}{local.Offset.Duration():hh\\:mm}";
 
     private static string On(DateOnly day, string format) => day.ToString(format, Invariant);
+
+    /// <summary>"today (travel)", "Sun 8 Nov": the day, and his note where he left one.</summary>
+    private static string NonTrainingDay(NonTrainingFact day, DateOnly today) =>
+        (day.Day == today ? "today" : On(day.Day, "ddd d MMM")) + (day.Note.Length > 0 ? $" ({day.Note})" : "");
 
     private static string At(DateTimeOffset instant) => instant.ToString("HH:mm", Invariant);
 

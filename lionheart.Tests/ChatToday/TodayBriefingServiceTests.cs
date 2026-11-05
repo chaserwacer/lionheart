@@ -40,13 +40,20 @@ public sealed class TodayBriefingServiceTests : IDisposable
 
     private IdentityUser Athlete => new() { Id = _db.UserId.ToString() };
 
+    private static TodayBriefingService Briefing(lionheart.Data.ModelContext context, ChatToolCallExecutor executor)
+    {
+        var clock = new ZonedClock(Evening, Zone);
+        return new TodayBriefingService(
+            new TodayFactsService(context, new NoCardio(), MovementPatternMap.Shipped, clock, NullLogger<TodayFactsService>.Instance),
+            executor,
+            clock,
+            NullLogger<TodayBriefingService>.Instance);
+    }
+
     private async Task<string> BriefingAsync()
     {
         await using var context = _db.CreateContext();
-        return await new TodayBriefingService(
-                context, new NoCardio(), _toolbox.Executor, MovementPatternMap.Shipped, new ZonedClock(Evening, Zone),
-                NullLogger<TodayBriefingService>.Instance)
-            .ForAsync(Athlete, CancellationToken.None);
+        return await Briefing(context, _toolbox.Executor).ForAsync(Athlete, CancellationToken.None);
     }
 
     [Fact]
@@ -130,10 +137,7 @@ public sealed class TodayBriefingServiceTests : IDisposable
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
         await using var context = _db.CreateContext();
-        var briefing = await new TodayBriefingService(
-                context, new NoCardio(), executor, MovementPatternMap.Shipped, new ZonedClock(Evening, Zone),
-                NullLogger<TodayBriefingService>.Instance)
-            .ForAsync(Athlete, CancellationToken.None);
+        var briefing = await Briefing(context, executor).ForAsync(Athlete, CancellationToken.None);
 
         Assert.Equal(new DayRange(new DateOnly(2026, 3, 10), new DateOnly(2026, 3, 10)), score.Asked);
         Assert.EndsWith("""{"score":"64 of 100"}""", briefing);

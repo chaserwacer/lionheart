@@ -2,6 +2,7 @@ using System.Globalization;
 using lionheart.Data;
 using lionheart.Functional;
 using lionheart.Model.Analysis;
+using lionheart.Model.Training.Expectations;
 using lionheart.Model.Training.Next;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
@@ -55,18 +56,16 @@ public sealed class NextSessionsService : INextSessionsService
                 .BindAsync(score => _cardio.GetReportAsync(user, new DayRange(day.AddDays(1 - RecentCardioDays), day), ct)
                     .MapAsync(async cardio =>
                     {
-                        var log = await _context.ReadAsync(userId, day, _map, ct);
                         return NextSessionsAnalysis.Of(new NextInputs(
                             day,
-                            log,
-                            PriorityAnalysis.Read(log, await _context.PinsOfAsync(userId, ct), day),
+                            await _context.ReadAsync(userId, day, _map, ct),
                             score,
                             cardio.Sessions,
                             await RecoveryAsync(userId, day, ct)));
                     })));
 
     [Tool(Name = "GetNextSessions",
-        Description = "What Tempo recommends training next as of the range's last day, as a few lines: which comes first (lift or cardio) and why; the next lift (the push/pull/legs family trained longest ago, with each due family's priority lift and its next top set: the last session's best set plus 5 lb / 2.5 kg, or one more rep on bodyweight lifts, against the 12-week best estimate); the next cardio (zone 2 for a number of minutes, or a quality interval session such as 4 x 4 min at zone 4-5) and why; and the recovery read (Oura readiness against its usual range, last night's HRV against the 28 nights before, sleep). Each with its reasons.")]
+        Description = "What Tempo recommends training next as of the range's last day, as a few lines: which comes first (lift or cardio) and why; the next lift (the push/pull/legs family trained longest ago, with each due family's priority lift and its next top set: the last session's best set plus 5 lb / 2.5 kg, or one more rep on bodyweight lifts, against the 12-week best estimate — or that set held when today's going-in rating is under 65, the last top set was RPE 9.5+, the last session of it was rated 5/5 difficulty, or the week's latest session was rated 4/5+ accumulated fatigue — with a pinned target's distance); the next cardio (zone 2 for a number of minutes, or a quality interval session such as 4 x 4 min at zone 4-5) and why; and the recovery read (Oura readiness against its usual range, last night's HRV against the 28 nights before, sleep). Each with its reasons.")]
     public Task<IReadOnlyList<string>?> GetNextSessionsForChatAsync(IdentityUser user, DayRange range) =>
         GetNextAsync(user, range.To, CancellationToken.None)
             .MatchAsync(next => (IReadOnlyList<string>?)Lines(next), _ => null);
@@ -78,7 +77,7 @@ public sealed class NextSessionsService : INextSessionsService
         "next lift: " + next.Lift switch
         {
             NextLift.Train train => string.Join(" and ", train.Families.Select(PatternWords.Of))
-                                    + string.Concat(train.Priorities.Select(priority => $"; {priority.Name} {Aim(priority.Aim)}")),
+                                    + string.Concat(train.Priorities.Select(priority => $"; {PriorityAimWords.Line(priority)}")),
             NextLift.NothingLogged => "nothing classified logged",
             _ => throw new System.Diagnostics.UnreachableException(),
         } + $" — {string.Join(" ", next.Lift.Reasons)}",
@@ -90,23 +89,6 @@ public sealed class NextSessionsService : INextSessionsService
             _ => throw new System.Diagnostics.UnreachableException(),
         } + $" — {string.Join(" ", next.Cardio.Reasons)}",
     ];
-
-    /// <summary>"top set 5 x 230 lb (e1RM 268; 12-week best 270)", with pounds beside kilograms.</summary>
-    private static string Aim(LiftAim aim) => aim switch
-    {
-        LiftAim.Beat beat => string.Create(
-            CultureInfo.InvariantCulture,
-            $"top set {beat.Reps} x {Weight(beat.Load, beat.Unit)}{(beat.OnSystemLoad ? " system load" : "")} (e1RM {beat.EstimatedOneRepMax:0}; 12-week best {beat.BestToBeat:0})"),
-        LiftAim.Establish => "work up to a top set of 5 to set an estimate",
-        _ => throw new System.Diagnostics.UnreachableException(),
-    };
-
-    private static string Weight(double load, WeightUnit unit) => unit switch
-    {
-        WeightUnit.Pounds => string.Create(CultureInfo.InvariantCulture, $"{load:0.#} lb"),
-        WeightUnit.Kilograms => string.Create(CultureInfo.InvariantCulture, $"{load:0.#} kg ({load * 2.20462:0} lb)"),
-        _ => throw new System.Diagnostics.UnreachableException(),
-    };
 
     /// <summary>The day's readiness, and the main sleep filed under it against the nights before.</summary>
     private async Task<RecoveryRead> RecoveryAsync(Guid userId, DateOnly day, CancellationToken ct)

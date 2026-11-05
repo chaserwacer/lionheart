@@ -5,6 +5,10 @@ using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Score;
 using lionheart.Services.Cardio;
 using lionheart.Services.Training.Patterns;
+using lionheart.Services.Chat.Today;
+using lionheart.Services.Training.Balance;
+using lionheart.Services.Training.GoingIn;
+using Microsoft.Extensions.Logging.Abstractions;
 using lionheart.Services.Training.Score;
 using lionheart.Tests.Support;
 
@@ -19,14 +23,22 @@ public class TrainingScoreServiceTests : IDisposable
     private static readonly DateOnly Sunday = new(2026, 11, 8);
     private static readonly TimeSpan Eastern = TimeSpan.FromHours(-5);
 
+    /// <summary>A Wednesday evening ten days after the Sunday, so no window scored here ends on today.</summary>
+    private static readonly FixedClock Clock = new(new DateTimeOffset(2026, 11, 18, 20, 0, 0, Eastern));
+
     private readonly TwoAthletes _athletes = new();
 
     public void Dispose() => _athletes.Dispose();
 
-    private async Task<T> ScoreAsync<T>(Func<TrainingScoreService, Task<T>> act)
+    private async Task<T> ScoreAsync<T>(Func<TrainingScoreService, Task<T>> act, TimeProvider? clock = null)
     {
         using var context = _athletes.CreateContext();
-        return await act(new TrainingScoreService(context, new CardioReportService(context), MovementPatternMap.Shipped));
+        var cardio = new CardioReportService(context);
+        var goingIn = new GoingInService(
+            context,
+            new TodayFactsService(context, cardio, MovementPatternMap.Shipped, clock ?? Clock, NullLogger<TodayFactsService>.Instance),
+            new TrainingVolumeService(context, MovementPatternMap.Shipped));
+        return await act(new TrainingScoreService(context, cardio, MovementPatternMap.Shipped, goingIn, clock ?? Clock));
     }
 
     private async Task PlantBenchSessionAsync(DateOnly day, int sets)
@@ -82,8 +94,40 @@ public class TrainingScoreServiceTests : IDisposable
         Assert.StartsWith("next: pull and legs (never trained)", digest.UpNext);
         Assert.Contains($"no hard sets logged on {Sunday.AddDays(2):yyyy-MM-dd}", digest.UpNext);
         Assert.Equal(12, digest.Weeks.Split(", ").Length);
+        Assert.StartsWith("push: Bench Press (Barbell) top set 5 x 190 lb", digest.Aims);
         // About four characters a token: a whole briefing stays within a few hundred tokens.
         Assert.InRange(System.Text.Json.JsonSerializer.Serialize(digest).Length, 1, 2400);
+    }
+
+    [Fact]
+    public async Task A_day_marked_off_reaches_the_adjusted_score_and_the_chat_digest_with_its_note()
+    {
+        await PlantBenchSessionAsync(Sunday.AddDays(-1), sets: 3);
+        ResultAssert.Succeeded(await _athletes.NonTrainingDaysAsync(Clock, service => service.MarkAsync(
+            _athletes.Owner,
+            new Model.Training.Availability.MarkNonTrainingDayRequest(Sunday.AddDays(-3), Note: "travel"),
+            default)));
+
+        var score = ResultAssert.Succeeded(await ScoreAsync(service => service.GetScoreAsync(_athletes.Owner, Sunday, default)));
+        var digest = Assert.IsType<TrainingScoreDigest>(await ScoreAsync(service =>
+            service.GetTrainingScoreForChatAsync(_athletes.Owner, new DayRange(Sunday, Sunday))));
+
+        Assert.Equal(6, score.Adjusted.AvailableDays);
+        Assert.True(score.Adjusted.Value >= score.Value);
+        Assert.Contains($"6 of 7 days available (non-training {Sunday.AddDays(-3):yyyy-MM-dd} travel)", digest.Adjusted);
+    }
+
+    [Fact]
+    public async Task Todays_window_is_scored_through_the_going_in_rating_and_aims_its_priority()
+    {
+        await PlantBenchSessionAsync(Sunday.AddDays(-2), sets: 4);
+        var onTheSunday = new FixedClock(new DateTimeOffset(Sunday.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero));
+
+        var score = ResultAssert.Succeeded(await ScoreAsync(service => service.GetScoreAsync(_athletes.Owner, Sunday, default), onTheSunday));
+
+        var push = Assert.Single(score.Expectations.Priorities);
+        Assert.IsType<Model.Training.Expectations.LiftAim.Beat>(push.Aim);
+        Assert.NotEmpty(push.Reasons);
     }
 
     [Fact]

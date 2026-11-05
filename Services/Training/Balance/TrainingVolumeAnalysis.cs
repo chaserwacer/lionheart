@@ -1,4 +1,5 @@
 using lionheart.Model.Training.Balance;
+using lionheart.Model.Training.Expectations;
 using lionheart.Model.Training.Patterns;
 using lionheart.Model.Training.Sets;
 
@@ -7,6 +8,9 @@ namespace lionheart.Services.Training.Balance;
 /// <summary>A hard set placed by what its movement trains, on the day it was performed.</summary>
 public sealed record PlacedSet(DateOnly Day, LiftSet Set, MovementClassification Trains);
 
+/// <summary>A family's hard sets over a window and the last day it was trained, before any target is set against them.</summary>
+public sealed record FamilyCount(PatternFamily Family, int HardSets, DateOnly? LastTrained);
+
 /// <summary>
 /// Weekly volume as a function of the log: hard sets counted by family, pattern and muscle, the
 /// last day each was trained, and what is up next.
@@ -14,12 +18,21 @@ public sealed record PlacedSet(DateOnly Day, LiftSet Set, MovementClassification
 /// <remarks>Pure, so every counting rule is tested without a database.</remarks>
 public static class TrainingVolumeAnalysis
 {
-    public static TrainingVolume Build(TrainingLog log, DateOnly endingOn, ReadinessNote readiness)
+    /// <param name="expected">The week's family expectations, whose adjusted targets the families are read against.</param>
+    public static TrainingVolume Build(
+        TrainingLog log, DateOnly endingOn, ReadinessNote readiness, IReadOnlyList<FamilyExpectation> expected)
     {
         var window = VolumeTargets.WindowEndingOn(endingOn);
         var history = Placed(log, DateOnly.MinValue, endingOn).ToList();
         var inWindow = history.Where(placed => placed.Day >= window.From).ToList();
-        var families = Families(inWindow, history);
+        IReadOnlyList<FamilyVolume> families =
+        [
+            .. Families(inWindow, history).Select(family => new FamilyVolume(
+                family.Family,
+                family.HardSets,
+                (int)expected.Single(expectation => expectation.Family == family.Family).Sets.Adjusted.Target,
+                family.LastTrained))
+        ];
 
         return new TrainingVolume(
             window,
@@ -38,12 +51,11 @@ public static class TrainingVolumeAnalysis
                 : Array.Empty<PlacedSet>()));
 
     /// <summary>Push, pull and legs, each set counted once toward its movement's family.</summary>
-    public static IReadOnlyList<FamilyVolume> Families(IReadOnlyList<PlacedSet> inWindow, IReadOnlyList<PlacedSet> history) =>
+    public static IReadOnlyList<FamilyCount> Families(IReadOnlyList<PlacedSet> inWindow, IReadOnlyList<PlacedSet> history) =>
     [
-        .. MovementPatterns.Judged.Select(family => new FamilyVolume(
+        .. MovementPatterns.Judged.Select(family => new FamilyCount(
             family,
             inWindow.Count(placed => placed.Trains.Family == family),
-            VolumeTargets.Family,
             LastTrained(family, history)))
     ];
 

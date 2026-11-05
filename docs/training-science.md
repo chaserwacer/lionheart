@@ -123,6 +123,30 @@ hold.
 **Consistency** counts sessions trained. A session of nothing but walking, a watch's record of
 getting somewhere, is no longer one.
 
+### Week expectations and the adjusted score
+
+Every target above is stated once, in the week's expectations (`WeekExpectationsAnalysis`, pure),
+with what was done and a reason: the score, weekly volume, next sessions and the chat all read it,
+so no screen's target disagrees with another's.
+
+- **Days available.** The athlete marks days non-training — travel, a busy day — once or every week.
+  A day he trained on was available, whatever marked it, so marking a day off and training anyway
+  never lowers a target. A session planned on a day speaks for that day, over a weekday marked off
+  every week; a single date marked off speaks over a session planned on it.
+- **Adjusted target.** Each raw target, its committed figure and its floor, times the share of the
+  seven days available, **rounded up** to its step. Rounding up keeps it plain rather than generous:
+  one day off rarely lowers anything (three sessions over six days is still three), and a share of a
+  session is still a session asked.
+- **The weeks before are read as they were.** A week marked off counts as the week it was, so the
+  ramp back after travel starts lower, the way tolerance falls. Normalising it away would ask for a
+  full week straight after one off.
+- **The adjusted score** is the same arithmetic against the adjusted targets — every consistency
+  block against its own days — beside the score, never in place of it. It equals the score when
+  nothing was marked. A week wholly marked off asks nothing, and its points are out of reach rather
+  than given.
+- **Weekly volume** reads each family against its adjusted target. Its pattern and muscle targets
+  stay the informational four direct sets: no score reads them.
+
 ### Calibration
 
 `dotnet run -- score-calibration --user <id> [--weeks <from> <to> | --sessions <from> <to> | --next <day>]`
@@ -145,9 +169,23 @@ Two things the calibration surfaced:
 reasons it was made from.
 
 **The next lift.** The family trained longest ago, the volume screen's up-next. Each due family's
-priority lift gets an aim: the last session's best set one step on, which is +5 lb or +2.5 kg at the
-same reps, or one more rep where the load is bodyweight. The aim also carries the twelve-week best
-estimate that a new best has to pass. This is double progression in its simplest form.
+priority lift gets the week expectations' aim: the last session's best set one step on, which is
++5 lb or +2.5 kg at the same reps, or one more rep where the load is bodyweight, carrying the
+twelve-week best estimate a new best has to pass — double progression in its simplest form. It
+**holds** last time's set instead when any of these says so (`LiftAimAnalysis`):
+
+- today's going-in rating is under his usual day (under 65) — only today's, since it describes now;
+- the last top set was at RPE 9.5 or more, so it has not yet moved easier (autoregulation by RPE,
+  Helms et al. 2016);
+- he rated the last session of the lift 5 of 5 for difficulty;
+- the latest session of the week was rated 4 of 5 or more for accumulated fatigue.
+
+Two outcomes only, so the aim reads at a glance; an easy last session (RPE 8 or under, difficulty 3 or
+under) is named as the reason to step. A pinned lift target is stated beside the aim, met or how far,
+and the pin's sessions a week is the lift's frequency, prorated like every other expectation.
+
+A day itself marked non-training is said first, so the rest reads as the next training day's, and
+the next cardio is sized against the week's adjusted targets.
 
 **The next cardio.**
 - A **quality** session when all of these hold: the week's quality target is unmet, none was done in
@@ -190,6 +228,12 @@ answer, and the workout tracker's header is built to read it too.
    more. A smaller one keeps the score closer to the committed standard.
 4. **Deadlifts are legs.** A powerlifting block earns no pull credit. Counting the hinge toward pull
    as well would change the volume screen too.
+5. **Adjusted targets round up.** Rounding to the nearest would lower more targets for one or two
+   days off — kinder, and more of a game.
+6. **The weeks before a target keep their days off.** Normalising a week marked off to a full week
+   would hold targets up after travel; reading it as it was ramps back from what was done.
+7. **The hold rule's thresholds.** Going-in under 65, RPE 9.5, difficulty 5, fatigue 4. Holding at
+   RPE 9 or difficulty 4 would hold more often.
 
 ## Sources
 
@@ -214,6 +258,8 @@ answer, and the workout tracker's header is built to read it too.
 - Gabbett TJ. The training–injury prevention paradox. *Br J Sports Med* 2016;50(5):273–280.
 - Helgerud J et al. Aerobic high-intensity intervals improve VO2max more than moderate training.
   *Med Sci Sports Exerc* 2007;39(4):665–671.
+- Helms ER, Cronin J, Storey A, Zourdos MC. Application of the repetitions in reserve-based rating
+  of perceived exertion scale for resistance training. *Strength Cond J* 2016;38(4):42–49.
 - Impellizzeri FM et al. Acute:chronic workload ratio: conceptual issues and fundamental pitfalls.
   *Int J Sports Physiol Perform* 2020;15(6):907–913.
 - Kiviniemi AM et al. Endurance training guided individually by daily heart rate variability

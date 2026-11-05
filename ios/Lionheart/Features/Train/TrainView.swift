@@ -32,6 +32,7 @@ struct TrainView: View {
     @State private var editingRoutine: RoutineEditing?
     @State private var isSaveFromSessionAsked = false
     @State private var deletingRoutine: Routine?
+    @State private var isNonTrainingAsked = false
     @Environment(TrainingBalanceStore.self) private var balance
 
     /// A transition waiting on the athlete's confirmation. Hung on the `List` rather than on a row,
@@ -78,6 +79,9 @@ struct TrainView: View {
             // The score leads the tab, so starting stays one tap away above it rather than a scroll
             // below it.
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Non-training days", systemImage: "calendar") { isNonTrainingAsked = true }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     if activeWorkout.workout != nil {
                         Button("Continue", action: openWorkout)
@@ -145,6 +149,9 @@ struct TrainView: View {
             }
         } message: { _ in
             Text("Sessions trained from it keep their sets. Comparisons with it stop.")
+        }
+        .sheet(isPresented: $isNonTrainingAsked) {
+            NonTrainingDaysSheet()
         }
         .sheet(isPresented: $isPastWorkoutAsked) {
             LogPastWorkoutSheet(store: store, openWorkout: openWorkout)
@@ -223,7 +230,7 @@ struct TrainView: View {
             } header: {
                 Text("Last 7 days")
             } footer: {
-                Text("Hard sets — working, drop and failure sets, never warm-ups — against 8 a family.")
+                Text("Hard sets — working, drop and failure sets, never warm-ups — against this week's expectation for each family.")
             }
         }
     }
@@ -241,6 +248,7 @@ struct TrainView: View {
             }
         case .loaded(let score), .stale(let score, _):
             TrainingScoreCard(score: score, weeks: balance.weeks.value ?? []) { route.append(ScoreRoute.part($0)) }
+            WeekExpectationsSection(score: score) { isNonTrainingAsked = true }
             Section {
                 NavigationLink(value: ScoreRoute.score) {
                     Text("Weeks")

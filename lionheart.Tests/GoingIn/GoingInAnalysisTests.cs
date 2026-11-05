@@ -50,7 +50,7 @@ public sealed class GoingInAnalysisTests
             wellness,
             [],
             planned ?? [],
-            string.Empty);
+            []);
 
     private static GoingInState Of(TodayFacts facts, IReadOnlyList<MuscleVolume>? muscles = null) =>
         GoingInAnalysis.Of(facts, muscles ?? [], []);

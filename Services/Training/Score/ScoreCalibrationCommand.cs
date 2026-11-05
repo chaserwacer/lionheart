@@ -7,6 +7,7 @@ using lionheart.Services.Cardio;
 using lionheart.Services.Training.Patterns;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -39,7 +40,13 @@ internal static class ScoreCalibrationCommand
         using var host = Host.CreateApplicationBuilder().AddLionheartDatabase().Build();
         using var scope = host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ModelContext>();
-        var service = new TrainingScoreService(context, new CardioReportService(context), MovementPatternMap.Shipped);
+        var map = MovementPatternMap.Shipped;
+        var cardio = new CardioReportService(context);
+        var goingIn = new GoingIn.GoingInService(
+            context,
+            new Chat.Today.TodayFactsService(context, cardio, map, TimeProvider.System, NullLogger<Chat.Today.TodayFactsService>.Instance),
+            new Balance.TrainingVolumeService(context, map));
+        var service = new TrainingScoreService(context, cardio, map, goingIn, TimeProvider.System);
         var identity = new IdentityUser { Id = userId.ToString() };
 
         if (args is [_, _, _, "--sessions", var from, var to])

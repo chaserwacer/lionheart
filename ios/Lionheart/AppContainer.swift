@@ -21,6 +21,7 @@ final class AppContainer {
     let history: HistoryStore
     let focus: FocusStore
     let balance: TrainingBalanceStore
+    let nonTrainingDays: NonTrainingDaysStore
     let goingIn: GoingInStore
     let chat: ChatStore
     let thread: ThreadStore
@@ -101,6 +102,7 @@ final class AppContainer {
             writes: client.writes)
         focus = FocusStore(api: FocusAPI(client: client))
         balance = TrainingBalanceStore(balance: TrainingBalanceAPI(client: client), focus: FocusAPI(client: client))
+        nonTrainingDays = NonTrainingDaysStore(api: AvailabilityAPI(client: client))
         goingIn = GoingInStore(api: GoingInAPI(client: client))
         chat = ChatStore(
             chat: ChatAPI(client: client),
@@ -175,6 +177,8 @@ final class AppContainer {
                 if balance.score.value != nil { await balance.refresh() }
             }
         }
+        // Every target on Train prorates to the days left, so a day marked or freed moves all of them.
+        nonTrainingDays.onChanged { [balance] in await balance.refresh() }
         // Today holds its own window of sessions, so a correction made from History shows there too.
         history.onRevised { [today, balance, runs] in
             await today.refresh()
@@ -199,7 +203,7 @@ final class AppContainer {
         // than the screens are: left settled, the next athlete on this device would walk straight
         // into the tabs on an account that has no profile behind them.
         auth.onSignOut {
-            [profile, today, train, routines, bodyweight, bodyComposition, movements, history, focus, balance, goingIn, chat,
+            [profile, today, train, routines, bodyweight, bodyComposition, movements, history, focus, balance, nonTrainingDays, goingIn, chat,
              thread, chatMemory, body, ouraSync, healthSync, healthMeasureSync, healthMeasures, runs, cardio, habits,
              diary, wellness, memory, glance] in
             profile.reset()
@@ -212,6 +216,7 @@ final class AppContainer {
             history.reset()
             focus.reset()
             balance.reset()
+            nonTrainingDays.reset()
             goingIn.reset()
             chat.reset()
             thread.reset()

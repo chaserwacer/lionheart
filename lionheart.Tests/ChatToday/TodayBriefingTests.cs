@@ -24,7 +24,8 @@ public sealed class TodayBriefingTests
         ReadinessFact? readiness = null,
         IReadOnlyList<InjuryFact>? injuries = null,
         MaxHeartRate? max = null,
-        string score = "") =>
+        string score = "",
+        IReadOnlyList<NonTrainingFact>? nonTraining = null) =>
         new(now ?? Evening,
             sessions ?? [],
             new CardioDays.Read(cardio ?? [], max),
@@ -36,7 +37,7 @@ public sealed class TodayBriefingTests
             null,
             injuries ?? [],
             [],
-            score);
+            nonTraining ?? []) { Score = score };
 
     private static SessionFact Lifting(DateOnly day, int hour, params (string Movement, PatternFamily Family, int Sets)[] lifts) =>
         new(day,
@@ -46,6 +47,18 @@ public sealed class TodayBriefingTests
             HasCardioSets: false,
             Difficulty: 3,
             Fatigue: null);
+
+    [Fact]
+    public void The_days_marked_non_training_ahead_are_stated_with_his_notes()
+    {
+        var briefing = TodayBriefing.Render(Facts(nonTraining:
+        [
+            new NonTrainingFact(Evening.Today, "travel"),
+            new NonTrainingFact(Evening.Today.AddDays(5), ""),
+        ]));
+
+        Assert.Contains("Marked non-training (he has said he will not train): today (travel), Sun 15 Mar.", briefing);
+    }
 
     [Fact]
     public void Now_is_stated_on_the_athletes_clock_with_its_offset_not_in_utc()

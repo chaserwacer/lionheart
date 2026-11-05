@@ -38,9 +38,8 @@ public sealed class GoingInServiceTests : IDisposable
     private async Task<GoingInState> ReadAsync()
     {
         await using var context = _db.CreateContext();
-        var facts = new TodayBriefingService(
-            context, new NoCardio(), _toolbox.Executor, MovementPatternMap.Shipped, new FixedClock(Evening),
-            NullLogger<TodayBriefingService>.Instance);
+        var facts = new TodayFactsService(
+            context, new NoCardio(), MovementPatternMap.Shipped, new FixedClock(Evening), NullLogger<TodayFactsService>.Instance);
         var volume = new TrainingVolumeService(context, MovementPatternMap.Shipped);
         return ResultAssert.Succeeded(await new GoingInService(context, facts, volume).GetAsync(Athlete, CancellationToken.None));
     }

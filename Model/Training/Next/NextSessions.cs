@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using lionheart.Model.Training.Balance;
+using lionheart.Model.Training.Expectations;
 using lionheart.Model.Training.Patterns;
-using lionheart.Model.Training.Sets;
 
 namespace lionheart.Model.Training.Next;
 
@@ -52,32 +52,6 @@ public abstract record NextLift
     {
         public override IReadOnlyList<string> Reasons { get; } = Reasons;
     }
-}
-
-/// <summary>A due family's priority lift and what its next top set should be.</summary>
-public sealed record PriorityAim(PatternFamily Family, Guid MovementDataId, string Name, LiftAim Aim);
-
-/// <summary>The next top set of a priority lift.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
-[JsonDerivedType(typeof(Beat), "beat")]
-[JsonDerivedType(typeof(Establish), "establish")]
-public abstract record LiftAim
-{
-    private protected LiftAim() { }
-
-    /// <summary>
-    /// The last session's best set with one step more — five pounds or 2.5 kilograms on the bar,
-    /// or one more rep where the load is bodyweight — and the twelve weeks' best estimate a new
-    /// best has to pass.
-    /// </summary>
-    /// <param name="Load">The load to move, in the lift's unit: the plate, or the system load where <paramref name="OnSystemLoad"/>.</param>
-    /// <param name="EstimatedOneRepMax">The Epley estimate of that set.</param>
-    /// <param name="BestToBeat">The best estimate of the last twelve weeks and the window.</param>
-    public sealed record Beat(
-        double Load, int Reps, WeightUnit Unit, double EstimatedOneRepMax, double BestToBeat, bool OnSystemLoad) : LiftAim;
-
-    /// <summary>No estimate in the last twelve weeks to build on: work up to a top set and set one.</summary>
-    public sealed record Establish : LiftAim;
 }
 
 /// <summary>The next cardio session: aerobic base, or a quality session with its structure.</summary>
