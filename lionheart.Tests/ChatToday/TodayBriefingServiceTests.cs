@@ -45,7 +45,7 @@ public sealed class TodayBriefingServiceTests : IDisposable
 
     private static TodayBriefingService Briefing(lionheart.Data.ModelContext context, ChatToolCallExecutor executor)
     {
-        var clock = new ZonedClock(Evening, Zone);
+        var clock = new FixedClock(Evening, Zone);
         return new TodayBriefingService(
             new TodayFactsService(context, new NoCardio(), MovementPatternMap.Shipped, clock, NullLogger<TodayFactsService>.Instance),
             executor,
@@ -111,7 +111,7 @@ public sealed class TodayBriefingServiceTests : IDisposable
         Guid injury;
         await using (var context = _db.CreateContext())
         {
-            injury = ResultAssert.Succeeded(await new InjuryService(context, new ZonedClock(Evening, Zone)).CreateInjuryAsync(Athlete, new CreateInjuryRequest
+            injury = ResultAssert.Succeeded(await new InjuryService(context, new FixedClock(Evening, Zone)).CreateInjuryAsync(Athlete, new CreateInjuryRequest
             {
                 Name = "Right knee tendinopathy", InjuryDate = new DateTime(2026, 3, 2), Notes = string.Empty,
             })).InjuryID;
@@ -120,7 +120,7 @@ public sealed class TodayBriefingServiceTests : IDisposable
 
         await using (var context = _db.CreateContext())
         {
-            ResultAssert.Succeeded(await new InjuryService(context, new ZonedClock(Evening, Zone)).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
+            ResultAssert.Succeeded(await new InjuryService(context, new FixedClock(Evening, Zone)).UpdateInjuryAsync(Athlete, new UpdateInjuryRequest
             {
                 InjuryID = injury, Name = "Right knee tendinopathy", Notes = string.Empty, IsActive = false,
             }));
@@ -196,12 +196,5 @@ public sealed class TodayBriefingServiceTests : IDisposable
     {
         public Task<Result<CardioReport, Problem>> GetReportAsync(IdentityUser user, DayRange range, CancellationToken ct) =>
             Task.FromResult(Result<CardioReport, Problem>.Failure(new Problem.Unexpected("No cardio in this test.")));
-    }
-
-    private sealed class ZonedClock(DateTimeOffset utc, TimeZoneInfo zone) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => utc;
-
-        public override TimeZoneInfo LocalTimeZone => zone;
     }
 }

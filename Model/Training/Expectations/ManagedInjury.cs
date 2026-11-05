@@ -3,8 +3,8 @@ using lionheart.Model.Training.Patterns;
 namespace lionheart.Model.Training.Expectations;
 
 /// <summary>
-/// An injury open on the day as the week manages around it: the families whose targets pause, the movements
-/// to leave out, and the trend in the weeks that led up to it.
+/// An injury open on the day as the week manages around it: the families whose targets pause, the
+/// movements to leave out, and the trend in the weeks that led up to it.
 /// </summary>
 /// <remarks>
 /// The families are the ones the athlete named on the injury, joined by the families of every

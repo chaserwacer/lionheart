@@ -16,7 +16,7 @@ public sealed class InjuryResolutionTests : IDisposable
 {
     // Two in the morning UTC is still the evening before five hours west.
     private static readonly TimeZoneInfo FiveHoursWest = TimeZoneInfo.CreateCustomTimeZone("Test-5", TimeSpan.FromHours(-5), "Test-5", "Test-5");
-    private static readonly ZonedClock EarlyUtc = new(new DateTimeOffset(2026, 3, 10, 2, 0, 0, TimeSpan.Zero), FiveHoursWest);
+    private static readonly FixedClock EarlyUtc = new(new DateTimeOffset(2026, 3, 10, 2, 0, 0, TimeSpan.Zero), FiveHoursWest);
     private static readonly DateOnly HisDay = new(2026, 3, 9);
 
     private readonly RemodelDatabase _db = new();
@@ -73,7 +73,7 @@ public sealed class InjuryResolutionTests : IDisposable
         var injury = await InjureAsync();
         await SetActiveAsync(injury, active: false, EarlyUtc);
 
-        await SetActiveAsync(injury, active: false, new ZonedClock(EarlyUtc.GetUtcNow().AddDays(5), FiveHoursWest));
+        await SetActiveAsync(injury, active: false, new FixedClock(EarlyUtc.GetUtcNow().AddDays(5), FiveHoursWest));
 
         Assert.Equal(new InjuryStanding.Resolved(HisDay), await StandingAsync());
     }
@@ -90,22 +90,27 @@ public sealed class InjuryResolutionTests : IDisposable
     }
 
     [Fact]
-    public async Task A_row_resolved_before_the_day_was_kept_reads_as_resolved_undated_and_stays_so_when_resolved_again()
+    public async Task A_row_resolved_before_the_day_was_kept_reads_as_resolved_undated()
     {
         var injury = await InjureAsync();
-        _db.ExecuteNonQuery($"UPDATE Injuries SET IsActive = 0 WHERE InjuryID = '{RemodelDatabase.SqlGuid(injury)}'");
-        var read = await StandingAsync();
 
-        await SetActiveAsync(injury, active: false, EarlyUtc);
+        ResolveWithoutADay(injury);
 
-        Assert.IsType<InjuryStanding.ResolvedUndated>(read);
         Assert.IsType<InjuryStanding.ResolvedUndated>(await StandingAsync());
     }
 
-    private sealed class ZonedClock(DateTimeOffset utc, TimeZoneInfo zone) : TimeProvider
+    [Fact]
+    public async Task Resolving_a_row_resolved_before_the_day_was_kept_does_not_date_it()
     {
-        public override DateTimeOffset GetUtcNow() => utc;
+        var injury = await InjureAsync();
+        ResolveWithoutADay(injury);
 
-        public override TimeZoneInfo LocalTimeZone => zone;
+        await SetActiveAsync(injury, active: false, EarlyUtc);
+
+        Assert.IsType<InjuryStanding.ResolvedUndated>(await StandingAsync());
     }
+
+    /// <summary>The shape a row resolved before the column existed was left in.</summary>
+    private void ResolveWithoutADay(Guid injury) =>
+        _db.ExecuteNonQuery($"UPDATE Injuries SET IsActive = 0 WHERE InjuryID = '{RemodelDatabase.SqlGuid(injury)}'");
 }
