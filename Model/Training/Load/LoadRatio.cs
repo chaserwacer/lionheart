@@ -9,7 +9,7 @@ namespace lionheart.Model.Training.Load;
 /// </summary>
 /// <remarks>
 /// Uncoupled — the chronic blocks exclude the window — because a coupled ratio counts the week
-/// against itself and understates every spike (Windt and Gabbett 2018; Impellizzeri et al. 2020).
+/// against itself and understates every spike (Windt and Gabbett 2019; Impellizzeri et al. 2020).
 /// The chronic figure is the same one the weekly targets grow from (<c>Progression</c>), so a
 /// target and the load it is judged by never disagree about what "usual" was. Two cases, because a
 /// figure with nothing read before it has no ratio: a first week back is not a ratio of zero.

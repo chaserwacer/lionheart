@@ -1,9 +1,10 @@
-# Training science: intensity credit, capacity targets, what's next
+# Training science: intensity credit, capacity targets, load, what's next
 
 The design authority for how the training score credits cardio intensity, how its targets follow
-capacity, and how the next lift and the next cardio are recommended. The code it describes:
-`Model/Cardio/WorkBouts.cs`, `Model/Cardio/QualityWork.cs`, `Model/Training/Score/Progression.cs`,
-`Services/Training/Score/TrainingScoreAnalysis.cs`, `Services/Training/Next/`.
+capacity, how load is managed in both directions, and how the next lift and the next cardio are
+recommended. The code it describes: `Model/Cardio/WorkBouts.cs`, `Model/Cardio/QualityWork.cs`,
+`Model/Training/Score/Progression.cs`, `Services/Training/Score/TrainingScoreAnalysis.cs`,
+`Services/Training/Load/`, `Services/Training/Next/`.
 
 ## 1. The problem
 
@@ -216,6 +217,126 @@ the next cardio is sized against the week's adjusted targets.
 The Train tab and the chat's TODAY briefing (through the `GetNextSessions` tool) read this one
 answer, and the workout tracker's header is built to read it too.
 
+**Leaning easier.** Besides low recovery, two things turn intervals into zone 2, capped at 45
+minutes rather than low recovery's 30: a day of everyday load far above his usual yesterday or
+today, and a week whose cardio minutes are already a spike over the four before. Running already
+steep this week asks for a ride or a row instead. A family an active injury pauses is passed over
+for the next one due, and the movements its check-ins name are named to leave out.
+
+## 6. Load, both directions
+
+Week expectations used to adapt only upward: the ramp grows a target from the four weeks before
+and caps it at the committed standard. Load management adds the other direction, and the load
+nothing logs. Code: `Services/Training/Load/`.
+
+### One definition of load
+
+A week's **load ratio** is its figure over the mean weekly figure of the four seven-day blocks
+before it — the acute:chronic ratio, *uncoupled*, the chronic blocks excluding the week. A coupled
+ratio (the week inside its own 28-day mean, which the going-in rating used to read) counts a spike
+against itself and understates it; the uncoupled form avoids the mathematical coupling Windt and
+Gabbett (2019) and Impellizzeri et al. (2020) describe. The chronic figure is the very one the
+targets grow from, so the targets, the going-in rating's load part, the cardio and running ramps
+and the deload all read load one way. A week reads **steep** at 1.3 times its usual — the top of the
+0.8–1.3 band Gabbett (2016) found injury risk lowest in — and a **spike** at 1.5, his "danger zone",
+once the rise is more than the measure's noise: six hard sets, thirty cardio minutes, three miles.
+Cardio minutes are not judged under an hour a week before: from almost nothing a week of cardio is
+a start, and holding it back would only keep him off cardio. Running is judged from nothing,
+because a first week of miles is exactly the injury risk a ramp guards (Nielsen et al. 2014).
+
+### A spike is not built on
+
+A spike lifts the chronic figure, so the ramp alone would ask more of the week after it on the
+strength of the spike itself. Every grown target now looks at the newest of its four blocks
+against the four before *it*: after a steep week the target is held at that week's own target;
+after a spike it is lowered to the usual of the four before, without the ramp. Only where that is
+lower than the ramp would ask — a target at the committed standard is left there — and on the raw
+target, since this is the progression model rather than a circumstance.
+
+### Deloads, suggested
+
+A deload — a planned lighter week, volume cut by about a third to a half with intensity held — is
+how accumulation blocks close; the practitioner consensus puts one every four to eight weeks
+(Bell et al. 2023). A **building week** met its families' raw targets and held at least 0.9 times
+the hard sets of the four weeks before it. A deload is suggested for a calendar week when, before
+its Monday:
+
+- four building weeks in a row *strained* him: a steep build, its weeks 1.3 times the four before on
+  average, or climbing tiredness — last week's accumulated fatigue or difficulty rated 4 of 5 or
+  more on average, or fatigue up a whole point over the run; or
+- six building weeks in a row, whatever else.
+
+Deloads are only ever suggested, never applied (settled with the athlete): nothing is planned or
+changed for him. The suggestion makes each family's adjusted target 60 % of what it was and holds
+every priority aim, so if he follows it the week's expectations read the deload as doing the plan.
+A week within 70 % of his usual hard sets (the mean of the four weeks before the Monday) reads as
+**following** it; over that, as training through it — fine, it was a suggestion. The raw targets
+and the score do not bend: a deload week scores lower raw and the adjusted score says it was the
+plan. The suggestion is decided from the weeks before the Monday, so it holds all week; whether he
+is following it is read from the week so far.
+
+### Everyday load
+
+A day on his feet tires him whatever earned it, and only training earns credit. **Everyday load**
+is the MET-minutes of every five-minute slot Oura classed as low, medium or high activity that no
+training session covered (every logged session with a start and an end, and every ring workout
+that could be a cardio session), weighted 0.75, 3.5 and 7 a minute — the middle of Oura's low
+(1.5–3 MET), medium (3–6) and high (6+) bands less the resting one, which is what Oura's own
+MET-minute totals over each band's time come to. Ring-detected housework, games of catch, dances
+and stretching stay everyday load and still earn no training credit.
+
+Each day is measured against **his own usual**: the median and 90th percentile of his complete days
+(the ring off three hours or less) in the 90 before it, four weeks of them at least. Over the 90th
+percentile is above usual; over it by a fifth is **far above**. Effects stay small unless the
+evidence is strong:
+
+- the going-in load part loses 0.03 a MET-minute over his 90th percentile, yesterday and today —
+  about a fifth of what the same work costs as zone 2, so a busy day costs it a couple of points
+  and a day far above it single figures;
+- a day far above usual yesterday or today leans the next cardio easier (above);
+- two or more days far above usual in a week ease its adjusted targets by half a day each, with the
+  reason ("Lowered to 7: 3 days far above your usual activity."); one big day eases nothing.
+
+Calibrated against his history: over the last year about one day in ten is above his usual (by
+construction), and far above came to eight days, none two in the same week — so ordinary active
+days move nothing and the week easing has never fired on a normal week. A three-day festival on his
+feet would land in it. A factor of a half rather than a fifth (tried first) caught two days in a
+year and would have missed exactly that festival.
+
+### Injuries ripple
+
+An active injury pauses the families it touches: the ones named on it, and the family of every
+movement its check-ins name. A paused family's adjusted target asks nothing, so the adjusted score
+holds nothing against it, and up next passes it over. The advice, while it is managed, is to hold
+that family's volume near its four-week average rather than build it; once it is resolved the
+target grows back from the four weeks before at the usual 10 %, which after weeks of holding is the
+gentle ramp back. Each managed injury carries its **lead-up** — a family's weekly hard sets in the
+four weeks before it against the eight before those — so the trend that preceded it is in view
+("Push volume rose 40 % in the 4 weeks before it"). Only whether an injury is active is stored,
+not when it resolved, so a resolved injury pauses nothing even in the weeks it was active.
+
+### One piece of advice a week
+
+The calendar week carries one piece of advice, chosen by fixed rules from the weeks before its
+Monday — never the model, so a page that shows it spends nothing and the chat is handed the same
+words. The first that holds wins: an active injury touching a family (hold it); a deload suggested;
+last week's running, then cardio minutes, steep or a spike (hold it); two or more days of everyday
+load far above usual last week (ease in); last week's lifting at 90 % of its targets or more with
+cardio at half or less (more cardio), or the reverse; a priority lift trained in each of the last
+four weeks without a new best (change one thing); otherwise keep building, naming what fell
+furthest behind. It reads only what was settled by the Monday — an injury dated after it waits for
+next week's advice, though its pause applies at once — so it does not flip through the week.
+
+### Calibration
+
+`score-calibration --user <id> --load <from> <to>` prints each week's load ratios, cardio and
+running ramps and far-above days, beside the deload and advice the next Monday would have been
+offered; `--everyday <from> <to>` prints each day's everyday load against his usual. Against his
+history: his lifting comes in blocks after lay-offs rather than long unbroken builds, so a deload
+would have been suggested four times in three years, each after a fast four-week return, and once
+followed; steady training never reached six building weeks. The advice most weeks is keep building
+or more cardio, which is what the weeks were.
+
 ## Decisions he may want to change
 
 1. **Zone 3 earns nothing.** Steady running at 70–80 % of maximum is neither zone 2 nor quality. The
@@ -234,6 +355,17 @@ answer, and the workout tracker's header is built to read it too.
    would hold targets up after travel; reading it as it was ramps back from what was done.
 7. **The hold rule's thresholds.** Going-in under 65, RPE 9.5, difficulty 5, fatigue 4. Holding at
    RPE 9 or difficulty 4 would hold more often.
+8. **Steep 1.3, spike 1.5, and their noise floors** (six hard sets, thirty minutes, three miles; no
+   cardio-minute ramp under an hour a week). Lower thresholds would hold targets back more often.
+9. **A spike holds the raw target**, so the score's target after a spike is lower. Applying it only
+   to the adjusted target would keep the score's target on the plain ramp.
+10. **The deload rule**: four straining or six building weeks, 60 % of each target, 70 % as
+    following. His ratings are sparse, so today it is the steep-build signal that fires.
+11. **Everyday load's far-above line** at a fifth over his 90th percentile, its half-day easing,
+    and 0.03 a MET-minute on the going-in rating.
+12. **Injury pauses are adjusted only.** The raw score still counts a paused family against its
+    target; pausing it there too would take its points out of reach, as an unknown part's are.
+13. **Advice order.** Injury, deload, ramp, everyday, balance, stall, keep building.
 
 ## Sources
 
@@ -241,6 +373,9 @@ answer, and the workout tracker's header is built to read it too.
   2003;33(7):517–538.
 - Banister EW. Modeling elite athletic performance. In: *Physiological Testing of Elite Athletes*,
   Human Kinetics, 1991.
+- Bell L, Strafford BW, Coleman M, Androulakis-Korakakis P, Nolan D. Integrating deloading into
+  strength and physique sports training programmes: an international Delphi consensus approach.
+  *Sports Med Open* 2023;9:87.
 - Buchheit M, Laursen PB. High-intensity interval training, solutions to the programming puzzle.
   Part I. *Sports Med* 2013;43(5):313–338.
 - Casado A, González-Mohíno F, González-Ravé JM, Foster C. Training periodization, methods,
@@ -283,3 +418,5 @@ answer, and the workout tracker's header is built to read it too.
   3 methods of training-intensity analysis. *Int J Sports Physiol Perform* 2014;9(1):100–107.
 - Wilson JM et al. Concurrent training: a meta-analysis examining interference of aerobic and
   resistance exercise. *J Strength Cond Res* 2012;26(8):2293–2307.
+- Windt J, Gabbett TJ. Is it all for naught? What does mathematical coupling mean for acute:chronic
+  workload ratios? *Br J Sports Med* 2019;53(16):988–990.
