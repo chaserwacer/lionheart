@@ -13,8 +13,9 @@ namespace lionheart.Model.Health;
 /// which is what records, the cardio report and the score already read.
 /// <para>
 /// Written at import and never corrected: a correction to the session restates its set, and the
-/// route stays what the device recorded. The one later write fills in <see cref="Metrics"/> for a
-/// workout imported before Lionheart read them (<see cref="FillMetrics"/>).
+/// route stays what the device recorded. The only later writes fill in what it holds none of — the
+/// metrics of a workout imported before Lionheart read them (<see cref="FillMetrics"/>), or the
+/// route and heart rate the Strava archive kept where Health carried none (<see cref="Fill"/>).
 /// </para>
 /// </remarks>
 public sealed class WorkoutRecording
@@ -23,8 +24,8 @@ public sealed class WorkoutRecording
 
     public Guid TrainingSessionId { get; private init; }
     public Guid UserId { get; private init; }
-    public WorkoutRoute Route { get; private init; } = WorkoutRoute.None;
-    public RecordedHeartRate HeartRate { get; private init; } = RecordedHeartRate.None;
+    public WorkoutRoute Route { get; private set; } = WorkoutRoute.None;
+    public RecordedHeartRate HeartRate { get; private set; } = RecordedHeartRate.None;
     public RecordedMetrics Metrics { get; private set; } = RecordedMetrics.None;
 
     public static WorkoutRecording Of(
@@ -50,4 +51,28 @@ public sealed class WorkoutRecording
         Metrics = offered;
         return true;
     }
+
+    /// <summary>
+    /// Takes each part of another recording of the same workout — its route, its heart rate, its
+    /// metrics — where this one holds none of that part, and says which it took. A part held here is
+    /// never replaced, so filling again from the same recording takes nothing.
+    /// </summary>
+    public RecordingFill Fill(WorkoutRoute route, RecordedHeartRate heartRate, RecordedMetrics metrics)
+    {
+        var fill = new RecordingFill(
+            Route: Route.Points.Count is 0 && route.Points.Count > 0,
+            HeartRate: !HeartRate.IsRecorded && heartRate.IsRecorded,
+            Metrics: !Metrics.IsRecorded && metrics.IsRecorded);
+
+        if (fill.Route) Route = route;
+        if (fill.HeartRate) HeartRate = heartRate;
+        if (fill.Metrics) Metrics = metrics;
+        return fill;
+    }
+}
+
+/// <summary>Which parts of a recording a fill took: each one it held none of and was offered.</summary>
+public sealed record RecordingFill(bool Route, bool HeartRate, bool Metrics)
+{
+    public bool Any => Route || HeartRate || Metrics;
 }

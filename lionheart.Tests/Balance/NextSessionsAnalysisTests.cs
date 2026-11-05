@@ -214,7 +214,7 @@ public class NextSessionsAnalysisTests
         var start = new DateTimeOffset(day.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-5));
         return new CardioSession(
             new CardioSessionSource.LoggedSession(Guid.NewGuid(), true, true), start, start.AddMinutes(40), 8000,
-            new SessionHeartRate.Recorded(160, 185, 1, new ZoneMinutes(0, 5, 10, 10, 12, 3), HeartRateSource.AppleHealth)
+            new SessionHeartRate.Recorded(160, 185, 1, new ZoneMinutes(0, 5, 10, 10, 12, 3), HeartRateSource.RecordingApp)
             {
                 Bouts = [new WorkBout(start.AddMinutes(10), 6, 172), new WorkBout(start.AddMinutes(20), 6, 174)],
             });

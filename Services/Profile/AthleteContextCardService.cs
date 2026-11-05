@@ -391,7 +391,7 @@ namespace lionheart.Services.Profile
                 .OfType<CompletedTrainingSession>()
                 .AsNoTracking()
                 .Where(s => s.UserId == userId
-                            && EF.Property<Guid?>(s, RemodelConfiguration.HealthWorkoutIdColumn) != null
+                            && _context.WorkoutRecordings.Any(recording => recording.TrainingSessionId == s.TrainingSessionId)
                             && EF.Property<DateTime>(s, "StartTime") >= cutoff)
                 .ToListAsync();
         }

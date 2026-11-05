@@ -83,8 +83,8 @@ public sealed record TrailRunSet(
 }
 
 /// <summary>
-/// A ride, a hike, a walk or an indoor run: an endurance session that names no movement, measured
-/// the way a trail run is.
+/// A ride, a hike, a walk, an indoor run, an e-bike ride or a paddle: an endurance session that
+/// names no movement, measured the way a trail run is.
 /// </summary>
 /// <remarks>
 /// Its own shape rather than a trail run carrying an activity, because a ride is not a run: what

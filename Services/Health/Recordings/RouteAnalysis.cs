@@ -72,6 +72,23 @@ public static class RouteAnalysis
     public static bool KeepsTime(WorkoutRoute route, TimeSpan elapsed) =>
         route.HasPath && route.Points[^1].At - route.Points[0].At >= elapsed * TimedShare;
 
+    /// <summary>
+    /// The distance a recorded workout is measured by: the recording app's stated one, else its
+    /// route's length; nothing when neither has any.
+    /// </summary>
+    public static double? Distance(double? statedMeters, WorkoutRoute route) =>
+        statedMeters is > 0 and var stated ? stated
+        : Figures(route).Meters is > 0 and var measured ? measured
+        : null;
+
+    /// <summary>
+    /// The climb a recorded workout is held to: the recording app's own figure where it stated one,
+    /// since it may have read a barometer or a terrain model, and otherwise what the route's
+    /// altitudes show. To a tenth of a metre, the precision a climb is stated to anywhere.
+    /// </summary>
+    public static double Climb(double? statedMeters, WorkoutRoute route) =>
+        Math.Round(statedMeters ?? Figures(route).ClimbMeters ?? 0, 1);
+
     public static RouteFigures Figures(WorkoutRoute route)
     {
         if (!route.HasPath) return new RouteFigures(0, TimeSpan.Zero, null, null);

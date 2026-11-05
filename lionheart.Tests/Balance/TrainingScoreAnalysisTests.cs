@@ -214,7 +214,7 @@ public class TrainingScoreAnalysisTests
         var start = new DateTimeOffset(2026, 11, 5, 18, 0, 0, TimeSpan.FromHours(-5));
         var run = new CardioSession(
             new CardioSessionSource.LoggedSession(Guid.NewGuid(), true, true), start, start.AddMinutes(40), 8000,
-            new SessionHeartRate.Recorded(150, 175, 1, new ZoneMinutes(0, 0, 30, 10, 0, 0), HeartRateSource.AppleHealth));
+            new SessionHeartRate.Recorded(150, 175, 1, new ZoneMinutes(0, 0, 30, 10, 0, 0), HeartRateSource.RecordingApp));
 
         var measured = Assert.IsType<CardioMeasure.Measured>(CardioMeasures.Of([run], [], MaxHeartRate.Estimate(22, null), heartRateDays: 0));
 
@@ -227,7 +227,7 @@ public class TrainingScoreAnalysisTests
         var start = new DateTimeOffset(2026, 11, 5, 18, 0, 0, TimeSpan.FromHours(-5));
         var run = new CardioSession(
             new CardioSessionSource.LoggedSession(Guid.NewGuid(), true, true), start, start.AddMinutes(30), 6000,
-            new SessionHeartRate.Recorded(150, 175, 1, new ZoneMinutes(0, 0, 30, 0, 0, 0), HeartRateSource.AppleHealth));
+            new SessionHeartRate.Recorded(150, 175, 1, new ZoneMinutes(0, 0, 30, 0, 0, 0), HeartRateSource.RecordingApp));
         var walk = new CardioSession(
             new CardioSessionSource.RingWorkout(Guid.NewGuid(), "walking", WorkoutCategory.Walk, RingEntry.Detected),
             start.AddDays(1), start.AddDays(1).AddMinutes(60), null, new SessionHeartRate.NotRecorded());

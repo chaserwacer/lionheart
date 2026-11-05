@@ -5,8 +5,9 @@ using lionheart.Model.Training.Sessions;
 namespace lionheart.Model.Health;
 
 /// <summary>
-/// A workout imported from Apple Health, read for its own page: the session's figures, the route,
-/// the splits, the heart rate across it, and whatever else the recording app measured.
+/// A recorded workout — imported from Apple Health or the Strava archive — read for its own page:
+/// the session's figures, the route, the splits, the heart rate across it, and whatever else the
+/// recording app measured.
 /// </summary>
 /// <remarks>
 /// The distance, time and climb are the session's own set, so the page, the records and the cardio
@@ -19,7 +20,11 @@ namespace lionheart.Model.Health;
 /// own unit.
 /// </para>
 /// </remarks>
-/// <param name="Activity">What the session is: a run, a ride, a hike, a walk, indoors or out.</param>
+/// <param name="Source">
+/// Where the workout was imported from, as the session holds it: an Apple Health workout with the
+/// app that wrote it there, or a Strava activity from the archive.
+/// </param>
+/// <param name="Activity">What the session is: a run, a ride, a hike, a walk, indoors or out, an e-bike ride or a paddle.</param>
 /// <param name="Duration">The time the recording app counted, which excludes a pause it recorded.</param>
 /// <param name="MovingTime">The route's time in motion, or absent with no route whose clock can be read.</param>
 /// <param name="Pace">The duration over the distance, per kilometre; absent with no distance.</param>
@@ -32,7 +37,7 @@ namespace lionheart.Model.Health;
 /// <param name="Metrics">Each other metric the app wrote, in the order they are declared; empty for none.</param>
 public sealed record RecordedWorkoutView(
     Guid TrainingSessionId,
-    RecordingApp RecordedBy,
+    SessionSource Source,
     DateTimeOffset Start,
     DateTimeOffset End,
     double DistanceMeters,
@@ -61,6 +66,8 @@ public enum RecordedActivity
     [JsonStringEnumMemberName("hike")] Hike,
     [JsonStringEnumMemberName("walk")] Walk,
     [JsonStringEnumMemberName("indoorRun")] IndoorRun,
+    [JsonStringEnumMemberName("eBikeRide")] EBikeRide,
+    [JsonStringEnumMemberName("paddle")] Paddle,
 }
 
 /// <summary>One metric across the workout: its mean, its highest, and the samples, for drawing.</summary>

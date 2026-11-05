@@ -116,33 +116,14 @@ public sealed record HealthWorkoutImport(
 /// <param name="Altitude">Metres above sea level, or absent where the fix had no valid altitude.</param>
 public sealed record RoutePointCommand(DateTimeOffset At, double Latitude, double Longitude, double? Altitude)
 {
-    /// <summary>
-    /// A millionth of a degree, about 11 cm — finer than any phone's fix, and what keeps a stored
-    /// coordinate to ten characters rather than seventeen.
-    /// </summary>
-    private const int CoordinateDecimals = 6;
-
-    /// <summary>A tenth of a metre, finer than the altitude a phone reports.</summary>
-    private const int AltitudeDecimals = 1;
-
     public Result<RoutePoint, Problem> ToPoint() =>
-        Latitude is >= -90 and <= 90 && Longitude is >= -180 and <= 180
-        && (Altitude is null || double.IsFinite(Altitude.Value))
-            ? Result<RoutePoint, Problem>.Success(new RoutePoint(
-                At,
-                Math.Round(Latitude, CoordinateDecimals),
-                Math.Round(Longitude, CoordinateDecimals),
-                Altitude is { } altitude ? Math.Round(altitude, AltitudeDecimals) : null))
-            : Result<RoutePoint, Problem>.Failure(new Problem.Invalid(
-                nameof(HealthWorkoutImport.Route), $"The fix at {At:O} is not a place on Earth."));
+        RoutePoint.Fix(At, Latitude, Longitude, Altitude)
+            .MapError(Problem (reason) => new Problem.Invalid(nameof(HealthWorkoutImport.Route), reason));
 }
 
 public sealed record HeartRateCommand(DateTimeOffset At, int Bpm)
 {
-    /// <summary>Above any human heart rate, so a reading past it is a sensor's mistake.</summary>
-    private const int Highest = 260;
-
-    public bool IsHeartRate => Bpm is > 0 and <= Highest;
+    public bool IsHeartRate => RecordedHeartRate.Admits(Bpm);
 }
 
 /// <param name="Metric">The metric's wire name: <c>power</c>, <c>cadence</c>, <c>speed</c>, <c>groundContactTime</c>…</param>
